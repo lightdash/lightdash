@@ -33,6 +33,11 @@ import {
     PRIMARY_SOURCE_ID,
 } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
+import {
+    rankJoinFieldCandidates,
+    type JoinFieldCandidate,
+    type RankedJoinFieldCandidates,
+} from '../utils/rankJoinFieldCandidates';
 
 /**
  * Everything derived from the selected sources and their relationship:
@@ -174,37 +179,113 @@ export const useMergeSetup = () => {
         additionalSourceId,
     ]);
 
-    // The first key part defaults to the suggested pair, falling back to each
-    // query's first dimension while the explores are still loading. Further
-    // parts start empty because there is no obvious default.
-    const effectiveParts = useMemo(
+    // A join key is any dimension of the source's explore, selected or not:
+    // the leg groups by it and the merged result shows it once, as the key.
+    // Custom dimensions remain limited to ones already present in the query
+    // because they cannot be recreated by id.
+    const availablePrimaryJoinItems = useMemo(
         () =>
-            joinParts.map((part, index) => ({
-                fieldIdBySourceId: {
-                    [PRIMARY_SOURCE_ID]:
-                        part.fieldIdBySourceId[PRIMARY_SOURCE_ID] ??
-                        (index === 0
-                            ? (suggestedPair?.[PRIMARY_SOURCE_ID] ??
-                              metricQuery.dimensions[0] ??
-                              null)
-                            : null),
-                    [additionalSourceId]:
-                        part.fieldIdBySourceId[additionalSourceId] ??
-                        (index === 0
-                            ? (suggestedPair?.[additionalSourceId] ??
-                              additionalSource.dimensions[0] ??
-                              null)
-                            : null),
-                },
-            })),
+            Object.entries(primaryItemMap).flatMap(([id, item]) =>
+                isDimension(item) ||
+                (isCustomDimension(item) && metricQuery.dimensions.includes(id))
+                    ? [item]
+                    : [],
+            ),
+        [primaryItemMap, metricQuery.dimensions],
+    );
+    const availableAdditionalJoinItems = useMemo(
+        () =>
+            Object.entries(additionalItemMap).flatMap(([id, item]) =>
+                isDimension(item) ||
+                (isCustomDimension(item) &&
+                    additionalSource.dimensions.includes(id))
+                    ? [item]
+                    : [],
+            ),
+        [additionalItemMap, additionalSource.dimensions],
+    );
+
+    // The field chosen on one side ranks the other side's candidates: the
+    // validator's type and grain rules rule fields out, a shared name or
+    // label recommends them.
+    const getJoinCandidates = useCallback(
+        (
+            side: 'primary' | 'additional',
+            counterpartFieldId: string | null,
+        ): RankedJoinFieldCandidates<JoinFieldCandidate> => {
+            const counterpart = counterpartFieldId
+                ? (side === 'primary' ? additionalItemMap : primaryItemMap)[
+                      counterpartFieldId
+                  ]
+                : undefined;
+            return rankJoinFieldCandidates(
+                side === 'primary'
+                    ? availablePrimaryJoinItems
+                    : availableAdditionalJoinItems,
+                counterpart &&
+                    (isDimension(counterpart) || isCustomDimension(counterpart))
+                    ? counterpart
+                    : undefined,
+            );
+        },
         [
-            joinParts,
-            suggestedPair,
-            metricQuery.dimensions,
-            additionalSource.dimensions,
-            additionalSourceId,
+            primaryItemMap,
+            additionalItemMap,
+            availablePrimaryJoinItems,
+            availableAdditionalJoinItems,
         ],
     );
+
+    // The first key part defaults to the suggested pair among selected
+    // fields, then to the one field the other side's choice recommends,
+    // then to each query's first dimension while the explores are still
+    // loading. Further parts start empty because there is no obvious default.
+    const effectiveParts = useMemo(() => {
+        const soleSuggestion = (
+            side: 'primary' | 'additional',
+            counterpartFieldId: string | null,
+        ) => {
+            const { suggested } = getJoinCandidates(side, counterpartFieldId);
+            return suggested.length === 1 ? getItemId(suggested[0]) : null;
+        };
+        return joinParts.map((part, index) => {
+            const chosenPrimary = part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
+            const chosenAdditional = part.fieldIdBySourceId[additionalSourceId];
+            if (index > 0) {
+                return {
+                    fieldIdBySourceId: {
+                        [PRIMARY_SOURCE_ID]: chosenPrimary ?? null,
+                        [additionalSourceId]: chosenAdditional ?? null,
+                    },
+                };
+            }
+            const primary =
+                chosenPrimary ??
+                suggestedPair?.[PRIMARY_SOURCE_ID] ??
+                soleSuggestion('primary', chosenAdditional ?? null) ??
+                metricQuery.dimensions[0] ??
+                null;
+            const additional =
+                chosenAdditional ??
+                suggestedPair?.[additionalSourceId] ??
+                soleSuggestion('additional', primary) ??
+                additionalSource.dimensions[0] ??
+                null;
+            return {
+                fieldIdBySourceId: {
+                    [PRIMARY_SOURCE_ID]: primary,
+                    [additionalSourceId]: additional,
+                },
+            };
+        });
+    }, [
+        joinParts,
+        suggestedPair,
+        getJoinCandidates,
+        metricQuery.dimensions,
+        additionalSource.dimensions,
+        additionalSourceId,
+    ]);
     const completeParts = effectiveParts.filter(
         (part) =>
             part.fieldIdBySourceId[PRIMARY_SOURCE_ID] &&
@@ -307,32 +388,6 @@ export const useMergeSetup = () => {
                         !!item &&
                         (isDimension(item) || isCustomDimension(item)),
                 ),
-        [additionalItemMap, additionalSource.dimensions],
-    );
-
-    // A join key is any dimension of the source's explore, selected or not:
-    // the leg groups by it and the merged result shows it once, as the key.
-    // Custom dimensions remain limited to ones already present in the query
-    // because they cannot be recreated by id.
-    const availablePrimaryJoinItems = useMemo(
-        () =>
-            Object.entries(primaryItemMap).flatMap(([id, item]) =>
-                isDimension(item) ||
-                (isCustomDimension(item) && metricQuery.dimensions.includes(id))
-                    ? [item]
-                    : [],
-            ),
-        [primaryItemMap, metricQuery.dimensions],
-    );
-    const availableAdditionalJoinItems = useMemo(
-        () =>
-            Object.entries(additionalItemMap).flatMap(([id, item]) =>
-                isDimension(item) ||
-                (isCustomDimension(item) &&
-                    additionalSource.dimensions.includes(id))
-                    ? [item]
-                    : [],
-            ),
         [additionalItemMap, additionalSource.dimensions],
     );
 
@@ -587,6 +642,7 @@ export const useMergeSetup = () => {
         additionalJoinItems,
         availablePrimaryJoinItems,
         availableAdditionalJoinItems,
+        getJoinCandidates,
         suggestedAvailablePair,
         primaryExploreLabel,
         additionalExploreLabel,

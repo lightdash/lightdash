@@ -184,6 +184,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
         joinFieldLabel,
         availablePrimaryJoinItems,
         availableAdditionalJoinItems,
+        getJoinCandidates,
         suggestedAvailablePair,
         primaryExploreLabel,
         additionalExploreLabel,
@@ -301,173 +302,207 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                         <Text size="xs" fw={600}>
                             Join conditions
                         </Text>
-                        {effectiveParts.map((part, index) => (
-                            // eslint-disable-next-line react/no-array-index-key
-                            <Box className={styles.pair} key={index}>
-                                {index > 0 ? (
-                                    <Box className={styles.andDivider}>
-                                        <Text
-                                            span
-                                            size="xs"
-                                            c="dimmed"
-                                            fw={600}
-                                        >
-                                            AND
-                                        </Text>
-                                    </Box>
-                                ) : null}
-                                {index === 0 &&
-                                    !part.fieldIdBySourceId[
-                                        PRIMARY_SOURCE_ID
-                                    ] &&
-                                    !part.fieldIdBySourceId[
-                                        additionalSourceId
-                                    ] &&
-                                    suggestedAvailablePair && (
-                                        <Box className={styles.suggestion}>
-                                            <Text size="xs" c="dimmed">
-                                                Suggested:{' '}
-                                                <Text
-                                                    span
-                                                    inherit
+                        {effectiveParts.map((part, index) => {
+                            const primaryCandidates = getJoinCandidates(
+                                'primary',
+                                part.fieldIdBySourceId[additionalSourceId],
+                            );
+                            const additionalCandidates = getJoinCandidates(
+                                'additional',
+                                part.fieldIdBySourceId[PRIMARY_SOURCE_ID],
+                            );
+                            return (
+                                // eslint-disable-next-line react/no-array-index-key
+                                <Box className={styles.pair} key={index}>
+                                    {index > 0 ? (
+                                        <Box className={styles.andDivider}>
+                                            <Text
+                                                span
+                                                size="xs"
+                                                c="dimmed"
+                                                fw={600}
+                                            >
+                                                AND
+                                            </Text>
+                                        </Box>
+                                    ) : null}
+                                    {index === 0 &&
+                                        !part.fieldIdBySourceId[
+                                            PRIMARY_SOURCE_ID
+                                        ] &&
+                                        !part.fieldIdBySourceId[
+                                            additionalSourceId
+                                        ] &&
+                                        suggestedAvailablePair && (
+                                            <Box className={styles.suggestion}>
+                                                <Text size="xs" c="dimmed">
+                                                    Suggested:{' '}
+                                                    <Text
+                                                        span
+                                                        inherit
+                                                        fw={600}
+                                                        c="gray.7"
+                                                    >
+                                                        {getJoinClauseLabel(
+                                                            thisQuery,
+                                                            labelFor(
+                                                                suggestedAvailablePair[
+                                                                    PRIMARY_SOURCE_ID
+                                                                ],
+                                                            ),
+                                                            otherQuery,
+                                                            labelFor(
+                                                                suggestedAvailablePair[
+                                                                    additionalSourceId
+                                                                ],
+                                                            ),
+                                                        )}
+                                                    </Text>
+                                                </Text>
+                                                <Anchor
+                                                    component="button"
+                                                    type="button"
+                                                    size="xs"
                                                     fw={600}
-                                                    c="gray.7"
-                                                >
-                                                    {getJoinClauseLabel(
-                                                        thisQuery,
-                                                        labelFor(
+                                                    onClick={() => {
+                                                        const primaryField =
                                                             suggestedAvailablePair[
                                                                 PRIMARY_SOURCE_ID
-                                                            ],
-                                                        ),
-                                                        otherQuery,
-                                                        labelFor(
+                                                            ];
+                                                        const additionalField =
                                                             suggestedAvailablePair[
                                                                 additionalSourceId
-                                                            ],
-                                                        ),
-                                                    )}
-                                                </Text>
-                                            </Text>
-                                            <Anchor
-                                                component="button"
-                                                type="button"
+                                                            ];
+                                                        if (
+                                                            !primaryField ||
+                                                            !additionalField
+                                                        )
+                                                            return;
+                                                        setJoinField(
+                                                            index,
+                                                            PRIMARY_SOURCE_ID,
+                                                            primaryField,
+                                                        );
+                                                        setJoinField(
+                                                            index,
+                                                            additionalSourceId,
+                                                            additionalField,
+                                                        );
+                                                    }}
+                                                >
+                                                    Use suggestion
+                                                </Anchor>
+                                            </Box>
+                                        )}
+                                    <Box className={styles.pairFields}>
+                                        <Stack
+                                            gap={4}
+                                            className={styles.fieldSide}
+                                        >
+                                            <SourceLabel label={thisQuery} />
+                                            <FieldSelect
+                                                aria-label={`${thisQuery} join field`}
                                                 size="xs"
-                                                fw={600}
-                                                onClick={() => {
-                                                    const primaryField =
-                                                        suggestedAvailablePair[
+                                                placeholder="Choose a field"
+                                                hasGrouping
+                                                items={
+                                                    availablePrimaryJoinItems
+                                                }
+                                                suggestedItems={
+                                                    primaryCandidates.suggested
+                                                }
+                                                inactiveItemIds={primaryCandidates.incompatible.map(
+                                                    getItemId,
+                                                )}
+                                                item={availablePrimaryJoinItems.find(
+                                                    (candidate) =>
+                                                        getItemId(candidate) ===
+                                                        part.fieldIdBySourceId[
                                                             PRIMARY_SOURCE_ID
-                                                        ];
-                                                    const additionalField =
-                                                        suggestedAvailablePair[
-                                                            additionalSourceId
-                                                        ];
-                                                    if (
-                                                        !primaryField ||
-                                                        !additionalField
-                                                    )
-                                                        return;
+                                                        ],
+                                                )}
+                                                onChange={(value) =>
                                                     setJoinField(
                                                         index,
                                                         PRIMARY_SOURCE_ID,
-                                                        primaryField,
-                                                    );
+                                                        value
+                                                            ? getItemId(value)
+                                                            : null,
+                                                    )
+                                                }
+                                            />
+                                        </Stack>
+                                        <Text
+                                            className={styles.operator}
+                                            aria-hidden
+                                            size="sm"
+                                            fw={600}
+                                        >
+                                            =
+                                        </Text>
+                                        <Stack
+                                            gap={4}
+                                            className={styles.fieldSide}
+                                        >
+                                            <SourceLabel label={otherQuery} />
+                                            <FieldSelect
+                                                aria-label={`${otherQuery} join field`}
+                                                size="xs"
+                                                placeholder="Choose a field"
+                                                hasGrouping
+                                                items={
+                                                    availableAdditionalJoinItems
+                                                }
+                                                suggestedItems={
+                                                    additionalCandidates.suggested
+                                                }
+                                                inactiveItemIds={additionalCandidates.incompatible.map(
+                                                    getItemId,
+                                                )}
+                                                item={availableAdditionalJoinItems.find(
+                                                    (candidate) =>
+                                                        getItemId(candidate) ===
+                                                        part.fieldIdBySourceId[
+                                                            additionalSourceId
+                                                        ],
+                                                )}
+                                                onChange={(value) =>
                                                     setJoinField(
                                                         index,
                                                         additionalSourceId,
-                                                        additionalField,
-                                                    );
-                                                }}
-                                            >
-                                                Use suggestion
-                                            </Anchor>
-                                        </Box>
-                                    )}
-                                <Box className={styles.pairFields}>
-                                    <Stack gap={4} className={styles.fieldSide}>
-                                        <SourceLabel label={thisQuery} />
-                                        <FieldSelect
-                                            aria-label={`${thisQuery} join field`}
-                                            size="xs"
-                                            placeholder="Choose a field"
-                                            hasGrouping
-                                            items={availablePrimaryJoinItems}
-                                            item={availablePrimaryJoinItems.find(
-                                                (candidate) =>
-                                                    getItemId(candidate) ===
-                                                    part.fieldIdBySourceId[
-                                                        PRIMARY_SOURCE_ID
-                                                    ],
-                                            )}
-                                            onChange={(value) =>
-                                                setJoinField(
-                                                    index,
-                                                    PRIMARY_SOURCE_ID,
-                                                    value
-                                                        ? getItemId(value)
-                                                        : null,
-                                                )
-                                            }
-                                        />
-                                    </Stack>
-                                    <Text
-                                        className={styles.operator}
-                                        aria-hidden
-                                        size="sm"
-                                        fw={600}
-                                    >
-                                        =
-                                    </Text>
-                                    <Stack gap={4} className={styles.fieldSide}>
-                                        <SourceLabel label={otherQuery} />
-                                        <FieldSelect
-                                            aria-label={`${otherQuery} join field`}
-                                            size="xs"
-                                            placeholder="Choose a field"
-                                            hasGrouping
-                                            items={availableAdditionalJoinItems}
-                                            item={availableAdditionalJoinItems.find(
-                                                (candidate) =>
-                                                    getItemId(candidate) ===
-                                                    part.fieldIdBySourceId[
-                                                        additionalSourceId
-                                                    ],
-                                            )}
-                                            onChange={(value) =>
-                                                setJoinField(
-                                                    index,
-                                                    additionalSourceId,
-                                                    value
-                                                        ? getItemId(value)
-                                                        : null,
-                                                )
-                                            }
-                                        />
-                                    </Stack>
-                                    {effectiveParts.length > 1 ? (
-                                        <ActionIcon
-                                            className={styles.removeKey}
-                                            size="sm"
-                                            onClick={() =>
-                                                removeJoinPart(index)
-                                            }
-                                            aria-label={`Remove join condition ${index + 1}`}
-                                        >
-                                            <MantineIcon
-                                                icon={IconX}
-                                                size={14}
+                                                        value
+                                                            ? getItemId(value)
+                                                            : null,
+                                                    )
+                                                }
                                             />
-                                        </ActionIcon>
-                                    ) : (
-                                        <Box
-                                            aria-hidden
-                                            className={styles.removeKeySpacer}
-                                        />
-                                    )}
+                                        </Stack>
+                                        {effectiveParts.length > 1 ? (
+                                            <ActionIcon
+                                                className={styles.removeKey}
+                                                size="sm"
+                                                onClick={() =>
+                                                    removeJoinPart(index)
+                                                }
+                                                aria-label={`Remove join condition ${index + 1}`}
+                                            >
+                                                <MantineIcon
+                                                    icon={IconX}
+                                                    size={14}
+                                                />
+                                            </ActionIcon>
+                                        ) : (
+                                            <Box
+                                                aria-hidden
+                                                className={
+                                                    styles.removeKeySpacer
+                                                }
+                                            />
+                                        )}
+                                    </Box>
                                 </Box>
-                            </Box>
-                        ))}
+                            );
+                        })}
 
                         <Anchor
                             component="button"
