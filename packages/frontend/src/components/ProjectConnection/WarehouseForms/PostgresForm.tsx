@@ -22,6 +22,7 @@ import DataTimezoneField from './DataTimezoneField';
 import { PostgresDefaultValues } from './defaultValues';
 import { useCreateSshKeyPair } from './sshHooks';
 import { SshStaticIpHint } from './SshStaticIpHint';
+import WarehouseDatabaseListingFields from './WarehouseDatabaseListingFields';
 
 export const PostgresSchemaInput: FC<{
     disabled: boolean;
@@ -124,6 +125,10 @@ const PostgresForm: FC<{
                     name="warehouse.dbname"
                     {...form.getInputProps('warehouse.dbname')}
                     disabled={disabled}
+                />
+                <WarehouseDatabaseListingFields
+                    disabled={disabled}
+                    warehouseType={WarehouseTypes.POSTGRES}
                 />
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">

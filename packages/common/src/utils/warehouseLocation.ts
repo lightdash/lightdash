@@ -46,9 +46,10 @@ export const getWarehouseLocationLabels = (
         case WarehouseTypes.REDSHIFT:
         case WarehouseTypes.TRINO:
         case WarehouseTypes.SNOWFLAKE:
-        case WarehouseTypes.ATHENA:
         case WarehouseTypes.DUCKDB:
             return { database: 'Database', schema: 'Schema' };
+        case WarehouseTypes.ATHENA:
+            return { database: 'Data catalog', schema: 'Database' };
         default:
             return assertUnreachable(
                 warehouseType,
