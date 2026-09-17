@@ -21,6 +21,17 @@ const metric = (type: MetricType, label = 'Value'): Metric => ({
 });
 
 describe('merge totals', () => {
+    it('has no total for a column that repeats on every matching row', () => {
+        expect(getMergeTotalAggregation(metric(MetricType.SUM), true)).toBe(
+            null,
+        );
+        expect(
+            getMergeTotalUnavailableReason(metric(MetricType.SUM), true),
+        ).toBe(
+            'Value repeats on every matching row of the other query, so a total over the merged rows would count it more than once.',
+        );
+    });
+
     it.each([
         [MetricType.SUM, 'sum'],
         [MetricType.COUNT, 'sum'],

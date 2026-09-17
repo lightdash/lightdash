@@ -14,8 +14,11 @@ export const toSavedMerge = (mergeQuery: MergeQuery): SavedMergeQuery => {
     return {
         primarySourceId: PRIMARY_SOURCE_ID,
         sources: mergeQuery.sources.map((source) => {
+            const repeat =
+                source.repeatValues === true ? { repeatValues: true } : {};
             if (source.id === PRIMARY_SOURCE_ID) {
                 return {
+                    ...repeat,
                     id: source.id,
                     kind: 'chart' as const,
                 };
@@ -28,6 +31,7 @@ export const toSavedMerge = (mergeQuery: MergeQuery): SavedMergeQuery => {
                 );
             }
             return {
+                ...repeat,
                 id: source.id,
                 kind: 'query' as const,
                 metricQuery: source.metricQuery,

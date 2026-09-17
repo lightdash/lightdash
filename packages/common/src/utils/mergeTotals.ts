@@ -12,8 +12,10 @@ export type MergeTotalAggregation = 'sum' | 'min' | 'max';
  */
 export const getMergeTotalAggregation = (
     item: ItemsMap[string] | undefined,
+    /** The column repeats on every matching row, so no sum over rows is exact. */
+    repeated = false,
 ): MergeTotalAggregation | null => {
-    if (!item || !isMetric(item)) return null;
+    if (!item || !isMetric(item) || repeated) return null;
     const { type } = item;
     switch (type) {
         case MetricType.SUM:
@@ -79,8 +81,12 @@ const describeMetricType = (type: MetricType): string => {
 /** Why a merged column has no total, in the user's terms. */
 export const getMergeTotalUnavailableReason = (
     item: ItemsMap[string],
+    repeated = false,
 ): string => {
     const label = getItemLabelWithoutTableName(item);
+    if (repeated) {
+        return `${label} repeats on every matching row of the other query, so a total over the merged rows would count it more than once.`;
+    }
     const what = isMetric(item)
         ? describeMetricType(item.type)
         : 'not a metric';

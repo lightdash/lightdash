@@ -90,6 +90,9 @@ export const MergeProvider: FC<
     const [joinType, setJoinType] = useState<MergeJoinType>(
         restored?.joinType ?? MergeJoinType.FULL,
     );
+    const [repeatValuesSourceIds, setRepeatValuesSourceIds] = useState<
+        string[]
+    >(restored?.repeatValuesSourceIds ?? []);
     const isMerging = additionalSources.length > 0;
     const activeRun = useRef(0);
     const lastRun = useRef<{
@@ -167,6 +170,9 @@ export const MergeProvider: FC<
                 return { fieldIdBySourceId };
             }),
         );
+        // Repeating was a relationship between two sources; with one gone the
+        // other's flag has nothing to repeat across.
+        setRepeatValuesSourceIds([]);
         setRunState({
             isRunning: false,
             errors: [],
@@ -271,6 +277,19 @@ export const MergeProvider: FC<
         [],
     );
 
+    const setRepeatValues = useCallback(
+        (sourceId: string, repeatValues: boolean) => {
+            setRepeatValuesSourceIds((current) =>
+                repeatValues
+                    ? current.includes(sourceId)
+                        ? current
+                        : [...current, sourceId]
+                    : current.filter((id) => id !== sourceId),
+            );
+        },
+        [],
+    );
+
     const setSourceFilters = useCallback(
         (sourceId: string, filters: Filters) => {
             setAdditionalSources((current) =>
@@ -300,6 +319,7 @@ export const MergeProvider: FC<
                             additionalSources,
                             joinParts,
                             joinType,
+                            repeatValuesSourceIds,
                         }),
                     );
                 } else {
@@ -316,6 +336,7 @@ export const MergeProvider: FC<
         additionalSources,
         joinParts,
         joinType,
+        repeatValuesSourceIds,
         setSearchParams,
     ]);
 
@@ -542,6 +563,7 @@ export const MergeProvider: FC<
             additionalSources,
             joinParts,
             joinType,
+            repeatValuesSourceIds,
             addSource,
             removeSource,
             setFocus,
@@ -551,6 +573,7 @@ export const MergeProvider: FC<
             addJoinPart,
             removeJoinPart,
             setJoinType,
+            setRepeatValues,
             setSourceFilters,
         }),
         [
@@ -574,6 +597,7 @@ export const MergeProvider: FC<
             additionalSources,
             joinParts,
             joinType,
+            repeatValuesSourceIds,
             addSource,
             removeSource,
             setSourceExplore,
@@ -581,6 +605,7 @@ export const MergeProvider: FC<
             setJoinField,
             addJoinPart,
             removeJoinPart,
+            setRepeatValues,
             setSourceFilters,
         ],
     );

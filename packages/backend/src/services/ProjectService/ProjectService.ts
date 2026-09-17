@@ -6480,6 +6480,12 @@ export class ProjectService extends BaseService {
         const resolvedMetricQueryBySourceId = Object.fromEntries(
             resolvedSources.map((source) => [source.id, source.metricQuery]),
         );
+        const repeatValuesBySourceId = Object.fromEntries(
+            mergeQuery.sources.map((source) => [
+                source.id,
+                source.repeatValues === true,
+            ]),
+        );
         const exploreBySourceId = Object.fromEntries(
             resolvedSources.map((source) => [source.id, source.explore]),
         );
@@ -6493,6 +6499,7 @@ export class ProjectService extends BaseService {
             sources: resolvedSources.map(({ id, metricQuery }) => ({
                 id,
                 metricQuery,
+                ...(repeatValuesBySourceId[id] ? { repeatValues: true } : {}),
             })),
         };
         const fieldTypes = this.getMergeJoinFieldTypes(

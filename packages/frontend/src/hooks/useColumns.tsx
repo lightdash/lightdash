@@ -6,6 +6,7 @@ import {
     getItemId,
     getItemMap,
     getMergeTotalAggregation,
+    getRepeatedMergeFieldIds,
     getMergeTotalUnavailableReason,
     getMetricOverridesWithPopInheritance,
     isCustomDimension,
@@ -526,6 +527,13 @@ export const useColumns = (): TableColumn[] => {
                 : exploreActiveFields,
         [mergeResults, exploreActiveFields],
     );
+    const repeatedFieldIds = useMemo(
+        () =>
+            mergeResults
+                ? getRepeatedMergeFieldIds(mergeResults.mergeQuery.sources)
+                : [],
+        [mergeResults],
+    );
     const resultsMetricQuery =
         mergeResults?.metricQuery ?? query.data?.metricQuery;
     const resultsFields = mergeResults?.fields ?? query.data?.fields;
@@ -785,12 +793,16 @@ export const useColumns = (): TableColumn[] => {
                             mergeResults &&
                             totalsEnabledByDefault &&
                             canHaveWarehouseTotal(item) &&
-                            getMergeTotalAggregation(item) === null
+                            getMergeTotalAggregation(
+                                item,
+                                repeatedFieldIds.includes(fieldId),
+                            ) === null
                         ) {
                             return (
                                 <TotalNotComputableCell
                                     reason={getMergeTotalUnavailableReason(
                                         item,
+                                        repeatedFieldIds.includes(fieldId),
                                     )}
                                 />
                             );
@@ -894,5 +906,6 @@ export const useColumns = (): TableColumn[] => {
         timezone,
         mergeResults,
         mergeSourceLabels,
+        repeatedFieldIds,
     ]);
 };

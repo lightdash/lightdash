@@ -57,6 +57,16 @@ describe('buildMergeTotalsSql', () => {
         );
     });
 
+    it('leaves out the columns of a source that repeats its values', () => {
+        const statement = buildMergeTotalsSql(
+            ['merge_join_key_0', 'a_orders_total', 'b_payments_max'],
+            itemsMap,
+            ['b_payments_max'],
+        );
+
+        expect(statement?.fieldIds).toEqual(['a_orders_total']);
+    });
+
     it('has nothing to run when no column can be totalled exactly', () => {
         expect(
             buildMergeTotalsSql(

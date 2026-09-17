@@ -24,6 +24,7 @@ describe('restoreSavedMerge', () => {
                     {
                         id: 'subscriptions',
                         kind: 'query',
+                        repeatValues: true,
                         metricQuery: {
                             exploreName: 'subscriptions',
                             dimensions: ['subscriptions_month'],
@@ -65,6 +66,7 @@ describe('restoreSavedMerge', () => {
                 },
             ],
             joinType: MergeJoinType.FULL,
+            repeatValuesSourceIds: ['subscriptions'],
         });
     });
 });

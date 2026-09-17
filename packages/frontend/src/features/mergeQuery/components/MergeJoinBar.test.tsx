@@ -19,6 +19,7 @@ const state = vi.hoisted(() => ({
     addJoinPart: vi.fn(),
     removeJoinPart: vi.fn(),
     setJoinType: vi.fn(),
+    setRepeatValues: vi.fn(),
     toggleSourceField: vi.fn(),
     merge: {
         isMerging: true,
@@ -32,6 +33,7 @@ const state = vi.hoisted(() => ({
             },
         ],
         joinType: 'full',
+        repeatValuesSourceIds: [] as string[],
         mergeResults: undefined,
         runErrors: [],
     },
@@ -53,7 +55,7 @@ const state = vi.hoisted(() => ({
                 customers_id: 'ID',
                 customers_account_key: 'Account key',
             })[fieldId] ?? fieldId,
-        fanOut: [],
+        fanOut: [] as Array<{ sourceId: string; fields: string[] }>,
         joinKeyErrors: [],
         joinFieldLabel: 'join fields',
         primaryJoinItems: [] as TestItem[],
@@ -99,6 +101,7 @@ vi.mock('../context/useMerge', () => ({
         addJoinPart: state.addJoinPart,
         removeJoinPart: state.removeJoinPart,
         setJoinType: state.setJoinType,
+        setRepeatValues: state.setRepeatValues,
         toggleSourceField: state.toggleSourceField,
     }),
 }));
@@ -184,6 +187,8 @@ const resetState = () => {
     state.setup.additionalJoinItems = [additionalItems[0]];
     state.setup.availablePrimaryJoinItems = primaryItems;
     state.setup.availableAdditionalJoinItems = additionalItems;
+    state.setup.fanOut = [];
+    state.merge.repeatValuesSourceIds = [];
     state.setup.suggestedAvailablePair = null;
     state.setup.getJoinCandidates = () => ({
         suggested: [],
@@ -369,6 +374,40 @@ describe('MergeJoinBar', () => {
         fullOuter.focus();
         await user.keyboard('{ArrowRight}');
         expect(state.setJoinType).toHaveBeenCalledWith(MergeJoinType.INNER);
+    });
+
+    it("offers to repeat the other query's values when one side is split", async () => {
+        const user = userEvent.setup();
+        state.setup.fanOut = [
+            { sourceId: PRIMARY_SOURCE_ID, fields: ['orders_account_id'] },
+        ];
+
+        renderWithProviders(<MergeJoinBar guided />);
+
+        expect(
+            screen.getByText(/Orders is split by Account ID/),
+        ).toBeInTheDocument();
+        await user.click(
+            screen.getByRole('button', {
+                name: /repeat Customers's values on every Orders row/,
+            }),
+        );
+        expect(state.setRepeatValues).toHaveBeenCalledWith('b', true);
+    });
+
+    it('says which query repeats and lets the user stop it', async () => {
+        const user = userEvent.setup();
+        state.merge.repeatValuesSourceIds = ['b'];
+
+        renderWithProviders(<MergeJoinBar guided />);
+
+        expect(
+            screen.getByText(/Customers's values repeat on every Orders row/),
+        ).toBeInTheDocument();
+        await user.click(
+            screen.getByRole('button', { name: 'Stop repeating' }),
+        );
+        expect(state.setRepeatValues).toHaveBeenCalledWith('b', false);
     });
 
     it('keeps both source and field names in the collapsed summary', () => {
