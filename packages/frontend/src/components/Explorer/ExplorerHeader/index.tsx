@@ -44,9 +44,7 @@ const ExplorerHeader: FC = memo(() => {
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
     const { query, mergeResults, resultsData } = useExplorerResultsData();
 
-    // A merge limits once, after the join, with the limit it was asked for;
-    // the legs run whole. So the rows on screen are a prefix of the merged
-    // result, never of a leg, and the remedy is the same row limit control.
+    // For a merge the effective limit is the merged result's, not a leg's.
     const reachedLimit = mergeResults ? mergeResults.mergeQuery.limit : limit;
     const showLimitWarning = useMemo(
         () =>
