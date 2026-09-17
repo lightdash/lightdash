@@ -1,0 +1,60 @@
+.treeRow {
+    width: 100%;
+    border-radius: var(--mantine-radius-md);
+    padding-block: rem(4px);
+    padding-inline-end: rem(8px);
+    padding-inline-start: calc(rem(8px) + var(--proto-depth) * rem(14px));
+    color: var(--mantine-color-text);
+    transition: background-color 120ms ease;
+}
+
+.treeRow:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.tableRow {
+    color: var(--mantine-color-ldGray-7);
+}
+
+.tableRow:hover {
+    color: var(--mantine-color-text);
+}
+
+.tableRow[data-active] {
+    background-color: light-dark(rgb(24 24 27 / 0.07), rgb(236 236 238 / 0.09));
+    color: var(--mantine-color-text);
+    font-weight: 500;
+}
+
+.connectionRow {
+    padding-block: rem(6px);
+}
+
+.connectionRow[data-active] {
+    background-color: light-dark(rgb(24 24 27 / 0.05), rgb(236 236 238 / 0.07));
+}
+
+.rowIcon {
+    flex-shrink: 0;
+    color: var(--mantine-color-dimmed);
+}
+
+.chevron {
+    flex-shrink: 0;
+    color: var(--mantine-color-dimmed);
+}
+
+.chevronPlaceholder {
+    flex-shrink: 0;
+    width: rem(14px);
+}
+
+.copyButton {
+    position: absolute;
+    top: rem(3px);
+    right: rem(6px);
+}
+
+.switchPrompt {
+    flex-shrink: 0;
+}

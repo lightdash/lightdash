@@ -30,6 +30,7 @@ import useCreateInAnySpaceAccess from '../../../../hooks/user/useCreateInAnySpac
 import useApp from '../../../../providers/App/useApp';
 import { CreateVirtualViewModal } from '../../../virtualView';
 import { useCreateSqlRunnerShareUrl } from '../../hooks/useSqlRunnerShareUrl';
+import { ProtoConnectionPickerSlot } from '../../prototype';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
     EditorTabs,
@@ -312,6 +313,7 @@ export const HeaderCreate: FC = () => {
                     </Group>
 
                     <Group gap="xs">
+                        <ProtoConnectionPickerSlot />
                         {hasAnyAction && (
                             <Button.Group>
                                 <Button

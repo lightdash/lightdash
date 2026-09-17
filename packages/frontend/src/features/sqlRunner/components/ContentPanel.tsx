@@ -54,6 +54,11 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
 import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
+import {
+    isProtoMultiConnectionEnabled,
+    ProtoResultsConnectionLabelSlot,
+    useProtoConnectionsOptional,
+} from '../prototype';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     clearParameterValues,
@@ -165,9 +170,16 @@ export const ContentPanel: FC = () => {
     const queryResults = useAppSelector(selectSqlQueryResults);
     const hasQueryResults = useMemo(() => !!queryResults, [queryResults]);
 
+    const protoConnections = useProtoConnectionsOptional();
+
     const handleRunQuery = useCallback(
         async (sqlToUse: string) => {
             if (!sqlToUse || !limit) return;
+
+            if (isProtoMultiConnectionEnabled && protoConnections) {
+                protoConnections.recordRun(sqlToUse);
+                return;
+            }
 
             if (
                 activeEditorTab === EditorTabs.VISUALIZATION &&
@@ -196,6 +208,7 @@ export const ContentPanel: FC = () => {
             }
         },
         [
+            protoConnections,
             activeEditorTab,
             dispatch,
             projectUuid,
@@ -805,6 +818,7 @@ export const ContentPanel: FC = () => {
                             <Box className={styles.cardHeader}>
                                 <Group gap="sm">
                                     <Title order={6}>Results</Title>
+                                    <ProtoResultsConnectionLabelSlot />
                                     {queryResults?.results && (
                                         <Text fz="xs" c="dimmed">
                                             {resultsRunner.getRows().length}{' '}
