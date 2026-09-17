@@ -1,3 +1,11 @@
+# [2.248.0](https://github.com/lightdash/lightdash/compare/2.247.1...2.248.0) (2026-09-17)
+
+
+### Features
+
+* **chart-types:** option to force-upgrade all saved-chart consumers when upgrading a chart type ([#29361](https://github.com/lightdash/lightdash/issues/29361)) ([0540ae8](https://github.com/lightdash/lightdash/commit/0540ae845105cac08b8aff67aebaefb5243b9f35))
+* **parameters:** resolve `today` date parameter default at query time ([#29406](https://github.com/lightdash/lightdash/issues/29406)) ([56065df](https://github.com/lightdash/lightdash/commit/56065dfb86c3699b9b6b1646116e0ad0b654af19))
+
 ## [2.247.1](https://github.com/lightdash/lightdash/compare/2.247.0...2.247.1) (2026-09-17)
 
 

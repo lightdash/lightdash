@@ -20687,10 +20687,15 @@
             "ApiListRegistryChartTypesResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__registryEnabled-boolean--charts-RegistryChartTypeListItem-Array__"
             },
-            "ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged__": {
+            "ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged--upgradedChartCount_description-Savedchartsrepinnedby_96_upgradeConsumingCharts_96__40_0whennotrequested_41_._-number__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "upgradedChartCount": {
+                                "type": "number",
+                                "format": "double",
+                                "description": "Saved charts repinned by `upgradeConsumingCharts` (0 when not requested)."
+                            },
                             "action": {
                                 "type": "string",
                                 "enum": ["installed", "upgraded", "unchanged"]
@@ -20706,7 +20711,13 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["action", "version", "slug", "appUuid"],
+                        "required": [
+                            "upgradedChartCount",
+                            "action",
+                            "version",
+                            "slug",
+                            "appUuid"
+                        ],
                         "type": "object"
                     },
                     "status": {
@@ -20719,7 +20730,16 @@
                 "type": "object"
             },
             "ApiInstallRegistryChartTypeResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged--upgradedChartCount_description-Savedchartsrepinnedby_96_upgradeConsumingCharts_96__40_0whennotrequested_41_._-number__"
+            },
+            "InstallRegistryChartTypeBody": {
+                "properties": {
+                    "upgradeConsumingCharts": {
+                        "type": "boolean",
+                        "description": "Also move every consuming saved chart's pinned version onto the\ninstalled version, deliberately overriding per-chart pins. Unpinned\ncharts already follow the latest version and are left untouched."
+                    }
+                },
+                "type": "object"
             },
             "DataAppViz": {
                 "properties": {
@@ -20878,6 +20898,38 @@
             },
             "ApiDataAppVizDeleteImpactResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppVizDeleteImpact_"
+            },
+            "DataAppVizUpgradeImpact": {
+                "properties": {
+                    "pinnedChartCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Charts whose config pins a chart type version (`dataAppVizVersion`)."
+                    },
+                    "chartCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["pinnedChartCount", "chartCount"],
+                "type": "object"
+            },
+            "ApiSuccess_DataAppVizUpgradeImpact_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DataAppVizUpgradeImpact"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppVizUpgradeImpactResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppVizUpgradeImpact_"
             },
             "ApiSuccess__questions-string-Array__": {
                 "properties": {
@@ -63421,7 +63473,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.247.1",
+        "version": "2.248.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

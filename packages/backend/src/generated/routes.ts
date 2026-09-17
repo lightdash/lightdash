@@ -19419,7 +19419,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged__':
+    'ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged--upgradedChartCount_description-Savedchartsrepinnedby_96_upgradeConsumingCharts_96__40_0whennotrequested_41_._-number__':
         {
             dataType: 'refAlias',
             type: {
@@ -19428,6 +19428,10 @@ const models: TsoaRoute.Models = {
                     results: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
+                            upgradedChartCount: {
+                                dataType: 'double',
+                                required: true,
+                            },
                             action: {
                                 dataType: 'union',
                                 subSchemas: [
@@ -19452,7 +19456,18 @@ const models: TsoaRoute.Models = {
     ApiInstallRegistryChartTypeResponse: {
         dataType: 'refAlias',
         type: {
-            ref: 'ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged__',
+            ref: 'ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged--upgradedChartCount_description-Savedchartsrepinnedby_96_upgradeConsumingCharts_96__40_0whennotrequested_41_._-number__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    InstallRegistryChartTypeBody: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                upgradeConsumingCharts: { dataType: 'boolean' },
+            },
             validators: {},
         },
     },
@@ -19606,6 +19621,35 @@ const models: TsoaRoute.Models = {
     ApiDataAppVizDeleteImpactResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccess_DataAppVizDeleteImpact_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizUpgradeImpact: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pinnedChartCount: { dataType: 'double', required: true },
+                chartCount: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_DataAppVizUpgradeImpact_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'DataAppVizUpgradeImpact', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiDataAppVizUpgradeImpactResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_DataAppVizUpgradeImpact_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ApiSuccess__questions-string-Array__': {
@@ -75451,6 +75495,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
+        body: { in: 'body', name: 'body', ref: 'InstallRegistryChartTypeBody' },
     };
     app.post(
         '/api/v1/ee/projects/:projectUuid/apps/registry/charts/:chartSlug/install',
@@ -75688,6 +75733,73 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getDataAppVizDeleteImpact',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_getDataAppVizUpgradeImpact: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        dataAppVizUuid: {
+            in: 'path',
+            name: 'dataAppVizUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/upgrade-impact',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.getDataAppVizUpgradeImpact,
+        ),
+
+        async function AppGenerateController_getDataAppVizUpgradeImpact(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_getDataAppVizUpgradeImpact,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getDataAppVizUpgradeImpact',
                     controller,
                     response,
                     next,
