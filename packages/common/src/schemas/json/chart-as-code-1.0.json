@@ -2289,15 +2289,6 @@
             "enum": ["full", "left", "inner"],
             "type": "string"
         },
-        "MergeQuerySourceRepeatValues": {
-            "description": "Opt in to an intentional one-to-many join: this source's value columns\nrepeat on every row the other sources produce for the same key, so the\nothers may carry dimensions that are not join keys. Off by default,\nbecause a repeated metric is counted more than once by any sum over the\nmerged rows.",
-            "properties": {
-                "repeatValues": {
-                    "type": "boolean"
-                }
-            },
-            "type": "object"
-        },
         "MergeTableCalculation": {
             "description": "A calculation over the *merged* result, which is the only place a row-wise\ncalculation across two queries can correctly live. References name a source\nand one of its fields, `${sourceId.fieldId}`, because the merged statement\nrenames columns to keep two sources from colliding.",
             "properties": {
@@ -3241,6 +3232,13 @@
                     "description": "Source whose rows a LEFT merge preserves.",
                     "type": "string"
                 },
+                "repeatValuesSourceIds": {
+                    "description": "Sources that repeat their values across the other sources' extra\ndimensions (MergeQueryMetricSource.repeatValues). Kept on the merge,\nnot the source, so the source shapes stay as they were saved.\nOmitted when none repeat.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
                 "sources": {
                     "items": {
                         "$ref": "#/$defs/SavedMergeQuerySource"
@@ -3266,47 +3264,33 @@
         "SavedMergeQuerySource": {
             "anyOf": [
                 {
-                    "allOf": [
-                        {
-                            "$ref": "#/$defs/MergeQuerySourceRepeatValues"
+                    "properties": {
+                        "id": {
+                            "type": "string"
                         },
-                        {
-                            "properties": {
-                                "id": {
-                                    "type": "string"
-                                },
-                                "kind": {
-                                    "enum": ["chart"],
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["kind", "id"],
-                            "type": "object"
+                        "kind": {
+                            "enum": ["chart"],
+                            "type": "string"
                         }
-                    ]
+                    },
+                    "required": ["kind", "id"],
+                    "type": "object"
                 },
                 {
-                    "allOf": [
-                        {
-                            "$ref": "#/$defs/MergeQuerySourceRepeatValues"
+                    "properties": {
+                        "id": {
+                            "type": "string"
                         },
-                        {
-                            "properties": {
-                                "id": {
-                                    "type": "string"
-                                },
-                                "kind": {
-                                    "enum": ["query"],
-                                    "type": "string"
-                                },
-                                "metricQuery": {
-                                    "$ref": "#/$defs/MetricQuery"
-                                }
-                            },
-                            "required": ["metricQuery", "kind", "id"],
-                            "type": "object"
+                        "kind": {
+                            "enum": ["query"],
+                            "type": "string"
+                        },
+                        "metricQuery": {
+                            "$ref": "#/$defs/MetricQuery"
                         }
-                    ]
+                    },
+                    "required": ["metricQuery", "kind", "id"],
+                    "type": "object"
                 }
             ],
             "description": "A persisted merge source.\n\nThe chart source is a reference: its metric query already lives on the chart\nversion. Every additional source owns its query. This keeps one source of\ntruth while allowing more sources without adding `thirdQuery`, `fourthQuery`,\nand so on."

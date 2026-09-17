@@ -558,7 +558,6 @@ describe('saved merge query schemas', () => {
                         ['payments_month'],
                         ['payments_total'],
                     ),
-                    repeatValues: true,
                 },
             ],
             joinKey: [
@@ -572,6 +571,7 @@ describe('saved merge query schemas', () => {
             ],
             joinType: MergeJoinType.LEFT,
             tableCalculations: [],
+            repeatValuesSourceIds: ['payments'],
         };
 
         const parsed = parseSavedMergeQuery(

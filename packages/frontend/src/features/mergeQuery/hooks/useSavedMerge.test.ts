@@ -104,9 +104,10 @@ describe('toSavedMerge', () => {
             primarySourceId: 'a',
             sources: [
                 { id: 'a', kind: 'chart' },
-                { id: 'payments', kind: 'query', repeatValues: true },
+                { id: 'payments', kind: 'query' },
                 { id: 'subscriptions', kind: 'query' },
             ],
+            repeatValuesSourceIds: ['payments'],
             joinKey: [
                 {
                     fieldIdBySourceId: {
