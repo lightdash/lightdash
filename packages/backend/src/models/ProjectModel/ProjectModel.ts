@@ -150,6 +150,7 @@ import {
     DbSavedSql,
     InsertSql,
     SavedSqlTableName,
+    SavedSqlVersionsTableName,
 } from '../../database/entities/savedSql';
 import {
     DbSpace,
@@ -2705,6 +2706,10 @@ export class ProjectModel {
                             yield {
                                 row: {
                                     project_uuid: projectUuid,
+                                    connection_uuid:
+                                        explore.tables?.[
+                                            explore.baseTable ?? explore.name
+                                        ]?.connectionUuid ?? null,
                                     name: explore.name,
                                     table_names: Object.keys(
                                         explore.tables || {},
@@ -2736,7 +2741,11 @@ export class ProjectModel {
                             ? insertQuery.returning('cached_explore_uuid')
                             : insertQuery
                                   .onConflict(['name', 'project_uuid'])
-                                  .merge(['table_names', 'explore'])
+                                  .merge([
+                                      'connection_uuid',
+                                      'table_names',
+                                      'explore',
+                                  ])
                                   .returning('cached_explore_uuid'));
                         individualCachedExplores.push(...saved);
                     }
@@ -2789,6 +2798,10 @@ export class ProjectModel {
                                 row: {
                                     save_uuid: saveUuid,
                                     project_uuid: projectUuid,
+                                    connection_uuid:
+                                        explore.tables?.[
+                                            explore.baseTable ?? explore.name
+                                        ]?.connectionUuid ?? null,
                                     name: explore.name,
                                     table_names: Object.keys(
                                         explore.tables || {},
@@ -2815,7 +2828,11 @@ export class ProjectModel {
                         )
                             .insert(uniqueRows)
                             .onConflict(['save_uuid', 'name', 'project_uuid'])
-                            .merge(['table_names', 'explore']);
+                            .merge([
+                                'connection_uuid',
+                                'table_names',
+                                'explore',
+                            ]);
                         chunkCount += 1;
                         largestChunkBytes = Math.max(largestChunkBytes, bytes);
                     }
@@ -2836,13 +2853,14 @@ export class ProjectModel {
                                     cached_explore_uuid: string;
                                 }[];
                             }>(
-                                `INSERT INTO ?? (save_uuid, project_uuid, name, table_names, explore)
-                                 SELECT ?, project_uuid, name, table_names, explore
+                                `INSERT INTO ?? (save_uuid, project_uuid, connection_uuid, name, table_names, explore)
+                                 SELECT ?, project_uuid, connection_uuid, name, table_names, explore
                                  FROM ??
                                  WHERE project_uuid = ?
                                    AND explore->>'type' = ANY(?)
                                  ON CONFLICT (save_uuid, name, project_uuid) DO UPDATE
-                                 SET table_names = EXCLUDED.table_names,
+                                 SET connection_uuid = EXCLUDED.connection_uuid,
+                                     table_names = EXCLUDED.table_names,
                                      explore = EXCLUDED.explore
                                  RETURNING name, cached_explore_uuid`,
                                 [
@@ -2889,8 +2907,13 @@ export class ProjectModel {
                                     cached_explore_uuid: string;
                                 }[];
                             }>(
-                                `INSERT INTO ?? (cached_explore_uuid, project_uuid, name, table_names, explore)
-                                 SELECT cached_explore_uuid, project_uuid, name, table_names, explore
+                                `INSERT INTO ?? (cached_explore_uuid, project_uuid, connection_uuid, name, table_names, explore)
+                                 SELECT cached_explore_uuid,
+                                        project_uuid,
+                                        connection_uuid,
+                                        name,
+                                        table_names,
+                                        explore
                                  FROM ??
                                  WHERE save_uuid = ? AND project_uuid = ?
                                  RETURNING name, cached_explore_uuid`,
@@ -2997,6 +3020,27 @@ export class ProjectModel {
                 }
             },
         );
+    }
+
+    async stampProjectContent(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx(CachedExploreTableName)
+                .where({ project_uuid: projectUuid })
+                .whereNull('connection_uuid')
+                .update({ connection_uuid: connectionUuid });
+            await trx(SavedSqlVersionsTableName)
+                .whereNull('connection_uuid')
+                .whereIn(
+                    'saved_sql_uuid',
+                    trx(SavedSqlTableName)
+                        .select('saved_sql_uuid')
+                        .where({ project_uuid: projectUuid }),
+                )
+                .update({ connection_uuid: connectionUuid });
+        });
     }
 
     async tryAcquireProjectLock(

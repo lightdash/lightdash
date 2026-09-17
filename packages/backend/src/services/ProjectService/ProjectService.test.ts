@@ -326,6 +326,9 @@ const projectModel = {
     upsertMergedManifest: vi.fn<ProjectModel['upsertMergedManifest']>(
         async () => undefined,
     ),
+    stampProjectContent: vi.fn<ProjectModel['stampProjectContent']>(
+        async () => undefined,
+    ),
     getMergedManifest: vi.fn(async () => Buffer.from('merged-manifest')),
 };
 const organizationWarehouseCredentialsModel = {
@@ -633,6 +636,17 @@ type RefreshForTest = <T>(
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigMock);
+
+    test('stamps project content through the project model', async () => {
+        projectModel.stampProjectContent.mockClear();
+
+        await service.stampProjectContent(projectUuid, 'connection-uuid');
+
+        expect(projectModel.stampProjectContent).toHaveBeenCalledWith(
+            projectUuid,
+            'connection-uuid',
+        );
+    });
 
     describe('warehouse database listing and table cache', () => {
         const defaultDatabase = {
@@ -7583,7 +7597,18 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         flagEnabled: boolean,
         sources: unknown[],
     ) => {
-        const getSources = vi.fn(async () => sources);
+        const materializedSources =
+            sources.length === 0 ||
+            sources.some(
+                (source) =>
+                    typeof source === 'object' &&
+                    source !== null &&
+                    'isPrimary' in source &&
+                    source.isPrimary === true,
+            )
+                ? sources
+                : [{ name: 'dbt_project', isPrimary: true }, ...sources];
+        const getSources = vi.fn(async () => materializedSources);
         const projectService = getMockedProjectService(
             lightdashConfigMock,
         ) as unknown as ProjectServiceInternals;
@@ -7707,12 +7732,15 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     const buildSource = (
         name: string,
         warehouseLocation: WarehouseLocation = EMPTY_WAREHOUSE_LOCATION,
+        isPrimary = false,
     ): ProjectDbtSource => ({
         projectDbtSourceUuid: `${name}-uuid`,
         projectUuid: 'project-uuid',
+        connectionUuid: `${name}-connection-uuid`,
+        namespacePrefix: isPrimary ? '' : name,
         name,
-        isPrimary: false,
-        precedence: 1,
+        isPrimary,
+        precedence: isPrimary ? 0 : 1,
         dbtConnection: { type: DbtProjectType.NONE },
         warehouseLocation,
         hasCredentialError: false,
@@ -7745,7 +7773,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                     selectedModelIds.primary,
                 ),
             },
-            sources: [buildSource('source-b')],
+            sources: [
+                buildSource('dbt_project', EMPTY_WAREHOUSE_LOCATION, true),
+                buildSource('source-b'),
+            ],
             manifestFetchAdapters: [],
         });
         return { projectService, adapter };
@@ -8009,10 +8040,18 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
 
         expect(explores.map(({ name }) => name).sort()).toEqual([
-            'dbt_project__orders',
-            'orders_with_custom_dims',
+            'orders',
             'source-b__orders',
+            'source-b__orders_with_custom_dims',
         ]);
+        const sourceExplore = explores.find(
+            ({ name }) => name === 'source-b__orders',
+        );
+        expect(
+            sourceExplore?.tables?.[
+                sourceExplore.baseTable ?? sourceExplore.name
+            ]?.connectionUuid,
+        ).toBe('source-b-connection-uuid');
     });
 
     it('still rejects the same model unique_id from two sources', async () => {
@@ -8155,7 +8194,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                     ]),
                 ),
             },
-            sources: [buildSource('source-b', warehouseLocation)],
+            sources: [
+                buildSource('dbt_project', EMPTY_WAREHOUSE_LOCATION, true),
+                buildSource('source-b', warehouseLocation),
+            ],
             manifestFetchAdapters: [],
         });
 
@@ -8361,42 +8403,32 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
     });
 
-    it('flag ON with zero sources (N=0) returns the primary adapter by identity', async () => {
+    it('flag ON rejects a project without a materialised primary source', async () => {
         const { projectService, getSources } = buildServiceWithMocks(true, []);
+
+        await expect(
+            projectService.resolveCompileAdapter(baseArgs),
+        ).rejects.toThrow(
+            'The project does not have a materialised primary dbt source',
+        );
+        expect(getSources).toHaveBeenCalledTimes(1);
+        expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+    });
+
+    it('BC-6: feature flag off returns the primary adapter when stale manifest deletion fails', async () => {
+        const { projectService } = buildServiceWithMocks(false, []);
+        const warn = vi.spyOn(projectService.logger, 'warn');
+        projectModel.deleteMergedManifest.mockRejectedValueOnce(
+            new Error('database unavailable'),
+        );
 
         const result = await projectService.resolveCompileAdapter(baseArgs);
 
         expect(result.adapter).toBe(primaryAdapter);
-        expect(getSources).toHaveBeenCalledTimes(1);
-        expect(projectModel.deleteMergedManifest).toHaveBeenCalledWith(
-            'project-uuid',
+        expect(warn).toHaveBeenCalledWith(
+            'Failed to delete merged dbt manifest for project project-uuid: database unavailable',
         );
-        expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
     });
-
-    it.each([
-        { path: 'feature flag off', flagEnabled: false, sources: [] },
-        { path: 'zero additional sources', flagEnabled: true, sources: [] },
-    ])(
-        'BC-6: $path returns the primary adapter when stale manifest deletion fails',
-        async ({ flagEnabled, sources }) => {
-            const { projectService } = buildServiceWithMocks(
-                flagEnabled,
-                sources,
-            );
-            const warn = vi.spyOn(projectService.logger, 'warn');
-            projectModel.deleteMergedManifest.mockRejectedValueOnce(
-                new Error('database unavailable'),
-            );
-
-            const result = await projectService.resolveCompileAdapter(baseArgs);
-
-            expect(result.adapter).toBe(primaryAdapter);
-            expect(warn).toHaveBeenCalledWith(
-                'Failed to delete merged dbt manifest for project project-uuid: database unavailable',
-            );
-        },
-    );
 
     it('BC-7: carries the staged merged manifest through adapter resolution', async () => {
         const mergedAdapter = {
@@ -8520,7 +8552,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             ),
         } as unknown as FeatureFlagModel;
         const projectDbtSourcesModel = {
-            getSources: vi.fn(async () => [buildSource('source-b')]),
+            getSources: vi.fn(async () => [
+                buildSource('dbt_project', EMPTY_WAREHOUSE_LOCATION, true),
+                buildSource('source-b'),
+            ]),
         } as unknown as ProjectDbtSourcesModel;
 
         return getMockedProjectService(lightdashConfigMock, {

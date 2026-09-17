@@ -1,6 +1,5 @@
 import { Ability } from '@casl/ability';
 import {
-    AlreadyExistsError,
     DbtProjectType,
     EMPTY_WAREHOUSE_LOCATION,
     ForbiddenError,
@@ -18,6 +17,7 @@ const projectUuid = '11111111-1111-4111-8111-111111111111';
 const otherProjectUuid = '99999999-9999-4999-8999-999999999999';
 const sourceUuid = '22222222-2222-4222-8222-222222222222';
 const primarySourceUuid = '33333333-3333-4333-8333-333333333333';
+const connectionUuid = '44444444-4444-4444-8444-444444444444';
 
 const adminSessionUser: SessionUser = {
     ...defaultSessionUser,
@@ -58,6 +58,19 @@ const primaryDbtConnection = {
     installation_id: '456',
 } as const;
 
+const primarySource = {
+    projectDbtSourceUuid: primarySourceUuid,
+    projectUuid,
+    connectionUuid,
+    namespacePrefix: '',
+    name: 'dbt_project',
+    isPrimary: true,
+    precedence: 0,
+    dbtConnection: primaryDbtConnection,
+    warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+    hasCredentialError: false,
+} as const;
+
 const projectModel = {
     getSummary: vi.fn(async (uuid: string) => ({
         organizationUuid: 'org-uuid',
@@ -81,6 +94,7 @@ const projectDbtSourcesModel = {
     createSource: vi.fn(),
     updateSource: vi.fn(),
     deleteSource: vi.fn(),
+    connectionBelongsToProject: vi.fn(async () => true),
 };
 
 const getService = () =>
@@ -107,11 +121,23 @@ describe('ProjectDbtSourcesService', () => {
             dbtSourceUuid: primarySourceUuid,
             dbtSourceName: 'dbt_project',
         });
-        projectDbtSourcesModel.getSources.mockResolvedValue([]);
+        projectDbtSourcesModel.getSources.mockResolvedValue([
+            primarySource as never,
+        ]);
+        projectDbtSourcesModel.getSource.mockResolvedValue(
+            primarySource as never,
+        );
+        projectDbtSourcesModel.updateSource.mockResolvedValue({
+            ...primarySource,
+            name: 'core_analytics',
+        } as never);
+        projectDbtSourcesModel.connectionBelongsToProject.mockResolvedValue(
+            true,
+        );
     });
 
     describe('getProjectDbtSources', () => {
-        it('synthesises the primary source with its persistent identity and precedence 0', async () => {
+        it('returns the materialised primary source row', async () => {
             const service = getService();
 
             const sources = await service.getProjectDbtSources(
@@ -129,16 +155,16 @@ describe('ProjectDbtSourcesService', () => {
             });
         });
 
-        it("reports the primary source's location from the project warehouse", async () => {
-            projectModel.get.mockResolvedValue({
-                projectUuid,
-                dbtConnection: primaryDbtConnection,
-                warehouseConnection: {
-                    type: WarehouseTypes.BIGQUERY,
-                    project: 'primary-gcp-project',
-                    dataset: 'prod',
-                },
-            } as never);
+        it("reports the primary source row's stored location", async () => {
+            projectDbtSourcesModel.getSources.mockResolvedValue([
+                {
+                    ...primarySource,
+                    warehouseLocation: {
+                        database: 'primary-gcp-project',
+                        schema: 'prod',
+                    },
+                } as never,
+            ]);
             const service = getService();
 
             const sources = await service.getProjectDbtSources(
@@ -162,6 +188,7 @@ describe('ProjectDbtSourcesService', () => {
 
         it('does not fail the whole list when one source has a credential error', async () => {
             projectDbtSourcesModel.getSources.mockResolvedValue([
+                primarySource as never,
                 {
                     projectDbtSourceUuid: sourceUuid,
                     name: 'broken-source',
@@ -187,7 +214,7 @@ describe('ProjectDbtSourcesService', () => {
                 projectUuid,
             );
 
-            expect(sources).toHaveLength(3); // primary + broken + healthy
+            expect(sources).toHaveLength(3);
             const broken = sources.find((s) => s.name === 'broken-source');
             expect(broken).toMatchObject({
                 hasCredentialError: true,
@@ -202,17 +229,28 @@ describe('ProjectDbtSourcesService', () => {
     });
 
     describe('createProjectDbtSource', () => {
-        it('rejects the primary source name', async () => {
+        it('materialises the first source as primary with an empty prefix', async () => {
+            projectDbtSourcesModel.getSources.mockResolvedValue([]);
+            projectDbtSourcesModel.createSource.mockResolvedValue(
+                primarySource as never,
+            );
             const service = getService();
 
-            await expect(
-                service.createProjectDbtSource(adminAccount, projectUuid, {
-                    name: 'dbt_project',
-                    dbtConnection: githubConnection as never,
-                }),
-            ).rejects.toThrow(AlreadyExistsError);
+            await service.createProjectDbtSource(adminAccount, projectUuid, {
+                name: 'dbt_project',
+                connectionUuid,
+                dbtConnection: githubConnection as never,
+            });
 
-            expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+            expect(projectDbtSourcesModel.createSource).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    isPrimary: true,
+                    precedence: 0,
+                    namespacePrefix: '',
+                    connectionUuid,
+                }),
+            );
         });
 
         it.each([
@@ -225,6 +263,7 @@ describe('ProjectDbtSourcesService', () => {
             await expect(
                 service.createProjectDbtSource(adminAccount, projectUuid, {
                     name,
+                    connectionUuid,
                     dbtConnection: githubConnection as never,
                 }),
             ).rejects.toThrow(message);
@@ -238,6 +277,7 @@ describe('ProjectDbtSourcesService', () => {
             await expect(
                 service.createProjectDbtSource(adminAccount, projectUuid, {
                     name: 'unsafe_source',
+                    connectionUuid,
                     dbtConnection: {
                         ...githubConnection,
                         environment: [
@@ -259,6 +299,7 @@ describe('ProjectDbtSourcesService', () => {
             await expect(
                 service.createProjectDbtSource(adminAccount, projectUuid, {
                     name: 'gitlab_source',
+                    connectionUuid,
                     dbtConnection: { type: DbtProjectType.GITLAB } as never,
                 }),
             ).rejects.toThrow(ParameterError);
@@ -285,13 +326,18 @@ describe('ProjectDbtSourcesService', () => {
                 projectUuid,
                 {
                     name: 'Analytics_2',
+                    connectionUuid,
                     dbtConnection: githubConnection as never,
                 },
             );
 
             expect(projectDbtSourcesModel.createSource).toHaveBeenCalledWith(
                 projectUuid,
-                expect.objectContaining({ isPrimary: false, precedence: 4 }),
+                expect.objectContaining({
+                    isPrimary: false,
+                    precedence: 4,
+                    namespacePrefix: 'Analytics_2',
+                }),
             );
             expect(created.precedence).toBe(4);
             expect(created.name).toBe('Analytics_2');
@@ -313,6 +359,7 @@ describe('ProjectDbtSourcesService', () => {
 
             await service.createProjectDbtSource(adminAccount, projectUuid, {
                 name: 'jaffle_2',
+                connectionUuid,
                 dbtConnection: githubConnection as never,
                 warehouseLocation: {
                     database: 'source-gcp-project',
@@ -344,6 +391,7 @@ describe('ProjectDbtSourcesService', () => {
 
             await service.createProjectDbtSource(adminAccount, projectUuid, {
                 name: 'jaffle_2',
+                connectionUuid,
                 dbtConnection: githubConnection as never,
             });
 
@@ -368,6 +416,7 @@ describe('ProjectDbtSourcesService', () => {
 
             await service.createProjectDbtSource(adminAccount, projectUuid, {
                 name: 'jaffle_2',
+                connectionUuid,
                 dbtConnection: githubConnection as never,
                 warehouseLocation: { database: '', schema: '  ' },
             });
@@ -394,6 +443,7 @@ describe('ProjectDbtSourcesService', () => {
             await expect(
                 service.createProjectDbtSource(adminAccount, projectUuid, {
                     name: 'jaffle-2',
+                    connectionUuid,
                     dbtConnection: githubConnection as never,
                     warehouseLocation: {
                         database: 'source-database',
@@ -411,11 +461,29 @@ describe('ProjectDbtSourcesService', () => {
             await expect(
                 service.createProjectDbtSource(developerAccount, projectUuid, {
                     name: 'jaffle-2',
+                    connectionUuid,
                     dbtConnection: githubConnection as never,
                 }),
             ).rejects.toThrow(ForbiddenError);
 
             expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+        });
+
+        it('rejects a connection from another project', async () => {
+            projectDbtSourcesModel.connectionBelongsToProject.mockResolvedValue(
+                false,
+            );
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name: 'finance',
+                    connectionUuid,
+                    dbtConnection: githubConnection as never,
+                }),
+            ).rejects.toThrow(
+                'The selected connection does not belong to this project',
+            );
         });
     });
 
@@ -440,7 +508,9 @@ describe('ProjectDbtSourcesService', () => {
                 projectUuid,
                 'core_analytics',
             );
-            expect(projectDbtSourcesModel.getSource).not.toHaveBeenCalled();
+            expect(projectDbtSourcesModel.getSource).toHaveBeenCalledWith(
+                primarySourceUuid,
+            );
         });
 
         it('rejects a warehouse location on the primary source', async () => {
@@ -464,10 +534,11 @@ describe('ProjectDbtSourcesService', () => {
             expect(projectModel.updateDbtSourceName).not.toHaveBeenCalled();
         });
 
-        it('rejects the primary source name', async () => {
+        it('rejects a changed namespace prefix', async () => {
             projectDbtSourcesModel.getSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
                 projectUuid,
+                namespacePrefix: 'finance',
                 dbtConnection: githubConnection,
             } as never);
             const service = getService();
@@ -477,9 +548,11 @@ describe('ProjectDbtSourcesService', () => {
                     adminAccount,
                     projectUuid,
                     sourceUuid,
-                    { name: 'dbt_project' },
+                    { namespacePrefix: 'renamed' },
                 ),
-            ).rejects.toThrow(AlreadyExistsError);
+            ).rejects.toThrow(
+                'The namespace prefix cannot be changed after source creation',
+            );
 
             expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
         });

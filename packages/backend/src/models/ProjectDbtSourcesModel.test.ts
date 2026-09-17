@@ -5,6 +5,7 @@ import {
     ProjectDbtSourcesTableName,
     type DbProjectDbtSource,
 } from '../database/entities/projectDbtSources';
+import { WarehouseCredentialTableName } from '../database/entities/warehouseCredentials';
 import { type EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { ProjectDbtSourcesModel } from './ProjectDbtSourcesModel';
 
@@ -19,6 +20,8 @@ describe('ProjectDbtSourcesModel', () => {
         {
             project_dbt_source_uuid: '33333333-3333-4333-8333-333333333333',
             project_uuid: upstreamProjectUuid,
+            connection_uuid: '55555555-5555-4555-8555-555555555555',
+            namespace_prefix: 'finance',
             name: 'finance_models',
             is_primary: false,
             precedence: 2,
@@ -32,6 +35,8 @@ describe('ProjectDbtSourcesModel', () => {
         {
             project_dbt_source_uuid: '44444444-4444-4444-8444-444444444444',
             project_uuid: upstreamProjectUuid,
+            connection_uuid: '66666666-6666-4666-8666-666666666666',
+            namespace_prefix: 'marketing',
             name: 'marketing_models',
             is_primary: false,
             precedence: 5,
@@ -73,18 +78,22 @@ describe('ProjectDbtSourcesModel', () => {
             upstreamProjectUuid,
         ]);
         expect(tracker.history.insert[0].bindings).toEqual([
+            '55555555-5555-4555-8555-555555555555',
             githubCiphertext,
             DbtProjectType.GITHUB,
             false,
             'finance_models',
+            'finance',
             2,
             previewProjectUuid,
             'finance_database',
             null,
+            '66666666-6666-4666-8666-666666666666',
             gitlabCiphertext,
             DbtProjectType.GITLAB,
             false,
             'marketing_models',
+            'marketing',
             5,
             previewProjectUuid,
             null,
@@ -95,5 +104,25 @@ describe('ProjectDbtSourcesModel', () => {
         );
         expect(encryptionUtil.decrypt).not.toHaveBeenCalled();
         expect(encryptionUtil.encrypt).not.toHaveBeenCalled();
+    });
+
+    it('checks that a live connection belongs to the project', async () => {
+        tracker.on
+            .select(WarehouseCredentialTableName)
+            .responseOnce([
+                { warehouse_credentials_uuid: sources[0].connection_uuid },
+            ]);
+
+        await expect(
+            model.connectionBelongsToProject(
+                upstreamProjectUuid,
+                sources[0].connection_uuid,
+            ),
+        ).resolves.toBe(true);
+        expect(tracker.history.select[0].bindings).toEqual([
+            upstreamProjectUuid,
+            sources[0].connection_uuid,
+            1,
+        ]);
     });
 });
