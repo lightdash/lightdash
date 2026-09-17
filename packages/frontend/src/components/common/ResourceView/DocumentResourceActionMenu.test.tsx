@@ -229,10 +229,26 @@ describe('Document resource actions', () => {
     });
     it('has canonical links and a Document label without view statistics', () => {
         expect(getResourceUrl('project', item, 'project-slug')).toBe(
-            '/projects/project/documents/document',
+            '/projects/project-slug/documents/weekly-review',
         );
         expect(getResourceName(item.type)).toBe('Document');
         expect(getResourceTypeName(item)).toBe('Document');
         expect(getViewStatsResourceType(item)).toBeUndefined();
+    });
+
+    it('uses the document UUID when its slug could be mistaken for another UUID', () => {
+        expect(
+            getResourceUrl(
+                'project',
+                {
+                    ...item,
+                    data: {
+                        ...item.data,
+                        slug: '591eb352-180d-4cfd-b2ce-b4c004edb6ce',
+                    },
+                },
+                'project-slug',
+            ),
+        ).toBe('/projects/project-slug/documents/document');
     });
 });

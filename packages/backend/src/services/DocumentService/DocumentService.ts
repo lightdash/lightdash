@@ -17,10 +17,13 @@ import {
     type ParametersValuesMap,
     type RegisteredAccount,
     type UpdateDocumentMetadataRequest,
+    type UUID,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import type { Knex } from 'knex';
 import { isEqual } from 'lodash';
 import pLimit from 'p-limit';
+import { validate as isUuid } from 'uuid';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type {
     DocumentContentUpdate,
@@ -682,6 +685,16 @@ export class DocumentService extends BaseService {
             documentUuid,
         );
         return this.authorizeDocument(account, document);
+    }
+
+    async getByIdOrSlug(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        documentUuidOrSlug: UuidOrSlug,
+    ): Promise<Document> {
+        return isUuid(documentUuidOrSlug)
+            ? this.get(account, projectUuid, documentUuidOrSlug)
+            : this.getBySlug(account, projectUuid, documentUuidOrSlug);
     }
 
     async getBySlug(

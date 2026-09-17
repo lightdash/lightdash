@@ -10,6 +10,7 @@ import DocumentPage from './Document';
 const mocks = vi.hoisted(() => ({
     api: vi.fn(),
     chartFails: false,
+    chart: vi.fn(),
     flag: { data: { enabled: true }, isInitialLoading: false, isError: false },
 }));
 
@@ -20,6 +21,9 @@ vi.mock('../features/documents/DocumentActions', () => ({
 }));
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
+}));
+vi.mock('../hooks/useProjectRoute', () => ({
+    useProjectUrlIdentifier: () => 'project-slug',
 }));
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => mocks.flag,
@@ -39,7 +43,9 @@ vi.mock('../components/common/Page/Page', () => ({
     ),
 }));
 vi.mock('../features/documents/DocumentChart', () => ({
-    default: ({ cell }: { cell: Extract<DocumentCell, { type: 'chart' }> }) => {
+    default: (props: { cell: Extract<DocumentCell, { type: 'chart' }> }) => {
+        mocks.chart(props);
+        const { cell } = props;
         if (mocks.chartFails) {
             throw new Error('Chart rendering failed');
         }
@@ -106,7 +112,10 @@ const document: Document = {
     },
 };
 
-const renderPage = (returnTo?: string) => {
+const renderPage = (
+    returnTo?: string,
+    documentIdentifier = 'document-uuid',
+) => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, cacheTime: 0 } },
         logger: { log: () => {}, warn: () => {}, error: () => {} },
@@ -114,7 +123,7 @@ const renderPage = (returnTo?: string) => {
     const router = createMemoryRouter(
         [
             {
-                path: '/projects/:projectUuid/documents/:documentUuid',
+                path: '/projects/:projectUuid/documents/:documentUuidOrSlug',
                 element: <DocumentPage />,
             },
             {
@@ -132,7 +141,7 @@ const renderPage = (returnTo?: string) => {
         ],
         {
             initialEntries: [
-                `/projects/project-slug/documents/document-uuid${returnTo === undefined ? '' : `?returnTo=${encodeURIComponent(returnTo)}`}`,
+                `/projects/project-slug/documents/${documentIdentifier}${returnTo === undefined ? '' : `?returnTo=${encodeURIComponent(returnTo)}`}`,
             ],
         },
     );
@@ -149,6 +158,7 @@ const renderPage = (returnTo?: string) => {
 describe('Document page', () => {
     beforeEach(() => {
         mocks.chartFails = false;
+        mocks.chart.mockReset();
         mocks.api.mockReset();
         mocks.api.mockResolvedValue(document);
         mocks.flag = {
@@ -231,6 +241,25 @@ describe('Document page', () => {
         expect(screen.queryByText('Internal detail')).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('link', { name: 'Back' }));
         expect(await screen.findByText('Document list')).toBeInTheDocument();
+    });
+
+    test('loads a document slug but passes resolved UUIDs to chart queries', async () => {
+        renderPage(undefined, 'weekly-review');
+        expect(await screen.findByTestId('document-chart')).toBeInTheDocument();
+        expect(mocks.api).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/projects/project-uuid/documents/weekly-review',
+                method: 'GET',
+            }),
+        );
+        expect(mocks.chart).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project-uuid',
+                documentUuid: 'document-uuid',
+                versionUuid: 'version-uuid',
+                cellIndex: 1,
+            }),
+        );
     });
 
     test('shows report contents linked to the document sections', async () => {
@@ -432,7 +461,7 @@ describe('Document page', () => {
         renderPage('https://example.com/projects/project-uuid/research');
         expect(
             await screen.findByRole('link', { name: 'Back' }),
-        ).toHaveAttribute('href', '/projects/project-uuid/documents');
+        ).toHaveAttribute('href', '/projects/project-slug/documents');
     });
 
     test.each(['Weekly review', 'A long document name '.repeat(20)])(

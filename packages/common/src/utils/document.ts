@@ -1,5 +1,7 @@
 import Ajv, { type ValidateFunction } from 'ajv';
+import { validate as isUuid } from 'uuid';
 import chartAsCodeSchema from '../schemas/json/chart-as-code-1.0.json';
+import type { UuidOrSlug } from '../types/api/uuid';
 import type { DocumentContent } from '../types/document';
 import { ParameterError } from '../types/errors';
 import {
@@ -11,9 +13,15 @@ import { ChartType } from '../types/savedCharts';
 export const DOCUMENT_SCHEMA_VERSION = 1;
 
 export const getDocumentUrl = (
-    projectUuid: string,
-    documentUuid: string,
-): string => `/projects/${projectUuid}/documents/${documentUuid}`;
+    projectUuidOrSlug: UuidOrSlug,
+    documentUuidOrSlug: UuidOrSlug,
+    documentSlug?: string,
+): string =>
+    `/projects/${encodeURIComponent(projectUuidOrSlug)}/documents/${encodeURIComponent(
+        documentSlug && !isUuid(documentSlug)
+            ? documentSlug
+            : documentUuidOrSlug,
+    )}`;
 
 const chartProperties = {
     name: chartAsCodeSchema.properties.name,

@@ -3996,6 +3996,12 @@ export class AiAgentToolsService extends BaseService {
             { page, pageSize },
         );
 
+        const projectSlug = results.data.some(
+            (item) => item.contentType === ContentType.DOCUMENT,
+        )
+            ? (await this.projectModel.getSummary(projectUuid)).slug
+            : projectUuid;
+
         return {
             spaceSlug,
             items: results.data
@@ -4039,8 +4045,9 @@ export class AiAgentToolsService extends BaseService {
                                 name: item.name,
                                 slug: item.slug,
                                 href: getDocumentUrl(
-                                    context.projectUuid,
+                                    projectSlug ?? projectUuid,
                                     item.uuid,
+                                    item.slug,
                                 ),
                             };
                         }
@@ -4120,27 +4127,33 @@ export class AiAgentToolsService extends BaseService {
             {},
             { page: 1, pageSize: 25 },
         );
-        return results.data
-            .filter((item) => item.contentType === ContentType.DOCUMENT)
-            .map((item): FindContentResult => {
-                const space = spacesByUuid.get(item.space.uuid);
-                return {
-                    contentType: 'document',
-                    uuid: item.uuid,
-                    name: item.name,
-                    slug: item.slug,
-                    href: getDocumentUrl(context.projectUuid, item.uuid),
-                    description: item.description,
-                    search_rank: 0,
-                    space: space
-                        ? AiAgentToolsService.getSpaceMetadata(
-                              space,
-                              spacesByPath,
-                          )
-                        : null,
-                    verification: null,
-                };
-            });
+        const documents = results.data.filter(
+            (item) => item.contentType === ContentType.DOCUMENT,
+        );
+        if (documents.length === 0) {
+            return [];
+        }
+        const project = await this.projectModel.getSummary(context.projectUuid);
+        return documents.map((item): FindContentResult => {
+            const space = spacesByUuid.get(item.space.uuid);
+            return {
+                contentType: 'document',
+                uuid: item.uuid,
+                name: item.name,
+                slug: item.slug,
+                href: getDocumentUrl(
+                    project.slug ?? context.projectUuid,
+                    item.uuid,
+                    item.slug,
+                ),
+                description: item.description,
+                search_rank: 0,
+                space: space
+                    ? AiAgentToolsService.getSpaceMetadata(space, spacesByPath)
+                    : null,
+                verification: null,
+            };
+        });
     }
 
     private async documentContentResult(
@@ -4162,10 +4175,15 @@ export class AiAgentToolsService extends BaseService {
         if (!space) {
             throw new NotFoundError('Document not found');
         }
+        const project = await this.projectModel.getSummary(context.projectUuid);
         return {
             type: 'document',
             uuid: document.documentUuid,
-            href: getDocumentUrl(context.projectUuid, document.documentUuid),
+            href: getDocumentUrl(
+                project.slug ?? context.projectUuid,
+                document.documentUuid,
+                document.slug,
+            ),
             versionUuid: document.version.versionUuid,
             content: {
                 name: document.name,

@@ -1,6 +1,53 @@
 import { MergeJoinType } from '../types/mergeQuery';
 import { ChartType } from '../types/savedCharts';
-import { DOCUMENT_SCHEMA_VERSION, parseDocumentContent } from './document';
+import {
+    DOCUMENT_SCHEMA_VERSION,
+    getDocumentUrl,
+    parseDocumentContent,
+} from './document';
+
+describe('getDocumentUrl', () => {
+    test('prefers the document slug when its canonical UUID is provided', () => {
+        expect(
+            getDocumentUrl(
+                'project',
+                '36d4516a-3af0-48f6-9b47-d50956301501',
+                'weekly-review',
+            ),
+        ).toBe('/projects/project/documents/weekly-review');
+    });
+    test('uses the canonical UUID for UUID-shaped slugs to avoid identity ambiguity', () => {
+        expect(
+            getDocumentUrl(
+                'project',
+                '36d4516a-3af0-48f6-9b47-d50956301501',
+                '26eefd62-30f9-485c-81c4-3b814aa8032f',
+            ),
+        ).toBe(
+            '/projects/project/documents/36d4516a-3af0-48f6-9b47-d50956301501',
+        );
+    });
+    test.each([
+        ['project-slug', 'document-slug'],
+        ['3675b69e-8324-4110-bdca-059031aa8da3', 'document-slug'],
+        ['project-slug', '36d4516a-3af0-48f6-9b47-d50956301501'],
+        [
+            '3675b69e-8324-4110-bdca-059031aa8da3',
+            '36d4516a-3af0-48f6-9b47-d50956301501',
+        ],
+    ])('builds a link for %s / %s', (project, document) => {
+        expect(getDocumentUrl(project, document)).toBe(
+            `/projects/${project}/documents/${document}`,
+        );
+    });
+    test('encodes path identifiers rather than allowing URL structure injection', () => {
+        expect(
+            getDocumentUrl('project/name', 'report?redirect=elsewhere'),
+        ).toBe(
+            '/projects/project%2Fname/documents/report%3Fredirect%3Delsewhere',
+        );
+    });
+});
 
 const query = {
     exploreName: 'orders',

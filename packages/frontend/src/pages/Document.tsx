@@ -1,4 +1,4 @@
-import { FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, type UuidOrSlug } from '@lightdash/common';
 import { Box, Button, Group, Title } from '@mantine/core';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import { DASHBOARD_HEADER_HEIGHT } from '../components/common/Dashboard/dashboard.constants';
@@ -12,22 +12,24 @@ import { getDocumentReturnUrl } from '../features/documents/documentNavigation';
 import DocumentRenderer from '../features/documents/DocumentRenderer';
 import reportStyles from '../features/documents/presentation/ReportPresentation.module.css';
 import { useDocument } from '../features/documents/useDocument';
+import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import styles from './Document.module.css';
 
 const DocumentContent = ({
     projectUuid,
-    documentUuid,
+    documentUuidOrSlug,
 }: {
     projectUuid: string;
-    documentUuid: string;
+    documentUuidOrSlug: UuidOrSlug;
 }) => {
-    const query = useDocument(projectUuid, documentUuid);
+    const query = useDocument(projectUuid, documentUuidOrSlug);
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const [searchParams] = useSearchParams();
     const backUrl = getDocumentReturnUrl(
         searchParams.get('returnTo'),
-        projectUuid,
+        projectUrlIdentifier,
     );
     if (query.isInitialLoading) {
         return <EmptyStateLoader title="Loading document" />;
@@ -87,19 +89,21 @@ const DocumentContent = ({
 
 const DocumentPage = () => {
     const projectUuid = useProjectUuid();
-    const { documentUuid } = useParams<{ documentUuid: string }>();
+    const { documentUuidOrSlug } = useParams<{
+        documentUuidOrSlug: UuidOrSlug;
+    }>();
     const flag = useServerFeatureFlag(FeatureFlags.Documents);
     if (!projectUuid || flag.isInitialLoading) {
         return <EmptyStateLoader title="Loading document" />;
     }
-    if (flag.isError || !flag.data?.enabled || !documentUuid) {
+    if (flag.isError || !flag.data?.enabled || !documentUuidOrSlug) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
     return (
         <DocumentContent
-            key={`${projectUuid}:${documentUuid}`}
+            key={`${projectUuid}:${documentUuidOrSlug}`}
             projectUuid={projectUuid}
-            documentUuid={documentUuid}
+            documentUuidOrSlug={documentUuidOrSlug}
         />
     );
 };

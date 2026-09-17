@@ -10,6 +10,7 @@ import {
     type UpdateDocumentContentRequest,
     type UpdateDocumentMetadataRequest,
     type UUID,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import {
     Body,
@@ -90,7 +91,8 @@ export class DocumentController extends BaseController {
         };
     }
 
-    @Patch('{documentUuid}')
+    // Share GET's path template so OpenAPI groups both operations together.
+    @Patch('{documentUuidOrSlug}')
     @OperationId('UpdateDocumentMetadata')
     @Middlewares([
         allowApiKeyAuthentication,
@@ -100,7 +102,7 @@ export class DocumentController extends BaseController {
     async updateMetadata(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
-        @Path() documentUuid: UUID,
+        @Path('documentUuidOrSlug') documentUuid: UUID,
         @Body() body: UpdateDocumentMetadataRequest,
     ): Promise<ApiDocumentResponse> {
         assertRegisteredAccount(req.account);
@@ -152,20 +154,20 @@ export class DocumentController extends BaseController {
         };
     }
 
-    @Get('{documentUuid}')
+    @Get('{documentUuidOrSlug}')
     @OperationId('GetDocument')
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     async get(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
-        @Path() documentUuid: UUID,
+        @Path() documentUuidOrSlug: UuidOrSlug,
     ): Promise<ApiDocumentResponse> {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getDocumentService()
-                .get(req.account, projectUuid, documentUuid),
+                .getByIdOrSlug(req.account, projectUuid, documentUuidOrSlug),
         };
     }
 }

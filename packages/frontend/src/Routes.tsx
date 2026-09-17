@@ -526,7 +526,7 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         }),
     },
     {
-        path: 'documents/:documentUuid',
+        path: 'documents/:documentUuidOrSlug',
         lazy: async () => ({
             Component: await loadLazyRouteDefault(
                 './pages/Document',
