@@ -45,11 +45,31 @@ describe('AppVersionHistoryPanel', () => {
         expect(screen.getAllByText('Agent context cleared')).toHaveLength(1);
     });
 
+    it('tops the list with a divider when the current thread has no versions yet', () => {
+        renderWithProviders(
+            <AppVersionHistoryPanel
+                {...defaultProps}
+                versions={[entry(2, 1), entry(1, 1)]}
+                currentThreadNumber={2}
+            />,
+        );
+
+        const list = screen.getByLabelText('Version history');
+        const divider = screen.getByText('Agent context cleared');
+        const firstVersion = screen.getByText('v2');
+        expect(
+            divider.compareDocumentPosition(firstVersion) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(list).toContainElement(divider);
+    });
+
     it('renders no divider for a single thread', () => {
         renderWithProviders(
             <AppVersionHistoryPanel
                 {...defaultProps}
                 versions={[entry(3, 1), entry(2, 1), entry(1, 1)]}
+                currentThreadNumber={1}
             />,
         );
 
@@ -85,7 +105,7 @@ describe('AppVersionHistoryPanel', () => {
         );
 
         expect(screen.getAllByText('Preview')).toHaveLength(1);
-        expect(screen.getAllByText('Restore')).toHaveLength(1);
+        expect(screen.getAllByText('Restore this version')).toHaveLength(1);
     });
 
     it('shows an empty state with no versions', () => {

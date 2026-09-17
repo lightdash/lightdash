@@ -29,7 +29,10 @@ const entry = (
 const thread1 = [
     entry(1, 1, 'a dashboard of weekly revenue by region'),
     entry(2, 1, 'add a totals row under the table'),
-    entry(3, 1, 'make the chart a stacked bar', { status: 'error' }),
+    entry(3, 1, 'make the chart a stacked bar', {
+        status: 'error',
+        statusMessage: 'The sandbox ran out of memory while bundling.',
+    }),
     entry(4, 1, 'try the stacked bar again, keep the legend on the right'),
 ];
 
@@ -58,10 +61,12 @@ const meta: Meta<typeof AppVersionHistoryPanel> = {
         emptyPromptLabel: null,
         olderVersionTime: 'relative',
         showPreviewButton: true,
+        showTimeline: true,
     },
+    parameters: { layout: 'fullscreen' },
     decorators: [
         (renderStory) => (
-            <Box w={360} h={640}>
+            <Box w={480} h="100vh">
                 {renderStory()}
             </Box>
         ),
@@ -75,9 +80,19 @@ type Story = StoryObj<typeof AppVersionHistoryPanel>;
 /** Three threads: a divider between each group, newest thread first. */
 export const MultiThread: Story = {};
 
-/** One thread: no divider. */
+/** One thread, with a failed build: no divider. */
 export const SingleThread: Story = {
     args: { versions: thread1, latestReadyVersion: 4 },
+};
+
+/** Context just cleared: the new thread has no versions, so the rule tops the list. */
+export const FreshlyClearedThread: Story = {
+    args: { versions: thread1, latestReadyVersion: 4, currentThreadNumber: 2 },
+};
+
+/** The same cards without the rail. */
+export const WithoutTimeline: Story = {
+    args: { showTimeline: false },
 };
 
 export const Empty: Story = {

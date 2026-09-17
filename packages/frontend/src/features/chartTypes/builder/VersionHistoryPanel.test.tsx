@@ -84,7 +84,7 @@ describe('VersionHistoryPanel', () => {
 
         expect(screen.getByText('Viewing')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByText('Restore'));
+        fireEvent.click(screen.getByText('Restore this version'));
         expect(screen.getByTestId('restore-modal')).toHaveTextContent(
             'restore-1',
         );
@@ -154,7 +154,7 @@ describe('VersionHistoryPanel', () => {
             />,
         );
 
-        expect(screen.getByText('Failed')).toBeInTheDocument();
+        expect(screen.getByText('Build failed')).toBeInTheDocument();
         expect(screen.getByText('Sandbox crashed')).toBeInTheDocument();
 
         fireEvent.click(screen.getByLabelText('View v3'));

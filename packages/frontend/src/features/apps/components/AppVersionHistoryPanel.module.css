@@ -5,8 +5,8 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    background: var(--mantine-color-background-0);
-    border-left: 1px solid var(--mantine-color-ldGray-2);
+    background: var(--mantine-color-body);
+    border-left: 1px solid var(--mantine-color-default-border);
 }
 
 .header {
@@ -15,7 +15,7 @@
     justify-content: space-between;
     gap: var(--mantine-spacing-xs);
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
-    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+    border-bottom: 1px solid var(--mantine-color-default-border);
     flex-shrink: 0;
 }
 
@@ -23,45 +23,90 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    background: var(--ld-color-page);
+}
+
+.timeline {
+    padding: var(--mantine-spacing-md);
+}
+
+/* Mantine's item selectors carry two classes, so these carry a parent too. */
+.timeline .item {
+    padding-inline-start: var(--mantine-spacing-md);
+}
+
+.timeline .item:not(:first-of-type) {
+    margin-top: var(--mantine-spacing-sm);
+}
+
+/* Rail runs edge to edge through the gaps, so a dotless thread rule does
+   not break it; only the top starts at the first dot. */
+.timeline .item::before {
+    top: 0;
+    bottom: calc(var(--mantine-spacing-sm) * -1);
+}
+
+.timeline .item:first-of-type::before {
+    top: var(--mantine-spacing-md);
+}
+
+/* Sits on the card's meta line: card padding plus half a line. */
+.timeline .bullet {
+    top: var(--mantine-spacing-md);
+    border-color: var(--mantine-color-ldGray-3);
+    background: var(--mantine-color-ldGray-3);
+}
+
+.timeline .item[data-state='current'] .bullet {
+    border-color: var(--mantine-color-indigo-filled);
+    background: var(--mantine-color-indigo-filled);
+}
+
+.timeline .item[data-state='failed'] .bullet {
+    border-color: var(--mantine-color-red-filled);
+    background: var(--mantine-color-red-filled);
+}
+
+.timeline .item[data-state='building'] .bullet {
+    border-color: var(--mantine-color-indigo-filled);
+    background: var(--mantine-color-body);
+}
+
+/* A thread rule has no dot; the rail passes behind it unbroken. */
+.timeline .item[data-state='rule'] .bullet {
+    display: none;
+}
+
+.threadRule {
+    padding: var(--mantine-spacing-xxs) 0;
 }
 
 .entry {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 12px 14px 12px 11px;
-    border-top: 1px solid var(--mantine-color-ldGray-1);
-    border-left: 3px solid transparent;
-    transition: background 120ms;
+    gap: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    transition:
+        background 120ms,
+        border-color 120ms;
 }
 
-.entry:first-child,
-.threadDivider + .entry {
-    border-top: none;
-}
-
-.entry:hover {
-    background: var(--mantine-color-ldGray-0);
+.entry[data-ready='true']:hover {
+    border-color: var(--mantine-color-ldGray-3);
 }
 
 /* After the hover rule so the viewed version keeps its mark under the cursor. */
 .entry[data-active='true'] {
     background: var(--mantine-color-default-hover);
-    border-left-color: var(--mantine-color-placeholder);
-}
-
-/* Where the agent context was cleared: the group above is a newer thread. */
-.threadDivider {
-    padding: 8px 14px;
-    border-top: 1px solid var(--mantine-color-ldGray-1);
+    border-color: var(--mantine-color-ldGray-3);
 }
 
 /* The view target: the version line and the prompt that produced it. The
-   footer row stays outside it so the actions are not nested in it. */
+   actions stay outside it so they are not nested in it. */
 .entryMain {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: var(--mantine-spacing-xs);
     width: 100%;
     text-align: left;
     font-family: inherit;
@@ -71,34 +116,16 @@
     }
 }
 
-.versionLabel {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--mantine-color-ldGray-7);
-
-    &[data-state='active'] {
-        color: var(--mantine-color-ldGray-9);
-    }
-
-    &[data-state='failed'] {
-        color: var(--mantine-color-red-7);
-    }
-}
-
-.failure {
-    background: light-dark(var(--mantine-color-red-0), rgba(224, 49, 49, 0.12));
-    border-radius: var(--mantine-radius-sm);
-    padding: 6px 8px;
+.prompt {
+    line-height: var(--mantine-line-height-sm);
+    overflow-wrap: anywhere;
 }
 
 .upgradeSummary {
-    padding: 8px;
-    border: 1px solid var(--mantine-color-blue-2);
+    padding: var(--mantine-spacing-xs);
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-sm);
-    background: light-dark(
-        var(--mantine-color-blue-0),
-        rgba(34, 139, 230, 0.12)
-    );
+    background: var(--mantine-color-ldGray-0);
 }
 
 .upgradeSummaryMarkdown {
@@ -106,18 +133,17 @@
     --ai-markdown-font-size: 11px;
 }
 
-.disclosure {
-    border-top: 1px solid var(--mantine-color-ldGray-2);
-}
-
 .disclosureToggle {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--mantine-spacing-xxs);
     width: 100%;
-    padding-top: 7px;
-    color: var(--mantine-color-ldGray-6);
+    color: var(--mantine-color-dimmed);
     text-align: left;
+
+    &:hover {
+        color: var(--mantine-color-text);
+    }
 }
 
 .disclosureChevron {
@@ -130,32 +156,5 @@
 }
 
 .disclosureContent {
-    padding-top: 5px;
-}
-
-.row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-/* Kept out of the way until the row is engaged, so the list reads as history
-   rather than a row of actions. */
-.actions {
-    margin-left: auto;
-    display: flex;
-    gap: 6px;
-    opacity: 0;
-    transition: opacity 120ms;
-}
-
-.entry:hover .actions,
-.entry:focus-within .actions,
-.entry[data-active='true'] .actions {
-    opacity: 1;
-}
-
-.earlier {
-    padding: 10px 14px;
-    border-top: 1px solid var(--mantine-color-ldGray-1);
+    padding-top: var(--mantine-spacing-xs);
 }

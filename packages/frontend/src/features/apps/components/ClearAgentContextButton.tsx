@@ -20,7 +20,7 @@ const ClearAgentContextButton: FC<Props> = ({ disabled, onClick }) => (
                 <Text fz="xs" fw={500}>
                     Clear agent context
                 </Text>
-                <Text fz="xs" fw={400} opacity={0.7}>
+                <Text fz="xs" fw={400}>
                     Start a fresh conversation with agent
                 </Text>
             </Stack>

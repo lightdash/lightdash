@@ -22,7 +22,7 @@ const VersionHistoryDisclosure: FC<Props> = ({
     const [open, setOpen] = useState(false);
 
     return (
-        <Box className={classes.disclosure}>
+        <Box>
             <UnstyledButton
                 className={classes.disclosureToggle}
                 aria-label={ariaLabel}
@@ -35,11 +35,11 @@ const VersionHistoryDisclosure: FC<Props> = ({
                     className={classes.disclosureChevron}
                     data-open={open || undefined}
                 />
-                <Text fz="xs" fw={600} flex="0 0 auto">
+                <Text fz="xs" fw={500} flex="0 0 auto">
                     {label}
                 </Text>
                 {summary && (
-                    <Text fz="xs" c="dimmed" truncate="end" ml={2} miw={0}>
+                    <Text fz="xs" c="dimmed" truncate="end" ml="xxs" miw={0}>
                         {summary}
                     </Text>
                 )}

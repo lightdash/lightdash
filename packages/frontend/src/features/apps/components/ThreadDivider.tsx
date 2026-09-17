@@ -1,4 +1,4 @@
-import { Button, Divider, Group, Text } from '@mantine/core';
+import { ActionIcon, Divider, Group, Text, Tooltip } from '@mantine/core';
 import { IconHistory } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -16,18 +16,19 @@ const ThreadDivider: FC<Props> = ({ fromVersion, onShowHistory }) => (
         labelPosition="center"
         label={
             <Group gap="xs" wrap="nowrap">
-                <Text fz="xs" c="dimmed">
-                    context cleared, the agent starts fresh from version{' '}
-                    {fromVersion}
+                <Text fz="sm" c="dimmed">
+                    Context cleared, starting fresh from v{fromVersion}
                 </Text>
-                <Button
-                    size="compact-xs"
-                    variant="subtle"
-                    leftSection={<MantineIcon icon={IconHistory} size={14} />}
-                    onClick={onShowHistory}
-                >
-                    Show project history
-                </Button>
+                <Tooltip label="Show project history">
+                    <ActionIcon
+                        size="sm"
+                        variant="default"
+                        aria-label="Show project history"
+                        onClick={onShowHistory}
+                    >
+                        <MantineIcon icon={IconHistory} size={14} />
+                    </ActionIcon>
+                </Tooltip>
             </Group>
         }
     />
