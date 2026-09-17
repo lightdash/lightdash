@@ -3027,6 +3027,13 @@ describe('AiAgentToolsService generateDataApp', () => {
         }),
     };
 
+    // A prompt inside an Ask AI thread, as the agent runtime provides it.
+    const askAiContext = () =>
+        makeRuntimeContext({
+            promptUuid: 'prompt-uuid',
+            threadUuid: 'thread-uuid',
+        });
+
     const runGenerate = (
         service: AiAgentToolsService,
         context: AiAgentToolsRuntimeContext & { source: 'ai_agent' },
@@ -3071,11 +3078,9 @@ describe('AiAgentToolsService generateDataApp', () => {
         const appGenerateService = makeAppGenerateService();
         const service = makeService({ appGenerateService });
 
-        const result = await runGenerate(
-            service,
-            makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
-            { template: 'slideshow' },
-        );
+        const result = await runGenerate(service, askAiContext(), {
+            template: 'slideshow',
+        });
 
         expect(result).toEqual({ appUuid: 'app-uuid', version: 1 });
         const [
@@ -3102,6 +3107,7 @@ describe('AiAgentToolsService generateDataApp', () => {
                 promptUuid: 'prompt-uuid',
                 toolCallId: 'tool-call-1',
             },
+            thread: { origin: 'ai_thread', aiThreadUuid: 'thread-uuid' },
         });
     });
 
@@ -3113,11 +3119,10 @@ describe('AiAgentToolsService generateDataApp', () => {
             savedChartService,
         });
 
-        await runGenerate(
-            service,
-            makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
-            { dashboardSlug: 'sales-overview', chartSlugs: ['revenue'] },
-        );
+        await runGenerate(service, askAiContext(), {
+            dashboardSlug: 'sales-overview',
+            chartSlugs: ['revenue'],
+        });
 
         expect(dashboardService.getByIdOrSlug).toHaveBeenCalledWith(
             user,
@@ -3147,6 +3152,7 @@ describe('AiAgentToolsService generateDataApp', () => {
                 service,
                 makeRuntimeContext({
                     promptUuid: 'prompt-uuid',
+                    threadUuid: 'thread-uuid',
                     spaceAccess: ['other-space-uuid'],
                 }),
                 { chartSlugs: ['revenue'] },
@@ -3165,6 +3171,19 @@ describe('AiAgentToolsService generateDataApp', () => {
         expect(appGenerateService.generateApp).not.toHaveBeenCalled();
     });
 
+    it('requires the Ask AI thread to record on the new app', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({ appGenerateService });
+
+        await expect(
+            runGenerate(
+                service,
+                makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+            ),
+        ).rejects.toThrow('generateDataApp requires a thread');
+        expect(appGenerateService.generateApp).not.toHaveBeenCalled();
+    });
+
     it.each([
         ['pdf', 'pdf'],
         [null, undefined],
@@ -3174,11 +3193,7 @@ describe('AiAgentToolsService generateDataApp', () => {
             const appGenerateService = makeAppGenerateService();
             const service = makeService({ appGenerateService });
 
-            await runGenerate(
-                service,
-                makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
-                { template },
-            );
+            await runGenerate(service, askAiContext(), { template });
 
             const [, , , , , , , builderTemplate] =
                 appGenerateService.generateApp.mock.calls[0];
@@ -3200,11 +3215,9 @@ describe('AiAgentToolsService generateDataApp', () => {
         });
 
         await expect(
-            runGenerate(
-                service,
-                makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
-                { dashboardSlug: 'no-such-dashboard' },
-            ),
+            runGenerate(service, askAiContext(), {
+                dashboardSlug: 'no-such-dashboard',
+            }),
         ).rejects.toThrow('Dashboard "no-such-dashboard" was not found');
         expect(appGenerateService.generateApp).not.toHaveBeenCalled();
     });
@@ -3227,11 +3240,9 @@ describe('AiAgentToolsService generateDataApp', () => {
         });
 
         await expect(
-            runGenerate(
-                service,
-                makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
-                { chartSlugs: ['revenue', 'no-such-chart'] },
-            ),
+            runGenerate(service, askAiContext(), {
+                chartSlugs: ['revenue', 'no-such-chart'],
+            }),
         ).rejects.toThrow('Chart "no-such-chart" was not found');
         expect(appGenerateService.generateApp).not.toHaveBeenCalled();
     });
@@ -3251,11 +3262,7 @@ describe('AiAgentToolsService generateDataApp', () => {
                 organizationDesignModel,
             });
 
-            await runGenerate(
-                service,
-                makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
-                { themeSlug: 'dark' },
-            );
+            await runGenerate(service, askAiContext(), { themeSlug: 'dark' });
 
             expect(organizationDesignModel.findByIdOrSlug).toHaveBeenCalledWith(
                 organizationUuid,
@@ -3271,6 +3278,7 @@ describe('AiAgentToolsService generateDataApp', () => {
                     promptUuid: 'prompt-uuid',
                     toolCallId: 'tool-call-1',
                 },
+                thread: { origin: 'ai_thread', aiThreadUuid: 'thread-uuid' },
                 designUuidInput: 'dark-uuid',
             });
         });
@@ -3286,7 +3294,10 @@ describe('AiAgentToolsService generateDataApp', () => {
             await expect(
                 runGenerate(
                     service,
-                    makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+                    makeRuntimeContext({
+                        promptUuid: 'prompt-uuid',
+                        threadUuid: 'thread-uuid',
+                    }),
                     { themeSlug: 'no-such-theme' },
                 ),
             ).rejects.toThrow(
@@ -3306,10 +3317,7 @@ describe('AiAgentToolsService generateDataApp', () => {
                 organizationDesignModel,
             });
 
-            await runGenerate(
-                service,
-                makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
-            );
+            await runGenerate(service, askAiContext());
 
             expect(
                 organizationDesignModel.findByIdOrSlug,

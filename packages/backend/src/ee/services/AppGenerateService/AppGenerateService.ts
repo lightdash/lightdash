@@ -180,6 +180,7 @@ import { type CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import {
     AppModel,
+    type CreateAppThreadArgs,
     type PreviewChartVizBindingMapping,
 } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
@@ -461,6 +462,8 @@ type GenerateAppOptions = {
     // The AI agent tool call that started the build; travels on the job so
     // the worker can patch its pending result when the build ends.
     aiAgentToolCall?: AppGeneratePipelineJobPayload['aiAgentToolCall'];
+    // Thread 1 of the new app; defaults to a builder-originated thread.
+    thread?: Pick<CreateAppThreadArgs, 'origin' | 'aiThreadUuid'>;
 };
 
 const appendVizBuildContext = (
@@ -6768,6 +6771,7 @@ export class AppGenerateService extends BaseService {
             codexModelInput,
             aiAgentToolCall,
             vizContext,
+            thread,
         } = options;
         await this.assertDataAppsEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
@@ -6933,6 +6937,9 @@ export class AppGenerateService extends BaseService {
                 { version, prompt },
                 'pending',
                 resources,
+                undefined,
+                undefined,
+                { thread },
             );
         } catch (error) {
             this.logger.error(
