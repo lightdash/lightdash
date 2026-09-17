@@ -5,7 +5,7 @@ import {
     type DataAppVizConfigOption,
     type DataAppVizOptionValue,
 } from '@lightdash/common';
-import { ColorSwatch, Group, Select, Switch, TextInput } from '@mantine/core';
+import { Select, Switch, TextInput } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
 import { useState, type FC } from 'react';
 import { NumberInput } from '../../common/NumberInput';
@@ -114,59 +114,23 @@ const TextOptionControl: FC<{
 const ColorOptionControl: FC<{
     option: OptionOfType<'color'>;
     value: string;
+    colorPalette: string[];
     onChange: (value: string) => void;
-}> = ({ option, value, onChange }) => {
+}> = ({ option, value, colorPalette, onChange }) => {
     const draft = usePendingEdit(value, onChange);
     return (
         <Config.Group>
             <Config.Label>{option.label}</Config.Label>
             <ColorSelector
                 color={draft.current}
-                swatches={[]}
+                swatches={
+                    colorPalette.length > 0
+                        ? colorPalette
+                        : ECHARTS_DEFAULT_COLORS
+                }
                 ariaLabel={option.label}
                 onColorChange={draft.edit}
             />
-        </Config.Group>
-    );
-};
-
-const PaletteColorOptionControl: FC<{
-    option: OptionOfType<'paletteColor'>;
-    value: number;
-    colorPalette: string[];
-    onChange: (value: number) => void;
-}> = ({ option, value, colorPalette, onChange }) => {
-    const palette =
-        colorPalette.length > 0 ? colorPalette : ECHARTS_DEFAULT_COLORS;
-    const selectedIndex = palette[value] === undefined ? 0 : value;
-
-    return (
-        <Config.Group>
-            <Config.Label>{option.label}</Config.Label>
-            <Group gap={6} wrap="wrap" aria-label={option.label} role="group">
-                {palette.map((color, index) => (
-                    <ColorSwatch
-                        key={`${color}-${index}`}
-                        component="button"
-                        type="button"
-                        size={20}
-                        color={color}
-                        aria-label={`${option.label}: palette colour ${index + 1}, ${color}${
-                            selectedIndex === index ? ', selected' : ''
-                        }`}
-                        aria-pressed={selectedIndex === index}
-                        style={{
-                            cursor: 'pointer',
-                            outline:
-                                selectedIndex === index
-                                    ? '2px solid var(--mantine-color-text)'
-                                    : undefined,
-                            outlineOffset: 2,
-                        }}
-                        onClick={() => onChange(index)}
-                    />
-                ))}
-            </Group>
         </Config.Group>
     );
 };
@@ -227,14 +191,6 @@ const DataAppVizOptionControl: FC<Props> = ({
         case 'color':
             return (
                 <ColorOptionControl
-                    option={option}
-                    value={getEffectiveOptionValue(option, value)}
-                    onChange={onChange}
-                />
-            );
-        case 'paletteColor':
-            return (
-                <PaletteColorOptionControl
                     option={option}
                     value={getEffectiveOptionValue(option, value)}
                     colorPalette={colorPalette}

@@ -20,7 +20,7 @@ type Props = {
     onChange: (name: string, value: DataAppVizOptionValue) => void;
     /** Null when the viz colours nothing from the resolved palette. */
     colorPalette: DataAppVizPaletteDeclaration | null;
-    /** Resolved chart palette used for palette-position option swatches. */
+    /** Resolved chart palette used for colour option swatches. */
     resolvedColorPalette: string[];
     /**
      * Rendered in the tab the declaration names. Picking the chart's Lightdash

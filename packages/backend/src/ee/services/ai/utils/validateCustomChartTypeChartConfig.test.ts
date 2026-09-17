@@ -48,14 +48,8 @@ const vizSchema: DataAppVizSchema = {
             type: 'color',
             default: '#ff0000',
         },
-        {
-            name: 'paletteAccent',
-            label: 'Palette accent',
-            type: 'paletteColor',
-            default: 0,
-        },
     ],
-    colorPalette: {},
+    colorPalette: null,
 };
 
 const selectedFields = {
@@ -285,7 +279,6 @@ describe('validateCustomChartTypeChartConfig', () => {
                         maxBars: 25,
                         subtitle: 'Monthly revenue',
                         highlightColor: '#00ff00',
-                        paletteAccent: 1,
                     }),
                     vizSchema,
                     selectedFields,
@@ -303,7 +296,7 @@ describe('validateCustomChartTypeChartConfig', () => {
             ).toThrow(
                 expect.objectContaining({
                     message: expect.stringContaining(
-                        'Unknown option "legendShown". This custom chart type declares these options: showLegend, sortOrder, maxBars, subtitle, highlightColor, paletteAccent.',
+                        'Unknown option "legendShown". This custom chart type declares these options: showLegend, sortOrder, maxBars, subtitle, highlightColor.',
                     ),
                 }),
             );
@@ -435,26 +428,6 @@ describe('validateCustomChartTypeChartConfig', () => {
                     ),
                 }),
             );
-        });
-
-        it('rejects a palette position that is not a nonnegative integer', () => {
-            for (const value of [-1, 0.5, '1']) {
-                expect(() =>
-                    validateCustomChartTypeChartConfig(
-                        buildChartConfig(validMapping, {
-                            paletteAccent: value,
-                        }),
-                        vizSchema,
-                        selectedFields,
-                    ),
-                ).toThrow(
-                    expect.objectContaining({
-                        message: expect.stringContaining(
-                            'Option "paletteAccent" (paletteColor) expects a nonnegative integer',
-                        ),
-                    }),
-                );
-            }
         });
 
         it('collects field-mapping and option errors into one message', () => {

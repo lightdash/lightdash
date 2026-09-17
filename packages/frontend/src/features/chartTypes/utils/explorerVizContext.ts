@@ -1,5 +1,5 @@
 import {
-    resolveDataAppVizRuntimeOptionValues,
+    getEffectiveOptionValues,
     type DataAppVizContext,
     type DataAppVizFieldMapping,
     type DataAppVizOptionValues,
@@ -61,11 +61,7 @@ export const buildExplorerVizContext = ({
         persistedFieldMapping,
     }),
     rows,
-    options: resolveDataAppVizRuntimeOptionValues(
-        schema.configOptions,
-        optionValues,
-        colorPalette,
-    ),
+    options: getEffectiveOptionValues(schema.configOptions, optionValues),
     colorPalette,
     ...resolvedColors,
     pivotDetails,

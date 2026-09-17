@@ -283,7 +283,7 @@ Every option has:
   tab; ungrouped options share a default tab.
 - `default` — REQUIRED on every option. The value the viz uses until the viewer changes it;
   its shape follows `type`. Use the value you would otherwise have hardcoded.
-- `type` — exactly one of these six, no others:
+- `type` — exactly one of these five, no others:
 
 | `type` | control | `default` | extra keys |
 |---|---|---|---|
@@ -292,28 +292,23 @@ Every option has:
 | `number` | number input | a number | `min`, `max` — both optional numbers |
 | `text` | single-line text input | a string | — |
 | `color` | single colour | a hex string, e.g. `"#7162FF"` | — |
-| `paletteColor` | palette swatches | a zero-based nonnegative palette position | — |
 
-`color` is a free hex value for an accent that is independent of the chart palette. Use
-`paletteColor` for an accent that should follow the chart palette: store its zero-based
-position in `default`, then read its resolved hex colour from `options`. Declare
-`colorPalette` alongside every `paletteColor`, so the viewer can choose the chart palette.
-If the position is outside the chosen palette the runtime resolves its first colour; if no
-palette is available it uses the standard Lightdash fallback colours. Series colours are
-declared separately, on `colorPalette`.
+The `color` control includes swatches from the active Lightdash palette and accepts custom
+hex colours. It stores the chosen hex string. Changing the palette or light/dark theme
+updates the available swatches; it does not change previously chosen colours.
+
+Series colours are not in this list. They are declared separately, on `colorPalette`.
 
 ### `colorPalette`
 
 Whether the viewer gets the standard Lightdash palette picker. Declare
-`{ "group": "..." }` when your component colours anything with the resolved-colour helpers,
-`colorPalette`, or a `paletteColor` option; use `null` when it colours nothing. `group`
-is optional and works like an option's: the picker joins that tab, and gets a tab of its
-own when no option shares the name.
+`{ "group": "..." }` when your component colours anything with the resolved-colour helpers
+or `colorPalette`, or `null` when it colours nothing. `group` is optional and works like an
+option's: the picker joins that tab, and gets a tab of its own when no option shares the
+name.
 
 This is not a config option. There is one palette per chart, it has no `name` and no
-`default`, and its colours arrive on `colorPalette` — never on `options`. The exception is
-that a declared `paletteColor` resolves its stored position to one palette colour on
-`options`; it still needs this declaration for the picker.
+`default`, and its colours arrive on `colorPalette` — never on `options`.
 
 ## Worked example
 
@@ -385,9 +380,7 @@ minimum, not a menu:
 - every variant you picked between (vertical/horizontal, grouped/stacked, curve style) → `select`
 - every number you chose (bar width, max rows, decimal places, a threshold) → `number`
 - every string you wrote into the chart (title, axis label, empty-state text) → `text`
-- every accent colour independent of the chart palette (a target line, a highlight) → `color`
-- every accent that should follow the selected chart palette → `paletteColor` plus
-  `colorPalette`
+- every accent colour that is not a series colour (a target line, a highlight) → `color`
 - the series colours, whenever the chart draws more than one series → resolved-colour
   helper plus `colorPalette`
 
@@ -396,9 +389,8 @@ read the option in its place. Leave it hardcoded only where changing it would br
 chart.
 
 Then check both directions: every key you read from `options` is declared, and every option
-you declared is read somewhere. Declare `colorPalette` when you use a resolved-colour
-helper, read from `colorPalette`, or declare a `paletteColor` option. The `colorPalette`
-declaration itself is never read from `options`; a `paletteColor` option is.
+you declared is read somewhere. `colorPalette` is declared when you use either resolved-
+colour helper or colour from `colorPalette` — it is never read from `options`.
 
 Finally, if any mark maps to exactly one source row, the data-point action
 menu is wired: each interactive datum carries `sourceRow`, the underlying-data

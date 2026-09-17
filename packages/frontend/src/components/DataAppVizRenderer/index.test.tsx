@@ -1,9 +1,4 @@
-import {
-    DimensionType,
-    FieldType,
-    MetricType,
-    type DataAppVizSchema,
-} from '@lightdash/common';
+import { DimensionType, FieldType, MetricType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -20,7 +15,21 @@ const mocks = vi.hoisted(() => ({
                   state: 'ready';
                   version: number;
                   latestBuildInProgress: boolean;
-                  schema: DataAppVizSchema;
+                  schema: {
+                      fields: Array<{
+                          name: string;
+                          label: string;
+                          type: 'dimension' | 'metric';
+                          required: boolean;
+                      }>;
+                      configOptions: Array<{
+                          type: 'text';
+                          name: string;
+                          label: string;
+                          default: string;
+                      }>;
+                      colorPalette: null;
+                  };
               }
             | {
                   state: 'building';
@@ -544,34 +553,13 @@ describe('DataAppVizRenderer', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('uses the metadata schema to deliver resolved runtime options', () => {
-        mocks.metadata.current = {
-            ...readyMetadata(),
-            schema: {
-                ...readyMetadata().schema,
-                configOptions: [
-                    {
-                        type: 'text',
-                        name: 'title',
-                        label: 'Title',
-                        default: 'Sales',
-                    },
-                    {
-                        type: 'paletteColor',
-                        name: 'accent',
-                        label: 'Accent',
-                        default: 0,
-                    },
-                ],
-                colorPalette: {},
-            },
-        };
+    it('uses the metadata schema to deliver effective options', () => {
         renderRenderer();
 
         expect(mocks.iframePreview).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 dataAppVizContext: expect.objectContaining({
-                    options: { title: 'Sales', accent: '#7162FF' },
+                    options: { title: 'Sales' },
                     colorPalette: ['#7162FF'],
                     seriesColors: {},
                     valueColors: {

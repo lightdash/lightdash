@@ -1,7 +1,18 @@
-import { type DataAppVizConfigOption } from '@lightdash/common';
+import {
+    ECHARTS_DEFAULT_COLORS,
+    type DataAppVizConfigOption,
+} from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import {
+    afterAll,
+    afterEach,
+    beforeAll,
+    describe,
+    expect,
+    it,
+    vi,
+} from 'vitest';
 import { installFakeTimerBridge } from '../../../testing/fakeTimerBridge';
 import { renderWithProviders } from '../../../testing/testUtils';
 import DataAppVizOptionControl from './DataAppVizOptionControl';
@@ -13,11 +24,11 @@ const textOption: DataAppVizConfigOption = {
     default: 'Untitled',
 };
 
-const paletteColorOption: DataAppVizConfigOption = {
+const colorOption: DataAppVizConfigOption = {
     name: 'accent',
     label: 'Accent',
-    type: 'paletteColor',
-    default: 0,
+    type: 'color',
+    default: '#abcdef',
 };
 
 describe('DataAppVizOptionControl', () => {
@@ -29,6 +40,10 @@ describe('DataAppVizOptionControl', () => {
 
     afterAll(() => {
         removeFakeTimerBridge();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
     it('debounces text edits rather than pushing every keystroke', async () => {
@@ -126,82 +141,97 @@ describe('DataAppVizOptionControl', () => {
         expect(screen.getByLabelText('Title')).toHaveValue('Untitled');
     });
 
-    it('shows wrapping accessible palette swatches and stores the selected position', async () => {
-        const user = userEvent.setup();
+    it('offers the active palette as swatches and stores the selected hex colour', async () => {
+        vi.useFakeTimers();
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         const onChange = vi.fn();
 
         renderWithProviders(
             <DataAppVizOptionControl
-                option={paletteColorOption}
-                value={0}
+                option={colorOption}
+                value="#abcdef"
                 colorPalette={['#111111', '#222222']}
                 onChange={onChange}
             />,
         );
 
-        await user.click(
-            screen.getByRole('button', {
-                name: 'Accent: palette colour 2, #222222',
-            }),
-        );
+        await user.click(screen.getByRole('button', { name: 'Accent' }));
+        expect(screen.getByRole('button', { name: '#111111' })).toBeVisible();
+        await user.click(screen.getByRole('button', { name: '#222222' }));
 
-        expect(onChange).toHaveBeenCalledWith(1);
+        expect(onChange).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(250);
+        expect(onChange).toHaveBeenCalledWith('#222222');
     });
 
-    it('shows the first fallback swatch as selected when the stored position is outside the palette', () => {
+    it('offers Lightdash default swatches when no palette is supplied', async () => {
+        const user = userEvent.setup();
+
         renderWithProviders(
             <DataAppVizOptionControl
-                option={paletteColorOption}
-                value={9}
-                colorPalette={[]}
+                option={colorOption}
+                value="#abcdef"
                 onChange={vi.fn()}
             />,
         );
 
+        await user.click(screen.getByRole('button', { name: 'Accent' }));
         expect(
-            screen.getByRole('button', {
-                name: 'Accent: palette colour 1, #5470c6, selected',
-            }),
-        ).toHaveAttribute('aria-pressed', 'true');
+            screen.getByRole('button', { name: ECHARTS_DEFAULT_COLORS[0] }),
+        ).toBeVisible();
     });
 
-    it('keeps the stored position when the palette changes and when the control reopens', () => {
-        const { rerender, unmount } = renderWithProviders(
+    it('updates palette choices without changing the saved hex colour', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+        const { rerender } = renderWithProviders(
             <DataAppVizOptionControl
-                option={paletteColorOption}
-                value={1}
+                option={colorOption}
+                value="#abcdef"
                 colorPalette={['#111111', '#222222']}
-                onChange={vi.fn()}
+                onChange={onChange}
             />,
         );
+
+        await user.click(screen.getByRole('button', { name: 'Accent' }));
+        expect(screen.getByRole('button', { name: '#222222' })).toBeVisible();
 
         rerender(
             <DataAppVizOptionControl
-                option={paletteColorOption}
-                value={1}
+                option={colorOption}
+                value="#abcdef"
                 colorPalette={['#aaaaaa', '#bbbbbb']}
-                onChange={vi.fn()}
+                onChange={onChange}
             />,
         );
-        expect(
-            screen.getByRole('button', {
-                name: 'Accent: palette colour 2, #bbbbbb, selected',
-            }),
-        ).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.queryByRole('button', { name: '#222222' })).toBeNull();
+        expect(screen.getByRole('button', { name: '#bbbbbb' })).toBeVisible();
+        expect(screen.getByPlaceholderText(/Type in a custom HEX/)).toHaveValue(
+            'abcdef',
+        );
+        expect(onChange).not.toHaveBeenCalled();
+    });
 
-        unmount();
+    it('still accepts a custom hex colour outside the palette', async () => {
+        vi.useFakeTimers();
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const onChange = vi.fn();
+
         renderWithProviders(
             <DataAppVizOptionControl
-                option={paletteColorOption}
-                value={1}
-                colorPalette={['#aaaaaa', '#bbbbbb']}
-                onChange={vi.fn()}
+                option={colorOption}
+                value="#abcdef"
+                colorPalette={['#111111', '#222222']}
+                onChange={onChange}
             />,
         );
-        expect(
-            screen.getByRole('button', {
-                name: 'Accent: palette colour 2, #bbbbbb, selected',
-            }),
-        ).toHaveAttribute('aria-pressed', 'true');
+
+        await user.click(screen.getByRole('button', { name: 'Accent' }));
+        const hexInput = screen.getByPlaceholderText(/Type in a custom HEX/);
+        await user.clear(hexInput);
+        await user.type(hexInput, 'a1b2c3');
+        await vi.advanceTimersByTimeAsync(250);
+
+        expect(onChange).toHaveBeenCalledWith('#a1b2c3');
     });
 });

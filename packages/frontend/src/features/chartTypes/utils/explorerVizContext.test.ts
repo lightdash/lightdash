@@ -129,41 +129,4 @@ describe('buildExplorerVizContext', () => {
             showLegend: false,
         });
     });
-
-    it('resolves palette-position options from the Explorer palette', () => {
-        const context = build({
-            schema: {
-                ...schema,
-                configOptions: [
-                    {
-                        type: 'paletteColor',
-                        name: 'accent',
-                        label: 'Accent',
-                        default: 1,
-                    },
-                ],
-            },
-        });
-
-        expect(context.options).toEqual({ accent: '#222' });
-    });
-
-    it('keeps free colour options as their stored hex values', () => {
-        const context = build({
-            schema: {
-                ...schema,
-                configOptions: [
-                    {
-                        type: 'color',
-                        name: 'accent',
-                        label: 'Accent',
-                        default: '#111111',
-                    },
-                ],
-            },
-            optionValues: { accent: '#abcdef' },
-        });
-
-        expect(context.options).toEqual({ accent: '#abcdef' });
-    });
 });

@@ -1,6 +1,6 @@
 import {
     ChartType,
-    resolveDataAppVizRuntimeOptionValues,
+    getEffectiveOptionValues,
     hasCustomBinDimension,
     type ApiError,
     type DataAppVizContext,
@@ -428,10 +428,9 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         return {
             fieldMapping: reconciledFieldMapping,
             rows,
-            options: resolveDataAppVizRuntimeOptionValues(
+            options: getEffectiveOptionValues(
                 configOptions,
                 optionValues ?? {},
-                colorPalette,
             ),
             // Already resolved through the full palette cascade and dark-mode
             // corrected by the visualization context.
