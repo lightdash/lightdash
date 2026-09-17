@@ -3,7 +3,11 @@ import { renderHook } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createExplorerStore } from '../features/explorer/store';
+import { Limit } from '../components/ExportResults/types';
+import {
+    createExplorerStore,
+    explorerActions,
+} from '../features/explorer/store';
 import { useExplorerQuery } from './useExplorerQuery';
 import { useExplorerQueryManager } from './useExplorerQueryManager';
 import {
@@ -88,15 +92,13 @@ const buildManagerMock = (overrides: Partial<ManagerMock> = {}): ManagerMock =>
         ...overrides,
     }) as unknown as ManagerMock;
 
-const createWrapper = () => {
+const createWrapper = (store = createExplorerStore()) => {
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
             mutations: { retry: false },
         },
     });
-    const store = createExplorerStore();
-
     return ({ children }: { children: React.ReactNode }) => (
         <QueryClientProvider client={queryClient}>
             <Provider store={store}>
@@ -183,6 +185,43 @@ describe('useExplorerQuery', () => {
             pivotResults: true,
             pivotConfiguration,
         } as never;
+
+        it('keeps the visible pivot query for flat table rows and honors an explicit custom limit of the same size', async () => {
+            vi.mocked(useExplorerQueryManager).mockReturnValue(
+                buildManagerMock({
+                    validQueryArgs,
+                    queryResults: {
+                        queryUuid: 'visible-query',
+                        totalResults: 2,
+                    } as never,
+                    unpivotedQueryResults: {
+                        queryUuid: 'raw-query',
+                        totalResults: 2,
+                    } as never,
+                }),
+            );
+            const store = createExplorerStore();
+            store.dispatch(
+                explorerActions.setUnpivotedQueryArgs(validQueryArgs),
+            );
+            const { result } = renderHook(() => useExplorerQuery(), {
+                wrapper: createWrapper(store),
+            });
+            await expect(
+                result.current.getDownloadQueryUuid(2, false, Limit.TABLE),
+            ).resolves.toBe('visible-query');
+            expect(executeQueryAndWaitForResults).not.toHaveBeenCalled();
+            await expect(
+                result.current.getDownloadQueryUuid(2, false, Limit.CUSTOM),
+            ).resolves.toBe('download-uuid');
+            expect(executeQueryAndWaitForResults).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    csvLimit: 2,
+                    pivotResults: false,
+                    pivotConfiguration: undefined,
+                }),
+            );
+        });
 
         it('omits pivotConfiguration from the download query when exportPivotedResults is false', async () => {
             vi.mocked(useExplorerQueryManager).mockReturnValue(

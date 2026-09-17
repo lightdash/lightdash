@@ -237,6 +237,7 @@ import {
 } from '../../utils/QueryBuilder/utils';
 import { splitJsonlStream } from '../../utils/streamUtils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
+import { unpivotResultsStream } from '../../utils/unpivotResultsStream';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import type { CacheHitCacheResult } from '../CacheService/types';
@@ -1938,10 +1939,12 @@ export class AsyncQueryService extends ProjectService {
         account,
         projectUuid,
         sourceQueryUuid,
+        kind = 'columnTotal',
     }: {
         account: Account;
         projectUuid: string;
         sourceQueryUuid: string;
+        kind?: 'columnTotal' | 'grandTotal';
     }): Promise<Record<string, number> | undefined> {
         try {
             const { rows, fields } =
@@ -1949,7 +1952,7 @@ export class AsyncQueryService extends ProjectService {
                     account,
                     projectUuid,
                     queryUuid: sourceQueryUuid,
-                    kind: 'columnTotal',
+                    kind,
                 });
             return buildWarehouseColumnTotals(formatRows(rows, fields));
         } catch (error) {
@@ -2177,11 +2180,15 @@ export class AsyncQueryService extends ProjectService {
 
         // TODO: We should use the columns data instead of fields. We need to: add format expression to columns type and refactor csv service, etc to use columns instead of fields
         // Note: Generate fields for SQL queries. As a workaround, we check the explore name to identify SQL queries and generate fields from columns.
+        const exportColumns =
+            !exportPivotedData && queryHistory.pivotConfiguration
+                ? (queryHistory.originalColumns ?? columns)
+                : columns;
         const resultFields =
             queryHistory.metricQuery.exploreName ===
             SQL_QUERY_MOCK_EXPLORER_NAME
                 ? Object.fromEntries(
-                      Object.entries(columns).map<[string, Dimension]>(
+                      Object.entries(exportColumns).map<[string, Dimension]>(
                           ([key, column]) => [
                               key,
                               {
@@ -2297,6 +2304,9 @@ export class AsyncQueryService extends ProjectService {
                         columnOrder: validColumnOrder,
                         hiddenFields,
                         pivotConfig: downloadPivotConfig,
+                        pivotValuesColumns: !exportPivotedData
+                            ? pivotDetails?.valuesColumns
+                            : undefined,
                     },
                     attachmentDownloadName,
                     {
@@ -2373,11 +2383,17 @@ export class AsyncQueryService extends ProjectService {
                               hiddenFields,
                               attachmentDownloadName,
                               conditionalFormattings,
+                              pivotValuesColumns: !exportPivotedData
+                                  ? pivotDetails?.valuesColumns
+                                  : undefined,
                               columnTotals: showColumnTotals
                                   ? await this.getExportColumnTotals({
                                         account,
                                         projectUuid,
                                         sourceQueryUuid: queryUuid,
+                                        kind: pivotDetails
+                                            ? 'grandTotal'
+                                            : 'columnTotal',
                                     })
                                   : undefined,
                           },
@@ -2446,6 +2462,7 @@ export class AsyncQueryService extends ProjectService {
             columnOrder?: string[];
             hiddenFields?: string[];
             pivotConfig?: PivotConfig;
+            pivotValuesColumns?: PivotValuesColumn[];
         },
         attachmentDownloadName?: string,
         persistentUrlContext?: {
@@ -2500,7 +2517,12 @@ export class AsyncQueryService extends ProjectService {
                     sortedFieldIds,
                     headers,
                     {
-                        readStream,
+                        readStream: options?.pivotValuesColumns
+                            ? unpivotResultsStream(
+                                  readStream,
+                                  options.pivotValuesColumns,
+                              )
+                            : readStream,
                         writeStream,
                     },
                     timezone,

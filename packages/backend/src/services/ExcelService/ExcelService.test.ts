@@ -2299,3 +2299,105 @@ describe('ExcelService column totals row in xlsx export (PROD-9169)', () => {
         expect(worksheet!.rowCount).toBe(2);
     });
 });
+
+describe('flat export of stored pivot results', () => {
+    it.each([false, true])(
+        'exports both periods without losing data (duplicate aggregation: %s)',
+        async (duplicateAggregation) => {
+            const fields: ItemsMap = {
+                category: {
+                    ...mockItemMapWithFormats.string_column,
+                    name: 'category',
+                    table: '',
+                    label: 'Category',
+                },
+                period: {
+                    ...mockItemMapWithFormats.string_column,
+                    name: 'period',
+                    table: '',
+                    label: 'Period',
+                },
+                revenue: {
+                    ...mockItemMapWithFormats.number_without_format,
+                    name: 'revenue',
+                    table: '',
+                    label: 'Revenue',
+                },
+            };
+            const rows = [
+                { category: 'A', revenue_sum_jan: 10, revenue_sum_feb: 20 },
+                { category: 'B', revenue_sum_feb: 0 },
+                { category: 'C', revenue_sum_jan: null },
+            ];
+            const options = {
+                columnOrder: ['category', 'period', 'revenue'],
+                columnTotals: { revenue: 30 },
+                pivotValuesColumns: [
+                    {
+                        referenceField: 'revenue',
+                        pivotColumnName: 'revenue_sum_jan',
+                        aggregation: VizAggregationOptions.SUM,
+                        pivotValues: [
+                            { referenceField: 'period', value: 'January' },
+                        ],
+                        columnIndex: 1,
+                    },
+                    {
+                        referenceField: 'revenue',
+                        pivotColumnName: 'revenue_sum_feb',
+                        aggregation: VizAggregationOptions.SUM,
+                        pivotValues: [
+                            { referenceField: 'period', value: 'February' },
+                        ],
+                        columnIndex: 2,
+                    },
+                ],
+            };
+            if (duplicateAggregation) {
+                options.pivotValuesColumns.push({
+                    ...options.pivotValuesColumns[0],
+                    aggregation: VizAggregationOptions.AVERAGE,
+                    pivotColumnName: 'revenue_avg_jan',
+                });
+            }
+            const workbook = new (await import('exceljs')).Workbook();
+            const download = ExcelService.downloadAsyncExcelDirectly(
+                'pivot-results',
+                fields,
+                {
+                    resultsStorageClient: {
+                        getDownloadStream: async () =>
+                            Readable.from([
+                                rows
+                                    .map((row) => JSON.stringify(row))
+                                    .join('\n'),
+                            ]),
+                    } as unknown as import('../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient').S3ResultsFileStorageClient,
+                    exportsStorageClient: {
+                        uploadExcel: async (stream: Readable) => {
+                            await workbook.xlsx.read(stream);
+                            return 'export-url';
+                        },
+                    } as unknown as import('../../clients/FileStorage/FileStorageClient').FileStorageClient,
+                },
+                options,
+            );
+            if (duplicateAggregation) {
+                await expect(download).rejects.toThrow(
+                    'Use the Grouped layout',
+                );
+                return;
+            }
+            await download;
+            expect(workbook.getWorksheet('Sheet1')!.getSheetValues()).toEqual([
+                undefined,
+                [undefined, 'Category', 'Period', 'Revenue'],
+                [undefined, 'A', 'January', 10],
+                [undefined, 'A', 'February', 20],
+                [undefined, 'B', 'February', 0],
+                [undefined, 'C', 'January'],
+                [undefined, 'Total', undefined, 30],
+            ]);
+        },
+    );
+});

@@ -35,6 +35,7 @@ import {
     type ConditionalFormattingRowFields,
     type PivotResultsDataCell,
     type PivotRowTotalsByIndex,
+    type PivotValuesColumn,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import * as Excel from 'exceljs';
@@ -53,6 +54,7 @@ import {
     processFieldsForExport,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import { unpivotResultsStream } from '../../utils/unpivotResultsStream';
 
 export class ExcelService {
     private static readonly EXCEL_ROW_LIMIT = 1_000_000;
@@ -1008,6 +1010,7 @@ export class ExcelService {
             conditionalFormattings?: ConditionalFormattingConfig[];
             // Warehouse-computed totals appended as a final row, keyed by field id
             columnTotals?: Record<string, number>;
+            pivotValuesColumns?: PivotValuesColumn[];
         } = {},
         timezone?: string,
     ): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
@@ -1021,6 +1024,7 @@ export class ExcelService {
             attachmentDownloadName,
             conditionalFormattings,
             columnTotals,
+            pivotValuesColumns,
         } = options;
 
         const { resultsStorageClient, exportsStorageClient } = clients;
@@ -1033,6 +1037,14 @@ export class ExcelService {
             hiddenFields,
         });
 
+        const getResultsStream = async () => {
+            const stream =
+                await resultsStorageClient.getDownloadStream(resultsFileName);
+            return pivotValuesColumns
+                ? unpivotResultsStream(stream, pivotValuesColumns)
+                : stream;
+        };
+
         // Create temporary file
         const tempFilePath = ExcelService.createTempFilePath('direct');
 
@@ -1041,10 +1053,7 @@ export class ExcelService {
             // scan the results once with a dedicated stream (it is consumed).
             let minMaxMap: ConditionalFormattingMinMaxMap = {};
             if (conditionalFormattings?.length) {
-                const scanStream =
-                    await resultsStorageClient.getDownloadStream(
-                        resultsFileName,
-                    );
+                const scanStream = await getResultsStream();
                 minMaxMap =
                     await ExcelService.buildConditionalFormattingMinMaxMap({
                         resultsStream: scanStream,
@@ -1054,8 +1063,7 @@ export class ExcelService {
             }
 
             // Step 2: Get source stream
-            const resultsStream =
-                await resultsStorageClient.getDownloadStream(resultsFileName);
+            const resultsStream = await getResultsStream();
 
             // Step 3: Stream JSONL data to Excel temp file
             const { truncated } = await ExcelService.streamJsonlToExcelFile(

@@ -53,7 +53,7 @@ import {
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
 import ExecutionContext from 'node-execution-context';
-import { Readable } from 'stream';
+import { Readable, Writable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { fromJwt } from '../../auth/account/account';
 import { defaultJwtToken } from '../../auth/account/account.mock';
@@ -3876,66 +3876,169 @@ describe('AsyncQueryService', () => {
             expect(flatSpy).not.toHaveBeenCalled();
         });
 
-        it('does not pivot when the user opts out via exportPivotedData=false', async () => {
-            const service = getMockedAsyncQueryService(lightdashConfigMock);
-            const internals = asInternals(service);
-            service.queryHistoryModel.get = vi.fn().mockResolvedValue(
-                baseReadyQueryHistory({
-                    pivotConfiguration: {
-                        indexColumn: {
-                            reference: 'user_id',
-                            type: VizIndexType.CATEGORY,
-                        },
-                        valuesColumns: [
-                            {
-                                reference: 'amount',
-                                aggregation: VizAggregationOptions.SUM,
+        it.each([DownloadFileType.CSV, DownloadFileType.XLSX])(
+            'exports every visible period in flat %s downloads',
+            async (type) => {
+                const workbook = new (await import('exceljs')).Workbook();
+                let csv = '';
+                const exportsStorageClient = {
+                    isEnabled: () => true,
+                    createUploadStream: () => ({
+                        writeStream: new Writable({
+                            write(chunk, _encoding, callback) {
+                                csv += chunk.toString();
+                                callback();
                             },
-                        ],
-                        groupByColumns: [{ reference: 'order_date' }],
-                        sortBy: [],
-                        metricsAsRows: false,
+                        }),
+                        close: async () => undefined,
+                    }),
+                    getFileUrl: async () => 'export-url',
+                    uploadExcel: async (stream: Readable) => {
+                        await workbook.xlsx.read(stream);
+                        return 'export-url';
                     },
-                    pivotTotalColumnCount: 5,
-                    pivotValuesColumns: {
-                        amount_sum_2021: {
-                            referenceField: 'amount',
-                            pivotColumnName: 'amount_sum_2021',
-                            aggregation: VizAggregationOptions.SUM,
-                            pivotValues: [
-                                { referenceField: 'order_date', value: '2021' },
-                            ],
+                } as unknown as FileStorageClient;
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        exportsStorageClient,
+                        fileStorageClient: exportsStorageClient,
+                        persistentDownloadFileService: {
+                            createPersistentUrl: async () => 'download-url',
+                        } as unknown as PersistentDownloadFileService,
+                    },
+                );
+                const fields: ItemsMap = Object.fromEntries(
+                    ['user_id', 'order_date', 'amount'].map((name) => [
+                        name,
+                        {
+                            name,
+                            table: '',
+                            tableLabel: '',
+                            label: name,
+                            fieldType: FieldType.DIMENSION,
+                            type:
+                                name === 'amount'
+                                    ? DimensionType.NUMBER
+                                    : DimensionType.STRING,
+                            sql: '',
+                            hidden: false,
                         },
-                    } as AnyType,
-                }),
-            );
-
-            const pivotSpy = vi
-                .spyOn(service.pivotTableService, 'downloadAsyncPivotTableCsv')
-                .mockResolvedValue({
-                    fileUrl: 'should-not-be-used',
+                    ]),
+                );
+                service.queryHistoryModel.get = vi.fn().mockResolvedValueOnce(
+                    baseReadyQueryHistory({
+                        fields,
+                        pivotConfiguration: {
+                            sortBy: [],
+                            indexColumn: {
+                                reference: 'user_id',
+                                type: VizIndexType.CATEGORY,
+                            },
+                            valuesColumns: [
+                                {
+                                    reference: 'amount',
+                                    aggregation: VizAggregationOptions.SUM,
+                                },
+                            ],
+                            groupByColumns: [{ reference: 'order_date' }],
+                        },
+                        pivotValuesColumns: {
+                            amount_sum_jan: {
+                                referenceField: 'amount',
+                                pivotColumnName: 'amount_sum_jan',
+                                aggregation: VizAggregationOptions.SUM,
+                                pivotValues: [
+                                    {
+                                        referenceField: 'order_date',
+                                        value: 'January',
+                                    },
+                                ],
+                                columnIndex: 1,
+                            },
+                            amount_sum_feb: {
+                                referenceField: 'amount',
+                                pivotColumnName: 'amount_sum_feb',
+                                aggregation: VizAggregationOptions.SUM,
+                                pivotValues: [
+                                    {
+                                        referenceField: 'order_date',
+                                        value: 'February',
+                                    },
+                                ],
+                                columnIndex: 2,
+                            },
+                        },
+                    }),
+                );
+                vi.mocked(service.queryHistoryModel.get).mockResolvedValue(
+                    baseReadyQueryHistory({
+                        resultsFileName: 'totals.jsonl',
+                        fields,
+                    }),
+                );
+                service.queryHistoryModel.pollForQueryCompletion = vi
+                    .fn()
+                    .mockResolvedValue(undefined);
+                vi.spyOn(
+                    service,
+                    'executeAsyncCalculateTotalFromQueryHistory',
+                ).mockImplementation(async ({ kind }) => {
+                    expect(kind).toBe('grandTotal');
+                    return {
+                        queryUuid: 'totals-query',
+                        fields,
+                        cacheMetadata: { cacheHit: false },
+                        parameterReferences: [],
+                        usedParametersValues: {},
+                        resolvedTimezone: null,
+                        metricQuery: metricQueryMock,
+                        warnings: [],
+                    };
+                });
+                vi.mocked(
+                    service.resultsStorageClient.getDownloadStream,
+                ).mockImplementation(async (fileName) =>
+                    Readable.from([
+                        fileName === 'totals.jsonl'
+                            ? '{"amount":30}'
+                            : '{"user_id":"A","amount_sum_jan":10,"amount_sum_feb":20}',
+                    ]),
+                );
+                await expect(
+                    service.download({
+                        account: sessionAccount,
+                        accessMode:
+                            PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                        projectUuid,
+                        queryUuid: 'test-query-uuid',
+                        type,
+                        columnOrder: ['user_id', 'order_date', 'amount'],
+                        exportPivotedData: false,
+                        showColumnTotals: true,
+                        onlyRaw: true,
+                    }),
+                ).resolves.toMatchObject({
+                    fileUrl: 'download-url',
                     truncated: false,
                 });
-            const flatSpy = vi
-                .spyOn(internals, 'downloadAsyncQueryResultsAsFormattedFile')
-                .mockResolvedValue({ fileUrl: 'flat-url', truncated: false });
-
-            await expect(
-                internals.downloadAsyncQueryResults({
-                    account: sessionAccount,
-                    accessMode:
-                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
-                    projectUuid,
-                    queryUuid: 'test-query-uuid',
-                    type: DownloadFileType.CSV,
-                    pivotConfig,
-                    exportPivotedData: false,
-                }),
-            ).resolves.toMatchObject({ fileUrl: 'flat-url' });
-
-            expect(pivotSpy).not.toHaveBeenCalled();
-            expect(flatSpy).toHaveBeenCalledTimes(1);
-        });
+                if (type === DownloadFileType.CSV) {
+                    expect(csv).toBe(
+                        '\uFEFFuser_id,order_date,amount\n"A","January","10"\n"A","February","20"\n',
+                    );
+                } else {
+                    expect(
+                        workbook.getWorksheet('Sheet1')!.getSheetValues(),
+                    ).toEqual([
+                        undefined,
+                        [undefined, 'user_id', 'order_date', 'amount'],
+                        [undefined, 'A', 'January', 10],
+                        [undefined, 'A', 'February', 20],
+                        [undefined, 'Total', undefined, 30],
+                    ]);
+                }
+            },
+        );
     });
 
     describe('analytics cached-result boundaries', () => {

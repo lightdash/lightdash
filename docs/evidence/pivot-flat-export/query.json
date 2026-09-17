@@ -1,0 +1,53 @@
+{
+    "query": {
+        "exploreName": "orders",
+        "dimensions": ["orders_status", "orders_order_date_month"],
+        "metrics": ["orders_total_order_amount"],
+        "filters": {
+            "dimensions": {
+                "id": "periods",
+                "and": [
+                    {
+                        "id": "months",
+                        "target": {
+                            "fieldId": "orders_order_date_month"
+                        },
+                        "operator": "equals",
+                        "values": ["2024-01-01", "2024-02-01"]
+                    }
+                ]
+            }
+        },
+        "sorts": [
+            {
+                "fieldId": "orders_order_date_month",
+                "descending": false
+            },
+            {
+                "fieldId": "orders_status",
+                "descending": false
+            }
+        ],
+        "limit": 500,
+        "tableCalculations": []
+    },
+    "context": "exploreView",
+    "pivotConfiguration": {
+        "indexColumn": {
+            "reference": "orders_status",
+            "type": "category"
+        },
+        "valuesColumns": [
+            {
+                "reference": "orders_total_order_amount",
+                "aggregation": "sum"
+            }
+        ],
+        "groupByColumns": [
+            {
+                "reference": "orders_order_date_month"
+            }
+        ],
+        "sortBy": []
+    }
+}
