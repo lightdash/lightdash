@@ -73,6 +73,7 @@ import { type AiOrganizationSettingsModel } from '../../models/AiOrganizationSet
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
+import { canStartDeepResearch } from '../AiAgentService/dataAppThreadPolicy';
 import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from './constants';
 import { resolveDeepResearchWarehouseChart } from './resolveDeepResearchWarehouseChart';
 import {
@@ -842,6 +843,11 @@ export class AiDeepResearchService extends BaseService {
         const prompt = await this.aiAgentModel.findWebAppPrompt(
             args.promptUuid,
         );
+        if (prompt && !canStartDeepResearch(prompt.threadCreatedFrom)) {
+            throw new ForbiddenError(
+                'Deep Research is not available on a thread started from a data app',
+            );
+        }
         if (
             !prompt ||
             prompt.threadUuid !== args.aiThreadUuid ||

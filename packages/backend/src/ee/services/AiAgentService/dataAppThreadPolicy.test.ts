@@ -1,5 +1,8 @@
 import { DATA_APP_INVESTIGATE_TOOL_NAMES } from '../ai/agents/agentV2';
-import { resolveStandardToolAllowlist } from './dataAppThreadPolicy';
+import {
+    canStartDeepResearch,
+    resolveStandardToolAllowlist,
+} from './dataAppThreadPolicy';
 
 describe('resolveStandardToolAllowlist', () => {
     it('pins data-app threads to the read-only investigate tools', () => {
@@ -19,6 +22,11 @@ describe('resolveStandardToolAllowlist', () => {
         expect(
             resolveStandardToolAllowlist('slack', undefined),
         ).toBeUndefined();
+    });
+
+    it('refuses deep research on a data-app thread', () => {
+        expect(canStartDeepResearch('data_app')).toBe(false);
+        expect(canStartDeepResearch('web_app')).toBe(true);
     });
 
     it('never lets a data-app thread write or reach outside the project', () => {

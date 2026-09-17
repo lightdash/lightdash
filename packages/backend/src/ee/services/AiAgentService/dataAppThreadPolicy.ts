@@ -6,6 +6,11 @@ import { DATA_APP_INVESTIGATE_TOOL_NAMES } from '../ai/agents/agentV2';
  * read-only tool set for every later prompt, whatever the caller asked for.
  * Viewers can keep asking questions; they cannot save, change or reach out.
  */
+/** Deep research builds its own tool set (raw SQL, trusted MCP), so it never runs on such a thread. */
+export const canStartDeepResearch = (
+    threadCreatedFrom: AiThreadCreatedFrom,
+): boolean => threadCreatedFrom !== 'data_app';
+
 export const resolveStandardToolAllowlist = (
     threadCreatedFrom: AiThreadCreatedFrom,
     requested: ReadonlySet<string> | undefined,
