@@ -1587,7 +1587,7 @@ describe('color scheme push', () => {
         postSpy.mockClear();
         result.current.handleIframeLoad();
         expect(postSpy.mock.calls.map(([message]) => message)).toEqual([
-            { type: 'lightdash:sdk:ready' },
+            { type: 'lightdash:sdk:ready', appUuid: APP_UUID },
             { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
             // No insights supplied: the host says so instead of staying silent.
             {
@@ -1669,6 +1669,7 @@ describe('delivery-render flag on the ready handshake', () => {
         expect(postSpy.mock.calls[0][0]).toEqual({
             type: 'lightdash:sdk:ready',
             deliveryRender: true,
+            appUuid: APP_UUID,
         });
     });
 
@@ -1681,6 +1682,7 @@ describe('delivery-render flag on the ready handshake', () => {
         result.current.handleIframeLoad();
         expect(postSpy.mock.calls[0][0]).toEqual({
             type: 'lightdash:sdk:ready',
+            appUuid: APP_UUID,
         });
     });
 });

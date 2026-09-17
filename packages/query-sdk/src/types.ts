@@ -362,6 +362,16 @@ export type ExternalFetchOptions = {
 
 // --- Transport ---
 
+/** Wire shape of a `useAiPrompt` request, proxied by the host. */
+export type AiPromptRequest = {
+    appUuid: string;
+    prompt: string;
+    sources: { queryUuid: string; label: string | null }[];
+    focus: Record<string, string> | null;
+};
+
+export type AiPromptResult = { text: string };
+
 export type Transport = {
     executeQuery: (query: QueryDefinition) => Promise<QueryResult>;
     executeSavedChart: (params: {
@@ -403,4 +413,10 @@ export type Transport = {
      * valid — `useVizContext().drillDown.enabled` is false when absent.
      */
     openVizDrillDown?: (intent: VizDrillDownIntent) => Promise<void>;
+    /**
+     * Ask the host's AI a question about the viewer's own query results.
+     * Optional so custom transports predating the capability stay valid —
+     * `useAiPrompt().available` is false when absent.
+     */
+    aiPrompt?: (request: AiPromptRequest) => Promise<AiPromptResult>;
 };

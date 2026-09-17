@@ -11,6 +11,7 @@
 
 import { createApiTransport, type FetchAdapter } from './apiTransport';
 import { mountDeliveryRender } from './deliveryRender';
+import { mountHostContext } from './hostContext';
 import { announceSdkManifest } from './manifest';
 import type {
     ExternalFetchMethod,
@@ -46,6 +47,8 @@ export type SdkReadyMessage = {
      *  or its preview. Absent (never `false`) on ordinary interactive loads —
      *  see `deliveryRender.ts`'s `useDeliveryRender()`. */
     deliveryRender?: boolean;
+    /** The app uuid this bundle is deployed as — see `hostContext.ts`. */
+    appUuid?: string;
 };
 
 export type SdkScreenshotRequest = {
@@ -376,6 +379,7 @@ export function createPostMessageTransport(
     // Listen for the delivery/preview capture flag riding on the same
     // `lightdash:sdk:ready` handshake — see `useDeliveryRender()`.
     mountDeliveryRender(config.targetWindow);
+    mountHostContext(config.targetWindow);
     const adapter = createPostMessageFetchAdapter({
         targetWindow: config.targetWindow,
         timeoutMs: config.timeoutMs,

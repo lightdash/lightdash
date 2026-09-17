@@ -32,6 +32,8 @@ export {
 // Types
 export type {
     AdditionalMetric,
+    AiPromptRequest,
+    AiPromptResult,
     Column,
     ColumnType,
     CustomDimension,
@@ -131,6 +133,10 @@ export { isDeliveryRender, useDeliveryRender } from './deliveryRender';
 // Shareable URL state (seeded from and written back to the host page URL)
 export { useUrlState } from './urlState';
 export type { SdkUrlStateChangeMessage, UrlStateMap } from './urlState';
+
+// Free-form AI prompts over loaded results (data apps)
+export { useAiPrompt } from './aiPrompt';
+export type { AiPrompt, AiPromptOptions, AiPromptSource } from './aiPrompt';
 
 // AI analysis pushed by the host (data apps)
 export { useInsights } from './insights';

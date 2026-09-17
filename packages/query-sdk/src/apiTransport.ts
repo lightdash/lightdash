@@ -9,6 +9,8 @@
  */
 
 import type {
+    AiPromptRequest,
+    AiPromptResult,
     Column,
     DownloadResultsFileType,
     DownloadResultsLimit,
@@ -1159,6 +1161,16 @@ export function createApiTransport(
                 orgId: user.organizationUuid,
                 attributes: user.userAttributes ?? {},
             };
+        },
+
+        async aiPrompt(request: AiPromptRequest): Promise<AiPromptResult> {
+            const { appUuid, prompt, sources, focus } = request;
+            const { text } = await fetchFn<{ text: string }>(
+                'POST',
+                `/api/v2/projects/${config.projectUuid}/apps/${appUuid}/analysis/prompt`,
+                { prompt, sources, ...(focus ? { focus } : {}) },
+            );
+            return { text };
         },
 
         async externalFetch(

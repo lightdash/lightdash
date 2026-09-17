@@ -2,6 +2,7 @@ import type {
     DataAppAnalysisSource,
     DataAppDetectResult,
     DataAppInvestigateResult,
+    DataAppPromptResult,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -38,6 +39,14 @@ export type DbDataAppAnalysis = DbDataAppAnalysisBase &
               agent_uuid: string;
               thread_uuid: string;
           }
+        | {
+              operation: 'prompt';
+              result: DataAppPromptResult;
+              parent_analysis_uuid: null;
+              anomaly_id: null;
+              agent_uuid: null;
+              thread_uuid: null;
+          }
     );
 
 // jsonb columns are JSON-stringified on insert (pg would treat a JS array
@@ -46,7 +55,7 @@ export type DbCreateDataAppAnalysis = Omit<
     DbDataAppAnalysisBase,
     'data_app_analysis_uuid' | 'created_at' | 'sources'
 > & {
-    operation: 'detect' | 'investigate';
+    operation: 'detect' | 'investigate' | 'prompt';
     sources: string;
     result: string;
     parent_analysis_uuid: string | null;

@@ -11,6 +11,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     SchedulerJobStatus,
+    TooManyRequestsError,
     type Account,
     type DataAppAnalysis,
     type DataAppAnalysisRecord,
@@ -20,6 +21,8 @@ import {
     type DataAppInvestigateJobPayload,
     type DataAppInvestigateRequest,
     type DataAppInvestigation,
+    type DataAppPromptAnswer,
+    type DataAppPromptRequest,
     type ItemsMap,
     type SessionUser,
 } from '@lightdash/common';
@@ -56,6 +59,11 @@ import {
 import { groundAnomalies, type GroundingSource } from './grounding';
 
 const MAX_SOURCES = 40;
+const MAX_PROMPT_CHARS = 2000;
+const MAX_FOCUS_ENTRIES = 30;
+const MAX_FOCUS_VALUE_CHARS = 200;
+// Per viewer and app; in-process only, so a multi-pod deployment multiplies it.
+const PROMPT_RATE_LIMIT = { max: 20, windowMs: 60_000 };
 // Hard budgets for one investigation; exhaustion yields a partial answer.
 const INVESTIGATE_MAX_STEPS = 12;
 const INVESTIGATE_MAX_WAREHOUSE_QUERIES = 15;
@@ -428,6 +436,125 @@ export class DataAppAnalysisService extends BaseService {
         };
     }
 
+    private readonly promptTimestamps = new Map<string, number[]>();
+
+    private assertPromptRate(userUuid: string, appUuid: string): void {
+        const key = `${userUuid}:${appUuid}`;
+        const now = Date.now();
+        const isRecent = (t: number) => now - t < PROMPT_RATE_LIMIT.windowMs;
+        this.promptTimestamps.forEach((timestamps, k) => {
+            if (!timestamps.some(isRecent)) this.promptTimestamps.delete(k);
+        });
+        const recent = (this.promptTimestamps.get(key) ?? []).filter(isRecent);
+        if (recent.length >= PROMPT_RATE_LIMIT.max) {
+            throw new TooManyRequestsError(
+                `At most ${PROMPT_RATE_LIMIT.max} AI prompts per minute per app`,
+            );
+        }
+        recent.push(now);
+        this.promptTimestamps.set(key, recent);
+    }
+
+    private static validatePrompt(body: DataAppPromptRequest): {
+        prompt: string;
+        focus: Record<string, string> | null;
+    } {
+        const prompt = body.prompt?.trim() ?? '';
+        if (prompt.length === 0) {
+            throw new ParameterError('A prompt is required');
+        }
+        if (prompt.length > MAX_PROMPT_CHARS) {
+            throw new ParameterError(
+                `Prompts are limited to ${MAX_PROMPT_CHARS} characters`,
+            );
+        }
+        if (body.sources.length === 0) {
+            throw new ParameterError('At least one source query is required');
+        }
+        if (body.sources.length > MAX_SOURCES) {
+            throw new ParameterError(
+                `At most ${MAX_SOURCES} source queries can be analysed at once`,
+            );
+        }
+        const focusEntries = Object.entries(body.focus ?? {});
+        if (focusEntries.length > MAX_FOCUS_ENTRIES) {
+            throw new ParameterError(
+                `Focus rows are limited to ${MAX_FOCUS_ENTRIES} fields`,
+            );
+        }
+        const focus =
+            focusEntries.length === 0
+                ? null
+                : Object.fromEntries(
+                      focusEntries.map(([fieldId, value]) => [
+                          fieldId,
+                          String(value).slice(0, MAX_FOCUS_VALUE_CHARS),
+                      ]),
+                  );
+        return { prompt, focus };
+    }
+
+    /**
+     * Answer an app-authored question over the viewer's own results with the
+     * ambient fast model. Same gates as detect; the answer is plain text and
+     * is persisted like any other analysis.
+     */
+    async prompt(
+        account: Account,
+        projectUuid: string,
+        appUuid: string,
+        body: DataAppPromptRequest,
+    ): Promise<DataAppPromptAnswer> {
+        const { prompt, focus } = DataAppAnalysisService.validatePrompt(body);
+        const { user, appVersion } = await this.assertViewer(
+            account,
+            projectUuid,
+            appUuid,
+        );
+        this.assertPromptRate(user.userUuid, appUuid);
+        const { content, grounding } = await this.buildContent(
+            account,
+            projectUuid,
+            body.sources,
+        );
+        // Only field ids the sources actually carry reach the model.
+        const knownFieldIds = new Set(
+            grounding.flatMap((source) => [...source.fieldIds]),
+        );
+        const groundedFocus = Object.fromEntries(
+            Object.entries(focus ?? {}).filter(([fieldId]) =>
+                knownFieldIds.has(fieldId),
+            ),
+        );
+        const focusForModel =
+            Object.keys(groundedFocus).length > 0 ? groundedFocus : null;
+        const { text, modelId } = await this.aiService.answerDataAppPrompt(
+            user,
+            { content, prompt, focus: focusForModel, projectUuid },
+        );
+        const result = { prompt, focus: focusForModel, text };
+        const row = await this.dataAppAnalysisModel.create({
+            organizationUuid: user.organizationUuid!,
+            projectUuid,
+            appUuid,
+            appVersion,
+            createdByUserUuid: user.userUuid,
+            operation: 'prompt',
+            sources: body.sources,
+            instructions: null,
+            result,
+            modelId,
+        });
+        return {
+            ...result,
+            promptId: row.data_app_analysis_uuid,
+            appUuid,
+            appVersion,
+            sources: body.sources,
+            generatedAt: row.created_at,
+        };
+    }
+
     private static toRecord(row: DbDataAppAnalysis): DataAppAnalysisRecord {
         const base = {
             appUuid: row.app_id,
@@ -440,6 +567,15 @@ export class DataAppAnalysisService extends BaseService {
                 ...row.result,
                 ...base,
                 analysisId: row.data_app_analysis_uuid,
+                sources: row.sources,
+            };
+        }
+        if (row.operation === 'prompt') {
+            return {
+                operation: 'prompt',
+                ...row.result,
+                ...base,
+                promptId: row.data_app_analysis_uuid,
                 sources: row.sources,
             };
         }

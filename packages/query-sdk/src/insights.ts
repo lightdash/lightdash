@@ -389,6 +389,19 @@ function useInsightsPayload(): InsightsPayload {
 }
 
 /**
+ * Whether the host has AI turned on for this app. The store starts
+ * `unavailable` and only a host push can change that.
+ */
+export function useHostAiAvailable(): boolean {
+    const store = getStore();
+    return useSyncExternalStore(
+        store.subscribe,
+        () => store.get().status !== 'unavailable',
+        () => false,
+    );
+}
+
+/**
  * The host's AI analysis of the current view.
  *
  *   const view = useInsights();               // executive summary + every anomaly
@@ -461,6 +474,10 @@ export function useMountedQuery(queryUuid: string | null): void {
 /** Test-only: the payload currently held by the store. */
 export function peekInsights(): InsightsPayload {
     return getStore().get();
+}
+
+export function peekHostAiAvailable(): boolean {
+    return getStore().get().status !== 'unavailable';
 }
 
 /** Test-only seam. */

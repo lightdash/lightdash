@@ -178,6 +178,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: 'Call useInsights() for the view-level headline, summary, limitations and anomalies (render a summary block; call analyse() from a Regenerate control), and useInsights(result) per chart to mark rows where matches(row) is non-empty and to offer investigate(id). Render nothing when status is "unavailable".',
     },
     {
+        key: 'ai-prompt',
+        appliesTo: ['data_app'],
+        label: 'AI prompts',
+        description:
+            "Ask the org-approved AI an author-written question about results the app already loaded, for example a one-line takeaway under a chart or an explanation of a clicked row. Answers are plain text; the host applies the organisation's consent and permission gates.",
+        wiring: 'Call useAiPrompt() and, from a user action or once per loaded view, ask({ prompt, sources: [{ result, label }], focus: { row } }) where result is the object useLightdash returns (keep a reference to it when destructuring; a rebuilt { data, columns } has no query uuid). Render text while loading is false; hide the control when available is false.',
+    },
+    {
         key: 'viz-drill-down',
         appliesTo: ['chart_type'],
         label: 'Drill into data points',
