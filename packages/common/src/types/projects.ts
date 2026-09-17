@@ -95,7 +95,9 @@ export const hasConnectionListingFields = (
     fields.listAllDatabases === true ||
     (fields.additionalDatabases?.length ?? 0) > 0;
 
-export const WAREHOUSE_TYPES_WITH_DATABASE_LISTING: WarehouseTypes[] = [];
+export const WAREHOUSE_TYPES_WITH_DATABASE_LISTING: WarehouseTypes[] = [
+    WarehouseTypes.ATHENA,
+];
 
 export const supportsDatabaseListing = (
     warehouseType: WarehouseTypes | undefined,
