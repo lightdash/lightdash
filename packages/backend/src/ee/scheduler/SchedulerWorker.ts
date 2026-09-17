@@ -291,6 +291,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 },
             },
             {
+                task: EE_SCHEDULER_TASKS.SWEEP_STALE_AI_EVAL_RUNS,
+                pattern: '*/2 * * * *',
+                options: {
+                    backfillPeriod: 5 * 60 * 1000,
+                    maxAttempts: 1,
+                },
+            },
+            {
                 task: EE_SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS,
                 pattern: '*/2 * * * *',
                 options: {
@@ -1032,6 +1040,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 async () => {
                     await this.aiDeepResearchService.sweepStaleRuns();
                 },
+            [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_EVAL_RUNS]: async () => {
+                await this.aiAgentService.sweepStaleEvalRuns();
+            },
             [EE_SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS]: async (
                 payload,
                 helpers,
