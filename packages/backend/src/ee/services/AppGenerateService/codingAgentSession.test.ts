@@ -3,8 +3,10 @@ import {
     codingAgentRetryStart,
     codingAgentSessionFlags,
     decideCodingAgentSessionStart,
+    findCodingAgentSessionId,
     isCodingAgentSessionLostFailure,
     parseCodingAgentSessionInit,
+    versionReachedCodingAgent,
     type CodingAgentSessionStart,
     type CodingAgentThreadState,
 } from './codingAgentSession';
@@ -70,26 +72,6 @@ describe('decideCodingAgentSessionStart', () => {
             {
                 sandboxWasResumed: false,
                 threadHasVersionThatReachedAgent: false,
-                codingAgentSessionId: null,
-            },
-            { kind: 'new' },
-        ],
-        // Codex never records a session id, so its threads always take the
-        // null-id rows above.
-        [
-            'codex thread with prior versions on a resumed sandbox: continue as before',
-            {
-                sandboxWasResumed: true,
-                threadHasVersionThatReachedAgent: true,
-                codingAgentSessionId: null,
-            },
-            { kind: 'continue' },
-        ],
-        [
-            'codex thread on a fresh sandbox: new as before',
-            {
-                sandboxWasResumed: false,
-                threadHasVersionThatReachedAgent: true,
                 codingAgentSessionId: null,
             },
             { kind: 'new' },
@@ -161,6 +143,44 @@ describe('parseCodingAgentSessionInit', () => {
         ['a JSON null', 'null'],
     ])('returns null for %s', (_name, line) => {
         expect(parseCodingAgentSessionInit(line)).toBeNull();
+    });
+});
+
+describe('versionReachedCodingAgent', () => {
+    it('is true once the version logged a thinking or tool entry', () => {
+        expect(
+            versionReachedCodingAgent([
+                { kind: 'stage' },
+                { kind: 'thinking' },
+            ]),
+        ).toBe(true);
+        expect(versionReachedCodingAgent([{ kind: 'tool' }])).toBe(true);
+    });
+
+    it('is false for stage entries alone', () => {
+        expect(
+            versionReachedCodingAgent([{ kind: 'stage' }, { kind: 'stage' }]),
+        ).toBe(false);
+        expect(versionReachedCodingAgent([])).toBe(false);
+    });
+});
+
+describe('findCodingAgentSessionId', () => {
+    it('returns the init event session id from a stream-json stdout', () => {
+        const stdout = [
+            '{"type":"system","subtype":"hook_started","session_id":"aaaa"}',
+            '{"type":"system","subtype":"init","cwd":"/app","session_id":"f228a01a-fef5-4872-a344-1d875e934fcf"}',
+            '{"type":"result","subtype":"success","session_id":"f228a01a-fef5-4872-a344-1d875e934fcf"}',
+        ].join('\n');
+        expect(findCodingAgentSessionId(stdout)).toBe(
+            'f228a01a-fef5-4872-a344-1d875e934fcf',
+        );
+    });
+
+    it('is null without an init event', () => {
+        expect(findCodingAgentSessionId('plain text\n{"type":"result"}')).toBe(
+            null,
+        );
     });
 });
 

@@ -18,6 +18,14 @@ export type CodingAgentSessionStart =
     | { kind: 'continue' }
     | { kind: 'new' };
 
+// This version's own turn left stream evidence, so its transcript is on disk.
+export const versionReachedCodingAgent = (
+    statusHistory: ReadonlyArray<{ kind: string }>,
+): boolean =>
+    statusHistory.some(
+        (entry) => entry.kind === 'thinking' || entry.kind === 'tool',
+    );
+
 export const decideCodingAgentSessionStart = (
     state: CodingAgentThreadState,
 ): CodingAgentSessionStart => {
@@ -77,6 +85,15 @@ export const parseCodingAgentSessionInit = (line: string): string | null => {
     return typeof sessionId === 'string' && SESSION_ID_PATTERN.test(sessionId)
         ? sessionId
         : null;
+};
+
+// First session id in a stream-json stdout; null when no init line was seen.
+export const findCodingAgentSessionId = (stdout: string): string | null => {
+    for (const line of stdout.split('\n')) {
+        const sessionId = parseCodingAgentSessionInit(line);
+        if (sessionId !== null) return sessionId;
+    }
+    return null;
 };
 
 // The CLI's message when `--resume <id>` names a session it cannot find. It
