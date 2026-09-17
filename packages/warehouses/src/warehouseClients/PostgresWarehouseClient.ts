@@ -973,6 +973,70 @@ export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCreden
         };
     }
 
+    private async withClientForDatabase<T>(
+        database: string,
+        operation: (client: PostgresWarehouseClient) => Promise<T>,
+    ): Promise<T> {
+        if (database === this.credentials.dbname) {
+            return operation(this);
+        }
+
+        const client = new PostgresWarehouseClient({
+            ...this.credentials,
+            dbname: database,
+        });
+        try {
+            return await operation(client);
+        } finally {
+            await client.close();
+        }
+    }
+
+    async getCatalog(
+        requests: {
+            database: string;
+            schema: string;
+            table: string;
+        }[],
+    ): Promise<WarehouseCatalog> {
+        const requestsByDatabase = requests.reduce<
+            Map<string, typeof requests>
+        >((groups, request) => {
+            const databaseRequests = groups.get(request.database) ?? [];
+            databaseRequests.push(request);
+            groups.set(request.database, databaseRequests);
+            return groups;
+        }, new Map());
+
+        const catalogs = await Promise.all(
+            [...requestsByDatabase].map(([database, databaseRequests]) => {
+                if (database === this.credentials.dbname) {
+                    return super.getCatalog(databaseRequests);
+                }
+                return this.withClientForDatabase(database, (client) =>
+                    client.getCatalog(databaseRequests),
+                );
+            }),
+        );
+
+        return Object.assign({}, ...catalogs);
+    }
+
+    async getFields(
+        tableName: string,
+        schema?: string,
+        database?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog> {
+        if (!database || database === this.credentials.dbname) {
+            return super.getFields(tableName, schema, database, tags);
+        }
+
+        return this.withClientForDatabase(database, (client) =>
+            client.getFields(tableName, schema, database, tags),
+        );
+    }
+
     async listDatabases(): Promise<WarehouseDatabaseListing> {
         const databaseNames = new Set([this.credentials.dbname]);
 
@@ -1006,22 +1070,13 @@ export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCreden
     async getTablesForDatabase(
         listedDatabase: WarehouseListedDatabase,
     ): Promise<WarehouseTables> {
-        if (listedDatabase.isDefault) {
-            return this.getAllTables();
-        }
-
-        const client = new PostgresWarehouseClient({
-            ...this.credentials,
-            dbname: listedDatabase.name,
-        });
-        try {
-            const tables = await client.getAllTables();
-            return tables.map((table) => ({
-                ...table,
-                database: listedDatabase.name,
-            }));
-        } finally {
-            await client.close();
-        }
+        const tables = await this.withClientForDatabase(
+            listedDatabase.name,
+            (client) => client.getAllTables(),
+        );
+        return tables.map((table) => ({
+            ...table,
+            database: listedDatabase.name,
+        }));
     }
 }
