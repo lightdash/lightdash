@@ -5123,6 +5123,10 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        dataAppVizVersion: {
+                            dataType: 'integer',
+                            validators: { minimum: { value: 1 } },
+                        },
                         dataAppVizUuid: { dataType: 'string' },
                         dataAppVizSlug: { dataType: 'string' },
                     },
@@ -75882,6 +75886,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
+        version: { in: 'query', name: 'version', dataType: 'double' },
     };
     app.get(
         '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/render-metadata',

@@ -1,3 +1,11 @@
+## [2.256.4](https://github.com/lightdash/lightdash/compare/2.256.3...2.256.4) (2026-09-17)
+
+
+### Bug Fixes
+
+* preserve custom chart type pins in AI charts ([#29486](https://github.com/lightdash/lightdash/issues/29486)) ([780505f](https://github.com/lightdash/lightdash/commit/780505fc2429a483394e9c3d998eb8b3987d6a66))
+* preserve custom chart type pins in as-code and promotion ([#29347](https://github.com/lightdash/lightdash/issues/29347)) ([04b29ba](https://github.com/lightdash/lightdash/commit/04b29baf4ae04d4051ba6598555191408d53f752))
+
 ## [2.256.3](https://github.com/lightdash/lightdash/compare/2.256.2...2.256.3) (2026-09-17)
 
 
