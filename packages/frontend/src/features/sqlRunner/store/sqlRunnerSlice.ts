@@ -45,6 +45,7 @@ export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
     activeSchema: string | undefined;
+    activeDatabase: string | undefined;
     savedSqlChart: SqlChart | undefined;
     queryUuid: string | undefined;
     fileUrl: string | undefined;
@@ -99,6 +100,7 @@ export const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
     activeSchema: undefined,
+    activeDatabase: undefined,
     savedSqlChart: undefined,
     queryUuid: undefined,
     fileUrl: undefined,
@@ -291,11 +293,12 @@ export const sqlRunnerSlice = createSlice({
         toggleActiveTable: (
             state,
             action: PayloadAction<
-                { table: string; schema: string } | undefined
+                { table: string; schema: string; database: string } | undefined
             >,
         ) => {
             state.activeTable = action.payload?.table;
             state.activeSchema = action.payload?.schema;
+            state.activeDatabase = action.payload?.database;
         },
         toggleModal: (
             state,

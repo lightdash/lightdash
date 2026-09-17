@@ -4,6 +4,7 @@ import isEmpty from 'lodash/isEmpty';
 import { useMemo } from 'react';
 import {
     fetchTableFields,
+    tableFieldsQueryKey,
     type WarehouseTableFieldWithContext,
 } from './useTableFields';
 
@@ -11,36 +12,33 @@ export type TableReference = {
     projectUuid: string;
     tableName: string;
     schema: string;
+    database: string;
 };
 
 export const useMultipleTableFields = (tableReferences: TableReference[]) => {
     // Create queries for each unique table reference
     const queries = useMemo(() => {
-        // Deduplicate table references based on projectUuid + schema + tableName
+        // Deduplicate table references based on projectUuid + database + schema + tableName
         const uniqueReferences = tableReferences.filter(
             (ref, index, self) =>
                 index ===
                 self.findIndex(
                     (r) =>
                         r.projectUuid === ref.projectUuid &&
+                        r.database === ref.database &&
                         r.schema === ref.schema &&
                         r.tableName === ref.tableName,
                 ),
         );
 
         return uniqueReferences.map((ref) => ({
-            queryKey: [
-                'sqlRunner',
-                'tables',
-                ref.tableName,
-                ref.projectUuid,
-                ref.schema,
-            ],
+            queryKey: tableFieldsQueryKey(ref),
             queryFn: () =>
                 fetchTableFields({
                     projectUuid: ref.projectUuid,
                     tableName: ref.tableName,
                     schema: ref.schema,
+                    database: ref.database,
                 }),
             retry: false,
             enabled: !!(ref.projectUuid && ref.tableName && ref.schema),
@@ -48,6 +46,7 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
             meta: {
                 tableName: ref.tableName,
                 schema: ref.schema,
+                database: ref.database,
                 projectUuid: ref.projectUuid,
             },
         }));
@@ -69,6 +68,7 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
                     const queryMeta = queries[index]?.meta;
                     const table = queryMeta?.tableName || '';
                     const schema = queryMeta?.schema || '';
+                    const database = queryMeta?.database || '';
 
                     return Object.entries(
                         data,
@@ -77,6 +77,7 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
                         type,
                         table,
                         schema,
+                        database,
                     }));
                 });
         }, [results, queries]);

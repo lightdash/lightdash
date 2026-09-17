@@ -1,7 +1,6 @@
 import { Box, Center, Loader } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
-import isEmpty from 'lodash/isEmpty';
 import { type editor } from 'monaco-editor';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import { type TourEditable } from '../../../components/common/GuidedTour/GuidedTour';
@@ -19,7 +18,7 @@ import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useDetectedTableFields } from '../hooks/useDetectedTableFields';
 import { useSqlEditorPreferences } from '../hooks/useSqlEditorPreferences';
 import { useTableFields } from '../hooks/useTableFields';
-import { useTables, type TablesBySchema } from '../hooks/useTables';
+import { useDatabases, useLoadedCatalogs } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';
 import {
@@ -72,48 +71,38 @@ export const SqlEditor: FC<{
     // Fetch all available parameters for the project
     const { data: availableParameters } = useParameters(projectUuid, undefined);
 
-    const { data: tablesData, isLoading: isTablesDataLoading } = useTables({
+    const { data: listing, isLoading: isTablesDataLoading } = useDatabases({
         projectUuid,
+    });
+
+    const listedDatabases = useMemo(() => listing?.databases ?? [], [listing]);
+    const loadedCatalog = useLoadedCatalogs({
+        projectUuid,
+        databases: listedDatabases.map((entry) => entry.name),
     });
 
     const currentTable = useAppSelector((state) => state.sqlRunner.activeTable);
     const currentSchema = useAppSelector(
         (state) => state.sqlRunner.activeSchema,
     );
+    const currentDatabase = useAppSelector(
+        (state) => state.sqlRunner.activeDatabase,
+    );
 
     const { data: tableFieldsData } = useTableFields({
         projectUuid,
         tableName: currentTable,
         schema: currentSchema,
+        database: currentDatabase,
         search: undefined,
     });
-
-    const transformedData:
-        | { database: string; tablesBySchema: TablesBySchema }
-        | undefined = useMemo(() => {
-        if (!tablesData || isEmpty(tablesData)) return undefined;
-        const [database] = Object.keys(tablesData);
-        if (!database) return undefined;
-
-        const tablesBySchema = Object.entries(tablesData).flatMap(
-            ([, schemas]) =>
-                Object.entries(schemas).map(([schema, tables]) => ({
-                    schema,
-                    tables,
-                })),
-        );
-        return {
-            database,
-            tablesBySchema,
-        };
-    }, [tablesData]);
 
     // Use React Query to fetch field data for all detected tables in SQL
     const { data: detectedTablesFieldData } = useDetectedTableFields({
         sql,
         quoteChar,
         projectUuid,
-        transformedData,
+        catalog: loadedCatalog,
     });
 
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
@@ -181,15 +170,19 @@ export const SqlEditor: FC<{
                 completionProviderRef.current.dispose();
                 completionProviderRef.current = null;
             }
-            const tablesList = transformedData
-                ? generateTableCompletions(quoteChar, transformedData, settings)
-                : [];
+            const tablesList = generateTableCompletions(
+                quoteChar,
+                loadedCatalog,
+                listedDatabases,
+                settings,
+            );
             // Transform current table fields to include context and combine with detected table fields
             const currentTableFieldsWithContext = (tableFieldsData || []).map(
                 (field) => ({
                     ...field,
                     table: currentTable || '',
                     schema: currentSchema || '',
+                    database: currentDatabase || '',
                 }),
             );
             const allFieldsData = [
@@ -202,7 +195,7 @@ export const SqlEditor: FC<{
                 monaco,
                 language,
                 quoteChar,
-                tablesList || [],
+                tablesList,
                 allFieldsData.length > 0 ? allFieldsData : undefined,
                 settings,
                 availableParameters,
@@ -220,11 +213,13 @@ export const SqlEditor: FC<{
         monaco,
         language,
         quoteChar,
-        transformedData,
+        loadedCatalog,
+        listedDatabases,
         tableFieldsData,
         detectedTablesFieldData,
         currentTable,
         currentSchema,
+        currentDatabase,
         warehouseConnectionType,
         settings,
         availableParameters,
