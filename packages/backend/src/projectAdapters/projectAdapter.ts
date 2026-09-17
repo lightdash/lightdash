@@ -6,6 +6,7 @@ import {
     DbtVersionOption,
     ParameterError,
     resolveDbtVersion,
+    WarehouseClient,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
@@ -37,11 +38,13 @@ export const projectAdapterFromConfig = async (
     // MANIFEST-only: project dir for Lightdash config and selected model ids.
     // Ignored by every other adapter type.
     manifestOptions?: { projectDir?: string; selectedModelIds?: string[] },
+    sharedWarehouseClient?: WarehouseClient,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
     );
     const warehouseClient =
+        sharedWarehouseClient ??
         warehouseClientFromCredentials(warehouseCredentials);
     const configType = config.type;
     Logger.debug(`Initialize project adaptor of type ${configType}`);
