@@ -305,10 +305,10 @@ declared separately, on `colorPalette`.
 ### `colorPalette`
 
 Whether the viewer gets the standard Lightdash palette picker. Declare
-`{ "group": "..." }` when your component colours anything with the resolved-colour helpers
-or `colorPalette`, or `null` when it colours nothing. `group` is optional and works like an
-option's: the picker joins that tab, and gets a tab of its own when no option shares the
-name.
+`{ "group": "..." }` when your component colours anything with the resolved-colour helpers,
+`colorPalette`, or a `paletteColor` option; use `null` when it colours nothing. `group`
+is optional and works like an option's: the picker joins that tab, and gets a tab of its
+own when no option shares the name.
 
 This is not a config option. There is one palette per chart, it has no `name` and no
 `default`, and its colours arrive on `colorPalette` — never on `options`. The exception is
@@ -385,7 +385,7 @@ minimum, not a menu:
 - every variant you picked between (vertical/horizontal, grouped/stacked, curve style) → `select`
 - every number you chose (bar width, max rows, decimal places, a threshold) → `number`
 - every string you wrote into the chart (title, axis label, empty-state text) → `text`
-- every accent colour that is not a series colour (a target line, a highlight) → `color`
+- every accent colour independent of the chart palette (a target line, a highlight) → `color`
 - every accent that should follow the selected chart palette → `paletteColor` plus
   `colorPalette`
 - the series colours, whenever the chart draws more than one series → resolved-colour
@@ -396,8 +396,9 @@ read the option in its place. Leave it hardcoded only where changing it would br
 chart.
 
 Then check both directions: every key you read from `options` is declared, and every option
-you declared is read somewhere. `colorPalette` is declared when you use either resolved-
-colour helper or colour from `colorPalette` — it is never read from `options`.
+you declared is read somewhere. Declare `colorPalette` when you use a resolved-colour
+helper, read from `colorPalette`, or declare a `paletteColor` option. The `colorPalette`
+declaration itself is never read from `options`; a `paletteColor` option is.
 
 Finally, if any mark maps to exactly one source row, the data-point action
 menu is wired: each interactive datum carries `sourceRow`, the underlying-data
