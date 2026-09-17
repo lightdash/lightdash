@@ -397,7 +397,7 @@ const AiAgentNewThreadPage: FC = () => {
                             <Title order={4} ta="center" {...agentTourProps}>
                                 {agent.name}
                             </Title>
-                            {agent.instruction && (
+                            {!isEmbed && agent.instruction && (
                                 <Popover withArrow>
                                     <Popover.Target>
                                         <ActionIcon>
