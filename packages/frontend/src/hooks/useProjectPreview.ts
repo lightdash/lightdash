@@ -1,4 +1,8 @@
 import {
+    JobStatusType,
+    JobStepStatusType,
+    sleep,
+    type Job,
     type ApiCreatePreviewResults,
     type ApiError,
     type DbtProjectEnvironmentVariable,
@@ -23,8 +27,8 @@ const createPreviewProject = async ({
         manifest?: string;
     };
     warehouseConnectionOverrides?: { schema?: string };
-}) =>
-    lightdashApi<ApiCreatePreviewResults>({
+}) => {
+    const preview = await lightdashApi<ApiCreatePreviewResults>({
         url: `/projects/${projectUuid}/createPreview`,
         method: 'POST',
         body: JSON.stringify({
@@ -34,6 +38,35 @@ const createPreviewProject = async ({
             warehouseConnectionOverrides,
         }),
     });
+    if (preview.contentCopyJobUuid) {
+        while (true) {
+            const job = await lightdashApi<Job>({
+                url: `/jobs/${preview.contentCopyJobUuid}`,
+                method: 'GET',
+                body: undefined,
+            });
+            if (job.jobStatus === JobStatusType.DONE) break;
+            if (job.jobStatus === JobStatusType.ERROR) {
+                const error: ApiError = {
+                    status: 'error',
+                    error: {
+                        name: 'PreviewContentCopyError',
+                        data: {},
+                        statusCode: 500,
+                        message:
+                            job.steps.find(
+                                (step) =>
+                                    step.stepStatus === JobStepStatusType.ERROR,
+                            )?.stepError ?? 'Failed to copy preview project',
+                    },
+                };
+                throw error;
+            }
+            await sleep(1000);
+        }
+    }
+    return preview;
+};
 
 export const useCreatePreviewMutation = () => {
     const queryClient = useQueryClient();

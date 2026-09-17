@@ -25,6 +25,7 @@ import {
     getDbtManifestVersion,
     getModelsFromManifest,
     JobStatusType,
+    JobStepStatusType,
     JobStepType,
     JobType,
     MergeJoinType,
@@ -44,6 +45,7 @@ import {
     WarehouseTypes,
     WeekDay,
     type ChartSummary,
+    type CopyPreviewContentPayload,
     type CreateBigqueryCredentials,
     type CreateProject,
     type CreateWarehouseCredentials,
@@ -215,6 +217,7 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
 }));
 
 const projectModel = {
+    duplicateContent: vi.fn(async () => ({ spaceMapping: {} })),
     runInAnalyticsProvisioningLock: vi.fn(
         async (_org: string, callback: () => Promise<unknown>) => callback(),
     ),
@@ -409,6 +412,8 @@ const emailModel = {
 };
 
 const schedulerClient = {
+    copyPreviewContent: vi.fn(),
+    compileProject: vi.fn(),
     backfillDefaultUserSpaces: vi.fn(async () => ({
         jobId: 'backfill-job-1',
     })),
@@ -2134,90 +2139,329 @@ describe('ProjectService', () => {
         },
     );
 
-    test('attempts content copying when preview access copying fails', async () => {
-        const upstreamProjectUuid = 'upstream-project-uuid';
-        const previewProjectUuid = 'created-preview-project-uuid';
-        const previewUser: SessionUser = {
-            ...user,
-            organizationUuid: projectWithSensitiveFields.organizationUuid,
-            organizationName: 'Test organization',
-            organizationCreatedAt: new Date(),
-            ability: new Ability<PossibleAbilities>([
-                { subject: 'Project', action: 'create' },
-            ]),
-        };
-        const validateSpy = vi
-            .spyOn(
-                service as unknown as {
-                    validateProjectCreationPermissions: () => Promise<true>;
-                },
-                'validateProjectCreationPermissions',
-            )
-            .mockResolvedValue(true);
-        const expirationSpy = vi
-            .spyOn(service, 'getPreviewExpiresAt')
-            .mockResolvedValue(null);
-        const copyAccessSpy = vi
-            .spyOn(service, 'copyUserAccessOnPreview')
-            .mockRejectedValue(new Error('access copy failed'));
-        const copyContentSpy = vi
-            .spyOn(service, 'copyContentOnPreview')
-            .mockResolvedValue();
-        (projectModel.get as import('vitest').Mock)
-            .mockResolvedValueOnce({
-                ...projectWithSensitiveFields,
-                projectUuid: upstreamProjectUuid,
-                organizationWarehouseCredentialsUuid:
-                    'organization-warehouse-credentials-uuid',
-            })
-            .mockResolvedValueOnce({
-                ...projectWithSensitiveFields,
-                projectUuid: previewProjectUuid,
-                type: ProjectType.PREVIEW,
-            });
-
-        try {
-            const result = await service.createWithoutCompile(
-                previewUser,
-                {
-                    name: 'Preview with failed access copy',
-                    type: ProjectType.PREVIEW,
-                    dbtConnection: { type: DbtProjectType.NONE },
-                    upstreamProjectUuid,
-                    copyContent: true,
-                    dbtVersion: projectWithSensitiveFields.dbtVersion,
-                },
-                RequestMethod.WEB_APP,
-            );
-
-            expect(copyContentSpy).toHaveBeenCalledWith(
-                upstreamProjectUuid,
-                previewProjectUuid,
-                previewUser,
-            );
-            expect(result).toMatchObject({
-                hasContentCopy: true,
-                accessCopyError: 'access copy failed',
-                contentCopyError: undefined,
-            });
-            expect(
-                projectModel.createWithOptionalCredentials,
-            ).toHaveBeenCalledWith(
-                previewUser.userUuid,
-                previewUser.organizationUuid,
-                expect.objectContaining({
+    test.each(['org', 'project', 'enqueue failure', 'access failure'])(
+        'returns before content copying or cleans up a scheduling failure (%s)',
+        async (creationPath) => {
+            const upstreamProjectUuid = 'upstream-project-uuid';
+            const previewProjectUuid = 'created-preview-project-uuid';
+            const previewUser: SessionUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Test organization',
+                organizationCreatedAt: new Date(),
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'create' },
+                ]),
+            };
+            const validateSpy = vi
+                .spyOn(
+                    service as unknown as {
+                        validateProjectCreationPermissions: () => Promise<true>;
+                    },
+                    'validateProjectCreationPermissions',
+                )
+                .mockResolvedValue(true);
+            const expirationSpy = vi
+                .spyOn(service, 'getPreviewExpiresAt')
+                .mockResolvedValue(null);
+            const copyAccessSpy = vi
+                .spyOn(service, 'copyUserAccessOnPreview')
+                .mockResolvedValue();
+            const copyContentSpy = vi
+                .spyOn(service, 'copyContentOnPreview')
+                .mockResolvedValue();
+            (projectModel.get as import('vitest').Mock)
+                .mockResolvedValueOnce({
+                    ...projectWithSensitiveFields,
+                    projectUuid: upstreamProjectUuid,
                     organizationWarehouseCredentialsUuid:
                         'organization-warehouse-credentials-uuid',
-                }),
-                null,
-                undefined,
+                })
+                .mockResolvedValueOnce({
+                    ...projectWithSensitiveFields,
+                    projectUuid: previewProjectUuid,
+                    type: ProjectType.PREVIEW,
+                });
+
+            if (creationPath === 'project') {
+                vi.mocked(
+                    projectModel.getWithSensitiveFields,
+                ).mockResolvedValueOnce({
+                    ...projectWithSensitiveFields,
+                    warehouseConnection: warehouseClientMock.credentials,
+                });
+            }
+            if (creationPath === 'enqueue failure') {
+                schedulerClient.copyPreviewContent.mockRejectedValueOnce(
+                    new Error('enqueue failed'),
+                );
+            }
+            if (creationPath === 'access failure') {
+                copyAccessSpy.mockRejectedValueOnce(new Error('access failed'));
+            }
+            try {
+                const creation =
+                    creationPath === 'project'
+                        ? service.createPreview(
+                              previewUser,
+                              upstreamProjectUuid,
+                              {
+                                  name: 'Preview',
+                                  copyContent: true,
+                                  validateAfterCompile: true,
+                              },
+                              RequestMethod.WEB_APP,
+                          )
+                        : service.createWithoutCompile(
+                              previewUser,
+                              {
+                                  name: 'Preview',
+                                  type: ProjectType.PREVIEW,
+                                  dbtConnection: { type: DbtProjectType.NONE },
+                                  upstreamProjectUuid,
+                                  copyContent: true,
+                                  dbtVersion:
+                                      projectWithSensitiveFields.dbtVersion,
+                              },
+                              RequestMethod.WEB_APP,
+                          );
+
+                if (
+                    creationPath === 'enqueue failure' ||
+                    creationPath === 'access failure'
+                ) {
+                    await expect(creation).rejects.toThrow(
+                        creationPath === 'enqueue failure'
+                            ? 'enqueue failed'
+                            : 'Failed to copy preview project',
+                    );
+                    expect(projectModel.delete).toHaveBeenCalledWith(
+                        previewProjectUuid,
+                    );
+                    expect(copyContentSpy).not.toHaveBeenCalled();
+                    expect(
+                        schedulerClient.compileProject,
+                    ).not.toHaveBeenCalled();
+                    if (creationPath === 'access failure') {
+                        expect(
+                            schedulerClient.copyPreviewContent,
+                        ).not.toHaveBeenCalled();
+                    }
+                    return;
+                }
+                const result = await creation;
+                expect(copyContentSpy).not.toHaveBeenCalled();
+                expect(schedulerClient.compileProject).not.toHaveBeenCalled();
+                expect(schedulerClient.copyPreviewContent).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        projectUuid: previewProjectUuid,
+                        upstreamProjectUuid,
+                        jobUuid: result.contentCopyJobUuid,
+                        compile:
+                            creationPath === 'project'
+                                ? {
+                                      jobUuid: expect.any(String),
+                                      validateAfterCompile: true,
+                                  }
+                                : null,
+                    }),
+                );
+                expect(result).toMatchObject(
+                    creationPath === 'project'
+                        ? {
+                              projectUuid: previewProjectUuid,
+                              compileJobUuid: expect.any(String),
+                              contentCopyJobUuid: expect.any(String),
+                          }
+                        : {
+                              hasContentCopy: false,
+                              contentCopyJobUuid: expect.any(String),
+                              accessCopyError: undefined,
+                              contentCopyError: undefined,
+                          },
+                );
+                expect(jobModel.create).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        jobUuid: result.contentCopyJobUuid,
+                        projectUuid: undefined,
+                        userUuid: previewUser.userUuid,
+                        jobStatus: JobStatusType.STARTED,
+                    }),
+                    true,
+                );
+                if ('compileJobUuid' in result) {
+                    expect(jobModel.create).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            jobUuid: result.compileJobUuid,
+                            projectUuid: previewProjectUuid,
+                            jobStatus: JobStatusType.STARTED,
+                        }),
+                        true,
+                    );
+                    expect(
+                        schedulerClient.copyPreviewContent,
+                    ).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            compile: {
+                                jobUuid: result.compileJobUuid,
+                                validateAfterCompile: true,
+                            },
+                        }),
+                    );
+                }
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).toHaveBeenCalledWith(
+                    previewUser.userUuid,
+                    previewUser.organizationUuid,
+                    expect.objectContaining({
+                        organizationWarehouseCredentialsUuid:
+                            'organization-warehouse-credentials-uuid',
+                    }),
+                    null,
+                    undefined,
+                );
+            } finally {
+                validateSpy.mockRestore();
+                expirationSpy.mockRestore();
+                copyAccessSpy.mockRestore();
+                copyContentSpy.mockRestore();
+            }
+        },
+    );
+
+    describe('background preview content copy', () => {
+        const payload: CopyPreviewContentPayload = {
+            jobUuid: 'copy-job',
+            projectUuid: 'preview-project',
+            upstreamProjectUuid: 'upstream-project',
+            organizationUuid: 'organizationUuid',
+            userUuid: user.userUuid,
+            requestMethod: RequestMethod.WEB_APP,
+            compile: { jobUuid: 'compile-job', validateAfterCompile: true },
+        };
+
+        test.each([true, false])(
+            'finishes copying before scheduling compilation (compile: %s)',
+            async (compile) => {
+                let finishCopy!: (result: { spaceMapping: {} }) => void;
+                projectModel.duplicateContent.mockImplementationOnce(
+                    () =>
+                        new Promise((resolve) => {
+                            finishCopy = resolve;
+                        }),
+                );
+                const run = service.runPreviewContentCopy(user, {
+                    ...payload,
+                    compile: compile ? payload.compile : null,
+                });
+                await vi.waitFor(() =>
+                    expect(projectModel.duplicateContent).toHaveBeenCalled(),
+                );
+                expect(schedulerClient.compileProject).not.toHaveBeenCalled();
+                expect(jobModel.update).not.toHaveBeenCalledWith(
+                    'copy-job',
+                    expect.objectContaining({ jobStatus: JobStatusType.DONE }),
+                );
+                finishCopy({ spaceMapping: {} });
+                await run;
+                if (compile) {
+                    expect(schedulerClient.compileProject).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            jobUuid: 'compile-job',
+                            projectUuid: 'preview-project',
+                            validateAfterCompile: true,
+                        }),
+                    );
+                } else {
+                    expect(
+                        schedulerClient.compileProject,
+                    ).not.toHaveBeenCalled();
+                }
+                expect(jobModel.update).toHaveBeenCalledWith('copy-job', {
+                    jobStatus: JobStatusType.DONE,
+                    jobResults: { projectUuid: 'preview-project' },
+                });
+            },
+        );
+
+        test('does not compile or report success when a timed-out copy finishes late', async () => {
+            const controller = new AbortController();
+            let finishCopy!: (result: { spaceMapping: {} }) => void;
+            projectModel.duplicateContent.mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        finishCopy = resolve;
+                    }),
             );
-        } finally {
-            validateSpy.mockRestore();
-            expirationSpy.mockRestore();
-            copyAccessSpy.mockRestore();
-            copyContentSpy.mockRestore();
-        }
+            const run = service.runPreviewContentCopy(
+                user,
+                payload,
+                controller.signal,
+            );
+            await vi.waitFor(() =>
+                expect(projectModel.duplicateContent).toHaveBeenCalled(),
+            );
+            controller.abort(new Error('Copy timed out'));
+            await service.failPreviewContentCopy(
+                payload,
+                controller.signal.reason,
+            );
+            finishCopy({ spaceMapping: {} });
+            await expect(run).rejects.toThrow('Copy timed out');
+            expect(schedulerClient.compileProject).not.toHaveBeenCalled();
+            expect(jobModel.update).not.toHaveBeenCalledWith(
+                'copy-job',
+                expect.objectContaining({ jobStatus: JobStatusType.DONE }),
+            );
+            expect(jobModel.update).toHaveBeenLastCalledWith('copy-job', {
+                jobStatus: JobStatusType.ERROR,
+            });
+        });
+
+        test.each(['copy', 'compile enqueue', 'cleanup'])(
+            'preserves a pollable error and deletes a failed preview (%s failure)',
+            async (failure) => {
+                if (failure === 'compile enqueue') {
+                    schedulerClient.compileProject.mockRejectedValueOnce(
+                        new Error('queue unavailable'),
+                    );
+                } else {
+                    projectModel.duplicateContent.mockRejectedValueOnce(
+                        new Error('copy failed'),
+                    );
+                }
+                if (failure === 'cleanup') {
+                    projectModel.delete.mockRejectedValueOnce(
+                        new Error('delete failed'),
+                    );
+                }
+                const message =
+                    failure === 'compile enqueue'
+                        ? 'queue unavailable'
+                        : 'copy failed';
+                await expect(
+                    service.runPreviewContentCopy(user, payload),
+                ).rejects.toThrow(message);
+                expect(projectModel.delete).toHaveBeenCalledWith(
+                    'preview-project',
+                );
+                expect(jobModel.updateJobStep).toHaveBeenCalledWith(
+                    'copy-job',
+                    JobStepStatusType.ERROR,
+                    JobStepType.COPYING_PREVIEW_CONTENT,
+                    message,
+                );
+                expect(jobModel.update).toHaveBeenCalledWith('copy-job', {
+                    jobStatus: JobStatusType.ERROR,
+                });
+                if (failure !== 'compile enqueue') {
+                    expect(
+                        schedulerClient.compileProject,
+                    ).not.toHaveBeenCalled();
+                }
+            },
+        );
     });
 
     test('rejects externally supplied embedded DuckDB credentials', async () => {

@@ -893,6 +893,16 @@ export type SchedulerCreateProjectWithCompilePayload = Omit<
     projectUuid: undefined; // New project uuid is not known at this point
 };
 
+export type CopyPreviewContentPayload = TraceTaskBase & {
+    upstreamProjectUuid: string;
+    jobUuid: string;
+    requestMethod: string;
+    compile: {
+        jobUuid: string;
+        validateAfterCompile: boolean;
+    } | null;
+};
+
 export type CompileProjectPayload = TraceTaskBase & {
     createdByUserUuid: string;
     requestMethod: string;

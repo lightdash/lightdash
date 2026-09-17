@@ -37,6 +37,7 @@ import {
     convertCustomMetricToDbt,
     convertExplores,
     convertItemTypeToDimensionType,
+    CopyPreviewContentPayload,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateJob,
@@ -111,6 +112,7 @@ import {
     getModelsFromManifest,
     getParameterReferences,
     getPreAggregateExploreName,
+    getRequestMethod,
     getTimezoneLabel,
     GroupType,
     hasConnectionChanges,
@@ -3005,6 +3007,12 @@ export class ProjectService extends BaseService {
         data: CreateProjectOptionalCredentials,
         method: RequestMethod,
         internalProvisioning?: InternalProvisioning,
+        previewCopy:
+            | { mode: 'sync' }
+            | {
+                  mode: 'async';
+                  compile: CopyPreviewContentPayload['compile'];
+              } = { mode: 'async', compile: null },
     ): Promise<ApiCreateProjectResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -3206,6 +3214,7 @@ export class ProjectService extends BaseService {
         }
 
         let hasContentCopy = false;
+        let contentCopyJobUuid: string | undefined;
         let accessCopyError: string | undefined;
         let contentCopyError: string | undefined;
 
@@ -3229,7 +3238,15 @@ export class ProjectService extends BaseService {
                 );
             }
 
-            if (data.copyContent ?? true) {
+            if ((data.copyContent ?? true) && previewCopy.mode === 'async') {
+                if (accessCopyError) {
+                    await this.throwIfPreviewCopyFailed({
+                        project: await this.projectModel.get(projectUuid),
+                        hasContentCopy: false,
+                        accessCopyError,
+                    });
+                }
+            } else if (data.copyContent ?? true) {
                 try {
                     await this.copyContentOnPreview(
                         data.upstreamProjectUuid,
@@ -3290,11 +3307,63 @@ export class ProjectService extends BaseService {
 
         const project = await this.projectModel.get(projectUuid);
 
+        if (
+            data.type === ProjectType.PREVIEW &&
+            data.upstreamProjectUuid &&
+            (data.copyContent ?? true) &&
+            previewCopy.mode === 'async'
+        ) {
+            contentCopyJobUuid = uuidv4();
+            const payload: CopyPreviewContentPayload = {
+                jobUuid: contentCopyJobUuid,
+                projectUuid,
+                upstreamProjectUuid: data.upstreamProjectUuid,
+                organizationUuid: user.organizationUuid,
+                userUuid: user.userUuid,
+                requestMethod: method,
+                compile: previewCopy.compile,
+            };
+            try {
+                await this.jobModel.create(
+                    {
+                        jobUuid: contentCopyJobUuid,
+                        jobType: JobType.CREATE_PROJECT,
+                        jobStatus: JobStatusType.STARTED,
+                        userUuid: user.userUuid,
+                        // Keep the status readable after a failed preview is deleted.
+                        projectUuid: undefined,
+                        steps: [
+                            { stepType: JobStepType.COPYING_PREVIEW_CONTENT },
+                        ],
+                    },
+                    true,
+                );
+                if (payload.compile) {
+                    await this.jobModel.create(
+                        {
+                            jobUuid: payload.compile.jobUuid,
+                            jobType: JobType.COMPILE_PROJECT,
+                            jobStatus: JobStatusType.STARTED,
+                            userUuid: user.userUuid,
+                            projectUuid,
+                            steps: [{ stepType: JobStepType.COMPILING }],
+                        },
+                        true,
+                    );
+                }
+                await this.schedulerClient.copyPreviewContent(payload);
+            } catch (error) {
+                await this.failPreviewContentCopy(payload, error);
+                throw error;
+            }
+        }
+
         return {
             hasContentCopy,
             project,
             accessCopyError,
             contentCopyError,
+            ...(contentCopyJobUuid ? { contentCopyJobUuid } : {}),
         };
     }
 
@@ -9307,6 +9376,7 @@ export class ProjectService extends BaseService {
         skipPermissionCheck: boolean = false,
         validateAfterCompile: boolean = false,
         syncContentAfterCompile: boolean = false,
+        existingJobUuid?: string,
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid, type } =
             await this.projectModel.getSummary(projectUuid);
@@ -9333,7 +9403,7 @@ export class ProjectService extends BaseService {
         // This is not the graphile Job id we use on scheduler
         // TODO: remove this old job method and replace with scheduler log details
         const job: CreateJob = {
-            jobUuid: uuidv4(),
+            jobUuid: existingJobUuid ?? uuidv4(),
             jobType: JobType.COMPILE_PROJECT,
             jobStatus: JobStatusType.STARTED,
             userUuid: user.userUuid,
@@ -9346,7 +9416,10 @@ export class ProjectService extends BaseService {
             ],
         };
 
-        await this.jobModel.create(job, type === ProjectType.PREVIEW);
+        // Preview creation reserves a pending compile job before queuing content copy.
+        if (!existingJobUuid) {
+            await this.jobModel.create(job, type === ProjectType.PREVIEW);
+        }
 
         await this.schedulerClient.compileProject({
             createdByUserUuid: user.userUuid,
@@ -11547,12 +11620,28 @@ export class ProjectService extends BaseService {
             dbtVersion: project.dbtVersion,
         };
 
+        const compileJobUuid = uuidv4();
         const previewProject = await this.createWithoutCompile(
             user,
             previewData,
             context,
+            undefined,
+            {
+                mode: 'async',
+                compile: {
+                    jobUuid: compileJobUuid,
+                    validateAfterCompile: data.validateAfterCompile ?? false,
+                },
+            },
         );
         await this.throwIfPreviewCopyFailed(previewProject);
+        if (previewProject.contentCopyJobUuid) {
+            return {
+                projectUuid: previewProject.project.projectUuid,
+                compileJobUuid,
+                contentCopyJobUuid: previewProject.contentCopyJobUuid,
+            };
+        }
 
         // Since the project is new, and we have copied some permissions,
         // it is possible that the user `abilities` are not uptodate
@@ -11656,6 +11745,7 @@ export class ProjectService extends BaseService {
             },
             RequestMethod.BACKEND,
             { source: 'training' },
+            { mode: 'sync' },
         );
         await this.throwIfPreviewCopyFailed(creation);
         const { projectUuid } = creation.project;
@@ -11852,6 +11942,77 @@ export class ProjectService extends BaseService {
                 );
             },
         );
+    }
+
+    async runPreviewContentCopy(
+        user: SessionUser,
+        payload: CopyPreviewContentPayload,
+        signal?: AbortSignal,
+    ): Promise<void> {
+        try {
+            signal?.throwIfAborted();
+            await this.jobModel.tryJobStep(
+                payload.jobUuid,
+                JobStepType.COPYING_PREVIEW_CONTENT,
+                async () => {
+                    await this.copyContentOnPreview(
+                        payload.upstreamProjectUuid,
+                        payload.projectUuid,
+                        user,
+                    );
+                    signal?.throwIfAborted();
+                    if (payload.compile) {
+                        await this.scheduleCompileProject(
+                            user,
+                            payload.projectUuid,
+                            getRequestMethod(payload.requestMethod),
+                            true,
+                            payload.compile.validateAfterCompile,
+                            false,
+                            payload.compile.jobUuid,
+                        );
+                    }
+                    signal?.throwIfAborted();
+                },
+            );
+            signal?.throwIfAborted();
+            await this.jobModel.update(payload.jobUuid, {
+                jobStatus: JobStatusType.DONE,
+                jobResults: { projectUuid: payload.projectUuid },
+            });
+            signal?.throwIfAborted();
+        } catch (error) {
+            await this.failPreviewContentCopy(payload, error);
+            throw error;
+        }
+    }
+
+    async failPreviewContentCopy(
+        payload: CopyPreviewContentPayload,
+        error: unknown,
+    ): Promise<void> {
+        Sentry.captureException(error);
+        await this.jobModel.updateJobStep(
+            payload.jobUuid,
+            JobStepStatusType.ERROR,
+            JobStepType.COPYING_PREVIEW_CONTENT,
+            getErrorMessage(error),
+        );
+        await this.jobModel.update(payload.jobUuid, {
+            jobStatus: JobStatusType.ERROR,
+        });
+        try {
+            await this.projectModel.delete(payload.projectUuid);
+        } catch (cleanupError) {
+            Sentry.captureException(cleanupError);
+            this.logger.error(
+                'Failed to clean up preview after content copy failure',
+                {
+                    projectUuid: payload.projectUuid,
+                    error: getErrorMessage(cleanupError),
+                },
+            );
+        }
     }
 
     async copyContentOnPreview(
@@ -13132,6 +13293,8 @@ export class ProjectService extends BaseService {
                 user,
                 previewData,
                 RequestMethod.WEB_APP, // TODO: fix context
+                undefined,
+                { mode: 'sync' },
             );
             await this.throwIfPreviewCopyFailed(newPreview);
             projectToSetExplores = newPreview.project.projectUuid;

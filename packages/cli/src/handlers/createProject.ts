@@ -25,6 +25,7 @@ import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient, {
     createProgramaticallySnowflakePat,
 } from './dbt/getWarehouseClient';
+import { getFinalJobState } from './dbt/refresh';
 
 const askToRememberAnswer = async (): Promise<void> => {
     const answers = await inquirer.prompt([
@@ -414,9 +415,17 @@ export const createProject = async (
             : {}),
     };
 
-    return lightdashApi<ApiCreateProjectResults>({
+    const result = await lightdashApi<ApiCreateProjectResults>({
         method: 'POST',
         url: `/api/v1/org/projects`,
         body: JSON.stringify(project),
     });
+    if (result.contentCopyJobUuid) {
+        await getFinalJobState(
+            result.contentCopyJobUuid,
+            'Copying preview content',
+        );
+        return { ...result, hasContentCopy: true };
+    }
+    return result;
 };
