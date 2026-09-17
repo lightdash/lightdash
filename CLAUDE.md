@@ -82,11 +82,14 @@ aliases.
 pnpm -F common lint
 pnpm -F backend lint
 pnpm -F frontend lint
+pnpm -F frontend fix-format # oxfmt ./src — run after any frontend edit, before commit
 pnpm -F common typecheck
 pnpm -F backend typecheck
 pnpm -F frontend typecheck
 pnpm -F warehouses typecheck
 ```
+
+After editing a package, run that package's `fix-format` (`oxfmt ./src`). Do not rely on the pre-commit hook alone. Frontend: `pnpm -F frontend fix-format`.
 
 **Testing:**
 
