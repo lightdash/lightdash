@@ -342,6 +342,7 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() dataAppVizUuid: string,
+        @Query() version?: number,
     ): Promise<ApiDataAppVizRenderMetadataResponse> {
         assertRegisteredAccount(req.account);
         const result =
@@ -349,6 +350,7 @@ export class AppGenerateController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 dataAppVizUuid,
+                version,
             );
         return {
             status: 'ok',

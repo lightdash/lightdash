@@ -280,6 +280,61 @@ describe('AiAgentToolsService', () => {
         ...overrides,
     });
 
+    it('resolves a custom chart type with the matching renderable version and schema', async () => {
+        const latestRenderableSchema: DataAppVizSchema = {
+            fields: [],
+            configOptions: [],
+            colorPalette: null,
+        };
+        const findDataAppVisualizationBySlug = vi.fn().mockResolvedValue({
+            app_id: 'viz-uuid',
+            viz_schema: {
+                fields: [
+                    {
+                        name: 'stale',
+                        label: 'Stale field',
+                        type: 'dimension',
+                        required: false,
+                    },
+                ],
+                configOptions: [],
+                colorPalette: null,
+            },
+        });
+        const getLatestRenderableDataAppVizVersion = vi.fn().mockResolvedValue({
+            version: 2,
+            viz_schema: latestRenderableSchema,
+        });
+        const service = makeService({
+            featureFlagService: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            },
+            appModel: {
+                findDataAppVisualizationBySlug,
+                getLatestRenderableDataAppVizVersion,
+            },
+        });
+        const resolveCustomChartType = (
+            service as unknown as {
+                resolveCustomChartType: (
+                    context: AiAgentToolsRuntimeContext,
+                    slug: string,
+                ) => Promise<unknown>;
+            }
+        ).resolveCustomChartType.bind(service);
+
+        await expect(
+            resolveCustomChartType(makeRuntimeContext(), 'funnel-viz'),
+        ).resolves.toEqual({
+            dataAppVizUuid: 'viz-uuid',
+            dataAppVizVersion: 2,
+            schema: latestRenderableSchema,
+        });
+        expect(getLatestRenderableDataAppVizVersion).toHaveBeenCalledWith(
+            'viz-uuid',
+        );
+    });
+
     it('finds Space and personal Data Apps in unrestricted project search', async () => {
         const searchService = {
             findContent: vi.fn().mockResolvedValue({

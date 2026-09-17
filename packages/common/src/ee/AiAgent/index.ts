@@ -1088,6 +1088,8 @@ export type AiCustomChartTypeChartArtifactConfig = {
     source: 'customChartType';
     schemaVersion: 1;
     dataAppVizUuid: string;
+    /** Omitted by artifacts created before custom chart type pins existed. */
+    dataAppVizVersion?: number;
     config: PersistedRunQueryPayload;
 };
 

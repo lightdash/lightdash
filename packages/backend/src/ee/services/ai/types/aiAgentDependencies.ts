@@ -125,6 +125,7 @@ export type FindCustomChartTypesFn = (
 // not resolve to a schema-bearing custom chart type in this project.
 export type ResolveCustomChartTypeFn = (slug: string) => Promise<{
     dataAppVizUuid: string;
+    dataAppVizVersion: number;
     schema: DataAppVizSchema;
 } | null>;
 

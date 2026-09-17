@@ -185,9 +185,13 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         }),
         [embedToken, renderSavedChartUuid, chartVersionUuid],
     );
-    const renderPinnedVersion = renderSavedChartUuid
-        ? config?.dataAppVizVersion
-        : undefined;
+    // Saved charts and immutable AI artifacts must render the version that
+    // their config records. The chart-less edit canvas intentionally remains
+    // unpinned so builders can preview the latest generated version.
+    const renderPinnedVersion =
+        renderSavedChartUuid || !isEditMode
+            ? config?.dataAppVizVersion
+            : undefined;
     const { data: renderMetadata, error: renderMetadataError } =
         useDataAppVizRenderMetadata(
             projectUuid,
@@ -588,13 +592,24 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     }
 
     if (renderMetadata.state === 'unavailable') {
+        const pinnedChartlessArtifact =
+            !renderSavedChartUuid &&
+            !isEditMode &&
+            renderPinnedVersion !== undefined;
         return (
             <DataAppVizPlaceholder
                 message={
-                    renderSavedChartUuid &&
-                    config?.dataAppVizVersion !== undefined
-                        ? 'The saved custom chart type version is unavailable.'
-                        : 'Custom chart type preview is unavailable.'
+                    pinnedChartlessArtifact
+                        ? `Custom chart type version ${renderPinnedVersion} is unavailable.`
+                        : renderSavedChartUuid &&
+                            config?.dataAppVizVersion !== undefined
+                          ? 'The saved custom chart type version is unavailable.'
+                          : 'Custom chart type preview is unavailable.'
+                }
+                hint={
+                    pinnedChartlessArtifact
+                        ? 'Regenerate the chart to use a renderable version.'
+                        : undefined
                 }
             />
         );

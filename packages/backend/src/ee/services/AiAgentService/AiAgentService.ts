@@ -430,6 +430,7 @@ import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
+import { resolveRenderableDataAppVizVersion } from '../AppGenerateService/dataAppVizRender';
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
@@ -2679,27 +2680,81 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    private async getDataAppVizSchemaFields(
+        projectUuid: string,
+        dataAppVizUuid: string,
+        dataAppVizVersion?: number,
+    ) {
+        const app = await this.appModel.findVisualizationApp(
+            dataAppVizUuid,
+            projectUuid,
+        );
+        if (!app) {
+            if (dataAppVizVersion !== undefined) {
+                throw new NotFoundError(
+                    `Custom chart type version ${dataAppVizVersion} is unavailable. Regenerate the chart to use a renderable version.`,
+                );
+            }
+            return null;
+        }
+
+        let schema = app.viz_schema;
+        if (dataAppVizVersion !== undefined) {
+            try {
+                schema = (
+                    await resolveRenderableDataAppVizVersion(
+                        this.appModel,
+                        app.app_id,
+                        dataAppVizVersion,
+                    )
+                ).viz_schema;
+            } catch (error) {
+                if (
+                    error instanceof NotFoundError ||
+                    error instanceof ParameterError
+                ) {
+                    throw new NotFoundError(
+                        `Custom chart type version ${dataAppVizVersion} is unavailable. Regenerate the chart to use a renderable version.`,
+                    );
+                }
+                throw error;
+            }
+        }
+
+        const parsedSchema = dataAppVizSchema.safeParse(schema);
+        if (!parsedSchema.success) {
+            if (dataAppVizVersion !== undefined) {
+                throw new NotFoundError(
+                    `Custom chart type version ${dataAppVizVersion} is unavailable. Regenerate the chart to use a renderable version.`,
+                );
+            }
+            Logger.warn(
+                `Skipping custom chart type schema for ${dataAppVizUuid}: app missing or viz_schema failed validation`,
+            );
+            return null;
+        }
+        return parsedSchema.data.fields;
+    }
+
     // Pivot on the type's series slots, schema fetched at query time.
-    // Best-effort: a deleted app or invalid schema yields no pivot.
+    // Legacy artifacts retain the latest-schema fallback; versioned artifacts
+    // resolve the schema that rendered their recorded chart type version.
     private async deriveCustomChartTypePivotConfiguration(
         projectUuid: string,
         customChartConfig: DataAppVizChart,
         metricQuery: MetricQuery,
         fields: ItemsMap,
     ): Promise<PivotConfiguration | undefined> {
-        const app = await this.appModel.findVisualizationApp(
-            customChartConfig.dataAppVizUuid,
+        const schemaFields = await this.getDataAppVizSchemaFields(
             projectUuid,
+            customChartConfig.dataAppVizUuid,
+            customChartConfig.dataAppVizVersion,
         );
-        const parsedSchema = dataAppVizSchema.safeParse(app?.viz_schema);
-        if (!parsedSchema.success) {
-            Logger.warn(
-                `Skipping custom chart type pivot for ${customChartConfig.dataAppVizUuid}: app missing or viz_schema failed validation`,
-            );
+        if (!schemaFields) {
             return undefined;
         }
         const pivotConfig = deriveDataAppVizPivotConfig(
-            parsedSchema.data.fields,
+            schemaFields,
             customChartConfig.fieldMapping,
         );
         return deriveDataAppVizPivotConfiguration(
@@ -12449,16 +12504,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 ? promptArtifactVersions
                 : promptArtifacts,
             toolResults,
-            async (dataAppVizUuid) => {
-                const app = await this.appModel.findVisualizationApp(
-                    dataAppVizUuid,
+            async (dataAppVizUuid, dataAppVizVersion) =>
+                this.getDataAppVizSchemaFields(
                     slackPrompt.projectUuid,
-                );
-                const parsedSchema = dataAppVizSchema.safeParse(
-                    app?.viz_schema,
-                );
-                return parsedSchema.success ? parsedSchema.data.fields : null;
-            },
+                    dataAppVizUuid,
+                    dataAppVizVersion,
+                ),
         );
         const sqlArtifactBlocks = await getSqlArtifactCardBlocks(
             slackPrompt.promptUuid,

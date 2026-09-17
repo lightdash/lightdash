@@ -107,6 +107,7 @@ describe('parseAiArtifactChartConfig', () => {
             source: 'customChartType',
             schemaVersion: 1,
             dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+            dataAppVizVersion: 2,
             config: {
                 ...semanticConfig,
                 chartConfig: customChartTypeSlugChartConfig,
@@ -124,12 +125,48 @@ describe('parseAiArtifactChartConfig', () => {
         });
     });
 
+    it('accepts legacy customChartType artifacts without a version pin', () => {
+        expect(
+            parseAiArtifactChartConfig({
+                source: 'customChartType',
+                schemaVersion: 1,
+                dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                config: {
+                    ...semanticConfig,
+                    chartConfig: customChartTypeSlugChartConfig,
+                },
+            }),
+        ).toMatchObject({
+            source: 'customChartType',
+            dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+        });
+    });
+
+    it.each([0, 1.5, '2'])(
+        'rejects an invalid explicit custom chart type version: %o',
+        (dataAppVizVersion) => {
+            expect(
+                parseAiArtifactChartConfig({
+                    source: 'customChartType',
+                    schemaVersion: 1,
+                    dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                    dataAppVizVersion,
+                    config: {
+                        ...semanticConfig,
+                        chartConfig: customChartTypeSlugChartConfig,
+                    },
+                }),
+            ).toBeNull();
+        },
+    );
+
     it('rejects a customChartType envelope whose config is not the slug branch', () => {
         expect(
             parseAiArtifactChartConfig({
                 source: 'customChartType',
                 schemaVersion: 1,
                 dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                dataAppVizVersion: 2,
                 config: semanticConfig,
             }),
         ).toBeNull();
@@ -229,12 +266,14 @@ describe('parseAiArtifactChartConfig', () => {
                 source: 'customChartType',
                 schemaVersion: 1,
                 dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                dataAppVizVersion: 2,
                 config: resolvedArgs,
             }),
         ).toEqual({
             source: 'customChartType',
             schemaVersion: 1,
             dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+            dataAppVizVersion: 2,
             config: {
                 ...resolvedArgs,
                 queryConfig: {
@@ -452,6 +491,7 @@ describe('getDataAppVizChartFromArtifact', () => {
                 source: 'customChartType',
                 schemaVersion: 1,
                 dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                dataAppVizVersion: 2,
                 config: {
                     ...semanticConfig,
                     queryConfig: {
@@ -463,6 +503,7 @@ describe('getDataAppVizChartFromArtifact', () => {
             }),
         ).toEqual({
             dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+            dataAppVizVersion: 2,
             fieldMapping: customChartTypeSlugChartConfig.fieldMapping,
             optionValues: { showLegend: true },
         });
