@@ -10,6 +10,7 @@ import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
 import { AthenaDefaultValues } from './defaultValues';
+import WarehouseDatabaseListingFields from './WarehouseDatabaseListingFields';
 
 export const AthenaSchemaInput: FC<{
     disabled: boolean;
@@ -20,9 +21,9 @@ export const AthenaSchemaInput: FC<{
     return (
         <TextInput
             name="warehouse.schema"
-            label="Schema"
+            label="Database"
             description={
-                description ?? 'This is the schema name (database in Athena).'
+                description ?? 'The Athena database inside the data catalog.'
             }
             required
             {...form.getInputProps('warehouse.schema')}
@@ -113,8 +114,8 @@ const AthenaForm: FC<{
                 />
                 <TextInput
                     name="warehouse.database"
-                    label="Catalog"
-                    description="This is the Athena data catalog name (typically 'AwsDataCatalog')."
+                    label="Data catalog"
+                    description="The Athena data catalog, usually AwsDataCatalog."
                     required
                     {...form.getInputProps('warehouse.database')}
                     placeholder="AwsDataCatalog"
@@ -123,10 +124,14 @@ const AthenaForm: FC<{
                 <TextInput
                     name="warehouse.schema"
                     label="Database"
-                    description="This is the Athena database name (also known as schema)."
+                    description="The Athena database inside the data catalog."
                     required
                     {...form.getInputProps('warehouse.schema')}
                     disabled={disabled}
+                />
+                <WarehouseDatabaseListingFields
+                    disabled={disabled}
+                    warehouseType={WarehouseTypes.ATHENA}
                 />
                 <TextInput
                     name="warehouse.s3StagingDir"
