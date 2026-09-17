@@ -7,6 +7,7 @@ type ManifestNamedItem = {
 
 export type ManifestNamespaceFields = {
     lightdash_source_name?: string;
+    lightdash_namespace_prefix?: string;
     package_name?: string;
 };
 
@@ -45,6 +46,9 @@ export const qualifyManifestNames = (
 ): Map<string, string> => {
     const namespacesByName = new Map<string, Set<string>>();
     items.forEach((item) => {
+        if (item.lightdash_namespace_prefix) {
+            return;
+        }
         const namespace = getManifestNamespace(item);
         if (namespace === undefined) {
             return;
@@ -62,12 +66,16 @@ export const qualifyManifestNames = (
     const resolvedNames = new Map(
         items.map((item) => {
             const namespace = getManifestNamespace(item);
-            return [
-                item.uniqueId,
-                namespace !== undefined && collidingNames.has(item.name)
-                    ? `${namespace.name}__${item.name}`
-                    : item.name,
-            ];
+            let resolvedName = item.name;
+            if (item.lightdash_namespace_prefix) {
+                resolvedName = `${item.lightdash_namespace_prefix}__${item.name}`;
+            } else if (
+                namespace !== undefined &&
+                collidingNames.has(item.name)
+            ) {
+                resolvedName = `${namespace.name}__${item.name}`;
+            }
+            return [item.uniqueId, resolvedName];
         }),
     );
 

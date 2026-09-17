@@ -14,6 +14,8 @@ import {
     DbProjectDbtSource,
     ProjectDbtSourcesTableName,
 } from '../database/entities/projectDbtSources';
+import { ProjectTableName } from '../database/entities/projects';
+import { WarehouseCredentialTableName } from '../database/entities/warehouseCredentials';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 
 const PG_UNIQUE_VIOLATION = '23505';
@@ -23,14 +25,6 @@ type ProjectDbtSourcesModelArguments = {
     encryptionUtil: EncryptionUtil;
 };
 
-/**
- * Data access for `project_dbt_sources` — the additional dbt sources connected
- * to a project beyond its primary `projects.dbt_connection` (PROD-7484). Rows
- * are returned ordered by precedence for both the sources list and merge fold.
- * The lowest precedence supplies manifest metadata and wins docs/macros unions;
- * model collisions fail separately. The primary source is not stored here; a
- * project with no rows runs the single-source path unchanged (N=0 short-circuit).
- */
 export class ProjectDbtSourcesModel {
     private readonly database: Knex;
 
@@ -89,6 +83,8 @@ export class ProjectDbtSourcesModel {
         return {
             projectDbtSourceUuid: row.project_dbt_source_uuid,
             projectUuid: row.project_uuid,
+            connectionUuid: row.connection_uuid,
+            namespacePrefix: row.namespace_prefix,
             name: row.name,
             isPrimary: row.is_primary,
             precedence: row.precedence,
@@ -133,6 +129,8 @@ export class ProjectDbtSourcesModel {
         const sources = await this.database(ProjectDbtSourcesTableName)
             .select(
                 'name',
+                'connection_uuid',
+                'namespace_prefix',
                 'is_primary',
                 'precedence',
                 'dbt_connection_type',
@@ -149,6 +147,8 @@ export class ProjectDbtSourcesModel {
         await this.database(ProjectDbtSourcesTableName).insert(
             sources.map((source) => ({
                 project_uuid: targetProjectUuid,
+                connection_uuid: source.connection_uuid,
+                namespace_prefix: source.namespace_prefix,
                 name: source.name,
                 is_primary: source.is_primary,
                 precedence: source.precedence,
@@ -180,6 +180,8 @@ export class ProjectDbtSourcesModel {
             const [row] = await this.database(ProjectDbtSourcesTableName)
                 .insert({
                     project_uuid: projectUuid,
+                    connection_uuid: data.connectionUuid,
+                    namespace_prefix: data.namespacePrefix,
                     name: data.name,
                     is_primary: data.isPrimary,
                     precedence: data.precedence,
@@ -212,6 +214,9 @@ export class ProjectDbtSourcesModel {
             [row] = await this.database(ProjectDbtSourcesTableName)
                 .where('project_dbt_source_uuid', projectDbtSourceUuid)
                 .update({
+                    ...(data.connectionUuid !== undefined
+                        ? { connection_uuid: data.connectionUuid }
+                        : {}),
                     ...(data.name !== undefined ? { name: data.name } : {}),
                     ...(data.precedence !== undefined
                         ? { precedence: data.precedence }
@@ -253,6 +258,25 @@ export class ProjectDbtSourcesModel {
             );
         }
         return this.convertRow(row);
+    }
+
+    async connectionBelongsToProject(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<boolean> {
+        const connection = await this.database(
+            `${WarehouseCredentialTableName} as connection`,
+        )
+            .innerJoin(
+                `${ProjectTableName} as project`,
+                'connection.project_id',
+                'project.project_id',
+            )
+            .where('project.project_uuid', projectUuid)
+            .where('connection.warehouse_credentials_uuid', connectionUuid)
+            .whereNull('connection.superseded_at')
+            .first('connection.warehouse_credentials_uuid');
+        return connection !== undefined;
     }
 
     async deleteSource(projectDbtSourceUuid: string): Promise<void> {
