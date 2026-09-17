@@ -49,6 +49,7 @@ const project: Project = {
     expiresAt: null,
     provisioningSource: 'terraform',
     agentSqlScope: { schemas: ['reporting'] },
+    requireUserCredentials: true,
 };
 
 describe('pickEmbedProject', () => {
@@ -79,6 +80,7 @@ describe('pickEmbedProject', () => {
             expiresAt: null,
             provisioningSource: null,
             agentSqlScope: null,
+            requireUserCredentials: true,
         });
     });
 

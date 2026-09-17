@@ -909,8 +909,10 @@ export type CreateProject = Omit<
     | 'provisioningSource'
     | 'agentSqlScope'
     | 'connections'
+    | 'requireUserCredentials'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
+    requireUserCredentials?: boolean;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
     tableConfiguration?: CreateProjectTableConfiguration;
     copyContent?: boolean;
@@ -951,8 +953,10 @@ export type UpdateProject = Omit<
     | 'agentSqlScope'
     | 'connections'
     | 'warehouseConnection'
+    | 'requireUserCredentials'
 > & {
     warehouseConnection?: CreateWarehouseCredentials;
+    requireUserCredentials?: boolean;
 };
 
 export type CacheMetadata = {

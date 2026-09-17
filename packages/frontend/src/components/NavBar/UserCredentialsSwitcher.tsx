@@ -57,6 +57,9 @@ const UserCredentialsSwitcher = () => {
     const defaultConnectionUuid = activeProject
         ? getDefaultPreferenceConnectionUuid(activeProject.connections)
         : undefined;
+    const warehouseType =
+        activeProject?.warehouseConnection?.type ??
+        activeProject?.connections[0]?.warehouseType;
     const { data: preferredCredentials } =
         useProjectUserWarehouseCredentialsPreference(
             activeProjectUuid,
@@ -73,10 +76,9 @@ const UserCredentialsSwitcher = () => {
 
     const compatibleCredentials = useMemo(() => {
         return userWarehouseCredentials?.filter(
-            ({ credentials }) =>
-                credentials.type === activeProject?.warehouseConnection?.type,
+            ({ credentials }) => credentials.type === warehouseType,
         );
-    }, [userWarehouseCredentials, activeProject]);
+    }, [userWarehouseCredentials, warehouseType]);
 
     // Listen for SnowflakeTokenError in query client
     useEffect(() => {
@@ -91,8 +93,7 @@ const UserCredentialsSwitcher = () => {
                     if (
                         error?.error?.name ===
                             'MissingWarehouseCredentialsError' &&
-                        activeProject?.warehouseConnection
-                            ?.requireUserCredentials
+                        activeProject?.requireUserCredentials
                     ) {
                         setShowCreateModalOnPageLoad(true);
                         setIsCreatingCredentials(true);
@@ -100,10 +101,8 @@ const UserCredentialsSwitcher = () => {
                     // Check if this is a SnowflakeTokenError and we have a Snowflake project
                     if (
                         error?.error?.name === 'SnowflakeTokenError' &&
-                        activeProject?.warehouseConnection?.type ===
-                            'snowflake' &&
-                        activeProject?.warehouseConnection
-                            ?.requireUserCredentials
+                        warehouseType === 'snowflake' &&
+                        activeProject?.requireUserCredentials
                     ) {
                         console.info('Triggering reauth modal for Snowflake');
                         setShowCreateModalOnPageLoad(true);
@@ -111,10 +110,8 @@ const UserCredentialsSwitcher = () => {
                     }
                     if (
                         error?.error?.name === 'DatabricksTokenError' &&
-                        activeProject?.warehouseConnection?.type ===
-                            'databricks' &&
-                        activeProject?.warehouseConnection
-                            ?.requireUserCredentials
+                        warehouseType === 'databricks' &&
+                        activeProject?.requireUserCredentials
                     ) {
                         console.info('Triggering reauth modal for Databricks');
                         setShowCreateModalOnPageLoad(true);
@@ -122,10 +119,8 @@ const UserCredentialsSwitcher = () => {
                     }
                     if (
                         error?.error?.name === 'BigqueryTokenError' &&
-                        activeProject?.warehouseConnection?.type ===
-                            'bigquery' &&
-                        activeProject?.warehouseConnection
-                            ?.requireUserCredentials
+                        warehouseType === 'bigquery' &&
+                        activeProject?.requireUserCredentials
                     ) {
                         console.info('Triggering reauth modal for BigQuery');
                         setShowCreateModalOnPageLoad(true);
@@ -133,10 +128,8 @@ const UserCredentialsSwitcher = () => {
                     }
                     if (
                         error?.error?.name === 'RedshiftIamTokenError' &&
-                        activeProject?.warehouseConnection?.type ===
-                            'redshift' &&
-                        activeProject?.warehouseConnection
-                            ?.requireUserCredentials
+                        warehouseType === 'redshift' &&
+                        activeProject?.requireUserCredentials
                     ) {
                         console.info('Triggering reauth modal for Redshift');
                         setShowCreateModalOnPageLoad(true);
@@ -147,11 +140,7 @@ const UserCredentialsSwitcher = () => {
         });
 
         return unsubscribe;
-    }, [
-        queryClient,
-        activeProject?.warehouseConnection?.type,
-        activeProject?.warehouseConnection?.requireUserCredentials,
-    ]);
+    }, [queryClient, activeProject?.requireUserCredentials, warehouseType]);
 
     useEffect(() => {
         // reset state when page changes
@@ -163,7 +152,7 @@ const UserCredentialsSwitcher = () => {
         if (
             isRouteThatNeedsWarehouseCredentials &&
             !showCreateModalOnPageLoad &&
-            activeProject?.warehouseConnection?.requireUserCredentials &&
+            activeProject?.requireUserCredentials &&
             !!compatibleCredentials &&
             compatibleCredentials.length === 0
         ) {
@@ -180,10 +169,8 @@ const UserCredentialsSwitcher = () => {
     // Show the switcher when personal credentials are mandatory, or when they
     // are optional for this warehouse type and the user already has some
     const isSwitcherVisible =
-        activeProject?.warehouseConnection?.requireUserCredentials ||
-        (supportsOptionalUserCredentials(
-            activeProject?.warehouseConnection?.type,
-        ) &&
+        activeProject?.requireUserCredentials ||
+        (supportsOptionalUserCredentials(warehouseType) &&
             !!compatibleCredentials?.length);
 
     if (

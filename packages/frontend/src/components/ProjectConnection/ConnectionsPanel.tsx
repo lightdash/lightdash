@@ -60,6 +60,7 @@ const NAME_MAX_LENGTH = 64;
 const unusedDbtFormValues = {
     dbt: { ...dbtDefaults.formValues[DbtProjectType.NONE] },
     dbtVersion: DefaultSupportedDbtVersion,
+    requireUserCredentials: false,
 };
 
 const validateName = (value: string) =>

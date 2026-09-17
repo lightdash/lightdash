@@ -24,13 +24,11 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
-import BooleanSwitch from '../Inputs/BooleanSwitch';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
 import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
-import { DatabricksDefaultValues } from './defaultValues';
 import { getSsoLabel, PERSONAL_ACCESS_TOKEN_LABEL } from './util';
 import styles from './WarehouseButtons.module.css';
 
@@ -378,20 +376,6 @@ const DatabricksForm: FC<{
                 />
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
-                        <BooleanSwitch
-                            name="warehouse.requireUserCredentials"
-                            label="Require users to provide their own credentials"
-                            defaultChecked={
-                                DatabricksDefaultValues.requireUserCredentials
-                            }
-                            disabled={disabled}
-                            {...form.getInputProps(
-                                'warehouse.requireUserCredentials',
-                                {
-                                    type: 'checkbox',
-                                },
-                            )}
-                        />
                         <DataTimezoneField disabled={disabled} />
                         <StartOfWeekSelect disabled={disabled} />
                         <Stack gap="xs">

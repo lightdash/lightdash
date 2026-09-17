@@ -77,6 +77,7 @@ const buildProject = (overrides: Partial<Project> = {}): Project => ({
     colorPaletteUuid: null,
     expiresAt: null,
     agentSqlScope: null,
+    requireUserCredentials: false,
     ...overrides,
 });
 
@@ -269,6 +270,14 @@ describe('UpdateProjectConnection submit payload', () => {
         renderPage();
 
         await screen.findByText('Connections');
+        const user = userEvent.setup();
+        const requireUserCredentialsSwitch = document.querySelector(
+            '[name="requireUserCredentials"]',
+        );
+        if (!requireUserCredentialsSwitch) {
+            throw new Error('Require user credentials switch was not rendered');
+        }
+        await user.click(requireUserCredentialsSwitch);
         await submit();
 
         await waitFor(() => expect(updateBody(calls)).toBeDefined());
@@ -278,6 +287,7 @@ describe('UpdateProjectConnection submit payload', () => {
             name: 'Jaffle shop',
             dbtConnection: { type: DbtProjectType.NONE },
             dbtVersion: DefaultSupportedDbtVersion,
+            requireUserCredentials: true,
         });
     });
 

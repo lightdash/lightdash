@@ -112,6 +112,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                   },
             warehouse: warehouseDefaultValues[warehouseType],
             dbtVersion: dbtDefaults.dbtVersion,
+            requireUserCredentials: false,
             organizationWarehouseCredentialsUuid: undefined,
         },
         validate: {
@@ -129,6 +130,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             dbt: dbtConnection,
             warehouse: warehouseConnection,
             dbtVersion,
+            requireUserCredentials,
             organizationWarehouseCredentialsUuid,
         } = formValues;
         track({
@@ -150,6 +152,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     type: ProjectType.DEFAULT,
                     dbtConnection,
                     dbtVersion,
+                    requireUserCredentials,
                     organizationWarehouseCredentialsUuid,
                     warehouseConnection: {
                         ...warehouseConnection,

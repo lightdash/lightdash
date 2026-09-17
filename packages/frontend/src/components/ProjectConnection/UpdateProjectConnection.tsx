@@ -65,11 +65,13 @@ const getUpdateProjectPayload = (
         dbt: dbtConnection,
         warehouse: warehouseConnection,
         dbtVersion,
+        requireUserCredentials,
     } = values;
     return {
         name,
         dbtConnection,
         dbtVersion,
+        requireUserCredentials,
         ...(connectionsOwnWarehouse ? {} : { warehouseConnection }),
     };
 };
@@ -126,6 +128,7 @@ const UpdateProjectConnection: FC<{
                 ...project.warehouseConnection,
             } as CreateWarehouseCredentials,
             dbtVersion: project.dbtVersion,
+            requireUserCredentials: project.requireUserCredentials,
         },
         validate: getProjectFormValidators(
             connectionsOwnWarehouse,

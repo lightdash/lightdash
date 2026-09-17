@@ -37,6 +37,7 @@ const renderRedshiftForm = (
                     authenticationType,
                 },
                 dbtVersion: dbtDefaults.dbtVersion,
+                requireUserCredentials: false,
             },
         });
 

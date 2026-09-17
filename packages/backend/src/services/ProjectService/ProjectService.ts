@@ -2065,8 +2065,8 @@ export class ProjectService extends BaseService {
     /*
         This method is used when the user is making requests to the warehouse
         and .
-        Then if `requireUserCredentials` flag is enabled, we load the tokens from `userWarehouseCredentials` and replace them with the credentials from the project.
-        If `requireUserCredentials` flag is disabled, we just get access token if needed for the warehouse (like Snowflake on SSO).
+        Then if the project's `requireUserCredentials` flag is enabled, we load the tokens from `userWarehouseCredentials` and replace them with the credentials from the project.
+        If the flag is disabled, we just get an access token if needed for the warehouse (like Snowflake on SSO).
     */
     protected async getWarehouseCredentials({
         projectUuid,
@@ -2095,6 +2095,12 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 resolvedConnectionUuid,
             );
+        const projectWarehouseConfig =
+            await this.projectModel.getProjectWarehouseConfig(projectUuid);
+        const requireUserCredentials =
+            projectWarehouseConfig.requireUserCredentials ??
+            credentials.requireUserCredentials ??
+            false;
         let userWarehouseCredentialsUuid: string | undefined;
 
         if (
@@ -2114,10 +2120,7 @@ export class ProjectService extends BaseService {
             return { ...credentials, userWarehouseCredentialsUuid };
         }
 
-        if (
-            organizationWarehouseCredentialsUuid &&
-            !credentials.requireUserCredentials
-        ) {
+        if (organizationWarehouseCredentialsUuid && !requireUserCredentials) {
             this.logger.debug(
                 `Refreshing warehouse credentials from organization credentials`,
             );
@@ -2132,7 +2135,7 @@ export class ProjectService extends BaseService {
         }
 
         // Service accounts cannot use personal warehouse credentials
-        if (isServiceAccount && credentials.requireUserCredentials) {
+        if (isServiceAccount && requireUserCredentials) {
             throw new ForbiddenError(
                 'Service accounts cannot run queries when user credentials are required.',
             );
@@ -2144,7 +2147,7 @@ export class ProjectService extends BaseService {
         // 2. The warehouse type supports optional user credentials, which are
         //    used when present and fall back to the project connection otherwise
         const shouldFetchUserCredentials =
-            credentials.requireUserCredentials ||
+            requireUserCredentials ||
             supportsOptionalUserCredentials(credentials.type);
 
         if (isRegisteredUser) {
@@ -2193,7 +2196,7 @@ export class ProjectService extends BaseService {
                     },
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
-            } else if (credentials.requireUserCredentials) {
+            } else if (requireUserCredentials) {
                 this.logger.warn(
                     `No ${credentials.type} user warehouse credentials found for user ${userId} on project ${projectUuid} (requireUserCredentials enabled, host mismatch: ${!!hostMismatch})`,
                 );
@@ -2220,7 +2223,7 @@ export class ProjectService extends BaseService {
                     },
                 );
             }
-        } else if (credentials.requireUserCredentials) {
+        } else if (requireUserCredentials) {
             // Embedded users cannot use personal warehouse credentials
             throw new ForbiddenError(
                 'Embedded users cannot use personal warehouse credentials',
@@ -3023,6 +3026,7 @@ export class ProjectService extends BaseService {
         );
         ProjectService.assertPersistableSnowflakeAuthentication(
             data.warehouseConnection,
+            data.requireUserCredentials,
         );
 
         await this.validateProjectCreationPermissions(
@@ -3051,6 +3055,8 @@ export class ProjectService extends BaseService {
                 : undefined;
             newProjectData.organizationWarehouseCredentialsUuid =
                 upstreamProject?.organizationWarehouseCredentialsUuid;
+            newProjectData.requireUserCredentials =
+                upstreamProject?.requireUserCredentials ?? false;
         }
         if (
             newProjectData.type === ProjectType.PREVIEW &&
@@ -3068,7 +3074,7 @@ export class ProjectService extends BaseService {
             !data.copyWarehouseConnectionFromUpstreamProject
         ) {
             // When creating a preview from CLI with credentials, merge with upstream credentials
-            // to preserve advanced settings like requireUserCredentials
+            // to preserve advanced connection settings
             const upstreamCredentials =
                 await this.projectModel.getWarehouseCredentialsForProject(
                     data.upstreamProjectUuid,
@@ -3156,7 +3162,9 @@ export class ProjectService extends BaseService {
         // credentials so the user doesn't have to re-authenticate in the UI
         if (
             createProject.type === ProjectType.PREVIEW &&
-            createProject.warehouseConnection?.requireUserCredentials
+            (createProject.requireUserCredentials ??
+                createProject.warehouseConnection?.requireUserCredentials) &&
+            createProject.warehouseConnection
         ) {
             try {
                 const { warehouseConnection } = createProject;
@@ -3326,6 +3334,7 @@ export class ProjectService extends BaseService {
         );
         ProjectService.assertPersistableSnowflakeAuthentication(
             data.warehouseConnection,
+            data.requireUserCredentials,
         );
         ProjectService.assertDatabaseListingSupported(data.warehouseConnection);
 
@@ -3468,7 +3477,11 @@ export class ProjectService extends BaseService {
     static getAnalyticProperties(
         createProject: Pick<
             CreateProjectOptionalCredentials,
-            'warehouseConnection' | 'name' | 'dbtConnection' | 'type'
+            | 'warehouseConnection'
+            | 'name'
+            | 'dbtConnection'
+            | 'type'
+            | 'requireUserCredentials'
         >,
         projectUuid: string,
         user: SessionUser,
@@ -3495,8 +3508,7 @@ export class ProjectService extends BaseService {
             isPreview: createProject.type === ProjectType.PREVIEW,
             method,
             authenticationType,
-            requireUserCredentials:
-                createProject.warehouseConnection?.requireUserCredentials,
+            requireUserCredentials: createProject.requireUserCredentials,
             onboardingFlow,
         };
     }
@@ -3876,6 +3888,7 @@ export class ProjectService extends BaseService {
     */
     private static assertPersistableSnowflakeAuthentication(
         credentials: CreateWarehouseCredentials | undefined,
+        requireUserCredentials: boolean | undefined,
     ): void {
         if (credentials?.type !== WarehouseTypes.SNOWFLAKE) {
             return;
@@ -3891,7 +3904,7 @@ export class ProjectService extends BaseService {
         if (
             credentials.authenticationType ===
                 SnowflakeAuthenticationType.EXTERNAL_BROWSER &&
-            !credentials.requireUserCredentials
+            !(requireUserCredentials ?? credentials.requireUserCredentials)
         ) {
             throw new ParameterError(
                 'Snowflake external browser authentication is only supported in the CLI and cannot be saved on a project',
@@ -3904,6 +3917,7 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.SNOWFLAKE:
                 ProjectService.assertPersistableSnowflakeAuthentication(
                     project.warehouseConnection,
+                    project.requireUserCredentials,
                 );
                 break;
             case WarehouseTypes.BIGQUERY:
@@ -4179,6 +4193,7 @@ export class ProjectService extends BaseService {
             dbtConnection: savedProject.dbtConnection,
             dbtVersion: savedProject.dbtVersion,
             warehouseConnection: data.warehouseConnection,
+            requireUserCredentials: savedProject.requireUserCredentials,
         } satisfies UpdateProject;
 
         const resolvedData = await this._resolveWarehouseClientCredentials(

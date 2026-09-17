@@ -182,6 +182,12 @@ describe('CreateProjectConnection in-flight job recovery', () => {
         expect(
             screen.queryByText('Creating your project'),
         ).not.toBeInTheDocument();
+        expect(
+            screen.getByText('Require users to provide their own credentials'),
+        ).toBeInTheDocument();
+        expect(
+            document.querySelector('[name="requireUserCredentials"]'),
+        ).toBeInTheDocument();
     });
 
     it('resumes polling the job carried by a 409 instead of failing the submit', async () => {

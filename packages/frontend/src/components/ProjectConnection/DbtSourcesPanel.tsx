@@ -226,6 +226,7 @@ const AddDbtSourceModalInner: FC<{
                 type: WarehouseTypes.POSTGRES,
             } as CreateWarehouseCredentials,
             dbtVersion: DefaultSupportedDbtVersion,
+            requireUserCredentials: false,
         },
         validate: {
             name: (value) => validateProjectDbtSourceName(value.trim()),
@@ -328,6 +329,7 @@ const EditDbtSourceModalInner: FC<{
                 type: WarehouseTypes.POSTGRES,
             } as CreateWarehouseCredentials,
             dbtVersion: DefaultSupportedDbtVersion,
+            requireUserCredentials: false,
         },
         validate: {
             name: (value) =>
