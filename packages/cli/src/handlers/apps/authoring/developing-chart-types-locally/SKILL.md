@@ -40,6 +40,31 @@ The scaffold ships a `viz-fixture.json` at the folder root. To use it:
 
 This is for **layout and option iteration only**, and never fires in production (an embedded viz has a real host whose context always wins, and the param must be explicitly present). The fixture is fake data you hand-maintain: colors fall back to the palette (no model or shared-dashboard colors), `pivotDetails` must be shaped by hand, and formatting is whatever you type. **The explorer with real data remains the source of truth for correctness** — still run the upload → verify loop above before finishing, and verify every declared option actually changes the chart there.
 
+## Style with the Lightdash Library theme
+
+The scaffold ships the **Lightdash Library theme** — `src/lightdash-library.css`
+(imported by the starter; keep it first in the CSS chain) and the contract in
+`references/lightdash-library-theme.md`. It makes a chart's chrome match
+Lightdash's built-in charts, so installed chart types read as siblings of the
+native ones. The rules that matter most:
+
+- Style ALL chrome (axes, grids, legends, tooltips, typography) with the
+  `--ll-*` tokens; never hardcode chrome hexes. The tokens re-resolve under
+  the host's `.dark` class. SVG attributes can't resolve `var()`, so read
+  token values with `getComputedStyle` per render and call `useColorScheme()`
+  so the component re-renders on theme flips (the starter shows the pattern).
+- Keep the canvas transparent (`html, body { background: transparent }`, set
+  by the theme css) — the host tile paints the surface.
+- Series/data colors come from the instance palette, never the theme:
+  `resolveSeriesColor` / `resolveValueColor`, falling back to
+  `colorPalette[index % length]`. Two contract facts: the host sends
+  EFFECTIVE option values (declared defaults included), so a color option's
+  declared default is the only detectable "not overridden" state; and
+  `resolveValueColor`'s own fallback is palette-positional — semantic colors
+  (positive/negative) must check `context.valueColors` directly with semantic
+  hex fallbacks, never through the helper.
+- Tooltips compose the `.ll-tooltip` utility classes from the theme css.
+
 ## Dependencies: template-deps-only, strictly
 
 Build with the template's preinstalled set (see `package.json` — React, Recharts, d3 and friends). Do not add npm packages and do not vendor library source into `src/`. This is stricter than for data apps: the official chart registry rejects any dependency drift from its template, so a chart type that grows custom dependencies becomes unpublishable.

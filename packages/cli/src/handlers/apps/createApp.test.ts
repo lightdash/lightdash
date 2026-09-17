@@ -340,6 +340,14 @@ describe('createAppHandler', () => {
                 ),
             ).resolves.toBeUndefined();
             await expect(
+                fs.access(path.join(appDir, 'src/lightdash-library.css')),
+            ).resolves.toBeUndefined();
+            await expect(
+                fs.access(
+                    path.join(appDir, 'references/lightdash-library-theme.md'),
+                ),
+            ).resolves.toBeUndefined();
+            await expect(
                 fs.access(
                     path.join(
                         appDir,
