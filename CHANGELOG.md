@@ -1,3 +1,10 @@
+# [2.249.0](https://github.com/lightdash/lightdash/compare/2.248.0...2.249.0) (2026-09-17)
+
+
+### Features
+
+* refresh usage analytics content and user dimensions ([#29345](https://github.com/lightdash/lightdash/issues/29345)) ([555768d](https://github.com/lightdash/lightdash/commit/555768db7e5bbd0b4968efada728e3c496266dae)), closes [#23450](https://github.com/lightdash/lightdash/issues/23450)
+
 # [2.248.0](https://github.com/lightdash/lightdash/compare/2.247.1...2.248.0) (2026-09-17)
 
 
