@@ -2,7 +2,7 @@ import { type ApiError, type ApiGetAppResponse } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { invalidateAppAfterRestore } from './useRestoreAppVersion';
+import { invalidateAppQueries } from './useRestoreAppVersion';
 
 type ClearAgentContextResult = ApiGetAppResponse['results'];
 
@@ -20,7 +20,7 @@ export const useClearAgentContext = (projectUuid: string, appUuid: string) => {
     return useMutation<ClearAgentContextResult, ApiError, void>({
         mutationFn: () => clearAgentContext(projectUuid, appUuid),
         onSuccess: () => {
-            void invalidateAppAfterRestore(queryClient, projectUuid, appUuid);
+            void invalidateAppQueries(queryClient, projectUuid, appUuid);
         },
         onError: ({ error }) => {
             showToastApiError({
