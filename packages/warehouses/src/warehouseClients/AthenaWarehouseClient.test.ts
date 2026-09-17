@@ -1,5 +1,9 @@
 /* eslint-disable prefer-arrow-callback, func-names */
 import {
+    ListDatabasesCommand,
+    ListTableMetadataCommand,
+} from '@aws-sdk/client-athena';
+import {
     AthenaAuthenticationType,
     CreateAthenaCredentials,
     DimensionType,
@@ -371,6 +375,202 @@ describe('AthenaWarehouseClient', () => {
             });
             await expect(client.getAllTables()).rejects.toMatchObject({
                 message: expect.stringContaining('Failed to list tables'),
+            });
+        });
+    });
+
+    describe('database listing', () => {
+        test('lists two pages with the default database first', async () => {
+            const send = vi
+                .fn()
+                .mockResolvedValueOnce({
+                    DatabaseList: [{ Name: 'analytics' }, { Name: 'finance' }],
+                    NextToken: 'page-2',
+                })
+                .mockResolvedValueOnce({
+                    DatabaseList: [{ Name: 'marketing' }],
+                });
+            mockAthenaClient.mockImplementation(function () {
+                return { send };
+            });
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                listAllDatabases: true,
+            });
+
+            await expect(client.listDatabases()).resolves.toEqual({
+                databases: [
+                    {
+                        name: 'my_database',
+                        database: 'AwsDataCatalog',
+                        schema: 'my_database',
+                        isDefault: true,
+                    },
+                    {
+                        name: 'analytics',
+                        database: 'AwsDataCatalog',
+                        schema: 'analytics',
+                        isDefault: false,
+                    },
+                    {
+                        name: 'finance',
+                        database: 'AwsDataCatalog',
+                        schema: 'finance',
+                        isDefault: false,
+                    },
+                    {
+                        name: 'marketing',
+                        database: 'AwsDataCatalog',
+                        schema: 'marketing',
+                        isDefault: false,
+                    },
+                ],
+                truncated: false,
+                limit: 100,
+            });
+            expect(send).toHaveBeenCalledTimes(2);
+            expect(send.mock.calls[0][0]).toBeInstanceOf(ListDatabasesCommand);
+            expect(send.mock.calls[0][0].input).toEqual({
+                CatalogName: 'AwsDataCatalog',
+                MaxResults: 50,
+                NextToken: undefined,
+            });
+            expect(send.mock.calls[1][0].input.NextToken).toBe('page-2');
+        });
+
+        test('caps the result at 100 and stops when truncation is known', async () => {
+            const send = vi
+                .fn()
+                .mockResolvedValueOnce({
+                    DatabaseList: Array.from({ length: 50 }, (_, index) => ({
+                        Name: `database_${index}`,
+                    })),
+                    NextToken: 'page-2',
+                })
+                .mockResolvedValueOnce({
+                    DatabaseList: Array.from({ length: 50 }, (_, index) => ({
+                        Name: `database_${index + 50}`,
+                    })),
+                    NextToken: 'page-3',
+                })
+                .mockResolvedValueOnce({
+                    DatabaseList: Array.from({ length: 20 }, (_, index) => ({
+                        Name: `database_${index + 100}`,
+                    })),
+                });
+            mockAthenaClient.mockImplementation(function () {
+                return { send };
+            });
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                listAllDatabases: true,
+            });
+
+            const result = await client.listDatabases();
+
+            expect(result.databases).toHaveLength(100);
+            expect(result.databases[0]).toMatchObject({
+                name: 'my_database',
+                isDefault: true,
+            });
+            expect(result.truncated).toBe(true);
+            expect(send).toHaveBeenCalledTimes(2);
+        });
+
+        test('uses deduped configured databases without an API call', async () => {
+            const send = vi.fn();
+            mockAthenaClient.mockImplementation(function () {
+                return { send };
+            });
+            const client = new AthenaWarehouseClient({
+                ...baseCredentials,
+                additionalDatabases: ['finance', 'my_database', 'finance'],
+            });
+
+            const result = await client.listDatabases();
+
+            expect(result.databases.map(({ name }) => name)).toEqual([
+                'my_database',
+                'finance',
+            ]);
+            expect(result.databases[0].isDefault).toBe(true);
+            expect(send).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('table listing', () => {
+        test('pages tables for the selected database', async () => {
+            const send = vi
+                .fn()
+                .mockResolvedValueOnce({
+                    TableMetadataList: [
+                        { Name: 'orders', TableType: 'EXTERNAL_TABLE' },
+                    ],
+                    NextToken: 'page-2',
+                })
+                .mockResolvedValueOnce({
+                    TableMetadataList: [
+                        { Name: 'customers', TableType: 'VIRTUAL_VIEW' },
+                    ],
+                });
+            mockAthenaClient.mockImplementation(function () {
+                return { send };
+            });
+            const client = new AthenaWarehouseClient(baseCredentials);
+
+            const result = await client.getTablesForDatabase({
+                name: 'finance',
+                database: 'AwsDataCatalog',
+                schema: 'finance',
+                isDefault: false,
+            });
+
+            expect(result).toEqual([
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'finance',
+                    table: 'orders',
+                    tableType: 'external',
+                },
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'finance',
+                    table: 'customers',
+                    tableType: 'view',
+                },
+            ]);
+            expect(send).toHaveBeenCalledTimes(2);
+            expect(send.mock.calls[0][0]).toBeInstanceOf(
+                ListTableMetadataCommand,
+            );
+            expect(send.mock.calls[0][0].input).toEqual({
+                CatalogName: 'AwsDataCatalog',
+                DatabaseName: 'finance',
+                MaxResults: 50,
+                NextToken: undefined,
+            });
+            expect(send.mock.calls[1][0].input.NextToken).toBe('page-2');
+        });
+
+        test('keeps getAllTables on the default database', async () => {
+            const send = vi.fn().mockResolvedValue({
+                TableMetadataList: [{ Name: 'orders' }],
+            });
+            mockAthenaClient.mockImplementation(function () {
+                return { send };
+            });
+            const client = new AthenaWarehouseClient(baseCredentials);
+
+            const result = await client.getAllTables();
+
+            expect(result[0]).toMatchObject({
+                database: 'AwsDataCatalog',
+                schema: 'my_database',
+                table: 'orders',
+            });
+            expect(send.mock.calls[0][0].input).toMatchObject({
+                CatalogName: 'AwsDataCatalog',
+                DatabaseName: 'my_database',
             });
         });
     });
