@@ -229,7 +229,7 @@ const projectModel = {
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
     getExploreFromCache: vi.fn(async () => validExplore),
-    getQueryTimezone: vi.fn(async () => null),
+    getQueryTimezone: vi.fn(async (): Promise<string | null> => null),
     getProjectWarehouseConfig: vi.fn(async () => ({
         organizationWarehouseCredentialsUuid: null,
         queryTimezone: null,
@@ -6147,11 +6147,69 @@ describe('ProjectService', () => {
         describe('date parameter with a `today` default', () => {
             beforeEach(() => {
                 vi.useFakeTimers().setSystemTime(
-                    new Date(2026, 8, 17, 12, 0, 0), // 17 Sep 2026, local time
+                    new Date('2026-09-17T12:00:00Z'),
                 );
+                projectModel.getQueryTimezone.mockResolvedValue('UTC');
             });
             afterEach(() => {
                 vi.useRealTimers();
+                projectModel.getQueryTimezone.mockReset();
+                projectModel.getQueryTimezone.mockResolvedValue(null);
+            });
+
+            test('takes the date in the project query timezone', async () => {
+                // 23:30 UTC on 17 Sep is already 18 Sep in Auckland
+                vi.setSystemTime(new Date('2026-09-17T23:30:00Z'));
+                projectModel.getQueryTimezone.mockResolvedValue(
+                    'Pacific/Auckland',
+                );
+                (
+                    service as unknown as {
+                        projectParametersModel: {
+                            find: import('vitest').Mock;
+                        };
+                    }
+                ).projectParametersModel.find.mockResolvedValueOnce([
+                    {
+                        name: 'period_to',
+                        config: {
+                            label: 'Period to',
+                            type: 'date',
+                            default: 'today',
+                        },
+                    },
+                ]);
+
+                const result = await service.combineParameters(projectUuid);
+
+                expect(result.period_to).toBe('2026-09-18');
+                expect(projectModel.getQueryTimezone).toHaveBeenCalledWith(
+                    projectUuid,
+                );
+            });
+
+            test('does not look up the timezone when no default is `today`', async () => {
+                (
+                    service as unknown as {
+                        projectParametersModel: {
+                            find: import('vitest').Mock;
+                        };
+                    }
+                ).projectParametersModel.find.mockResolvedValueOnce([
+                    {
+                        name: 'fixed',
+                        config: {
+                            label: 'Fixed',
+                            type: 'date',
+                            default: '2026-07-31',
+                        },
+                    },
+                ]);
+
+                const result = await service.combineParameters(projectUuid);
+
+                expect(result.fixed).toBe('2026-07-31');
+                expect(projectModel.getQueryTimezone).not.toHaveBeenCalled();
             });
 
             test('resolves project and model level defaults to the current date', async () => {
