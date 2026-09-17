@@ -828,11 +828,11 @@ export class DashboardModel {
         }
 
         if (slug) {
-            this.applyDashboardSlugFilter(query, [slug]);
+            await this.applyDashboardSlugFilter(query, [slug], projectUuid);
         }
 
         if (slugs) {
-            this.applyDashboardSlugFilter(query, slugs);
+            await this.applyDashboardSlugFilter(query, slugs, projectUuid);
         }
 
         const dashboards = await query;
@@ -854,45 +854,70 @@ export class DashboardModel {
         );
     }
 
-    private applyDashboardSlugFilter(
+    private async getDashboardUuidsForSlugAliases(
+        slugs: string[],
+        projectUuid?: string,
+    ): Promise<string[]> {
+        if (slugs.length === 0) return [];
+
+        const query = this.database(DashboardSlugMappingsTableName)
+            .select('dashboard_uuid')
+            .whereIn('slug', slugs);
+
+        if (projectUuid) {
+            void query.where('project_uuid', projectUuid);
+        }
+
+        const aliases = await query;
+        return aliases.map(({ dashboard_uuid }) => dashboard_uuid);
+    }
+
+    private async applyDashboardSlugFilter(
         query: Knex.QueryBuilder,
         slugs: string[],
-    ): void {
+        projectUuid?: string,
+    ): Promise<void> {
+        const aliasDashboardUuids = await this.getDashboardUuidsForSlugAliases(
+            slugs,
+            projectUuid,
+        );
+
         void query.where((builder) => {
-            void builder
-                .whereIn(`${DashboardsTableName}.slug`, slugs)
-                .orWhereExists(
-                    this.database(DashboardSlugMappingsTableName)
-                        .select(this.database.raw('1'))
-                        .whereRaw(
-                            `${DashboardSlugMappingsTableName}.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid`,
-                        )
-                        .whereRaw(
-                            `${DashboardSlugMappingsTableName}.project_uuid = ${DashboardsTableName}.project_uuid`,
-                        )
-                        .whereIn(
-                            `${DashboardSlugMappingsTableName}.slug`,
-                            slugs,
-                        ),
+            void builder.whereIn(`${DashboardsTableName}.slug`, slugs);
+            if (aliasDashboardUuids.length > 0) {
+                void builder.orWhereIn(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    aliasDashboardUuids,
                 );
+            }
         });
     }
 
-    private applyDashboardIdentifierFilter(
-        query: Knex.QueryBuilder,
-        identifier: string,
-    ): void {
-        if (isValidUuid(identifier)) {
-            void query.where((builder) => {
-                void builder
-                    .where(`${DashboardsTableName}.dashboard_uuid`, identifier)
-                    .orWhere((slugQuery) => {
-                        this.applyDashboardSlugFilter(slugQuery, [identifier]);
-                    });
-            });
-        } else {
-            this.applyDashboardSlugFilter(query, [identifier]);
+    private async resolveDashboardUuidBySlug(
+        slug: string,
+        projectUuid?: string,
+    ): Promise<string | undefined> {
+        const dashboardQuery = this.database(DashboardsTableName)
+            .select('dashboard_uuid')
+            .where('slug', slug);
+
+        if (projectUuid) {
+            void dashboardQuery.where('project_uuid', projectUuid);
         }
+
+        const dashboard = await dashboardQuery.first();
+        if (dashboard) return dashboard.dashboard_uuid;
+
+        const aliasQuery = this.database(DashboardSlugMappingsTableName)
+            .select('dashboard_uuid')
+            .where('slug', slug);
+
+        if (projectUuid) {
+            void aliasQuery.where('project_uuid', projectUuid);
+        }
+
+        const alias = await aliasQuery.first();
+        return alias?.dashboard_uuid;
     }
 
     async getSlugAliasesForUuids(uuids: string[]): Promise<string[]> {
@@ -1116,8 +1141,6 @@ export class DashboardModel {
             void query.whereNull(`${DashboardsTableName}.deleted_at`);
         }
 
-        this.applyDashboardIdentifierFilter(query, dashboardUuidOrSlug);
-
         if (options?.projectUuid) {
             void query.where(
                 `${DashboardsTableName}.project_uuid`,
@@ -1125,7 +1148,26 @@ export class DashboardModel {
             );
         }
 
-        const [dashboard] = await query;
+        const fetchByUuid = async (dashboardUuid: string) => {
+            const [dashboard] = await query
+                .clone()
+                .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid);
+            return dashboard;
+        };
+
+        let dashboard = isValidUuid(dashboardUuidOrSlug)
+            ? await fetchByUuid(dashboardUuidOrSlug)
+            : undefined;
+
+        if (!dashboard) {
+            const resolvedDashboardUuid = await this.resolveDashboardUuidBySlug(
+                dashboardUuidOrSlug,
+                options?.projectUuid,
+            );
+            dashboard = resolvedDashboardUuid
+                ? await fetchByUuid(resolvedDashboardUuid)
+                : undefined;
+        }
 
         if (!dashboard) {
             throw new NotFoundError('Dashboard not found');
@@ -1568,11 +1610,25 @@ export class DashboardModel {
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .orderBy(`${DashboardViewsTableName}.created_at`, 'desc');
 
-        // Mirror getByIdOrSlug resolution: a value that parses as a UUID may
-        // still be a slug, so match either column; otherwise match slug only.
-        this.applyDashboardIdentifierFilter(query, dashboardUuidOrSlug);
+        const fetchByUuid = (dashboardUuid: string) =>
+            query
+                .clone()
+                .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+                .first();
 
-        const row = await query.first();
+        let row = isValidUuid(dashboardUuidOrSlug)
+            ? await fetchByUuid(dashboardUuidOrSlug)
+            : undefined;
+
+        if (!row) {
+            const resolvedDashboardUuid = await this.resolveDashboardUuidBySlug(
+                dashboardUuidOrSlug,
+                projectUuid,
+            );
+            row = resolvedDashboardUuid
+                ? await fetchByUuid(resolvedDashboardUuid)
+                : undefined;
+        }
 
         if (!row) {
             throw new NotFoundError('Dashboard not found');
