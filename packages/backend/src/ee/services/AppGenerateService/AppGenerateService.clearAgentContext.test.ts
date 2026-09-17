@@ -89,6 +89,7 @@ function buildService(opts: { canManage?: boolean } = {}) {
         sandboxManager: null,
         appRuntimeS3: null,
         chartRegistryClient: {} as never,
+        contentVerificationModel: {} as never,
     });
 
     const canManage = opts.canManage ?? true;
