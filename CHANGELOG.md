@@ -1,3 +1,10 @@
+# [2.258.0](https://github.com/lightdash/lightdash/compare/2.257.0...2.258.0) (2026-09-17)
+
+
+### Features
+
+* **merge-queries:** re-run the join when the relationship changes and flag stale results ([#29396](https://github.com/lightdash/lightdash/issues/29396)) ([b07a393](https://github.com/lightdash/lightdash/commit/b07a393530b337ecf159f6977299db1eb9d6fb21))
+
 # [2.257.0](https://github.com/lightdash/lightdash/compare/2.256.4...2.257.0) (2026-09-17)
 
 
