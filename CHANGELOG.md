@@ -1,3 +1,10 @@
+# [2.252.0](https://github.com/lightdash/lightdash/compare/2.251.0...2.252.0) (2026-09-17)
+
+
+### Features
+
+* **chart-types:** show a Pre-release badge on unpointed library charts ([#29413](https://github.com/lightdash/lightdash/issues/29413)) ([605909d](https://github.com/lightdash/lightdash/commit/605909de60fb13b26cf67da7cb9cce0664d96c91))
+
 # [2.251.0](https://github.com/lightdash/lightdash/compare/2.250.2...2.251.0) (2026-09-17)
 
 

@@ -19351,6 +19351,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RegistryChartTypeReleaseStage: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['stable'] },
+                { dataType: 'enum', enums: ['beta'] },
+                { dataType: 'enum', enums: ['prerelease'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     RegistryChartTypeListItem: {
         dataType: 'refAlias',
         type: {
@@ -19382,6 +19395,10 @@ const models: TsoaRoute.Models = {
                                 { dataType: 'string' },
                                 { dataType: 'enum', enums: [null] },
                             ],
+                            required: true,
+                        },
+                        releaseStage: {
+                            ref: 'RegistryChartTypeReleaseStage',
                             required: true,
                         },
                         state: {

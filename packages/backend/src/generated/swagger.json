@@ -20652,6 +20652,11 @@
                     "incompatible"
                 ]
             },
+            "RegistryChartTypeReleaseStage": {
+                "type": "string",
+                "enum": ["stable", "beta", "prerelease"],
+                "description": "Server-derived release stage. The raw `channel` is ambiguous when absent:\nstable on the stable index, unpointed (pre-release) on index-next — only\nthe backend knows which index the instance reads."
+            },
             "RegistryChartTypeListItem": {
                 "allOf": [
                     {
@@ -20671,6 +20676,9 @@
                                 "type": "string",
                                 "nullable": true
                             },
+                            "releaseStage": {
+                                "$ref": "#/components/schemas/RegistryChartTypeReleaseStage"
+                            },
                             "state": {
                                 "$ref": "#/components/schemas/RegistryChartTypeState"
                             }
@@ -20679,6 +20687,7 @@
                             "installedCreatedByUserUuid",
                             "installedRegistryVersion",
                             "installedAppUuid",
+                            "releaseStage",
                             "state"
                         ],
                         "type": "object"
@@ -63500,7 +63509,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.251.0",
+        "version": "2.252.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
