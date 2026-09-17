@@ -1,5 +1,6 @@
 import {
-    hasUnusedDimensions,
+    getItemLabel,
+    getUnusedDimensions,
     type ChartConfig,
     type ItemsMap,
     type MetricQuery,
@@ -73,15 +74,20 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
     }, [resultsData?.pivotDetails?.groupByColumns, dirtyPivotDimensions]);
 
     // Determine if query includes dimensions not used in the cartesian chart config
-    const shouldShowUnusedDims = useMemo(() => {
-        return hasUnusedDimensions({
+    const unusedDimensionLabels = useMemo(() => {
+        const { unusedDimensions } = getUnusedDimensions({
             chartType: chartConfig.type,
             chartConfig: chartConfig.config,
             pivotDimensions: dirtyPivotDimensions,
             queryDimensions: resultsData?.metricQuery?.dimensions ?? [],
         });
+        return unusedDimensions.map((fieldId) => {
+            const field = resultsData.fields?.[fieldId];
+            return field ? getItemLabel(field) : fieldId;
+        });
     }, [
         resultsData?.metricQuery?.dimensions,
+        resultsData.fields,
         chartConfig?.type,
         chartConfig.config,
         dirtyPivotDimensions,
@@ -93,9 +99,9 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         if (isLoading || isQueryFetching) return [];
 
         const _messages: string[] = [];
-        if (shouldShowUnusedDims) {
+        if (unusedDimensionLabels.length > 0) {
             _messages.push(
-                'Your query includes dimensions that are not used in the chart configuration (x-axis, y-axis, or group by). Remove them from the query to avoid incorrect results.',
+                `Your query includes dimensions that are not used in the chart configuration (x-axis, y-axis, or group by): ${unusedDimensionLabels.map((label) => `"${label}"`).join(', ')}. Remove them from the query to avoid incorrect results.`,
             );
         }
         if (shouldShowPivotMismatch) {
@@ -113,7 +119,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         isLoading,
         isQueryFetching,
         shouldShowPivotMismatch,
-        shouldShowUnusedDims,
+        unusedDimensionLabels,
         shouldShowPivotColumnLimit,
         maxColumnLimit,
     ]);
