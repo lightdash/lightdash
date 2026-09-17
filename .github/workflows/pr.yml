@@ -241,12 +241,14 @@ jobs:
       - name: Check for OpenAPI breaking changes
         if: ${{ !contains(github.event.pull_request.body, 'allow-api-breaking-change') }}
         run: |
+          pnpm exec tsx scripts/normalize-document-openapi.ts /tmp/base-swagger.json /tmp/base-swagger-comparison.json
+          pnpm exec tsx scripts/normalize-document-openapi.ts packages/backend/src/generated/swagger.json /tmp/pr-swagger-comparison.json
           docker run --rm \
             -v "$PWD:/work" \
             -v /tmp:/tmp \
             -w /work \
             tufin/oasdiff@sha256:1b878e413bfba39a9bbb2ce95d6a2ddf79bacd4eade9420ad422175b011a71c9 \
-            breaking --fail-on ERR /tmp/base-swagger.json packages/backend/src/generated/swagger.json
+            breaking --fail-on ERR /tmp/base-swagger-comparison.json /tmp/pr-swagger-comparison.json
       - name: Report allowed OpenAPI breaking changes
         if: ${{ contains(github.event.pull_request.body, 'allow-api-breaking-change') }}
         run: echo "Skipping OpenAPI breaking-change check because allow-api-breaking-change is in the PR description."

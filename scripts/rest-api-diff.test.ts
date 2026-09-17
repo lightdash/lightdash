@@ -222,6 +222,29 @@ test('a missing generated spec stays unchecked rather than reporting no changes'
     }
 });
 
+test('an invalid spec stays unchecked instead of reaching the comparator', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rest-api-diff-test-'));
+    try {
+        const basePath = path.join(dir, 'base.json');
+        const newPath = path.join(dir, 'pr.json');
+        const oasdiffPath = path.join(dir, 'oasdiff');
+        fs.writeFileSync(basePath, '{invalid');
+        fs.writeFileSync(newPath, '{}');
+        fs.writeFileSync(oasdiffPath, '#!/bin/sh\nprintf "[]"\n');
+        fs.chmodSync(oasdiffPath, 0o755);
+
+        const result = diffRestApi({
+            baseSpecPath: basePath,
+            newSpecPath: newPath,
+            oasdiffBin: oasdiffPath,
+        });
+
+        assert.strictEqual(result.checked, false);
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
+});
+
 test('the old side must be exactly one of a git ref or a generated spec', () => {
     assert.throws(
         () => diffRestApi({ oasdiffBin: '/nonexistent' }),

@@ -38,6 +38,7 @@ openapi_surface: &openapi_surface
 
 api_schema:
   - ".github/workflows/pr.yml"
+  - "scripts/normalize-document-openapi.ts"
   - *openapi_surface
 
 # Gates OpenAPI spec generation in release-safety-pr.yml: the surface itself, plus
@@ -50,6 +51,7 @@ release_safety_api:
   - "scripts/breaking-change-declarations.ts"
   - "scripts/release-safety-pr-gate.ts"
   - "scripts/rest-api-diff.ts"
+  - "scripts/normalize-document-openapi.ts"
   - *openapi_surface
 
 timezone:

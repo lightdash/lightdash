@@ -35,6 +35,7 @@ import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { normalizeDocumentOpenApi } from './normalize-document-openapi';
 
 export type TriState = boolean | 'unknown';
 
@@ -209,8 +210,13 @@ export function diffRestApi(opts: DiffRestApiOpts): ApiSurface {
     const oldFile = path.join(dir, 'old.json');
     const newFile = path.join(dir, 'new.json');
     try {
-        fs.writeFileSync(oldFile, oldSpec);
-        fs.writeFileSync(newFile, newSpec);
+        try {
+            fs.writeFileSync(oldFile, JSON.stringify(normalizeDocumentOpenApi(JSON.parse(oldSpec))));
+            fs.writeFileSync(newFile, JSON.stringify(normalizeDocumentOpenApi(JSON.parse(newSpec))));
+        } catch (err) {
+            log(`could not normalize OpenAPI specs; api.rest stays unchecked: ${err instanceof Error ? err.message : String(err)}`);
+            return UNCHECKED;
+        }
 
         let stdout: string;
         try {
