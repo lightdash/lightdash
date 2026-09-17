@@ -90,6 +90,7 @@ export const hasConnectionListingFields = (
 
 export const WAREHOUSE_TYPES_WITH_DATABASE_LISTING: WarehouseTypes[] = [
     WarehouseTypes.ATHENA,
+    WarehouseTypes.POSTGRES,
 ];
 
 export const supportsDatabaseListing = (
