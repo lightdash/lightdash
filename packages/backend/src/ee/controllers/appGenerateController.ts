@@ -108,6 +108,7 @@ export class AppGenerateController extends BaseController {
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
                 codexModelInput: body.codexModel,
+                vizContext: body.vizContext,
             },
         );
         return {
@@ -650,6 +651,7 @@ export class AppGenerateController extends BaseController {
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
                 codexModelInput: body.codexModel,
+                vizContext: body.vizContext,
             },
         );
         return {

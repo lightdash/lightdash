@@ -106,6 +106,7 @@ import { ElementRefPill } from '../features/apps/components/ElementRefPill';
 import LoadingDots from '../features/apps/components/LoadingDots';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
 import { RestoreAppVersionModal } from '../features/apps/components/RestoreAppVersionModal';
+import { SampleDataButton } from '../features/apps/components/SampleDataButton';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -157,6 +158,8 @@ import { versionsToChatMessages } from '../features/apps/utils/versionsToChatMes
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTestPanel';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
+import { normalizeVizBuildContext } from '../features/chartTypes/utils/vizBuildContext';
+import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
@@ -1265,6 +1268,24 @@ const AppGenerate: FC = () => {
     // data-app-viz renders with real result rows instead of mock data.
     const [testVizContext, setTestVizContext] =
         useState<DataAppVizContext | null>(null);
+    const [sampleDataConsent, setSampleDataConsent] = useState<{
+        context: DataAppVizContext;
+        appUuid: string | null;
+        version: number | null;
+    } | null>(null);
+    const includeTestVizSampleData =
+        sampleDataConsent !== null &&
+        sampleDataConsent.context === testVizContext &&
+        sampleDataConsent.appUuid === (activeAppUuid ?? null) &&
+        sampleDataConsent.version === (previewApp?.version ?? null);
+    const isVizBuilder =
+        appPersistedTemplate === DATA_APP_VIZ_TEMPLATE ||
+        selectedTemplate === DATA_APP_VIZ_TEMPLATE;
+    const showVizSampleConsent =
+        sampleDataEnabled &&
+        isVizBuilder &&
+        !isViewingOlderVersion &&
+        Boolean(testVizContext?.rows.length);
     // Latched on by the first manual refresh: a refresh means "show me fresh
     // data", so from then on the preview's queries bypass the warehouse cache.
     // Starts false so the initial load can still serve cached results fast.
@@ -1548,11 +1569,29 @@ const AppGenerate: FC = () => {
             isSubmittingRef.current
         )
             return;
-        // Element references travel as their own lines after the typed text —
-        // the same bracketed wire format the agent has always received.
-        const trimmed = [typed, ...elementPicker.refs.map(refToWireString)]
-            .filter(Boolean)
-            .join('\n');
+        const trimmed = isVizBuilder
+            ? typed
+            : [typed, ...elementPicker.refs.map(refToWireString)]
+                  .filter(Boolean)
+                  .join('\n');
+        const vizContext = isVizBuilder
+            ? normalizeVizBuildContext(
+                  {
+                      schema:
+                          latestReadyVersion?.resources?.vizSchema ?? undefined,
+                      fieldMapping: testVizContext?.fieldMapping,
+                      elementReferences:
+                          elementPicker.refs.map(refToWireString),
+                      sampleRows: testVizContext
+                          ? vizBuildSampleRows(
+                                testVizContext.rows,
+                                testVizContext.fieldMapping,
+                            )
+                          : undefined,
+                  },
+                  showVizSampleConsent && includeTestVizSampleData,
+              )
+            : undefined;
 
         isSubmittingRef.current = true;
         // Morph the centered composer into the split sidebar layout. Only the
@@ -1714,6 +1753,7 @@ const AppGenerate: FC = () => {
             setIsPromptEmpty(true);
             setFileAttachments([]);
             setIsCapturingScreenshot(false);
+            setSampleDataConsent(null);
             setSelectedCharts([]);
             setSelectedDashboard(null);
             setSelectedConnections([]);
@@ -1727,6 +1767,7 @@ const AppGenerate: FC = () => {
                         projectUuid,
                         appUuid: activeAppUuid,
                         prompt: trimmed,
+                        vizContext,
                         creationExperience: 'app_builder',
                         fileIds,
                         charts,
@@ -1741,6 +1782,7 @@ const AppGenerate: FC = () => {
                 // back into runBuildRef once it resolves, answered or not.
                 clarification.send({
                     prompt: trimmed,
+                    vizContext,
                     template: starterTemplate,
                     fileIds,
                     appUuid: targetAppUuid,
@@ -2895,6 +2937,31 @@ const AppGenerate: FC = () => {
                                                         }
                                                     />
                                                 )}
+                                                {showVizSampleConsent && (
+                                                    <SampleDataButton
+                                                        enabled={
+                                                            includeTestVizSampleData
+                                                        }
+                                                        disabled={isSubmitting}
+                                                        onToggle={() =>
+                                                            setSampleDataConsent(
+                                                                !includeTestVizSampleData &&
+                                                                    testVizContext
+                                                                    ? {
+                                                                          context:
+                                                                              testVizContext,
+                                                                          appUuid:
+                                                                              activeAppUuid ??
+                                                                              null,
+                                                                          version:
+                                                                              previewApp?.version ??
+                                                                              null,
+                                                                      }
+                                                                    : null,
+                                                            )
+                                                        }
+                                                    />
+                                                )}
                                                 {newAppLanding && (
                                                     <Divider
                                                         orientation="vertical"
@@ -3229,6 +3296,7 @@ const AppGenerate: FC = () => {
                                         dataAppVizContext={
                                             testVizContext ?? undefined
                                         }
+                                        dataAppVizMode={isVizBuilder}
                                         onSdkManifest={handleSdkManifest}
                                         insights={
                                             showAnalysisInPreview

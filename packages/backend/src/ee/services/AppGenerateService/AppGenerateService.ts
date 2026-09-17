@@ -52,6 +52,10 @@ import {
     isSemverVersion,
     isValidDataAppSlug,
     MAX_APP_FILES_PER_VERSION,
+    MAX_APP_VIZ_BUILD_ELEMENT_REFS,
+    MAX_APP_VIZ_BUILD_SAMPLE_CELL_CHARS,
+    MAX_APP_VIZ_BUILD_SAMPLE_FIELDS,
+    MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -81,6 +85,7 @@ import {
     type AppVersionResources,
     type AppVersionStatusHistoryEntry,
     type AppVersionStatusHistoryEntryKind,
+    type AppVizBuildContext,
     type ChartConfig,
     type ChartReference,
     type ChartSampleData,
@@ -438,9 +443,58 @@ type GenerateAppOptions = {
     themeChangePrompt?: 'replace' | 'append';
     externalConnections?: AppExternalConnectionReference[];
     codexModelInput?: DataAppCodexModel;
+    /** Context for one chart-type build; never persisted with the version. */
+    vizContext?: AppVizBuildContext;
     // The AI agent tool call that started the build; travels on the job so
     // the worker can patch its pending result when the build ends.
     aiAgentToolCall?: AppGeneratePipelineJobPayload['aiAgentToolCall'];
+};
+
+const appendVizBuildContext = (
+    prompt: string,
+    vizContext: AppVizBuildContext | undefined,
+    sampleDataEnabled: boolean,
+): string => {
+    if (!vizContext) return prompt;
+
+    const elementReferences = vizContext.elementReferences
+        ?.filter((ref): ref is string => typeof ref === 'string')
+        .slice(0, MAX_APP_VIZ_BUILD_ELEMENT_REFS);
+    const boundedRows = sampleDataEnabled
+        ? vizContext.sampleRows?.slice(0, MAX_APP_VIZ_BUILD_SAMPLE_ROWS)
+        : undefined;
+    const sampleFields = [
+        ...new Set(boundedRows?.flatMap((row) => Object.keys(row ?? {})) ?? []),
+    ].slice(0, MAX_APP_VIZ_BUILD_SAMPLE_FIELDS);
+    const sampleRows = boundedRows?.map((row) =>
+        Object.fromEntries(
+            sampleFields.flatMap((field) => {
+                const value = row?.[field];
+                return typeof value === 'string'
+                    ? [
+                          [
+                              field,
+                              value.slice(
+                                  0,
+                                  MAX_APP_VIZ_BUILD_SAMPLE_CELL_CHARS,
+                              ),
+                          ],
+                      ]
+                    : [];
+            }),
+        ),
+    );
+    const context: AppVizBuildContext = {
+        ...(vizContext.schema ? { schema: vizContext.schema } : {}),
+        ...(vizContext.fieldMapping
+            ? { fieldMapping: vizContext.fieldMapping }
+            : {}),
+        ...(elementReferences?.length ? { elementReferences } : {}),
+        ...(sampleRows?.length ? { sampleRows } : {}),
+    };
+    if (Object.keys(context).length === 0) return prompt;
+
+    return `${prompt}\n\n[Current chart-type contract — preserve compatible field names unless the user asks to change them]\n${JSON.stringify(context, null, 2)}`;
 };
 
 type GenerateAppResult = {
@@ -3265,58 +3319,60 @@ export class AppGenerateService extends BaseService {
     }> {
         const start = performance.now();
 
-        // Source the synthetic schema from the compiled explore cache (not the
-        // flattened catalog summary) so it carries joins, real dimension/metric
-        // types, and parameters. See exploresToModelFiles.
-        const [exploresByUuid, chartUsageByTable] = await Promise.all([
-            this.projectModel.getAllExploresFromCache(projectUuid),
-            this.catalogModel.getChartUsageByTable(projectUuid),
-        ]);
-        const explores = Object.values(exploresByUuid).filter(
-            (explore): explore is Explore => !isExploreError(explore),
-        );
-        const {
-            files: modelFiles,
-            tableCount,
-            dimensionCount,
-            metricCount,
-            totalBytes,
-        } = AppGenerateService.exploresToModelFiles(
-            explores,
-            chartUsageByTable,
-        );
-
-        // Project-level parameters are global (not attached to any one explore)
-        // and live in lightdash.config.yml — the location skill.md already tells
-        // the agent to look. Write them there so `.parameters()` is usable.
-        const globalParameters =
-            await this.projectParametersModel.find(projectUuid);
-        const configYaml =
-            AppGenerateService.projectParametersToConfigYaml(globalParameters);
-
         // Remove files that may have been created by a previous run with
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -rf /tmp/dbt-repo/models 2>/dev/null; rm -f /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/uploads /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
+            'rm -rf /tmp/dbt-repo/models 2>/dev/null; rm -f /tmp/dbt-repo/models.tar /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/uploads /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
             { timeoutMs: 10_000 },
         );
 
-        // One round trip per model file would cost minutes on a large project,
-        // so ship the whole directory as a single archive and unpack in place.
-        await sandbox.files.write(
-            '/tmp/dbt-repo/models.tar',
-            await AppGenerateService.packModelFiles(modelFiles),
-        );
-        await sandbox.commands.run(
-            'mkdir -p /tmp/dbt-repo/models && tar -xf /tmp/dbt-repo/models.tar -C /tmp/dbt-repo/models && rm -f /tmp/dbt-repo/models.tar',
-            { timeoutMs: 60_000 },
-        );
-        if (configYaml) {
-            await sandbox.files.write(
-                '/tmp/dbt-repo/lightdash.config.yml',
-                configYaml,
+        let modelFiles: ModelFile[] = [];
+        let tableCount = 0;
+        let dimensionCount = 0;
+        let metricCount = 0;
+        let totalBytes = 0;
+        if (!isDataAppViz) {
+            // Source the synthetic schema from the compiled explore cache (not
+            // the flattened catalog summary) so it carries joins, real field
+            // types, and parameters. A chart type receives host rows instead.
+            const [exploresByUuid, chartUsageByTable] = await Promise.all([
+                this.projectModel.getAllExploresFromCache(projectUuid),
+                this.catalogModel.getChartUsageByTable(projectUuid),
+            ]);
+            const explores = Object.values(exploresByUuid).filter(
+                (explore): explore is Explore => !isExploreError(explore),
             );
+            const catalog = AppGenerateService.exploresToModelFiles(
+                explores,
+                chartUsageByTable,
+            );
+            modelFiles = catalog.files;
+            tableCount = catalog.tableCount;
+            dimensionCount = catalog.dimensionCount;
+            metricCount = catalog.metricCount;
+            totalBytes = catalog.totalBytes;
+
+            const globalParameters =
+                await this.projectParametersModel.find(projectUuid);
+            const configYaml =
+                AppGenerateService.projectParametersToConfigYaml(
+                    globalParameters,
+                );
+            await sandbox.files.write(
+                '/tmp/dbt-repo/models.tar',
+                await AppGenerateService.packModelFiles(modelFiles),
+            );
+            await sandbox.commands.run(
+                'mkdir -p /tmp/dbt-repo/models && tar -xf /tmp/dbt-repo/models.tar -C /tmp/dbt-repo/models && rm -f /tmp/dbt-repo/models.tar',
+                { timeoutMs: 60_000 },
+            );
+            if (configYaml) {
+                await sandbox.files.write(
+                    '/tmp/dbt-repo/lightdash.config.yml',
+                    configYaml,
+                );
+            }
         }
 
         // Write chart reference files and prepend summary to prompt
@@ -6550,6 +6606,7 @@ export class AppGenerateService extends BaseService {
             externalConnections,
             codexModelInput,
             aiAgentToolCall,
+            vizContext,
         } = options;
         await this.assertDataAppsEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
@@ -6612,10 +6669,14 @@ export class AppGenerateService extends BaseService {
         // sees the resolved intent. The version row keeps the original
         // prompt — clarifications travel separately on `resources` so the
         // chat can render the Q&A as a structured card.
-        const pipelinePrompt = formatPromptWithClarifications(
-            prompt,
-            clarifications,
-        );
+        const pipelinePrompt =
+            template === DATA_APP_VIZ_TEMPLATE
+                ? appendVizBuildContext(
+                      formatPromptWithClarifications(prompt, clarifications),
+                      vizContext,
+                      this.lightdashConfig.appRuntime.sampleDataEnabled,
+                  )
+                : formatPromptWithClarifications(prompt, clarifications);
 
         this.logger.info(
             `App ${appUuid}: generation started (model=${codingAgentModel}, promptLength=${prompt.length}, clarifications=${
@@ -6790,6 +6851,7 @@ export class AppGenerateService extends BaseService {
             externalConnections,
             codexModelInput,
             aiAgentToolCall,
+            vizContext,
         } = options;
         await this.assertDataAppsEnabled(user);
 
@@ -6923,6 +6985,13 @@ export class AppGenerateService extends BaseService {
                           themeName,
                       )
                     : AppGenerateService.buildThemeChangePrompt(themeName);
+        }
+        if (app.template === DATA_APP_VIZ_TEMPLATE) {
+            pipelinePrompt = appendVizBuildContext(
+                pipelinePrompt,
+                vizContext,
+                this.lightdashConfig.appRuntime.sampleDataEnabled,
+            );
         }
 
         const resources: AppVersionResources = {

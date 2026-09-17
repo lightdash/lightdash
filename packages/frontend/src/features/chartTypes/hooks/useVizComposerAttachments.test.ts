@@ -63,6 +63,29 @@ describe('useVizComposerAttachments', () => {
         });
     });
 
+    it('marks a captured image as a screenshot at upload', async () => {
+        const uploadFile = vi
+            .fn()
+            .mockResolvedValue({ fileId: 'screenshot-1' });
+        const { result } = setup(uploadFile);
+
+        act(() =>
+            result.current.add([file('screenshot.png')], {
+                kind: 'screenshot',
+            }),
+        );
+
+        await waitFor(() =>
+            expect(uploadFile).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    projectUuid: 'project-1',
+                    appUuid: 'app-1',
+                    kind: 'screenshot',
+                }),
+            ),
+        );
+    });
+
     it('refuses a file over the size limit without uploading it', () => {
         const uploadFile = vi.fn();
         const { result } = setup(uploadFile);

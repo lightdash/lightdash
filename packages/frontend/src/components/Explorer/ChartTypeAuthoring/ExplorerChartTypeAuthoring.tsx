@@ -12,14 +12,17 @@ import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDa
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../../../features/apps/hooks/useDeleteApp';
 import { useChartTypeBuilderWorkspace } from '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace';
+import { type VizBuildRequest } from '../../../features/chartTypes/hooks/useDataAppVizBuild';
 import { useDataAppVizResolvedColors } from '../../../features/chartTypes/hooks/useDataAppVizResolvedColors';
 import {
     buildExplorerVizContext,
     resolveExplorerVizFieldMapping,
 } from '../../../features/chartTypes/utils/explorerVizContext';
+import { vizBuildSampleRows } from '../../../features/chartTypes/utils/vizBuildSampleRows';
 import {
     explorerActions,
     selectChartConfig,
+    selectSavedChart,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -63,6 +66,7 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
         resultsData.setFetchAll(true);
     }, [resultsData]);
     const itemsMap = resultsData.fields ?? NO_ITEMS;
+    const savedChart = useExplorerSelector(selectSavedChart);
 
     // The same staleness signal the chart card shows: results computed with
     // pivot settings that no longer match the configuration.
@@ -76,6 +80,9 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
         // embedded builder is its successor.
         creationExperience: 'explorer_chart_config',
         itemsMap,
+        chartReference: savedChart
+            ? { uuid: savedChart.uuid, includeSampleData: false }
+            : undefined,
     });
     const { build, dataAppViz, dataAppVizUuid, history } = workspace;
 
@@ -161,6 +168,32 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                   })
                 : {},
         [schema, itemsMap, persistedFieldMapping],
+    );
+    const latestReadySchema =
+        workspace.history.versions.find(
+            (version) =>
+                version.version === workspace.history.latestReadyVersion,
+        )?.resources?.vizSchema ??
+        (workspace.viewedVersion === null && !workspace.isFetchingSchema
+            ? schema
+            : null);
+    const buildFieldMapping = useMemo(
+        () =>
+            latestReadySchema
+                ? resolveExplorerVizFieldMapping({
+                      schema: latestReadySchema,
+                      itemsMap,
+                      persistedFieldMapping,
+                  })
+                : {},
+        [latestReadySchema, itemsMap, persistedFieldMapping],
+    );
+    const buildContext: VizBuildRequest['context'] = latestReadySchema
+        ? { schema: latestReadySchema, fieldMapping: buildFieldMapping }
+        : undefined;
+    const sampleRows = useMemo(
+        () => vizBuildSampleRows(resultsData.rows ?? [], buildFieldMapping),
+        [resultsData.rows, buildFieldMapping],
     );
     const resolvedColors = useDataAppVizResolvedColors({
         itemsMap,
@@ -314,6 +347,8 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                     }
                     workspace={workspace}
                     previewContext={previewContext}
+                    sampleRows={sampleRows}
+                    buildContext={buildContext}
                     warning={
                         <VisualizationWarning
                             dirtyPivotConfiguration={dirtyPivotConfiguration}

@@ -15,7 +15,11 @@ import {
 import { type MetricQuery } from '../../types/metricQuery';
 import { type DashboardParameters } from '../../types/parameters';
 import { type ResultRow } from '../../types/results';
-import { type ChartConfig, type SavedChart } from '../../types/savedCharts';
+import {
+    type ChartConfig,
+    type DataAppVizFieldMapping,
+    type SavedChart,
+} from '../../types/savedCharts';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
 import { type ChartTypeIcon } from './chartTypeIcons';
@@ -297,9 +301,24 @@ export const formatPromptWithClarifications = (
     return `${prompt}\n\nClarifications:\n${qa}`;
 };
 
+/** Chart-builder context sent to the coding agent for one build only. */
+export type AppVizBuildContext = {
+    schema?: DataAppVizSchema;
+    fieldMapping?: DataAppVizFieldMapping;
+    elementReferences?: string[];
+    sampleRows?: Record<string, string>[];
+};
+
+export const MAX_APP_VIZ_BUILD_SAMPLE_ROWS = 10;
+export const MAX_APP_VIZ_BUILD_SAMPLE_FIELDS = 20;
+export const MAX_APP_VIZ_BUILD_SAMPLE_CELL_CHARS = 500;
+export const MAX_APP_VIZ_BUILD_ELEMENT_REFS = 5;
+
 export type GenerateAppRequestBody = {
     prompt: string;
     template?: DataAppTemplate; // starter template selected on app creation; ignored on iteration
+    /** Transient chart context; never stored in an app version's prompt. */
+    vizContext?: AppVizBuildContext;
     // Product surface that submitted this version's AI generation. Optional for
     // API compatibility; older callers remain unattributed.
     creationExperience?: DataAppCreationExperience;

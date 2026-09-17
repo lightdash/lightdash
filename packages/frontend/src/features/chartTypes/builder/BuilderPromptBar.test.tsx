@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
 import { type DataAppModelSelection } from '../../apps/hooks/useDataAppModelSelection';
+import { type UseElementPickerResult } from '../../apps/hooks/useElementPicker';
 import { appVersion } from '../../apps/testing/appVersionHistory';
 import {
     type DataAppVizBuildState,
@@ -19,6 +20,12 @@ import {
 } from '../hooks/useDataAppVizBuild';
 import { clarificationStub } from '../testing/clarificationRoundStub';
 import BuilderPromptBar from './BuilderPromptBar';
+
+const attachmentAdd = vi.hoisted(() => vi.fn());
+const showToastError = vi.hoisted(() => vi.fn());
+vi.mock('../../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastError }),
+}));
 
 const connections = vi.hoisted(() => ({
     linked: [] as {
@@ -162,7 +169,7 @@ vi.mock('../hooks/useVizComposerAttachments', () => ({
         attachments: [],
         fileIds: [],
         isUploading: false,
-        add: vi.fn(),
+        add: attachmentAdd,
         remove: vi.fn(),
         clear: vi.fn(),
     }),
@@ -221,6 +228,9 @@ const promptBar = ({
     // A round with nothing to ask passes the request straight to the build,
     // which is what most of these tests are watching for.
     clarification = clarificationStub({ send: build.send }),
+    buildContext,
+    elementPicker,
+    onCaptureScreenshot,
 }: {
     build?: DataAppVizBuildState;
     isBuilding?: boolean;
@@ -232,6 +242,9 @@ const promptBar = ({
     onCancelBuild?: (() => void) | null;
     narration?: { reasoning: string[]; activity: string[] };
     clarification?: ClarificationRound<VizBuildRequest>;
+    buildContext?: VizBuildRequest['context'];
+    elementPicker?: UseElementPickerResult;
+    onCaptureScreenshot?: () => Promise<File>;
 } = {}) => (
     <MemoryRouter>
         <BuilderPromptBar
@@ -250,12 +263,17 @@ const promptBar = ({
             narration={narration}
             modelSelection={model}
             clarification={clarification}
+            buildContext={buildContext}
+            elementPicker={elementPicker}
+            onCaptureScreenshot={onCaptureScreenshot}
         />
     </MemoryRouter>
 );
 
 describe('BuilderPromptBar', () => {
     beforeEach(() => {
+        attachmentAdd.mockClear();
+        showToastError.mockClear();
         connections.linked = [];
         connections.unlink.mockClear();
         themeQuery.isLoading = false;
@@ -263,13 +281,172 @@ describe('BuilderPromptBar', () => {
         themeQuery.isSuccess = true;
     });
 
-    it('chooses a theme from composer options and shows it in the context tray', async () => {
+    it('stages a captured render as a screenshot', async () => {
+        const screenshot = new File(['png'], 'screenshot.png', {
+            type: 'image/png',
+        });
+        renderWithProviders(
+            promptBar({
+                onCaptureScreenshot: vi.fn().mockResolvedValue(screenshot),
+            }),
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Attach screenshot' }),
+        );
+
+        await waitFor(() =>
+            expect(attachmentAdd).toHaveBeenCalledWith([screenshot], {
+                kind: 'screenshot',
+            }),
+        );
+    });
+
+    it('reports a screenshot capture failure', async () => {
+        renderWithProviders(
+            promptBar({
+                onCaptureScreenshot: vi
+                    .fn()
+                    .mockRejectedValue(new Error('Preview unavailable')),
+            }),
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Attach screenshot' }),
+        );
+
+        await waitFor(() =>
+            expect(showToastError).toHaveBeenCalledWith({
+                title: 'Failed to capture screenshot',
+                subtitle: 'Preview unavailable',
+            }),
+        );
+        expect(attachmentAdd).not.toHaveBeenCalled();
+    });
+
+    it('keeps current sample rows out of a prompt until explicitly selected', async () => {
+        const send = vi.fn();
+        const sampleRows = Array.from({ length: 12 }, (_, i) => ({
+            orders_status: `status-${i}`,
+        }));
+        renderWithProviders(
+            promptBar({
+                build: buildState({ send }),
+                buildContext: {
+                    schema: { fields: [] },
+                    fieldMapping: {},
+                    sampleRows,
+                } as never,
+            }),
+        );
+
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for a change…'),
+            'First',
+        );
+        await userEvent.keyboard('{Enter}');
+        expect(send.mock.lastCall?.[0].context).not.toHaveProperty(
+            'sampleRows',
+        );
+
+        const sampleDataButton = screen.getByRole('button', {
+            name: 'Include sample data',
+        });
+        expect(sampleDataButton).toHaveAttribute('aria-pressed', 'false');
+        await userEvent.click(sampleDataButton);
+        expect(sampleDataButton).toHaveAttribute('aria-pressed', 'true');
+        await userEvent.keyboard(' ');
+        expect(sampleDataButton).toHaveAttribute('aria-pressed', 'false');
+        await userEvent.keyboard(' ');
+        expect(sampleDataButton).toHaveAttribute('aria-pressed', 'true');
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for a change…'),
+            'Second',
+        );
+        await userEvent.keyboard('{Enter}');
+        expect(send.mock.lastCall?.[0].context.sampleRows).toEqual(
+            sampleRows.slice(0, 10),
+        );
+        expect(
+            screen.getByRole('button', { name: 'Include sample data' }),
+        ).toHaveAttribute('aria-pressed', 'false');
+
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for a change…'),
+            'Third',
+        );
+        await userEvent.keyboard('{Enter}');
+        expect(send.mock.lastCall?.[0].context).not.toHaveProperty(
+            'sampleRows',
+        );
+    });
+
+    it('hides sample data consent when the server disables it', async () => {
+        const send = vi.fn();
+        renderWithProviders(
+            promptBar({
+                build: buildState({ send }),
+                buildContext: { sampleRows: [{ orders_status: 'paid' }] },
+            }),
+            {
+                health: {
+                    dataApps: { previewOrigin: null, sampleDataEnabled: false },
+                },
+            },
+        );
+
+        await waitFor(() =>
+            expect(
+                screen.queryByRole('button', {
+                    name: 'Include sample data',
+                }),
+            ).not.toBeInTheDocument(),
+        );
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for a change…'),
+            'Make a chart',
+        );
+        await userEvent.keyboard('{Enter}');
+        expect(send.mock.lastCall?.[0].includeSampleData).not.toBe(true);
+        expect(send.mock.lastCall?.[0].context).toBeUndefined();
+    });
+
+    it('shows selected elements and lets the author remove one', async () => {
+        const remove = vi.fn();
+        const elementPicker = {
+            available: true,
+            enabled: false,
+            refs: [{ tag: 'button', text: 'Save', loc: '' }],
+            toggle: vi.fn(),
+            remove,
+            clear: vi.fn(),
+            iframeProps: {},
+        } as unknown as UseElementPickerResult;
+        renderWithProviders(promptBar({ elementPicker }));
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Remove <button> Save' }),
+        );
+        expect(remove).toHaveBeenCalledWith(elementPicker.refs[0]);
+    });
+
+    it('keeps theme selection in the context tray, outside composer options', async () => {
         renderWithProviders(promptBar({ hasVersions: false }));
         await userEvent.click(
             screen.getByRole('button', { name: 'Composer options' }),
         );
+        expect(
+            screen.queryByRole('button', { name: /Choose theme|Apply theme/ }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Attach an image or file' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Add external connections' }),
+        ).toBeInTheDocument();
+        await userEvent.keyboard('{Escape}');
         await userEvent.click(
-            screen.getByRole('button', { name: /Choose theme/ }),
+            screen.getByRole('button', { name: 'Theme: Brand' }),
         );
         expect(
             screen.queryByRole('button', { name: 'Back to composer options' }),
@@ -772,6 +949,8 @@ describe('BuilderPromptBar', () => {
         await waitFor(() =>
             expect(send).toHaveBeenCalledWith({
                 description: 'hide the axis labels',
+                context: undefined,
+                includeSampleData: false,
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
@@ -788,6 +967,74 @@ describe('BuilderPromptBar', () => {
         );
 
         expect(screen.queryByText('Sending…')).not.toBeInTheDocument();
+    });
+
+    it('refreshes queued schema, mapping, and opted-in sample data', async () => {
+        const send = vi.fn();
+        const oldContext = {
+            schema: {
+                fields: [
+                    {
+                        name: 'old',
+                        label: 'Old',
+                        type: 'dimension',
+                        required: true,
+                    },
+                ],
+            },
+            fieldMapping: { old: 'orders_old' },
+            sampleRows: [{ orders_old: 'at submit' }],
+        } as unknown as NonNullable<VizBuildRequest['context']>;
+        const newContext = {
+            schema: {
+                fields: [
+                    {
+                        name: 'new',
+                        label: 'New',
+                        type: 'dimension',
+                        required: true,
+                    },
+                ],
+            },
+            fieldMapping: { new: 'orders_new' },
+            sampleRows: [{ orders_new: 'after build' }],
+        } as unknown as NonNullable<VizBuildRequest['context']>;
+        const view = renderWithProviders(
+            promptBar({
+                build: buildState({ isBuilding: true, send }),
+                isBuilding: true,
+                buildContext: oldContext,
+            }),
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Include sample data' }),
+        );
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for another change…'),
+            'Revise it',
+        );
+        await userEvent.keyboard('{Enter}');
+
+        view.rerender(
+            promptBar({
+                build: buildState({ send }),
+                latestReadyVersion: 2,
+                buildContext: newContext,
+            }),
+        );
+
+        await waitFor(() =>
+            expect(send).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    context: {
+                        schema: newContext.schema,
+                        fieldMapping: newContext.fieldMapping,
+                        sampleRows: newContext.sampleRows,
+                    },
+                }),
+            ),
+        );
     });
 
     it('moves queued prompts back into the composer for editing', async () => {
@@ -880,6 +1127,8 @@ describe('BuilderPromptBar', () => {
         await waitFor(() =>
             expect(send).toHaveBeenCalledWith({
                 description: 'group by quarter instead',
+                context: undefined,
+                includeSampleData: false,
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
