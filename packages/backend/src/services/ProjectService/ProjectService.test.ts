@@ -6143,6 +6143,95 @@ describe('ProjectService', () => {
             // Saved param without request override is still included
             expect(result.region).toBe('US');
         });
+
+        describe('date parameter with a `today` default', () => {
+            beforeEach(() => {
+                vi.useFakeTimers().setSystemTime(
+                    new Date(2026, 8, 17, 12, 0, 0), // 17 Sep 2026, local time
+                );
+            });
+            afterEach(() => {
+                vi.useRealTimers();
+            });
+
+            test('resolves project and model level defaults to the current date', async () => {
+                (
+                    service as unknown as {
+                        projectParametersModel: {
+                            find: import('vitest').Mock;
+                        };
+                    }
+                ).projectParametersModel.find.mockResolvedValueOnce([
+                    {
+                        name: 'period_to',
+                        config: {
+                            label: 'Period to',
+                            type: 'date',
+                            default: 'today',
+                        },
+                    },
+                ]);
+                const explore = {
+                    name: 'orders',
+                    baseTable: 'orders',
+                    tables: {
+                        orders: {
+                            name: 'orders',
+                            parameters: {
+                                as_of: {
+                                    label: 'As of',
+                                    type: 'date',
+                                    default: 'today',
+                                },
+                                fixed: {
+                                    label: 'Fixed',
+                                    type: 'date',
+                                    default: '2026-07-31',
+                                },
+                            },
+                        },
+                    },
+                } as unknown as Explore;
+
+                const result = await service.combineParameters(
+                    projectUuid,
+                    explore,
+                );
+
+                expect(result).toEqual({
+                    period_to: '2026-09-17',
+                    'orders.as_of': '2026-09-17',
+                    'orders.fixed': '2026-07-31',
+                });
+            });
+
+            test('an explicit value still wins over the resolved default', async () => {
+                (
+                    service as unknown as {
+                        projectParametersModel: {
+                            find: import('vitest').Mock;
+                        };
+                    }
+                ).projectParametersModel.find.mockResolvedValueOnce([
+                    {
+                        name: 'period_to',
+                        config: {
+                            label: 'Period to',
+                            type: 'date',
+                            default: 'today',
+                        },
+                    },
+                ]);
+
+                const result = await service.combineParameters(
+                    projectUuid,
+                    undefined,
+                    { period_to: '2026-07-31' },
+                );
+
+                expect(result.period_to).toBe('2026-07-31');
+            });
+        });
     });
 
     describe('getChartsByExploreName', () => {

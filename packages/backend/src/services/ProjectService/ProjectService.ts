@@ -203,6 +203,7 @@ import {
     RequestMethod,
     ResolvedProjectColorPalette,
     resolveMergeSorts,
+    resolveParameterDefault,
     resolveQueryTimezone,
     ResultRow,
     ResultsCacheProjectSettings,
@@ -13311,9 +13312,9 @@ export class ProjectService extends BaseService {
             (await this.projectParametersModel.find(projectUuid));
 
         for (const paramConfig of parameterConfigs) {
-            if (paramConfig.config.default !== undefined) {
-                projectDefaultParameterValues[paramConfig.name] =
-                    paramConfig.config.default;
+            const defaultValue = resolveParameterDefault(paramConfig.config);
+            if (defaultValue !== undefined) {
+                projectDefaultParameterValues[paramConfig.name] = defaultValue;
             }
         }
 
@@ -13323,7 +13324,7 @@ export class ProjectService extends BaseService {
 
         const exploreDefaultParameterValues = Object.fromEntries(
             Object.entries(exploreParameters)
-                .map(([key, value]) => [key, value.default])
+                .map(([key, value]) => [key, resolveParameterDefault(value)])
                 .filter(([key, value]) => value !== undefined),
         );
 
