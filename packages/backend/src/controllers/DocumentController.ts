@@ -91,7 +91,8 @@ export class DocumentController extends BaseController {
         };
     }
 
-    @Patch('{documentUuid}')
+    // Share GET's path template so OpenAPI groups both operations together.
+    @Patch('{documentUuidOrSlug}')
     @OperationId('UpdateDocumentMetadata')
     @Middlewares([
         allowApiKeyAuthentication,
@@ -101,7 +102,7 @@ export class DocumentController extends BaseController {
     async updateMetadata(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
-        @Path() documentUuid: UUID,
+        @Path('documentUuidOrSlug') documentUuid: UUID,
         @Body() body: UpdateDocumentMetadataRequest,
     ): Promise<ApiDocumentResponse> {
         assertRegisteredAccount(req.account);
