@@ -13,11 +13,15 @@ const WarehouseLocationInputs: FC<{ projectUuid: string }> = ({
     const form = useFormContext();
     const { data: project } = useProject(projectUuid);
     const warehouseConnection = project?.warehouseConnection;
-    if (!warehouseConnection) {
+    const warehouseType =
+        warehouseConnection?.type ?? project?.connections[0]?.warehouseType;
+    if (!warehouseType) {
         return null;
     }
-    const labels = getWarehouseLocationLabels(warehouseConnection.type);
-    const inherited = getWarehouseLocation(warehouseConnection);
+    const labels = getWarehouseLocationLabels(warehouseType);
+    const inherited = warehouseConnection
+        ? getWarehouseLocation(warehouseConnection)
+        : null;
 
     return (
         <Stack gap="xs">
@@ -36,13 +40,13 @@ const WarehouseLocationInputs: FC<{ projectUuid: string }> = ({
                 {labels.database && (
                     <TextInput
                         label={labels.database}
-                        placeholder={inherited.database ?? undefined}
+                        placeholder={inherited?.database ?? undefined}
                         {...form.getInputProps('warehouseLocation.database')}
                     />
                 )}
                 <TextInput
                     label={labels.schema}
-                    placeholder={inherited.schema ?? undefined}
+                    placeholder={inherited?.schema ?? undefined}
                     {...form.getInputProps('warehouseLocation.schema')}
                 />
             </Group>

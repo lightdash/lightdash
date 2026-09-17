@@ -6,7 +6,7 @@ import {
     type CreateWarehouseCredentials,
     type Project,
 } from '@lightdash/common';
-import { Alert, Anchor, Box, Button, Card, Flex, Tooltip } from '@mantine/core';
+import { Alert, Anchor, Box, Button, Card, Flex } from '@mantine/core';
 import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useProjectConnectionLayout } from '../../hooks/useConnections';
@@ -36,6 +36,44 @@ import { useOnProjectError } from './useOnProjectError';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
 import { warehouseValueValidators } from './WarehouseForms/validators';
 
+const projectConnectionsOwnWarehouse = (
+    project: Project,
+    isConnectionsPanelUsed: boolean,
+) => project.type !== ProjectType.PREVIEW && isConnectionsPanelUsed;
+
+const getProjectWarehouseType = (project: Project): WarehouseTypes =>
+    project.warehouseConnection?.type ??
+    project.connections[0]?.warehouseType ??
+    WarehouseTypes.SNOWFLAKE;
+
+const getProjectFormValidators = (
+    connectionsOwnWarehouse: boolean,
+    warehouseType: WarehouseTypes,
+) => ({
+    ...(connectionsOwnWarehouse
+        ? {}
+        : { warehouse: warehouseValueValidators[warehouseType] }),
+    dbt: dbtFormValidators,
+});
+
+const getUpdateProjectPayload = (
+    values: ProjectConnectionForm,
+    connectionsOwnWarehouse: boolean,
+) => {
+    const {
+        name,
+        dbt: dbtConnection,
+        warehouse: warehouseConnection,
+        dbtVersion,
+    } = values;
+    return {
+        name,
+        dbtConnection,
+        dbtVersion,
+        ...(connectionsOwnWarehouse ? {} : { warehouseConnection }),
+    };
+};
+
 const UpdateProjectConnection: FC<{
     projectUuid: string;
     project: Project;
@@ -58,11 +96,12 @@ const UpdateProjectConnection: FC<{
         sortDirection: 'desc',
     });
     const latestCompilationLog = compiledLogs?.pages[0]?.data[0];
-    // A multi-connection project has no single warehouseConnection to send, so
-    // this form cannot describe it. Connections are edited in their own list.
-    const { hasSeveralConnections } = useProjectConnectionLayout(projectUuid);
-    const warehouseType: WarehouseTypes =
-        project.warehouseConnection?.type || WarehouseTypes.SNOWFLAKE;
+    const { isConnectionsPanelUsed } = useProjectConnectionLayout(projectUuid);
+    const connectionsOwnWarehouse = projectConnectionsOwnWarehouse(
+        project,
+        isConnectionsPanelUsed,
+    );
+    const warehouseType = getProjectWarehouseType(project);
 
     const isDisabled =
         project.type === ProjectType.PREVIEW ||
@@ -88,10 +127,10 @@ const UpdateProjectConnection: FC<{
             } as CreateWarehouseCredentials,
             dbtVersion: project.dbtVersion,
         },
-        validate: {
-            warehouse: warehouseValueValidators[warehouseType],
-            dbt: dbtFormValidators,
-        },
+        validate: getProjectFormValidators(
+            connectionsOwnWarehouse,
+            warehouseType,
+        ),
         validateInputOnBlur: true,
     });
 
@@ -119,22 +158,14 @@ const UpdateProjectConnection: FC<{
         runConnectionTest(form.values.warehouse);
     };
 
-    const handleSubmit = async ({
-        name,
-        dbt: dbtConnection,
-        warehouse: warehouseConnection,
-        dbtVersion,
-    }: ProjectConnectionForm) => {
+    const handleSubmit = async (values: ProjectConnectionForm) => {
         if (user.data) {
             track({
                 name: EventName.UPDATE_PROJECT_BUTTON_CLICKED,
             });
-            await mutateAsync({
-                name,
-                dbtConnection,
-                warehouseConnection: warehouseConnection,
-                dbtVersion,
-            });
+            await mutateAsync(
+                getUpdateProjectPayload(values, connectionsOwnWarehouse),
+            );
         }
     };
 
@@ -216,7 +247,7 @@ const UpdateProjectConnection: FC<{
                             )}
                         </Box>
                         <Flex gap="sm" className={classes.actions}>
-                            {!hasSeveralConnections && (
+                            {!connectionsOwnWarehouse && (
                                 <Button
                                     variant="default"
                                     loading={isTestingConnection}
@@ -226,36 +257,27 @@ const UpdateProjectConnection: FC<{
                                     Test connection
                                 </Button>
                             )}
-                            {showSaveCredentials && !hasSeveralConnections && (
-                                <Button
-                                    variant="default"
-                                    loading={isSavingCredentials}
-                                    disabled={isDisabled}
-                                    onClick={handleSaveCredentials}
-                                >
-                                    Save credentials
-                                </Button>
-                            )}
-                            <Tooltip
-                                w={300}
-                                disabled={!hasSeveralConnections}
-                                label="This project has several connections. Edit them in the connections list above."
-                            >
-                                <div>
+                            {showSaveCredentials &&
+                                !connectionsOwnWarehouse && (
                                     <Button
-                                        type="submit"
-                                        loading={isSaving}
-                                        disabled={
-                                            isDisabled || hasSeveralConnections
-                                        }
+                                        variant="default"
+                                        loading={isSavingCredentials}
+                                        disabled={isDisabled}
+                                        onClick={handleSaveCredentials}
                                     >
-                                        {project.dbtConnection?.type ===
-                                        DbtProjectType.NONE
-                                            ? 'Save and test'
-                                            : 'Test & deploy project'}
+                                        Save credentials
                                     </Button>
-                                </div>
-                            </Tooltip>
+                                )}
+                            <Button
+                                type="submit"
+                                loading={isSaving}
+                                disabled={isDisabled}
+                            >
+                                {project.dbtConnection?.type ===
+                                DbtProjectType.NONE
+                                    ? 'Save and test'
+                                    : 'Test & deploy project'}
+                            </Button>
                         </Flex>
                     </Card>
                 </FormContainer>
