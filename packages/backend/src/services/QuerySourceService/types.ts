@@ -33,6 +33,7 @@ export type SourceQueryExecutionContext = {
 };
 
 export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
+    resolvedConnectionUuid?: string;
     documentQueryContext?: DocumentQueryContext;
     account: Account;
     projectUuid: string;

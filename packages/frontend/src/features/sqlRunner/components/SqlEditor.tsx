@@ -62,6 +62,9 @@ export const SqlEditor: FC<{
     const dispatch = useAppDispatch();
     const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const connectionUuid = useAppSelector(
+        (state) => state.sqlRunner.connectionUuid,
+    );
     const warehouseConnectionType = useAppSelector(
         (state) => state.sqlRunner.warehouseConnectionType,
     );
@@ -73,11 +76,13 @@ export const SqlEditor: FC<{
 
     const { data: listing, isLoading: isTablesDataLoading } = useDatabases({
         projectUuid,
+        connectionUuid,
     });
 
     const listedDatabases = useMemo(() => listing?.databases ?? [], [listing]);
     const loadedCatalog = useLoadedCatalogs({
         projectUuid,
+        connectionUuid,
         databases: listedDatabases.map((entry) => entry.name),
     });
 
@@ -91,6 +96,7 @@ export const SqlEditor: FC<{
 
     const { data: tableFieldsData } = useTableFields({
         projectUuid,
+        connectionUuid,
         tableName: currentTable,
         schema: currentSchema,
         database: currentDatabase,
@@ -102,6 +108,7 @@ export const SqlEditor: FC<{
         sql,
         quoteChar,
         projectUuid,
+        connectionUuid,
         catalog: loadedCatalog,
     });
 

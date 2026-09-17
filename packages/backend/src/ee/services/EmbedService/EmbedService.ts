@@ -1029,6 +1029,11 @@ export class EmbedService extends BaseService {
             await this.projectService.getWarehouseCredentialsForEmbed({
                 projectUuid,
                 account,
+                connectionUuid:
+                    await this.projectModel.getExploreConnectionUuid(
+                        projectUuid,
+                        explore.name,
+                    ),
             });
 
         const { warehouseClient, sshTunnel } =
@@ -1041,7 +1046,11 @@ export class EmbedService extends BaseService {
                 },
             );
 
-        return { warehouseClient, sshTunnel };
+        return {
+            warehouseClient,
+            sshTunnel,
+            connectionUuid: credentials.connectionUuid,
+        };
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -1111,11 +1120,8 @@ export class EmbedService extends BaseService {
         combinedParameters?: ParametersValuesMap;
         useTimezoneAwareDateTrunc: boolean;
     }) {
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            account,
-            projectUuid,
-            explore,
-        );
+        const { warehouseClient, sshTunnel, connectionUuid } =
+            await this._getWarehouseClient(account, projectUuid, explore);
 
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
@@ -1152,6 +1158,7 @@ export class EmbedService extends BaseService {
         const results =
             await this.projectService.getResultsFromCacheOrWarehouse({
                 projectUuid,
+                connectionUuid,
                 userUuid: null,
                 user: {
                     userUuid: account.user.id,

@@ -60,12 +60,14 @@ import {
     EditorTabs,
     selectActiveChartType,
     selectActiveEditorTab,
+    selectConnectionUuid,
     selectFetchResultsOnLoad,
     selectLimit,
     selectParameterValues,
     selectProjectUuid,
     selectQueryUuid,
     selectResultsTableConfig,
+    selectResultConnectionUuid,
     selectSavedSqlChart,
     selectSql,
     selectSqlQueryResults,
@@ -91,6 +93,8 @@ export const ContentPanel: FC = () => {
     const savedSqlChart = useAppSelector(selectSavedSqlChart);
     const fetchResultsOnLoad = useAppSelector(selectFetchResultsOnLoad);
     const projectUuid = useAppSelector(selectProjectUuid);
+    const connectionUuid = useAppSelector(selectConnectionUuid);
+    const resultConnectionUuid = useAppSelector(selectResultConnectionUuid);
     const sql = useAppSelector(selectSql);
     const queryUuid = useAppSelector(selectQueryUuid);
     const selectedChartType = useAppSelector(selectActiveChartType);
@@ -184,6 +188,7 @@ export const ContentPanel: FC = () => {
                         limit,
                         projectUuid,
                         parameterValues,
+                        connectionUuid,
                     }),
                 );
 
@@ -201,6 +206,7 @@ export const ContentPanel: FC = () => {
             projectUuid,
             limit,
             parameterValues,
+            connectionUuid,
             hasQueryResults,
         ],
     );
@@ -407,11 +413,19 @@ export const ContentPanel: FC = () => {
                     sql,
                     limit: downloadLimit,
                     parameterValues,
+                    connectionUuid: resultConnectionUuid,
                 });
             }
             return queryUuid;
         },
-        [sql, projectUuid, limit, queryUuid, parameterValues],
+        [
+            resultConnectionUuid,
+            sql,
+            projectUuid,
+            limit,
+            queryUuid,
+            parameterValues,
+        ],
     );
 
     const getDownloadPivotQueryUuid = useCallback(async () => {

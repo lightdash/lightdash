@@ -44,6 +44,7 @@ export const executeSqlQuery = async (
     limit?: number,
     parameterValues?: ParametersValuesMap,
     invalidateCache?: boolean,
+    connectionUuid?: string,
 ): Promise<ResultsAndColumns> => {
     const response = await lightdashApi<ApiExecuteAsyncSqlQueryResults>({
         url: `/projects/${projectUuid}/query/sql`,
@@ -54,6 +55,7 @@ export const executeSqlQuery = async (
             limit,
             parameters: parameterValues,
             invalidateCache,
+            connectionUuid,
         }),
     });
 
@@ -76,6 +78,7 @@ export const executeSqlQuery = async (
 
     return {
         queryUuid: query.queryUuid,
+        connectionUuid: response.connectionUuid ?? connectionUuid,
         fileUrl,
         results,
         columns: Object.values(query.columns),

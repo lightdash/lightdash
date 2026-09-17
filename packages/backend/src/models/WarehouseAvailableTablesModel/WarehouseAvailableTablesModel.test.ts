@@ -1,4 +1,8 @@
-import { WarehouseTableType } from '@lightdash/common';
+import {
+    MultipleConnectionsError,
+    NotFoundError,
+    WarehouseTableType,
+} from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { WarehouseAvailableTablesTableName } from '../../database/entities/warehouseAvailableTables';
@@ -43,6 +47,53 @@ describe('WarehouseAvailableTablesModel listed database scope', () => {
             '("listed_database" = $2 or "listed_database" is null)',
         );
         expect(query.bindings).toEqual([12, 'default']);
+    });
+
+    it('reads only the explicitly selected project connection', async () => {
+        tracker.on
+            .select('warehouse_credentials')
+            .responseOnce([{ warehouse_credentials_id: 24 }]);
+        tracker.on.select(WarehouseAvailableTablesTableName).responseOnce([]);
+
+        await model.getTablesForProjectWarehouseCredentials(
+            'project-uuid',
+            undefined,
+            'connection-uuid',
+        );
+
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining(['project-uuid', 'connection-uuid']),
+        );
+        expect(tracker.history.select[1].bindings).toEqual([24]);
+    });
+
+    it('refuses an omitted selector when the project has several connections', async () => {
+        tracker.on
+            .select('warehouse_credentials')
+            .responseOnce([
+                { warehouse_credentials_id: 12 },
+                { warehouse_credentials_id: 24 },
+            ]);
+
+        await expect(
+            model.getTablesForProjectWarehouseCredentials('project-uuid'),
+        ).rejects.toBeInstanceOf(MultipleConnectionsError);
+        expect(tracker.history.select).toHaveLength(1);
+    });
+
+    it('rejects an explicit connection outside the project', async () => {
+        tracker.on.select('warehouse_credentials').responseOnce([]);
+
+        await expect(
+            model.getTablesForProjectWarehouseCredentials(
+                'project-uuid',
+                undefined,
+                'foreign-connection-uuid',
+            ),
+        ).rejects.toBeInstanceOf(NotFoundError);
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining(['project-uuid', 'foreign-connection-uuid']),
+        );
     });
 
     it('reads an additional personal database without legacy rows', async () => {

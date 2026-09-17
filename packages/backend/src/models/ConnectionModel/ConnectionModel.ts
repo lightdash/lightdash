@@ -9,6 +9,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import crypto from 'node:crypto';
 import {
     WarehouseCredentialTableName,
     warehouseTypeDisplayNames,
@@ -269,6 +270,20 @@ export class ConnectionModel {
             organizationWarehouseCredentialsUuid,
             project.organization_uuid,
         );
+    }
+
+    async getCredentialsRevision(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<string> {
+        const credentials = await this.getCredentials(
+            projectUuid,
+            connectionUuid,
+        );
+        return crypto
+            .createHash('sha256')
+            .update(JSON.stringify(credentials))
+            .digest('hex');
     }
 
     async resolveSole(projectUuid: string): Promise<Connection> {

@@ -17,10 +17,12 @@ const mocks = vi.hoisted(() => ({
     gitEnabled: false,
     canWrite: true,
     dispatch: vi.fn(),
+    createVirtualViewModal: vi.fn(),
 }));
 const state = {
     sqlRunner: {
         projectUuid: 'project',
+        connectionUuid: 'connection-uuid',
         name: 'SQL query',
         sqlColumns: [],
         selectedChartType: null,
@@ -85,7 +87,12 @@ vi.mock(
     '../../../../components/VisualizationConfigs/common/EditableText',
     () => ({ EditableText: () => null }),
 );
-vi.mock('../../../virtualView', () => ({ CreateVirtualViewModal: () => null }));
+vi.mock('../../../virtualView', () => ({
+    CreateVirtualViewModal: (props: unknown) => {
+        mocks.createVirtualViewModal(props);
+        return null;
+    },
+}));
 vi.mock('../SaveSqlChartModal', () => ({ SaveSqlChartModal: () => null }));
 vi.mock('../WriteBackToDbtModal', () => ({ WriteBackToDbtModal: () => null }));
 vi.mock('../ChartErrorsAlert', () => ({ ChartErrorsAlert: () => null }));
@@ -98,9 +105,17 @@ beforeEach(() => {
     mocks.gitEnabled = false;
     mocks.canWrite = true;
     mocks.dispatch.mockClear();
+    mocks.createVirtualViewModal.mockClear();
 });
 
 describe('SQL writeback header', () => {
+    it('passes the active SQL runner connection to virtual view creation', () => {
+        renderWithProviders(<HeaderCreate />);
+        expect(mocks.createVirtualViewModal).toHaveBeenCalledWith(
+            expect.objectContaining({ connectionUuid: 'connection-uuid' }),
+        );
+    });
+
     it('opens Bitbucket Cloud writeback without GitHub configuration', () => {
         renderWithProviders(<HeaderCreate />);
         fireEvent.click(

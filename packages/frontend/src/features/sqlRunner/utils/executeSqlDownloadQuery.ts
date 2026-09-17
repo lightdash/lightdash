@@ -6,6 +6,7 @@ type ExecuteSqlDownloadQueryArgs = {
     sql: string;
     limit: number | null;
     parameterValues?: ParametersValuesMap;
+    connectionUuid?: string;
 };
 
 export const executeSqlDownloadQuery = async ({
@@ -13,6 +14,7 @@ export const executeSqlDownloadQuery = async ({
     sql,
     limit,
     parameterValues,
+    connectionUuid,
 }: ExecuteSqlDownloadQueryArgs): Promise<string> => {
     const result = await executeSqlQuery(
         projectUuid,
@@ -20,6 +22,7 @@ export const executeSqlDownloadQuery = async ({
         limit ?? MAX_SAFE_INTEGER,
         parameterValues,
         true,
+        connectionUuid,
     );
 
     return result.queryUuid;

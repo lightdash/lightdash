@@ -16,30 +16,40 @@ import { type TableUnitState } from '../utils/tableRows';
 export type GetTablesParams = {
     projectUuid: string;
     database: string | undefined;
+    connectionUuid?: string;
 };
 
-const databasesQueryKey = (projectUuid: string) => [
-    'sqlRunner',
-    'databases',
-    projectUuid,
-];
+export const databasesQueryKey = (
+    projectUuid: string,
+    connectionUuid?: string,
+) => ['sqlRunner', 'databases', projectUuid, connectionUuid];
 
-const tablesQueryKey = (projectUuid: string, database: string) => [
-    'sqlRunner',
-    'tables',
-    projectUuid,
-    database,
-];
+export const tablesQueryKey = (
+    projectUuid: string,
+    database: string,
+    connectionUuid?: string,
+) => ['sqlRunner', 'tables', projectUuid, connectionUuid, database];
 
-const fetchDatabases = async (projectUuid: string) =>
+const fetchDatabases = async (projectUuid: string, connectionUuid?: string) =>
     lightdashApi<WarehouseDatabaseListing>({
-        url: `/projects/${projectUuid}/sqlRunner/databases`,
+        url: `/projects/${projectUuid}/sqlRunner/databases${
+            connectionUuid
+                ? `?${new URLSearchParams({ connectionUuid }).toString()}`
+                : ''
+        }`,
         method: 'GET',
         body: undefined,
     });
 
-const fetchTables = async (projectUuid: string, database: string) => {
-    const query = new URLSearchParams({ database }).toString();
+const fetchTables = async (
+    projectUuid: string,
+    database: string,
+    connectionUuid?: string,
+) => {
+    const query = new URLSearchParams({
+        database,
+        ...(connectionUuid ? { connectionUuid } : {}),
+    }).toString();
     return lightdashApi<WarehouseTablesCatalog>({
         url: `/projects/${projectUuid}/sqlRunner/tables?${query}`,
         method: 'GET',
@@ -47,43 +57,64 @@ const fetchTables = async (projectUuid: string, database: string) => {
     });
 };
 
-const refreshTables = async (projectUuid: string) =>
+const refreshTables = async (projectUuid: string, connectionUuid?: string) =>
     lightdashApi<WarehouseTablesCatalog>({
-        url: `/projects/${projectUuid}/sqlRunner/refresh-catalog`,
+        url: `/projects/${projectUuid}/sqlRunner/refresh-catalog${
+            connectionUuid
+                ? `?${new URLSearchParams({ connectionUuid }).toString()}`
+                : ''
+        }`,
         method: 'POST',
         body: undefined,
     });
 
-export const useDatabases = ({ projectUuid }: { projectUuid: string }) =>
+export const useDatabases = ({
+    projectUuid,
+    connectionUuid,
+}: {
+    projectUuid: string;
+    connectionUuid?: string;
+}) =>
     useQuery<WarehouseDatabaseListing, ApiError>({
-        queryKey: databasesQueryKey(projectUuid),
-        queryFn: () => fetchDatabases(projectUuid),
+        queryKey: databasesQueryKey(projectUuid, connectionUuid),
+        queryFn: () => fetchDatabases(projectUuid, connectionUuid),
         retry: false,
         enabled: !!projectUuid,
     });
 
-export const useTables = ({ projectUuid, database }: GetTablesParams) =>
+export const useTables = ({
+    projectUuid,
+    database,
+    connectionUuid,
+}: GetTablesParams) =>
     useQuery<WarehouseTablesCatalog, ApiError>({
-        queryKey: tablesQueryKey(projectUuid, database ?? ''),
-        queryFn: () => fetchTables(projectUuid, database ?? ''),
+        queryKey: tablesQueryKey(projectUuid, database ?? '', connectionUuid),
+        queryFn: () => fetchTables(projectUuid, database ?? '', connectionUuid),
         retry: false,
         enabled: !!projectUuid && !!database,
     });
 
-export const useRefreshTables = ({ projectUuid }: { projectUuid: string }) => {
+export const useRefreshTables = ({
+    projectUuid,
+    connectionUuid,
+}: {
+    projectUuid: string;
+    connectionUuid?: string;
+}) => {
     const queryClient = useQueryClient();
 
     return useMutation<WarehouseTablesCatalog, ApiError>(
-        () => refreshTables(projectUuid),
+        () => refreshTables(projectUuid, connectionUuid),
         {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(
-                    databasesQueryKey(projectUuid),
+                    databasesQueryKey(projectUuid, connectionUuid),
                 );
                 await queryClient.invalidateQueries([
                     'sqlRunner',
                     'tables',
                     projectUuid,
+                    connectionUuid,
                 ]);
             },
         },
@@ -117,17 +148,19 @@ export const useTableUnits = ({
     projectUuid,
     databases,
     enabledDatabases,
+    connectionUuid,
 }: {
     projectUuid: string;
     databases: string[];
     enabledDatabases: ReadonlySet<string>;
+    connectionUuid?: string;
 }): TableUnits => {
     const queryClient = useQueryClient();
 
     const results = useQueries({
         queries: databases.map((database) => ({
-            queryKey: tablesQueryKey(projectUuid, database),
-            queryFn: () => fetchTables(projectUuid, database),
+            queryKey: tablesQueryKey(projectUuid, database, connectionUuid),
+            queryFn: () => fetchTables(projectUuid, database, connectionUuid),
             retry: false,
             enabled: !!projectUuid && enabledDatabases.has(database),
         })),
@@ -172,10 +205,10 @@ export const useTableUnits = ({
     const retry = useCallback(
         (database: string) => {
             void queryClient.refetchQueries(
-                tablesQueryKey(projectUuid, database),
+                tablesQueryKey(projectUuid, database, connectionUuid),
             );
         },
-        [queryClient, projectUuid],
+        [connectionUuid, queryClient, projectUuid],
     );
 
     return { states, loadedCatalogs, retry };
@@ -208,14 +241,16 @@ const mergeCatalogs = (
 export const useLoadedCatalogs = ({
     projectUuid,
     databases,
+    connectionUuid,
 }: {
     projectUuid: string;
     databases: string[];
+    connectionUuid?: string;
 }): WarehouseTablesCatalog => {
     const results = useQueries({
         queries: databases.map((database) => ({
-            queryKey: tablesQueryKey(projectUuid, database),
-            queryFn: () => fetchTables(projectUuid, database),
+            queryKey: tablesQueryKey(projectUuid, database, connectionUuid),
+            queryFn: () => fetchTables(projectUuid, database, connectionUuid),
             enabled: false,
         })),
     });

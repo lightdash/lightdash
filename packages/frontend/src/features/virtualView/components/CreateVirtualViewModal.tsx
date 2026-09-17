@@ -21,7 +21,9 @@ const validationSchema = z.object({
 
 type FormValues = z.infer<typeof validationSchema>;
 
-type Props = Pick<MantineModalProps, 'opened' | 'onClose'>;
+type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
+    connectionUuid?: string;
+};
 
 const FORM_ID = 'create-virtual-view-form';
 
@@ -45,7 +47,11 @@ const createTourAction = {
         'semantic-layer/virtual-views.mdx#create-a-virtual-view:1',
 };
 
-export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
+export const CreateVirtualViewModal: FC<Props> = ({
+    opened,
+    onClose,
+    connectionUuid,
+}) => {
     const health = useHealth();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
@@ -91,6 +97,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                 sql,
                 columns,
                 projectUuid,
+                connectionUuid,
                 parameterValues:
                     Object.keys(parameterValues).length > 0
                         ? parameterValues
@@ -104,6 +111,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
             onClose,
             projectUuid,
             sql,
+            connectionUuid,
             parameterValues,
             createVirtualView,
         ],

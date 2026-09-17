@@ -56,9 +56,20 @@ describe('useCreateVirtualView', () => {
             name: 'new_view',
             sql: 'SELECT 1',
             columns: [],
+            connectionUuid: 'connection-uuid',
         });
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
+        expect(lightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                body: JSON.stringify({
+                    name: 'new_view',
+                    sql: 'SELECT 1',
+                    columns: [],
+                    connectionUuid: 'connection-uuid',
+                }),
+            }),
+        );
         expect(
             queryClient.getQueryState([
                 'tables',

@@ -463,6 +463,9 @@ const rowHeight = (row: WarehouseTreeRow | undefined): number => {
 
 export const Tables: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const connectionUuid = useAppSelector(
+        (state) => state.sqlRunner.connectionUuid,
+    );
     const warehouseConnectionType = useAppSelector(
         (state) => state.sqlRunner.warehouseConnectionType,
     );
@@ -511,7 +514,7 @@ export const Tables: FC = () => {
         isLoading,
         isSuccess,
         error: listingError,
-    } = useDatabases({ projectUuid });
+    } = useDatabases({ projectUuid, connectionUuid });
 
     const connections = useMemo<TreeConnection[]>(
         () =>
@@ -556,6 +559,7 @@ export const Tables: FC = () => {
         projectUuid,
         databases: listedDatabases,
         enabledDatabases,
+        connectionUuid,
     });
 
     const getUnitState = useCallback(

@@ -6,7 +6,6 @@ export const SavedSqlVersionsTableName = 'saved_sql_versions';
 
 export type DbSavedSql = {
     saved_sql_uuid: string;
-    connection_uuid: string | null;
     project_uuid: string;
     space_uuid: string | null;
     dashboard_uuid: string | null;
@@ -88,11 +87,13 @@ export type InsertSavedSqlVersion = Pick<
     | 'config'
     | 'chart_kind'
     | 'created_by_user_uuid'
-> &
+>;
+
+type InsertSavedSqlVersionWithConnection = InsertSavedSqlVersion &
     Partial<Pick<DbSavedSqlVersion, 'connection_uuid'>>;
 
 export type SavedSqlVersionsTable = Knex.CompositeTableType<
     DbSavedSqlVersion,
-    InsertSavedSqlVersion,
+    InsertSavedSqlVersionWithConnection,
     Partial<Pick<DbSavedSqlVersion, 'connection_uuid'>>
 >;

@@ -1,5 +1,11 @@
-import { QueryHistoryStatus, type QueryHistory } from '@lightdash/common';
-import type { Knex } from 'knex';
+import {
+    QueryHistoryStatus,
+    type Account,
+    type QueryHistory,
+} from '@lightdash/common';
+import knex, { type Knex } from 'knex';
+import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
+import { QueryHistoryTableName } from '../../database/entities/queryHistory';
 import { QueryHistoryModel } from './QueryHistoryModel';
 
 describe('QueryHistoryModel', () => {
@@ -183,6 +189,82 @@ describe('QueryHistoryModel', () => {
             });
             expect(hash1).not.toBe(hash2);
         });
+
+        test('isolates identical SQL by connection UUID', () => {
+            const first = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                userUuid: null,
+                connectionUuid: 'connection-a',
+            });
+            const second = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                userUuid: null,
+                connectionUuid: 'connection-b',
+            });
+            expect(first).not.toBe(second);
+        });
+
+        test('keeps the cache key stable when a connection name changes', () => {
+            const beforeRename = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                userUuid: null,
+                connectionUuid: 'immutable-connection-uuid',
+            });
+            const afterRename = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                userUuid: null,
+                connectionUuid: 'immutable-connection-uuid',
+            });
+            expect(beforeRename).toBe(afterRename);
+        });
+    });
+});
+
+describe('QueryHistoryModel connection persistence', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new QueryHistoryModel({ database });
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    test('persists the resolved connection on submission', async () => {
+        tracker.on
+            .insert(QueryHistoryTableName)
+            .response([{ query_uuid: 'query-uuid' }]);
+        const account = {
+            user: { id: 'user-uuid' },
+            authentication: { type: 'password' },
+            isRegisteredUser: () => true,
+            isAnonymousUser: () => false,
+        } as unknown as Account;
+
+        await model.create(account, {
+            connectionUuid: 'connection-uuid',
+        } as Parameters<QueryHistoryModel['create']>[1]);
+
+        expect(tracker.history.insert[0].bindings).toContain('connection-uuid');
+    });
+
+    test('returns the persisted connection from a history row', async () => {
+        tracker.on.select(QueryHistoryTableName).response([
+            {
+                query_uuid: 'query-uuid',
+                connection_uuid: 'connection-uuid',
+            },
+        ]);
+
+        await expect(model.getByQueryUuid('query-uuid')).resolves.toMatchObject(
+            {
+                queryUuid: 'query-uuid',
+                connectionUuid: 'connection-uuid',
+            },
+        );
     });
 });
 

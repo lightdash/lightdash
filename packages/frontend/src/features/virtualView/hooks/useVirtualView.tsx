@@ -16,6 +16,7 @@ const createVirtualView = async ({
     name,
     sql,
     columns,
+    connectionUuid,
     parameterValues,
 }: {
     projectUuid: string;
@@ -27,6 +28,7 @@ const createVirtualView = async ({
             name,
             sql,
             columns,
+            connectionUuid,
             parameterValues,
         }),
     });

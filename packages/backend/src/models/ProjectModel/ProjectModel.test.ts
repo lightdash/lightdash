@@ -62,6 +62,7 @@ import {
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import { newExploreCacheReadContext } from '../../logging/exploreCacheReadMetrics';
+import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import {
     ProjectModel,
     reduceExploreTableSummaryRows,
@@ -300,6 +301,9 @@ describe('ProjectModel', () => {
         expect(encryptionUtilMock.decrypt).not.toHaveBeenCalled();
     });
     test('reads the per-project warehouse credential policy', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([compileConnectionRow]);
         tracker.on.select(ProjectTableName).response([
             {
                 organization_warehouse_credentials_uuid: null,
@@ -315,6 +319,92 @@ describe('ProjectModel', () => {
             queryTimezone: 'Europe/London',
             requireUserCredentials: true,
         });
+    });
+    test('resolves an explicitly selected connection within the project', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([compileConnectionRow]);
+
+        await expect(
+            model.resolveConnection(projectUuid, compileConnectionUuid),
+        ).resolves.toMatchObject({ connectionUuid: compileConnectionUuid });
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining([projectUuid, compileConnectionUuid]),
+        );
+    });
+    test('refuses an omitted selector for several live connections', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([
+                compileConnectionRow,
+                {
+                    ...compileConnectionRow,
+                    warehouse_credentials_uuid: secondCompileConnectionUuid,
+                },
+            ]);
+
+        await expect(
+            model.resolveConnection(projectUuid),
+        ).rejects.toBeInstanceOf(MultipleConnectionsError);
+    });
+    test('reads an explore connection binding without resolving credentials', async () => {
+        tracker.on
+            .select(CachedExploreTableName)
+            .response([{ connection_uuid: compileConnectionUuid }]);
+
+        await expect(
+            model.getExploreConnectionUuid(projectUuid, 'orders'),
+        ).resolves.toBe(compileConnectionUuid);
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining([projectUuid, 'orders']),
+        );
+        expect(encryptionUtilMock.decrypt).not.toHaveBeenCalled();
+    });
+    test('returns null for a legacy unstamped explore', async () => {
+        tracker.on
+            .select(CachedExploreTableName)
+            .response([{ connection_uuid: null }]);
+
+        await expect(
+            model.getExploreConnectionUuid(projectUuid, 'orders'),
+        ).resolves.toBeNull();
+    });
+    test('reads warehouse config from the selected connection', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([
+                {
+                    ...compileConnectionRow,
+                    organization_warehouse_credentials_uuid:
+                        'organization-credential-uuid',
+                },
+            ]);
+        tracker.on
+            .select(({ sql }) => sql.includes(`from "${ProjectTableName}"`))
+            .response([
+                {
+                    query_timezone: 'Europe/London',
+                    require_user_credentials: true,
+                },
+            ]);
+        tracker.on.select('organization_warehouse_credentials').response([
+            {
+                organization_warehouse_credentials_uuid:
+                    'organization-credential-uuid',
+            },
+        ]);
+
+        await expect(
+            model.getProjectWarehouseConfig(projectUuid, compileConnectionUuid),
+        ).resolves.toEqual({
+            organizationWarehouseCredentialsUuid:
+                'organization-credential-uuid',
+            queryTimezone: 'Europe/London',
+            requireUserCredentials: true,
+        });
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining([projectUuid, compileConnectionUuid]),
+        );
     });
     test('selects one live connection in getWithSensitiveFields', async () => {
         tracker.on
@@ -421,6 +511,25 @@ describe('ProjectModel', () => {
             }),
         });
         expect(tracker.history.select).toHaveLength(1);
+    });
+    test('refuses unscoped sensitive fields for several live connections', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes(`from "${ProjectTableName}"`))
+            .response([
+                {
+                    ...projectMock,
+                    connection_uuid: compileConnectionUuid,
+                },
+                {
+                    ...projectMock,
+                    connection_uuid: secondCompileConnectionUuid,
+                },
+            ]);
+
+        await expect(
+            model.getWithSensitiveFields(projectUuid),
+        ).rejects.toBeInstanceOf(MultipleConnectionsError);
+        expect(encryptionUtilMock.decrypt).not.toHaveBeenCalled();
     });
     test('rejects a connection outside the selected project', async () => {
         tracker.on
@@ -1097,13 +1206,23 @@ describe('ProjectModel', () => {
         test('does not write the legacy artifact for several connections', async () => {
             tracker.on
                 .select(({ sql }) => sql.includes('warehouse_credentials'))
-                .response([
-                    compileConnectionRow,
-                    {
-                        ...compileConnectionRow,
-                        warehouse_credentials_uuid: secondCompileConnectionUuid,
-                    },
-                ]);
+                .response(({ bindings }) => {
+                    const rows = [
+                        compileConnectionRow,
+                        {
+                            ...compileConnectionRow,
+                            warehouse_credentials_uuid:
+                                secondCompileConnectionUuid,
+                        },
+                    ];
+                    if (bindings.includes(secondCompileConnectionUuid)) {
+                        return [rows[1]];
+                    }
+                    if (bindings.includes(compileConnectionUuid)) {
+                        return [rows[0]];
+                    }
+                    return rows;
+                });
             tracker.on
                 .insert(({ sql }) =>
                     sql.includes(ProjectConnectionManifestsTableName),
@@ -1323,13 +1442,23 @@ describe('ProjectModel', () => {
         test('isolates catalogs by connection', async () => {
             tracker.on
                 .select(({ sql }) => sql.includes('warehouse_credentials'))
-                .response([
-                    compileConnectionRow,
-                    {
-                        ...compileConnectionRow,
-                        warehouse_credentials_uuid: secondCompileConnectionUuid,
-                    },
-                ]);
+                .response(({ bindings }) => {
+                    const rows = [
+                        compileConnectionRow,
+                        {
+                            ...compileConnectionRow,
+                            warehouse_credentials_uuid:
+                                secondCompileConnectionUuid,
+                        },
+                    ];
+                    if (bindings.includes(secondCompileConnectionUuid)) {
+                        return [rows[1]];
+                    }
+                    if (bindings.includes(compileConnectionUuid)) {
+                        return [rows[0]];
+                    }
+                    return rows;
+                });
             tracker.on
                 .select(({ sql }) =>
                     sql.includes(ProjectConnectionCatalogCacheTableName),
@@ -1686,30 +1815,32 @@ describe('ProjectModel', () => {
     });
 
     test('merges row listing fields into organization credentials', async () => {
-        tracker.on
-            .select(({ sql }) => sql.includes('warehouse_credentials'))
-            .response([
-                {
-                    encrypted_credentials: null,
-                    organization_warehouse_credentials_uuid:
-                        'organization-credential-uuid',
-                    organization_uuid: 'organization-uuid',
-                    list_all_databases: true,
-                    additional_databases: ['finance'],
-                },
-            ]);
-        vi.spyOn(
-            model as unknown as {
-                getOrganizationWarehouseCredentials: () => Promise<CreateWarehouseCredentials>;
-            },
-            'getOrganizationWarehouseCredentials',
-        ).mockResolvedValue({
+        const organizationCredentials = {
             type: WarehouseTypes.ATHENA,
             region: 'eu-west-1',
             database: 'AwsDataCatalog',
             schema: 'analytics',
             s3StagingDir: 's3://query-results',
-        });
+        } satisfies CreateAthenaCredentials;
+        tracker.on
+            .select(({ sql }) => sql.includes('from "warehouse_credentials"'))
+            .response([
+                {
+                    ...compileConnectionRow,
+                    encrypted_credentials: null,
+                    organization_warehouse_credentials_uuid:
+                        'organization-credential-uuid',
+                    list_all_databases: true,
+                    additional_databases: ['finance'],
+                },
+            ]);
+        tracker.on.select('organization_warehouse_credentials').response([
+            {
+                warehouse_connection: Buffer.from(
+                    JSON.stringify(organizationCredentials),
+                ),
+            },
+        ]);
 
         await expect(
             model.getWarehouseCredentialsForProject(projectUuid),
@@ -1717,6 +1848,12 @@ describe('ProjectModel', () => {
             listAllDatabases: true,
             additionalDatabases: ['finance'],
         });
+        expect(tracker.history.select.at(-1)?.bindings).toEqual(
+            expect.arrayContaining([
+                'organization-credential-uuid',
+                'organization-uuid',
+            ]),
+        );
     });
 
     test('skips superseded warehouse credential rows', async () => {
@@ -1733,6 +1870,9 @@ describe('ProjectModel', () => {
     });
 
     test('rotates a refresh token by warehouse credential row id', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .responseOnce([compileConnectionRow]);
         tracker.on
             .select(({ sql }) => sql.includes('warehouse_credentials'))
             .responseOnce([compileConnectionRow]);
@@ -2338,6 +2478,33 @@ describe('ProjectModel', () => {
                 .forEach(({ bindings }) => {
                     expect(bindings).toEqual([[], projectUuid]);
                 });
+        });
+
+        test('stores the compiled base table connection binding', async () => {
+            const explore = structuredClone(exploreWithMetricFilters);
+            explore.tables[explore.baseTable].connectionUuid =
+                compileConnectionUuid;
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response([]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explore"'))
+                .response([{ cached_explore_uuid: 'explore-uuid' }]);
+
+            await model.saveExploresToCache(projectUuid, [explore]);
+
+            const cachedExploreInsert = tracker.history.insert.find(({ sql }) =>
+                sql.includes('"cached_explore"'),
+            );
+            expect(cachedExploreInsert?.bindings).toEqual(
+                expect.arrayContaining([compileConnectionUuid]),
+            );
         });
 
         test.each([
@@ -3031,6 +3198,67 @@ describe('ProjectModel', () => {
 
         expect(result).not.toHaveProperty('warehouseConnection');
         expect(result.requireUserCredentials).toBe(true);
+    });
+
+    describe('virtual view connection binding', () => {
+        test('stamps a new virtual view with its resolved connection', async () => {
+            tracker.on.insert(CachedExploresTableName).response([]);
+            tracker.on.select(CachedExploresTableName).response([]);
+            tracker.on.select(CachedExploreTableName).response([]);
+            tracker.on.insert(CachedExploreTableName).response([]);
+
+            const virtualView = await model.createVirtualView(
+                projectUuid,
+                {
+                    name: 'connection_view',
+                    sql: 'select 1',
+                    columns: [],
+                },
+                warehouseClientMock,
+                compileConnectionUuid,
+            );
+
+            expect(
+                virtualView.tables[virtualView.baseTable].connectionUuid,
+            ).toBe(compileConnectionUuid);
+            expect(tracker.history.insert.at(-1)?.bindings).toEqual(
+                expect.arrayContaining([compileConnectionUuid]),
+            );
+        });
+
+        test('preserves a virtual view binding when an update omits a selector', async () => {
+            const existing = {
+                ...structuredClone(exploreWithMetricFilters),
+                type: ExploreType.VIRTUAL,
+            };
+            tracker.on.insert(CachedExploresTableName).response([]);
+            tracker.on.select(CachedExploresTableName).response([]);
+            tracker.on.select(CachedExploreTableName).response([
+                {
+                    explore: existing,
+                    connection_uuid: compileConnectionUuid,
+                },
+            ]);
+            tracker.on.update(CachedExploreTableName).response(1);
+
+            const virtualView = await model.updateVirtualView(
+                projectUuid,
+                existing.name,
+                {
+                    name: existing.label,
+                    sql: 'select 2',
+                    columns: [],
+                },
+                warehouseClientMock,
+            );
+
+            expect(
+                virtualView.tables[virtualView.baseTable].connectionUuid,
+            ).toBe(compileConnectionUuid);
+            expect(tracker.history.update[0].bindings).toEqual(
+                expect.arrayContaining([compileConnectionUuid]),
+            );
+        });
     });
 
     describe('mergeMissingWarehouseSecrets', () => {

@@ -33,12 +33,13 @@ export const runSqlQuery = createAsyncThunk<
         limit: number;
         projectUuid: string;
         parameterValues: ParametersValuesMap;
+        connectionUuid?: string;
     },
     { rejectValue: ApiErrorDetail }
 >(
     'sqlRunner/runSqlQuery',
     async (
-        { sql, limit, projectUuid, parameterValues },
+        { sql, limit, projectUuid, parameterValues, connectionUuid },
         { rejectWithValue },
     ) => {
         try {
@@ -49,6 +50,7 @@ export const runSqlQuery = createAsyncThunk<
                 limit,
                 parameterValues,
                 true,
+                connectionUuid,
             );
         } catch (error) {
             if (isApiError(error)) {

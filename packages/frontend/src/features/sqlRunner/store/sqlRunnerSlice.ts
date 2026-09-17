@@ -46,6 +46,8 @@ export interface SqlRunnerState {
     activeTable: string | undefined;
     activeSchema: string | undefined;
     activeDatabase: string | undefined;
+    connectionUuid: string | undefined;
+    resultConnectionUuid: string | undefined;
     savedSqlChart: SqlChart | undefined;
     queryUuid: string | undefined;
     fileUrl: string | undefined;
@@ -101,6 +103,8 @@ export const initialState: SqlRunnerState = {
     activeTable: undefined,
     activeSchema: undefined,
     activeDatabase: undefined,
+    connectionUuid: undefined,
+    resultConnectionUuid: undefined,
     savedSqlChart: undefined,
     queryUuid: undefined,
     fileUrl: undefined,
@@ -169,6 +173,8 @@ export const sqlRunnerSlice = createSlice({
         selectColumns: (state) => state.sqlColumns,
         selectRows: (state) => state.sqlRows,
         selectParameterValues: (state) => state.parameterValues,
+        selectConnectionUuid: (state) => state.connectionUuid,
+        selectResultConnectionUuid: (state) => state.resultConnectionUuid,
         selectSqlQueryResults: (state) => {
             if (state.sqlColumns === undefined || state.sqlRows === undefined) {
                 return undefined;
@@ -187,6 +193,12 @@ export const sqlRunnerSlice = createSlice({
         },
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
+        },
+        setConnectionUuid: (
+            state,
+            action: PayloadAction<string | undefined>,
+        ) => {
+            state.connectionUuid = action.payload;
         },
         updateParameterValue: (
             state,
@@ -276,6 +288,7 @@ export const sqlRunnerSlice = createSlice({
             state.savedSqlChart = action.payload;
             state.name = action.payload.name;
             state.description = action.payload.description || '';
+            state.connectionUuid = action.payload.connectionUuid ?? undefined;
             state.sql = action.payload.sql;
             state.limit = action.payload.limit || 500;
             state.selectedChartType =
@@ -331,6 +344,9 @@ export const sqlRunnerSlice = createSlice({
             })
             .addCase(runSqlQuery.fulfilled, (state, action) => {
                 state.queryIsLoading = false;
+                state.resultConnectionUuid =
+                    action.payload.connectionUuid ??
+                    action.meta.arg.connectionUuid;
                 state.sqlColumns = action.payload.columns;
                 state.sqlRows = action.payload.results;
                 state.queryUuid = action.payload.queryUuid;
@@ -418,6 +434,7 @@ export const sqlRunnerSlice = createSlice({
 export const {
     toggleActiveTable,
     setProjectUuid,
+    setConnectionUuid,
     setFetchResultsOnLoad,
     updateName,
     setSql,
@@ -449,6 +466,8 @@ export const {
     selectSavedSqlChart,
     selectSqlQueryResults,
     selectParameterValues,
+    selectConnectionUuid,
+    selectResultConnectionUuid,
 } = sqlRunnerSlice.selectors;
 
 export const selectSqlRunnerResultsRunner = createSelector(
@@ -460,8 +479,18 @@ export const selectSqlRunnerResultsRunner = createSelector(
         selectSql,
         (_state, sortBy?: VizSortBy[]) => sortBy,
         selectParameterValues,
+        selectResultConnectionUuid,
     ],
-    (columns, rows, projectUuid, limit, sql, sortBy, parameterValues) => {
+    (
+        columns,
+        rows,
+        projectUuid,
+        limit,
+        sql,
+        sortBy,
+        parameterValues,
+        resultConnectionUuid,
+    ) => {
         return new SqlRunnerResultsRunnerFrontend({
             columns: columns || [],
             rows: rows || [],
@@ -470,6 +499,7 @@ export const selectSqlRunnerResultsRunner = createSelector(
             sql,
             sortBy,
             parameters: parameterValues,
+            connectionUuid: resultConnectionUuid,
         });
     },
 );

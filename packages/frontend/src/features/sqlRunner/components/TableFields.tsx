@@ -76,6 +76,9 @@ const TableField: FC<{
 
 export const TableFields: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const connectionUuid = useAppSelector(
+        (state) => state.sqlRunner.connectionUuid,
+    );
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
     const activeSchema = useAppSelector(
         (state) => state.sqlRunner.activeSchema,
@@ -97,6 +100,7 @@ export const TableFields: FC = () => {
         isSuccess,
     } = useTableFields({
         projectUuid,
+        connectionUuid,
         tableName: activeTable,
         schema: activeSchema,
         database: activeDatabase,

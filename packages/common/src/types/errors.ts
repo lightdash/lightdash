@@ -448,6 +448,17 @@ export class MultipleConnectionsError extends LightdashError {
     }
 }
 
+export class CrossConnectionQueryError extends LightdashError {
+    constructor(connections: { connectionUuid: string; name: string }[]) {
+        super({
+            message: `Queries cannot combine connections ${connections.map(({ name }) => `"${name}"`).join(' and ')}. Use one connection for every query source.`,
+            name: 'CrossConnectionQueryError',
+            statusCode: 400,
+            data: { connections },
+        });
+    }
+}
+
 export class MissingConfigError extends LightdashError {
     constructor(message: string) {
         super({

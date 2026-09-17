@@ -96,6 +96,27 @@ describe('executeQuery', () => {
         );
     });
 
+    it('returns the server-resolved connection for an unselected SQL run', async () => {
+        vi.mocked(lightdashApi)
+            .mockResolvedValueOnce({
+                queryUuid: 'test-query-uuid',
+                connectionUuid: 'server-resolved-connection-uuid',
+            } as never)
+            .mockResolvedValueOnce({
+                status: QueryHistoryStatus.READY,
+                queryUuid: 'test-query-uuid',
+                columns: { col1: { type: 'string' } },
+            } as never);
+        vi.mocked(getResultsFromStream).mockResolvedValueOnce({
+            rows: [{ col1: 'value1' }],
+            columns: { col1: { type: 'string' } },
+        } as never);
+
+        const results = await executeSqlQuery('project-uuid', 'select 1');
+
+        expect(results.connectionUuid).toBe('server-resolved-connection-uuid');
+    });
+
     it('passes invalidateCache parameter to API when false', async () => {
         vi.mocked(lightdashApi)
             .mockResolvedValueOnce({
@@ -156,5 +177,39 @@ describe('executeQuery', () => {
         expect(firstCall.version).toBe('v2');
         // When invalidateCache is undefined, JSON.stringify omits it from the body
         expect(firstCall.body).not.toContain('invalidateCache');
+    });
+
+    it('passes the optional connection UUID to the SQL query API', async () => {
+        vi.mocked(lightdashApi)
+            .mockResolvedValueOnce({
+                queryUuid: 'test-query-uuid',
+            } as never)
+            .mockResolvedValueOnce({
+                status: QueryHistoryStatus.READY,
+                queryUuid: 'test-query-uuid',
+                columns: { col1: { type: 'string' } },
+            } as never);
+
+        vi.mocked(getResultsFromStream).mockResolvedValueOnce({
+            rows: [{ col1: 'value1' }],
+            columns: { col1: { type: 'string' } },
+        } as never);
+
+        await executeSqlQuery(
+            'project-uuid',
+            'select 1',
+            100,
+            {},
+            undefined,
+            'connection-uuid',
+        );
+
+        expect(lightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                body: expect.stringContaining(
+                    '"connectionUuid":"connection-uuid"',
+                ),
+            }),
+        );
     });
 });

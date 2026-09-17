@@ -105,11 +105,13 @@ export const useDetectedTableFields = ({
     sql,
     quoteChar,
     projectUuid,
+    connectionUuid,
     catalog,
 }: {
     sql: string;
     quoteChar: string;
     projectUuid: string;
+    connectionUuid?: string;
     catalog: WarehouseTablesCatalog;
 }) => {
     // Parse SQL to detect table references
@@ -158,6 +160,7 @@ export const useDetectedTableFields = ({
             // Add the validated and transformed table reference
             acc.push({
                 projectUuid,
+                connectionUuid,
                 tableName: actualTableName,
                 schema: matchingSchema,
                 database: matchingDatabase,
@@ -165,7 +168,7 @@ export const useDetectedTableFields = ({
 
             return acc;
         }, []);
-    }, [detectedTables, catalog, projectUuid]);
+    }, [detectedTables, catalog, connectionUuid, projectUuid]);
 
     // Use the new multi-table fields hook
     const result = useMultipleTableFields(tableReferences);

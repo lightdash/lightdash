@@ -10,12 +10,14 @@ import { executeSqlQuery } from '../../queryRunner/executeQuery';
 
 export type ResultsAndColumns = {
     queryUuid: string;
+    connectionUuid?: string;
     fileUrl: string | undefined;
     results: RawResultRow[];
     columns: VizColumn[];
 };
 
 type UseSqlQueryRunParams = {
+    connectionUuid?: string;
     sql: SqlRunnerBody['sql'];
     limit: SqlRunnerBody['limit'];
     parameterValues?: ParametersValuesMap;
@@ -38,8 +40,15 @@ export const useSqlQueryRun = (
         ApiError,
         UseSqlQueryRunParams
     >(
-        async ({ sql, limit, parameterValues }) =>
-            executeSqlQuery(projectUuid, sql, limit, parameterValues),
+        async ({ sql, limit, parameterValues, connectionUuid }) =>
+            executeSqlQuery(
+                projectUuid,
+                sql,
+                limit,
+                parameterValues,
+                undefined,
+                connectionUuid,
+            ),
         {
             mutationKey: ['sqlRunner', 'run'],
             ...useMutationOptions,

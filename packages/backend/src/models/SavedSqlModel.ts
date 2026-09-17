@@ -52,7 +52,10 @@ type SelectSavedSql = Pick<
     | 'first_viewed_at'
     | 'last_viewed_at'
 > &
-    Pick<DbSavedSqlVersion, 'sql' | 'limit' | 'config' | 'chart_kind'> &
+    Pick<
+        DbSavedSqlVersion,
+        'sql' | 'limit' | 'config' | 'chart_kind' | 'connection_uuid'
+    > &
     Pick<DbSpace, 'space_uuid' | 'path'> &
     Pick<DbProject, 'project_uuid'> &
     Pick<DbOrganization, 'organization_uuid'> & {
@@ -103,6 +106,7 @@ export class SavedSqlModel {
     } {
         return {
             savedSqlUuid: row.saved_sql_uuid,
+            connectionUuid: row.connection_uuid,
             name: row.name,
             description: row.description,
             slug: row.slug,
@@ -218,6 +222,7 @@ export class SavedSqlModel {
                 `${SavedSqlVersionsTableName}.limit`,
                 `${SavedSqlVersionsTableName}.config`,
                 `${SavedSqlVersionsTableName}.chart_kind`,
+                `${SavedSqlVersionsTableName}.connection_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
                 `createdByUser.user_uuid as created_by_user_uuid`,
                 `createdByUser.first_name as created_by_user_first_name`,
@@ -315,8 +320,20 @@ export class SavedSqlModel {
             config: AllVizChartConfig;
             sql: string;
             limit: number;
+            connectionUuid?: string | null;
         },
     ): Promise<string> {
+        let { connectionUuid } = data;
+        if (connectionUuid === undefined) {
+            const previousVersion = await trx(SavedSqlVersionsTableName)
+                .select<Pick<DbSavedSqlVersion, 'connection_uuid'>>(
+                    'connection_uuid',
+                )
+                .where('saved_sql_uuid', data.savedSqlUuid)
+                .orderBy('created_at', 'desc')
+                .first();
+            connectionUuid = previousVersion?.connection_uuid ?? null;
+        }
         const [{ saved_sql_version_uuid: savedSqlVersionUuid }] = await trx(
             SavedSqlVersionsTableName,
         ).insert(
@@ -327,6 +344,7 @@ export class SavedSqlModel {
                 config: data.config,
                 chart_kind: data.config.type,
                 created_by_user_uuid: data.userUuid,
+                connection_uuid: connectionUuid,
             },
             ['saved_sql_version_uuid'],
         );
@@ -389,6 +407,7 @@ export class SavedSqlModel {
                         config: data.config,
                         sql: data.sql,
                         limit: data.limit,
+                        connectionUuid: data.connectionUuid,
                     },
                 );
                 return { savedSqlUuid, slug, savedSqlVersionUuid };
@@ -425,6 +444,7 @@ export class SavedSqlModel {
                     config: data.sqlChart.versionedData.config,
                     sql: data.sqlChart.versionedData.sql,
                     limit: data.sqlChart.versionedData.limit,
+                    connectionUuid: data.sqlChart.versionedData.connectionUuid,
                 });
             }
 

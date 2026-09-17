@@ -55,6 +55,7 @@ function convertDbQueryHistoryToQueryHistory(
         createdByActorType: queryHistory.created_by_actor_type,
         organizationUuid: queryHistory.organization_uuid,
         projectUuid: queryHistory.project_uuid,
+        connectionUuid: queryHistory.connection_uuid,
         compiledSql: queryHistory.compiled_sql,
         defaultPageSize: queryHistory.default_page_size,
         context: queryHistory.context,
@@ -116,6 +117,7 @@ export class QueryHistoryModel {
             sql: string;
             timezone?: string;
             userUuid: string | null;
+            connectionUuid?: string | null;
             dataTimezone?: string;
             /**
              * External source tables version their ingested files without the
@@ -124,8 +126,12 @@ export class QueryHistoryModel {
             externalSourceSalt?: string;
         },
     ) {
-        const CACHE_VERSION = 'v3'; // change when we want to force invalidation
+        const CACHE_VERSION = 'v4'; // change when we want to force invalidation
         let queryHashKey = `${CACHE_VERSION}.${projectUuid}`;
+
+        if (resultsIdentifiers.connectionUuid) {
+            queryHashKey += `.connection:${resultsIdentifiers.connectionUuid}`;
+        }
 
         // Include user UUID in cache key to prevent sharing cache between users
         // when user-specific warehouse credentials are in use
@@ -203,6 +209,7 @@ export class QueryHistoryModel {
                 created_by_actor_type: account.authentication.type,
                 organization_uuid: queryHistory.organizationUuid,
                 project_uuid: queryHistory.projectUuid,
+                connection_uuid: queryHistory.connectionUuid ?? null,
                 compiled_sql: queryHistory.compiledSql,
                 default_page_size: null,
                 context: queryHistory.context,

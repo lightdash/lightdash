@@ -29,6 +29,7 @@ import {
     Dimension,
     DimensionType,
     DownloadFileType,
+    DuckdbConnectionType,
     ExpiredQueryError,
     Explore,
     ExploreCompiler,
@@ -300,6 +301,10 @@ import {
     type PreAggregationRoutingDecision,
 } from './PreAggregateStrategy';
 import {
+    assertSameQueryConnection,
+    resolveQueryHistoryConnection,
+} from './queryConnections';
+import {
     ExecuteAsyncSqlQueryArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
     isExecuteAsyncSqlChartByUuid,
@@ -453,6 +458,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
 };
 
 type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
+    connectionUuid: string | null;
     userWarehouseCredentialsUuid: string | undefined;
 };
 
@@ -3462,9 +3468,12 @@ export class AsyncQueryService extends ProjectService {
                     warehouseCredentialsTypeOverride ??
                     warehouseClient.credentials.type;
             } else {
+                const history =
+                    await this.getQueryHistoryFromHistory(queryUuid);
                 const warehouseCredentials = await this.getWarehouseCredentials(
                     {
                         projectUuid,
+                        connectionUuid: history.connectionUuid,
                         userId: userUuid,
                         isRegisteredUser,
                         isServiceAccount,
@@ -3937,6 +3946,7 @@ export class AsyncQueryService extends ProjectService {
 
         return {
             projectUuid: query.projectUuid ?? '',
+            connectionUuid: query.connectionUuid ?? null,
             userUuid: actor.userUuid,
             organizationUuid: query.organizationUuid,
             isPreviewProject,
@@ -3999,6 +4009,7 @@ export class AsyncQueryService extends ProjectService {
 
         return {
             projectUuid: query.projectUuid ?? '',
+            connectionUuid: query.connectionUuid ?? null,
             userUuid: actor.userUuid,
             organizationUuid: query.organizationUuid,
             isPreviewProject,
@@ -4334,6 +4345,50 @@ export class AsyncQueryService extends ProjectService {
         return { fields, dateZoomApplied };
     }
 
+    private async getMetricQueryCredentials({
+        account,
+        projectUuid,
+        explore,
+        sourceQueryHistory,
+        resolvedConnectionUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        explore: Explore;
+        sourceQueryHistory?: QueryHistory;
+        resolvedConnectionUuid?: string;
+    }): Promise<ResolvedWarehouseCredentials> {
+        if (
+            sourceQueryHistory
+                ? sourceQueryHistory.requestParameters.executionBackend ===
+                  'external'
+                : explore.type === ExploreType.EXTERNAL_SOURCE
+        ) {
+            return {
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.EMBEDDED,
+                dataset: ':memory:',
+                connectionUuid: null,
+                userWarehouseCredentialsUuid: undefined,
+            };
+        }
+        let connectionUuid: string | null | undefined = resolvedConnectionUuid;
+        if (sourceQueryHistory) {
+            connectionUuid = sourceQueryHistory.connectionUuid;
+        } else if (!connectionUuid) {
+            connectionUuid = (
+                await this.resolveExploreConnection(projectUuid, explore.name)
+            ).connectionUuid;
+        }
+        return this.getWarehouseCredentials({
+            projectUuid,
+            connectionUuid,
+            userId: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
+        });
+    }
+
     private async prepareMetricQueryAsyncQueryArgs({
         account,
         metricQuery,
@@ -4604,6 +4659,7 @@ export class AsyncQueryService extends ProjectService {
                         projectUuid,
                         {
                             sql: query,
+                            connectionUuid: warehouseCredentials.connectionUuid,
                             timezone,
                             userUuid:
                                 warehouseCredentials.userWarehouseCredentialsUuid
@@ -4638,7 +4694,14 @@ export class AsyncQueryService extends ProjectService {
                             context,
                             fields: fieldsMap,
                             compiledSql: query,
-                            requestParameters,
+                            connectionUuid: warehouseCredentials.connectionUuid,
+                            requestParameters: {
+                                ...requestParameters,
+                                executionBackend:
+                                    warehouseCredentials.connectionUuid
+                                        ? 'warehouse'
+                                        : 'external',
+                            },
                             usedParameters: queryComposer.getUsedParameters(),
                             // Persist the gated display timezone (matches
                             // what the SQL was built with). Storing the
@@ -4940,6 +5003,7 @@ export class AsyncQueryService extends ProjectService {
                         isServiceAccount: account.isServiceAccount(),
                         onboardingFlow,
                         projectUuid,
+                        connectionUuid: warehouseCredentials.connectionUuid,
                         query: executionPlan.warehouseQuery,
                         fieldsMap,
                         usedParameters: queryComposer.getUsedParameters(),
@@ -5321,6 +5385,7 @@ export class AsyncQueryService extends ProjectService {
             dashboardFilters,
             totalConfiguration,
             documentQueryContext,
+            resolvedConnectionUuid,
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
         sourceQueryHistory?: QueryHistory,
@@ -5339,16 +5404,12 @@ export class AsyncQueryService extends ProjectService {
 
         const metricQueryStart = Date.now();
 
-        // Load project warehouse config once, shared by warehouse credentials and timezone resolution
-        const { queryTimezone } =
-            await this.projectModel.getProjectWarehouseConfig(projectUuid);
         const projectTimezone =
-            queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
+            await this.getQueryTimezoneForProject(projectUuid);
 
         // Run independent data loads in parallel to minimize Postgres round-trips
         const [
             { explore, userAccessControls: preloadedUserAccessControls },
-            warehouseCredentials,
             projectParameters,
         ] = await Promise.all([
             this.getExploreForMetricQueryExecution({
@@ -5362,14 +5423,15 @@ export class AsyncQueryService extends ProjectService {
                         ? materializationRole
                         : undefined,
             }),
-            this.getWarehouseCredentials({
-                projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            }),
             this.projectParametersModel.find(projectUuid),
         ]);
+        const warehouseCredentials = await this.getMetricQueryCredentials({
+            account,
+            projectUuid,
+            explore,
+            sourceQueryHistory,
+            resolvedConnectionUuid,
+        });
         const parallelLoadMs = Date.now() - metricQueryStart;
 
         // Dashboard filters (e.g. from a data-app tile) are merged once the
@@ -5871,7 +5933,11 @@ export class AsyncQueryService extends ProjectService {
                 fields: { [fieldId]: field },
                 compiledSql:
                     '-- served from curated filter_autocomplete values, no warehouse query',
-                requestParameters: staticRequestParameters,
+                connectionUuid: null,
+                requestParameters: {
+                    ...staticRequestParameters,
+                    executionBackend: 'external',
+                },
                 usedParameters: null,
                 metricQuery,
                 cacheKey: `static-autocomplete-${fieldId}`,
@@ -5950,11 +6016,10 @@ export class AsyncQueryService extends ProjectService {
             query_context: context,
         };
 
-        const warehouseCredentials = await this.getWarehouseCredentials({
+        const warehouseCredentials = await this.getMetricQueryCredentials({
+            account,
             projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
+            explore,
         });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
@@ -6259,11 +6324,10 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const warehouseCredentials = await this.getWarehouseCredentials({
+        const warehouseCredentials = await this.getMetricQueryCredentials({
+            account,
             projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
+            explore,
         });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
@@ -6995,11 +7059,8 @@ export class AsyncQueryService extends ProjectService {
             query_context: context,
         };
 
-        // Load project warehouse config once, shared by warehouse credentials and timezone resolution
-        const { queryTimezone } =
-            await this.projectModel.getProjectWarehouseConfig(projectUuid);
         const projectTimezone =
-            queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
+            await this.getQueryTimezoneForProject(projectUuid);
 
         // Run independent data loads in parallel to minimize Postgres round-trips
         const [
@@ -7007,12 +7068,7 @@ export class AsyncQueryService extends ProjectService {
             rawDashboardParameters,
             projectParameters,
         ] = await Promise.all([
-            this.getWarehouseCredentials({
-                projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            }),
+            this.getMetricQueryCredentials({ account, projectUuid, explore }),
             this.dashboardModel.getDashboardParametersByIdOrSlug(
                 resolvedDashboardUuid,
                 projectUuid,
@@ -7207,13 +7263,6 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
-
         const source = await this.queryHistoryModel.get(
             underlyingDataSourceQueryUuid,
             projectUuid,
@@ -7236,6 +7285,12 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid,
             );
 
+        const warehouseCredentials = await this.getMetricQueryCredentials({
+            account,
+            projectUuid,
+            explore,
+            sourceQueryHistory: source,
+        });
         const warehouseSqlBuilder = getSqlBuilderForExplore(
             explore,
             warehouseCredentials,
@@ -7471,6 +7526,7 @@ export class AsyncQueryService extends ProjectService {
     async executeAsyncSqlQuery({
         account,
         projectUuid,
+        connectionUuid,
         sql,
         context,
         invalidateCache,
@@ -7534,6 +7590,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             context,
             projectUuid,
+            connectionUuid,
             organizationUuid,
             sql,
             limit,
@@ -7568,6 +7625,7 @@ export class AsyncQueryService extends ProjectService {
 
         return {
             queryUuid,
+            connectionUuid: warehouseCredentials.connectionUuid,
             cacheMetadata,
             parameterReferences,
             usedParametersValues: usedParameters,
@@ -7592,7 +7650,7 @@ export class AsyncQueryService extends ProjectService {
         account: Account;
         projectUuid: string;
         references: Record<string, string>;
-    }): Promise<void> {
+    }): Promise<string | null> {
         const validTableName = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
         const validUuid =
             /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -7605,7 +7663,7 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        await Promise.all(
+        const connections = await Promise.all(
             Object.entries(references).map(async ([tableName, queryUuid]) => {
                 if (!validTableName.test(tableName)) {
                     throw new ParameterError(
@@ -7630,8 +7688,14 @@ export class AsyncQueryService extends ProjectService {
                     await this.projectModel.getSummary(projectUuid),
                     queryHistory,
                 );
+                return resolveQueryHistoryConnection(
+                    this.projectModel,
+                    projectUuid,
+                    queryHistory,
+                );
             }),
         );
+        return assertSameQueryConnection(connections)?.connectionUuid ?? null;
     }
 
     /**
@@ -7873,13 +7937,13 @@ export class AsyncQueryService extends ProjectService {
             references && Object.keys(references).length > 0
                 ? references
                 : undefined;
-        if (normalizedReferences) {
-            await this.authorizeQueryReferences({
-                account,
-                projectUuid,
-                references: normalizedReferences,
-            });
-        }
+        const connectionUuid = normalizedReferences
+            ? await this.authorizeQueryReferences({
+                  account,
+                  projectUuid,
+                  references: normalizedReferences,
+              })
+            : null;
 
         // Throws MissingConfigError when results storage is not configured:
         // a query without an engine is refused here, never in the background.
@@ -7924,6 +7988,7 @@ export class AsyncQueryService extends ProjectService {
 
         // Parameter values change the executed SQL without changing its text
         const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
+            connectionUuid,
             sql: JSON.stringify({
                 sql: resolved.sql,
                 references: normalizedReferences ?? null,
@@ -7939,7 +8004,11 @@ export class AsyncQueryService extends ProjectService {
             context,
             fields: resolved.fields,
             compiledSql: resolved.sql,
-            requestParameters: resolved.requestParameters,
+            connectionUuid,
+            requestParameters: {
+                ...resolved.requestParameters,
+                executionBackend: connectionUuid ? 'warehouse' : 'external',
+            },
             usedParameters: resolved.usedParameters,
             metricQuery: resolved.metricQuery,
             cacheKey,
@@ -8427,6 +8496,7 @@ export class AsyncQueryService extends ProjectService {
             .sort()
             .join('|');
         const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
+            connectionUuid: null,
             sql: JSON.stringify({
                 sql,
                 tables: [...tableEntries].sort(([a], [b]) =>
@@ -8483,7 +8553,11 @@ export class AsyncQueryService extends ProjectService {
             context,
             fields: {},
             compiledSql: sql,
-            requestParameters,
+            connectionUuid: null,
+            requestParameters: {
+                ...requestParameters,
+                executionBackend: 'external',
+            },
             usedParameters: placeholderComposer.getUsedParameters(),
             metricQuery: placeholderComposer.getMetricQuery(),
             cacheKey,
@@ -8627,9 +8701,19 @@ export class AsyncQueryService extends ProjectService {
             // files it reads, not the rows it referenced: a leg served from
             // cache mints a new row over the same file, so the file-based key
             // is what a later run finds
+            const history = await this.getQueryHistoryFromHistory(queryUuid);
+            const connection =
+                references.kind === 'queries'
+                    ? await resolveQueryHistoryConnection(
+                          this.projectModel,
+                          projectUuid,
+                          history,
+                      )
+                    : null;
             const resultsKey =
                 references.kind === 'queries'
                     ? QueryHistoryModel.getCacheKey(projectUuid, {
+                          connectionUuid: connection?.connectionUuid ?? null,
                           sql: JSON.stringify({
                               sql,
                               files: bound.resultFileUris,
@@ -9597,7 +9681,12 @@ export class AsyncQueryService extends ProjectService {
         account: Account,
         projectUuid: string,
         queryUuid: string,
-    ): Promise<{ metricQuery: MetricQuery; fields: ItemsMap }> {
+    ): Promise<{
+        metricQuery: MetricQuery;
+        fields: ItemsMap;
+        connectionUuid?: string | null;
+        executionBackend?: 'warehouse' | 'external';
+    }> {
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
@@ -9636,12 +9725,15 @@ export class AsyncQueryService extends ProjectService {
         return {
             metricQuery: queryHistory.metricQuery,
             fields: queryHistory.fields,
+            connectionUuid: queryHistory.connectionUuid,
+            executionBackend: queryHistory.requestParameters.executionBackend,
         };
     }
 
     private async prepareSqlChartAsyncQueryArgs({
         account,
         projectUuid,
+        connectionUuid,
         organizationUuid,
         sql,
         config,
@@ -9658,6 +9750,7 @@ export class AsyncQueryService extends ProjectService {
     }: {
         account: Account;
         projectUuid: string;
+        connectionUuid?: string | null;
         organizationUuid: string;
         sql: string;
         config?: SqlChart['config'];
@@ -9683,6 +9776,7 @@ export class AsyncQueryService extends ProjectService {
         ] = await Promise.all([
             this.getWarehouseCredentials({
                 projectUuid,
+                connectionUuid,
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -9915,6 +10009,7 @@ export class AsyncQueryService extends ProjectService {
             context,
             projectUuid: sqlChart.project.projectUuid,
             organizationUuid: sqlChart.organization.organizationUuid,
+            connectionUuid: sqlChart.connectionUuid,
             sql: sqlChart.sql,
             config: sqlChart.config,
             limit: limit ?? sqlChart.limit,
@@ -10058,6 +10153,7 @@ export class AsyncQueryService extends ProjectService {
             context,
             projectUuid: savedChart.project.projectUuid,
             organizationUuid: savedChart.organization.organizationUuid,
+            connectionUuid: savedChart.connectionUuid,
             sql: savedChart.sql,
             config: savedChart.config,
             tileUuid,
@@ -10482,11 +10578,10 @@ export class AsyncQueryService extends ProjectService {
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     }> {
-        const warehouseCredentials = await this.getWarehouseCredentials({
+        const warehouseCredentials = await this.getMetricQueryCredentials({
+            account,
             projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
+            explore,
         });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(

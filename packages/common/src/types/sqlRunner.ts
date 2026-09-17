@@ -161,6 +161,7 @@ export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &
     ApiSqlRunnerPivotQueryPayload;
 
 export type SqlRunnerBody = {
+    connectionUuid?: string;
     sql: string;
     limit?: number;
 };
@@ -230,6 +231,7 @@ export const isApiSqlRunnerJobPivotQuerySuccessResponse = (
     response.status === SchedulerJobStatus.COMPLETED;
 
 export type SqlChart = {
+    connectionUuid?: string | null;
     savedSqlUuid: string;
     name: string;
     description: string | null;
@@ -265,6 +267,7 @@ export type SqlChart = {
 };
 
 export type CreateSqlChart = {
+    connectionUuid?: string | null;
     name: string;
     description: string | null;
     sql: string;
@@ -281,6 +284,7 @@ export type UpdateUnversionedSqlChart = {
 };
 
 export type UpdateVersionedSqlChart = {
+    connectionUuid?: string | null;
     sql: string;
     limit: number;
     config: AllVizChartConfig;
@@ -318,6 +322,7 @@ export type ApiCreateVirtualView = {
 };
 
 export type CreateVirtualViewPayload = {
+    connectionUuid?: string;
     name: string;
     /** Optional display label. Defaults to a friendly version of name. */
     label?: string;

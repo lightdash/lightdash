@@ -229,6 +229,23 @@ const warehouseCredentialsCache =
           })
         : undefined;
 
+type WarehouseCredentialsCacheEntry = {
+    revision: string;
+    credentials: CreateWarehouseCredentials;
+};
+
+const getWarehouseCredentialsCacheKey = (
+    projectUuid: string,
+    connectionUuid: string,
+) => `${projectUuid}:${connectionUuid}`;
+
+const deleteWarehouseCredentialsCacheForProject = (projectUuid: string) => {
+    warehouseCredentialsCache
+        ?.keys()
+        .filter((key) => key.startsWith(`${projectUuid}:`))
+        .forEach((key) => warehouseCredentialsCache.del(key));
+};
+
 const INSERT_BATCH_SIZE = 1000;
 
 const getMotherduckConnectionString = (
@@ -242,6 +259,21 @@ const getMotherduckConnectionString = (
 const normalizeAdditionalDatabases = (databases: string[] = []): string[] => [
     ...new Set(databases.map((database) => database.trim()).filter(Boolean)),
 ];
+
+const getExploreStoredConnectionUuid = (
+    explore: Explore | ExploreError,
+): string | null =>
+    explore.tables?.[explore.baseTable ?? explore.name]?.connectionUuid ?? null;
+
+const stampExploreConnectionUuid = (
+    explore: Explore | ExploreError,
+    connectionUuid?: string | null,
+) => {
+    const baseTable = explore.tables?.[explore.baseTable ?? explore.name];
+    if (baseTable && connectionUuid) {
+        baseTable.connectionUuid = connectionUuid;
+    }
+};
 
 const mergeConnectionListingFields = <T extends CreateWarehouseCredentials>(
     credentials: T,
@@ -469,15 +501,15 @@ export class ProjectModel {
 
     private async resolveConnectionScope(
         projectUuid: string,
-        connectionUuid?: string,
+        connectionUuid?: string | null,
     ): Promise<{ connection: Connection; isSole: boolean }> {
         const connections =
             await this.connectionModel.listByProject(projectUuid);
         if (connectionUuid) {
-            const connection = connections.find(
-                ({ connectionUuid: uuid }) => uuid === connectionUuid,
+            const connection = await this.resolveConnection(
+                projectUuid,
+                connectionUuid,
             );
-            if (!connection) throw new NotFoundError('Connection not found');
             return { connection, isSole: connections.length === 1 };
         }
         if (connections.length === 0) {
@@ -486,7 +518,19 @@ export class ProjectModel {
             );
         }
         if (connections.length > 1) throw new MultipleConnectionsError();
-        return { connection: connections[0], isSole: true };
+        return {
+            connection: await this.resolveConnection(projectUuid),
+            isSole: true,
+        };
+    }
+
+    async resolveConnection(
+        projectUuid: string,
+        connectionUuid?: string | null,
+    ): Promise<Connection> {
+        return connectionUuid
+            ? this.connectionModel.getByUuid(projectUuid, connectionUuid)
+            : this.connectionModel.resolveSole(projectUuid);
     }
 
     async upsertMergedManifest(
@@ -1339,7 +1383,7 @@ export class ProjectModel {
             } catch (e) {
                 if (!(e instanceof NotFoundError)) throw e;
             }
-            warehouseCredentialsCache?.del(projectUuid);
+            deleteWarehouseCredentialsCacheForProject(projectUuid);
         }
         const nextConnectionString = data.warehouseConnection
             ? getMotherduckConnectionString(data.warehouseConnection)
@@ -1714,7 +1758,7 @@ export class ProjectModel {
         transaction?: Transaction,
     ): Promise<void> {
         // Invalidate warehouse credentials cache
-        warehouseCredentialsCache?.del(projectUuid);
+        deleteWarehouseCredentialsCacheForProject(projectUuid);
 
         const deleteInTransaction = async (trx: Transaction): Promise<void> => {
             const [project] = await trx('projects')
@@ -1821,14 +1865,6 @@ export class ProjectModel {
 
     async getCompileConnections(projectUuid: string): Promise<Connection[]> {
         return this.connectionModel.listByProject(projectUuid);
-    }
-
-    async getConnectionForProject(
-        projectUuid: string,
-        connectionUuid?: string,
-    ): Promise<Connection> {
-        return (await this.resolveConnectionScope(projectUuid, connectionUuid))
-            .connection;
     }
 
     async getWithSensitiveFields(
@@ -1948,6 +1984,9 @@ export class ProjectModel {
                     throw new NotFoundError(
                         `Cannot find project with id: ${projectUuid}`,
                     );
+                }
+                if (!connectionUuid && projects.length > 1) {
+                    throw new MultipleConnectionsError();
                 }
                 const [project] = projects;
                 if (!project.dbt_connection) {
@@ -2613,6 +2652,21 @@ export class ProjectModel {
         return rows.map((row) => row.name);
     }
 
+    async getExploreConnectionUuid(
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<string | null> {
+        const row = await this.database(CachedExploreTableName)
+            .select<{ connection_uuid: string | null }>('connection_uuid')
+            .where('project_uuid', projectUuid)
+            .where('name', exploreName)
+            .first();
+        if (!row) {
+            throw new NotFoundError(`Explore "${exploreName}" not found`);
+        }
+        return row.connection_uuid ?? null;
+    }
+
     async findVirtualViewsFromCache(
         projectUuid: string,
     ): Promise<Record<string, Explore | ExploreError>> {
@@ -2888,9 +2942,12 @@ export class ProjectModel {
                         projectUuid,
                     );
                     const cachedExploresQuery = trx(CachedExploreTableName)
-                        .select<{ explore: Explore | ExploreError }[]>(
-                            'explore',
-                        )
+                        .select<
+                            {
+                                explore: Explore | ExploreError;
+                                connection_uuid: string | null;
+                            }[]
+                        >('explore', 'connection_uuid')
                         .where('project_uuid', projectUuid);
                     if (complete) {
                         cachedExploresQuery.whereRaw(
@@ -2899,6 +2956,9 @@ export class ProjectModel {
                         );
                     }
                     const cachedExplores = await cachedExploresQuery;
+                    cachedExplores.forEach(({ explore, connection_uuid }) =>
+                        stampExploreConnectionUuid(explore, connection_uuid),
+                    );
                     const retainedNames = new Set([
                         ...(dbtModelNames ?? []),
                         ...explores.map((explore) => explore.name),
@@ -3011,9 +3071,7 @@ export class ProjectModel {
                                 row: {
                                     project_uuid: projectUuid,
                                     connection_uuid:
-                                        explore.tables?.[
-                                            explore.baseTable ?? explore.name
-                                        ]?.connectionUuid ?? null,
+                                        getExploreStoredConnectionUuid(explore),
                                     name: explore.name,
                                     table_names: Object.keys(
                                         explore.tables || {},
@@ -3103,9 +3161,7 @@ export class ProjectModel {
                                     save_uuid: saveUuid,
                                     project_uuid: projectUuid,
                                     connection_uuid:
-                                        explore.tables?.[
-                                            explore.baseTable ?? explore.name
-                                        ]?.connectionUuid ?? null,
+                                        getExploreStoredConnectionUuid(explore),
                                     name: explore.name,
                                     table_names: Object.keys(
                                         explore.tables || {},
@@ -4421,92 +4477,33 @@ export class ProjectModel {
 
     async getWarehouseCredentialsForProject(
         projectUuid: string,
-        connectionUuid?: string,
+        connectionUuid?: string | null,
     ): Promise<CreateWarehouseCredentials> {
-        if (connectionUuid) {
-            return this.connectionModel.getCredentials(
-                projectUuid,
-                connectionUuid,
-            );
-        }
-        // Try to get from cache first
+        const connection = await this.resolveConnection(
+            projectUuid,
+            connectionUuid,
+        );
+        const cacheKey = getWarehouseCredentialsCacheKey(
+            projectUuid,
+            connection.connectionUuid,
+        );
+        const revision = await this.connectionModel.getCredentialsRevision(
+            projectUuid,
+            connection.connectionUuid,
+        );
         const cachedCredentials =
-            warehouseCredentialsCache?.get<CreateWarehouseCredentials>(
-                projectUuid,
+            warehouseCredentialsCache?.get<WarehouseCredentialsCacheEntry>(
+                cacheKey,
             );
-        if (cachedCredentials) {
-            return cachedCredentials;
+        if (cachedCredentials && cachedCredentials.revision === revision) {
+            return cachedCredentials.credentials;
         }
-
-        const [row] = await this.database('warehouse_credentials')
-            .innerJoin(
-                'projects',
-                'warehouse_credentials.project_id',
-                'projects.project_id',
-            )
-            .leftJoin(
-                'organizations',
-                'organizations.organization_id',
-                'projects.organization_id',
-            )
-            .select<
-                {
-                    warehouse_type: string;
-                    encrypted_credentials: Buffer | null;
-                    organization_warehouse_credentials_uuid: string | null;
-                    organization_uuid: string;
-                    list_all_databases: boolean;
-                    additional_databases: string[];
-                }[]
-            >([
-                'warehouse_credentials.encrypted_credentials',
-                'warehouse_credentials.organization_warehouse_credentials_uuid',
-                'warehouse_credentials.list_all_databases',
-                'warehouse_credentials.additional_databases',
-                'organizations.organization_uuid',
-            ])
-            .where('project_uuid', projectUuid)
-            .whereNull('warehouse_credentials.superseded_at');
-        if (row === undefined) {
-            throw new NotFoundError(
-                `Cannot find any warehouse credentials for project.`,
-            );
-        }
-        if (row.organization_warehouse_credentials_uuid) {
-            const orgCredentials =
-                await this.getOrganizationWarehouseCredentials(
-                    row.organization_warehouse_credentials_uuid,
-                    row.organization_uuid,
-                );
-            const credentials = mergeConnectionListingFields(
-                orgCredentials,
-                row,
-            );
-            warehouseCredentialsCache?.set(projectUuid, credentials);
-            return credentials;
-        }
-
-        if (!row.encrypted_credentials) {
-            throw new UnexpectedServerError(
-                'Unexpected error: warehouse credentials are missing',
-            );
-        }
-        try {
-            const credentials = mergeConnectionListingFields(
-                normalizeWarehouseCredentials(
-                    JSON.parse(
-                        this.encryptionUtil.decrypt(row.encrypted_credentials),
-                    ) as CreateWarehouseCredentials,
-                ),
-                row,
-            );
-            warehouseCredentialsCache?.set(projectUuid, credentials);
-            return credentials;
-        } catch (e) {
-            throw new UnexpectedServerError(
-                'Unexpected error: failed to parse warehouse credentials',
-            );
-        }
+        const credentials = await this.connectionModel.getCredentials(
+            projectUuid,
+            connection.connectionUuid,
+        );
+        warehouseCredentialsCache?.set(cacheKey, { revision, credentials });
+        return credentials;
     }
 
     /** Compare-and-swap on the credential's stored refreshToken. Invalidates the warehouse credentials cache on swap. */
@@ -4514,11 +4511,12 @@ export class ProjectModel {
         projectUuid: string,
         expectedOldRefreshToken: string,
         newRefreshToken: string,
-        connectionUuid?: string,
+        connectionUuid?: string | null,
     ): Promise<boolean> {
-        const connection = connectionUuid
-            ? await this.connectionModel.getByUuid(projectUuid, connectionUuid)
-            : await this.connectionModel.resolveSole(projectUuid);
+        const connection = await this.resolveConnection(
+            projectUuid,
+            connectionUuid,
+        );
         const swapped = await this.database.transaction(async (trx) => {
             const row = await trx('warehouse_credentials')
                 .innerJoin(
@@ -4579,7 +4577,12 @@ export class ProjectModel {
         });
 
         if (swapped) {
-            warehouseCredentialsCache?.del(projectUuid);
+            warehouseCredentialsCache?.del(
+                getWarehouseCredentialsCacheKey(
+                    projectUuid,
+                    connection.connectionUuid,
+                ),
+            );
         }
 
         return swapped;
@@ -6320,6 +6323,7 @@ export class ProjectModel {
             parameterValues,
         }: CreateVirtualViewPayload,
         warehouseClient: WarehouseClient,
+        connectionUuid?: string | null,
     ): Promise<Explore> {
         const virtualView = createVirtualView(
             name,
@@ -6329,6 +6333,7 @@ export class ProjectModel {
             label,
             parameterValues,
         );
+        stampExploreConnectionUuid(virtualView, connectionUuid);
 
         await this.database.transaction(async (trx) => {
             await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
@@ -6344,6 +6349,7 @@ export class ProjectModel {
             }
             await trx(CachedExploreTableName).insert({
                 project_uuid: projectUuid,
+                connection_uuid: getExploreStoredConnectionUuid(virtualView),
                 name: virtualView.name,
                 table_names: Object.keys(virtualView.tables || {}),
                 explore: virtualView,
@@ -6359,6 +6365,7 @@ export class ProjectModel {
         payload: UpdateVirtualViewPayload,
         warehouseClient: WarehouseClient,
         expectedExplore?: Explore,
+        connectionUuid?: string | null,
     ) {
         const translatedToExplore = createVirtualView(
             exploreName,
@@ -6372,7 +6379,12 @@ export class ProjectModel {
         await this.database.transaction(async (trx) => {
             await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
             const existing = await trx(CachedExploreTableName)
-                .select<{ explore: Explore | ExploreError }[]>('explore')
+                .select<
+                    {
+                        explore: Explore | ExploreError;
+                        connection_uuid: string | null;
+                    }[]
+                >('explore', 'connection_uuid')
                 .where('project_uuid', projectUuid)
                 .andWhere('name', exploreName)
                 .first();
@@ -6389,8 +6401,18 @@ export class ProjectModel {
                     'Virtual view changed concurrently; download and retry',
                 );
             }
+            const resolvedConnectionUuid =
+                connectionUuid === undefined
+                    ? existing.connection_uuid
+                    : connectionUuid;
+            stampExploreConnectionUuid(
+                translatedToExplore,
+                resolvedConnectionUuid,
+            );
             await trx(CachedExploreTableName)
                 .update({
+                    connection_uuid:
+                        getExploreStoredConnectionUuid(translatedToExplore),
                     table_names: Object.keys(translatedToExplore.tables || {}),
                     explore: translatedToExplore,
                 })
@@ -6434,6 +6456,7 @@ export class ProjectModel {
 
             const row = {
                 project_uuid: projectUuid,
+                connection_uuid: getExploreStoredConnectionUuid(explore),
                 name: explore.name,
                 table_names: Object.keys(explore.tables || {}),
                 explore,
@@ -6443,12 +6466,14 @@ export class ProjectModel {
                     .where('project_uuid', projectUuid)
                     .andWhere('name', explore.name)
                     .update({
+                        connection_uuid: row.connection_uuid,
                         table_names: row.table_names,
                         explore: row.explore,
                     });
             } else {
                 await trx(CachedExploreTableName).insert({
                     project_uuid: row.project_uuid,
+                    connection_uuid: row.connection_uuid,
                     name: row.name,
                     table_names: Object.keys(explore.tables || {}),
                     explore,
@@ -6527,17 +6552,20 @@ export class ProjectModel {
         return updatedProject;
     }
 
-    async getProjectWarehouseConfig(projectUuid: string): Promise<{
+    async getProjectWarehouseConfig(
+        projectUuid: string,
+        connectionUuid?: string | null,
+    ): Promise<{
         organizationWarehouseCredentialsUuid: string | null;
         queryTimezone: string | null;
         requireUserCredentials: boolean | null;
     }> {
+        const connection = await this.resolveConnection(
+            projectUuid,
+            connectionUuid,
+        );
         const [project] = await this.database(ProjectTableName)
-            .select(
-                'organization_warehouse_credentials_uuid',
-                'query_timezone',
-                'require_user_credentials',
-            )
+            .select('query_timezone', 'require_user_credentials')
             .where('project_uuid', projectUuid);
 
         if (!project) {
@@ -6548,7 +6576,7 @@ export class ProjectModel {
 
         return {
             organizationWarehouseCredentialsUuid:
-                project.organization_warehouse_credentials_uuid,
+                connection.organizationWarehouseCredentialsUuid,
             queryTimezone: project.query_timezone,
             requireUserCredentials: project.require_user_credentials,
         };
