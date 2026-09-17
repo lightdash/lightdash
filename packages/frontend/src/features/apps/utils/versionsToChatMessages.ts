@@ -165,3 +165,64 @@ export function versionsToChatMessages(
         return msgs;
     });
 }
+
+export type ThreadChat = {
+    /**
+     * Set when an earlier thread exists: the version the current thread
+     * iterates from, shown as the "context cleared" divider above the chat.
+     */
+    divider: { fromVersion: number } | null;
+    /** Bubbles for the current thread only, oldest first. */
+    messages: ChatMessage[];
+    /**
+     * Every version of the current thread is loaded. Threads are contiguous
+     * version ranges, so seeing version 1 or any earlier-thread version means
+     * loading more pages only adds versions that belong in History.
+     */
+    isThreadComplete: boolean;
+};
+
+const highestVersion = (versions: ApiAppVersionSummary[]): number | null =>
+    versions.reduce<number | null>(
+        (max, v) => (max === null || v.version > max ? v.version : max),
+        null,
+    );
+
+/**
+ * Chat for the current thread only; earlier threads collapse to one divider.
+ * A null `currentThreadNumber` falls back to the newest loaded thread.
+ */
+export function versionsToThreadChat(
+    versions: ApiAppVersionSummary[],
+    currentThreadNumber: number | null,
+    fallbacks: ChatMessageFallbacks = NO_FALLBACKS,
+): ThreadChat {
+    const threadNumber =
+        currentThreadNumber ??
+        versions.reduce((max, v) => Math.max(max, v.threadNumber), 1);
+    const current = versions.filter((v) => v.threadNumber === threadNumber);
+    const earlier = versions.filter((v) => v.threadNumber < threadNumber);
+    const messages = versionsToChatMessages(current, fallbacks);
+    const isThreadComplete =
+        earlier.length > 0 || versions.some((v) => v.version === 1);
+
+    if (threadNumber <= 1) {
+        return { divider: null, messages, isThreadComplete };
+    }
+
+    const lowestCurrent = current.reduce<number | null>(
+        (min, v) => (min === null || v.version < min ? v.version : min),
+        null,
+    );
+    const fromVersion =
+        highestVersion(earlier.filter((v) => v.status === 'ready')) ??
+        highestVersion(earlier) ??
+        (lowestCurrent !== null ? lowestCurrent - 1 : null);
+
+    return {
+        divider:
+            fromVersion !== null && fromVersion >= 1 ? { fromVersion } : null,
+        messages,
+        isThreadComplete,
+    };
+}
