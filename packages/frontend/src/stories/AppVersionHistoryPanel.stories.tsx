@@ -60,7 +60,6 @@ const meta: Meta<typeof AppVersionHistoryPanel> = {
         fetchEarlier: fn(),
         emptyPromptLabel: null,
         olderVersionTime: 'relative',
-        showPreviewButton: true,
         showTimeline: true,
         currentThreadNumber: null,
     },
@@ -91,7 +90,7 @@ export const FreshlyClearedThread: Story = {
     args: { versions: thread1, latestReadyVersion: 4, currentThreadNumber: 2 },
 };
 
-/** The same cards without the rail. */
+/** The same rows without the rail. */
 export const WithoutTimeline: Story = {
     args: { showTimeline: false },
 };
@@ -100,7 +99,7 @@ export const Empty: Story = {
     args: { versions: [], latestReadyVersion: null },
 };
 
-/** Viewing an older version; its row is marked and offers Restore only. */
+/** Previewing an older version: its Previewing button stays visible. */
 export const ViewingOlderVersion: Story = { args: { viewedVersion: 4 } };
 
 export const BuildInProgress: Story = {
@@ -114,13 +113,12 @@ export const LoadingEarlier: Story = {
 };
 
 /** How the chart type builder hosts it: collapse control, absolute times,
- *  a stand-in for empty prompts and no Preview button. */
+ *  a stand-in for empty prompts. */
 export const ChartTypeBuilderHost: Story = {
     args: {
         onBack: null,
         onClose: fn(),
         emptyPromptLabel: 'Uploaded from source',
         olderVersionTime: 'absolute',
-        showPreviewButton: false,
     },
 };

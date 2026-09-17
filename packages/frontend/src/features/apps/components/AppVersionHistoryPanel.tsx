@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
     Box,
     Button,
     Divider,
@@ -13,10 +12,8 @@ import {
     Paper,
     Stack,
     Text,
-    Timeline,
     Title,
     Tooltip,
-    UnstyledButton,
 } from '@mantine/core';
 import {
     IconArrowLeft,
@@ -66,9 +63,7 @@ export type AppVersionHistoryPanelProps = {
     emptyPromptLabel: string | null;
     /** Time shown on versions other than the current one. */
     olderVersionTime: 'relative' | 'absolute';
-    /** An explicit Preview button beside Restore, on top of the clickable row. */
-    showPreviewButton: boolean;
-    /** Rail with a dot per version beside the cards; false stacks the cards alone. */
+    /** Rail with a dot per version beside the rows; false stacks the rows alone. */
     showTimeline?: boolean;
     /** Host-specific content under an entry's prompt. */
     renderEntryExtras?: (version: ApiAppVersionSummary) => ReactNode;
@@ -76,42 +71,56 @@ export type AppVersionHistoryPanelProps = {
     currentThreadNumber: number | null;
 };
 
-type DotState = 'current' | 'failed' | 'building' | 'past';
+/** Colours the version pill and its dot on the rail. */
+type Tone = 'live' | 'past' | 'failed' | 'building';
 
-/** One row of the list: a version card, or the rule where a thread ended. */
+/** One row of the list: a version, or the rule where a thread ended. */
 type Row = {
     key: string;
     /** null for a thread rule, which has no dot on the rail. */
-    dot: DotState | null;
+    tone: Tone | null;
     node: ReactNode;
 };
 
 const RelativeTime: FC<{ at: Date }> = ({ at }) => {
     const timeAgo = useTimeAgo(at);
     return (
-        <Text fz="xs" c="dimmed">
+        <Text fz="xs" c="dimmed" className={classes.time}>
             {timeAgo}
         </Text>
     );
 };
 
 const AbsoluteTime: FC<{ at: Date }> = ({ at }) => (
-    <Text fz="xs" c="dimmed">
+    <Text fz="xs" c="dimmed" className={classes.time}>
         {format(at, 'MMM d, HH:mm')}
     </Text>
 );
 
-const MetaSeparator: FC = () => (
-    <Text fz="xs" c="ldGray.4" aria-hidden>
-        ·
-    </Text>
-);
-
-const VersionLabel: FC<{ version: number }> = ({ version }) => (
-    <Text fz="xs" c="dimmed" ff="monospace">
-        v{version}
-    </Text>
-);
+const VersionPill: FC<{
+    version: number;
+    tone: Tone;
+    /** Shown on hover; the failure reason on a failed version. */
+    tooltip: string | null;
+}> = ({ version, tone, tooltip }) => {
+    const pill = (
+        <Text
+            component="span"
+            className={classes.pill}
+            data-tone={tone}
+            data-help={tooltip !== null || undefined}
+        >
+            v{version}
+        </Text>
+    );
+    return tooltip === null ? (
+        pill
+    ) : (
+        <Tooltip label={tooltip} multiline maw={280}>
+            {pill}
+        </Tooltip>
+    );
+};
 
 const VersionBuildDetails: FC<{ version: ApiAppVersionSummary }> = ({
     version,
@@ -138,25 +147,11 @@ const ThreadRule: FC = () => (
     />
 );
 
-/** The newest ready version that was live when `version` was built. */
-const getLiveVersionBefore = (
-    versions: ApiAppVersionSummary[],
-    version: number,
-): number | null =>
-    versions.reduce<number | null>(
-        (latest, candidate) =>
-            candidate.status === 'ready' &&
-            candidate.version < version &&
-            (latest === null || candidate.version > latest)
-                ? candidate.version
-                : latest,
-        null,
-    );
-
 /**
  * Every version of a data app on a timeline, newest first and grouped by
- * thread with a rule where the agent context was cleared. Clicking a ready
- * entry pins the preview to it; earlier entries offer to restore on top.
+ * thread with a rule where the agent context was cleared. Rows are
+ * borderless; the pill carries the build state, and Restore and Preview show
+ * on hover, with Previewing staying visible on the pinned version.
  */
 const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
     versions,
@@ -172,7 +167,6 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
     fetchEarlier,
     emptyPromptLabel,
     olderVersionTime,
-    showPreviewButton,
     showTimeline = true,
     renderEntryExtras,
     currentThreadNumber,
@@ -184,89 +178,100 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
         currentThreadNumber !== null &&
         currentThreadNumber > groups[0].threadNumber;
 
-    // What the preview is showing, so the highlight follows it.
-    const activeVersion = viewedVersion ?? latestReadyVersion;
-
     const rowFor = (version: ApiAppVersionSummary): Row => {
         const isBuilding = isAppVersionInProgress(version.status);
         const isFailed = !isBuilding && version.status !== 'ready';
         const isReady = !isBuilding && !isFailed;
         const isCurrent = version.version === latestReadyVersion;
-        const isActive = version.version === activeVersion;
+        const isPreviewing = version.version === viewedVersion;
+        // The current version offers Preview only while another one is pinned.
+        const isPinnedElsewhere = viewedVersion !== null && !isPreviewing;
         const label = `v${version.version}`;
         const isUpgrade = version.prompt === APP_UPGRADE_PROMPT_LABEL;
         const promptText = version.prompt || emptyPromptLabel;
-        const view = () => onView(isCurrent ? null : version.version);
         const showRelativeTime = isCurrent || olderVersionTime === 'relative';
-        const liveBefore = isFailed
-            ? getLiveVersionBefore(versions, version.version)
-            : null;
-        const failureDetail = isFailed
-            ? (version.statusMessage ?? version.error ?? null)
-            : null;
-        const dot: DotState = isBuilding
+        const tone: Tone = isBuilding
             ? 'building'
             : isFailed
               ? 'failed'
               : isCurrent
-                ? 'current'
+                ? 'live'
                 : 'past';
+        const failureReason = isFailed
+            ? (version.statusMessage ??
+              version.error ??
+              'Build failed, nothing was published')
+            : null;
 
         const node = (
-            <Paper
-                className={classes.entry}
-                data-active={isActive}
-                data-ready={isReady}
-            >
-                <UnstyledButton
-                    className={classes.entryMain}
-                    disabled={!isReady}
-                    aria-label={`View ${label}`}
-                    onClick={view}
-                >
-                    <Group gap="xs" wrap="nowrap">
-                        {isCurrent && (
-                            <Badge size="sm" color="indigo">
-                                Current
-                            </Badge>
-                        )}
-                        {isActive && !isCurrent && (
-                            <Badge size="sm">Viewing</Badge>
-                        )}
-                        <VersionLabel version={version.version} />
-                        <MetaSeparator />
-                        {showRelativeTime ? (
-                            <RelativeTime at={new Date(version.createdAt)} />
-                        ) : (
-                            <AbsoluteTime at={new Date(version.createdAt)} />
-                        )}
-                        {isFailed && (
-                            <Text fz="xs" fw={500} c="red">
-                                Build failed
-                            </Text>
-                        )}
-                        {isBuilding && (
-                            <Badge size="sm" color="indigo">
-                                Building…
-                            </Badge>
-                        )}
-                    </Group>
-                    {promptText && (
-                        <Text fz="sm" fw={500} className={classes.prompt}>
-                            {promptText}
+            <Box className={classes.entry} data-live={isCurrent || undefined}>
+                <Group gap={7} wrap="nowrap" className={classes.meta}>
+                    <VersionPill
+                        version={version.version}
+                        tone={tone}
+                        tooltip={failureReason}
+                    />
+                    {showRelativeTime ? (
+                        <RelativeTime at={new Date(version.createdAt)} />
+                    ) : (
+                        <AbsoluteTime at={new Date(version.createdAt)} />
+                    )}
+                    {isBuilding && (
+                        <Text fz="xs" c="dimmed">
+                            Building…
                         </Text>
                     )}
-                    {failureDetail && (
-                        <Text fz="sm" c="dimmed">
-                            {failureDetail}
-                        </Text>
+                    {isReady && (!isCurrent || isPinnedElsewhere) && (
+                        <Group
+                            gap={4}
+                            wrap="nowrap"
+                            className={classes.actions}
+                            data-visible={isPreviewing || undefined}
+                        >
+                            {!isCurrent && (
+                                <Button
+                                    size="compact-xs"
+                                    variant="subtle"
+                                    color="gray"
+                                    className={classes.action}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconHistory}
+                                            size={12}
+                                        />
+                                    }
+                                    onClick={() => onRestore(version.version)}
+                                >
+                                    Restore
+                                </Button>
+                            )}
+                            <Button
+                                size="compact-xs"
+                                variant="subtle"
+                                color="gray"
+                                className={classes.action}
+                                data-previewing={isPreviewing || undefined}
+                                leftSection={
+                                    <MantineIcon icon={IconEye} size={12} />
+                                }
+                                onClick={() =>
+                                    onView(
+                                        isPreviewing || isCurrent
+                                            ? null
+                                            : version.version,
+                                    )
+                                }
+                            >
+                                {isPreviewing ? 'Previewing' : 'Preview'}
+                            </Button>
+                        </Group>
                     )}
-                    {liveBefore !== null && (
-                        <Text fz="sm" c="dimmed">
-                            Nothing was published, so v{liveBefore} stayed live.
-                        </Text>
-                    )}
-                </UnstyledButton>
+                </Group>
+                {promptText && (
+                    <Text fz="sm" className={classes.prompt}>
+                        {promptText}
+                    </Text>
+                )}
 
                 {renderEntryExtras?.(version)}
 
@@ -282,67 +287,41 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                         </AiMarkdown>
                     </Box>
                 )}
-
-                {isReady &&
-                    (!isCurrent || (showPreviewButton && !isActive)) && (
-                        <Group gap="xs" wrap="nowrap">
-                            {!isCurrent && (
-                                <Button
-                                    size="xs"
-                                    variant="default"
-                                    leftSection={
-                                        <MantineIcon icon={IconHistory} />
-                                    }
-                                    onClick={() => onRestore(version.version)}
-                                >
-                                    Restore this version
-                                </Button>
-                            )}
-                            {showPreviewButton && !isActive && (
-                                <Button
-                                    size="xs"
-                                    variant="default"
-                                    leftSection={<MantineIcon icon={IconEye} />}
-                                    onClick={view}
-                                >
-                                    Preview
-                                </Button>
-                            )}
-                        </Group>
-                    )}
-            </Paper>
+            </Box>
         );
 
-        return { key: label, dot, node };
+        return { key: label, tone, node };
     };
 
     const liveRow: Row | null = liveBuild && {
         key: 'live',
-        dot: 'building',
+        tone: 'building',
         node: (
-            <Paper className={classes.entry}>
-                <Stack gap="xs">
-                    <Group gap="xs" wrap="nowrap">
-                        {liveBuild.claimedVersion !== null && (
-                            <VersionLabel version={liveBuild.claimedVersion} />
-                        )}
-                        <Badge size="sm" color="indigo">
-                            Building…
-                        </Badge>
-                    </Group>
-                    {liveBuild.pendingPrompt && (
-                        <Text fz="sm" fw={500} className={classes.prompt}>
-                            {liveBuild.pendingPrompt}
-                        </Text>
+            <Box className={classes.entry}>
+                <Group gap={7} wrap="nowrap" className={classes.meta}>
+                    {liveBuild.claimedVersion !== null && (
+                        <VersionPill
+                            version={liveBuild.claimedVersion}
+                            tone="building"
+                            tooltip={null}
+                        />
                     )}
-                </Stack>
-            </Paper>
+                    <Text fz="xs" c="dimmed">
+                        Building…
+                    </Text>
+                </Group>
+                {liveBuild.pendingPrompt && (
+                    <Text fz="sm" className={classes.prompt}>
+                        {liveBuild.pendingPrompt}
+                    </Text>
+                )}
+            </Box>
         ),
     };
 
     const ruleRow = (key: string): Row => ({
         key,
-        dot: null,
+        tone: null,
         node: <ThreadRule />,
     });
 
@@ -365,7 +344,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                 <Title order={5}>Version history</Title>
                 {onBack && (
                     <Button
-                        size="sm"
+                        size="xs"
                         variant="default"
                         leftSection={<MantineIcon icon={IconArrowLeft} />}
                         onClick={onBack}
@@ -376,7 +355,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                 {onClose && (
                     <Tooltip label="Collapse version history">
                         <ActionIcon
-                            size="sm"
+                            size="xs"
                             aria-label="Collapse version history"
                             onClick={onClose}
                         >
@@ -390,27 +369,39 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
 
             <Box className={classes.list}>
                 {!isEmpty && showTimeline && (
-                    <Timeline
-                        className={classes.timeline}
-                        classNames={{
-                            item: classes.item,
-                            itemBullet: classes.bullet,
-                        }}
-                        bulletSize={10}
-                        lineWidth={2}
-                    >
+                    <Box component="ul" className={classes.timeline}>
                         {rows.map((row) => (
-                            <Timeline.Item
+                            <Box
+                                component="li"
                                 key={row.key}
-                                mod={{ state: row.dot ?? 'rule' }}
+                                className={classes.item}
                             >
-                                {row.node}
-                            </Timeline.Item>
+                                <Box
+                                    component="span"
+                                    className={classes.rail}
+                                    aria-hidden
+                                >
+                                    {row.tone !== null && (
+                                        <Box
+                                            component="span"
+                                            className={classes.node}
+                                            data-tone={row.tone}
+                                        />
+                                    )}
+                                    <Box
+                                        component="span"
+                                        className={classes.spine}
+                                    />
+                                </Box>
+                                <Box className={classes.itemBody}>
+                                    {row.node}
+                                </Box>
+                            </Box>
                         ))}
-                    </Timeline>
+                    </Box>
                 )}
                 {!isEmpty && !showTimeline && (
-                    <Stack gap="sm" p="md">
+                    <Stack gap={0} p="md">
                         {rows.map((row) => (
                             <Fragment key={row.key}>{row.node}</Fragment>
                         ))}

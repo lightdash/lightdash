@@ -28,7 +28,6 @@ const defaultProps = {
     fetchEarlier: vi.fn(),
     emptyPromptLabel: null,
     olderVersionTime: 'relative' as const,
-    showPreviewButton: true,
     currentThreadNumber: null as number | null,
 };
 
@@ -106,7 +105,7 @@ describe('AppVersionHistoryPanel', () => {
         );
 
         expect(screen.getAllByText('Preview')).toHaveLength(1);
-        expect(screen.getAllByText('Restore this version')).toHaveLength(1);
+        expect(screen.getAllByText('Restore')).toHaveLength(1);
     });
 
     it('shows an empty state with no versions', () => {

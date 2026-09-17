@@ -1,6 +1,5 @@
 import { Box, Paper, Stack, Text } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
 import ThreadDivider from '../features/apps/components/ThreadDivider';
 
 const Bubble = ({ children }: { children: string }) => (
@@ -12,7 +11,7 @@ const Bubble = ({ children }: { children: string }) => (
 const meta: Meta<typeof ThreadDivider> = {
     title: 'Data apps/Thread divider',
     component: ThreadDivider,
-    args: { fromVersion: 12, onShowHistory: fn() },
+    args: { fromVersion: 12 },
     decorators: [
         (renderStory) => (
             <Stack w={640} p="md" gap="sm">
