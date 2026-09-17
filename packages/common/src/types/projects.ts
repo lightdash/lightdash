@@ -1366,6 +1366,21 @@ export const maybeOverrideDbtConnection = <T extends DbtProjectConfig>(
     };
 };
 
+export type Connection = {
+    connectionUuid: string;
+    name: string;
+    warehouseType: WarehouseTypes;
+    organizationWarehouseCredentialsUuid: string | null;
+    listAllDatabases: boolean;
+    additionalDatabases: string[];
+    createdAt: Date;
+};
+
+export type ApiConnectionsResponse = {
+    status: 'ok';
+    results: Connection[];
+};
+
 export type Project = {
     organizationUuid: string;
     projectUuid: string;
@@ -1374,6 +1389,7 @@ export type Project = {
     type: ProjectType;
     dbtConnection: DbtProjectConfig;
     warehouseConnection?: WarehouseCredentials;
+    connections: Connection[];
     pinnedListUuid?: string;
     upstreamProjectUuid?: string;
     dbtVersion: DbtVersionOption;

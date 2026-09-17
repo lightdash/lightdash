@@ -24,6 +24,7 @@ export const pickEmbedProject = (project: Project): Project => ({
     warehouseConnection: project.warehouseConnection
         ? pickEmbedWarehouseConnection(project.warehouseConnection)
         : undefined,
+    connections: project.connections,
     dbtVersion: project.dbtVersion,
     schedulerTimezone: project.schedulerTimezone,
     queryTimezone: project.queryTimezone,

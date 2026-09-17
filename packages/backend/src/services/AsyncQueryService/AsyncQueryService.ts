@@ -5390,7 +5390,7 @@ export class AsyncQueryService extends ProjectService {
         const metricQueryStart = Date.now();
 
         // Load project warehouse config once, shared by warehouse credentials and timezone resolution
-        const { organizationWarehouseCredentialsUuid, queryTimezone } =
+        const { queryTimezone } =
             await this.projectModel.getProjectWarehouseConfig(projectUuid);
         const projectTimezone =
             queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
@@ -5417,8 +5417,6 @@ export class AsyncQueryService extends ProjectService {
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
-                preloadedOrgWarehouseCredentialsUuid:
-                    organizationWarehouseCredentialsUuid,
             }),
             this.projectParametersModel.find(projectUuid),
         ]);
@@ -7161,7 +7159,7 @@ export class AsyncQueryService extends ProjectService {
         };
 
         // Load project warehouse config once, shared by warehouse credentials and timezone resolution
-        const { organizationWarehouseCredentialsUuid, queryTimezone } =
+        const { queryTimezone } =
             await this.projectModel.getProjectWarehouseConfig(projectUuid);
         const projectTimezone =
             queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
@@ -7177,8 +7175,6 @@ export class AsyncQueryService extends ProjectService {
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
-                preloadedOrgWarehouseCredentialsUuid:
-                    organizationWarehouseCredentialsUuid,
             }),
             this.dashboardModel.getDashboardParametersByIdOrSlug(
                 resolvedDashboardUuid,

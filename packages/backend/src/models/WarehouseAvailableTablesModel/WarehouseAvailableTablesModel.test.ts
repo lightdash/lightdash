@@ -28,18 +28,21 @@ describe('WarehouseAvailableTablesModel listed database scope', () => {
     });
 
     it('reads a default project database from named and legacy rows', async () => {
-        tracker.on.select('projects').responseOnce([]);
+        tracker.on
+            .select('warehouse_credentials')
+            .responseOnce([{ warehouse_credentials_id: 12 }]);
+        tracker.on.select(WarehouseAvailableTablesTableName).responseOnce([]);
 
         await model.getTablesForProjectWarehouseCredentials('project-uuid', {
             listedDatabase: 'default',
             includeLegacyRows: true,
         });
 
-        const [query] = tracker.history.select;
+        const query = tracker.history.select[1];
         expect(query.sql).toContain(
             '("listed_database" = $2 or "listed_database" is null)',
         );
-        expect(query.bindings).toEqual(['project-uuid', 'default']);
+        expect(query.bindings).toEqual([12, 'default']);
     });
 
     it('reads an additional personal database without legacy rows', async () => {
