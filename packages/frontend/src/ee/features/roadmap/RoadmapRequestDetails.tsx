@@ -18,6 +18,7 @@ import {
 } from '../../pages/roadmapUtils';
 import { RoadmapDetails, RoadmapRailRow } from './RoadmapDetails';
 import styles from './RoadmapDetails.module.css';
+import { RoadmapSlackThreadsRow } from './RoadmapSlackThreads';
 
 export const RoadmapRequestDetails: FC<{
     item: RoadmapItem | null;
@@ -128,6 +129,7 @@ export const RoadmapRequestDetails: FC<{
                         </Anchor>
                     </RoadmapRailRow>
                 )}
+                <RoadmapSlackThreadsRow urls={item.slackThreadUrls} />
             </>
         )}
     </RoadmapDetails>

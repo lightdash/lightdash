@@ -7,12 +7,19 @@ import styles from './RoadmapDetails.module.css';
 export function RoadmapRailRow({
     label,
     children,
+    align = 'center',
 }: {
     label: string;
     children: ReactNode;
+    align?: 'center' | 'flex-start';
 }) {
     return (
-        <Group className={styles.detailRailRow} wrap="nowrap" gap="sm">
+        <Group
+            className={styles.detailRailRow}
+            wrap="nowrap"
+            gap="sm"
+            align={align}
+        >
             <Text className={styles.detailRailLabel}>{label}</Text>
             <Box className={styles.detailRailValue}>{children}</Box>
         </Group>
