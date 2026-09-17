@@ -1,3 +1,10 @@
+## [2.255.2](https://github.com/lightdash/lightdash/compare/2.255.1...2.255.2) (2026-09-17)
+
+
+### Bug Fixes
+
+* **merge-queries:** read a source with no rows as an empty side instead of failing the join ([#29457](https://github.com/lightdash/lightdash/issues/29457)) ([15fdc21](https://github.com/lightdash/lightdash/commit/15fdc213eb224b8b1f7eb31b38fbf22f588f7b6e))
+
 ## [2.255.1](https://github.com/lightdash/lightdash/compare/2.255.0...2.255.1) (2026-09-17)
 
 
