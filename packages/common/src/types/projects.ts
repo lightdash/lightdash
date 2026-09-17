@@ -1376,9 +1376,48 @@ export type Connection = {
     createdAt: Date;
 };
 
+export type ConnectionCapabilities = {
+    canAddConnection: boolean;
+    reason?: string;
+};
+
+export type ConnectionWithCredentials = Connection & {
+    warehouseConnection: WarehouseCredentials;
+};
+
 export type ApiConnectionsResponse = {
     status: 'ok';
-    results: Connection[];
+    results: {
+        connections: Connection[];
+        capabilities: ConnectionCapabilities;
+    };
+};
+
+export type ApiConnectionResponse = {
+    status: 'ok';
+    results: Connection;
+};
+
+export type ApiConnectionWithCredentialsResponse = {
+    status: 'ok';
+    results: ConnectionWithCredentials;
+};
+
+export type ApiCreateConnectionRequest = {
+    name: string;
+    warehouseConnection?: CreateWarehouseCredentials;
+    organizationWarehouseCredentialsUuid?: string;
+};
+
+export type ApiUpdateConnectionRequest = {
+    warehouseConnection?: CreateWarehouseCredentialsWithOptionalSecrets;
+    organizationWarehouseCredentialsUuid?: string | null;
+    listAllDatabases?: boolean;
+    additionalDatabases?: string[];
+};
+
+export type ApiRenameConnectionRequest = {
+    name: string;
 };
 
 export type Project = {

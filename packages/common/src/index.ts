@@ -248,7 +248,10 @@ export {
 } from './types/projects';
 export type {
     AgentSqlScope,
+    ApiConnectionResponse,
+    ApiConnectionWithCredentialsResponse,
     ApiConnectionsResponse,
+    ApiCreateConnectionRequest,
     ApiCreateTrainingPreviewResponse,
     ApiEnsurePlaygroundProjectResponse,
     ApiEnableLearnResponse,
@@ -257,6 +260,10 @@ export type {
     LearnAccess,
     ApiGetProjectGroupAccesses,
     ApiProjectResponse,
+    ApiRenameConnectionRequest,
+    ApiUpdateConnectionRequest,
+    ConnectionCapabilities,
+    ConnectionWithCredentials,
     EnsurePlaygroundProjectRequest,
     CreateTrainingPreviewResults,
     EnsurePlaygroundProjectResults,
