@@ -156,7 +156,10 @@ import {
 } from '../../database/entities/spaces';
 import { TagsTableName } from '../../database/entities/tags';
 import { DbUser, UserTableName } from '../../database/entities/users';
-import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
+import {
+    WarehouseCredentialTableName,
+    warehouseTypeDisplayNames,
+} from '../../database/entities/warehouseCredentials';
 import {
     AiPromptTableName,
     AiThreadTableName,
@@ -228,6 +231,23 @@ const getMotherduckConnectionString = (
     credentials.connectionType === DuckdbConnectionType.MOTHERDUCK
         ? buildMotherduckConnectionString(credentials)
         : undefined;
+
+const normalizeAdditionalDatabases = (databases: string[] = []): string[] => [
+    ...new Set(databases.map((database) => database.trim()).filter(Boolean)),
+];
+
+const mergeConnectionListingFields = <T extends CreateWarehouseCredentials>(
+    credentials: T,
+    row: {
+        list_all_databases: boolean | null;
+        additional_databases: string[] | null;
+    },
+): T =>
+    ({
+        ...credentials,
+        listAllDatabases: row.list_all_databases ?? false,
+        additionalDatabases: row.additional_databases ?? [],
+    }) as T;
 
 async function chunkedInsertReturning<T extends Record<string, unknown>>(
     trx: Transaction,
@@ -819,27 +839,50 @@ export class ProjectModel {
         trx: Transaction,
         projectId: number,
         data: CreateWarehouseCredentials,
+        organizationWarehouseCredentialsUuid?: string,
     ): Promise<void> {
-        // Normalize on write too, so stored blobs never hold legacy values
-        // that violate the credentials types
-        const credentials = normalizeWarehouseCredentials(data);
-        let encryptedCredentials: Buffer;
-        try {
-            encryptedCredentials = this.encryptionUtil.encrypt(
-                JSON.stringify(credentials),
-            );
-        } catch (e) {
-            throw new UnexpectedServerError('Could not save credentials.');
+        const {
+            listAllDatabases = false,
+            additionalDatabases = [],
+            ...credentials
+        } = normalizeWarehouseCredentials(data);
+        let encryptedCredentials: Buffer | null = null;
+        if (!organizationWarehouseCredentialsUuid) {
+            try {
+                encryptedCredentials = this.encryptionUtil.encrypt(
+                    JSON.stringify(credentials),
+                );
+            } catch (e) {
+                throw new UnexpectedServerError('Could not save credentials.');
+            }
         }
 
-        await trx('warehouse_credentials')
-            .insert({
-                project_id: projectId,
-                warehouse_type: credentials.type,
-                encrypted_credentials: encryptedCredentials,
-            })
+        const connection = {
+            project_id: projectId,
+            warehouse_type: credentials.type,
+            name: warehouseTypeDisplayNames[credentials.type],
+            encrypted_credentials: encryptedCredentials,
+            organization_warehouse_credentials_uuid:
+                organizationWarehouseCredentialsUuid ?? null,
+            list_all_databases: listAllDatabases,
+            additional_databases:
+                normalizeAdditionalDatabases(additionalDatabases),
+        };
+        const updates = {
+            warehouse_type: connection.warehouse_type,
+            organization_warehouse_credentials_uuid:
+                connection.organization_warehouse_credentials_uuid,
+            list_all_databases: connection.list_all_databases,
+            additional_databases: connection.additional_databases,
+            ...(encryptedCredentials
+                ? { encrypted_credentials: encryptedCredentials }
+                : {}),
+        };
+
+        await trx(WarehouseCredentialTableName)
+            .insert(connection)
             .onConflict('project_id')
-            .merge();
+            .merge(updates);
     }
 
     async hasAnyProjects(): Promise<boolean> {
@@ -964,6 +1007,7 @@ export class ProjectModel {
                     trx,
                     project.project_id,
                     data.warehouseConnection,
+                    data.organizationWarehouseCredentialsUuid,
                 );
             }
 
@@ -1183,6 +1227,7 @@ export class ProjectModel {
                 trx,
                 project.project_id,
                 data.warehouseConnection,
+                data.organizationWarehouseCredentialsUuid,
             );
         });
 
@@ -1554,6 +1599,9 @@ export class ProjectModel {
                   dbt_connection: Buffer | null;
                   encrypted_credentials: null;
                   warehouse_type: null;
+                  connection_organization_warehouse_credentials_uuid: null;
+                  list_all_databases: null;
+                  additional_databases: null;
                   organization_uuid: string;
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
@@ -1578,8 +1626,13 @@ export class ProjectModel {
                   slug: string;
                   project_type: ProjectType;
                   dbt_connection: Buffer | null;
-                  encrypted_credentials: Buffer;
+                  encrypted_credentials: Buffer | null;
                   warehouse_type: string;
+                  connection_organization_warehouse_credentials_uuid:
+                      | string
+                      | null;
+                  list_all_databases: boolean;
+                  additional_databases: string[];
                   organization_uuid: string;
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
@@ -1605,11 +1658,13 @@ export class ProjectModel {
             {},
             async () => {
                 const projects = await this.database('projects')
-                    .leftJoin(
-                        WarehouseCredentialTableName,
-                        'warehouse_credentials.project_id',
-                        'projects.project_id',
-                    )
+                    .leftJoin(WarehouseCredentialTableName, function join() {
+                        this.on(
+                            'warehouse_credentials.project_id',
+                            '=',
+                            'projects.project_id',
+                        ).andOnNull('warehouse_credentials.superseded_at');
+                    })
                     .leftJoin(
                         OrganizationTableName,
                         'organizations.organization_id',
@@ -1634,6 +1689,18 @@ export class ProjectModel {
                             .withSchema(WarehouseCredentialTableName),
                         this.database
                             .ref('warehouse_type')
+                            .withSchema(WarehouseCredentialTableName),
+                        this.database
+                            .ref('organization_warehouse_credentials_uuid')
+                            .withSchema(WarehouseCredentialTableName)
+                            .as(
+                                'connection_organization_warehouse_credentials_uuid',
+                            ),
+                        this.database
+                            .ref('list_all_databases')
+                            .withSchema(WarehouseCredentialTableName),
+                        this.database
+                            .ref('additional_databases')
                             .withSchema(WarehouseCredentialTableName),
                         this.database
                             .ref('organization_uuid')
@@ -1746,21 +1813,24 @@ export class ProjectModel {
                     agentSqlScope: project.agent_sql_scope ?? null,
                 };
 
-                // If project uses organization warehouse credentials, load them
-                if (project.organization_warehouse_credentials_uuid) {
+                if (
+                    project.connection_organization_warehouse_credentials_uuid
+                ) {
                     const sensitiveCredentials =
                         await this.getOrganizationWarehouseCredentials(
-                            project.organization_warehouse_credentials_uuid,
+                            project.connection_organization_warehouse_credentials_uuid,
                             project.organization_uuid,
                         );
                     return {
                         ...result,
-                        warehouseConnection: sensitiveCredentials,
+                        warehouseConnection: mergeConnectionListingFields(
+                            sensitiveCredentials,
+                            project,
+                        ),
                     };
                 }
 
-                // Fall back to project-level credentials
-                if (!project.warehouse_type) {
+                if (!project.warehouse_type || !project.encrypted_credentials) {
                     return result;
                 }
                 let sensitiveCredentials: CreateWarehouseCredentials;
@@ -1779,7 +1849,10 @@ export class ProjectModel {
                 }
                 return {
                     ...result,
-                    warehouseConnection: sensitiveCredentials,
+                    warehouseConnection: mergeConnectionListingFields(
+                        sensitiveCredentials,
+                        project,
+                    ),
                 };
             },
         );
@@ -4131,38 +4204,53 @@ export class ProjectModel {
             .select<
                 {
                     warehouse_type: string;
-                    encrypted_credentials: Buffer;
-                    organization_warehouse_credentials_uuid: string;
+                    encrypted_credentials: Buffer | null;
+                    organization_warehouse_credentials_uuid: string | null;
                     organization_uuid: string;
+                    list_all_databases: boolean;
+                    additional_databases: string[];
                 }[]
             >([
-                'encrypted_credentials',
-                'organization_warehouse_credentials_uuid',
+                'warehouse_credentials.encrypted_credentials',
+                'warehouse_credentials.organization_warehouse_credentials_uuid',
+                'warehouse_credentials.list_all_databases',
+                'warehouse_credentials.additional_databases',
                 'organizations.organization_uuid',
             ])
-            .where('project_uuid', projectUuid);
+            .where('project_uuid', projectUuid)
+            .whereNull('warehouse_credentials.superseded_at');
         if (row === undefined) {
             throw new NotFoundError(
                 `Cannot find any warehouse credentials for project.`,
             );
         }
         if (row.organization_warehouse_credentials_uuid) {
-            // If organization_warehouse_credentials_uuid is set, we overwrite the credentials with the organization credentials
             const orgCredentials =
                 await this.getOrganizationWarehouseCredentials(
                     row.organization_warehouse_credentials_uuid,
                     row.organization_uuid,
                 );
-            // Store in cache
-            warehouseCredentialsCache?.set(projectUuid, orgCredentials);
-            return orgCredentials;
+            const credentials = mergeConnectionListingFields(
+                orgCredentials,
+                row,
+            );
+            warehouseCredentialsCache?.set(projectUuid, credentials);
+            return credentials;
         }
 
+        if (!row.encrypted_credentials) {
+            throw new UnexpectedServerError(
+                'Unexpected error: warehouse credentials are missing',
+            );
+        }
         try {
-            const credentials = normalizeWarehouseCredentials(
-                JSON.parse(
-                    this.encryptionUtil.decrypt(row.encrypted_credentials),
-                ) as CreateWarehouseCredentials,
+            const credentials = mergeConnectionListingFields(
+                normalizeWarehouseCredentials(
+                    JSON.parse(
+                        this.encryptionUtil.decrypt(row.encrypted_credentials),
+                    ) as CreateWarehouseCredentials,
+                ),
+                row,
             );
             warehouseCredentialsCache?.set(projectUuid, credentials);
             return credentials;
@@ -4187,15 +4275,19 @@ export class ProjectModel {
                     'projects.project_id',
                 )
                 .where('projects.project_uuid', projectUuid)
+                .whereNull('warehouse_credentials.superseded_at')
                 .select<
-                    { project_id: number; encrypted_credentials: Buffer }[]
+                    {
+                        warehouse_credentials_id: number;
+                        encrypted_credentials: Buffer | null;
+                    }[]
                 >([
-                    'warehouse_credentials.project_id',
+                    'warehouse_credentials.warehouse_credentials_id',
                     'warehouse_credentials.encrypted_credentials',
                 ])
                 .forUpdate()
                 .first();
-            if (!row) {
+            if (!row?.encrypted_credentials) {
                 return false;
             }
 
@@ -4223,7 +4315,10 @@ export class ProjectModel {
             );
             await trx('warehouse_credentials')
                 .update({ encrypted_credentials: encryptedCredentials })
-                .where('project_id', row.project_id);
+                .where(
+                    'warehouse_credentials_id',
+                    row.warehouse_credentials_id,
+                );
             return true;
         });
 

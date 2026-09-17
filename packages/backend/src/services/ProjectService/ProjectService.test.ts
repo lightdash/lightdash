@@ -43,6 +43,7 @@ import {
     SessionUser,
     SnowflakeAuthenticationType,
     SupportedDbtAdapter,
+    WarehouseDatabaseListingNotSupportedError,
     WarehouseTypes,
     WeekDay,
     type ChartSummary,
@@ -2700,6 +2701,44 @@ describe('ProjectService', () => {
             );
         },
     );
+
+    describe('connection database listing support', () => {
+        const { assertDatabaseListingSupported } =
+            ProjectService as unknown as {
+                assertDatabaseListingSupported: (
+                    credentials: CreateWarehouseCredentials,
+                ) => void;
+            };
+
+        test('rejects listing fields for an unsupported warehouse', () => {
+            expect(() =>
+                assertDatabaseListingSupported({
+                    type: WarehouseTypes.POSTGRES,
+                    host: 'localhost',
+                    user: 'postgres',
+                    password: 'password',
+                    port: 5432,
+                    dbname: 'analytics',
+                    schema: 'public',
+                    listAllDatabases: true,
+                }),
+            ).toThrowError(WarehouseDatabaseListingNotSupportedError);
+        });
+
+        test('allows an unsupported warehouse when listing fields are unset', () => {
+            expect(() =>
+                assertDatabaseListingSupported({
+                    type: WarehouseTypes.POSTGRES,
+                    host: 'localhost',
+                    user: 'postgres',
+                    password: 'password',
+                    port: 5432,
+                    dbname: 'analytics',
+                    schema: 'public',
+                }),
+            ).not.toThrow();
+        });
+    });
 
     describe('public analytics connection configuration', () => {
         const warehouseConnection = {

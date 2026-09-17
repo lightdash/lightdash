@@ -100,6 +100,7 @@ export const expectedProject: Project = {
         type: DbtProjectType.DBT_CLOUD_IDE,
     } as AnyType as DbtCloudIDEProjectConfig,
     warehouseConnection: {
+        additionalDatabases: [],
         authenticationType: BigqueryAuthenticationType.PRIVATE_KEY, // Default
         dataset: 'name',
         location: 'name',
@@ -109,7 +110,9 @@ export const expectedProject: Project = {
         retries: 1,
         timeoutSeconds: 1,
         type: WarehouseTypes.BIGQUERY,
+        listAllDatabases: false,
     } as AnyType as BigqueryCredentials,
+    pinnedListUuid: undefined,
     dbtVersion: DefaultSupportedDbtVersion,
     schedulerTimezone: 'UTC',
     queryTimezone: null,
@@ -118,7 +121,10 @@ export const expectedProject: Project = {
     schedulerFailureIncludeContact: false,
     schedulerFailureContactOverride: null,
     createdByUserUuid: null,
+    upstreamProjectUuid: undefined,
+    organizationWarehouseCredentialsUuid: undefined,
     hasDefaultUserSpaces: false,
+    projectDefaults: undefined,
     colorPaletteUuid: null,
     expiresAt: null,
     provisioningSource: null,
