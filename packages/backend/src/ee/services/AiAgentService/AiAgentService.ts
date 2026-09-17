@@ -10174,6 +10174,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             suppressWritebackPreview?: boolean;
             dbtSourceUuid?: string;
             onWarehouseQuery?: () => void | Promise<void>;
+            enableDocuments: boolean;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -10185,6 +10186,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             organizationUuid,
             projectUuid,
             source: 'ai_agent',
+            enableDocuments: options?.enableDocuments ?? false,
             catalogSearchContext: CatalogSearchContext.AI_AGENT,
             defaultQueryExecutionContext: QueryExecutionContext.AI,
             tags: runtimeAgentSettings.tags,
@@ -11093,88 +11095,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 user,
             );
 
-        const {
-            listExplores,
-            getExplore,
-            getProjectParameterDefinitions,
-            getProjectContextDocument,
-            getAiAgentMemoryContextEntries,
-            incrementAiAgentMemoryPulls,
-            resolveThreadMemoryOwnerUuid,
-            listContent,
-            findContent,
-            readContent,
-            generateDataApp,
-            iterateDataApp,
-            listDataAppThemes,
-            resolveUrl,
-            editContent,
-            createContent,
-            createScheduledDelivery,
-            updateUserName,
-            validateContent,
-            getDashboardCharts,
-            findExplores,
-            listCustomChartTypes,
-            findCustomChartTypes,
-            resolveCustomChartType,
-            getVerifiedFieldUsage,
-            searchSemanticLayer,
-            analyzeFieldImpact,
-            syncDbtProject,
-            updateProgress,
-            getPrompt,
-            runAsyncQuery,
-            runAsyncMergeQuery,
-            runSavedChartQuery,
-            runSqlJob,
-            runComposerQueries,
-            listWarehouseTables,
-            describeWarehouseTable,
-            listKnowledgeDocuments,
-            getKnowledgeDocumentContent,
-            getSavedChart,
-            sendFile,
-            exportCustomChartTypeImage,
-            sendSlackBlocks,
-            updateSlackMessage,
-            storeToolCall,
-            storeToolCallError,
-            storeToolResults,
-            storeReasoning,
-            isPromptInterrupted,
-            consumePromptSteers,
-            searchFieldValues,
-            editDbtProject,
-            editProjectContext,
-            editRepo,
-            setupPreviewDeploy,
-            exploreRepo,
-            discoverRepos,
-            listWorkstreams,
-            closePullRequest,
-            getPullRequestDiff,
-            listProjects,
-            getProjectInfo,
-        } = await this.getAiAgentDependencies(user, prompt, {
-            onStepProgress:
-                options.onSlackStepProgress ??
-                (stepProgressEmitter
-                    ? (progress, toolName, progressId, progressStatus) => {
-                          stepProgressEmitter.emit('stepProgress', {
-                              message: progress,
-                              toolName,
-                              progressId,
-                              progressStatus,
-                          });
-                      }
-                    : undefined),
-            runtimeOptions: options.runtimeOptions,
-            suppressWritebackPreview: options.suppressWritebackPreview,
-            dbtSourceUuid: options.dbtSourceUuid,
-            onWarehouseQuery: responseExecution.onWarehouseQuery,
-        });
-
         const agentSettings = await this.getAgentSettings(user, prompt);
         const enableSqlMode =
             options.enableSqlMode ?? agentSettings.enableSqlMode;
@@ -11489,6 +11409,95 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 user,
                 projectUuid: promptProject.projectUuid,
             }));
+        const { enabled: documentsEnabled } = await this.featureFlagService.get(
+            {
+                user,
+                featureFlagId: FeatureFlags.Documents,
+            },
+        );
+        const {
+            listExplores,
+            getExplore,
+            getProjectParameterDefinitions,
+            getProjectContextDocument,
+            getAiAgentMemoryContextEntries,
+            incrementAiAgentMemoryPulls,
+            resolveThreadMemoryOwnerUuid,
+            listContent,
+            findContent,
+            readContent,
+            generateDataApp,
+            iterateDataApp,
+            listDataAppThemes,
+            resolveUrl,
+            editContent,
+            createContent,
+            createScheduledDelivery,
+            updateUserName,
+            validateContent,
+            getDashboardCharts,
+            findExplores,
+            listCustomChartTypes,
+            findCustomChartTypes,
+            resolveCustomChartType,
+            getVerifiedFieldUsage,
+            searchSemanticLayer,
+            analyzeFieldImpact,
+            syncDbtProject,
+            updateProgress,
+            getPrompt,
+            runAsyncQuery,
+            runAsyncMergeQuery,
+            runSavedChartQuery,
+            runSqlJob,
+            runComposerQueries,
+            listWarehouseTables,
+            describeWarehouseTable,
+            listKnowledgeDocuments,
+            getKnowledgeDocumentContent,
+            getSavedChart,
+            sendFile,
+            exportCustomChartTypeImage,
+            sendSlackBlocks,
+            updateSlackMessage,
+            storeToolCall,
+            storeToolCallError,
+            storeToolResults,
+            storeReasoning,
+            isPromptInterrupted,
+            consumePromptSteers,
+            searchFieldValues,
+            editDbtProject,
+            editProjectContext,
+            editRepo,
+            setupPreviewDeploy,
+            exploreRepo,
+            discoverRepos,
+            listWorkstreams,
+            closePullRequest,
+            getPullRequestDiff,
+            listProjects,
+            getProjectInfo,
+        } = await this.getAiAgentDependencies(user, prompt, {
+            onStepProgress:
+                options.onSlackStepProgress ??
+                (stepProgressEmitter
+                    ? (progress, toolName, progressId, progressStatus) => {
+                          stepProgressEmitter.emit('stepProgress', {
+                              message: progress,
+                              toolName,
+                              progressId,
+                              progressStatus,
+                          });
+                      }
+                    : undefined),
+            runtimeOptions: options.runtimeOptions,
+            suppressWritebackPreview: options.suppressWritebackPreview,
+            dbtSourceUuid: options.dbtSourceUuid,
+            onWarehouseQuery: responseExecution.onWarehouseQuery,
+            enableDocuments: canUseContentTools && documentsEnabled,
+        });
+
         const availableSkills = canUseContentTools
             ? await this.aiAgentToolsService.listAgentSkills()
             : [];
@@ -11604,6 +11613,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             enableContentTools: canUseContentTools,
+            enableDocuments: canUseContentTools && documentsEnabled,
             enableGenerateDataApp,
             enableAiWriteback: aiWritebackEnabled,
             enableEditProjectContext: isReviewRemediationWorkThread,

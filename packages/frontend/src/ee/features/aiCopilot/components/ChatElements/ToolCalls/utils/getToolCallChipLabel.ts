@@ -26,6 +26,7 @@ import { type ToolCallSummary } from './types';
 
 type ToolReadContentArgs = {
     slug?: string;
+    documentUuid?: string;
 };
 
 type ToolEditContentArgs = {
@@ -144,7 +145,7 @@ export const getToolCallChipLabel = (
         }
         case 'readContent': {
             const args = toolArgs as ToolReadContentArgs;
-            return args.slug ?? null;
+            return args.slug ?? args.documentUuid ?? null;
         }
         case 'resolveUrl': {
             const args = toolArgs as ToolResolveUrlArgs;

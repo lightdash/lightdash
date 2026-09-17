@@ -1,6 +1,7 @@
 import { type AnyType } from '@lightdash/common';
 import {
     APICallError,
+    asSchema,
     generateText,
     streamText,
     type ModelMessage,
@@ -1017,6 +1018,7 @@ describe('getAgentTools workstream tool gate', () => {
         canRunSql?: boolean;
         enableComposerQueries?: boolean;
         enableContentTools?: boolean;
+        enableDocuments?: boolean;
         enableDataAccess?: boolean;
         enableGenerateDataApp?: boolean;
         enableFilterExpressions?: boolean;
@@ -1089,6 +1091,63 @@ describe('getAgentTools workstream tool gate', () => {
         buildToolsForArgs(buildArgs(flags));
 
     const toolNames = (flags: ToolFlags) => Object.keys(buildTools(flags));
+
+    it.each([
+        [false, false, false],
+        [false, false, true],
+        [false, true, false],
+        [false, true, true],
+        [true, false, false],
+        [true, false, true],
+        [true, true, false],
+        [true, true, true],
+    ])(
+        'gates Document schemas and instructions together (documents=%s, content=%s, data=%s)',
+        (enableDocuments, enableContentTools, enableDataAccess) => {
+            const args = buildArgs({
+                enableCodingAgent: false,
+                enableAiWriteback: false,
+                enableDocuments,
+                enableContentTools,
+                enableDataAccess,
+            });
+            const tools = buildToolsForArgs(args);
+            const contentEnabled = enableContentTools && enableDataAccess;
+            const documentsEnabled = contentEnabled && enableDocuments;
+            const systemMessage = getAgentMessages(
+                args,
+                [],
+                mcpStub,
+                tools,
+                new Map(),
+                null,
+                { types: [], totalCount: 0 },
+            ).find(({ role }) => role === 'system');
+            if (!systemMessage || typeof systemMessage.content !== 'string') {
+                throw new Error('Expected a string system message');
+            }
+
+            expect(
+                systemMessage.content.includes(
+                    'Create a Document only when the user explicitly asks',
+                ),
+            ).toBe(documentsEnabled);
+            for (const name of [
+                'createContent',
+                'readContent',
+                'editContent',
+            ]) {
+                expect(Object.hasOwn(tools, name)).toBe(contentEnabled);
+                if (contentEnabled) {
+                    expect(
+                        JSON.stringify(
+                            asSchema(tools[name].inputSchema).jsonSchema,
+                        ).includes('"document"'),
+                    ).toBe(documentsEnabled);
+                }
+            }
+        },
+    );
 
     it.each([false, true])(
         'matches the %s filter prompt to the selected tool contracts',

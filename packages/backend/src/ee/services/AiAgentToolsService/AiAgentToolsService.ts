@@ -52,7 +52,6 @@ import {
     type DataAppVizSchema,
     type Document,
     type FieldValueSearchResult,
-    type McpDocumentAsCode,
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
     type SchedulerAiAugmentation,
@@ -106,6 +105,7 @@ import {
     CreateContentFn,
     CreateScheduledDeliveryFn,
     DescribeWarehouseTableFn,
+    DocumentContentResult,
     EditContentFn,
     FindContentFn,
     FindContentResult,
@@ -173,7 +173,7 @@ import type {
 type AgentListContentResult = Awaited<ReturnType<ListContentFn>>;
 type AgentListContentItem = AgentListContentResult['items'][number];
 type ProjectSpace = Awaited<ReturnType<ProjectService['getSpaces']>>[number];
-type ContentAsCodeType = Parameters<EditContentFn>[0]['type'];
+type ContentAsCodeType = Parameters<ValidateContentFn>[0]['type'];
 type SearchContentResult = Awaited<
     ReturnType<SearchService['findContent']>
 >['content'][number];
@@ -196,6 +196,7 @@ export type AiAgentToolsRuntimeContext = {
     organizationUuid: string;
     projectUuid: string;
     source: AiAgentToolsSource;
+    enableDocuments?: boolean;
     catalogSearchContext: CatalogSearchContext;
     defaultQueryExecutionContext: QueryExecutionContext;
     tags: string[] | null;
@@ -312,14 +313,6 @@ export type McpAiAgentToolsRuntime = Omit<
     findFields: (
         args: Parameters<FindFieldsFn>[0],
     ) => Promise<McpRuntimeResult<FindFieldsRuntimeResult>>;
-};
-
-export type DocumentContentResult = {
-    type: 'document';
-    content: McpDocumentAsCode;
-    uuid: string;
-    href: string;
-    versionUuid: string;
 };
 
 type BuiltInSkillsClient = Pick<
@@ -1509,7 +1502,8 @@ export class AiAgentToolsService extends BaseService {
                     );
 
                 const documentResults =
-                    context.source === 'mcp' && !verifiedOnly
+                    (context.source === 'mcp' || context.enableDocuments) &&
+                    !verifiedOnly
                         ? await this.findDocumentContent(
                               context,
                               args.searchQuery.label,
@@ -1975,8 +1969,12 @@ export class AiAgentToolsService extends BaseService {
 
     private readContent(
         context: AiAgentToolsRuntimeContext,
-        { slug, type }: Parameters<ReadContentFn>[0],
+        args: Parameters<ReadContentFn>[0],
     ): ReturnType<ReadContentFn> {
+        if (args.type === 'document') {
+            return this.readDocumentContent(context, args);
+        }
+        const { slug, type } = args;
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.readContent`,
             { slug, type },
@@ -2335,8 +2333,16 @@ export class AiAgentToolsService extends BaseService {
 
     private editContent(
         context: AiAgentToolsRuntimeContext,
-        { slug, type, patch }: Parameters<EditContentFn>[0],
+        args: Parameters<EditContentFn>[0],
     ): ReturnType<EditContentFn> {
+        if (args.type === 'document') {
+            return this.editDocumentContent(
+                context,
+                args.slug,
+                args.documentEdit,
+            );
+        }
+        const { slug, type, patch } = args;
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.editContent`,
             { slug, type },
@@ -2470,6 +2476,9 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         { type, content }: Parameters<CreateContentFn>[0],
     ): ReturnType<CreateContentFn> {
+        if (type === 'document') {
+            return this.createDocumentContent(context, content);
+        }
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.createContent`,
             { slug: content.slug, type },
@@ -3980,7 +3989,9 @@ export class AiAgentToolsService extends BaseService {
                     ContentType.CHART,
                     ContentType.SPACE,
                     ContentType.DATA_APP,
-                    ...(context.source === 'mcp' ? [ContentType.DOCUMENT] : []),
+                    ...(context.source === 'mcp' || context.enableDocuments
+                        ? [ContentType.DOCUMENT]
+                        : []),
                 ],
             },
             {},
@@ -3993,6 +4004,7 @@ export class AiAgentToolsService extends BaseService {
                 .filter(
                     (item) =>
                         context.source === 'mcp' ||
+                        context.enableDocuments ||
                         item.contentType !== ContentType.DOCUMENT,
                 )
                 .filter(

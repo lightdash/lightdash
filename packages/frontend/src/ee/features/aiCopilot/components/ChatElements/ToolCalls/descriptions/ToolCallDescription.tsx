@@ -64,17 +64,18 @@ import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
 type ToolReadContentArgs = {
     slug?: string;
-    type?: ReadContentType;
+    documentUuid?: string;
+    type?: ReadContentType | 'document';
 };
 
 type ToolEditContentArgs = {
     slug?: string;
-    type?: 'dashboard' | 'chart';
+    type?: 'dashboard' | 'chart' | 'document';
 };
 
 type ToolCreateContentArgs = {
     content?: { slug?: string };
-    type?: 'dashboard' | 'chart';
+    type?: 'dashboard' | 'chart' | 'document';
 };
 
 export const ToolCallDescription: FC<{
@@ -237,10 +238,12 @@ export const ToolCallDescription: FC<{
         case 'readContent':
             const readContentToolArgs =
                 toolCall.toolArgs as ToolReadContentArgs;
-            return readContentToolArgs.slug && readContentToolArgs.type ? (
+            const readContentIdentifier =
+                readContentToolArgs.slug ?? readContentToolArgs.documentUuid;
+            return readContentIdentifier && readContentToolArgs.type ? (
                 <ContentEditorToolCallDescription
                     action="read"
-                    slug={readContentToolArgs.slug}
+                    slug={readContentIdentifier}
                     type={readContentToolArgs.type}
                 />
             ) : (

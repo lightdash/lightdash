@@ -65,6 +65,7 @@ import {
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
+import AiDocumentCards from './AiDocumentCards';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import {
@@ -965,6 +966,11 @@ const AssistantBubbleContent: FC<{
                         <TypingDots />
                     </Box>
                 )}
+            <AiDocumentCards
+                projectUuid={projectUuid}
+                toolResults={message.toolResults}
+                streamParts={streamingState?.parts}
+            />
             {editDbtProjectResult && (
                 <AiEditDbtProjectToolCall
                     metadata={editDbtProjectResult.metadata}

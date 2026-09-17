@@ -24,7 +24,10 @@ import {
 } from './filterGuidance';
 import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getCodingAgentSection } from './systemV2CodingAgent';
-import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
+import {
+    CONTENT_TOOLS_SECTION,
+    DOCUMENT_TOOLS_SECTION,
+} from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
@@ -75,6 +78,7 @@ export const getSystemPromptV2 = (args: {
     // GitLab no). Defaults true; when false the prompt steers off `search`.
     repoFsSupportsCodeSearch?: boolean;
     enableContentTools?: boolean;
+    enableDocuments?: boolean;
     enableGenerateDataApp?: boolean;
     enableAiAgentMemory?: boolean;
     // Originating Slack channel for "this channel" scheduling targets; null on
@@ -110,6 +114,7 @@ export const getSystemPromptV2 = (args: {
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
         enableContentTools = false,
+        enableDocuments = false,
         enableGenerateDataApp = false,
         enableAiAgentMemory = false,
         slackChannelId = null,
@@ -322,7 +327,14 @@ export const getSystemPromptV2 = (args: {
         )
         .replace(
             '{{content_tools_section}}',
-            enableContentTools ? CONTENT_TOOLS_SECTION : '',
+            enableContentTools
+                ? [
+                      CONTENT_TOOLS_SECTION,
+                      enableDocuments ? DOCUMENT_TOOLS_SECTION : '',
+                  ]
+                      .filter(Boolean)
+                      .join('\n\n')
+                : '',
         )
         .replace(
             '{{generate_data_app_section}}',

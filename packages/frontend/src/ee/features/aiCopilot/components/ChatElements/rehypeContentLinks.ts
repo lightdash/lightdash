@@ -3,6 +3,7 @@ import { visit } from 'unist-util-visit';
 
 const CONTENT_TYPES = [
     'dashboard-link',
+    'document-link',
     'chart-link',
     'data-app-link',
     'artifact-link',
@@ -87,6 +88,12 @@ interface UrlMatcher {
 }
 
 const URL_MATCHERS: UrlMatcher[] = [
+    {
+        pattern: /\/projects\/[^/]+\/documents\/([^/#?]+)(?:[?#]|$)/,
+        contentType: 'document-link',
+        schedulable: false,
+        extractData: (match) => ({ 'data-document-uuid': match[1] }),
+    },
     {
         pattern: /\/projects\/[^/]+\/dashboards\/([^/]+)\/view/,
         contentType: 'dashboard-link',

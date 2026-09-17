@@ -21,6 +21,25 @@ const processHref = (href: string) => {
 };
 
 describe('rehypeAiAgentContentLinks', () => {
+    it.each([
+        '/projects/project-uuid/documents/document-uuid',
+        'https://app.lightdash.cloud/projects/project-uuid/documents/document-uuid',
+        '/projects/project-uuid/documents/document-uuid?foo=bar#section',
+    ])('marks a canonical document link: %s', (href) => {
+        expect(processHref(href)).toEqual({
+            href,
+            'data-content-type': 'document-link',
+            'data-document-uuid': 'document-uuid',
+        });
+    });
+
+    it.each([
+        '/projects/project-uuid/documents',
+        '/projects/project-uuid/documents/document-uuid/not-a-document',
+    ])('does not classify non-document routes: %s', (href) => {
+        expect(processHref(href)).toEqual({ href });
+    });
+
     it('marks canonical dashboard links', () => {
         expect(
             processHref(
