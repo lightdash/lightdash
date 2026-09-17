@@ -24,6 +24,7 @@ import {
     getGithubUserAuthorizeUrl,
     getOctokitRestForApp,
     getOrRefreshToken,
+    isGithubAppConfigured,
 } from '../../clients/github/Github';
 import { LightdashConfig } from '../../config/parseConfig';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -88,6 +89,13 @@ export class GithubAppService extends BaseService {
     }
 
     async installRedirect(user: SessionUser) {
+        const githubAppName = this.lightdashConfig.github.appName;
+        if (!githubAppName || !isGithubAppConfigured()) {
+            throw new MissingConfigError(
+                'GitHub integration is not configured on this Lightdash instance. Set GITHUB_APP_NAME, GITHUB_APP_ID, GITHUB_PRIVATE_KEY, GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to use your own GitHub App.',
+            );
+        }
+
         this.analytics.track({
             event: 'github_install.started',
             userId: user.userUuid,
@@ -103,7 +111,6 @@ export class GithubAppService extends BaseService {
         const randomID = nanoid().replace('_', ''); // we use _ as separator, don't allow this character on the nanoid
         const subdomain = this.lightdashConfig.github.redirectDomain;
         const state = `${subdomain}_${randomID}`;
-        const githubAppName = this.lightdashConfig.github.appName;
 
         return {
             installUrl: `https://github.com/apps/${githubAppName}/installations/new?state=${state}`,

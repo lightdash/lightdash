@@ -1807,7 +1807,7 @@ export type LightdashConfig = {
         enabled: boolean;
     };
     github: {
-        appName: string;
+        appName: string | undefined;
         redirectDomain: string;
     };
     gitlab: {
@@ -3784,7 +3784,7 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.SAVE_CREDENTIALS_FORM_ENABLED === 'true',
         },
         github: {
-            appName: process.env.GITHUB_APP_NAME || 'lightdash-app-dev',
+            appName: process.env.GITHUB_APP_NAME,
             redirectDomain:
                 process.env.GITHUB_REDIRECT_DOMAIN ||
                 siteUrl.split('.')[0].split('//')[1],

@@ -180,7 +180,9 @@ export class HealthService extends BaseService {
             dashboard: this.lightdashConfig.dashboard,
             pivotTable: this.lightdashConfig.pivotTable,
             hasSlack: this.hasSlackConfig(),
-            hasGithub: process.env.GITHUB_PRIVATE_KEY !== undefined,
+            hasGithub:
+                process.env.GITHUB_PRIVATE_KEY !== undefined &&
+                this.lightdashConfig.github.appName !== undefined,
             hasGitlab:
                 this.lightdashConfig.gitlab.clientId !== undefined &&
                 this.lightdashConfig.gitlab.clientSecret !== undefined,
