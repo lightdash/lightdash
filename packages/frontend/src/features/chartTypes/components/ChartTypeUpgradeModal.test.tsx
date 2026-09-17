@@ -42,6 +42,7 @@ const registryUpdate: RegistryChartTypeListItem = {
     publishedAt: '2026-08-01T00:00:00Z',
     tags: [],
     changelog: 'Adds link labels',
+    releaseStage: 'stable',
     minLightdashVersion: null,
     icon: null,
     vizSchema: { fields: [], configOptions: [], colorPalette: null },

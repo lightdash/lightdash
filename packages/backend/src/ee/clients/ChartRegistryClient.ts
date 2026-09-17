@@ -287,6 +287,12 @@ export class ChartRegistryClient {
         return this.baseUrl !== null;
     }
 
+    /** True when this instance reads index-next.json, where an entry without
+     *  a channel tag is unpointed (pre-release) rather than stable. */
+    readsNextChannelIndex(): boolean {
+        return this.indexFileName === 'index-next.json';
+    }
+
     getBaseUrl(): string | null {
         return this.baseUrl;
     }
