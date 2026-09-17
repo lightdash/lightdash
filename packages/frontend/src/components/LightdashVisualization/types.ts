@@ -8,6 +8,7 @@ import {
     type Dimension,
     type ItemsMap,
     type MapChart,
+    type MergeFieldOrigins,
     type Metric,
     type MetricQuery,
     type ParametersValuesMap,
@@ -34,6 +35,7 @@ export type VisualizationConfigCommon<T extends VisualizationConfig> = {
               metricQuery?: MetricQuery;
               fields?: ItemsMap;
               resolvedTimezone?: string;
+              fieldOrigins?: MergeFieldOrigins;
           })
         | undefined;
     initialChartConfig: T['chartConfig']['validConfig'] | undefined;

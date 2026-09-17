@@ -96,6 +96,8 @@ export type GetExpectedSeriesMapArgs = {
     itemsMap: ItemsMap | undefined;
     columnLimit?: number;
     existingSeries?: Series[];
+    /** Axis a field starts on when no series of it exists yet; 0 otherwise. */
+    defaultYAxisIndexByField?: Record<string, number>;
 };
 
 export const getExpectedSeriesMap = ({
@@ -113,6 +115,7 @@ export const getExpectedSeriesMap = ({
     itemsMap,
     columnLimit,
     existingSeries,
+    defaultYAxisIndexByField,
 }: GetExpectedSeriesMapArgs) => {
     let expectedSeriesMap: Record<string, Series>;
 
@@ -135,6 +138,7 @@ export const getExpectedSeriesMap = ({
 
     const getPropertiesForField = (field: string) => ({
         ...defaultProperties,
+        yAxisIndex: defaultYAxisIndexByField?.[field] ?? 0,
         ...renderPropertiesByField.get(field),
     });
 
