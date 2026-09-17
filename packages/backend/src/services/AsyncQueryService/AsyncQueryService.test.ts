@@ -9965,6 +9965,30 @@ describe('chart embed token query history access', () => {
         },
     );
 
+    it('includes the downloaded query UUID in export analytics', async () => {
+        const { account, service } = buildFixture([validExplore.name]);
+        const trackAccount = vi.spyOn(analyticsMock, 'trackAccount');
+
+        await run(service, account, 'download');
+
+        expect(trackAccount).toHaveBeenCalledWith(account, {
+            event: 'download_results.started',
+            userId: account.user.id,
+            properties: expect.objectContaining({
+                queryId: 'source-query-uuid',
+            }),
+        });
+        expect(trackAccount).toHaveBeenCalledWith(account, {
+            event: 'download_results.completed',
+            userId: account.user.id,
+            properties: expect.objectContaining({
+                queryId: 'source-query-uuid',
+            }),
+        });
+
+        trackAccount.mockRestore();
+    });
+
     it.each(operations)(
         'refuses a chart token scoped to another explore through %s',
         async (operation) => {

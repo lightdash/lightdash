@@ -2450,6 +2450,7 @@ export type DownloadCsv = BaseTrack & {
     userId: string;
     properties: {
         jobId?: string;
+        queryId?: string;
         organizationId?: string;
         projectId: string;
         tableId?: string;

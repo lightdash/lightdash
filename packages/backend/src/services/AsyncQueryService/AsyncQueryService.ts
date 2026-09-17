@@ -1846,10 +1846,11 @@ export class AsyncQueryService extends ProjectService {
         | ApiDownloadAsyncQueryResultsAsCsv
         | ApiDownloadAsyncQueryResultsAsXlsx
     > {
-        const { account, projectUuid, onlyRaw, type } = args;
+        const { account, projectUuid, queryUuid, onlyRaw, type } = args;
         const baseAnalyticsProperties: DownloadCsv['properties'] = {
             organizationId: account.organization.organizationUuid,
             projectId: projectUuid,
+            queryId: queryUuid,
             fileType:
                 type === DownloadFileType.XLSX
                     ? SchedulerFormat.XLSX

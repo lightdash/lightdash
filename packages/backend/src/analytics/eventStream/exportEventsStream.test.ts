@@ -61,6 +61,7 @@ describe('export usage events', () => {
                     event_ts: expect.any(String),
                     schema_version: 1,
                     project_id: 'project-1',
+                    query_id: null,
                     format: 'csv',
                     context: null,
                     job_id: null,
@@ -84,9 +85,10 @@ describe('export usage events', () => {
                 userId: 'user-1',
                 properties: {
                     ...properties,
+                    queryId: 'query-1',
                     fileType: format,
                     jobId: 'job-1',
-                    context: 'scheduled_delivery',
+                    context: 'chart',
                     tableId: 'table-1',
                     numRows: 25,
                 },
@@ -133,10 +135,11 @@ describe('export usage events', () => {
             );
             expect(result.getRowObjects()).toEqual([{ events: 3n, users: 1n }]);
             const rows = await db.runAndReadAll(
-                'SELECT format, job_id, table_id, num_rows FROM export_events ORDER BY format',
+                'SELECT query_id, format, job_id, table_id, num_rows FROM export_events ORDER BY format',
             );
             expect(rows.getRowObjects()).toEqual(
                 ['csv', 'gsheets', 'xlsx'].map((format) => ({
+                    query_id: 'query-1',
                     format,
                     job_id: 'job-1',
                     table_id: 'table-1',
