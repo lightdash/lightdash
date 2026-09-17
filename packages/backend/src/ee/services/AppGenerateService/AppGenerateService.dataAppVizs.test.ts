@@ -674,6 +674,58 @@ describe('AppGenerateService data app vizs', () => {
             ).resolves.toMatchObject({ state: 'ready', version: 1 });
         });
 
+        it('renders an immutable chart-less artifact on its explicit version', async () => {
+            const versionTwoSchema = {
+                ...vizSchema,
+                fields: [
+                    ...vizSchema.fields,
+                    {
+                        name: 'series',
+                        label: 'Series',
+                        type: 'series' as const,
+                        required: false,
+                    },
+                ],
+            };
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn().mockResolvedValue(
+                    makeVersion({
+                        version: 2,
+                        viz_schema: versionTwoSchema,
+                    }),
+                ),
+                getLatestVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 3 })),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 3 })),
+            };
+            const service = buildService(appModel);
+
+            await expect(
+                service.getDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'data-app-viz-1',
+                    2,
+                ),
+            ).resolves.toEqual({
+                state: 'ready',
+                version: 2,
+                schema: versionTwoSchema,
+                latestBuildInProgress: false,
+            });
+            expect(appModel.getVersion).toHaveBeenCalledWith(
+                'data-app-viz-1',
+                2,
+            );
+            expect(appModel.getLatestVersion).not.toHaveBeenCalled();
+        });
+
         it('forbids a plain viewer from the chart-less authoring preview', async () => {
             const appModel = {
                 findVisualizationApp: vi

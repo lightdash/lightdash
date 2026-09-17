@@ -9574,13 +9574,14 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         dataAppVizUuid: string,
+        version?: number,
     ): Promise<DataAppVizRenderMetadata> {
         const dataAppViz = await this.getAuthorizedDataAppVizForAuthoring(
             user,
             projectUuid,
             dataAppVizUuid,
         );
-        return this.resolveVizRenderMetadata(dataAppViz.app_id);
+        return this.resolveVizRenderMetadata(dataAppViz.app_id, version);
     }
 
     async getDataAppVizPreviewToken(

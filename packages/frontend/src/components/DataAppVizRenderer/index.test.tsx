@@ -446,12 +446,37 @@ describe('DataAppVizRenderer', () => {
             state: 'unavailable',
             latestBuildInProgress: false,
         };
-        mocks.vizContextOverrides.current = { savedChartUuid: undefined };
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: true,
+        };
 
         renderRenderer();
 
         expect(
             screen.getByText('Custom chart type preview is unavailable.'),
+        ).toBeInTheDocument();
+    });
+
+    it('explains how to recover a chartless artifact whose recorded version is unavailable', () => {
+        mocks.metadata.current = {
+            state: 'unavailable',
+            latestBuildInProgress: false,
+        };
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: false,
+        };
+
+        renderRenderer();
+
+        expect(
+            screen.getByText('Custom chart type version 7 is unavailable.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Regenerate the chart to use a renderable version.',
+            ),
         ).toBeInTheDocument();
     });
 
@@ -692,6 +717,25 @@ describe('DataAppVizRenderer', () => {
         renderRenderer();
 
         expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
+    });
+
+    it('renders an unsaved immutable artifact on its recorded version', () => {
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: false,
+        };
+
+        renderRenderer();
+
+        expect(mocks.renderMetadataHook).toHaveBeenLastCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            {
+                isEmbedded: false,
+                savedChartUuid: undefined,
+            },
+            7,
+        );
     });
 
     it('lazily pins a legacy saved chart when it is next edited', () => {

@@ -1034,14 +1034,23 @@ export class AiAgentToolsService extends BaseService {
             slug,
         );
         if (!row) return null;
-        const parsed = dataAppVizSchema.safeParse(row.viz_schema);
+        const version =
+            await this.appModel.getLatestRenderableDataAppVizVersion(
+                row.app_id,
+            );
+        if (!version) return null;
+        const parsed = dataAppVizSchema.safeParse(version.viz_schema);
         if (!parsed.success) {
             this.logger.warn(
                 `Cannot resolve custom chart type "${slug}": persisted viz_schema failed validation`,
             );
             return null;
         }
-        return { dataAppVizUuid: row.app_id, schema: parsed.data };
+        return {
+            dataAppVizUuid: row.app_id,
+            dataAppVizVersion: version.version,
+            schema: parsed.data,
+        };
     }
 
     private findFields(

@@ -13,6 +13,7 @@ import {
     isAiSqlChartArtifactConfig,
     isToolEditDbtProjectResult,
     isToolSetupPreviewDeployResult,
+    NotFoundError,
     parseVizConfig,
     SlackPrompt,
     type ChartConfig,
@@ -547,6 +548,7 @@ export async function getModernArtifactCardBlocks(
     toolResults?: AiAgentToolResult[],
     getDataAppVizSchemaFields?: (
         dataAppVizUuid: string,
+        dataAppVizVersion?: number,
     ) => Promise<DataAppVizField[] | null>,
 ): Promise<(Block | KnownBlock)[]> {
     if (!artifacts || artifacts.length === 0) {
@@ -729,17 +731,35 @@ export async function getModernArtifactCardBlocks(
                 let pivotConfig: { columns: string[] } | undefined;
                 if (artifact.chartConfig.source === 'customChartType') {
                     // Mirror the web save flow: DATA_APP_VIZ config plus the
-                    // type's schema-derived pivot. Without the schema (app
-                    // deleted / invalid) keep the table fallback so the link
-                    // still works.
+                    // type's schema-derived pivot.
                     const dataAppVizChart = getDataAppVizChartFromArtifact(
                         artifact.chartConfig,
                     );
-                    const schemaFields = dataAppVizChart
-                        ? await getDataAppVizSchemaFields?.(
-                              artifact.chartConfig.dataAppVizUuid,
-                          )
-                        : null;
+                    const { dataAppVizVersion } = artifact.chartConfig;
+                    let schemaFields: DataAppVizField[] | null | undefined;
+                    try {
+                        schemaFields = dataAppVizChart
+                            ? await getDataAppVizSchemaFields?.(
+                                  artifact.chartConfig.dataAppVizUuid,
+                                  dataAppVizVersion,
+                              )
+                            : null;
+                    } catch (error) {
+                        if (
+                            dataAppVizVersion === undefined ||
+                            !(error instanceof NotFoundError)
+                        ) {
+                            throw error;
+                        }
+                    }
+                    if (dataAppVizVersion !== undefined && !schemaFields) {
+                        return buildSlackCardBlock({
+                            blockId: `ai_agent_chart_card_${artifact.versionUuid}`,
+                            title: getArtifactTitle(artifact),
+                            subtitle: `${vizConfig.metricQuery.exploreName} chart`,
+                            body: `Custom chart type version ${dataAppVizVersion} is unavailable. Regenerate the chart to use a renderable version.`,
+                        });
+                    }
                     if (dataAppVizChart && schemaFields) {
                         chartConfig = {
                             type: ChartType.DATA_APP_VIZ,
