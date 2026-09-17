@@ -65,49 +65,92 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                             : undefined;
                     return (
                         <Stack key={field.name} gap={2}>
-                            <Group gap="xs">
-                                <Text size="xs" fw={500}>
-                                    {field.label}
-                                </Text>
-                                <DataAppVizFieldTypeBadge type={field.type} />
-                                <DataAppVizFieldHelp field={field} />
-                            </Group>
-                            <DataAppVizFieldGuidance
-                                field={field}
-                                id={guidanceId}
-                            />
+                            {!exploreName && (
+                                <>
+                                    <Group gap="xs">
+                                        <Text size="xs" fw={500}>
+                                            {field.label}
+                                        </Text>
+                                        <DataAppVizFieldTypeBadge
+                                            type={field.type}
+                                        />
+                                        <DataAppVizFieldHelp field={field} />
+                                    </Group>
+                                    <DataAppVizFieldGuidance
+                                        field={field}
+                                        id={guidanceId}
+                                    />
+                                </>
+                            )}
                             {exploreName &&
                                 (field.multiple ? (
                                     <OrderedDataAppVizFieldSelect
+                                        header={
+                                            <Stack gap={2} flex={1}>
+                                                <Group gap="xs">
+                                                    <Text size="xs" fw={500}>
+                                                        {field.label}
+                                                    </Text>
+                                                    <DataAppVizFieldTypeBadge
+                                                        type={field.type}
+                                                    />
+                                                    <DataAppVizFieldHelp
+                                                        field={field}
+                                                    />
+                                                </Group>
+                                                <DataAppVizFieldGuidance
+                                                    field={field}
+                                                    id={guidanceId}
+                                                />
+                                            </Stack>
+                                        }
                                         label={field.label}
                                         items={items}
                                         selectedIds={selectedIds}
                                         describedBy={guidanceId}
                                         addDisabled={items.length === 0}
+                                        emptyPlaceholder={`You need at least one ${poolKeyForSlot(field)} in the selected explore`}
                                         onChange={(ids) =>
                                             setField(field.name, ids)
                                         }
                                     />
                                 ) : (
-                                    <FieldSelect
-                                        size="xs"
-                                        aria-label={field.label}
-                                        aria-describedby={guidanceId}
-                                        placeholder={`Select ${field.label.toLowerCase()}`}
-                                        disabled={items.length === 0}
-                                        item={selectedItem}
-                                        items={items}
-                                        onChange={(newField) =>
-                                            setField(
-                                                field.name,
-                                                newField
-                                                    ? getItemId(newField)
-                                                    : null,
-                                            )
-                                        }
-                                        clearable={!field.required}
-                                        hasGrouping
-                                    />
+                                    <>
+                                        <Group gap="xs">
+                                            <Text size="xs" fw={500}>
+                                                {field.label}
+                                            </Text>
+                                            <DataAppVizFieldTypeBadge
+                                                type={field.type}
+                                            />
+                                            <DataAppVizFieldHelp
+                                                field={field}
+                                            />
+                                        </Group>
+                                        <DataAppVizFieldGuidance
+                                            field={field}
+                                            id={guidanceId}
+                                        />
+                                        <FieldSelect
+                                            size="xs"
+                                            aria-label={field.label}
+                                            aria-describedby={guidanceId}
+                                            placeholder={`Select ${field.label.toLowerCase()}`}
+                                            disabled={items.length === 0}
+                                            item={selectedItem}
+                                            items={items}
+                                            onChange={(newField) =>
+                                                setField(
+                                                    field.name,
+                                                    newField
+                                                        ? getItemId(newField)
+                                                        : null,
+                                                )
+                                            }
+                                            clearable={!field.required}
+                                            hasGrouping
+                                        />
+                                    </>
                                 ))}
                         </Stack>
                     );

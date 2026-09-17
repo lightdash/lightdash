@@ -100,16 +100,24 @@ const DataAppVizSettings: FC<Props> = ({
                 return (
                     <Config key={field.name}>
                         <Config.Section>
-                            <Group gap="xxs">
-                                <Config.Heading>{field.label}</Config.Heading>
-                                <DataAppVizFieldHelp field={field} />
-                            </Group>
-                            <DataAppVizFieldGuidance
-                                field={field}
-                                id={guidanceId}
-                            />
                             {field.multiple ? (
                                 <OrderedDataAppVizFieldSelect
+                                    header={
+                                        <Stack gap={2} flex={1}>
+                                            <Group gap="xxs">
+                                                <Config.Heading>
+                                                    {field.label}
+                                                </Config.Heading>
+                                                <DataAppVizFieldHelp
+                                                    field={field}
+                                                />
+                                            </Group>
+                                            <DataAppVizFieldGuidance
+                                                field={field}
+                                                id={guidanceId}
+                                            />
+                                        </Stack>
+                                    }
                                     label={field.label}
                                     items={items}
                                     addItems={addItems}
@@ -119,58 +127,71 @@ const DataAppVizSettings: FC<Props> = ({
                                         items.length === 0 &&
                                         addItems.length === 0
                                     }
-                                    loading={selectedIds.some(isFieldPending)}
+                                    emptyPlaceholder={`You need at least one ${poolKeyForSlot(field)} in your chart to set this field`}
+                                    isFieldPending={isFieldPending}
                                     onAddToQuery={addFieldToQuery}
                                     onChange={(ids) =>
                                         onFieldChange(field.name, ids)
                                     }
                                 />
                             ) : (
-                                <FieldSelect
-                                    size="xs"
-                                    aria-label={field.label}
-                                    aria-describedby={guidanceId}
-                                    // A disabled, empty select says nothing on its
-                                    // own; the placeholder names what the chart is
-                                    // missing, as the cartesian layout does.
-                                    placeholder={
-                                        items.length === 0 &&
-                                        addItems.length === 0
-                                            ? `You need at least one ${poolKeyForSlot(field)} in your chart to set this field`
-                                            : `Select ${field.label.toLowerCase()}`
-                                    }
-                                    disabled={
-                                        items.length === 0 &&
-                                        addItems.length === 0
-                                    }
-                                    item={selectedItem}
-                                    items={items}
-                                    addItems={addItems}
-                                    loading={
-                                        typeof selectedValue === 'string' &&
-                                        isFieldPending(selectedValue)
-                                    }
-                                    onChange={(newField) => {
-                                        if (
-                                            newField &&
-                                            !items.some(
-                                                (i) =>
-                                                    getItemId(i) ===
-                                                    getItemId(newField),
-                                            )
-                                        ) {
-                                            addFieldToQuery(newField);
+                                <>
+                                    <Group gap="xxs">
+                                        <Config.Heading>
+                                            {field.label}
+                                        </Config.Heading>
+                                        <DataAppVizFieldHelp field={field} />
+                                    </Group>
+                                    <DataAppVizFieldGuidance
+                                        field={field}
+                                        id={guidanceId}
+                                    />
+                                    <FieldSelect
+                                        size="xs"
+                                        aria-label={field.label}
+                                        aria-describedby={guidanceId}
+                                        // A disabled, empty select says nothing on its
+                                        // own; the placeholder names what the chart is
+                                        // missing, as the cartesian layout does.
+                                        placeholder={
+                                            items.length === 0 &&
+                                            addItems.length === 0
+                                                ? `You need at least one ${poolKeyForSlot(field)} in your chart to set this field`
+                                                : `Select ${field.label.toLowerCase()}`
                                         }
-                                        onFieldChange(
-                                            field.name,
-                                            newField
-                                                ? getItemId(newField)
-                                                : null,
-                                        );
-                                    }}
-                                    clearable={!field.required}
-                                    hasGrouping
-                                />
+                                        disabled={
+                                            items.length === 0 &&
+                                            addItems.length === 0
+                                        }
+                                        item={selectedItem}
+                                        items={items}
+                                        addItems={addItems}
+                                        loading={
+                                            typeof selectedValue === 'string' &&
+                                            isFieldPending(selectedValue)
+                                        }
+                                        onChange={(newField) => {
+                                            if (
+                                                newField &&
+                                                !items.some(
+                                                    (i) =>
+                                                        getItemId(i) ===
+                                                        getItemId(newField),
+                                                )
+                                            ) {
+                                                addFieldToQuery(newField);
+                                            }
+                                            onFieldChange(
+                                                field.name,
+                                                newField
+                                                    ? getItemId(newField)
+                                                    : null,
+                                            );
+                                        }}
+                                        clearable={!field.required}
+                                        hasGrouping
+                                    />
+                                </>
                             )}
                         </Config.Section>
                     </Config>

@@ -3,49 +3,79 @@ import {
     getItemLabelWithoutTableName,
     type Item,
 } from '@lightdash/common';
-import { ActionIcon, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
-import { type FC } from 'react';
+import {
+    ActionIcon,
+    CloseButton,
+    Group,
+    Loader,
+    Stack,
+    Tooltip,
+} from '@mantine/core';
+import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import { type FC, type ReactNode } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
+import { AddButton } from '../common/AddButton';
 
 type Props = {
+    header: ReactNode;
     label: string;
     items: Item[];
     addItems?: Item[];
     selectedIds: string[];
     addDisabled: boolean;
-    loading?: boolean;
+    emptyPlaceholder?: string;
     describedBy?: string;
+    isFieldPending?: (id: string) => boolean;
     onAddToQuery?: (item: Item) => void;
     onChange: (ids: string[]) => void;
 };
 
-/** An ordered, unique binding for a chart-type slot declared as multiple. */
+/** An ordered, unique binding rendered like the chart configuration field lists. */
 const OrderedDataAppVizFieldSelect: FC<Props> = ({
+    header,
     label,
     items,
     addItems,
     selectedIds,
     addDisabled,
-    loading,
+    emptyPlaceholder = 'No fields available',
     describedBy,
+    isFieldPending,
     onAddToQuery,
     onChange,
 }) => {
     const allItems = [...items, ...(addItems ?? [])];
-    const selectedItems = selectedIds.flatMap((id) => {
-        const item = allItems.find((candidate) => getItemId(candidate) === id);
-        return item ? [item] : [];
-    });
+    const hasAvailableItem = allItems.some(
+        (item) => !selectedIds.includes(getItemId(item)),
+    );
 
-    const add = (item: Item | undefined) => {
-        if (!item) return;
+    const add = () => {
+        const next = allItems.find(
+            (item) => !selectedIds.includes(getItemId(item)),
+        );
+        if (!next) return;
+        const id = getItemId(next);
+        if (!items.some((item) => getItemId(item) === id)) {
+            onAddToQuery?.(next);
+        }
+        onChange([...selectedIds, id]);
+    };
+
+    const replace = (index: number, item: Item | undefined) => {
+        const currentId = selectedIds[index];
+        if (!item) {
+            onChange(selectedIds.filter((id) => id !== currentId));
+            return;
+        }
         const id = getItemId(item);
+        if (id === currentId || selectedIds.includes(id)) return;
         if (!items.some((candidate) => getItemId(candidate) === id)) {
             onAddToQuery?.(item);
         }
-        if (!selectedIds.includes(id)) onChange([...selectedIds, id]);
+        const next = [...selectedIds];
+        next[index] = id;
+        onChange(next);
     };
 
     const move = (index: number, direction: -1 | 1) => {
@@ -58,70 +88,88 @@ const OrderedDataAppVizFieldSelect: FC<Props> = ({
 
     return (
         <Stack gap="xs">
-            {selectedItems.map((item, index) => {
-                const id = getItemId(item);
-                return (
-                    <Group key={id} gap="xs" wrap="nowrap">
-                        <Text size="xs" flex={1} truncate>
-                            {getItemLabelWithoutTableName(item)}
-                        </Text>
-                        <Tooltip label="Move up" openDelay={300}>
-                            <ActionIcon
-                                aria-label={`Move ${getItemLabelWithoutTableName(
-                                    item,
-                                )} up`}
-                                size="xs"
-                                disabled={index === 0}
-                                onClick={() => move(index, -1)}
-                            >
-                                <MantineIcon icon={IconChevronUp} />
-                            </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Move down" openDelay={300}>
-                            <ActionIcon
-                                aria-label={`Move ${getItemLabelWithoutTableName(
-                                    item,
-                                )} down`}
-                                size="xs"
-                                disabled={index === selectedIds.length - 1}
-                                onClick={() => move(index, 1)}
-                            >
-                                <MantineIcon icon={IconChevronDown} />
-                            </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Remove field" openDelay={300}>
-                            <ActionIcon
-                                aria-label={`Remove ${getItemLabelWithoutTableName(
-                                    item,
-                                )}`}
-                                size="xs"
-                                onClick={() =>
-                                    onChange(
-                                        selectedIds.filter(
-                                            (value) => value !== id,
-                                        ),
-                                    )
-                                }
-                            >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        </Tooltip>
-                    </Group>
+            <Group justify="space-between" gap="xs" wrap="nowrap">
+                {header}
+                <AddButton
+                    aria-label={`Add ${label.toLowerCase()}`}
+                    disabled={addDisabled || !hasAvailableItem}
+                    onClick={add}
+                />
+            </Group>
+            {selectedIds.length === 0 && addDisabled && (
+                <FieldSelect
+                    size="xs"
+                    disabled
+                    placeholder={emptyPlaceholder}
+                    items={[]}
+                    onChange={() => {}}
+                />
+            )}
+            {selectedIds.flatMap((id, index) => {
+                const item = allItems.find(
+                    (candidate) => getItemId(candidate) === id,
                 );
+                if (!item) return [];
+                const itemLabel = getItemLabelWithoutTableName(item);
+                return [
+                    <FieldSelect
+                        key={id}
+                        size="xs"
+                        aria-label={`${label}: ${itemLabel}`}
+                        aria-describedby={describedBy}
+                        placeholder={`Select ${label.toLowerCase()}`}
+                        item={item}
+                        items={items}
+                        addItems={addItems}
+                        inactiveItemIds={selectedIds.filter(
+                            (selectedId) => selectedId !== id,
+                        )}
+                        onChange={(newItem) => replace(index, newItem)}
+                        hasGrouping
+                        rightSectionPointerEvents="all"
+                        rightSectionWidth={isFieldPending?.(id) ? 92 : 72}
+                        rightSection={
+                            <Group gap={2} wrap="nowrap">
+                                {isFieldPending?.(id) && (
+                                    <Tooltip
+                                        label="Adding field to query"
+                                        openDelay={300}
+                                    >
+                                        <Loader size="xs" />
+                                    </Tooltip>
+                                )}
+                                <Tooltip label="Move up" openDelay={300}>
+                                    <ActionIcon
+                                        aria-label={`Move ${itemLabel} up`}
+                                        size="xs"
+                                        disabled={index === 0}
+                                        onClick={() => move(index, -1)}
+                                    >
+                                        <MantineIcon icon={IconChevronUp} />
+                                    </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label="Move down" openDelay={300}>
+                                    <ActionIcon
+                                        aria-label={`Move ${itemLabel} down`}
+                                        size="xs"
+                                        disabled={
+                                            index === selectedIds.length - 1
+                                        }
+                                        onClick={() => move(index, 1)}
+                                    >
+                                        <MantineIcon icon={IconChevronDown} />
+                                    </ActionIcon>
+                                </Tooltip>
+                                <CloseButton
+                                    aria-label={`Remove ${itemLabel}`}
+                                    size="xs"
+                                    onClick={() => replace(index, undefined)}
+                                />
+                            </Group>
+                        }
+                    />,
+                ];
             })}
-            <FieldSelect
-                size="xs"
-                aria-label={`Add ${label.toLowerCase()}`}
-                aria-describedby={describedBy}
-                placeholder={`Add ${label.toLowerCase()}`}
-                disabled={addDisabled}
-                items={items}
-                addItems={addItems}
-                inactiveItemIds={selectedIds}
-                loading={loading}
-                onChange={add}
-                hasGrouping
-            />
         </Stack>
     );
 };
