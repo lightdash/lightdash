@@ -66,7 +66,7 @@ export const SDK_FEATURES: SdkFeature[] = [
     {
         key: 'inspect',
         appliesTo: ['data_app', 'chart_type'],
-        label: 'Element inspection',
+        label: 'Element picker',
         description:
             'Lets the Lightdash editor highlight and select app elements to reference them in prompts.',
     },

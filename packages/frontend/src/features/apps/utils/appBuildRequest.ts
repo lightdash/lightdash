@@ -1,5 +1,6 @@
 import {
     type AppChartReference,
+    type AppVizBuildContext,
     type AppClarification,
     type AppDashboardReference,
     type AppExternalConnectionReference,
@@ -13,6 +14,7 @@ import { type GenerateAppParams } from '../hooks/useGenerateApp';
  *  mid-round model or theme switch cannot change what the build runs against. */
 export type AppBuildRequest = {
     prompt: string;
+    vizContext?: AppVizBuildContext;
     template: DataAppTemplate | undefined;
     fileIds: string[] | undefined;
     appUuid: string;
@@ -41,6 +43,7 @@ export const toAppGeneratePayload = (
 ): GenerateAppParams => ({
     projectUuid,
     prompt: request.prompt,
+    ...(request.vizContext ? { vizContext: request.vizContext } : {}),
     template: request.template,
     creationExperience: 'app_builder',
     fileIds: request.fileIds,

@@ -158,6 +158,7 @@ import { versionsToChatMessages } from '../features/apps/utils/versionsToChatMes
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTestPanel';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
+import { normalizeVizBuildContext } from '../features/chartTypes/utils/vizBuildContext';
 import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
@@ -1267,18 +1268,21 @@ const AppGenerate: FC = () => {
     // data-app-viz renders with real result rows instead of mock data.
     const [testVizContext, setTestVizContext] =
         useState<DataAppVizContext | null>(null);
-    const [includeTestVizSampleRows, setIncludeTestVizSampleRows] =
-        useState(false);
-    useEffect(() => {
-        if (!testVizContext) setIncludeTestVizSampleRows(false);
-    }, [testVizContext]);
-    useEffect(() => {
-        if (isViewingOlderVersion) setIncludeTestVizSampleRows(false);
-    }, [isViewingOlderVersion]);
+    const [sampleDataConsent, setSampleDataConsent] = useState<{
+        context: DataAppVizContext;
+        appUuid: string | null;
+        version: number | null;
+    } | null>(null);
+    const includeTestVizSampleData =
+        sampleDataConsent !== null &&
+        sampleDataConsent.context === testVizContext &&
+        sampleDataConsent.appUuid === (activeAppUuid ?? null) &&
+        sampleDataConsent.version === (previewApp?.version ?? null);
     const isVizBuilder =
         appPersistedTemplate === DATA_APP_VIZ_TEMPLATE ||
         selectedTemplate === DATA_APP_VIZ_TEMPLATE;
     const showVizSampleConsent =
+        sampleDataEnabled &&
         isVizBuilder &&
         !isViewingOlderVersion &&
         Boolean(testVizContext?.rows.length);
@@ -1565,31 +1569,29 @@ const AppGenerate: FC = () => {
             isSubmittingRef.current
         )
             return;
-        // Element references travel as their own lines after the typed text —
-        // the same bracketed wire format the agent has always received.
-        const trimmed = [typed, ...elementPicker.refs.map(refToWireString)]
-            .filter(Boolean)
-            .join('\n');
-        const vizContext =
-            testVizContext && isVizBuilder
-                ? {
-                      ...(latestReadyVersion?.resources?.vizSchema
-                          ? { schema: latestReadyVersion.resources.vizSchema }
-                          : {}),
-                      fieldMapping: testVizContext.fieldMapping,
-                      ...(showVizSampleConsent && includeTestVizSampleRows
-                          ? {
-                                sampleRows: vizBuildSampleRows(
-                                    testVizContext.rows,
-                                    testVizContext.fieldMapping,
-                                ),
-                            }
-                          : {}),
-                  }
-                : null;
-        const agentPrompt = vizContext
-            ? `${trimmed}\n\n[Current chart-type contract — preserve compatible field names unless the user asks to change them]\n${JSON.stringify(vizContext, null, 2)}`
-            : trimmed;
+        const trimmed = isVizBuilder
+            ? typed
+            : [typed, ...elementPicker.refs.map(refToWireString)]
+                  .filter(Boolean)
+                  .join('\n');
+        const vizContext = isVizBuilder
+            ? normalizeVizBuildContext(
+                  {
+                      schema:
+                          latestReadyVersion?.resources?.vizSchema ?? undefined,
+                      fieldMapping: testVizContext?.fieldMapping,
+                      elementReferences:
+                          elementPicker.refs.map(refToWireString),
+                      sampleRows: testVizContext
+                          ? vizBuildSampleRows(
+                                testVizContext.rows,
+                                testVizContext.fieldMapping,
+                            )
+                          : undefined,
+                  },
+                  showVizSampleConsent && includeTestVizSampleData,
+              )
+            : undefined;
 
         isSubmittingRef.current = true;
         // Morph the centered composer into the split sidebar layout. Only the
@@ -1751,7 +1753,7 @@ const AppGenerate: FC = () => {
             setIsPromptEmpty(true);
             setFileAttachments([]);
             setIsCapturingScreenshot(false);
-            setIncludeTestVizSampleRows(false);
+            setSampleDataConsent(null);
             setSelectedCharts([]);
             setSelectedDashboard(null);
             setSelectedConnections([]);
@@ -1764,7 +1766,8 @@ const AppGenerate: FC = () => {
                     {
                         projectUuid,
                         appUuid: activeAppUuid,
-                        prompt: agentPrompt,
+                        prompt: trimmed,
+                        vizContext,
                         creationExperience: 'app_builder',
                         fileIds,
                         charts,
@@ -1778,7 +1781,8 @@ const AppGenerate: FC = () => {
                 // A first build clarifies before generating; the round calls
                 // back into runBuildRef once it resolves, answered or not.
                 clarification.send({
-                    prompt: agentPrompt,
+                    prompt: trimmed,
+                    vizContext,
                     template: starterTemplate,
                     fileIds,
                     appUuid: targetAppUuid,
@@ -2565,11 +2569,23 @@ const AppGenerate: FC = () => {
                                     <Checkbox
                                         size="xs"
                                         pb="xs"
-                                        label="Include current test rows with next build"
-                                        checked={includeTestVizSampleRows}
+                                        label="Include sample data from current test results"
+                                        checked={includeTestVizSampleData}
                                         onChange={(event) =>
-                                            setIncludeTestVizSampleRows(
-                                                event.currentTarget.checked,
+                                            setSampleDataConsent(
+                                                event.currentTarget.checked &&
+                                                    testVizContext
+                                                    ? {
+                                                          context:
+                                                              testVizContext,
+                                                          appUuid:
+                                                              activeAppUuid ??
+                                                              null,
+                                                          version:
+                                                              previewApp?.version ??
+                                                              null,
+                                                      }
+                                                    : null,
                                             )
                                         }
                                     />

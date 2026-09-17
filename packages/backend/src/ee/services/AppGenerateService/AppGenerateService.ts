@@ -52,6 +52,10 @@ import {
     isSemverVersion,
     isValidDataAppSlug,
     MAX_APP_FILES_PER_VERSION,
+    MAX_APP_VIZ_BUILD_ELEMENT_REFS,
+    MAX_APP_VIZ_BUILD_SAMPLE_CELL_CHARS,
+    MAX_APP_VIZ_BUILD_SAMPLE_FIELDS,
+    MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -81,6 +85,7 @@ import {
     type AppVersionResources,
     type AppVersionStatusHistoryEntry,
     type AppVersionStatusHistoryEntryKind,
+    type AppVizBuildContext,
     type ChartConfig,
     type ChartReference,
     type ChartSampleData,
@@ -438,9 +443,58 @@ type GenerateAppOptions = {
     themeChangePrompt?: 'replace' | 'append';
     externalConnections?: AppExternalConnectionReference[];
     codexModelInput?: DataAppCodexModel;
+    /** Context for one chart-type build; never persisted with the version. */
+    vizContext?: AppVizBuildContext;
     // The AI agent tool call that started the build; travels on the job so
     // the worker can patch its pending result when the build ends.
     aiAgentToolCall?: AppGeneratePipelineJobPayload['aiAgentToolCall'];
+};
+
+const appendVizBuildContext = (
+    prompt: string,
+    vizContext: AppVizBuildContext | undefined,
+    sampleDataEnabled: boolean,
+): string => {
+    if (!vizContext) return prompt;
+
+    const elementReferences = vizContext.elementReferences
+        ?.filter((ref): ref is string => typeof ref === 'string')
+        .slice(0, MAX_APP_VIZ_BUILD_ELEMENT_REFS);
+    const boundedRows = sampleDataEnabled
+        ? vizContext.sampleRows?.slice(0, MAX_APP_VIZ_BUILD_SAMPLE_ROWS)
+        : undefined;
+    const sampleFields = [
+        ...new Set(boundedRows?.flatMap((row) => Object.keys(row ?? {})) ?? []),
+    ].slice(0, MAX_APP_VIZ_BUILD_SAMPLE_FIELDS);
+    const sampleRows = boundedRows?.map((row) =>
+        Object.fromEntries(
+            sampleFields.flatMap((field) => {
+                const value = row?.[field];
+                return typeof value === 'string'
+                    ? [
+                          [
+                              field,
+                              value.slice(
+                                  0,
+                                  MAX_APP_VIZ_BUILD_SAMPLE_CELL_CHARS,
+                              ),
+                          ],
+                      ]
+                    : [];
+            }),
+        ),
+    );
+    const context: AppVizBuildContext = {
+        ...(vizContext.schema ? { schema: vizContext.schema } : {}),
+        ...(vizContext.fieldMapping
+            ? { fieldMapping: vizContext.fieldMapping }
+            : {}),
+        ...(elementReferences?.length ? { elementReferences } : {}),
+        ...(sampleRows?.length ? { sampleRows } : {}),
+    };
+    if (Object.keys(context).length === 0) return prompt;
+
+    return `${prompt}\n\n[Current chart-type contract — preserve compatible field names unless the user asks to change them]\n${JSON.stringify(context, null, 2)}`;
 };
 
 type GenerateAppResult = {
@@ -6552,6 +6606,7 @@ export class AppGenerateService extends BaseService {
             externalConnections,
             codexModelInput,
             aiAgentToolCall,
+            vizContext,
         } = options;
         await this.assertDataAppsEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
@@ -6614,10 +6669,14 @@ export class AppGenerateService extends BaseService {
         // sees the resolved intent. The version row keeps the original
         // prompt — clarifications travel separately on `resources` so the
         // chat can render the Q&A as a structured card.
-        const pipelinePrompt = formatPromptWithClarifications(
-            prompt,
-            clarifications,
-        );
+        const pipelinePrompt =
+            template === DATA_APP_VIZ_TEMPLATE
+                ? appendVizBuildContext(
+                      formatPromptWithClarifications(prompt, clarifications),
+                      vizContext,
+                      this.lightdashConfig.appRuntime.sampleDataEnabled,
+                  )
+                : formatPromptWithClarifications(prompt, clarifications);
 
         this.logger.info(
             `App ${appUuid}: generation started (model=${codingAgentModel}, promptLength=${prompt.length}, clarifications=${
@@ -6792,6 +6851,7 @@ export class AppGenerateService extends BaseService {
             externalConnections,
             codexModelInput,
             aiAgentToolCall,
+            vizContext,
         } = options;
         await this.assertDataAppsEnabled(user);
 
@@ -6925,6 +6985,13 @@ export class AppGenerateService extends BaseService {
                           themeName,
                       )
                     : AppGenerateService.buildThemeChangePrompt(themeName);
+        }
+        if (app.template === DATA_APP_VIZ_TEMPLATE) {
+            pipelinePrompt = appendVizBuildContext(
+                pipelinePrompt,
+                vizContext,
+                this.lightdashConfig.appRuntime.sampleDataEnabled,
+            );
         }
 
         const resources: AppVersionResources = {

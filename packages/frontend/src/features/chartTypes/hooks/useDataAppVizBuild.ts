@@ -9,7 +9,7 @@ import {
     type DataAppClaudeModel,
     type DataAppCodexModel,
     type DataAppVizFieldMapping,
-    type DataAppVizSchema,
+    type AppVizBuildContext,
     type ItemsMap,
 } from '@lightdash/common';
 import { useCallback, useState } from 'react';
@@ -20,6 +20,7 @@ import { useDeleteApp } from '../../apps/hooks/useDeleteApp';
 import { useGenerateApp } from '../../apps/hooks/useGenerateApp';
 import { useIterateApp } from '../../apps/hooks/useIterateApp';
 import { autoMapDataAppVizFields } from '../utils/autoMapDataAppVizFields';
+import { normalizeVizBuildContext } from '../utils/vizBuildContext';
 
 type Args = {
     projectUuid: string | undefined;
@@ -51,12 +52,7 @@ export type VizBuildRequest = {
     includeSampleData?: boolean;
     /** Contract from the currently rendered chart. Kept separate from the
      * user-facing description, then supplied to the coding agent at build. */
-    context?: {
-        schema?: DataAppVizSchema;
-        fieldMapping?: DataAppVizFieldMapping;
-        elementReferences?: string[];
-        sampleRows?: Record<string, string>[];
-    };
+    context?: AppVizBuildContext;
     /**
      * The selected theme for this build. Undefined preserves the server's
      * default selection, while null explicitly removes the theme.
@@ -189,38 +185,11 @@ export const useDataAppVizBuild = ({
             setFailed(null);
             setCancelError(null);
             setInFlight(request);
-            const context = request.context
-                ? {
-                      ...(request.context.schema
-                          ? { schema: request.context.schema }
-                          : {}),
-                      ...(request.context.fieldMapping
-                          ? { fieldMapping: request.context.fieldMapping }
-                          : {}),
-                      ...(request.context.elementReferences?.length
-                          ? {
-                                elementReferences:
-                                    request.context.elementReferences.slice(
-                                        0,
-                                        5,
-                                    ),
-                            }
-                          : {}),
-                      ...(request.includeSampleData &&
-                      request.context.sampleRows?.length
-                          ? {
-                                sampleRows: request.context.sampleRows.slice(
-                                    0,
-                                    10,
-                                ),
-                            }
-                          : {}),
-                  }
-                : null;
-            const hasContext = context && Object.keys(context).length > 0;
-            const prompt = hasContext
-                ? `${request.description}\n\n[Current chart-type contract — preserve compatible field names unless the user asks to change them]\n${JSON.stringify(context, null, 2)}`
-                : request.description;
+            const vizContext = normalizeVizBuildContext(
+                request.context,
+                request.includeSampleData === true,
+            );
+            const prompt = request.description;
             const files =
                 request.fileIds.length > 0 ? request.fileIds : undefined;
             const externalConnections =
@@ -252,6 +221,7 @@ export const useDataAppVizBuild = ({
                     {
                         projectUuid,
                         prompt,
+                        vizContext,
                         template: DATA_APP_VIZ_TEMPLATE,
                         creationExperience,
                         appUuid: draftAppUuid,
@@ -289,6 +259,7 @@ export const useDataAppVizBuild = ({
                     projectUuid,
                     appUuid: dataAppVizUuid,
                     prompt,
+                    vizContext,
                     creationExperience,
                     fileIds: files,
                     charts,

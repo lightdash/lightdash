@@ -1,7 +1,8 @@
-import { type DataAppVizContext } from '@lightdash/common';
-
-const MAX_VIZ_BUILD_SAMPLE_ROWS = 10;
-const MAX_VIZ_BUILD_SAMPLE_FIELDS = 20;
+import {
+    MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
+    MAX_APP_VIZ_BUILD_SAMPLE_FIELDS,
+    type DataAppVizContext,
+} from '@lightdash/common';
 
 /** Take the rows already shown by the host, prioritizing mapped chart fields. */
 export const vizBuildSampleRows = (
@@ -10,14 +11,14 @@ export const vizBuildSampleRows = (
 ): Record<string, string>[] => {
     const fields = [
         ...new Set([
-            ...Object.values(fieldMapping),
+            ...Object.values(fieldMapping).flat(),
             ...Object.keys(rows[0] ?? {}),
         ]),
     ]
         .filter((field) => field.length > 0)
-        .slice(0, MAX_VIZ_BUILD_SAMPLE_FIELDS);
+        .slice(0, MAX_APP_VIZ_BUILD_SAMPLE_FIELDS);
 
-    return rows.slice(0, MAX_VIZ_BUILD_SAMPLE_ROWS).map((row) =>
+    return rows.slice(0, MAX_APP_VIZ_BUILD_SAMPLE_ROWS).map((row) =>
         Object.fromEntries(
             fields.flatMap((field) => {
                 const formatted = row[field]?.value.formatted;

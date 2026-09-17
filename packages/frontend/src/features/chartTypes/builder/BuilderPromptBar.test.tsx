@@ -22,6 +22,10 @@ import { clarificationStub } from '../testing/clarificationRoundStub';
 import BuilderPromptBar from './BuilderPromptBar';
 
 const attachmentAdd = vi.hoisted(() => vi.fn());
+const showToastError = vi.hoisted(() => vi.fn());
+vi.mock('../../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastError }),
+}));
 
 const connections = vi.hoisted(() => ({
     linked: [] as {
@@ -269,6 +273,7 @@ const promptBar = ({
 describe('BuilderPromptBar', () => {
     beforeEach(() => {
         attachmentAdd.mockClear();
+        showToastError.mockClear();
         connections.linked = [];
         connections.unlink.mockClear();
         themeQuery.isLoading = false;
@@ -297,6 +302,28 @@ describe('BuilderPromptBar', () => {
         );
     });
 
+    it('reports a screenshot capture failure', async () => {
+        renderWithProviders(
+            promptBar({
+                onCaptureScreenshot: vi
+                    .fn()
+                    .mockRejectedValue(new Error('Preview unavailable')),
+            }),
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Attach screenshot' }),
+        );
+
+        await waitFor(() =>
+            expect(showToastError).toHaveBeenCalledWith({
+                title: 'Failed to capture screenshot',
+                subtitle: 'Preview unavailable',
+            }),
+        );
+        expect(attachmentAdd).not.toHaveBeenCalled();
+    });
+
     it('keeps current sample rows out of a prompt until explicitly selected', async () => {
         const send = vi.fn();
         const sampleRows = Array.from({ length: 12 }, (_, i) => ({
@@ -323,7 +350,7 @@ describe('BuilderPromptBar', () => {
         );
 
         await userEvent.click(
-            screen.getByRole('checkbox', { name: 'Include sample rows' }),
+            screen.getByRole('checkbox', { name: 'Include sample data' }),
         );
         await userEvent.type(
             screen.getByPlaceholderText('Ask for a change…'),
@@ -333,6 +360,48 @@ describe('BuilderPromptBar', () => {
         expect(send.mock.lastCall?.[0].context.sampleRows).toEqual(
             sampleRows.slice(0, 10),
         );
+        expect(
+            screen.getByRole('checkbox', { name: 'Include sample data' }),
+        ).not.toBeChecked();
+
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for a change…'),
+            'Third',
+        );
+        await userEvent.keyboard('{Enter}');
+        expect(send.mock.lastCall?.[0].context).not.toHaveProperty(
+            'sampleRows',
+        );
+    });
+
+    it('hides sample data consent when the server disables it', async () => {
+        const send = vi.fn();
+        renderWithProviders(
+            promptBar({
+                build: buildState({ send }),
+                buildContext: { sampleRows: [{ orders_status: 'paid' }] },
+            }),
+            {
+                health: {
+                    dataApps: { previewOrigin: null, sampleDataEnabled: false },
+                },
+            },
+        );
+
+        await waitFor(() =>
+            expect(
+                screen.queryByRole('checkbox', {
+                    name: 'Include sample data',
+                }),
+            ).not.toBeInTheDocument(),
+        );
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for a change…'),
+            'Make a chart',
+        );
+        await userEvent.keyboard('{Enter}');
+        expect(send.mock.lastCall?.[0].includeSampleData).not.toBe(true);
+        expect(send.mock.lastCall?.[0].context).toBeUndefined();
     });
 
     it('shows selected elements and lets the author remove one', async () => {
@@ -863,6 +932,8 @@ describe('BuilderPromptBar', () => {
         await waitFor(() =>
             expect(send).toHaveBeenCalledWith({
                 description: 'hide the axis labels',
+                context: undefined,
+                includeSampleData: false,
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],
@@ -881,7 +952,7 @@ describe('BuilderPromptBar', () => {
         expect(screen.queryByText('Sending…')).not.toBeInTheDocument();
     });
 
-    it('refreshes queued schema and mapping but preserves opted-in row snapshot', async () => {
+    it('refreshes queued schema, mapping, and opted-in sample data', async () => {
         const send = vi.fn();
         const oldContext = {
             schema: {
@@ -920,7 +991,7 @@ describe('BuilderPromptBar', () => {
         );
 
         await userEvent.click(
-            screen.getByRole('checkbox', { name: 'Include sample rows' }),
+            screen.getByRole('checkbox', { name: 'Include sample data' }),
         );
         await userEvent.type(
             screen.getByPlaceholderText('Ask for another change…'),
@@ -942,7 +1013,7 @@ describe('BuilderPromptBar', () => {
                     context: {
                         schema: newContext.schema,
                         fieldMapping: newContext.fieldMapping,
-                        sampleRows: oldContext.sampleRows,
+                        sampleRows: newContext.sampleRows,
                     },
                 }),
             ),
@@ -1039,6 +1110,8 @@ describe('BuilderPromptBar', () => {
         await waitFor(() =>
             expect(send).toHaveBeenCalledWith({
                 description: 'group by quarter instead',
+                context: undefined,
+                includeSampleData: false,
                 fileIds: [],
                 claudeModel: 'sonnet',
                 clarifications: [],

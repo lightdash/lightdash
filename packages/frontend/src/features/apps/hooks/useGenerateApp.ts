@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type AppVizBuildContext,
     type ApiGenerateAppResponse,
     type AppChartReference,
     type AppClarification,
@@ -16,6 +17,7 @@ import { lightdashApi } from '../../../api';
 export type GenerateAppParams = {
     projectUuid: string;
     prompt: string;
+    vizContext?: AppVizBuildContext;
     template?: DataAppTemplate;
     creationExperience: DataAppCreationExperience;
     fileIds?: string[];
@@ -39,6 +41,7 @@ type GenerateAppResult = ApiGenerateAppResponse['results'];
 const generateApp = async ({
     projectUuid,
     prompt,
+    vizContext,
     template,
     creationExperience,
     fileIds,
@@ -57,6 +60,7 @@ const generateApp = async ({
         url: `/ee/projects/${projectUuid}/apps/`,
         body: JSON.stringify({
             prompt,
+            vizContext,
             template,
             creationExperience,
             fileIds,

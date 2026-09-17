@@ -1,4 +1,4 @@
-import { type ApiAppVersionSummary } from '@lightdash/common';
+import { getErrorMessage, type ApiAppVersionSummary } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -36,6 +36,8 @@ import { ComposerSubmitButton } from '../../../components/common/PromptComposer/
 import PromptComposer, {
     type PromptComposerHandle,
 } from '../../../components/common/PromptComposer/PromptComposer';
+import useToaster from '../../../hooks/toaster/useToaster';
+import useApp from '../../../providers/App/useApp';
 import {
     ModelPicker,
     SelectedAttachmentSection,
@@ -60,6 +62,7 @@ import {
     type VizBuildRequest,
 } from '../hooks/useDataAppVizBuild';
 import { useVizComposerAttachments } from '../hooks/useVizComposerAttachments';
+import { normalizeVizBuildContext } from '../utils/vizBuildContext';
 import classes from './BuilderPromptBar.module.css';
 import ChartTypeComposerActions, {
     type ComposerPanel,
@@ -209,7 +212,13 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             SelectedConnection[]
         >([]);
         const [includeSampleData, setIncludeSampleData] = useState(false);
+        const [isCapturingScreenshot, setIsCapturingScreenshot] =
+            useState(false);
         const queryClient = useQueryClient();
+        const { health } = useApp();
+        const sampleDataEnabled =
+            health.data?.dataApps.sampleDataEnabled !== false;
+        const { showToastError } = useToaster();
         const [composerPanel, setComposerPanel] = useState<ComposerPanel>(null);
         const { data: linkedConnections = [] } = useAppExternalConnections(
             projectUuid,
@@ -295,25 +304,11 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             const description = composerRef.current?.getText().trim() ?? '';
             if (!description || !canSubmit) return;
             const editing = editingPrompt.current;
-            const context = buildContext
-                ? {
-                      ...(buildContext.schema
-                          ? { schema: buildContext.schema }
-                          : {}),
-                      ...(buildContext.fieldMapping
-                          ? { fieldMapping: buildContext.fieldMapping }
-                          : {}),
-                      ...(buildContext.elementReferences?.length
-                          ? {
-                                elementReferences:
-                                    buildContext.elementReferences.slice(0, 5),
-                            }
-                          : {}),
-                      ...(includeSampleData && buildContext.sampleRows?.length
-                          ? { sampleRows: buildContext.sampleRows.slice(0, 10) }
-                          : {}),
-                  }
-                : undefined;
+            const sendSampleData = sampleDataEnabled && includeSampleData;
+            const context = normalizeVizBuildContext(
+                buildContext,
+                sendSampleData,
+            );
             const request: VizBuildRequest = {
                 description,
                 fileIds:
@@ -323,10 +318,8 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 ...modelSelection.modelRequest,
                 clarifications: [],
                 externalConnections: selectedConnections,
-                ...(includeSampleData ? { includeSampleData: true } : {}),
-                ...(context && Object.keys(context).length > 0
-                    ? { context }
-                    : {}),
+                ...(sendSampleData ? { includeSampleData: true } : {}),
+                ...(context ? { context } : {}),
                 ...(isNewChart && !isBuilding && themesQuery.isSuccess
                     ? { designUuid: initialThemeUuid }
                     : {}),
@@ -339,6 +332,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             composerRef.current?.clear();
             attachments.clear();
             setSelectedConnections([]);
+            setIncludeSampleData(false);
 
             if (isBuilding) {
                 setQueuedPrompts((current) => [...current, queuedPrompt]);
@@ -355,6 +349,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             const request = clarification.abandon();
             if (request === null) return;
             setSelectedConnections(request.externalConnections);
+            setIncludeSampleData(request.includeSampleData === true);
             composerRef.current?.insertContent([
                 { type: 'text', text: request.description },
             ]);
@@ -370,6 +365,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 item.request.codexModel ?? item.request.claudeModel,
             );
             setSelectedConnections(item.request.externalConnections);
+            setIncludeSampleData(item.request.includeSampleData === true);
             composerRef.current?.clear();
             composerRef.current?.insertContent([
                 { type: 'text', text: item.request.description },
@@ -399,37 +395,24 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
 
         const refreshQueuedRequest = useCallback(
             (request: VizBuildRequest): VizBuildRequest => {
-                if (!buildContext) return request;
-                const context = {
-                    ...(buildContext.schema
-                        ? { schema: buildContext.schema }
-                        : {}),
-                    ...(buildContext.fieldMapping
-                        ? { fieldMapping: buildContext.fieldMapping }
-                        : {}),
-                    ...(request.context?.elementReferences?.length
-                        ? {
-                              elementReferences:
-                                  request.context.elementReferences.slice(0, 5),
-                          }
-                        : {}),
-                    ...(request.includeSampleData &&
-                    request.context?.sampleRows?.length
-                        ? {
-                              sampleRows: request.context.sampleRows.slice(
-                                  0,
-                                  10,
-                              ),
-                          }
-                        : {}),
-                };
+                const sendSampleData =
+                    sampleDataEnabled && request.includeSampleData === true;
+                const latestContext = buildContext
+                    ? {
+                          ...buildContext,
+                          elementReferences: request.context?.elementReferences,
+                      }
+                    : request.context;
                 return {
                     ...request,
-                    context:
-                        Object.keys(context).length > 0 ? context : undefined,
+                    includeSampleData: sendSampleData,
+                    context: normalizeVizBuildContext(
+                        latestContext,
+                        sendSampleData,
+                    ),
                 };
             },
-            [buildContext],
+            [buildContext, sampleDataEnabled],
         );
 
         // Backend completion is the event that advances this session-local
@@ -495,13 +478,19 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         };
 
         const handleCaptureScreenshot = async () => {
-            if (!onCaptureScreenshot) return;
+            if (!onCaptureScreenshot || isCapturingScreenshot) return;
+            setIsCapturingScreenshot(true);
             try {
                 attachments.add([await onCaptureScreenshot()], {
                     kind: 'screenshot',
                 });
-            } catch {
-                // Capture availability is announced by the iframe SDK.
+            } catch (error) {
+                showToastError({
+                    title: 'Failed to capture screenshot',
+                    subtitle: getErrorMessage(error),
+                });
+            } finally {
+                setIsCapturingScreenshot(false);
             }
         };
 
@@ -963,7 +952,11 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                         onClick={() =>
                                             void handleCaptureScreenshot()
                                         }
-                                        disabled={isComposerLocked}
+                                        disabled={
+                                            isComposerLocked ||
+                                            isCapturingScreenshot
+                                        }
+                                        loading={isCapturingScreenshot}
                                     >
                                         <MantineIcon
                                             icon={IconCamera}
@@ -972,17 +965,19 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     </ActionIcon>
                                 </Tooltip>
                             )}
-                            <Checkbox
-                                size="xs"
-                                label="Include sample rows"
-                                checked={includeSampleData}
-                                onChange={(event) =>
-                                    setIncludeSampleData(
-                                        event.currentTarget.checked,
-                                    )
-                                }
-                                disabled={isComposerLocked}
-                            />
+                            {sampleDataEnabled && (
+                                <Checkbox
+                                    size="xs"
+                                    label="Include sample data"
+                                    checked={includeSampleData}
+                                    onChange={(event) =>
+                                        setIncludeSampleData(
+                                            event.currentTarget.checked,
+                                        )
+                                    }
+                                    disabled={isComposerLocked}
+                                />
+                            )}
                             {isBuilding && isEmpty ? (
                                 <ComposerSubmitButton
                                     icon={IconPlayerStop}

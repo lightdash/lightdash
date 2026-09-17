@@ -22,6 +22,7 @@ function buildService(
         appModel?: Record<string, unknown>;
         schedulerClient?: Record<string, unknown>;
         codingAgent?: 'claude' | 'codex';
+        sampleDataEnabled?: boolean;
     } = {},
 ) {
     const analytics = { track: vi.fn() };
@@ -36,6 +37,7 @@ function buildService(
             space_uuid: null,
             design_uuid: null,
             registry_slug: null,
+            template: DATA_APP_VIZ_TEMPLATE,
         }),
         getLatestVersion: vi.fn().mockResolvedValue({
             version: 1,
@@ -50,7 +52,7 @@ function buildService(
     const service = new AppGenerateService({
         lightdashConfig: {
             appRuntime: {
-                sampleDataEnabled: true,
+                sampleDataEnabled: overrides.sampleDataEnabled ?? true,
                 dataAppCodingAgent: overrides.codingAgent,
             },
         } as never,
@@ -341,6 +343,213 @@ describe('AppGenerateService.iterateApp creation experience', () => {
                 }),
             }),
         );
+    });
+});
+
+describe('AppGenerateService chart build context', () => {
+    const schema: DataAppVizSchema = {
+        fields: [
+            { name: 'amount', label: 'Amount', type: 'metric', required: true },
+        ],
+        configOptions: [],
+        colorPalette: null,
+    };
+
+    it('sends context to a new chart build while persisting only the user prompt', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        await service.generateApp(
+            USER,
+            'project-1',
+            'Make the bars teal',
+            [],
+            'app-1',
+            undefined,
+            undefined,
+            DATA_APP_VIZ_TEMPLATE,
+            undefined,
+            undefined,
+            undefined,
+            {
+                vizContext: {
+                    schema,
+                    fieldMapping: { amount: 'orders_total' },
+                    elementReferences: ['[button "Revenue"]'],
+                    sampleRows: [{ orders_total: '€12.00' }],
+                },
+            },
+        );
+
+        expect(
+            (appModel.createWithVersion as ReturnType<typeof vi.fn>).mock
+                .calls[0][1],
+        ).toEqual({ version: 1, prompt: 'Make the bars teal' });
+        const enqueue = (
+            schedulerClient.appGeneratePipeline as ReturnType<typeof vi.fn>
+        ).mock.calls[0][0];
+        expect(enqueue.prompt).toContain('Make the bars teal');
+        expect(enqueue.prompt).toContain('orders_total');
+        expect(enqueue.prompt).toContain('€12.00');
+        expect(enqueue.prompt).toContain(JSON.stringify('[button "Revenue"]'));
+        expect(
+            JSON.stringify(
+                (appModel.createWithVersion as ReturnType<typeof vi.fn>).mock
+                    .calls[0][3],
+            ),
+        ).not.toContain('€12.00');
+    });
+
+    it('applies instance sample policy and bounds rows, columns, cells, and references', async () => {
+        const sampleRows = Array.from({ length: 12 }, (_, row) =>
+            Object.fromEntries(
+                Array.from({ length: 22 }, (_value, column) => [
+                    `field_${column}`,
+                    column === 0
+                        ? `${row}-${'x'.repeat(600)}`
+                        : `${row}-${column}`,
+                ]),
+            ),
+        );
+        const vizContext = {
+            sampleRows,
+            elementReferences: Array.from({ length: 7 }, (_, i) => `ref-${i}`),
+        };
+
+        const enabled = buildService();
+        await enabled.service.generateApp(
+            USER,
+            'project-1',
+            'Revise chart',
+            [],
+            'app-1',
+            undefined,
+            undefined,
+            DATA_APP_VIZ_TEMPLATE,
+            undefined,
+            undefined,
+            undefined,
+            { vizContext },
+        );
+        const enabledPrompt = (
+            enabled.schedulerClient.appGeneratePipeline as ReturnType<
+                typeof vi.fn
+            >
+        ).mock.calls[0][0].prompt as string;
+        expect(enabledPrompt).toContain('ref-4');
+        expect(enabledPrompt).not.toContain('ref-5');
+        expect(enabledPrompt).toContain('9-19');
+        expect(enabledPrompt).not.toContain('10-19');
+        expect(enabledPrompt).not.toContain('0-20');
+        expect(enabledPrompt).not.toContain('x'.repeat(501));
+
+        const disabled = buildService({ sampleDataEnabled: false });
+        await disabled.service.generateApp(
+            USER,
+            'project-1',
+            'Revise chart',
+            [],
+            'app-1',
+            undefined,
+            undefined,
+            DATA_APP_VIZ_TEMPLATE,
+            undefined,
+            undefined,
+            undefined,
+            { vizContext },
+        );
+        const disabledPrompt = (
+            disabled.schedulerClient.appGeneratePipeline as ReturnType<
+                typeof vi.fn
+            >
+        ).mock.calls[0][0].prompt as string;
+        expect(disabledPrompt).toContain('ref-4');
+        expect(disabledPrompt).not.toContain('sampleRows');
+        expect(disabledPrompt).not.toContain('0-0');
+    });
+
+    it('uses the stored template on iteration and keeps context out of the version row', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        await service.iterateApp(
+            USER,
+            'project-1',
+            'app-1',
+            'Add labels',
+            [],
+            undefined,
+            undefined,
+            undefined,
+            {
+                vizContext: {
+                    schema,
+                    sampleRows: [{ orders_total: '€12.00' }],
+                },
+            },
+        );
+
+        const createCall = (appModel.createVersion as ReturnType<typeof vi.fn>)
+            .mock.calls[0];
+        expect(createCall[1]).toEqual({ version: 2, prompt: 'Add labels' });
+        expect(JSON.stringify(createCall[4])).not.toContain('€12.00');
+        const enqueue = (
+            schedulerClient.appGeneratePipeline as ReturnType<typeof vi.fn>
+        ).mock.calls[0][0];
+        expect(enqueue.prompt).toContain('€12.00');
+        expect(enqueue.prompt).toContain('"schema"');
+    });
+
+    it('drops sample rows on iteration when the instance disables samples', async () => {
+        const { service, appModel, schedulerClient } = buildService({
+            sampleDataEnabled: false,
+        });
+        await service.iterateApp(
+            USER,
+            'project-1',
+            'app-1',
+            'Add labels',
+            [],
+            undefined,
+            undefined,
+            undefined,
+            {
+                vizContext: {
+                    schema,
+                    sampleRows: [{ orders_total: '€12.00' }],
+                },
+            },
+        );
+
+        const enqueue = (
+            schedulerClient.appGeneratePipeline as ReturnType<typeof vi.fn>
+        ).mock.calls[0][0];
+        expect(enqueue.prompt).toContain('"schema"');
+        expect(enqueue.prompt).not.toContain('sampleRows');
+        expect(enqueue.prompt).not.toContain('€12.00');
+        const createCall = (appModel.createVersion as ReturnType<typeof vi.fn>)
+            .mock.calls[0];
+        expect(createCall[1].prompt).toBe('Add labels');
+        expect(JSON.stringify(createCall[4])).not.toContain('€12.00');
+    });
+
+    it('does not apply chart context to an ordinary data app', async () => {
+        const { service, schedulerClient } = buildService();
+        await service.generateApp(
+            USER,
+            'project-1',
+            'Build a dashboard',
+            [],
+            'app-1',
+            undefined,
+            undefined,
+            'dashboard',
+            undefined,
+            undefined,
+            undefined,
+            { vizContext: { sampleRows: [{ orders_total: '€12.00' }] } },
+        );
+
+        expect(
+            (schedulerClient.appGeneratePipeline as ReturnType<typeof vi.fn>)
+                .mock.calls[0][0].prompt,
+        ).toBe('Build a dashboard');
     });
 });
 

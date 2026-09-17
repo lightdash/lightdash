@@ -219,16 +219,21 @@ describe('useDataAppVizBuild', () => {
         } as unknown as VizBuildRequest;
 
         act(() => result.current.send(request));
-        expect(generate.mock.lastCall?.[0].prompt).not.toContain('current-0');
+        expect(generate.mock.lastCall?.[0].prompt).toBe(request.description);
+        expect(generate.mock.lastCall?.[0].vizContext).not.toHaveProperty(
+            'sampleRows',
+        );
 
         const { result: optedIn } = setup();
         act(() =>
             optedIn.current.send({ ...request, includeSampleData: true }),
         );
-        const prompt = generate.mock.lastCall?.[0].prompt as string;
-        expect(prompt).toContain('current-0');
-        expect(prompt).toContain('current-9');
-        expect(prompt).not.toContain('current-10');
+        expect(generate.mock.lastCall?.[0].prompt).toBe(request.description);
+        expect(generate.mock.lastCall?.[0].vizContext).toEqual({
+            schema: request.context?.schema,
+            fieldMapping: request.context?.fieldMapping,
+            sampleRows: sampleRows.slice(0, 10),
+        });
         expect(generate.mock.lastCall?.[0].charts).toBeUndefined();
     });
 

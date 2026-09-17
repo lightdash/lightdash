@@ -235,6 +235,16 @@ exists, the explorer's configure panel offers an upgrade that lists the field, o
 re-pins the chart being edited and reconciles its field mapping and option values against the new contract, and
 nothing is persisted until the chart is saved.
 
+Chart Studio supplies the current schema and field mapping to the coding agent, plus a saved-chart reference
+when opened from a saved chart. Authors can attach a screenshot of the preview, pick an element, and opt in to
+**Include sample data** for the next build. Samples use the current Explorer or Test-panel results, are bounded
+to 10 rows and 20 columns, and respect the instance's sample-data setting. Context travels separately from the
+user's prompt; sample data is not stored in version history. Queued builds refresh their schema, mapping and
+opted-in sample data together when they start.
+
+Chart-type builds omit the explores catalog and remove stale catalog files from reused sandboxes. Their SDK
+bridge blocks independent queries while allowing underlying-data interactions resolved by the host.
+
 ### Ordered field inputs
 
 A viz schema field can set `multiple: true` to accept an ordered selection of metrics,
