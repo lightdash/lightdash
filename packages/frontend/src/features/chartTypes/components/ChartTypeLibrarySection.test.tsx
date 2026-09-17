@@ -69,6 +69,7 @@ const makeItem = (
     },
     thumbnail: null,
     thumbnailDark: null,
+    preview: null,
     screenshots: [],
     artifacts: {
         source: { path: 'source.zip', sha256: 'a'.repeat(64) },

@@ -23,6 +23,7 @@ export * from './apps/code';
 export * from './apps/dataReferenceChecker';
 export * from './apps/dataReferences';
 export * from './apps/registry';
+export * from './apps/preview';
 export * from './apps/sdkBridgeRoutes';
 export * from './ambientAi';
 export * from './commercialFeatureFlags';

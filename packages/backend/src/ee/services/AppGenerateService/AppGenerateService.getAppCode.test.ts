@@ -428,6 +428,7 @@ describe('AppGenerateService.getAppCode', () => {
             getLatestReadyVersion: vi.fn().mockResolvedValue({
                 ...fakeAppVersion,
                 viz_schema: vizSchema,
+                viz_preview: { rows: [{ category: 'North', value: 42 }] },
             }),
         };
 
@@ -436,6 +437,9 @@ describe('AppGenerateService.getAppCode', () => {
 
         expect(result.manifest.template).toBe('data_app_viz');
         expect(result.manifest.vizSchema).toEqual(vizSchema);
+        expect(result.manifest.preview).toEqual({
+            rows: [{ category: 'North', value: 42 }],
+        });
     });
 
     it('omits vizSchema from the manifest when the version has no schema', async () => {

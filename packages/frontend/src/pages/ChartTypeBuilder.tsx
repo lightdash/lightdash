@@ -97,6 +97,10 @@ const ChartTypeBuilder: FC = () => {
         projectUuid,
         panel.colorPaletteUuid,
     );
+    const previewData =
+        workspace.history.versions.find(
+            (version) => version.version === workspace.previewVersion,
+        )?.resources?.vizPreview ?? null;
     // The sample-data preview context, rebuilt on any option or palette edit.
     const previewContext = useMemo(
         () =>
@@ -105,9 +109,15 @@ const ChartTypeBuilder: FC = () => {
                       workspace.dataAppViz.schema,
                       colorPalette,
                       panel.optionValues,
+                      previewData,
                   )
                 : null,
-        [workspace.dataAppViz?.schema, colorPalette, panel.optionValues],
+        [
+            workspace.dataAppViz?.schema,
+            colorPalette,
+            panel.optionValues,
+            previewData,
+        ],
     );
 
     const explorerDestination = useMemo(() => {
