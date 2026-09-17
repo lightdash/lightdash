@@ -10,7 +10,7 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { useId, useMemo, type FC } from 'react';
 import { poolKeyForSlot } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
 import FieldSelect from '../../common/FieldSelect';
@@ -39,6 +39,7 @@ const DataAppVizSettings: FC<Props> = ({
     fieldMapping,
     onFieldChange,
 }) => {
+    const guidanceIdPrefix = useId();
     const { addableItems, addFieldToQuery, isFieldPending } =
         useAddFieldsToQuery();
 
@@ -74,6 +75,7 @@ const DataAppVizSettings: FC<Props> = ({
             )}
 
             {fields.map((field) => {
+                const guidanceId = `${guidanceIdPrefix}-${field.name}`;
                 const items = fieldItems(field);
                 const addItems = addPools[poolKeyForSlot(field)];
                 const selectedId = fieldMapping[field.name];
@@ -87,10 +89,13 @@ const DataAppVizSettings: FC<Props> = ({
                             <Config.Heading>{field.label}</Config.Heading>
                             <DataAppVizFieldGuidance
                                 field={field}
+                                id={guidanceId}
                                 showMappingHint={!selectedId}
                             />
                             <FieldSelect
                                 size="xs"
+                                aria-label={field.label}
+                                aria-describedby={guidanceId}
                                 // A disabled, empty select says nothing on its
                                 // own; the placeholder names what the chart is
                                 // missing, as the cartesian layout does.

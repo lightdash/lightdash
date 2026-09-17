@@ -35,16 +35,22 @@ vi.mock('../../../components/common/FieldSelect', () => ({
         items,
         onChange,
         placeholder,
+        'aria-label': ariaLabel,
+        'aria-describedby': ariaDescribedBy,
     }: {
         items: Item[];
         onChange: (item: Item | undefined) => void;
         placeholder: string;
+        'aria-label'?: string;
+        'aria-describedby'?: string;
     }) => {
         fieldSelectItems.push(items);
         return (
             <button
                 type="button"
                 data-testid="field-select"
+                aria-label={ariaLabel}
+                aria-describedby={ariaDescribedBy}
                 onClick={() => onChange(items[0])}
             >
                 {placeholder}
@@ -320,7 +326,7 @@ describe('DataAppVizTestPanel', () => {
 
         await user.click(screen.getByPlaceholderText('Select an explore'));
         await user.click(await screen.findByText('Orders'));
-        await user.click(screen.getByRole('button', { name: 'Select source' }));
+        await user.click(screen.getByRole('button', { name: 'Source' }));
         await user.click(
             screen.getByRole('button', { name: /run test query/i }),
         );
@@ -365,6 +371,31 @@ describe('DataAppVizTestPanel', () => {
         expect(
             screen.getByText('Examples: Listing started, 0, false, null'),
         ).toBeInTheDocument();
+    });
+
+    it('links each field picker to its own mapping guidance after selecting an explore', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <TestDataAppVizPanel
+                projectUuid="p1"
+                schema={schema}
+                onContextChange={vi.fn()}
+            />,
+        );
+
+        await user.click(screen.getByPlaceholderText('Select an explore'));
+        await user.click(await screen.findByText('Orders'));
+
+        expect(
+            screen.getByRole('button', { name: 'Source' }),
+        ).toHaveAccessibleDescription(
+            'The label for each funnel stage Examples: Listing started, 0, false, null Map this required field to continue.',
+        );
+        expect(
+            screen.getByRole('button', { name: 'Value' }),
+        ).toHaveAccessibleDescription(
+            'Choose the numeric value for each row. Map this required field to continue.',
+        );
     });
 
     it('requests the same filtered Explore list as Explorer', () => {
@@ -558,9 +589,9 @@ describe('DataAppVizTestPanel', () => {
 
         await user.click(screen.getByPlaceholderText('Select an explore'));
         await user.click(await screen.findByText('Orders'));
-        await user.click(screen.getByRole('button', { name: 'Select source' }));
-        await user.click(screen.getByRole('button', { name: 'Select target' }));
-        await user.click(screen.getByRole('button', { name: 'Select value' }));
+        await user.click(screen.getByRole('button', { name: 'Source' }));
+        await user.click(screen.getByRole('button', { name: 'Target' }));
+        await user.click(screen.getByRole('button', { name: 'Value' }));
         await user.click(
             screen.getByRole('button', { name: /run test query/i }),
         );
@@ -642,9 +673,9 @@ describe('DataAppVizTestPanel', () => {
 
         await user.click(screen.getByPlaceholderText('Select an explore'));
         await user.click(await screen.findByText('Orders'));
-        await user.click(screen.getByRole('button', { name: 'Select source' }));
-        await user.click(screen.getByRole('button', { name: 'Select target' }));
-        await user.click(screen.getByRole('button', { name: 'Select value' }));
+        await user.click(screen.getByRole('button', { name: 'Source' }));
+        await user.click(screen.getByRole('button', { name: 'Target' }));
+        await user.click(screen.getByRole('button', { name: 'Value' }));
         await user.click(
             screen.getByRole('button', { name: /run test query/i }),
         );

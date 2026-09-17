@@ -270,16 +270,18 @@ One entry per data column the component reads:
   `series` (a dimension used to split or colour the chart), or `column` (any result
   column, whether metric or dimension).
 - `required` — `false` only when the chart still renders with this field unmapped.
-- `description` — optional reusable mapping help. Explain what belongs in this slot,
-  without naming a particular explore or query.
+- `description` — optional reusable mapping help, maximum 160 characters. Use one
+  short, plain sentence explaining what belongs in this slot, without naming a
+  particular explore or query.
 - `examples` — optional scalar values shown independently for this slot, such as
   `['Listing started', 'Price entered']` or `[120, 83]`. They are display examples,
   never paired records, sample rows, or full query fixtures.
 
 ### `inputGuidance`
 
-Optional reusable help shown above the mappings. State the expected row grain, any ordering
-the visualization relies on, and a concrete recovery when a query has a different shape.
+Optional reusable help shown above the mappings, maximum 400 characters. Use two or three
+short, plain sentences. State what each row represents, any ordering the visualization relies
+on, and how to change a query that has a different shape.
 For a funnel, say that each row contains one stage label and its count in stage order; separate
 stage metrics or boolean flags need reshaping into stage/count rows, or a differently authored
 chart. This explains how the same viz can be reused with other queries; it does not make the

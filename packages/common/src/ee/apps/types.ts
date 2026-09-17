@@ -830,11 +830,14 @@ export type DataAppVizSchema = {
 const uniqueNames = <T extends { name: string }>(arr: T[]): boolean =>
     new Set(arr.map((a) => a.name)).size === arr.length;
 
-const nullableOptionalString = z
-    .string()
-    .nullable()
-    .transform((value) => value ?? undefined)
-    .optional();
+const optionalInputHelp = (maxLength: number) =>
+    z
+        .string()
+        .trim()
+        .max(maxLength)
+        .nullable()
+        .transform((value) => value || undefined)
+        .optional();
 
 const nullableOptionalFieldExamples = z
     .array(z.union([z.string(), z.number(), z.boolean(), z.null()]))
@@ -842,8 +845,8 @@ const nullableOptionalFieldExamples = z
     .transform((value) => value ?? undefined)
     .optional();
 
-const vizInputGuidance = nullableOptionalString.describe(
-    'Optional reusable guidance describing the expected row grain, ordering where relevant, and a concrete recovery when the query shape differs.',
+const vizInputGuidance = optionalInputHelp(400).describe(
+    'Optional setup guidance in two or three short, plain sentences (maximum 400 characters). Describe the expected rows, ordering where relevant, and how to change a query that has a different shape.',
 );
 
 const optionBase = {
@@ -888,8 +891,8 @@ const vizFields = z
                 .describe(
                     'false only when the chart still renders with this field unmapped.',
                 ),
-            description: nullableOptionalString.describe(
-                'Optional reusable explanation of what this field represents and how to choose it.',
+            description: optionalInputHelp(160).describe(
+                'Optional mapping help in one short, plain sentence (maximum 160 characters). Explain what this field represents and how to choose it, without naming a particular query.',
             ),
             examples: nullableOptionalFieldExamples.describe(
                 'Optional scalar display examples for this field. Each value stands alone; do not provide paired rows or query fixtures.',

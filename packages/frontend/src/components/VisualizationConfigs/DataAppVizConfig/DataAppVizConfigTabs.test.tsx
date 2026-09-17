@@ -39,6 +39,8 @@ type FieldSelectProps = {
     onChange: (item: Item | null) => void;
     disabled: boolean;
     placeholder: string;
+    'aria-label'?: string;
+    'aria-describedby'?: string;
 };
 
 const {
@@ -167,7 +169,14 @@ vi.mock('../../common/FieldSelect', () => ({
     default: (props: FieldSelectProps) => {
         fieldSelectItems.push(props.items);
         fieldSelectProps.push(props);
-        return <div data-testid="field-select" />;
+        return (
+            <input
+                data-testid="field-select"
+                disabled={props.disabled}
+                aria-label={props['aria-label']}
+                aria-describedby={props['aria-describedby']}
+            />
+        );
     },
 }));
 vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
@@ -855,6 +864,16 @@ describe('DataAppVizConfigTabs', () => {
         expect(
             screen.getAllByText('Map this required field to continue.'),
         ).toHaveLength(2);
+        expect(
+            screen.getByRole('textbox', { name: 'Source' }),
+        ).toHaveAccessibleDescription(
+            'The label for each funnel stage Examples: Listing started, Price entered Map this required field to continue.',
+        );
+        expect(
+            screen.getByRole('textbox', { name: 'Value' }),
+        ).toHaveAccessibleDescription(
+            'Choose the numeric value for each row. Map this required field to continue.',
+        );
     });
 
     it('clearly distinguishes a field named To from the instruction', () => {

@@ -107,16 +107,20 @@ export const serializeCustomChartTypeSchema = (
 ): string => {
     const lines = [`name: ${type.name}`, `slug: ${type.slug}`];
     if (type.description) {
-        lines.push(`description: ${type.description}`);
+        lines.push(`description: ${JSON.stringify(type.description)}`);
     }
     if (type.schema.inputGuidance) {
-        lines.push(`inputGuidance: ${type.schema.inputGuidance}`);
+        lines.push(
+            `inputGuidance: ${JSON.stringify(type.schema.inputGuidance)}`,
+        );
     }
     lines.push('fields:');
     for (const field of type.schema.fields) {
         const details = [
-            field.description ? `description: ${field.description}` : null,
-            field.examples
+            field.description
+                ? `description: ${JSON.stringify(field.description)}`
+                : null,
+            field.examples?.length
                 ? `examples: ${field.examples
                       .map((example) => JSON.stringify(example))
                       .join(' | ')}`

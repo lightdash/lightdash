@@ -34,6 +34,60 @@ describe('isOfficialChartType', () => {
     });
 });
 
+describe.each([
+    ['persisted', dataAppVizSchema],
+    ['generated', dataAppVizGenerationSchema],
+])('%s input guidance', (_name, schema) => {
+    const declaration = (description: unknown, inputGuidance?: unknown) => ({
+        fields: [{ ...validFields.fields[0], description }],
+        configOptions: [],
+        colorPalette: null,
+        inputGuidance,
+    });
+
+    it('accepts descriptions at 160 characters and rejects longer copy', () => {
+        expect(schema.safeParse(declaration('a'.repeat(160))).success).toBe(
+            true,
+        );
+        expect(schema.safeParse(declaration('a'.repeat(161))).success).toBe(
+            false,
+        );
+    });
+
+    it('accepts chart guidance at 400 characters and rejects longer copy', () => {
+        expect(
+            schema.safeParse(declaration(undefined, 'a'.repeat(400))).success,
+        ).toBe(true);
+        expect(
+            schema.safeParse(declaration(undefined, 'a'.repeat(401))).success,
+        ).toBe(false);
+    });
+
+    it.each([undefined, null, '', '  \n  '])(
+        'treats absent or blank help (%j) as omitted',
+        (help) => {
+            const parsed = schema.parse(declaration(help, help));
+            expect(parsed.fields[0].description).toBeUndefined();
+            expect(parsed.inputGuidance).toBeUndefined();
+        },
+    );
+
+    it('trims multiline help while preserving its meaning', () => {
+        const parsed = schema.parse(
+            declaration(
+                '  Stage label.\nChoose one per row.  ',
+                '  One row per stage.\nSort in stage order.  ',
+            ),
+        );
+        expect(parsed.fields[0].description).toBe(
+            'Stage label.\nChoose one per row.',
+        );
+        expect(parsed.inputGuidance).toBe(
+            'One row per stage.\nSort in stage order.',
+        );
+    });
+});
+
 describe('dataAppVizSchema', () => {
     it('accepts a well-formed fields declaration (configOptions defaults to [], colorPalette to null)', () => {
         const r = dataAppVizSchema.safeParse(validFields);
@@ -502,6 +556,29 @@ describe('dataAppVizJsonSchema', () => {
         expect(jsonSchema.$schema).toBe(
             'http://json-schema.org/draft-07/schema#',
         );
+    });
+
+    it('tells the coding agent the same description and guidance limits', () => {
+        expect(dataAppVizJsonSchema).toMatchObject({
+            properties: {
+                fields: {
+                    items: {
+                        properties: {
+                            description: {
+                                anyOf: expect.arrayContaining([
+                                    expect.objectContaining({ maxLength: 160 }),
+                                ]),
+                            },
+                        },
+                    },
+                },
+                inputGuidance: {
+                    anyOf: expect.arrayContaining([
+                        expect.objectContaining({ maxLength: 400 }),
+                    ]),
+                },
+            },
+        });
     });
 
     it('makes fields, configOptions and colorPalette required', () => {
