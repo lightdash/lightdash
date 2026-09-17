@@ -147,6 +147,36 @@ describe('ProjectModel', () => {
         expect(project).toEqual(expectedProject);
         expect(tracker.history.select).toHaveLength(1);
     });
+    test('should get a project with several connections without resolving credentials', async () => {
+        const { connectionModel } = model as unknown as {
+            connectionModel: {
+                listByProject: ReturnType<typeof vi.fn>;
+                getCredentials: ReturnType<typeof vi.fn>;
+            };
+        };
+        const secondConnection = {
+            ...projectConnection,
+            connectionUuid: 'second-connection-uuid',
+            name: 'Second',
+        };
+        vi.spyOn(connectionModel, 'listByProject').mockResolvedValue([
+            projectConnection,
+            secondConnection,
+        ]);
+        const getCredentials = vi.spyOn(connectionModel, 'getCredentials');
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([projectMock]);
+
+        const project = await model.get(projectUuid);
+
+        expect(project.connections).toEqual([
+            projectConnection,
+            secondConnection,
+        ]);
+        expect(project.warehouseConnection).toBeUndefined();
+        expect(getCredentials).not.toHaveBeenCalled();
+    });
     test('should get the primary dbt source identity', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))

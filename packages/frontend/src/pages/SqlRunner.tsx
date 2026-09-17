@@ -149,7 +149,9 @@ const SqlRunner = ({
 
     // Share links replace the whole slice via `setState`, dropping this
     // project-derived field; re-restore it whenever the store value is missing.
-    const warehouseType = project?.warehouseConnection?.type;
+    const warehouseType =
+        project?.warehouseConnection?.type ??
+        project?.connections[0]?.warehouseType;
     useEffect(() => {
         if (warehouseType && !warehouseConnectionType) {
             dispatch(setWarehouseConnectionType(warehouseType));

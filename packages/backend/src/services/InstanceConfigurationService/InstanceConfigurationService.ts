@@ -574,13 +574,11 @@ export class InstanceConfigurationService extends BaseService {
             const project =
                 await this.projectModel.getWithSensitiveFields(projectUuid);
 
-            const { warehouseConnection, dbtConnection } = project;
-
-            if (!warehouseConnection) {
-                throw new ParameterError(
-                    `Project ${projectUuid} has no warehouse connection`,
+            const { dbtConnection } = project;
+            const warehouseConnection =
+                await this.projectModel.getWarehouseCredentialsForProject(
+                    projectUuid,
                 );
-            }
 
             // Update dbt connection
             let updatedDbtConnection: DbtProjectConfig | undefined;
