@@ -6,6 +6,7 @@ import {
     Explore,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
+    type AiPromptSteer,
     type CustomChartTypeLibrary,
     type ParameterDefinitions,
 } from '@lightdash/common';
@@ -739,6 +740,9 @@ export const buildPrepareStep = ({
 }) => {
     const forcedFirstStep = buildForcedFirstStep(args, tools);
     const retryMarkersPersisted = new Set<string>();
+    // prepareStep message overrides apply to one step only, so every steer
+    // consumed so far is re-injected each step or the model forgets it.
+    const consumedSteers: AiPromptSteer[] = [];
     const retryMarkerScope =
         args.execution.mode === 'deep_research'
             ? (args.execution.parentToolCallId ??
@@ -811,22 +815,27 @@ export const buildPrepareStep = ({
         const isDeepResearchWorker =
             args.execution.mode === 'deep_research' &&
             args.execution.research?.role === 'worker';
-        const steers = isDeepResearchWorker
+        const newSteers = isDeepResearchWorker
             ? []
             : await dependencies.consumePromptSteers({
                   promptUuid: args.promptUuid,
                   stepNumber,
               });
-        if (steers.length > 0) {
+        if (newSteers.length > 0) {
             logger(
                 'Prepare Step',
-                `Injecting ${steers.length} steer(s) for prompt UUID: ${args.promptUuid}`,
+                `Injecting ${newSteers.length} steer(s) for prompt UUID: ${args.promptUuid}`,
             );
+            consumedSteers.push(...newSteers);
+        }
+        if (consumedSteers.length > 0) {
             extraMessages.push({
                 role: 'user' as const,
                 content: [
                     'Additional guidance from the user while you were working:',
-                    ...steers.map((steer) => `- ${steer.message}`),
+                    ...consumedSteers.map((steer) => `- ${steer.message}`),
+                    '',
+                    'Apply this guidance to the rest of your work. In your final answer, say briefly whether you followed each item. If you could not (for example the field does not exist), say so and offer the closest alternative instead of silently dropping it.',
                 ].join('\n'),
             });
         }
