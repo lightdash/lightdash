@@ -27,7 +27,27 @@ export type RoadmapItem = {
     updatedAt: string;
     issueUrl: string | null;
     pullRequestUrl: string | null;
+    slackThreadUrls: string[];
 };
+
+const slackThreadUrlsSchema = z
+    .array(
+        z.url().refine((value) => {
+            if (!URL.canParse(value)) return false;
+            const url = new URL(value);
+            return (
+                url.protocol === 'https:' &&
+                /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.slack\.com$/.test(
+                    url.hostname,
+                ) &&
+                url.port === '' &&
+                url.username === '' &&
+                url.password === '' &&
+                /^\/archives\/[CG][A-Z0-9]+\/p\d{16}\/?$/.test(url.pathname)
+            );
+        }, 'Expected a Slack message permalink'),
+    )
+    .default([]);
 
 const githubIssueUrlSchema = z
     .string()
@@ -54,6 +74,7 @@ export const RoadmapItemSchema = z
         updatedAt: z.string().datetime({ offset: true }),
         issueUrl: githubIssueUrlSchema.nullable(),
         pullRequestUrl: githubPullRequestUrlSchema.nullable(),
+        slackThreadUrls: slackThreadUrlsSchema,
     })
     .strict();
 
@@ -215,6 +236,7 @@ export type RoadmapProjectGroup = {
     project: RoadmapProject;
     ownRequestCount: number;
     hasDirectNeed: boolean;
+    slackThreadUrls: string[];
 };
 export type RoadmapProjectPagination = {
     page: number;
@@ -270,6 +292,7 @@ export const RoadmapProjectResultsSchema: z.ZodType<RoadmapProjectResults> = z
                         .strict(),
                     ownRequestCount: z.number().int().min(0),
                     hasDirectNeed: z.boolean(),
+                    slackThreadUrls: slackThreadUrlsSchema,
                 })
                 .strict(),
         ),

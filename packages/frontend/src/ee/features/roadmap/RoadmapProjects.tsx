@@ -68,6 +68,7 @@ import {
 import { RoadmapProjectDetails } from './RoadmapProjectDetails';
 import classes from './RoadmapProjects.module.css';
 import { RoadmapRequestDetails } from './RoadmapRequestDetails';
+import { RoadmapSlackThreads } from './RoadmapSlackThreads';
 import { useFollowRoadmapProject } from './useFollowRoadmapProject';
 import { useRoadmapBoard } from './useRoadmapBoard';
 import { useRoadmapProjects, useRoadmapRequests } from './useRoadmapProjects';
@@ -385,19 +386,21 @@ function ProjectCard({
 }) {
     return (
         <Box className={classes.projectCard}>
-            <UnstyledButton
-                className={classes.projectCardBody}
-                onClick={onClick}
-                aria-label={`Open ${group.project.title}`}
-            >
-                <Title order={5} className={classes.projectTitle}>
-                    {group.project.title}
-                </Title>
-                {group.project.description.trim() && (
-                    <Text fz="xs" c="dimmed">
-                        {group.project.description}
-                    </Text>
-                )}
+            <Box className={classes.projectCardBody}>
+                <UnstyledButton
+                    className={classes.cardOpen}
+                    onClick={onClick}
+                    aria-label={`Open ${group.project.title}`}
+                >
+                    <Title order={5} className={classes.projectTitle}>
+                        {group.project.title}
+                    </Title>
+                    {group.project.description.trim() && (
+                        <Text fz="xs" c="dimmed">
+                            {group.project.description}
+                        </Text>
+                    )}
+                </UnstyledButton>
                 <Group
                     justify="space-between"
                     gap="xs"
@@ -406,6 +409,9 @@ function ProjectCard({
                     <Group gap="sm" wrap="nowrap">
                         <ProjectProgress value={presentation.progress} />
                         <ItemPriority priority={presentation.priority} />
+                        <Box className={classes.slackControl}>
+                            <RoadmapSlackThreads urls={group.slackThreadUrls} />
+                        </Box>
                     </Group>
                     {group.ownRequestCount === 0 && group.hasDirectNeed && (
                         <Text fz="xs" c="dimmed">
@@ -429,7 +435,7 @@ function ProjectCard({
                         </Group>
                     )}
                 </Group>
-            </UnstyledButton>
+            </Box>
             <FollowProjectButton
                 compact
                 className={classes.projectFollowAction}
@@ -461,21 +467,26 @@ function TicketCard({
     onClick: () => void;
 }) {
     return (
-        <UnstyledButton
-            className={classes.ticketCard}
-            onClick={onClick}
-            aria-label={`Open ticket ${ticket.title}`}
-        >
+        <Box className={classes.ticketCard}>
             <Stack gap="xs">
-                <Text className={classes.ticketTitle}>{ticket.title}</Text>
+                <UnstyledButton
+                    className={classes.cardOpen}
+                    onClick={onClick}
+                    aria-label={`Open ticket ${ticket.title}`}
+                >
+                    <Text className={classes.ticketTitle}>{ticket.title}</Text>
+                </UnstyledButton>
                 <Group gap={6} wrap="nowrap" className={classes.ticketStub}>
                     <Text fz="xs" c="ldGray.5" className={classes.ticketId}>
                         {ticket.ticketId}
                     </Text>
                     <ItemPriority priority={ticket.priority} />
+                    <Box className={classes.slackControl}>
+                        <RoadmapSlackThreads urls={ticket.slackThreadUrls} />
+                    </Box>
                 </Group>
             </Stack>
-        </UnstyledButton>
+        </Box>
     );
 }
 
@@ -488,6 +499,7 @@ type RoadmapEntry = {
     priority: RoadmapItemPriority;
     progress: number | null;
     following: number | null;
+    slackThreadUrls: string[];
     hasDirectNeed?: boolean;
     ticketId?: string;
     onOpen: () => void;
@@ -528,28 +540,35 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                         return (
                             <Table.Tr key={entry.id}>
                                 <Table.Td className={classes.nameCell}>
-                                    <UnstyledButton
-                                        className={classes.tableTitle}
-                                        onClick={entry.onOpen}
-                                        aria-label={`Open ${entry.type === 'ticket' ? 'ticket ' : ''}${entry.title}`}
-                                    >
-                                        {entry.type === 'ticket' && (
-                                            <MantineIcon
-                                                icon={IconTicket}
-                                                className={classes.ticketIcon}
-                                            />
-                                        )}
-                                        <Text
-                                            fz="sm"
-                                            fw={
-                                                entry.type === 'project'
-                                                    ? 600
-                                                    : 400
-                                            }
+                                    <Group gap="xs" wrap="nowrap">
+                                        <UnstyledButton
+                                            className={classes.tableTitle}
+                                            onClick={entry.onOpen}
+                                            aria-label={`Open ${entry.type === 'ticket' ? 'ticket ' : ''}${entry.title}`}
                                         >
-                                            {entry.title}
-                                        </Text>
-                                    </UnstyledButton>
+                                            {entry.type === 'ticket' && (
+                                                <MantineIcon
+                                                    icon={IconTicket}
+                                                    className={
+                                                        classes.ticketIcon
+                                                    }
+                                                />
+                                            )}
+                                            <Text
+                                                fz="sm"
+                                                fw={
+                                                    entry.type === 'project'
+                                                        ? 600
+                                                        : 400
+                                                }
+                                            >
+                                                {entry.title}
+                                            </Text>
+                                        </UnstyledButton>
+                                        <RoadmapSlackThreads
+                                            urls={entry.slackThreadUrls}
+                                        />
+                                    </Group>
                                     {entry.description?.trim() && (
                                         <Text fz="xs" c="dimmed">
                                             {entry.description}
@@ -823,6 +842,7 @@ export function RoadmapProjects({
                       priority: metadata.priority,
                       progress: metadata.progress,
                       following: group.ownRequestCount,
+                      slackThreadUrls: group.slackThreadUrls,
                       hasDirectNeed: group.hasDirectNeed,
                       onOpen,
                       onOpenBoard,
@@ -848,6 +868,7 @@ export function RoadmapProjects({
                 priority: ticket.priority,
                 progress: null,
                 following: null,
+                slackThreadUrls: ticket.slackThreadUrls,
                 ticketId: ticket.ticketId,
                 onOpen: () => setSelectedTicket(ticket),
                 onOpenBoard: null,

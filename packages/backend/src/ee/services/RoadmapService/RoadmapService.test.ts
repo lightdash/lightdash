@@ -19,6 +19,10 @@ import { RoadmapService } from './RoadmapService';
 
 const sessionOrgUuid = 'session-org-uuid';
 const otherOrgUuid = 'other-org-uuid';
+const slackThreadUrls = [
+    'https://customer.slack.com/archives/C123/p1789462222021839',
+    'https://customer.slack.com/archives/G456/p1789462222021840?thread_ts=1789462222.021839&cid=G456',
+];
 
 const buildAccount = (ability: MemberAbility): Account =>
     ({
@@ -209,6 +213,7 @@ describe('RoadmapService', () => {
                     },
                     ownRequestCount: 2,
                     hasDirectNeed: false,
+                    slackThreadUrls,
                 },
             ],
             otherRequestCount: 1,
@@ -240,6 +245,26 @@ describe('RoadmapService', () => {
         expect(fetchMock.mock.calls[0][1].headers).toEqual({
             'lightdash-license-key': 'test-license-key',
         });
+        fetchMock.mockResolvedValue(
+            new Response(
+                JSON.stringify({
+                    status: 'ok',
+                    results: {
+                        ...results,
+                        projects: [
+                            {
+                                ...results.projects[0],
+                                slackThreadUrls: undefined,
+                            },
+                        ],
+                    },
+                }),
+            ),
+        );
+        expect(
+            (await buildService().getProjects(account)).projects[0]
+                .slackThreadUrls,
+        ).toEqual([]);
         fetchMock.mockClear();
         await expect(
             buildService().getProjects(account, {
@@ -373,6 +398,7 @@ describe('RoadmapService', () => {
                         issueUrl:
                             'https://github.com/lightdash/lightdash/issues/1',
                         pullRequestUrl: null,
+                        slackThreadUrls,
                         projectId: projectId === 'null' ? null : projectId,
                     },
                 ],
@@ -414,6 +440,28 @@ describe('RoadmapService', () => {
                 facets: response.facets,
                 expiresAt: response.expiresAt,
             });
+            fetchMock.mockResolvedValue(new Response(JSON.stringify(response)));
+            expect(
+                (await buildService().getRoadmap(account)).data[0]
+                    .slackThreadUrls,
+            ).toEqual(slackThreadUrls);
+            fetchMock.mockResolvedValue(
+                new Response(
+                    JSON.stringify({
+                        ...response,
+                        results: [
+                            {
+                                ...response.results[0],
+                                slackThreadUrls: undefined,
+                            },
+                        ],
+                    }),
+                ),
+            );
+            expect(
+                (await buildService().getRoadmap(account, { projectId }))
+                    .data[0].slackThreadUrls,
+            ).toEqual([]);
         },
     );
 
