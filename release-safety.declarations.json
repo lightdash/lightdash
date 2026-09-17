@@ -24,6 +24,11 @@
         "organization-roadmap-flag-removed": {
             "reason": "The OrganizationRoadmap member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this rollout flag must remove it when upgrading; the enterprise roadmap is now available to every organization on an instance whose license key validated at boot, gated per user by the existing view:Roadmap permission.",
             "requiredStop": false
+        },
+        "warehouse-connections-drop-project-uniqueness": {
+            "reason": "This migration must ship after the release containing migration 20260917140000 and the SPK-2188 connection cutover. Older binaries upsert warehouse credentials on project_id and can create duplicate rows or fail after the unique constraint is removed. Self-hosted upgrades that skip the earlier release must use the Recreate strategy.",
+            "requiredStop": true,
+            "migration": "packages/backend/src/database/migrations/20260917170000_contract_warehouse_credentials_connections.ts"
         }
     }
 }
