@@ -6,6 +6,7 @@ import {
     setState,
     setWarehouseConnectionType,
     sqlRunnerSlice,
+    switchActiveConnection,
 } from './sqlRunnerSlice';
 import { runSqlQuery } from './thunks';
 
@@ -110,5 +111,68 @@ describe('sqlRunnerSlice connection bindings', () => {
         expect(completed.resultConnectionUuid).toBe(
             'server-resolved-connection-uuid',
         );
+    });
+});
+
+describe('sqlRunnerSlice switching the active connection', () => {
+    const completedRun = (connectionUuid: string) =>
+        reducer(
+            reducer(undefined, setConnectionUuid(connectionUuid)),
+            runSqlQuery.fulfilled(
+                {
+                    queryUuid: 'query-uuid',
+                    fileUrl: 'file-url',
+                    results: [{ id: 1 }],
+                    columns: [{ reference: 'id' }],
+                },
+                'request-id',
+                {
+                    projectUuid: 'project-uuid',
+                    sql: 'select 1',
+                    limit: 500,
+                    parameterValues: {},
+                    connectionUuid,
+                },
+            ),
+        );
+
+    it('clears the results a switch leaves behind', () => {
+        const completed = completedRun('connection-1');
+        expect(completed.sqlRows).toHaveLength(1);
+
+        const switched = reducer(
+            completed,
+            switchActiveConnection('connection-2'),
+        );
+
+        expect(switched.connectionUuid).toBe('connection-2');
+        expect(switched.sqlRows).toBeUndefined();
+        expect(switched.sqlColumns).toBeUndefined();
+        expect(switched.queryUuid).toBeUndefined();
+        expect(switched.fileUrl).toBeUndefined();
+        expect(switched.resultConnectionUuid).toBeUndefined();
+        expect(switched.resultsTableConfig).toBeUndefined();
+    });
+
+    it('leaves results alone when the switch selects the active connection', () => {
+        const completed = completedRun('connection-1');
+
+        const unchanged = reducer(
+            completed,
+            switchActiveConnection('connection-1'),
+        );
+
+        expect(unchanged.sqlRows).toHaveLength(1);
+        expect(unchanged.resultConnectionUuid).toBe('connection-1');
+    });
+
+    it('seeds a connection without discarding results', () => {
+        const completed = completedRun('connection-1');
+
+        const seeded = reducer(completed, setConnectionUuid('connection-2'));
+
+        expect(seeded.connectionUuid).toBe('connection-2');
+        expect(seeded.sqlRows).toHaveLength(1);
+        expect(seeded.resultConnectionUuid).toBe('connection-1');
     });
 });
