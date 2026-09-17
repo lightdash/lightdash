@@ -1,3 +1,15 @@
+# [2.257.0](https://github.com/lightdash/lightdash/compare/2.256.4...2.257.0) (2026-09-17)
+
+
+### Bug Fixes
+
+* hide chart sample-data toggle without real query results ([#29490](https://github.com/lightdash/lightdash/issues/29490)) ([1ba7353](https://github.com/lightdash/lightdash/commit/1ba73536e95ea2a108351093db46134df0856d33))
+
+
+### Features
+
+* add scoped context to custom chart builder ([#29352](https://github.com/lightdash/lightdash/issues/29352)) ([c4720ce](https://github.com/lightdash/lightdash/commit/c4720ce4739766f4db36958f1ecd11dda30f4f64))
+
 ## [2.256.4](https://github.com/lightdash/lightdash/compare/2.256.3...2.256.4) (2026-09-17)
 
 

@@ -19003,6 +19003,29 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AppVizBuildContext: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                sampleRows: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'Record_string.string_',
+                    },
+                },
+                elementReferences: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                fieldMapping: { ref: 'DataAppVizFieldMapping' },
+                schema: { ref: 'DataAppVizSchema' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppCreationExperience: {
         dataType: 'refAlias',
         type: {
@@ -19127,6 +19150,7 @@ const models: TsoaRoute.Models = {
                 fileIds: { dataType: 'array', array: { dataType: 'string' } },
                 imageIds: { dataType: 'array', array: { dataType: 'string' } },
                 creationExperience: { ref: 'DataAppCreationExperience' },
+                vizContext: { ref: 'AppVizBuildContext' },
                 template: { ref: 'DataAppTemplate' },
                 prompt: { dataType: 'string', required: true },
             },

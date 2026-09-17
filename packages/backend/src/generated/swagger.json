@@ -20303,6 +20303,30 @@
                     "data_app_viz"
                 ]
             },
+            "AppVizBuildContext": {
+                "properties": {
+                    "sampleRows": {
+                        "items": {
+                            "$ref": "#/components/schemas/Record_string.string_"
+                        },
+                        "type": "array"
+                    },
+                    "elementReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "fieldMapping": {
+                        "$ref": "#/components/schemas/DataAppVizFieldMapping"
+                    },
+                    "schema": {
+                        "$ref": "#/components/schemas/DataAppVizSchema"
+                    }
+                },
+                "type": "object",
+                "description": "Chart-builder context sent to the coding agent for one build only."
+            },
             "DataAppCreationExperience": {
                 "type": "string",
                 "enum": [
@@ -20430,6 +20454,10 @@
                     },
                     "creationExperience": {
                         "$ref": "#/components/schemas/DataAppCreationExperience"
+                    },
+                    "vizContext": {
+                        "$ref": "#/components/schemas/AppVizBuildContext",
+                        "description": "Transient chart context; never stored in an app version's prompt."
                     },
                     "template": {
                         "$ref": "#/components/schemas/DataAppTemplate"
@@ -63544,7 +63572,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.256.4",
+        "version": "2.257.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
