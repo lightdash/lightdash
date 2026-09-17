@@ -6,6 +6,7 @@ import {
     convertExplores,
     CustomDimensionType,
     CustomSqlQueryForbiddenError,
+    DatabricksAuthenticationType,
     DbtExposureType,
     DbtProjectType,
     DbtVersionOptionLatest,
@@ -3038,9 +3039,7 @@ describe('ProjectService', () => {
                 expect(copySources).toHaveBeenCalledWith(
                     upstreamProjectUuid,
                     previewProjectUuid,
-                    new Map([
-                        ['upstream-connection-uuid', 'preview-connection-uuid'],
-                    ]),
+                    expect.any(Map),
                 );
                 expect(
                     projectModel.createWithOptionalCredentials,
@@ -3067,6 +3066,211 @@ describe('ProjectService', () => {
             }
         },
     );
+
+    test('maps the selected dbt source connection for CLI preview personal credentials', async () => {
+        const upstreamProjectUuid = 'upstream-project-uuid';
+        const previewProjectUuid = 'created-preview-project-uuid';
+        const upstreamConnectionA = 'upstream-connection-a';
+        const upstreamConnectionB = 'upstream-connection-b';
+        const previewConnectionA = 'preview-connection-a';
+        const previewConnectionB = 'preview-connection-b';
+        const selectedSourceUuid = 'selected-source-uuid';
+        const userWarehouseCredentialsUuid = 'user-credentials-uuid';
+        const copySources = vi.fn<ProjectDbtSourcesModel['copySources']>(
+            async () => undefined,
+        );
+        const selectedSource: ProjectDbtSource = {
+            projectDbtSourceUuid: selectedSourceUuid,
+            projectUuid: upstreamProjectUuid,
+            connectionUuid: upstreamConnectionB,
+            namespacePrefix: 'selected',
+            name: 'selected_source',
+            isPrimary: false,
+            precedence: 1,
+            dbtConnection: { type: DbtProjectType.NONE },
+            warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+            hasCredentialError: false,
+            createdAt: new Date('2026-09-18T09:00:00Z'),
+            updatedAt: new Date('2026-09-18T09:00:00Z'),
+        };
+        const getSource = vi.fn<ProjectDbtSourcesModel['getSource']>(
+            async () => selectedSource,
+        );
+        const createUserCredentials = vi.fn<
+            UserWarehouseCredentialsModel['create']
+        >(async () => userWarehouseCredentialsUuid);
+        const upsertUserCredentialsPreference = vi.fn<
+            UserWarehouseCredentialsModel['upsertUserCredentialsPreference']
+        >(async () => undefined);
+        const previewService = getMockedProjectService(lightdashConfigMock, {
+            projectDbtSourcesModel: {
+                copySources,
+                getSource,
+            } as unknown as ProjectDbtSourcesModel,
+            userWarehouseCredentialsModel: {
+                create: createUserCredentials,
+                upsertUserCredentialsPreference,
+            } as unknown as UserWarehouseCredentialsModel,
+        });
+        const previewUser: SessionUser = {
+            ...user,
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Test organization',
+            organizationCreatedAt: new Date('2026-09-18T09:00:00Z'),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'create' },
+            ]),
+        };
+        const databricksCredentials = {
+            type: WarehouseTypes.DATABRICKS as const,
+            authenticationType: DatabricksAuthenticationType.OAUTH_U2M,
+            serverHostName: 'selected.databricks.com',
+            httpPath: '/sql/1.0/warehouses/selected',
+            database: 'analytics',
+            schema: 'default',
+            refreshToken: 'cli-refresh-token',
+            oauthClientId: 'cli-client-id',
+        };
+        const upstreamConnections: Connection[] = [
+            {
+                ...runtimeConnection,
+                connectionUuid: upstreamConnectionA,
+                name: 'Other Databricks',
+                warehouseType: WarehouseTypes.DATABRICKS,
+            },
+            {
+                ...runtimeConnection,
+                connectionUuid: upstreamConnectionB,
+                name: 'Selected Databricks',
+                warehouseType: WarehouseTypes.DATABRICKS,
+            },
+        ];
+        const validateSpy = vi
+            .spyOn(
+                previewService as unknown as {
+                    validateProjectCreationPermissions: () => Promise<true>;
+                },
+                'validateProjectCreationPermissions',
+            )
+            .mockResolvedValue(true);
+        const expirationSpy = vi
+            .spyOn(previewService, 'getPreviewExpiresAt')
+            .mockResolvedValue(null);
+        const copyAccessSpy = vi
+            .spyOn(previewService, 'copyUserAccessOnPreview')
+            .mockResolvedValue();
+        const { refreshDatabricksOAuthToken } =
+            await import('@lightdash/warehouses');
+        vi.mocked(refreshDatabricksOAuthToken).mockResolvedValueOnce({
+            accessToken: 'fresh-access-token',
+            refreshToken: 'fresh-refresh-token',
+            expiresIn: 3600,
+        });
+        projectModel.get
+            .mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: upstreamProjectUuid,
+                connections: upstreamConnections,
+                warehouseConnection: undefined,
+                requireUserCredentials: true,
+            })
+            .mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: previewProjectUuid,
+                type: ProjectType.PREVIEW,
+                connections: [
+                    {
+                        ...upstreamConnections[0],
+                        connectionUuid: previewConnectionA,
+                    },
+                    {
+                        ...upstreamConnections[1],
+                        connectionUuid: previewConnectionB,
+                    },
+                ],
+                warehouseConnection: undefined,
+                requireUserCredentials: true,
+            });
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+            databricksCredentials,
+        );
+        projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+            previewProjectUuid,
+        );
+        projectModel.copyConnectionsForPreview.mockResolvedValueOnce(
+            new Map([
+                [upstreamConnectionA, previewConnectionA],
+                [upstreamConnectionB, previewConnectionB],
+            ]),
+        );
+        projectModel.resolveConnection.mockResolvedValueOnce({
+            ...upstreamConnections[1],
+            connectionUuid: previewConnectionB,
+        });
+
+        try {
+            await previewService.createWithoutCompile(
+                previewUser,
+                {
+                    name: 'CLI Databricks preview',
+                    type: ProjectType.PREVIEW,
+                    upstreamProjectUuid,
+                    dbtSourceUuid: selectedSourceUuid,
+                    copyContent: false,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    warehouseConnection: databricksCredentials,
+                },
+                RequestMethod.CLI,
+            );
+
+            expect(getSource).toHaveBeenCalledWith(selectedSourceUuid);
+            expect(
+                projectModel.getWarehouseCredentialsForProject,
+            ).toHaveBeenCalledWith(upstreamProjectUuid, upstreamConnectionB);
+            expect(
+                projectModel.createWithOptionalCredentials,
+            ).toHaveBeenCalledWith(
+                previewUser.userUuid,
+                previewUser.organizationUuid,
+                expect.objectContaining({
+                    requireUserCredentials: true,
+                    warehouseConnection: undefined,
+                }),
+                null,
+                undefined,
+            );
+            expect(projectModel.copyConnectionsForPreview).toHaveBeenCalledWith(
+                upstreamProjectUuid,
+                previewProjectUuid,
+                expect.objectContaining({
+                    connectionUuid: upstreamConnectionB,
+                }),
+            );
+            expect(
+                projectModel.resolveConnection,
+            ).toHaveBeenCalledExactlyOnceWith(
+                previewProjectUuid,
+                previewConnectionB,
+            );
+            expect(upsertUserCredentialsPreference).toHaveBeenCalledWith(
+                previewUser.userUuid,
+                previewProjectUuid,
+                userWarehouseCredentialsUuid,
+                previewConnectionB,
+            );
+            expect(upsertUserCredentialsPreference).not.toHaveBeenCalledWith(
+                expect.anything(),
+                expect.anything(),
+                expect.anything(),
+                previewConnectionA,
+            );
+        } finally {
+            validateSpy.mockRestore();
+            expirationSpy.mockRestore();
+            copyAccessSpy.mockRestore();
+        }
+    });
 
     describe('preview content copy scheduling', () => {
         const upstreamProjectUuid = 'upstream-project-uuid';

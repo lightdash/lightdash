@@ -53,6 +53,7 @@ import { runChartHandler } from './handlers/runChart';
 import { setProjectHandler, unsetProjectHandler } from './handlers/setProject';
 import { setWarehouseHandler } from './handlers/setWarehouse';
 import { slugUpdateHandler } from './handlers/slugUpdate';
+import { setSourceHandler } from './handlers/sourceSelection';
 import { sqlHandler } from './handlers/sql';
 import { registerUpgradeCheckCommand } from './handlers/upgradeCheck';
 import { validateHandler, VALIDATION_SEVERITIES } from './handlers/validate';
@@ -320,6 +321,11 @@ configProgram
     .description('Clear the currently selected project')
     .option('--verbose', undefined, false)
     .action(unsetProjectHandler);
+configProgram
+    .command('set-source <name>')
+    .description('Choose the dbt source used by deploy and preview commands')
+    .option('--verbose', undefined, false)
+    .action(setSourceHandler);
 
 const dbtProgram = program.command('dbt').description('Runs dbt commands');
 
@@ -646,6 +652,7 @@ program
         '--name [preview name]',
         '[required] Name for the preview project. If a preview project with this name already exists, it will be updated, otherwise it will create a new preview project ',
     )
+    .option('--source <name>', 'dbt source to compile for this preview')
     .option(
         '--project-dir <path>',
         'The directory of the dbt project',
@@ -790,6 +797,7 @@ program
         '--name [preview name]',
         '[required] Name for the preview project to be deleted',
     )
+    .option('--source <name>', 'dbt source selected for this preview')
     .option('--verbose', undefined, false)
     .action(stopPreviewHandler);
 
@@ -1315,6 +1323,7 @@ program
         '--project <project uuid or slug>',
         'Project UUID or slug to deploy to. Overrides the default project configured via `lightdash config set-project`',
     )
+    .option('--source <name>', 'dbt source to deploy')
     .option(
         '--project-dir <path>',
         'The directory of the dbt project',

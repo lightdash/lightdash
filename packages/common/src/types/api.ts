@@ -926,6 +926,13 @@ export type CreateProject = Omit<
     copyContent?: boolean;
     asyncCopyContent?: boolean;
     expiresInHours?: number;
+    dbtSourceUuid?: string;
+    warehouseConnectionName?: string;
+};
+
+export type DeployTarget = {
+    database: string;
+    region?: string;
 };
 
 export type CreateProjectOptionalCredentials = Omit<

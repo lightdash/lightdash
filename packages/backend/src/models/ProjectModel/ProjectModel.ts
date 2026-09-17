@@ -3099,6 +3099,7 @@ export class ProjectModel {
         explores: (Explore | ExploreError)[],
         complete = false,
         dbtModelNames?: string[],
+        _sourceUuid?: string,
     ) {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
@@ -3810,6 +3811,7 @@ export class ProjectModel {
         override?: {
             connectionUuid: string;
             warehouseConnection: CreateWarehouseCredentials;
+            organizationWarehouseCredentialsUuid?: string;
         },
     ): Promise<Map<string, string>> {
         const sourceConnections =
@@ -3821,6 +3823,8 @@ export class ProjectModel {
                     sourceConnection.connectionUuid === override?.connectionUuid
                         ? {
                               warehouseConnection: override.warehouseConnection,
+                              organizationWarehouseCredentialsUuid:
+                                  override.organizationWarehouseCredentialsUuid,
                               name: sourceConnection.name,
                           }
                         : {

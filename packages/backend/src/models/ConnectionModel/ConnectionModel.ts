@@ -40,6 +40,12 @@ export type ConnectionWriteInput = {
     name?: string;
 };
 
+type PreviewConnectionOverride = {
+    connectionUuid: string;
+    warehouseConnection: CreateWarehouseCredentials;
+    organizationWarehouseCredentialsUuid?: string;
+};
+
 export type ConnectionBoundContent = {
     cached_explore: number;
     saved_sql_versions: number;
@@ -386,6 +392,71 @@ export class ConnectionModel {
             })
             .returning('warehouse_credentials_uuid');
         return this.getByUuid(projectUuid, row.warehouse_credentials_uuid);
+    }
+
+    async copyForPreview(
+        sourceProjectUuid: string,
+        targetProjectUuid: string,
+        override?: PreviewConnectionOverride,
+    ): Promise<Map<string, string>> {
+        const [sourceRows, targetProject] = await Promise.all([
+            this.baseQuery()
+                .where('projects.project_uuid', sourceProjectUuid)
+                .select<ConnectionRow[]>(ConnectionModel.selectColumns)
+                .orderBy(`${WarehouseCredentialTableName}.created_at`, 'asc'),
+            this.getProject(targetProjectUuid),
+        ]);
+        const copiedConnections = await Promise.all(
+            sourceRows.map(async (sourceRow) => {
+                const isOverride =
+                    override?.connectionUuid ===
+                    sourceRow.warehouse_credentials_uuid;
+                const overrideCredentials =
+                    isOverride && override
+                        ? normalizeWarehouseCredentials(
+                              override.warehouseConnection,
+                          )
+                        : undefined;
+                const organizationWarehouseCredentialsUuid =
+                    isOverride && override
+                        ? (override.organizationWarehouseCredentialsUuid ??
+                          null)
+                        : sourceRow.organization_warehouse_credentials_uuid;
+                let encryptedCredentials = sourceRow.encrypted_credentials;
+                if (overrideCredentials) {
+                    encryptedCredentials = organizationWarehouseCredentialsUuid
+                        ? null
+                        : this.encryptCredentials(overrideCredentials);
+                }
+                const [inserted] = await this.database(
+                    WarehouseCredentialTableName,
+                )
+                    .insert({
+                        project_id: targetProject.project_id,
+                        warehouse_type:
+                            overrideCredentials?.type ??
+                            sourceRow.warehouse_type,
+                        name: sourceRow.name,
+                        encrypted_credentials: encryptedCredentials,
+                        organization_warehouse_credentials_uuid:
+                            organizationWarehouseCredentialsUuid,
+                        list_all_databases: isOverride
+                            ? (overrideCredentials?.listAllDatabases ?? false)
+                            : sourceRow.list_all_databases,
+                        additional_databases: isOverride
+                            ? normalizeAdditionalDatabases(
+                                  overrideCredentials?.additionalDatabases,
+                              )
+                            : sourceRow.additional_databases,
+                    })
+                    .returning('warehouse_credentials_uuid');
+                return [
+                    sourceRow.warehouse_credentials_uuid,
+                    inserted.warehouse_credentials_uuid,
+                ] as const;
+            }),
+        );
+        return new Map(copiedConnections);
     }
 
     async update(

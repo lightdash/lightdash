@@ -1,11 +1,11 @@
 import {
+    deriveConnectionName,
     DuckdbConnectionType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import { vi } from 'vitest';
 import {
-    deriveConnectionName,
     runConnectionNameBackfill,
     type ConnectionNameBackfillDatabase,
     type ConnectionNameBackfillRow,

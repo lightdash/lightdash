@@ -1435,6 +1435,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new DeployService({
                     deploySessionModel: models.getDeploySessionModel(),
                     projectModel: models.getProjectModel(),
+                    projectDbtSourcesModel: models.getProjectDbtSourcesModel(),
                     projectService: repository.getProjectService(),
                     schedulerClient: clients.getSchedulerClient(),
                     exploreEnhancer: (explores, { startOfWeek }) =>

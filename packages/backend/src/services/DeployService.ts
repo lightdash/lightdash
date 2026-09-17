@@ -10,13 +10,16 @@ import {
     ProjectType,
     SessionUser,
     type ApiDeployExploresResults,
+    type DeployTarget,
     type ProjectDefaults,
     type WeekDay,
 } from '@lightdash/common';
 import { DeploySessionModel } from '../models/DeploySessionModel';
+import { ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import { BaseService } from './BaseService';
+import { prepareCliDeployExplores } from './cliDeploy';
 
 export type DeployExploreEnhancer = (
     explores: (Explore | ExploreError)[],
@@ -35,12 +38,14 @@ type ProjectServiceInterface = {
         cliVersion?: string | null;
         complete?: boolean;
         dbtModelNames?: string[];
+        sourceUuid?: string;
     }) => Promise<string>;
 };
 
 type DeployServiceArguments = {
     deploySessionModel: DeploySessionModel;
     projectModel: ProjectModel;
+    projectDbtSourcesModel: ProjectDbtSourcesModel;
     projectService: ProjectServiceInterface;
     schedulerClient: SchedulerClient;
     exploreEnhancer?: DeployExploreEnhancer;
@@ -50,6 +55,8 @@ export class DeployService extends BaseService {
     private readonly deploySessionModel: DeploySessionModel;
 
     private readonly projectModel: ProjectModel;
+
+    private readonly projectDbtSourcesModel: ProjectDbtSourcesModel;
 
     private readonly projectService: ProjectServiceInterface;
 
@@ -61,6 +68,7 @@ export class DeployService extends BaseService {
         super({ serviceName: 'DeployService' });
         this.deploySessionModel = args.deploySessionModel;
         this.projectModel = args.projectModel;
+        this.projectDbtSourcesModel = args.projectDbtSourcesModel;
         this.projectService = args.projectService;
         this.schedulerClient = args.schedulerClient;
         this.exploreEnhancer = args.exploreEnhancer ?? ((e) => e);
@@ -188,6 +196,8 @@ export class DeployService extends BaseService {
         sessionUuid: string,
         cliVersion?: string | null,
         dbtModelNames?: string[],
+        sourceUuid?: string,
+        target?: DeployTarget,
     ): Promise<ApiDeployExploresResults & { status: DeploySessionStatus }> {
         const session = await this.deploySessionModel.getSession(sessionUuid);
 
@@ -224,7 +234,14 @@ export class DeployService extends BaseService {
             // (e.g., EE generates virtual pre-aggregate explores from attached defs)
             const deployData =
                 await this.deploySessionModel.getDeployData(sessionUuid);
-            const uploadedExplores = deployData.explores;
+            const uploadedExplores = await prepareCliDeployExplores({
+                projectModel: this.projectModel,
+                projectDbtSourcesModel: this.projectDbtSourcesModel,
+                projectUuid,
+                sourceUuid,
+                target,
+                explores: deployData.explores,
+            });
             const explores = this.exploreEnhancer(uploadedExplores, {
                 startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
             });
@@ -245,6 +262,7 @@ export class DeployService extends BaseService {
                 cliVersion,
                 complete: deployData.complete,
                 dbtModelNames,
+                sourceUuid,
             });
 
             // Schedule validation (same as in original finalizeDeploy)

@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ConnectionModel } from './ConnectionModel';
 
@@ -85,6 +86,44 @@ describe('ConnectionModel', () => {
         expect(tracker.history.select[0].sql).toContain(
             '"warehouse_credentials"."superseded_at" is null',
         );
+    });
+
+    test('copies every upstream connection for a preview', async () => {
+        tracker.on.select(connectionQuery).responseOnce([
+            connectionRow,
+            {
+                ...connectionRow,
+                warehouse_credentials_uuid: 'reporting-connection',
+                name: 'Reporting',
+            },
+        ]);
+        tracker.on.select(/from "projects"/).responseOnce({
+            project_id: 2,
+            organization_uuid: 'organization-uuid',
+        });
+        tracker.on
+            .insert(WarehouseCredentialTableName)
+            .responseOnce([
+                { warehouse_credentials_uuid: 'preview-analytics' },
+            ]);
+        tracker.on
+            .insert(WarehouseCredentialTableName)
+            .responseOnce([
+                { warehouse_credentials_uuid: 'preview-reporting' },
+            ]);
+
+        const mapping = await model.copyForPreview(
+            projectUuid,
+            'preview-project-uuid',
+        );
+
+        expect(mapping).toEqual(
+            new Map([
+                [connectionUuid, 'preview-analytics'],
+                ['reporting-connection', 'preview-reporting'],
+            ]),
+        );
+        expect(tracker.history.insert).toHaveLength(2);
     });
 
     test('does not return a connection from another project', async () => {

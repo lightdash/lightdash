@@ -122,6 +122,45 @@ export const getWarehouseLocation = (
     }
 };
 
+export const deriveConnectionName = (
+    credentials: CreateWarehouseCredentials,
+): string | undefined => {
+    switch (credentials.type) {
+        case WarehouseTypes.ATHENA:
+            return `${credentials.database} ${credentials.region}`;
+        case WarehouseTypes.BIGQUERY:
+            return credentials.project;
+        case WarehouseTypes.SNOWFLAKE:
+            return credentials.database;
+        case WarehouseTypes.DATABRICKS:
+            return credentials.catalog;
+        case WarehouseTypes.TRINO:
+        case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.REDSHIFT:
+            return credentials.dbname;
+        case WarehouseTypes.CLICKHOUSE:
+            return credentials.schema;
+        case WarehouseTypes.DUCKDB:
+            switch (credentials.connectionType) {
+                case DuckdbConnectionType.ANALYTICS:
+                    return credentials.database;
+                case DuckdbConnectionType.DUCKLAKE:
+                    return credentials.catalogAlias ?? 'ducklake';
+                case DuckdbConnectionType.EMBEDDED:
+                    return credentials.dataset;
+                case DuckdbConnectionType.MOTHERDUCK:
+                    return credentials.database;
+                default:
+                    return assertUnreachable(
+                        credentials,
+                        'Unknown DuckDB connection type',
+                    );
+            }
+        default:
+            return assertUnreachable(credentials, 'Unknown warehouse type');
+    }
+};
+
 const unsupportedDatabaseOverride = (warehouseType: WarehouseTypes): Error =>
     new ParameterError(
         `${warehouseType} tables are not qualified by a database, so a dbt source cannot override one`,

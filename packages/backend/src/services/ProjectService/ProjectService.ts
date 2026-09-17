@@ -74,6 +74,7 @@ import {
     deepEqual,
     DEFAULT_SPOTLIGHT_CONFIG,
     DefaultSupportedDbtVersion,
+    deriveConnectionName,
     DimensionType,
     DirectAccessResourceType,
     DownloadFileType,
@@ -270,6 +271,7 @@ import {
     type ChartUsageIn,
     type CreateDatabricksCredentials,
     type DataTimezonePreviewRequest,
+    type DeployTarget,
     type MergeCompiledLeg,
     type MergeItemEntry,
     type MergeTypedColumn,
@@ -388,6 +390,7 @@ import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import { prepareCliDeployExplores } from '../cliDeploy';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
@@ -659,6 +662,7 @@ type SaveCompiledExploresArgs = {
     cliVersion?: string | null;
     complete?: boolean;
     dbtModelNames?: string[];
+    sourceUuid?: string;
 };
 
 type PreviewConnectionOverride = {
@@ -2697,12 +2701,20 @@ export class ProjectService extends BaseService {
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
             saveExplores: async (summary) => {
-                const saved = await this.projectModel.saveExploresToCache(
-                    args.projectUuid,
-                    explores,
-                    args.complete,
-                    dbtModelNames,
-                );
+                const saved = args.sourceUuid
+                    ? await this.projectModel.saveExploresToCache(
+                          args.projectUuid,
+                          explores,
+                          args.complete,
+                          dbtModelNames,
+                          args.sourceUuid,
+                      )
+                    : await this.projectModel.saveExploresToCache(
+                          args.projectUuid,
+                          explores,
+                          args.complete,
+                          dbtModelNames,
+                      );
                 explores.forEach((explore) => summary.add(explore));
                 return saved;
             },
@@ -3196,40 +3208,54 @@ export class ProjectService extends BaseService {
         );
 
         const newProjectData = data;
+        const requestedOrganizationWarehouseCredentialsUuid =
+            data.organizationWarehouseCredentialsUuid;
         ProjectService.validateDbtEnvironmentVariables(
             newProjectData.dbtConnection,
         );
 
         const upstreamProject =
             newProjectData.type === ProjectType.PREVIEW &&
-            newProjectData.upstreamProjectUuid &&
-            previewConnectionOverride
+            newProjectData.upstreamProjectUuid
                 ? await this.projectModel.get(
                       newProjectData.upstreamProjectUuid,
                   )
                 : undefined;
+        let selectedUpstreamConnectionUuid =
+            previewConnectionOverride?.connectionUuid;
+        if (
+            !selectedUpstreamConnectionUuid &&
+            upstreamProject &&
+            newProjectData.dbtSourceUuid
+        ) {
+            const source = await this.projectDbtSourcesModel.getSource(
+                newProjectData.dbtSourceUuid,
+            );
+            if (source.projectUuid !== upstreamProject.projectUuid) {
+                throw new ParameterError(
+                    'The selected dbt source does not belong to the upstream project',
+                );
+            }
+            selectedUpstreamConnectionUuid = source.connectionUuid;
+        } else if (
+            !selectedUpstreamConnectionUuid &&
+            upstreamProject?.connections.length === 1
+        ) {
+            selectedUpstreamConnectionUuid =
+                upstreamProject.connections[0].connectionUuid;
+        }
 
         // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
         if (
             newProjectData.type === ProjectType.PREVIEW &&
             newProjectData.upstreamProjectUuid
         ) {
-            const credentialSourceProject =
-                upstreamProject ??
-                (await this.projectModel.get(
-                    newProjectData.upstreamProjectUuid,
-                ));
-            if (previewConnectionOverride) {
-                if (credentialSourceProject.connections.length === 0) {
-                    newProjectData.organizationWarehouseCredentialsUuid =
-                        credentialSourceProject.organizationWarehouseCredentialsUuid;
-                }
-            } else {
+            if (upstreamProject?.connections.length === 0) {
                 newProjectData.organizationWarehouseCredentialsUuid =
-                    credentialSourceProject.organizationWarehouseCredentialsUuid;
+                    upstreamProject.organizationWarehouseCredentialsUuid;
             }
             newProjectData.requireUserCredentials =
-                credentialSourceProject.requireUserCredentials ?? false;
+                upstreamProject?.requireUserCredentials ?? false;
         }
         if (
             newProjectData.type === ProjectType.PREVIEW &&
@@ -3251,6 +3277,7 @@ export class ProjectService extends BaseService {
             const upstreamCredentials =
                 await this.projectModel.getWarehouseCredentialsForProject(
                     data.upstreamProjectUuid,
+                    selectedUpstreamConnectionUuid,
                 );
             if (upstreamCredentials) {
                 newProjectData.warehouseConnection = mergeWarehouseCredentials(
@@ -3259,6 +3286,8 @@ export class ProjectService extends BaseService {
                 );
             }
         }
+
+        let selectedPreviewConnectionUuid: string | undefined;
 
         // Re-check after the copy/merge above: the guard at the top only saw
         // the credentials the caller sent, and a preview can inherit embedded
@@ -3281,21 +3310,29 @@ export class ProjectService extends BaseService {
                 : newProjectData;
 
         const copiesUpstreamConnections = Boolean(
-            upstreamProject &&
-            upstreamProject.connections.length > 0 &&
-            previewConnectionOverride,
+            upstreamProject && upstreamProject.connections.length > 0,
         );
-
+        const createProjectForStorage = {
+            ...createProject,
+            warehouseConnectionName:
+                createProject.warehouseConnectionName ??
+                ([RequestMethod.CLI, RequestMethod.CLI_CI].includes(method) &&
+                createProject.warehouseConnection
+                    ? deriveConnectionName(
+                          createProject.warehouseConnection,
+                      )?.trim()
+                    : undefined),
+        };
         const projectUuid =
             await this.projectModel.createWithOptionalCredentials(
                 user.userUuid,
                 user.organizationUuid,
                 copiesUpstreamConnections
                     ? {
-                          ...createProject,
+                          ...createProjectForStorage,
                           warehouseConnection: undefined,
                       }
-                    : createProject,
+                    : createProjectForStorage,
                 internalProvisioning?.source === 'analytics'
                     ? null
                     : await this.getPreviewExpiresAt(
@@ -3310,16 +3347,25 @@ export class ProjectService extends BaseService {
             createProject.type === ProjectType.PREVIEW &&
             createProject.upstreamProjectUuid
         ) {
-            const connectionUuidMap = copiesUpstreamConnections
-                ? await this.projectModel.copyConnectionsForPreview(
-                      createProject.upstreamProjectUuid,
-                      projectUuid,
-                      previewConnectionOverride,
-                  )
-                : await this.getPreviewConnectionUuidMap(
-                      createProject.upstreamProjectUuid,
-                      projectUuid,
-                  );
+            const connectionUuidMap =
+                await this.projectModel.copyConnectionsForPreview(
+                    createProject.upstreamProjectUuid,
+                    projectUuid,
+                    createProject.warehouseConnection &&
+                        selectedUpstreamConnectionUuid &&
+                        !createProject.copyWarehouseConnectionFromUpstreamProject
+                        ? {
+                              connectionUuid: selectedUpstreamConnectionUuid,
+                              warehouseConnection:
+                                  createProject.warehouseConnection,
+                              organizationWarehouseCredentialsUuid:
+                                  requestedOrganizationWarehouseCredentialsUuid,
+                          }
+                        : undefined,
+                );
+            selectedPreviewConnectionUuid = selectedUpstreamConnectionUuid
+                ? connectionUuidMap.get(selectedUpstreamConnectionUuid)
+                : undefined;
             await this.projectDbtSourcesModel.copySources(
                 createProject.upstreamProjectUuid,
                 projectUuid,
@@ -3387,6 +3433,7 @@ export class ProjectService extends BaseService {
                         const connection =
                             await this.projectModel.resolveConnection(
                                 projectUuid,
+                                selectedPreviewConnectionUuid,
                             );
                         await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
                             user.userUuid,
@@ -4003,6 +4050,8 @@ export class ProjectService extends BaseService {
         cliVersion?: string | null,
         complete?: boolean,
         dbtModelNames?: string[],
+        sourceUuid?: string,
+        target?: DeployTarget,
     ): Promise<ApiDeployExploresResults> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -4036,8 +4085,16 @@ export class ProjectService extends BaseService {
             );
         }
 
-        const exploresWithPreAggregates = enhanceExploresForPreAggregates({
+        const sourceBoundExplores = await prepareCliDeployExplores({
+            projectModel: this.projectModel,
+            projectDbtSourcesModel: this.projectDbtSourcesModel,
+            projectUuid,
+            sourceUuid,
+            target,
             explores,
+        });
+        const exploresWithPreAggregates = enhanceExploresForPreAggregates({
+            explores: sourceBoundExplores,
             enabled: this.lightdashConfig.preAggregates.enabled,
             startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
         });
@@ -4053,6 +4110,7 @@ export class ProjectService extends BaseService {
             cliVersion,
             complete,
             dbtModelNames,
+            sourceUuid,
         });
 
         await this.schedulerClient.generateValidation({

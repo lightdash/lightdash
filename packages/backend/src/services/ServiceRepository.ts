@@ -533,6 +533,8 @@ export class ServiceRepository
                 new DeployService({
                     deploySessionModel: this.models.getDeploySessionModel(),
                     projectModel: this.models.getProjectModel(),
+                    projectDbtSourcesModel:
+                        this.models.getProjectDbtSourcesModel(),
                     projectService: this.getProjectService(),
                     schedulerClient: this.clients.getSchedulerClient(),
                 }),
