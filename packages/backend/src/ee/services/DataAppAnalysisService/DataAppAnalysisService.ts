@@ -19,6 +19,7 @@ import {
     type DataAppAnalysisSource,
     type DataAppAnomaly,
     type DataAppDetectRequest,
+    type DataAppDetectResult,
     type DataAppInvestigateJobPayload,
     type DataAppInvestigateRequest,
     type DataAppInvestigation,
@@ -78,6 +79,26 @@ const contentHashOf = (
         [...sectionHashes.map((h) => h.hash).sort(), instructions ?? ''].join(
             '|',
         ),
+    );
+
+const remapQueryUuids = (
+    result: DataAppDetectResult,
+    mapping: Map<string, string>,
+): DataAppDetectResult => ({
+    ...result,
+    anomalies: result.anomalies.map((anomaly) => ({
+        ...anomaly,
+        queryUuid: mapping.get(anomaly.queryUuid) ?? anomaly.queryUuid,
+    })),
+});
+
+const sameQueryUuids = (
+    a: DataAppAnalysisSource[],
+    b: DataAppAnalysisSource[],
+): boolean =>
+    a.length === b.length &&
+    a.every((source) =>
+        b.some((other) => other.queryUuid === source.queryUuid),
     );
 
 /**
@@ -474,12 +495,40 @@ export class DataAppAnalysisService extends BaseService {
             userUuid: args.user.userUuid,
         });
         if (own) {
+            // The app re-runs its queries on every open, so the stored row
+            // usually names query uuids that no longer exist. Rebind it to
+            // the current ones so markers match and Investigate reads live
+            // results; ids and investigations stay put.
+            let current = own;
+            if (!sameQueryUuids(own.sources, args.sources)) {
+                const mapping = mapStoredQueryUuids(
+                    own.source_hashes ?? [],
+                    args.sectionHashes,
+                );
+                if (mapping) {
+                    const result = remapQueryUuids(own.result, mapping);
+                    await this.dataAppAnalysisModel.rebindSources(
+                        own.data_app_analysis_uuid,
+                        {
+                            sources: args.sources,
+                            sourceHashes: args.sectionHashes,
+                            result,
+                        },
+                    );
+                    current = {
+                        ...own,
+                        sources: args.sources,
+                        source_hashes: args.sectionHashes,
+                        result,
+                    };
+                }
+            }
             const investigations =
                 await this.dataAppAnalysisModel.findInvestigations(
-                    own.data_app_analysis_uuid,
+                    current.data_app_analysis_uuid,
                 );
             return {
-                analysis: DataAppAnalysisService.toDetection(own),
+                analysis: DataAppAnalysisService.toDetection(current),
                 investigations: investigations.map(
                     DataAppAnalysisService.toInvestigation,
                 ),
@@ -506,14 +555,7 @@ export class DataAppAnalysisService extends BaseService {
             operation: 'detect',
             sources: args.sources,
             instructions: args.instructions,
-            result: {
-                ...shared.result,
-                anomalies: shared.result.anomalies.map((anomaly) => ({
-                    ...anomaly,
-                    queryUuid:
-                        mapping.get(anomaly.queryUuid) ?? anomaly.queryUuid,
-                })),
-            },
+            result: remapQueryUuids(shared.result, mapping),
             modelId: shared.model_id,
             contentHash: args.contentHash,
             sourceHashes: args.sectionHashes,

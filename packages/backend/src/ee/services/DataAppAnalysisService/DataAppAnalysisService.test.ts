@@ -96,6 +96,7 @@ function buildService(
         })),
         findLatestDetectByHash: vi.fn().mockResolvedValue(null),
         findInvestigations: vi.fn().mockResolvedValue([]),
+        rebindSources: vi.fn().mockResolvedValue(undefined),
     };
     const asyncQueryService = {
         getAsyncQueryHistory: vi.fn().mockResolvedValue({
@@ -359,11 +360,29 @@ describe('DataAppAnalysisService reuse', () => {
         expect(first.contentHash).toBe(second.contentHash);
     });
 
-    it("serves the viewer's own analysis of identical rows without the model", async () => {
+    it("serves the viewer's own analysis of identical rows without the model, rebound to the current queries", async () => {
         const { service, dataAppAnalysisModel, aiService } = buildService();
+        await service.detect(account(), 'proj-1', 'app-1', {
+            ...request,
+            force: true,
+        });
+        const { sourceHashes } = dataAppAnalysisModel.create.mock
+            .calls[0][0] as { sourceHashes: { hash: string }[] };
+        dataAppAnalysisModel.create.mockClear();
+        aiService.detectDataAppAnomalies.mockClear();
         dataAppAnalysisModel.findLatestDetectByHash.mockImplementation(
             async ({ userUuid }: { userUuid: string | null }) =>
-                userUuid ? storedRow({ created_by_user_uuid: userUuid }) : null,
+                userUuid
+                    ? storedRow({
+                          created_by_user_uuid: userUuid,
+                          source_hashes: [
+                              {
+                                  queryUuid: 'their-q',
+                                  hash: sourceHashes[0].hash,
+                              },
+                          ],
+                      })
+                    : null,
         );
         dataAppAnalysisModel.findInvestigations.mockResolvedValue([
             {
@@ -384,6 +403,13 @@ describe('DataAppAnalysisService reuse', () => {
         );
         expect(found?.analysis.analysisId).toBe('stored-1');
         expect(found?.investigations[0]?.investigationId).toBe('inv-1');
+        // Stored under an earlier run's query uuid; the app has a new one now.
+        expect(found?.analysis.sources).toEqual(request.sources);
+        expect(found?.analysis.anomalies[0].queryUuid).toBe('q1');
+        expect(dataAppAnalysisModel.rebindSources).toHaveBeenCalledWith(
+            'stored-1',
+            expect.objectContaining({ sources: request.sources }),
+        );
 
         const analysis = await service.detect(
             account(),

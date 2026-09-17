@@ -121,6 +121,27 @@ export class DataAppAnalysisModel {
         );
     }
 
+    /**
+     * Points a detection at the queries the viewer has now. The rows are
+     * identical (same content hash), only the query uuids moved.
+     */
+    async rebindSources(
+        analysisUuid: string,
+        data: {
+            sources: DataAppAnalysisSource[];
+            sourceHashes: DataAppSourceHash[];
+            result: DataAppDetectResult;
+        },
+    ): Promise<void> {
+        await this.database(DataAppAnalysesTableName)
+            .where({ data_app_analysis_uuid: analysisUuid })
+            .update({
+                sources: JSON.stringify(data.sources),
+                source_hashes: JSON.stringify(data.sourceHashes),
+                result: JSON.stringify(data.result),
+            });
+    }
+
     /** Investigations of one detection, oldest first. */
     async findInvestigations(
         parentAnalysisUuid: string,
