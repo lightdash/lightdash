@@ -401,3 +401,106 @@ describe('explorerSlice saved chart metadata', () => {
         expect(result.savedChart).toBeUndefined();
     });
 });
+
+describe('explorerSlice custom chart query shape', () => {
+    const customConfig = {
+        type: ChartType.DATA_APP_VIZ as const,
+        config: {
+            dataAppVizUuid: 'stream-graph',
+            fieldMapping: {
+                time: 'orders_month',
+                value: 'orders_revenue',
+                series: 'orders_status',
+            },
+            optionValues: {},
+        },
+    };
+    const ready = () =>
+        [
+            explorerActions.setDimensions([
+                'orders_month',
+                'orders_status',
+                'orders_region',
+            ]),
+            explorerActions.setMetrics(['orders_revenue', 'orders_count']),
+            explorerActions.setChartConfig({ chartConfig: customConfig }),
+            explorerActions.setPivotConfig({ columns: ['orders_status'] }),
+            explorerActions.clearPendingFetch(),
+        ].reduce(explorerReducer, defaultState);
+
+    it('requests unpivoted results when leaving a custom chart', () => {
+        const result = explorerReducer(
+            ready(),
+            explorerActions.setChartType({ chartType: ChartType.CARTESIAN }),
+        );
+        expect(result.unsavedChartVersion.pivotConfig).toBeUndefined();
+        expect(result.queryExecution.pendingFetch).toBe(true);
+    });
+
+    it('requests results when mapping an already selected metric', () => {
+        const result = explorerReducer(
+            ready(),
+            explorerActions.setChartConfig({
+                chartConfig: {
+                    ...customConfig,
+                    config: {
+                        ...customConfig.config,
+                        fieldMapping: {
+                            ...customConfig.config.fieldMapping,
+                            value: 'orders_count',
+                        },
+                    },
+                },
+            }),
+        );
+        expect(result.queryExecution.pendingFetch).toBe(true);
+    });
+
+    it.each([
+        explorerActions.setPivotConfig({ columns: ['orders_region'] }),
+        explorerActions.setPivotColumns(['orders_region']),
+        explorerActions.setPivotRows(['orders_month']),
+    ])('requests results when pivot axes change: $type', (action) => {
+        expect(
+            explorerReducer(ready(), action).queryExecution.pendingFetch,
+        ).toBe(true);
+    });
+
+    it('does not request results for presentation options or unchanged bindings', () => {
+        const result = explorerReducer(
+            ready(),
+            explorerActions.setChartConfig({
+                chartConfig: {
+                    ...customConfig,
+                    config: {
+                        ...customConfig.config,
+                        fieldMapping: { ...customConfig.config.fieldMapping },
+                        optionValues: { showLegend: false },
+                    },
+                },
+            }),
+        );
+        expect(result.queryExecution.pendingFetch).toBe(false);
+        expect(
+            explorerReducer(
+                result,
+                explorerActions.setPivotColumns(['orders_status']),
+            ).queryExecution.pendingFetch,
+        ).toBe(false);
+    });
+
+    it('refreshes the previous result shape when canceling Chart Studio', () => {
+        const result = [
+            explorerActions.startChartTypeAuthoring({
+                dataAppVizUuid: 'stream-graph',
+            }),
+            explorerActions.setPivotColumns(['orders_region']),
+            explorerActions.clearPendingFetch(),
+            explorerActions.cancelChartTypeAuthoring(),
+        ].reduce(explorerReducer, ready());
+        expect(result.unsavedChartVersion.pivotConfig).toEqual({
+            columns: ['orders_status'],
+        });
+        expect(result.queryExecution.pendingFetch).toBe(true);
+    });
+});

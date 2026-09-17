@@ -32,6 +32,7 @@ import {
     current,
     type PayloadAction,
 } from '@reduxjs/toolkit';
+import isEqual from 'lodash/isEqual';
 import { type QueryResultsProps } from '../../../hooks/useQueryResults';
 import { defaultState } from '../../../providers/Explorer/defaultState';
 import {
@@ -65,6 +66,38 @@ function saveConfigToCache<T extends ChartType>(
 // `current` rejects undefined, and a data app viz chart may carry no config.
 const snapshotChartConfig = (config: ChartConfig['config']) =>
     config === undefined ? undefined : current(config);
+
+const updateChartQueryConfig = (
+    state: ExplorerSliceState,
+    chartConfig: ChartConfig,
+    pivotConfig: SavedChart['pivotConfig'],
+) => {
+    const previous = state.unsavedChartVersion.chartConfig;
+    const previousMapping =
+        previous.type === ChartType.DATA_APP_VIZ
+            ? previous.config?.fieldMapping
+            : undefined;
+    const nextMapping =
+        chartConfig.type === ChartType.DATA_APP_VIZ
+            ? chartConfig.config?.fieldMapping
+            : undefined;
+    const switchesCustomChart =
+        previous.type !== chartConfig.type &&
+        (previous.type === ChartType.DATA_APP_VIZ ||
+            chartConfig.type === ChartType.DATA_APP_VIZ);
+
+    // A different result shape needs a query even when auto-fetch is off.
+    // Presentation options can keep using the current results.
+    if (
+        switchesCustomChart ||
+        !isEqual(previousMapping, nextMapping) ||
+        !isEqual(state.unsavedChartVersion.pivotConfig, pivotConfig)
+    ) {
+        state.queryExecution.pendingFetch = true;
+    }
+    state.unsavedChartVersion.chartConfig = chartConfig;
+    state.unsavedChartVersion.pivotConfig = pivotConfig;
+};
 
 const initialState: ExplorerSliceState = defaultState;
 
@@ -312,7 +345,11 @@ const explorerSlice = createSlice({
             state,
             action: PayloadAction<SavedChart['pivotConfig']>,
         ) => {
-            state.unsavedChartVersion.pivotConfig = action.payload;
+            updateChartQueryConfig(
+                state,
+                state.unsavedChartVersion.chartConfig,
+                action.payload,
+            );
             if (!action.payload?.columns.length) {
                 state.unsavedChartVersion.metricQuery.sorts =
                     removePivotValuesFromSorts(
@@ -323,10 +360,14 @@ const explorerSlice = createSlice({
 
         setPivotColumns: (state, action: PayloadAction<string[]>) => {
             const rows = state.unsavedChartVersion.pivotConfig?.rows;
-            state.unsavedChartVersion.pivotConfig = {
-                columns: action.payload,
-                ...(rows !== undefined && { rows }),
-            };
+            updateChartQueryConfig(
+                state,
+                state.unsavedChartVersion.chartConfig,
+                {
+                    columns: action.payload,
+                    ...(rows !== undefined && { rows }),
+                },
+            );
 
             if (!action.payload.length) {
                 state.unsavedChartVersion.metricQuery.sorts =
@@ -337,10 +378,17 @@ const explorerSlice = createSlice({
         },
 
         setPivotRows: (state, action: PayloadAction<string[] | undefined>) => {
-            state.unsavedChartVersion.pivotConfig = {
-                columns: state.unsavedChartVersion.pivotConfig?.columns ?? [],
-                ...(action.payload !== undefined && { rows: action.payload }),
-            };
+            updateChartQueryConfig(
+                state,
+                state.unsavedChartVersion.chartConfig,
+                {
+                    columns:
+                        state.unsavedChartVersion.pivotConfig?.columns ?? [],
+                    ...(action.payload !== undefined && {
+                        rows: action.payload,
+                    }),
+                },
+            );
         },
 
         setParameter: (
@@ -428,10 +476,11 @@ const explorerSlice = createSlice({
                           ) as SavedChart['pivotConfig'])
                         : undefined,
                 );
-                state.unsavedChartVersion.chartConfig = {
-                    type: ChartType.DATA_APP_VIZ,
-                };
-                state.unsavedChartVersion.pivotConfig = undefined;
+                updateChartQueryConfig(
+                    state,
+                    { type: ChartType.DATA_APP_VIZ },
+                    undefined,
+                );
             }
         },
         // The builder pinned an older version (or returned to the current
@@ -460,12 +509,13 @@ const explorerSlice = createSlice({
             );
             const pivot = authoring.previous.pivotConfig;
             const columns = pivot?.columns.filter((c) => dimensions.has(c));
-            state.unsavedChartVersion.chartConfig =
-                authoring.previous.chartConfig;
-            state.unsavedChartVersion.pivotConfig =
+            updateChartQueryConfig(
+                state,
+                authoring.previous.chartConfig,
                 pivot && columns && columns.length > 0
                     ? { ...pivot, columns }
-                    : undefined;
+                    : undefined,
+            );
             state.chartSidebarStep = authoring.previous.chartSidebarStep;
             state.chartTypeAuthoring = null;
             state.isVisualizationConfigOpen = true;
@@ -660,16 +710,10 @@ const explorerSlice = createSlice({
                 state.cachedChartConfigs,
             ) as Partial<ConfigCacheMap>;
 
-            // restore the chartConfig
-            state.unsavedChartVersion.chartConfig = getValidChartConfig(
-                action.payload.chartType,
-                plainCache,
-            );
-
-            // restore the pivotConfig
-            state.unsavedChartVersion.pivotConfig = getCachedPivotConfig(
-                action.payload.chartType,
-                plainCache,
+            updateChartQueryConfig(
+                state,
+                getValidChartConfig(action.payload.chartType, plainCache),
+                getCachedPivotConfig(action.payload.chartType, plainCache),
             );
         },
 
@@ -679,10 +723,14 @@ const explorerSlice = createSlice({
                 chartConfig: ChartConfig;
             }>,
         ) => {
-            state.unsavedChartVersion.chartConfig = getValidChartConfig(
-                action.payload.chartConfig.type,
-                state.cachedChartConfigs,
-                action.payload.chartConfig,
+            updateChartQueryConfig(
+                state,
+                getValidChartConfig(
+                    action.payload.chartConfig.type,
+                    state.cachedChartConfigs,
+                    action.payload.chartConfig,
+                ),
+                state.unsavedChartVersion.pivotConfig,
             );
         },
 
