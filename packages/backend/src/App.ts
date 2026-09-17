@@ -645,6 +645,8 @@ export default class App {
             draft.contentSecurityPolicy.directives['frame-ancestors'] = [
                 "'self'",
                 'https://*',
+                ...this.lightdashConfig.security.contentSecurityPolicy
+                    .frameAncestors,
             ];
         });
 
