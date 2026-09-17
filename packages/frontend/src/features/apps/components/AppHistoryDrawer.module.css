@@ -3,13 +3,18 @@
     top: var(--navbar-height);
 }
 
+/* Column so the body can fill it; the panel owns the scroll. */
 .content {
+    display: flex;
+    flex-direction: column;
     height: calc(100dvh - var(--navbar-height));
+    overflow: hidden;
 }
 
 .body {
     display: flex;
     flex-direction: column;
+    flex: 1;
     min-height: 0;
     padding: 0;
 }

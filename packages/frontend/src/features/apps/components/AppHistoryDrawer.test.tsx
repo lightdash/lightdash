@@ -62,16 +62,14 @@ describe('AppHistoryDrawer', () => {
         expect(screen.getAllByRole('button', { name: 'Preview' })).toHaveLength(
             1,
         );
-        expect(
-            screen.getAllByRole('button', { name: 'Restore this version' }),
-        ).toHaveLength(1);
+        expect(screen.getAllByRole('button', { name: 'Restore' })).toHaveLength(
+            1,
+        );
 
         await userEvent.click(screen.getByRole('button', { name: 'Preview' }));
         expect(onView).toHaveBeenCalledWith(1);
 
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Restore this version' }),
-        );
+        await userEvent.click(screen.getByRole('button', { name: 'Restore' }));
         expect(onRestore).toHaveBeenCalledWith(1);
     });
 });

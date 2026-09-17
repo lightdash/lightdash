@@ -45,7 +45,6 @@ const AppHistoryDrawer: FC<Props> = ({ opened, onClose, ...panelProps }) => (
                     onClose={null}
                     emptyPromptLabel={null}
                     olderVersionTime="relative"
-                    showPreviewButton
                 />
             </Drawer.Body>
         </Drawer.Content>

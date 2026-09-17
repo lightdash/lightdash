@@ -1,5 +1,5 @@
 import { ActionIcon, Divider, Tooltip } from '@mantine/core';
-import { IconHistory, IconPencil, IconRefresh } from '@tabler/icons-react';
+import { IconPencil, IconRefresh } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ShareLinkButton } from '../../../components/common/ShareLinkButton';
@@ -27,9 +27,6 @@ type Props = Pick<
     onRefresh: () => void;
     refreshDisabled: boolean;
     onViewNetwork: () => void;
-    /** Opens the builder's project history drawer. Pass null on surfaces
-     *  without one (the viewer). */
-    onShowHistory: (() => void) | null;
     /** Prominent edit affordance matching the dashboard header's pencil
      *  button — "Continue building" in the viewer. Pass null on surfaces
      *  that ARE the edit surface (the builder). */
@@ -57,7 +54,6 @@ const AppHeaderActions: FC<Props> = ({
     onRefresh,
     refreshDisabled,
     onViewNetwork,
-    onShowHistory,
     onEdit,
     shareUrl,
     fullscreenToggle,
@@ -117,26 +113,6 @@ const AppHeaderActions: FC<Props> = ({
                     <MantineIcon icon={IconRefresh} />
                 </ActionIcon>
             </Tooltip>
-            {onShowHistory && (
-                <Tooltip
-                    label="Show project history"
-                    position="bottom"
-                    openDelay={200}
-                    transitionProps={{
-                        transition: 'fade',
-                        duration: 150,
-                    }}
-                >
-                    <ActionIcon
-                        variant="default"
-                        size="md"
-                        onClick={onShowHistory}
-                        aria-label="Show project history"
-                    >
-                        <MantineIcon icon={IconHistory} />
-                    </ActionIcon>
-                </Tooltip>
-            )}
             {analysisToggle}
             {fullscreenToggle}
             {shareUrl && (

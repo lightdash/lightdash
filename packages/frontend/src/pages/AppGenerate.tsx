@@ -15,6 +15,7 @@ import {
     type DataAppVizContext,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Badge,
     Box,
     Button,
@@ -39,6 +40,7 @@ import {
     IconExternalLink,
     IconArrowBackUp,
     IconFileDescription,
+    IconHistory,
     IconLayoutDashboard,
     IconLink,
     IconPackage,
@@ -1891,6 +1893,22 @@ const AppGenerate: FC = () => {
                                     collapsed={isChatPanelCollapsed}
                                     onToggle={handleToggleChatPanel}
                                 />
+                                {activeAppUuid && (
+                                    <Tooltip label="Show project history">
+                                        <ActionIcon
+                                            size="md"
+                                            className={classes.sidebarHistory}
+                                            onClick={openHistory}
+                                            aria-label="Show project history"
+                                        >
+                                            <MantineIcon
+                                                icon={IconHistory}
+                                                size={16}
+                                                stroke={1.7}
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                )}
                             </Box>
                         )}
                         {newAppLanding && (
@@ -3182,7 +3200,6 @@ const AppGenerate: FC = () => {
                                             }
                                             onRefresh={handleRefreshPreview}
                                             refreshDisabled={!previewApp}
-                                            onShowHistory={openHistory}
                                             captureThumbnail={{
                                                 onCapture: () =>
                                                     void captureThumbnail(),
