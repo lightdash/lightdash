@@ -8,6 +8,7 @@ import {
     applyWarehouseLocation,
     EMPTY_WAREHOUSE_LOCATION,
     getWarehouseLocation,
+    getWarehouseLocationLabels,
     normalizeWarehouseLocation,
     validateWarehouseLocation,
 } from './warehouseLocation';
@@ -165,6 +166,15 @@ describe('getWarehouseLocation', () => {
         expect(getWarehouseLocation(clickhouseCredentials)).toEqual({
             database: null,
             schema: 'primary_schema',
+        });
+    });
+});
+
+describe('getWarehouseLocationLabels', () => {
+    it('uses Athena data catalog and database labels', () => {
+        expect(getWarehouseLocationLabels(WarehouseTypes.ATHENA)).toEqual({
+            database: 'Data catalog',
+            schema: 'Database',
         });
     });
 });
