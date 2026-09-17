@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { type ReadyQueryResultsPage } from '../../types/api';
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
+import { type ContentVerificationInfo } from '../../types/contentVerification';
 import {
     type DashboardConfig,
     type DashboardTab,
@@ -17,7 +18,6 @@ import { type ResultRow } from '../../types/results';
 import { type ChartConfig, type SavedChart } from '../../types/savedCharts';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
-import { type ContentVerificationInfo } from '../../types/contentVerification';
 import { type ChartTypeIcon } from './chartTypeIcons';
 import {
     type DataAppVizConfigOption,

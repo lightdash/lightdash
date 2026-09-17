@@ -13,11 +13,11 @@ import {
 import { subject, type Ability } from '@casl/ability';
 import {
     AlreadyExistsError,
-    canMutateVerifiedContent,
     APP_UPGRADE_PROMPT_LABEL,
     APP_VERSION_CANCELLED_BY_USER,
     assertEmbeddedAuth,
     assertUnreachable,
+    canMutateVerifiedContent,
     ChartType,
     chartTypeIconSchema,
     checkThemeLimits,
@@ -85,9 +85,9 @@ import {
     type ChartReference,
     type ChartSampleData,
     type ChartTypeIcon,
-    type ContentVerificationInfo,
     type CompiledExploreJoin,
     type CompiledTable,
+    type ContentVerificationInfo,
     type DashboardBlueprint,
     type DataAppActivityEvent,
     type DataAppActivityFilters,
