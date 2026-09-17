@@ -1,0 +1,35 @@
+.rows {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Hairline-separated rows rather than nested cards. */
+.row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 4px;
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.row:first-of-type {
+    border-top: none;
+}
+
+.row:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.mark {
+    flex: none;
+    color: var(--mantine-color-dimmed);
+}
+
+.info {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.meta {
+    font-size: 11.5px;
+}
