@@ -17,12 +17,15 @@ export const isTodayParameterDefault = (
 
 /**
  * The definition's default value with the `today` sentinel resolved to the current date
- * (`YYYY-MM-DD`, local time of the caller). Any other default is returned as-is.
+ * (`YYYY-MM-DD`). The date is taken in `timezone` when given (an IANA zone such as the
+ * project's query timezone), otherwise in the caller's local time. Any other default is
+ * returned as-is.
  */
 export const resolveParameterDefault = (
     definition: LightdashProjectParameter,
     now: Date = new Date(),
+    timezone?: string,
 ): ParameterValue | undefined =>
     isTodayParameterDefault(definition)
-        ? formatDate(now, TimeFrames.DAY)
+        ? formatDate(now, TimeFrames.DAY, false, timezone)
         : definition.default;

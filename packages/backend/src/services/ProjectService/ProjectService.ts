@@ -134,6 +134,7 @@ import {
     isReservedParameterName,
     isSqlTableCalculation,
     isSshTunnelErrorData,
+    isTodayParameterDefault,
     isUserManagedExplore,
     isUserWithOrg,
     isValidTimezone,
@@ -13311,20 +13312,38 @@ export class ProjectService extends BaseService {
             preloadedProjectParameters ??
             (await this.projectParametersModel.find(projectUuid));
 
+        const exploreParameters = explore
+            ? getAvailableParametersFromTables(Object.values(explore.tables))
+            : {};
+
+        // A `today` default is taken in the project's query timezone, so "today" means
+        // the same day the project's date dimensions report. Only look the zone up when
+        // a definition actually needs it.
+        const hasTodayDefault =
+            parameterConfigs.some((p) => isTodayParameterDefault(p.config)) ||
+            Object.values(exploreParameters).some(isTodayParameterDefault);
+        const now = new Date();
+        const timezone = hasTodayDefault
+            ? await this.getQueryTimezoneForProject(projectUuid)
+            : undefined;
+
         for (const paramConfig of parameterConfigs) {
-            const defaultValue = resolveParameterDefault(paramConfig.config);
+            const defaultValue = resolveParameterDefault(
+                paramConfig.config,
+                now,
+                timezone,
+            );
             if (defaultValue !== undefined) {
                 projectDefaultParameterValues[paramConfig.name] = defaultValue;
             }
         }
 
-        const exploreParameters = explore
-            ? getAvailableParametersFromTables(Object.values(explore.tables))
-            : [];
-
         const exploreDefaultParameterValues = Object.fromEntries(
             Object.entries(exploreParameters)
-                .map(([key, value]) => [key, resolveParameterDefault(value)])
+                .map(([key, value]) => [
+                    key,
+                    resolveParameterDefault(value, now, timezone),
+                ])
                 .filter(([key, value]) => value !== undefined),
         );
 
