@@ -390,6 +390,18 @@ const validCreateRunArgs = () => ({
 
 describe('AiDeepResearchService', () => {
     describe('createRun', () => {
+        it('refuses a thread that started from a data-app investigation', async () => {
+            const { service, aiAgentModel, schedulerClient } = buildService();
+            aiAgentModel.findWebAppPrompt.mockResolvedValue({
+                ...(await aiAgentModel.findWebAppPrompt('prompt-1')),
+                threadCreatedFrom: 'data_app',
+            });
+            await expect(
+                service.createRun(validCreateRunArgs()),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(schedulerClient.aiDeepResearch).not.toHaveBeenCalled();
+        });
+
         it('preflights the inherited agent configuration and persists organization limits before enqueueing', async () => {
             const {
                 service,

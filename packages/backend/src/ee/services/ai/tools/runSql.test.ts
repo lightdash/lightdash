@@ -38,6 +38,7 @@ const makePrompt = (): AiWebAppPrompt => ({
     agentUuid: 'agent-uuid',
     promptUuid: 'prompt-uuid',
     threadUuid: 'thread-uuid',
+    threadCreatedFrom: 'web_app',
     createdByUserUuid: 'user-uuid',
     userUuid: 'user-uuid',
     prompt: 'How many users do we have?',

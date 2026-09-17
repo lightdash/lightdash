@@ -439,6 +439,7 @@ import {
 } from './agentSelectionPrompt';
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import { deriveAiAgentThreadLiveStatus } from './aiAgentThreadLiveStatus';
+import { resolveStandardToolAllowlist } from './dataAppThreadPolicy';
 import {
     responseMatchesPromptInputRequestGate,
     runPromptInputRequestClassification,
@@ -11583,7 +11584,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
             execution = {
                 mode: 'standard',
                 maxSteps: responseExecution.maxSteps ?? DEFAULT_AGENT_MAX_STEPS,
-                toolAllowlist: responseExecution.toolAllowlist,
+                toolAllowlist: resolveStandardToolAllowlist(
+                    prompt.threadCreatedFrom,
+                    responseExecution.toolAllowlist,
+                ),
             };
         }
 
