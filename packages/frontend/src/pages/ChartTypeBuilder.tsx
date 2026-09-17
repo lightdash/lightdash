@@ -255,8 +255,13 @@ const ChartTypeBuilder: FC = () => {
         pivotDetails: liveRun?.pivotDetails ?? null,
         colorPalette,
     });
+    const previewData =
+        workspace.history.versions.find(
+            (version) => version.version === workspace.previewVersion,
+        )?.resources?.vizPreview ?? null;
     // Real rows when the saved chart's query has run; the fabricated sample
-    // otherwise. Rebuilt on any option or palette edit.
+    // otherwise (tuned by the version's vizPreview resource when present).
+    // Rebuilt on any option or palette edit.
     const previewContext = useMemo(() => {
         if (!schema) return null;
         if (!previewRun) {
@@ -264,6 +269,7 @@ const ChartTypeBuilder: FC = () => {
                 schema,
                 colorPalette,
                 panel.optionValues,
+                previewData,
             );
         }
         return buildExplorerVizContext({
@@ -283,6 +289,7 @@ const ChartTypeBuilder: FC = () => {
         panel.optionValues,
         resolvedColors,
         previewFieldMapping,
+        previewData,
     ]);
 
     // What the next build is told it is changing: the schema on screen, bound

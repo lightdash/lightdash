@@ -17,6 +17,7 @@ const makeVersion = (overrides: Record<string, unknown> = {}) => ({
     version: 3,
     status: 'ready',
     viz_schema: vizSchema,
+    viz_preview: null,
     ...overrides,
 });
 
@@ -51,6 +52,7 @@ describe('resolveDataAppVizRenderMetadata', () => {
             state: 'ready',
             version: 2,
             schema: vizSchema,
+            preview: null,
             latestBuildInProgress: false,
         });
         expect(appModel.getVersion).toHaveBeenCalledWith(APP_UUID, 2);
@@ -132,6 +134,7 @@ describe('resolveDataAppVizRenderMetadata', () => {
             state: 'ready',
             version: 3,
             schema: vizSchema,
+            preview: null,
             latestBuildInProgress: false,
         });
         expect(isBundleServable).toHaveBeenCalledWith(APP_UUID, 3);
@@ -194,5 +197,37 @@ describe('resolveDataAppVizRenderMetadata', () => {
             ),
         ).resolves.toMatchObject({ state: 'failed' });
         expect(isBundleServable).not.toHaveBeenCalled();
+    });
+});
+
+it('returns the selected version demo data', async () => {
+    const preview = { rows: [{ category: 'North', value: 42 }] };
+    const appModel = makeAppModel(
+        makeVersion(),
+        makeVersion({ viz_preview: preview }),
+    );
+    const result = await resolveDataAppVizRenderMetadata(
+        appModel,
+        APP_UUID,
+        vi.fn().mockResolvedValue(true),
+    );
+    expect(result).toMatchObject({ state: 'ready', preview });
+    appModel.getVersion.mockResolvedValue(
+        makeVersion({
+            version: 1,
+            viz_preview: { optionValues: { showLegend: false } },
+        }),
+    );
+    expect(
+        await resolveDataAppVizRenderMetadata(
+            appModel,
+            APP_UUID,
+            vi.fn().mockResolvedValue(true),
+            1,
+        ),
+    ).toMatchObject({
+        state: 'ready',
+        version: 1,
+        preview: { optionValues: { showLegend: false } },
     });
 });

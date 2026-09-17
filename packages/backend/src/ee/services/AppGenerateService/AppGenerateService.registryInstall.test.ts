@@ -68,6 +68,7 @@ function makeEntry(
         vizSchema: VIZ_SCHEMA,
         thumbnail: null,
         thumbnailDark: null,
+        preview: { rows: [{ category: 'Demo', value: 42 }] },
         screenshots: [],
         artifacts: {
             source: { path: 'sankey/1.3.0/source.tar', sha256: 'a'.repeat(64) },
@@ -490,6 +491,7 @@ describe('AppGenerateService.installRegistryChartType', () => {
         expect(optsArg).toEqual({
             registryVersion: '1.3.0',
             thread: { origin: 'import', aiThreadUuid: null },
+            vizPreview: SANKEY_ENTRY.preview,
         });
     });
 
@@ -627,7 +629,7 @@ describe('AppGenerateService.installRegistryChartType', () => {
             undefined,
             undefined,
             PARSED_VIZ_SCHEMA,
-            { registryVersion: '1.3.0' },
+            { registryVersion: '1.3.0', vizPreview: SANKEY_ENTRY.preview },
         );
         // The registry's icon always wins on upgrade — installed types are
         // read-only, so it can't have drifted locally.
@@ -698,7 +700,7 @@ describe('AppGenerateService.installRegistryChartType', () => {
             undefined,
             undefined,
             PARSED_VIZ_SCHEMA,
-            { registryVersion: '1.3.0' },
+            { registryVersion: '1.3.0', vizPreview: SANKEY_ENTRY.preview },
         );
     });
 

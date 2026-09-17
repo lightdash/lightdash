@@ -18,6 +18,7 @@ import {
     type DataAppCodingAgent,
     type DataAppGenerationUsage,
     type DataAppVizListSort,
+    type DataAppVizPreview,
     type DataAppVizSchema,
     type DataAppVizsFilter,
     type KnexPaginateArgs,
@@ -161,6 +162,7 @@ export class AppModel {
         opts?: {
             forceSlug?: boolean;
             registryVersion?: string;
+            vizPreview?: DataAppVizPreview | null;
             // Defaults to a builder-originated thread 1.
             thread?: Pick<CreateAppThreadArgs, 'origin' | 'aiThreadUuid'>;
         },
@@ -248,6 +250,11 @@ export class AppModel {
                           }
                         : {}),
                     registry_version: opts?.registryVersion ?? null,
+                    viz_preview: opts?.vizPreview
+                        ? (JSON.stringify(
+                              opts.vizPreview,
+                          ) as unknown as DataAppVizPreview)
+                        : null,
                 })
                 .returning('*');
             return { app: appRow, version: versionRow, thread };
@@ -990,7 +997,11 @@ export class AppModel {
         resources?: AppVersionResources,
         dependencies?: AppVersionDependencies,
         vizSchema?: DataAppVizSchema,
-        opts?: { registryVersion?: string; appThreadUuid?: string },
+        opts?: {
+            registryVersion?: string;
+            appThreadUuid?: string;
+            vizPreview?: DataAppVizPreview | null;
+        },
     ): Promise<DbAppVersion> {
         const appThreadUuid =
             opts?.appThreadUuid ??
@@ -1003,6 +1014,11 @@ export class AppModel {
                 status,
                 created_by_user_uuid: createdByUserUuid,
                 registry_version: opts?.registryVersion ?? null,
+                viz_preview: opts?.vizPreview
+                    ? (JSON.stringify(
+                          opts.vizPreview,
+                      ) as unknown as DataAppVizPreview)
+                    : null,
                 ...(resources
                     ? {
                           resources: JSON.stringify(

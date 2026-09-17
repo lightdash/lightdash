@@ -135,6 +135,7 @@ export const resolveDataAppVizRenderMetadata = async (
             state: 'ready',
             version: appVersion.version,
             schema: appVersion.viz_schema,
+            preview: appVersion.viz_preview ?? null,
             latestBuildInProgress: false,
         };
     }
@@ -163,6 +164,7 @@ export const resolveDataAppVizRenderMetadata = async (
             state: 'ready',
             version: renderableVersion.version,
             schema: renderableVersion.viz_schema,
+            preview: renderableVersion.viz_preview ?? null,
             latestBuildInProgress,
         };
     }
