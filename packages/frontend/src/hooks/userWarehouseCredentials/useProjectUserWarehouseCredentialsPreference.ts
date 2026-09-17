@@ -13,23 +13,33 @@ import useToaster from '../toaster/useToaster';
 
 const getProjectUserWarehouseCredentialsPreference = async (
     projectUuid: string,
+    connectionUuid?: string,
 ) =>
     lightdashApi<UserWarehouseCredentials>({
-        url: `/projects/${projectUuid}/user-credentials`,
+        url: `/projects/${projectUuid}/user-credentials${
+            connectionUuid
+                ? `?connectionUuid=${encodeURIComponent(connectionUuid)}`
+                : ''
+        }`,
         method: 'GET',
         body: undefined,
     });
 
 export const useProjectUserWarehouseCredentialsPreference = (
     projectUuid: string | undefined,
+    connectionUuid?: string,
 ) => {
     return useQuery<UserWarehouseCredentials, ApiError>({
         queryKey: [
             'project-user-warehouse-credentials-preference',
             projectUuid,
+            connectionUuid,
         ],
         queryFn: () =>
-            getProjectUserWarehouseCredentialsPreference(projectUuid!),
+            getProjectUserWarehouseCredentialsPreference(
+                projectUuid!,
+                connectionUuid,
+            ),
         enabled: !!projectUuid,
         retry: false,
     });
@@ -38,9 +48,14 @@ export const useProjectUserWarehouseCredentialsPreference = (
 const updateProjectUserWarehouseCredentialsPreference = async (
     projectUuid: string,
     userWarehouseCredentialsUuid: string,
+    connectionUuid?: string,
 ) =>
     lightdashApi<null>({
-        url: `/projects/${projectUuid}/user-credentials/${userWarehouseCredentialsUuid}`,
+        url: `/projects/${projectUuid}/user-credentials/${userWarehouseCredentialsUuid}${
+            connectionUuid
+                ? `?connectionUuid=${encodeURIComponent(connectionUuid)}`
+                : ''
+        }`,
         method: 'PATCH',
         body: undefined,
     });
@@ -48,6 +63,7 @@ const updateProjectUserWarehouseCredentialsPreference = async (
 type UpdateCredentialsPreference = {
     projectUuid: string;
     userWarehouseCredentialsUuid: string;
+    connectionUuid?: string;
 };
 
 export const useProjectUserWarehouseCredentialsPreferenceMutation = (
@@ -56,10 +72,11 @@ export const useProjectUserWarehouseCredentialsPreferenceMutation = (
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, UpdateCredentialsPreference>(
-        ({ projectUuid, userWarehouseCredentialsUuid }) =>
+        ({ projectUuid, userWarehouseCredentialsUuid, connectionUuid }) =>
             updateProjectUserWarehouseCredentialsPreference(
                 projectUuid,
                 userWarehouseCredentialsUuid,
+                connectionUuid,
             ),
         {
             mutationKey: ['update-project-user-credentials-preference'],
