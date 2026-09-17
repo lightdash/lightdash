@@ -14,6 +14,7 @@ import {
     TooManyRequestsError,
     type Account,
     type DataAppAnalysis,
+    type DataAppAnalysisLookup,
     type DataAppAnalysisRecord,
     type DataAppAnalysisSource,
     type DataAppAnomaly,
@@ -21,11 +22,13 @@ import {
     type DataAppInvestigateJobPayload,
     type DataAppInvestigateRequest,
     type DataAppInvestigation,
+    type DataAppLookupRequest,
     type DataAppPromptAnswer,
     type DataAppPromptRequest,
     type ItemsMap,
     type SessionUser,
 } from '@lightdash/common';
+import { createHash } from 'crypto';
 import { fromSession, toSessionUser } from '../../../auth/account';
 import { type AppModel } from '../../../models/AppModel';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -35,7 +38,10 @@ import { BaseService } from '../../../services/BaseService';
 import { CsvService } from '../../../services/CsvService/CsvService';
 import { type SchedulerService } from '../../../services/SchedulerService/SchedulerService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
-import { type DbDataAppAnalysis } from '../../database/entities/dataAppAnalyses';
+import {
+    type DataAppSourceHash,
+    type DbDataAppAnalysis,
+} from '../../database/entities/dataAppAnalyses';
 import { type DataAppAnalysisModel } from '../../models/DataAppAnalysisModel';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -59,6 +65,39 @@ import {
 import { groundAnomalies, type GroundingSource } from './grounding';
 
 const MAX_SOURCES = 40;
+
+const sha256 = (value: string): string =>
+    createHash('sha256').update(value).digest('hex');
+
+/** Order- and label-independent identity of what the model read. */
+const contentHashOf = (
+    sectionHashes: DataAppSourceHash[],
+    instructions: string | null,
+): string =>
+    sha256(
+        [...sectionHashes.map((h) => h.hash).sort(), instructions ?? ''].join(
+            '|',
+        ),
+    );
+
+/**
+ * Pairs each stored source with one of the viewer's sources that read the
+ * same rows. Null when any stored source has no counterpart.
+ */
+const mapStoredQueryUuids = (
+    stored: DataAppSourceHash[],
+    current: DataAppSourceHash[],
+): Map<string, string> | null => {
+    const unused = [...current];
+    const mapping = new Map<string, string>();
+    for (const source of stored) {
+        const index = unused.findIndex((c) => c.hash === source.hash);
+        if (index === -1) return null;
+        mapping.set(source.queryUuid, unused[index].queryUuid);
+        unused.splice(index, 1);
+    }
+    return mapping;
+};
 const MAX_PROMPT_CHARS = 2000;
 const MAX_FOCUS_ENTRIES = 30;
 const MAX_FOCUS_VALUE_CHARS = 200;
@@ -307,8 +346,13 @@ export class DataAppAnalysisService extends BaseService {
         account: Account,
         projectUuid: string,
         sources: DataAppAnalysisSource[],
-    ): Promise<{ content: string; grounding: GroundingSource[] }> {
+    ): Promise<{
+        content: string;
+        grounding: GroundingSource[];
+        sectionHashes: DataAppSourceHash[];
+    }> {
         const grounding: GroundingSource[] = [];
+        const sectionHashes: DataAppSourceHash[] = [];
         const sections = await sources.reduce<Promise<SectionAccumulator>>(
             async (accPromise, source, index) => {
                 const acc = await accPromise;
@@ -344,21 +388,183 @@ export class DataAppAnalysisService extends BaseService {
                         rowValueSets(row, fields, fieldIds, displayTimezone),
                     ),
                 });
+                const csv = convertQueryResultsToCsv({ rows, fields });
+                const legend = fieldLegend(fields, fieldIds);
+                // Label and query uuid excluded: identity is the rows read.
+                sectionHashes.push({
+                    queryUuid: source.queryUuid,
+                    hash: sha256(
+                        `${legend}\n${csv}${truncated ? '\n[truncated]' : ''}`,
+                    ),
+                });
                 return appendCsvSection(
                     acc,
                     title,
-                    convertQueryResultsToCsv({ rows, fields }),
+                    csv,
                     truncated,
-                    `Query: ${source.queryUuid}\nFields: ${fieldLegend(
-                        fields,
-                        fieldIds,
-                    )}\n`,
+                    `Query: ${source.queryUuid}\nFields: ${legend}\n`,
                 );
             },
             Promise.resolve(emptySectionAccumulator()),
         );
-        return { content: serializeSections(sections), grounding };
+        return {
+            content: serializeSections(sections),
+            grounding,
+            sectionHashes,
+        };
     }
+
+    private static validateSources(sources: DataAppAnalysisSource[]): void {
+        if (sources.length === 0) {
+            throw new ParameterError('At least one source query is required');
+        }
+        if (sources.length > MAX_SOURCES) {
+            throw new ParameterError(
+                `At most ${MAX_SOURCES} source queries can be analysed at once`,
+            );
+        }
+    }
+
+    private static toDetection(
+        row: DbDataAppAnalysis & { operation: 'detect' },
+    ): DataAppAnalysis {
+        return {
+            ...row.result,
+            analysisId: row.data_app_analysis_uuid,
+            appUuid: row.app_id,
+            appVersion: row.app_version,
+            sources: row.sources,
+            generatedAt: row.created_at,
+        };
+    }
+
+    private static toInvestigation(
+        row: DbDataAppAnalysis & { operation: 'investigate' },
+    ): DataAppInvestigation {
+        return {
+            ...row.result,
+            investigationId: row.data_app_analysis_uuid,
+            analysisId: row.parent_analysis_uuid,
+            appUuid: row.app_id,
+            appVersion: row.app_version,
+            generatedAt: row.created_at,
+        };
+    }
+
+    /**
+     * The viewer's own detection of exactly these rows, or a copy of another
+     * viewer's. Identical content hash means identical rows, so the findings
+     * transfer; investigations do not, since they ran further queries under
+     * the other viewer's access.
+     */
+    private async findReusable(args: {
+        user: SessionUser;
+        projectUuid: string;
+        appUuid: string;
+        appVersion: number;
+        sources: DataAppAnalysisSource[];
+        instructions: string | null;
+        sectionHashes: DataAppSourceHash[];
+        contentHash: string;
+    }): Promise<DataAppAnalysisLookup | null> {
+        const own = await this.dataAppAnalysisModel.findLatestDetectByHash({
+            appUuid: args.appUuid,
+            appVersion: args.appVersion,
+            contentHash: args.contentHash,
+            userUuid: args.user.userUuid,
+        });
+        if (own) {
+            const investigations =
+                await this.dataAppAnalysisModel.findInvestigations(
+                    own.data_app_analysis_uuid,
+                );
+            return {
+                analysis: DataAppAnalysisService.toDetection(own),
+                investigations: investigations.map(
+                    DataAppAnalysisService.toInvestigation,
+                ),
+            };
+        }
+        const shared = await this.dataAppAnalysisModel.findLatestDetectByHash({
+            appUuid: args.appUuid,
+            appVersion: args.appVersion,
+            contentHash: args.contentHash,
+            userUuid: null,
+        });
+        if (!shared) return null;
+        const mapping = mapStoredQueryUuids(
+            shared.source_hashes ?? [],
+            args.sectionHashes,
+        );
+        if (!mapping) return null;
+        const copy = await this.dataAppAnalysisModel.create({
+            organizationUuid: args.user.organizationUuid!,
+            projectUuid: args.projectUuid,
+            appUuid: args.appUuid,
+            appVersion: args.appVersion,
+            createdByUserUuid: args.user.userUuid,
+            operation: 'detect',
+            sources: args.sources,
+            instructions: args.instructions,
+            result: {
+                ...shared.result,
+                anomalies: shared.result.anomalies.map((anomaly) => ({
+                    ...anomaly,
+                    queryUuid:
+                        mapping.get(anomaly.queryUuid) ?? anomaly.queryUuid,
+                })),
+            },
+            modelId: shared.model_id,
+            contentHash: args.contentHash,
+            sourceHashes: args.sectionHashes,
+            reusedFromAnalysisUuid:
+                shared.reused_from_analysis_uuid ??
+                shared.data_app_analysis_uuid,
+        });
+        return {
+            analysis: DataAppAnalysisService.toDetection(
+                copy as DbDataAppAnalysis & { operation: 'detect' },
+            ),
+            investigations: [],
+        };
+    }
+
+    /** A stored analysis of exactly the rows the viewer sees now; never runs the model. */
+    async lookup(
+        account: Account,
+        projectUuid: string,
+        appUuid: string,
+        body: DataAppLookupRequest,
+    ): Promise<DataAppAnalysisLookup | null> {
+        DataAppAnalysisService.validateSources(body.sources);
+        const instructions = body.instructions?.trim() || null;
+        const { user, appVersion } = await this.assertViewer(
+            account,
+            projectUuid,
+            appUuid,
+        );
+        const { sectionHashes } = await this.buildContent(
+            account,
+            projectUuid,
+            body.sources,
+        );
+        return this.findReusable({
+            user,
+            projectUuid,
+            appUuid,
+            appVersion,
+            sources: body.sources,
+            instructions,
+            sectionHashes,
+            contentHash: contentHashOf(sectionHashes, instructions),
+        });
+    }
+
+    // Concurrent detects of the same rows by the same viewer share one run.
+    private readonly inFlightDetects = new Map<
+        string,
+        Promise<DataAppAnalysis>
+    >();
 
     async detect(
         account: Account,
@@ -366,26 +572,73 @@ export class DataAppAnalysisService extends BaseService {
         appUuid: string,
         body: DataAppDetectRequest,
     ): Promise<DataAppAnalysis> {
-        if (body.sources.length === 0) {
-            throw new ParameterError('At least one source query is required');
-        }
-        if (body.sources.length > MAX_SOURCES) {
-            throw new ParameterError(
-                `At most ${MAX_SOURCES} source queries can be analysed at once`,
-            );
-        }
+        DataAppAnalysisService.validateSources(body.sources);
         const instructions = body.instructions?.trim() || null;
         const { user, appVersion } = await this.assertViewer(
             account,
             projectUuid,
             appUuid,
         );
-        const { content, grounding } = await this.buildContent(
+        const { content, grounding, sectionHashes } = await this.buildContent(
             account,
             projectUuid,
             body.sources,
         );
+        const contentHash = contentHashOf(sectionHashes, instructions);
+        if (!body.force) {
+            const reusable = await this.findReusable({
+                user,
+                projectUuid,
+                appUuid,
+                appVersion,
+                sources: body.sources,
+                instructions,
+                sectionHashes,
+                contentHash,
+            });
+            if (reusable) return reusable.analysis;
+        }
+        const inFlightKey = `${user.userUuid}:${appUuid}:${appVersion}:${contentHash}`;
+        const inFlight = this.inFlightDetects.get(inFlightKey);
+        if (inFlight) return inFlight;
+        const run = this.runDetect({
+            user,
+            projectUuid,
+            appUuid,
+            appVersion,
+            sources: body.sources,
+            instructions,
+            content,
+            grounding,
+            sectionHashes,
+            contentHash,
+        }).finally(() => this.inFlightDetects.delete(inFlightKey));
+        this.inFlightDetects.set(inFlightKey, run);
+        return run;
+    }
 
+    private async runDetect(args: {
+        user: SessionUser;
+        projectUuid: string;
+        appUuid: string;
+        appVersion: number;
+        sources: DataAppAnalysisSource[];
+        instructions: string | null;
+        content: string;
+        grounding: GroundingSource[];
+        sectionHashes: DataAppSourceHash[];
+        contentHash: string;
+    }): Promise<DataAppAnalysis> {
+        const {
+            user,
+            projectUuid,
+            appUuid,
+            appVersion,
+            sources,
+            instructions,
+            content,
+            grounding,
+        } = args;
         const { detection, modelId } =
             await this.aiService.detectDataAppAnomalies(user, {
                 content,
@@ -420,10 +673,13 @@ export class DataAppAnalysisService extends BaseService {
             appVersion,
             createdByUserUuid: user.userUuid,
             operation: 'detect',
-            sources: body.sources,
+            sources,
             instructions,
             result,
             modelId,
+            contentHash: args.contentHash,
+            sourceHashes: args.sectionHashes,
+            reusedFromAnalysisUuid: null,
         });
 
         return {
@@ -431,7 +687,7 @@ export class DataAppAnalysisService extends BaseService {
             analysisId: row.data_app_analysis_uuid,
             appUuid,
             appVersion,
-            sources: body.sources,
+            sources,
             generatedAt: row.created_at,
         };
     }

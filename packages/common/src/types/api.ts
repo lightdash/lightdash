@@ -59,6 +59,7 @@ import type {
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
     ApiDataAppActivityResponse,
+    ApiDataAppAnalysisLookupResponse,
     ApiDataAppAnalysisResponse,
     ApiDataAppDetectResponse,
     ApiDataAppInvestigateResponse,
@@ -1555,6 +1556,7 @@ type ApiResults =
     | ApiAiOrganizationSettingsResponse['results']
     | ApiAiOrganizationRuntimeSettingsResponse['results']
     | ApiDataAppDetectResponse['results']
+    | ApiDataAppAnalysisLookupResponse['results']
     | ApiDataAppAnalysisResponse['results']
     | ApiDataAppInvestigateResponse['results']
     | ApiDataAppPromptResponse['results']

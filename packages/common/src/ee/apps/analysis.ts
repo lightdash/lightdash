@@ -40,6 +40,13 @@ export type DataAppDetectResult = {
 export type DataAppDetectRequest = {
     sources: DataAppAnalysisSource[];
     instructions?: string;
+    /** Run the model even when an analysis of identical rows exists. */
+    force?: boolean;
+};
+
+export type DataAppLookupRequest = {
+    sources: DataAppAnalysisSource[];
+    instructions?: string;
 };
 
 export type DataAppAnalysis = DataAppDetectResult & {
@@ -113,6 +120,15 @@ export type DataAppPromptAnswer = DataAppPromptResult & {
 };
 
 export type ApiDataAppPromptResponse = ApiSuccess<DataAppPromptAnswer>;
+
+/** A stored analysis of exactly the rows the viewer sees now, with its investigations. */
+export type DataAppAnalysisLookup = {
+    analysis: DataAppAnalysis;
+    investigations: DataAppInvestigation[];
+};
+
+export type ApiDataAppAnalysisLookupResponse =
+    ApiSuccess<DataAppAnalysisLookup | null>;
 
 export type DataAppAnalysisRecord =
     | ({ operation: 'detect' } & DataAppAnalysis)
