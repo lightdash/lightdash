@@ -619,6 +619,16 @@ export class GoogleSheetsQuotaError extends LightdashError {
         });
     }
 }
+export class WarehouseDatabaseListingNotSupportedError extends LightdashError {
+    constructor(warehouseType: string) {
+        super({
+            message: `Additional databases are not supported for ${warehouseType} yet`,
+            name: 'WarehouseDatabaseListingNotSupportedError',
+            statusCode: 400,
+            data: { warehouseType },
+        });
+    }
+}
 export class NotImplementedError extends LightdashError {
     constructor(message = 'Not implemented') {
         super({

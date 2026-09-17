@@ -9,6 +9,9 @@ import {
     UnnestSql,
     UnnestSqlArgs,
     WarehouseCatalog,
+    WarehouseDatabaseListing,
+    WarehouseDatabaseListingNotSupportedError,
+    WarehouseListedDatabase,
     WarehouseResults,
     WarehouseSqlBuilder,
     WarehouseTables,
@@ -200,6 +203,23 @@ export default abstract class WarehouseBaseClient<
         database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog>;
+
+    async listDatabases(
+        _tags?: Record<string, string>,
+    ): Promise<WarehouseDatabaseListing> {
+        throw new WarehouseDatabaseListingNotSupportedError(
+            this.credentials.type,
+        );
+    }
+
+    async getTablesForDatabase(
+        _database: WarehouseListedDatabase,
+        _tags?: Record<string, string>,
+    ): Promise<WarehouseTables> {
+        throw new WarehouseDatabaseListingNotSupportedError(
+            this.credentials.type,
+        );
+    }
 
     parseWarehouseCatalog(
         rows: Record<string, AnyType>[],

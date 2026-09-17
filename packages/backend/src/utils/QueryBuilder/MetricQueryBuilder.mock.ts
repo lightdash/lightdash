@@ -23,6 +23,7 @@ import {
     TimeIntervalUnit,
     WarehouseCatalog,
     WarehouseClient,
+    WarehouseDatabaseListing,
     WarehouseTables,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -93,6 +94,12 @@ export const warehouseClientMock: WarehouseClient = {
         schema?: string | undefined,
         tags?: Record<string, string> | undefined,
     ): Promise<WarehouseTables> {
+        throw new Error('Function not implemented.');
+    },
+    listDatabases(): Promise<WarehouseDatabaseListing> {
+        throw new Error('Function not implemented.');
+    },
+    getTablesForDatabase(): Promise<WarehouseTables> {
         throw new Error('Function not implemented.');
     },
     getFields(
@@ -190,6 +197,12 @@ export const bigqueryClientMock: WarehouseClient = {
         schema?: string | undefined,
         tags?: Record<string, string> | undefined,
     ): Promise<WarehouseTables> {
+        throw new Error('Function not implemented.');
+    },
+    listDatabases(): Promise<WarehouseDatabaseListing> {
+        throw new Error('Function not implemented.');
+    },
+    getTablesForDatabase(): Promise<WarehouseTables> {
         throw new Error('Function not implemented.');
     },
     getFields(
