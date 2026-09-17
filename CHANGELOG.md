@@ -1,3 +1,10 @@
+# [2.259.0](https://github.com/lightdash/lightdash/compare/2.258.0...2.259.0) (2026-09-17)
+
+
+### Features
+
+* **merge-queries:** flag a merged result that reached its row limit ([#29493](https://github.com/lightdash/lightdash/issues/29493)) ([961e5ec](https://github.com/lightdash/lightdash/commit/961e5ecd20845499f598ff637d9db5912f69b1a2))
+
 # [2.258.0](https://github.com/lightdash/lightdash/compare/2.257.0...2.258.0) (2026-09-17)
 
 
