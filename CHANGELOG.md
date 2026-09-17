@@ -1,3 +1,10 @@
+## [2.253.2](https://github.com/lightdash/lightdash/compare/2.253.1...2.253.2) (2026-09-17)
+
+
+### Bug Fixes
+
+* **parameters:** resolve `today` default in the project query timezone ([#29455](https://github.com/lightdash/lightdash/issues/29455)) ([ca012c3](https://github.com/lightdash/lightdash/commit/ca012c3df98fe51007a00b0b66abb27106e71e79))
+
 ## [2.253.1](https://github.com/lightdash/lightdash/compare/2.253.0...2.253.1) (2026-09-17)
 
 
