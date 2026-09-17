@@ -188,7 +188,9 @@ Keep the marker subtle (an outline, a dot, a badge in the tooltip), and show the
 Recharts draws `activeDot` on top of `dot` while the cursor is over a point. With the default `activeDot={{ r: 5 }}` the hover dot covers the marker and takes the click, so the action menu only opens from a one-pixel rim. Render the same marker component for both, with the same click handler, or turn the hover dot off:
 
 ```tsx
-const Marker = ({ cx, cy, payload }) => {
+// Recharts clones the dot element and merges cx, cy and payload into its
+// props, so extra props like insights and onOpenMenu pass straight through.
+const Marker = ({ cx, cy, payload, insights, onOpenMenu }) => {
     const anomaly = marker(insights, payload);
     return (
         <circle
@@ -197,13 +199,25 @@ const Marker = ({ cx, cy, payload }) => {
             r={anomaly ? 5 : 3}
             fill={anomaly ? 'var(--destructive)' : 'var(--chart-1)'}
             style={{ cursor: 'pointer' }}
-            onClick={(e) => openMenu(payload, e)}
+            onClick={(e) => onOpenMenu(payload, e)}
         />
     );
 };
 
-<Line dataKey="orders_count" dot={<Marker />} activeDot={<Marker />} />
-// or: activeDot={false}
+function OrdersOverTime() {
+    const orders = useLightdash(ordersQuery);
+    const insights = useInsights(orders);
+    const [menu, setMenu] = useState(null);
+    const openMenu = (row, e) => setMenu({ row, x: e.clientX, y: e.clientY });
+    const dot = <Marker insights={insights} onOpenMenu={openMenu} />;
+
+    return (
+        <LineChart data={orders.data}>
+            <Line dataKey="orders_count" dot={dot} activeDot={dot} />
+            {/* or: activeDot={false} */}
+        </LineChart>
+    );
+}
 ```
 
 Whatever element carries the click handler must be the topmost one at that position: render markers after the series, never under a hover overlay or a tooltip cursor.
