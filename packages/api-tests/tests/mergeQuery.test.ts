@@ -364,6 +364,67 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
     // must equal the value its source query returns on its own, and each
     // join type must keep exactly the key sets it promises. A merge that
     // joins wrong or drops rows fails here on whichever engine ran it.
+    // A source whose filter matches nothing is an empty side, not a failed
+    // merge: a left join keeps every primary row with blanks for it.
+    it('keeps the other side when a source returns no rows', async () => {
+        const [ordersRows, runResp] = await Promise.all([
+            runSourceQuery(ordersByMonth),
+            admin.post<Body<ApiExecuteAsyncMergeQueryResults>>(
+                `/api/v2/projects/${projectUuid}/query/merge-query`,
+                {
+                    mergeQuery: {
+                        ...mergeQuery,
+                        sources: [
+                            { id: 'orders', metricQuery: ordersByMonth },
+                            {
+                                id: 'payments',
+                                metricQuery: {
+                                    ...paymentsByMonth,
+                                    filters: {
+                                        dimensions: {
+                                            id: 'empty',
+                                            and: [
+                                                {
+                                                    id: 'future',
+                                                    target: {
+                                                        fieldId:
+                                                            'orders_order_date_month',
+                                                    },
+                                                    operator:
+                                                        'greaterThanOrEqual',
+                                                    values: ['2999-01-01'],
+                                                },
+                                            ],
+                                        },
+                                    },
+                                },
+                            },
+                        ],
+                        joinType: MergeJoinType.LEFT,
+                    },
+                    context: QueryExecutionContext.EXPLORE,
+                    mode: { type: 'interactive' },
+                },
+            ),
+        ]);
+        expect(runResp.body.results.outcome).toBe('started');
+        if (runResp.body.results.outcome !== 'started') {
+            throw new Error(
+                `Merge was refused: ${JSON.stringify(runResp.body.results.errors)}`,
+            );
+        }
+
+        const results = await pollQueryResults(
+            admin,
+            runResp.body.results.query.queryUuid,
+        );
+
+        expect(results.totalResults).toBe(ordersRows.length);
+        results.rows.forEach((row) => {
+            expect(cellOf(row, PAYMENTS_FIELD_ID).raw).toBeNull();
+        });
+    }, 60_000);
+
     it('returns exactly the values its source queries return on their own', async () => {
         const [ordersRows, paymentsRows, runResp] = await Promise.all([
             runSourceQuery(ordersByMonth),

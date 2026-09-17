@@ -1,10 +1,37 @@
 import {
+    convertItemTypeToDimensionType,
     getResultColumnMetadataFromItem,
     ItemsMap,
     ParametersValuesMap,
     ResultColumns,
     WarehouseResults,
 } from '@lightdash/common';
+
+/**
+ * The columns a query's fields describe, typed from the fields themselves.
+ * For a result with no rows the warehouse never reported a batch, so this
+ * is the only description of the columns its file would have held.
+ */
+export function getColumnsFromItemsMap(
+    itemsMap: ItemsMap,
+    usedParameters?: ParametersValuesMap | null,
+): ResultColumns {
+    return Object.entries(itemsMap).reduce<ResultColumns>(
+        (acc, [fieldId, item]) => {
+            acc[fieldId] = {
+                reference: fieldId,
+                type: convertItemTypeToDimensionType(item),
+                ...getResultColumnMetadataFromItem(
+                    item,
+                    fieldId,
+                    usedParameters,
+                ),
+            };
+            return acc;
+        },
+        {},
+    );
+}
 
 export function getUnpivotedColumns(
     unpivotedColumns: ResultColumns,

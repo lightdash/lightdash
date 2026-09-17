@@ -7778,6 +7778,52 @@ describe('runDuckdbQuery', () => {
         );
     });
 
+    it('reads a referenced result with no rows as its fields, so a join can still bind', async () => {
+        const { run, runWarehouseQuery, pollForQueryCompletion } =
+            buildService();
+        // A result with no rows recorded no columns; only its fields say
+        // what the (empty) file holds.
+        pollForQueryCompletion.mockResolvedValue({
+            ...legHistory(0),
+            columns: {},
+            fields: {
+                orders_status: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'status',
+                    label: 'Status',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.status',
+                    hidden: false,
+                },
+            },
+        } as unknown as QueryHistory);
+
+        await run(
+            baseArgs({
+                engine: {
+                    kind: 'client',
+                    warehouseClient: warehouseClientMock,
+                },
+                sql: 'SELECT * FROM merge_source_0',
+                references: {
+                    kind: 'queries',
+                    references: { merge_source_0: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: {},
+                },
+            }),
+        );
+
+        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+        const executed = runWarehouseQuery.mock.calls[0][0];
+        expect(executed.query).toContain(
+            `read_json('s3://results-bucket/leg-results.jsonl', columns={"orders_status": 'VARCHAR'}, format='newline_delimited')`,
+        );
+        expect(executed.query).not.toContain('read_json_auto');
+    });
+
     it('a session scoped to referenced results reaches exactly the bound leg files', async () => {
         const createExecutionWarehouseClient = vi.fn(() => warehouseClientMock);
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
