@@ -2,20 +2,16 @@ import { ContentType, type VerifiedContentListItem } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
-    Badge,
     Button,
+    Group,
     Menu,
     Stack,
     Text,
+    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-    IconChartBar,
-    IconCircleX,
-    IconDots,
-    IconLayoutDashboard,
-} from '@tabler/icons-react';
+import { IconCircleX, IconDots, IconLayoutDashboard } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import {
@@ -30,7 +26,10 @@ import {
 } from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
+import { getChartIcon } from '../common/ResourceIcon/utils';
 import { SettingsEmptyState } from '../common/Settings/SettingsEmptyState';
+import TruncatedText from '../common/TruncatedText';
+import classes from './VerifiedContentPanel.module.css';
 
 type Props = {
     projectUuid: string;
@@ -79,50 +78,43 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 accessorKey: 'name',
                 header: 'Name',
                 enableSorting: false,
-                size: 250,
+                size: 320,
+                minSize: 160,
                 Cell: ({ row }) => {
-                    const { contentType, name } = row.original;
-                    const href =
-                        contentType === ContentType.CHART
-                            ? `/projects/${projectUuid}/saved/${row.original.slug}`
-                            : `/projects/${projectUuid}/dashboards/${row.original.slug}`;
+                    const item = row.original;
+                    const isChart = item.contentType === ContentType.CHART;
+                    const href = isChart
+                        ? `/projects/${projectUuid}/saved/${item.slug}`
+                        : `/projects/${projectUuid}/dashboards/${item.slug}`;
+                    const typeLabel = isChart ? 'Chart' : 'Dashboard';
+                    const typeIcon = isChart
+                        ? getChartIcon(item.chartKind)
+                        : IconLayoutDashboard;
+
                     return (
-                        <Anchor
-                            component={Link}
-                            to={href}
-                            fz="sm"
-                            fw={500}
-                            truncate="end"
+                        <Group
+                            gap="xs"
+                            wrap="nowrap"
+                            className={classes.nameCell}
                         >
-                            {name}
-                        </Anchor>
-                    );
-                },
-            },
-            {
-                accessorKey: 'contentType',
-                header: 'Type',
-                enableSorting: false,
-                size: 120,
-                Cell: ({ row }) => {
-                    const isChart =
-                        row.original.contentType === ContentType.CHART;
-                    return (
-                        <Badge
-                            color={isChart ? 'blue' : 'violet'}
-                            leftSection={
+                            <Tooltip label={typeLabel}>
                                 <MantineIcon
-                                    icon={
-                                        isChart
-                                            ? IconChartBar
-                                            : IconLayoutDashboard
-                                    }
-                                    size="sm"
+                                    icon={typeIcon}
+                                    color="dimmed"
+                                    className={classes.typeIcon}
                                 />
-                            }
-                        >
-                            {isChart ? 'Chart' : 'Dashboard'}
-                        </Badge>
+                            </Tooltip>
+                            <Anchor
+                                component={Link}
+                                to={href}
+                                className={classes.nameLink}
+                                underline="hover"
+                            >
+                                <TruncatedText maxWidth="100%" inline fw={500}>
+                                    {item.name}
+                                </TruncatedText>
+                            </Anchor>
+                        </Group>
                     );
                 },
             },
@@ -130,24 +122,26 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 accessorKey: 'spaceName',
                 header: 'Space',
                 enableSorting: false,
-                size: 150,
+                size: 140,
+                minSize: 80,
                 Cell: ({ row }) => (
-                    <Text fz="sm" c="ldGray.7">
+                    <TruncatedText maxWidth="100%" c="ldGray.7">
                         {row.original.spaceName}
-                    </Text>
+                    </TruncatedText>
                 ),
             },
             {
                 accessorKey: 'verifiedBy',
                 header: 'Verified By',
                 enableSorting: false,
-                size: 150,
+                size: 140,
+                minSize: 80,
                 Cell: ({ row }) => {
                     const { firstName, lastName } = row.original.verifiedBy;
                     return (
-                        <Text fz="sm" c="ldGray.7">
-                            {firstName} {lastName}
-                        </Text>
+                        <TruncatedText maxWidth="100%" c="ldGray.7">
+                            {`${firstName} ${lastName}`}
+                        </TruncatedText>
                     );
                 },
             },
@@ -155,7 +149,8 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 accessorKey: 'verifiedAt',
                 header: 'Verified At',
                 enableSorting: false,
-                size: 150,
+                size: 110,
+                minSize: 90,
                 Cell: ({ row }) => {
                     const date = new Date(row.original.verifiedAt);
                     return (
@@ -169,7 +164,8 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 id: 'actions',
                 header: 'Actions',
                 enableSorting: false,
-                size: 80,
+                size: 72,
+                minSize: 56,
                 Cell: ({ row }) => (
                     <Menu position="bottom-end">
                         <Menu.Target>
