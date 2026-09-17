@@ -76,6 +76,7 @@ export class WarehouseAvailableTablesModel {
                 `${WarehouseAvailableTablesTableName}.project_warehouse_credentials_id`,
             )
             .where('project_uuid', projectUuid)
+            .whereNull('warehouse_credentials.superseded_at')
             .select([
                 'database',
                 'schema',
@@ -99,6 +100,7 @@ export class WarehouseAvailableTablesModel {
                 'warehouse_credentials.project_id',
             )
             .where('project_uuid', projectUuid)
+            .whereNull('warehouse_credentials.superseded_at')
             .select('warehouse_credentials_id')
             .first();
 
