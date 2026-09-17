@@ -86,6 +86,8 @@ export const PostgresDefaultValues: CreatePostgresCredentials = {
     sshTunnelPublicKey: '',
     startOfWeek: undefined,
     dataTimezone: undefined,
+    listAllDatabases: false,
+    additionalDatabases: [],
 };
 
 export const RedshiftDefaultValues: CreateRedshiftCredentials = {
@@ -180,6 +182,8 @@ export const AthenaDefaultValues: CreateAthenaCredentials = {
     region: '',
     database: 'AwsDataCatalog',
     schema: '',
+    listAllDatabases: false,
+    additionalDatabases: [],
     s3StagingDir: '',
     accessKeyId: '',
     secretAccessKey: '',
