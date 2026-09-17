@@ -1,14 +1,8 @@
 import { FeatureFlags, type DataAppViz } from '@lightdash/common';
-import {
-    act,
-    fireEvent,
-    screen,
-    waitFor,
-    within,
-} from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAppVersionHistory } from '../features/apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
@@ -79,6 +73,19 @@ vi.mock('../features/chartTypes/hooks/useInstallRegistryChartType', () => ({
 
 vi.mock('../hooks/useExplores', () => ({
     useExplores: vi.fn(),
+}));
+
+// <Page> resolves the active project through these hooks. Unmocked they hit the
+// network, and the retrying failures outlive the test file's jsdom window.
+vi.mock('../hooks/useActiveProject', () => ({
+    useActiveProjectUuid: () => ({
+        activeProjectUuid: 'project-1',
+        isLoading: false,
+    }),
+}));
+
+vi.mock('../hooks/useProject', () => ({
+    useProject: () => ({ data: undefined, isInitialLoading: false }),
 }));
 
 vi.mock('../features/chartTypes/components/ChartTypeSamplePreview', () => ({
@@ -225,13 +232,6 @@ const setRegistryCharts = (
 };
 
 describe('ChartTypeGallery', () => {
-    // Flush queued React Query notifications before the jsdom window is torn down.
-    afterEach(async () => {
-        await act(async () => {
-            await new Promise((resolve) => setTimeout(resolve, 0));
-        });
-    });
-
     beforeEach(() => {
         vi.clearAllMocks();
         setFlags();
