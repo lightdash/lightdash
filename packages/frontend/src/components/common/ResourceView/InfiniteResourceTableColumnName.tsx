@@ -172,8 +172,8 @@ const InfiniteResourceTableColumnName = ({
         : undefined;
 
     const verification =
-        ((isChartOrDashboard && !hasValidationErrors) ||
-            isResourceViewDataAppItem(item))
+        (isChartOrDashboard && !hasValidationErrors) ||
+        isResourceViewDataAppItem(item)
             ? item.data.verification
             : null;
     const latestVersion =
