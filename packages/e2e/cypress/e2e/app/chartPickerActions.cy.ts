@@ -15,7 +15,10 @@ describe('Chart picker actions', () => {
         cy.get('button').contains('Run query').click();
         cy.findByTestId('Chart-card-expand').click();
         cy.findByRole('button', { name: 'Configure', exact: true }).click();
-        cy.findByRole('button', { name: 'Change', exact: true }).click();
+        cy.findByRole('button', {
+            name: 'Change chart type',
+            exact: true,
+        }).click();
 
         cy.findByRole('button', { name: 'Pie chart', exact: true }).click();
         cy.findByRole('button', { name: 'Pie chart', pressed: true }).should(
@@ -42,22 +45,27 @@ describe('Chart picker actions', () => {
         cy.findByRole('button', { name: 'Pie chart', pressed: true }).click(
             'top',
         );
-        cy.findByRole('button', { name: 'Change', exact: true }).should(
-            'have.focus',
-        );
+        cy.findByRole('button', {
+            name: 'Change chart type',
+            exact: true,
+        }).should('have.focus');
         cy.findByText('Choose chart type').should('not.exist');
         cy.findByText('Pie chart', { exact: true }).should('be.visible');
 
-        cy.findByRole('button', { name: 'Change', exact: true }).click();
+        cy.findByRole('button', {
+            name: 'Change chart type',
+            exact: true,
+        }).click();
         cy.findByRole('button', { name: 'Line chart', pressed: false }).click(
             'top',
         );
         cy.findByRole('button', { name: 'Line chart', pressed: true }).click(
             'top',
         );
-        cy.findByRole('button', { name: 'Change', exact: true }).should(
-            'have.focus',
-        );
+        cy.findByRole('button', {
+            name: 'Change chart type',
+            exact: true,
+        }).should('have.focus');
         cy.findByText('Choose chart type').should('not.exist');
         cy.findByText('Line chart', { exact: true }).should('be.visible');
     });

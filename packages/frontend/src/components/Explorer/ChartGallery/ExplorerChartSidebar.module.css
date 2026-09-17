@@ -26,4 +26,9 @@
 
 .buttonAnchor {
     font-family: inherit;
+    color: var(--mantine-color-dimmed);
+}
+
+.buttonAnchor:hover {
+    color: var(--mantine-color-text);
 }
