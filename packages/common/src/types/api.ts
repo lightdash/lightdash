@@ -950,8 +950,9 @@ export type UpdateProject = Omit<
     | 'expiresAt'
     | 'agentSqlScope'
     | 'connections'
+    | 'warehouseConnection'
 > & {
-    warehouseConnection: CreateWarehouseCredentials;
+    warehouseConnection?: CreateWarehouseCredentials;
 };
 
 export type CacheMetadata = {

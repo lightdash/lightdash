@@ -177,6 +177,25 @@ describe('ProjectModel', () => {
         expect(project.warehouseConnection).toBeUndefined();
         expect(getCredentials).not.toHaveBeenCalled();
     });
+    test('should omit scrubbed warehouse credentials when several connections are returned', async () => {
+        vi.spyOn(model, 'getWithSensitiveFields').mockResolvedValue({
+            ...expectedProject,
+            warehouseConnection: CompletePostgresCredentials,
+            connections: [
+                projectConnection,
+                {
+                    ...projectConnection,
+                    connectionUuid: 'second-connection-uuid',
+                    name: 'Second',
+                },
+            ],
+        });
+
+        const project = await model.get(projectUuid);
+
+        expect(project.connections).toHaveLength(2);
+        expect(project.warehouseConnection).toBeUndefined();
+    });
     test('should get the primary dbt source identity', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
@@ -913,6 +932,32 @@ describe('ProjectModel', () => {
 
         expect(upsert).toHaveBeenCalled();
         expect(invalidate).not.toHaveBeenCalled();
+    });
+
+    test('updates project settings without updating a warehouse connection', async () => {
+        const getWarehouseCredentials = vi.spyOn(
+            model,
+            'getWarehouseCredentialsForProject',
+        );
+        const upsertWarehouseConnection = vi.spyOn(
+            model as unknown as {
+                upsertWarehouseConnection: () => Promise<void>;
+            },
+            'upsertWarehouseConnection',
+        );
+        tracker.on
+            .update(({ sql }) => sql.includes('projects'))
+            .response([{ project_id: 1 }]);
+
+        await model.update(projectUuid, {
+            name: expectedProject.name,
+            dbtConnection: expectedProject.dbtConnection,
+            dbtVersion: expectedProject.dbtVersion,
+        });
+
+        expect(tracker.history.update).toHaveLength(1);
+        expect(getWarehouseCredentials).not.toHaveBeenCalled();
+        expect(upsertWarehouseConnection).not.toHaveBeenCalled();
     });
 
     test('updates the sole connection by uuid', async () => {

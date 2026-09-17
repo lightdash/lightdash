@@ -313,7 +313,7 @@ const projectModel = {
     createWithOptionalCredentials: vi.fn(
         async () => 'created-preview-project-uuid',
     ),
-    update: vi.fn(async () => undefined),
+    update: vi.fn<ProjectModel['update']>(async () => undefined),
     delete: vi.fn(async () => undefined),
     getResultsCacheSettings: vi.fn<ProjectModel['getResultsCacheSettings']>(
         async () => ({ cacheTtlSeconds: null }),
@@ -436,6 +436,7 @@ const schedulerClient = {
     indexCatalog: vi.fn(async () => ({ jobId: 'catalog-job-1' })),
     materializePreAggregate: vi.fn(async () => ({ jobId: 'job-1' })),
     schedulePreAggregateCronJobs: vi.fn(async () => []),
+    testAndCompileProject: vi.fn(async () => undefined),
 };
 
 const catalogModel = {
@@ -2573,6 +2574,49 @@ describe('ProjectService', () => {
             ),
         ).rejects.toBeInstanceOf(MultipleConnectionsError);
         expect(jobModel.create).not.toHaveBeenCalled();
+    });
+
+    test('updates dbt settings without a warehouse connection', async () => {
+        const {
+            warehouseConnection: _warehouseConnection,
+            ...projectWithoutWarehouseConnection
+        } = projectWithSensitiveFields;
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithoutWarehouseConnection,
+            connections: [
+                projectWithSensitiveFields.connections[0],
+                {
+                    ...projectWithSensitiveFields.connections[0],
+                    connectionUuid: 'second-connection-uuid',
+                    name: 'Second connection',
+                },
+            ],
+        });
+
+        await expect(
+            service.updateAndScheduleAsyncWork(
+                projectUuid,
+                developerAccount,
+                {
+                    name: projectWithSensitiveFields.name,
+                    dbtConnection: projectWithSensitiveFields.dbtConnection,
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                },
+                RequestMethod.WEB_APP,
+            ),
+        ).resolves.toEqual({ jobUuid: expect.any(String) });
+
+        const updatedProject = projectModel.update.mock.calls[0][1];
+        expect(updatedProject).not.toHaveProperty('warehouseConnection');
+        expect(projectModel.update).toHaveBeenCalledWith(
+            projectUuid,
+            expect.objectContaining({
+                name: projectWithSensitiveFields.name,
+                dbtConnection: projectWithSensitiveFields.dbtConnection,
+                dbtVersion: projectWithSensitiveFields.dbtVersion,
+            }),
+        );
+        expect(schedulerClient.testAndCompileProject).toHaveBeenCalledOnce();
     });
 
     describe('public analytics connection configuration', () => {
