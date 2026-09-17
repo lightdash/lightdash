@@ -57,6 +57,7 @@ export type SchedulerWorkerArguments = SchedulerTaskArguments & {
 };
 
 const DEFAULT_DAILY_JOB_RETRY_BACKOFF_MS = [2_000, 5_000] as const;
+const DAILY_JOB_FAILURE_SUMMARY_UUID_LIMIT = 20;
 
 const getErrorProperty = (
     error: unknown,
@@ -750,8 +751,17 @@ export class SchedulerWorker extends SchedulerTask {
                         ? [schedulers[index].schedulerUuid]
                         : [],
                 );
+                const failedSchedulerUuidsToLog = failedSchedulerUuids.slice(
+                    0,
+                    DAILY_JOB_FAILURE_SUMMARY_UUID_LIMIT,
+                );
+                const failedSchedulerUuidsLabel =
+                    failedSchedulerUuids.length >
+                    DAILY_JOB_FAILURE_SUMMARY_UUID_LIMIT
+                        ? `${failedSchedulerUuids.length}, first ${DAILY_JOB_FAILURE_SUMMARY_UUID_LIMIT}`
+                        : `${failedSchedulerUuids.length}`;
                 Logger.info(
-                    `Completed generating daily jobs: ${successful.length} successful, ${failed.length} failed out of ${schedulers.length} total schedulers. Failed scheduler UUIDs (${failedSchedulerUuids.length}): ${failedSchedulerUuids.join(', ') || 'none'}`,
+                    `Completed generating daily jobs: ${successful.length} successful, ${failed.length} failed out of ${schedulers.length} total schedulers. Failed scheduler UUIDs (${failedSchedulerUuidsLabel}): ${failedSchedulerUuidsToLog.join(', ') || 'none'}`,
                 );
 
                 // Log individual failures

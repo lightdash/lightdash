@@ -315,15 +315,19 @@ describe('SchedulerWorker daily job generation', () => {
         );
     });
 
-    it('keeps failed scheduler UUIDs in the completion summary line', async () => {
+    it('caps failed scheduler UUIDs in the completion summary line', async () => {
+        const failedSchedulerUuids = Array.from(
+            { length: 21 },
+            (_, index) => `failed-${index + 1}`,
+        );
         const schedulers = [
             makeScheduler('successful'),
-            makeScheduler('failed'),
+            ...failedSchedulerUuids.map(makeScheduler),
         ];
         const { worker, generateDailyJobsForScheduler } = setup(schedulers);
         const info = vi.spyOn(Logger, 'info');
         generateDailyJobsForScheduler.mockImplementation(async (scheduler) => {
-            if (scheduler.schedulerUuid === 'failed') {
+            if (scheduler.schedulerUuid !== 'successful') {
                 throw new Error('invalid schedule');
             }
         });
@@ -331,7 +335,7 @@ describe('SchedulerWorker daily job generation', () => {
         await runDailyJobs(worker);
 
         expect(info).toHaveBeenCalledWith(
-            'Completed generating daily jobs: 1 successful, 1 failed out of 2 total schedulers. Failed scheduler UUIDs (1): failed',
+            `Completed generating daily jobs: 1 successful, 21 failed out of 22 total schedulers. Failed scheduler UUIDs (21, first 20): ${failedSchedulerUuids.slice(0, 20).join(', ')}`,
         );
     });
 });
