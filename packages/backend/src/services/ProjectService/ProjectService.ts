@@ -113,6 +113,7 @@ import {
     getParameterReferences,
     getPreAggregateExploreName,
     getTimezoneLabel,
+    getUnaccountedDimensions,
     GroupType,
     hasConnectionChanges,
     hasIntersection,
@@ -6579,7 +6580,14 @@ export class ProjectService extends BaseService {
             mergeQuery.sources.map(async (source) => {
                 const resolvedMetricQuery: MetricQuery =
                     resolvedMetricQueryBySourceId[source.id];
+                // A dimension that is not a join key reaches the compile
+                // only when every other source repeats its values; the leg
+                // groups by it, so it is a column of every merged row.
                 const valueColumns = [
+                    ...getUnaccountedDimensions(
+                        { id: source.id, metricQuery: resolvedMetricQuery },
+                        mergeQuery.joinKey,
+                    ),
                     ...resolvedMetricQuery.metrics,
                     ...resolvedMetricQuery.tableCalculations.map(
                         (calculation) => calculation.name,
