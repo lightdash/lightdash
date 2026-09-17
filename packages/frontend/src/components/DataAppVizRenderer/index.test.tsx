@@ -1,5 +1,6 @@
 import { DimensionType, FieldType, MetricType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
+import { captureException } from '@sentry/react';
 import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChartColorMappingContext } from '../../hooks/useChartColorConfig/context';
@@ -90,6 +91,9 @@ vi.mock('react-router', () => ({
     Link: ({ to, children }: { to: string; children: React.ReactNode }) => (
         <a href={to}>{children}</a>
     ),
+}));
+vi.mock('@sentry/react', () => ({
+    captureException: vi.fn(),
 }));
 vi.mock('../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
@@ -551,6 +555,29 @@ describe('DataAppVizRenderer', () => {
         expect(
             screen.queryByText('Custom chart type is still generating…'),
         ).not.toBeInTheDocument();
+    });
+
+    it('reports unexpected load failures to Sentry', () => {
+        vi.mocked(captureException).mockClear();
+        mocks.token.current = undefined;
+        mocks.tokenError.current = apiError(500);
+
+        renderRenderer();
+
+        expect(captureException).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(captureException).mock.calls[0][1]).toMatchObject({
+            tags: { errorType: 'chartTypeRender', statusCode: '500' },
+        });
+    });
+
+    it('does not report the designed chart-type-removed 404 state', () => {
+        vi.mocked(captureException).mockClear();
+        mocks.metadata.current = undefined;
+        mocks.metadataError.current = apiError(404);
+
+        renderRenderer();
+
+        expect(captureException).not.toHaveBeenCalled();
     });
 
     it('uses the metadata schema to deliver effective options', () => {

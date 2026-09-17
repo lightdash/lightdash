@@ -4,13 +4,22 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
+import { captureChartTypeError } from '../utils/captureChartTypeError';
 
-const getRegistryChartTypes = async (projectUuid: string) =>
-    lightdashApi<ApiListRegistryChartTypesResponse['results']>({
-        method: 'GET',
-        url: `/ee/projects/${projectUuid}/apps/registry/charts`,
-        body: undefined,
-    });
+const getRegistryChartTypes = async (projectUuid: string) => {
+    try {
+        return await lightdashApi<ApiListRegistryChartTypesResponse['results']>(
+            {
+                method: 'GET',
+                url: `/ee/projects/${projectUuid}/apps/registry/charts`,
+                body: undefined,
+            },
+        );
+    } catch (e) {
+        captureChartTypeError('chartTypeLibraryLoad', e, { projectUuid });
+        throw e;
+    }
+};
 
 // Installable chart types from the configured chart registry, merged with
 // this project's install state. Only fetched once the registry feature flag
