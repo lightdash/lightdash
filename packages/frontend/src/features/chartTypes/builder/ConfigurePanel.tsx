@@ -21,6 +21,8 @@ type Props = {
     /** Preview-only; a chart using the viz owns the palette the normal way. */
     colorPaletteUuid: string | null;
     onPaletteChange: (colorPaletteUuid: string | null) => void;
+    /** The same light/dark-aware palette rendered by the preview chart. */
+    resolvedColorPalette: string[];
     /** The schema on screen belongs to a version being navigated away from;
      *  held legible but inert until the one being previewed arrives. */
     isStale: boolean;
@@ -38,6 +40,7 @@ const ConfigurePanel: FC<Props> = ({
     onOptionChange,
     colorPaletteUuid,
     onPaletteChange,
+    resolvedColorPalette,
     isStale,
 }) => {
     const { data: palettes = [] } = useColorPalettes();
@@ -97,6 +100,7 @@ const ConfigurePanel: FC<Props> = ({
                                         key={option.name}
                                         option={option}
                                         value={effectiveValues[option.name]}
+                                        colorPalette={resolvedColorPalette}
                                         onChange={(value) =>
                                             onOptionChange(option.name, value)
                                         }

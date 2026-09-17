@@ -201,6 +201,7 @@ const ChartTypeBuilder: FC = () => {
             onOptionChange={panel.onOptionChange}
             colorPaletteUuid={panel.colorPaletteUuid}
             onPaletteChange={panel.onPaletteChange}
+            resolvedColorPalette={colorPalette}
             isStale={workspace.isFetchingSchema}
         />
     ) : null;

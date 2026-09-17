@@ -34,6 +34,7 @@ const renderTabs = (
             values={{}}
             onChange={onChange}
             colorPalette={colorPalette}
+            resolvedColorPalette={['#111111', '#222222']}
             paletteControl={paletteControl}
         />,
     );

@@ -38,6 +38,7 @@ const DataAppVizTestPanel: FC<Props> = ({
         colorPaletteUuid,
         setColorPaletteUuid,
         palettes,
+        colorPalette,
         handleRun,
         complete,
         isRunning,
@@ -59,6 +60,7 @@ const DataAppVizTestPanel: FC<Props> = ({
                     values={effectiveOptions}
                     onChange={setOption}
                     colorPalette={schema.colorPalette}
+                    resolvedColorPalette={colorPalette}
                     paletteControl={
                         <PalettePicker
                             label="Color palette"

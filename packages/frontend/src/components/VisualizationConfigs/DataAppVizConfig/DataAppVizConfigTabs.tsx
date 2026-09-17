@@ -58,8 +58,13 @@ export const ConfigTabs: FC = memo(() => {
     const projectUuid = useProjectUuid();
     const location = useLocation();
     const navigate = useNavigate();
-    const { visualizationConfig, itemsMap, setChartType, setPivotDimensions } =
-        useVisualizationContext();
+    const {
+        visualizationConfig,
+        itemsMap,
+        colorPalette: resolvedColorPalette,
+        setChartType,
+        setPivotDimensions,
+    } = useVisualizationContext();
     const { addableItems, isFieldPending } = useAddFieldsToQuery();
     const selectProjectChartType = useSelectProjectChartType();
     const dispatch = useExplorerDispatch();
@@ -308,6 +313,7 @@ export const ConfigTabs: FC = memo(() => {
                         setOption(selectedViz.dataAppVizUuid, name, value)
                     }
                     colorPalette={colorPalette}
+                    resolvedColorPalette={resolvedColorPalette}
                     paletteControl={<ColorPaletteSection size="xs" />}
                 />
             </>

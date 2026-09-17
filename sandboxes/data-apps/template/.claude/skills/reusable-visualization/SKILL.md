@@ -293,6 +293,10 @@ Every option has:
 | `text` | single-line text input | a string | — |
 | `color` | single colour | a hex string, e.g. `"#7162FF"` | — |
 
+The `color` control includes swatches from the active Lightdash palette and accepts custom
+hex colours. It stores the chosen hex string. Changing the palette or light/dark theme
+updates the available swatches; it does not change previously chosen colours.
+
 Series colours are not in this list. They are declared separately, on `colorPalette`.
 
 ### `colorPalette`

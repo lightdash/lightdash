@@ -52,6 +52,8 @@ export type DataAppVizTestContextState = {
     colorPaletteUuid: string | null;
     setColorPaletteUuid: (uuid: string | null) => void;
     palettes: OrganizationColorPaletteWithIsActive[];
+    /** The same selected light/dark palette delivered to the test iframe. */
+    colorPalette: string[];
     handleRun: () => void;
     /** Every required declared field is mapped and an explore is picked. */
     complete: boolean;
@@ -260,6 +262,7 @@ export const useDataAppVizTestContext = ({
         colorPaletteUuid,
         setColorPaletteUuid,
         palettes,
+        colorPalette,
         handleRun,
         complete,
         isRunning,
