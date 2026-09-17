@@ -2,7 +2,7 @@ import { type DataAppVizSchema } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { buildSampleVizContext } from './sampleVizContext';
 
-const schema: DataAppVizSchema = {
+const baseSchema: DataAppVizSchema = {
     fields: [
         {
             name: 'category',
@@ -24,12 +24,17 @@ const schema: DataAppVizSchema = {
     colorPalette: null,
 };
 
-const flatSchema: DataAppVizSchema = {
-    ...schema,
-    fields: schema.fields.filter((f) => f.type !== 'series'),
-};
-
-describe('buildSampleVizContext', () => {
+describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
+    const schema: DataAppVizSchema = {
+        ...baseSchema,
+        fields: baseSchema.fields.map((field) =>
+            field.type === 'metric' ? { ...field, type } : field,
+        ),
+    };
+    const flatSchema: DataAppVizSchema = {
+        ...schema,
+        fields: schema.fields.filter((f) => f.type !== 'series'),
+    };
     it('maps every declared field, required or not', () => {
         const context = buildSampleVizContext(schema);
 
@@ -162,10 +167,10 @@ describe('buildSampleVizContext', () => {
             });
         });
 
-        it('stays flat when there is no metric to spread', () => {
+        it('stays flat when there is no value field to spread', () => {
             const context = buildSampleVizContext({
                 ...schema,
-                fields: schema.fields.filter((f) => f.type !== 'metric'),
+                fields: schema.fields.filter((f) => f.name !== 'value'),
             });
 
             expect(context.pivotDetails).toBeNull();
@@ -178,4 +183,43 @@ describe('buildSampleVizContext', () => {
         expect(context.seriesColors).toEqual({});
         expect(context.valueColors).toEqual({});
     });
+});
+
+describe('mixed metric and column fields', () => {
+    it.each([false, true])(
+        'generates distinct numeric values (pivoted: %s)',
+        (pivoted) => {
+            const schema: DataAppVizSchema = {
+                ...baseSchema,
+                fields: [
+                    ...baseSchema.fields.filter(
+                        (field) => pivoted || field.type !== 'series',
+                    ),
+                    {
+                        name: 'anyValue',
+                        label: 'Any value',
+                        type: 'column',
+                        required: true,
+                    },
+                ],
+            };
+            const context = buildSampleVizContext(schema);
+            const metricKey = pivoted
+                ? 'sample_value_any_Series A'
+                : 'sample_value';
+            const columnKey = pivoted
+                ? 'sample_anyValue_any_Series A'
+                : 'sample_anyValue';
+
+            for (const row of context.rows) {
+                expect(typeof row[columnKey]?.value.raw).toBe('number');
+                expect(row[columnKey].value.formatted).toBe(
+                    String(row[columnKey].value.raw),
+                );
+                expect(row[columnKey].value.raw).not.toBe(
+                    row[metricKey].value.raw,
+                );
+            }
+        },
+    );
 });
