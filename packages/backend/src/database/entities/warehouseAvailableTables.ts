@@ -8,6 +8,7 @@ export type DbWarehouseAvailableTables = {
     table: string;
     project_warehouse_credentials_id: number | null;
     user_warehouse_credentials_uuid: string | null;
+    listed_database: string | null;
     partition_column: PartitionColumn | null;
     table_type: string | null;
 };
