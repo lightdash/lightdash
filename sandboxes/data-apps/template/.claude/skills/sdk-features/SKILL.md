@@ -121,7 +121,9 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   view (headline, summary, limitations, anomalies) plus `analyse()`;
   `useInsights(result)` narrows to one chart and adds `matches(row)` so flagged
   points can be marked, with `investigate(id)` / `continueInAskAi(id)` for the
-  action menu. Render a summary block and markers; render nothing when
+  action menu. Render a summary block and markers (only `high`, `medium`,
+  `positive`; never `info`); on line charts the marker must also be the
+  `activeDot` so hover does not cover it. Render nothing when
   `status === 'unavailable'`. Full contract in `/app/references/ai-analysis.md`.
 - `ai-prompt`: `useAiPrompt()` returns `{ available, ask, loading, text, error }`;
   `ask({ prompt, sources: [{ result, label }], focus?: { row } })` sends an
