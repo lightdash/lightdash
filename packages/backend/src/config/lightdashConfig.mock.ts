@@ -200,6 +200,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         pollInterval: 1000,
         jobTimeout: 0,
+        shutdownTimeout: 60_000,
         tasks: ALL_TASK_NAMES,
         quiesce: {
             pollInterval: 2_000,

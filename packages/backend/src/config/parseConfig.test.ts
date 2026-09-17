@@ -2041,6 +2041,22 @@ describe('scheduler poll interval', () => {
     });
 });
 
+describe('scheduler shutdown timeout', () => {
+    afterEach(() => {
+        delete process.env.SCHEDULER_SHUTDOWN_TIMEOUT;
+    });
+
+    test('defaults to one minute so the drain fits the pod grace period', () => {
+        expect(parseConfig().scheduler.shutdownTimeout).toBe(60_000);
+    });
+
+    test('parses the drain deadline from the environment', () => {
+        process.env.SCHEDULER_SHUTDOWN_TIMEOUT = '30000';
+
+        expect(parseConfig().scheduler.shutdownTimeout).toBe(30_000);
+    });
+});
+
 describe('scheduler migration quiesce', () => {
     const environmentVariables = [
         'SCHEDULER_QUIESCE_POLL_INTERVAL',
