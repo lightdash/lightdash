@@ -446,6 +446,16 @@ export class ServiceRepository
                     featureFlagService: this.getFeatureFlagService(),
                     licenseService: this.getLicenseService(),
                     projectModel: this.models.getProjectModel(),
+                    testWarehouseConnection: (
+                        account,
+                        projectUuid,
+                        warehouseConnection,
+                    ) =>
+                        this.getProjectService().testConnectionWarehouseCredentials(
+                            account,
+                            projectUuid,
+                            warehouseConnection,
+                        ),
                 }),
         );
     }

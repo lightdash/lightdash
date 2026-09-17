@@ -1720,11 +1720,10 @@ export class ProjectModel {
                     connections,
                 };
 
-                if (connections.length === 0) {
+                if (connections.length !== 1) {
                     return result;
                 }
-                const connection =
-                    await this.connectionModel.resolveSole(projectUuid);
+                const [connection] = connections;
                 return {
                     ...result,
                     warehouseConnection:
@@ -1858,6 +1857,29 @@ export class ProjectModel {
         }
     }
 
+    static getNonSensitiveWarehouseCredentials(
+        sensitiveCredentials: CreateWarehouseCredentials,
+    ): WarehouseCredentials {
+        const nonSensitiveCredentials = Object.fromEntries(
+            Object.entries(sensitiveCredentials).filter(
+                ([key]) =>
+                    !sensitiveCredentialsFieldNames.includes(key as AnyType),
+            ),
+        ) as WarehouseCredentials;
+        const scrubbedCredentials =
+            sensitiveCredentials.type === WarehouseTypes.DUCKDB &&
+            sensitiveCredentials.connectionType ===
+                DuckdbConnectionType.DUCKLAKE
+                ? (stripDucklakeNestedSensitive(
+                      sensitiveCredentials,
+                  ) as WarehouseCredentials)
+                : nonSensitiveCredentials;
+        return ProjectModel.getConnectionWithDefaults(
+            sensitiveCredentials,
+            scrubbedCredentials,
+        ) as WarehouseCredentials;
+    }
+
     async get(projectUuid: string): Promise<Project> {
         const project = await this.getWithSensitiveFields(projectUuid);
         const sensitiveCredentials = project.warehouseConnection;
@@ -1869,33 +1891,11 @@ export class ProjectModel {
             ),
         ) as DbtProjectConfig;
 
-        const nonSensitiveCredentials = sensitiveCredentials
-            ? (Object.fromEntries(
-                  Object.entries(sensitiveCredentials).filter(
-                      ([key]) =>
-                          !sensitiveCredentialsFieldNames.includes(
-                              key as AnyType,
-                          ),
-                  ),
-              ) as WarehouseCredentials)
+        const nonSensitiveCredentialsWithDefaults = sensitiveCredentials
+            ? ProjectModel.getNonSensitiveWarehouseCredentials(
+                  sensitiveCredentials,
+              )
             : undefined;
-
-        const scrubbedCredentials =
-            nonSensitiveCredentials &&
-            sensitiveCredentials &&
-            sensitiveCredentials.type === WarehouseTypes.DUCKDB &&
-            sensitiveCredentials.connectionType ===
-                DuckdbConnectionType.DUCKLAKE
-                ? (stripDucklakeNestedSensitive(
-                      sensitiveCredentials,
-                  ) as WarehouseCredentials)
-                : nonSensitiveCredentials;
-
-        const nonSensitiveCredentialsWithDefaults =
-            ProjectModel.getConnectionWithDefaults(
-                sensitiveCredentials,
-                scrubbedCredentials,
-            );
 
         return {
             organizationUuid: project.organizationUuid,
