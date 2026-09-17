@@ -1,3 +1,10 @@
+# [2.251.0](https://github.com/lightdash/lightdash/compare/2.250.2...2.251.0) (2026-09-17)
+
+
+### Features
+
+* **ai:** let agents create and edit documents ([#29368](https://github.com/lightdash/lightdash/issues/29368)) ([8a3263e](https://github.com/lightdash/lightdash/commit/8a3263eb225725b9b151c3279917ad2a99ec86e4))
+
 ## [2.250.2](https://github.com/lightdash/lightdash/compare/2.250.1...2.250.2) (2026-09-17)
 
 
