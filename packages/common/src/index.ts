@@ -246,6 +246,7 @@ export {
 } from './types/projects';
 export type {
     AgentSqlScope,
+    ApiConnectionsResponse,
     ApiCreateTrainingPreviewResponse,
     ApiEnsurePlaygroundProjectResponse,
     ApiEnableLearnResponse,
@@ -338,6 +339,7 @@ export type {
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
     CreateWarehouseCredentialsWithOptionalSecrets,
+    Connection,
     WarehouseCredentials,
     WarehouseConnectionListingFields,
     WarehouseLocation,

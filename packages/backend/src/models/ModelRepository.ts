@@ -8,6 +8,7 @@ import { AppAccessModel } from './AppAccessModel';
 import { AppModel } from './AppModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
+import { ConnectionModel } from './ConnectionModel/ConnectionModel';
 import { ContentAsCodeProjectSettingsModel } from './ContentAsCodeProjectSettingsModel';
 import { ContentAsCodeSnapshotModel } from './ContentAsCodeSnapshotModel';
 import { ContentAsCodeWritebackModel } from './ContentAsCodeWritebackModel';
@@ -103,6 +104,7 @@ export type ModelManifest = {
     appAccessModel: AppAccessModel;
     appModel: AppModel;
     commentModel: CommentModel;
+    connectionModel: ConnectionModel;
     dashboardModel: DashboardModel;
     dashboardAccessModel: DashboardAccessModel;
     documentAccessModel: DocumentAccessModel;
@@ -351,6 +353,17 @@ export class ModelRepository
         return this.getModel(
             'commentModel',
             () => new CommentModel({ database: this.database }),
+        );
+    }
+
+    public getConnectionModel(): ConnectionModel {
+        return this.getModel(
+            'connectionModel',
+            () =>
+                new ConnectionModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                }),
         );
     }
 

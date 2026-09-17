@@ -116,6 +116,7 @@ export type CachedExploresTable = Knex.CompositeTableType<DbCachedExplores>;
 export type DbCachedExplore = {
     cached_explore_uuid: string;
     project_uuid: string;
+    connection_uuid: string | null;
     name: string;
     table_names: string[];
     explore: AnyType;
@@ -123,10 +124,14 @@ export type DbCachedExplore = {
 
 export type CachedExploreTable = Knex.CompositeTableType<
     DbCachedExplore,
-    Omit<DbCachedExplore, 'cached_explore_uuid'>
+    Omit<DbCachedExplore, 'cached_explore_uuid' | 'connection_uuid'> &
+        Partial<Pick<DbCachedExplore, 'connection_uuid'>>
 >;
 
-export type DbCachedExploreStaging = DbCachedExplore & {
+export type DbCachedExploreStaging = Omit<
+    DbCachedExplore,
+    'connection_uuid'
+> & {
     save_uuid: string;
     created_at: Date;
 };

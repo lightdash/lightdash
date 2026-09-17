@@ -905,6 +905,7 @@ export type CreateProject = Omit<
     | 'expiresAt'
     | 'provisioningSource'
     | 'agentSqlScope'
+    | 'connections'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
@@ -945,6 +946,7 @@ export type UpdateProject = Omit<
     | 'colorPaletteUuid'
     | 'expiresAt'
     | 'agentSqlScope'
+    | 'connections'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };
