@@ -150,6 +150,42 @@ describe('ProjectModel', () => {
         expect(project).toEqual(expectedProject);
         expect(tracker.history.select).toHaveLength(1);
     });
+    test('falls back to the sole connection requirement for an unmigrated project', async () => {
+        mockProjectConnection();
+        const { connectionModel } = model as unknown as {
+            connectionModel: {
+                getCredentials: ReturnType<typeof vi.fn>;
+            };
+        };
+        vi.mocked(connectionModel.getCredentials).mockResolvedValue({
+            ...(JSON.parse(
+                projectMock.encrypted_credentials.toString(),
+            ) as CreateWarehouseCredentials),
+            requireUserCredentials: true,
+        });
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([{ ...projectMock, require_user_credentials: null }]);
+
+        const project = await model.get(projectUuid);
+
+        expect(project.requireUserCredentials).toBe(true);
+    });
+    test('writes the project credential requirement with project details', async () => {
+        tracker.on
+            .update(({ sql }) => sql.includes(ProjectTableName))
+            .response([{ project_uuid: projectUuid }]);
+
+        await model.updateDetails(projectUuid, {
+            name: 'Updated project',
+            requireUserCredentials: true,
+        });
+
+        expect(tracker.history.update[0].sql).toContain(
+            '"require_user_credentials"',
+        );
+        expect(tracker.history.update[0].bindings).toContain(true);
+    });
     test('should get a project with several connections without resolving credentials', async () => {
         const { connectionModel } = model as unknown as {
             connectionModel: {

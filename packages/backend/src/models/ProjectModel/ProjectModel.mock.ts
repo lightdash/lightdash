@@ -65,6 +65,7 @@ export const projectMock = {
     scheduler_failure_include_contact: false,
     scheduler_failure_contact_override: null,
     has_default_user_spaces: false,
+    require_user_credentials: null,
 };
 
 export const tableSelectionMock: Pick<
@@ -140,6 +141,7 @@ export const expectedProject: Project = {
     expiresAt: null,
     provisioningSource: null,
     agentSqlScope: null,
+    requireUserCredentials: false,
 };
 
 const metricFilter: MetricFilterRule = {

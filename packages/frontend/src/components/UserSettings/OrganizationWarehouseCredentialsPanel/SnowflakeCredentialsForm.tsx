@@ -128,18 +128,6 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
 
                     <Switch
                         size="xs"
-                        label="Require users to provide their own credentials"
-                        disabled={disabled}
-                        {...form.getInputProps(
-                            'credentials.requireUserCredentials',
-                            {
-                                type: 'checkbox',
-                            },
-                        )}
-                    />
-
-                    <Switch
-                        size="xs"
                         label="Keep client session alive"
                         description={
                             <>

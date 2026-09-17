@@ -17,6 +17,7 @@ const FormHarness = () => {
             dbt: { type: DbtProjectType.NONE },
             warehouse: AthenaDefaultValues,
             dbtVersion: DefaultSupportedDbtVersion,
+            requireUserCredentials: false,
         },
     });
 

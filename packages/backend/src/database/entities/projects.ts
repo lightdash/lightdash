@@ -49,6 +49,7 @@ export type DbProject = {
     results_cache_ttl_seconds: number | null;
     provisioning_source: string | null;
     agent_sql_scope: AgentSqlScope | null;
+    require_user_credentials: boolean | null;
 };
 
 type CreateDbProject = Pick<
@@ -68,6 +69,7 @@ type CreateDbProject = Pick<
     query_timezone?: string | null;
     use_project_timezone_in_filters?: boolean; // On create it will default to false as per migration
     provisioning_source?: string | null;
+    require_user_credentials?: boolean | null;
 };
 type UpdateDbProject = Partial<
     Pick<
@@ -97,6 +99,7 @@ type UpdateDbProject = Partial<
         | 'results_cache_ttl_seconds'
         | 'provisioning_source'
         | 'agent_sql_scope'
+        | 'require_user_credentials'
     >
 >;
 

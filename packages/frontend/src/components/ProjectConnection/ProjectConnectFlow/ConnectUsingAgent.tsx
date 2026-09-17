@@ -66,6 +66,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
             dbt: { type: DbtProjectType.NONE },
             warehouse: warehouseDefaultValues[selectedWarehouse],
             dbtVersion: dbtDefaults.dbtVersion,
+            requireUserCredentials: false,
             organizationWarehouseCredentialsUuid: undefined,
         },
         validate: {
@@ -89,6 +90,7 @@ const ConnectUsingAgent: FC<ConnectUsingAgentProps> = ({
                 type: ProjectType.DEFAULT,
                 dbtConnection: { type: DbtProjectType.NONE },
                 dbtVersion: dbtDefaults.dbtVersion,
+                requireUserCredentials: false,
                 organizationWarehouseCredentialsUuid:
                     formValues.organizationWarehouseCredentialsUuid,
                 warehouseConnection,

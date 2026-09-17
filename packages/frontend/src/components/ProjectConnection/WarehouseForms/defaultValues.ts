@@ -45,7 +45,7 @@ export const BigQueryDefaultValues: CreateBigqueryCredentials = {
     accessUrl: '',
 };
 
-export const DatabricksDefaultValues: CreateDatabricksCredentials = {
+const DatabricksDefaultValues: CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS,
     database: '',
     serverHostName: '',

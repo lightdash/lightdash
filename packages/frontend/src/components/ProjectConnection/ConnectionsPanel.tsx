@@ -60,6 +60,7 @@ import WarehouseSettingsForm from './WarehouseSettingsForm';
 const unusedDbtFormValues = {
     dbt: { ...dbtDefaults.formValues[DbtProjectType.NONE] },
     dbtVersion: DefaultSupportedDbtVersion,
+    requireUserCredentials: false,
 };
 
 const formatCreatedAt = (createdAt: Date) =>
