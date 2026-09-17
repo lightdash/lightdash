@@ -331,6 +331,9 @@ import { type ProjectMemberProfile } from './projectMemberProfile';
 import { type ProjectMemberRole } from './projectMemberRole';
 import {
     DbtProjectType,
+    type ApiConnectionResponse,
+    type ApiConnectionsResponse,
+    type ApiConnectionWithCredentialsResponse,
     type CreateTrainingPreviewResults,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
@@ -1280,6 +1283,9 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ApiConnectionsResponse['results']
+    | ApiConnectionResponse['results']
+    | ApiConnectionWithCredentialsResponse['results']
     | Document
     | DocumentList
     | ContentReviewRequest
