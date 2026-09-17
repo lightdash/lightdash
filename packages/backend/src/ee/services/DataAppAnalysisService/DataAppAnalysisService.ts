@@ -605,7 +605,10 @@ export class DataAppAnalysisService extends BaseService {
     // Concurrent detects of the same rows by the same viewer share one run.
     private readonly inFlightDetects = new Map<
         string,
-        Promise<DataAppAnalysis>
+        Promise<{
+            analysis: DataAppAnalysis;
+            sectionHashes: DataAppSourceHash[];
+        }>
     >();
 
     async detect(
@@ -642,7 +645,20 @@ export class DataAppAnalysisService extends BaseService {
         }
         const inFlightKey = `${user.userUuid}:${appUuid}:${appVersion}:${contentHash}`;
         const inFlight = this.inFlightDetects.get(inFlightKey);
-        if (inFlight) return inFlight;
+        if (inFlight) {
+            // Same rows, but a second tab has its own query uuids: hand back
+            // the shared findings keyed to this caller's queries.
+            const shared = await inFlight;
+            const mapping = mapStoredQueryUuids(
+                shared.sectionHashes,
+                sectionHashes,
+            );
+            return {
+                ...shared.analysis,
+                ...(mapping ? remapQueryUuids(shared.analysis, mapping) : {}),
+                sources: body.sources,
+            };
+        }
         const run = this.runDetect({
             user,
             projectUuid,
@@ -656,7 +672,7 @@ export class DataAppAnalysisService extends BaseService {
             contentHash,
         }).finally(() => this.inFlightDetects.delete(inFlightKey));
         this.inFlightDetects.set(inFlightKey, run);
-        return run;
+        return (await run).analysis;
     }
 
     private async runDetect(args: {
@@ -670,7 +686,10 @@ export class DataAppAnalysisService extends BaseService {
         grounding: GroundingSource[];
         sectionHashes: DataAppSourceHash[];
         contentHash: string;
-    }): Promise<DataAppAnalysis> {
+    }): Promise<{
+        analysis: DataAppAnalysis;
+        sectionHashes: DataAppSourceHash[];
+    }> {
         const {
             user,
             projectUuid,
@@ -725,12 +744,15 @@ export class DataAppAnalysisService extends BaseService {
         });
 
         return {
-            ...result,
-            analysisId: row.data_app_analysis_uuid,
-            appUuid,
-            appVersion,
-            sources,
-            generatedAt: row.created_at,
+            analysis: {
+                ...result,
+                analysisId: row.data_app_analysis_uuid,
+                appUuid,
+                appVersion,
+                sources,
+                generatedAt: row.created_at,
+            },
+            sectionHashes: args.sectionHashes,
         };
     }
 

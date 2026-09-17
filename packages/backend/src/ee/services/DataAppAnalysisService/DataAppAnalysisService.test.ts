@@ -487,14 +487,21 @@ describe('DataAppAnalysisService reuse', () => {
         expect(aiService.detectDataAppAnomalies).toHaveBeenCalledTimes(1);
     });
 
-    it('shares one run between concurrent detects of the same rows', async () => {
+    it('shares one run between concurrent detects of the same rows, keyed to each caller', async () => {
         const { service, aiService } = buildService();
         const [a, b] = await Promise.all([
             service.detect(account(), 'proj-1', 'app-1', request),
-            service.detect(account(), 'proj-1', 'app-1', request),
+            service.detect(account(), 'proj-1', 'app-1', {
+                sources: [{ queryUuid: 'q-other-tab', label: 'Orders' }],
+            }),
         ]);
         expect(aiService.detectDataAppAnomalies).toHaveBeenCalledTimes(1);
         expect(a.analysisId).toBe(b.analysisId);
+        expect(a.anomalies[0].queryUuid).toBe('q1');
+        expect(b.sources).toEqual([
+            { queryUuid: 'q-other-tab', label: 'Orders' },
+        ]);
+        expect(b.anomalies[0].queryUuid).toBe('q-other-tab');
     });
 });
 
