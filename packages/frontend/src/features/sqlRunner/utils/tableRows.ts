@@ -25,10 +25,23 @@ export type TableUnitState =
 export type TreeConnection = {
     connectionId: string;
     connectionName: string;
+    isActive: boolean;
     databases: WarehouseListedDatabase[];
     truncated: boolean;
     limit: number;
 };
+
+/**
+ * One lazily loaded listed database. Two connections may expose the same
+ * database name, so the connection is part of the identity.
+ */
+export type TableUnitKey = {
+    connectionId: string;
+    database: string;
+};
+
+export const tableUnitId = ({ connectionId, database }: TableUnitKey) =>
+    `${connectionId}/${database}`;
 
 export type WarehouseTreeRow =
     | {
@@ -37,6 +50,7 @@ export type WarehouseTreeRow =
           depth: number;
           connectionId: string;
           connectionName: string;
+          isActive: boolean;
           isExpanded: boolean;
           childCount: number;
       }
@@ -74,6 +88,7 @@ export type WarehouseTreeRow =
           type: 'error';
           id: string;
           depth: number;
+          connectionId: string;
           listedDatabase: string;
           message: string;
       }
@@ -138,7 +153,10 @@ export const defaultExpandedRowIds = (
     connections: TreeConnection[],
 ): Record<string, boolean> => {
     const expanded: Record<string, boolean> = {};
+    const showConnectionLevel = connections.length > 1;
     connections.forEach((connection) => {
+        // Only the active connection opens on its own; the rest load on expand
+        if (showConnectionLevel && !connection.isActive) return;
         expanded[connectionRowId(connection.connectionId)] = true;
         connection.databases.forEach((entry) => {
             if (!entry.isDefault) return;
@@ -162,7 +180,7 @@ export const defaultExpandedRowIds = (
 export const collectEnabledUnits = (
     connections: TreeConnection[],
     isExpanded: (rowId: string) => boolean,
-): string[] => {
+): TableUnitKey[] => {
     const showConnectionLevel = connections.length > 1;
     return connections.flatMap((connection) => {
         const { connectionId } = connection;
@@ -175,7 +193,9 @@ export const collectEnabledUnits = (
                     ? true
                     : isExpanded(databaseRowId(connectionId, group.database));
             if (!databaseExpanded) return [];
-            const units = group.lazyEntry ? [group.lazyEntry.name] : [];
+            const units: TableUnitKey[] = group.lazyEntry
+                ? [{ connectionId, database: group.lazyEntry.name }]
+                : [];
             group.schemaEntries.forEach((entry) => {
                 if (entry.schema === null) return;
                 if (
@@ -183,7 +203,7 @@ export const collectEnabledUnits = (
                         schemaRowId(connectionId, group.database, entry.schema),
                     )
                 ) {
-                    units.push(entry.name);
+                    units.push({ connectionId, database: entry.name });
                 }
             });
             return units;
@@ -260,7 +280,7 @@ const schemaSourceFromUnit = (
 
 export type BuildWarehouseTreeArgs = {
     connections: TreeConnection[];
-    getUnitState: (listedDatabase: string) => TableUnitState;
+    getUnitState: (unit: TableUnitKey) => TableUnitState;
     isExpanded: (rowId: string) => boolean;
     search: string;
     typeFilter: TableTypeFilter | null;
@@ -354,6 +374,7 @@ export const buildWarehouseTreeRows = ({
                         type: 'error',
                         id: `error:${id}`,
                         depth: depth + 1,
+                        connectionId,
                         listedDatabase: listedDatabase ?? '',
                         message: source.message,
                     },
@@ -393,7 +414,9 @@ export const buildWarehouseTreeRows = ({
         // ClickHouse has no database level, so its schemas sit at the top
         const hasDatabaseRow = database !== '';
         const id = databaseRowId(connectionId, database);
-        const unitState = lazyEntry ? getUnitState(lazyEntry.name) : undefined;
+        const unitState = lazyEntry
+            ? getUnitState({ connectionId, database: lazyEntry.name })
+            : undefined;
         const childrenInHand = lazyEntry
             ? unitState?.status === 'loaded'
             : true;
@@ -420,7 +443,10 @@ export const buildWarehouseTreeRows = ({
                           depth: schemaDepth,
                           listedDatabase: entry.name,
                           source: schemaSourceFromUnit(
-                              getUnitState(entry.name),
+                              getUnitState({
+                                  connectionId,
+                                  database: entry.name,
+                              }),
                               database,
                               entry.schema,
                           ),
@@ -435,6 +461,7 @@ export const buildWarehouseTreeRows = ({
                               type: 'error',
                               id: `error:${id}`,
                               depth: schemaDepth,
+                              connectionId,
                               listedDatabase: lazyEntry.name,
                               message: unitState.message,
                           }
@@ -532,6 +559,7 @@ export const buildWarehouseTreeRows = ({
             depth: 0,
             connectionId,
             connectionName: connection.connectionName,
+            isActive: connection.isActive,
             isExpanded: isConnectionExpanded,
             childCount: groups.length,
         };

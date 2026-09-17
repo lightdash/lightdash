@@ -9,6 +9,7 @@ import {
     formatSql,
 } from '@lightdash/common';
 import {
+    Badge,
     Box,
     Group,
     Paper,
@@ -54,6 +55,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
 import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
+import { useActiveConnection } from '../hooks/useActiveConnection';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     clearParameterValues,
@@ -95,6 +97,8 @@ export const ContentPanel: FC = () => {
     const projectUuid = useAppSelector(selectProjectUuid);
     const connectionUuid = useAppSelector(selectConnectionUuid);
     const resultConnectionUuid = useAppSelector(selectResultConnectionUuid);
+    const { hasSeveralConnections, connectionNameFor } = useActiveConnection();
+    const ranOnConnectionName = connectionNameFor(resultConnectionUuid);
     const sql = useAppSelector(selectSql);
     const queryUuid = useAppSelector(selectQueryUuid);
     const selectedChartType = useAppSelector(selectActiveChartType);
@@ -828,6 +832,17 @@ export const ContentPanel: FC = () => {
                                                 : ''}
                                         </Text>
                                     )}
+                                    {hasSeveralConnections &&
+                                        queryResults?.results &&
+                                        ranOnConnectionName && (
+                                            <Badge
+                                                size="sm"
+                                                variant="light"
+                                                color="blue"
+                                            >
+                                                Ran on {ranOnConnectionName}
+                                            </Badge>
+                                        )}
                                 </Group>
                             </Box>
                             <Box className={styles.resultsBody}>

@@ -11,6 +11,7 @@ import {
     collectEnabledUnits,
     defaultExpandedRowIds,
     qualifiedTableName,
+    tableUnitId,
     type TableUnitState,
     type TreeConnection,
 } from './tableRows';
@@ -71,10 +72,15 @@ const rawCatalog: WarehouseTablesCatalog = {
 
 const connection = (
     databases: WarehouseListedDatabase[],
-    options: { truncated?: boolean; limit?: number } = {},
+    options: {
+        truncated?: boolean;
+        limit?: number;
+        isActive?: boolean;
+    } = {},
 ): TreeConnection => ({
     connectionId: CONNECTION_ID,
     connectionName: 'Warehouse',
+    isActive: options.isActive ?? true,
     databases,
     truncated: options.truncated ?? false,
     limit: options.limit ?? 100,
@@ -94,7 +100,11 @@ const build = (args: {
 }) =>
     buildWarehouseTreeRows({
         connections: args.connections,
-        getUnitState: (name) => args.units?.[name] ?? { status: 'idle' },
+        // Keys are "<connectionId>/<database>", or a bare database name when
+        // the case only has one connection.
+        getUnitState: (unit) =>
+            args.units?.[tableUnitId(unit)] ??
+            args.units?.[unit.database] ?? { status: 'idle' },
         isExpanded: (rowId) => (args.expanded ?? []).includes(rowId),
         search: args.search ?? '',
         typeFilter: args.typeFilter ?? null,
@@ -218,6 +228,7 @@ describe('buildWarehouseTreeRows', () => {
             type: 'error',
             id: `error:database:${CONNECTION_ID}/analytics`,
             depth: 1,
+            connectionId: CONNECTION_ID,
             listedDatabase: 'analytics',
             message: 'Access denied',
         });
@@ -349,7 +360,7 @@ describe('collectEnabledUnits', () => {
                     `schema:${CONNECTION_ID}/AwsDataCatalog/jaffle`,
                 ].includes(rowId),
             ),
-        ).toEqual(['jaffle']);
+        ).toEqual([{ connectionId: CONNECTION_ID, database: 'jaffle' }]);
     });
 
     it('asks for a Postgres database as soon as its own row expands', () => {
@@ -358,7 +369,7 @@ describe('collectEnabledUnits', () => {
                 [connection(postgresDatabases)],
                 (rowId) => rowId === `database:${CONNECTION_ID}/analytics`,
             ),
-        ).toEqual(['analytics']);
+        ).toEqual([{ connectionId: CONNECTION_ID, database: 'analytics' }]);
     });
 });
 
@@ -410,5 +421,96 @@ describe('catalogHasViews', () => {
     it('is true only when some table is a view or materialized view', () => {
         expect(catalogHasViews(athenaCatalog)).toBe(true);
         expect(catalogHasViews(stagingCatalog)).toBe(false);
+    });
+});
+
+describe('buildWarehouseTreeRows with several connections', () => {
+    const activeConnection: TreeConnection = {
+        ...connection(postgresDatabases),
+        connectionId: 'connection-1',
+        connectionName: 'Analytics',
+        isActive: true,
+    };
+    const otherConnection: TreeConnection = {
+        ...connection(postgresDatabases),
+        connectionId: 'connection-2',
+        connectionName: 'Reporting',
+        isActive: false,
+    };
+    const both = [activeConnection, otherConnection];
+
+    it('shows the connection level and marks the active one', () => {
+        const rows = build({ connections: both });
+
+        const connectionRows = rows.filter((row) => row.type === 'connection');
+        expect(
+            connectionRows.map((row) => ({
+                id: row.id,
+                isActive: row.type === 'connection' ? row.isActive : undefined,
+            })),
+        ).toEqual([
+            { id: 'connection:connection-1', isActive: true },
+            { id: 'connection:connection-2', isActive: false },
+        ]);
+    });
+
+    it('opens the active connection and leaves the others closed', () => {
+        const defaults = defaultExpandedRowIds(both);
+
+        expect(defaults['connection:connection-1']).toBe(true);
+        expect(defaults['connection:connection-2']).toBeUndefined();
+        expect(defaults['database:connection-1/analytics']).toBe(true);
+        expect(defaults['database:connection-2/analytics']).toBeUndefined();
+    });
+
+    it('asks for a database only under the connection that expanded it', () => {
+        expect(
+            collectEnabledUnits(both, (rowId) =>
+                [
+                    'connection:connection-2',
+                    'database:connection-2/analytics',
+                ].includes(rowId),
+            ),
+        ).toEqual([{ connectionId: 'connection-2', database: 'analytics' }]);
+    });
+
+    it('keeps two connections sharing a database name apart', () => {
+        const rows = build({
+            connections: both,
+            units: {
+                'connection-1/analytics': loaded(analyticsCatalog),
+                'connection-2/analytics': loaded(rawCatalog),
+            },
+            expanded: [
+                'connection:connection-1',
+                'connection:connection-2',
+                'database:connection-1/analytics',
+                'database:connection-2/analytics',
+            ],
+        });
+
+        const ids = rows.map((row) => row.id);
+        expect(new Set(ids).size).toBe(ids.length);
+        expect(ids).toContain('schema:connection-1/analytics/public');
+        expect(ids).toContain('schema:connection-1/analytics/marts');
+        // The second connection's own catalog has no marts schema
+        expect(ids).not.toContain('schema:connection-2/analytics/marts');
+    });
+
+    it('loads one connection while the other is still idle', () => {
+        const rows = build({
+            connections: both,
+            units: { 'connection-1/analytics': loaded(analyticsCatalog) },
+            expanded: [
+                'connection:connection-1',
+                'connection:connection-2',
+                'database:connection-1/analytics',
+                'database:connection-2/analytics',
+            ],
+        });
+
+        const ids = rows.map((row) => row.id);
+        expect(ids).toContain('schema:connection-1/analytics/public');
+        expect(ids).toContain('loading:database:connection-2/analytics');
     });
 });

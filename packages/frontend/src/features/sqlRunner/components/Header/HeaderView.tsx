@@ -56,6 +56,7 @@ import {
 } from '../../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { toggleModal } from '../../store/sqlRunnerSlice';
+import { ConnectionPicker } from '../ConnectionPicker';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 
 /**
@@ -260,6 +261,7 @@ export const HeaderView: FC = () => {
                     </Stack>
 
                     <Group gap="xs">
+                        <ConnectionPicker />
                         {canManageSqlRunner && canManageChart && (
                             <Button
                                 display={authoringEnabled ? undefined : 'none'}

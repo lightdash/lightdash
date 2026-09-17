@@ -25,6 +25,7 @@ import {
     setFetchResultsOnLoad,
     setMode,
     setParameterValues,
+    setConnectionUuid,
     setProjectUuid,
     setQuoteChar,
     setSavedChartData,
@@ -33,6 +34,10 @@ import {
     setState,
     setWarehouseConnectionType,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import {
+    readLastUsedConnection,
+    resolveActiveConnection,
+} from '../features/sqlRunner/utils/activeConnection';
 import { HeaderVirtualView } from '../features/virtualView';
 import { type VirtualViewState } from '../features/virtualView/components/HeaderVirtualView';
 import useToaster from '../hooks/toaster/useToaster';
@@ -146,6 +151,37 @@ const SqlRunner = ({
             dispatch(setChartConfig(data.config));
         }
     }, [dispatch, data]);
+
+    // A new document opens on the last connection used in this project; a saved
+    // chart opens on the connection stored with its version.
+    const connectionUuid = useAppSelector(
+        (state) => state.sqlRunner.connectionUuid,
+    );
+    const savedSqlChart = useAppSelector(
+        (state) => state.sqlRunner.savedSqlChart,
+    );
+    const isSavedChart = !!params.slug;
+    const connections = project?.connections;
+    useEffect(() => {
+        if (connectionUuid || !connections) return;
+        if (isSavedChart && !savedSqlChart) return;
+        const resolved = resolveActiveConnection({
+            connections,
+            savedConnectionUuid: savedSqlChart?.connectionUuid ?? undefined,
+            lastUsedConnectionUuid: projectUuid
+                ? readLastUsedConnection(projectUuid)
+                : undefined,
+            isSavedChart,
+        });
+        if (resolved) dispatch(setConnectionUuid(resolved));
+    }, [
+        dispatch,
+        connectionUuid,
+        connections,
+        savedSqlChart,
+        isSavedChart,
+        projectUuid,
+    ]);
 
     // Share links replace the whole slice via `setState`, dropping this
     // project-derived field; re-restore it whenever the store value is missing.

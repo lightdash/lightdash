@@ -39,6 +39,7 @@ import {
 } from '../../store/sqlRunnerSlice';
 import { isBitbucketCloudConnection } from '../../utils/isBitbucketCloudConnection';
 import { ChartErrorsAlert } from '../ChartErrorsAlert';
+import { ConnectionPicker } from '../ConnectionPicker';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { WriteBackToDbtModal } from '../WriteBackToDbtModal';
 import classes from './HeaderCreate.module.css';
@@ -315,6 +316,7 @@ export const HeaderCreate: FC = () => {
                     </Group>
 
                     <Group gap="xs">
+                        <ConnectionPicker />
                         {hasAnyAction && (
                             <Button.Group>
                                 <Button

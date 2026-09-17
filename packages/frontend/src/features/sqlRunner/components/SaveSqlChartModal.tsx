@@ -4,7 +4,7 @@ import {
     type AllVizChartConfig,
     type ApiCreateSqlChart,
 } from '@lightdash/common';
-import { Button, Stack, Textarea, TextInput } from '@mantine/core';
+import { Button, Stack, Text, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
@@ -22,6 +22,7 @@ import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import { DEFAULT_SQL_LIMIT } from '../constants';
+import { useActiveConnection } from '../hooks/useActiveConnection';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { EditorTabs, updateName } from '../store/sqlRunnerSlice';
@@ -95,6 +96,8 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
     onSaved,
 }) => {
     const { user } = useApp();
+    const { hasSeveralConnections, connectionNameFor } = useActiveConnection();
+    const savedOnConnectionName = connectionNameFor(connectionUuid);
 
     const initialStep = hasUnrunChanges
         ? ModalStep.Warning
@@ -344,6 +347,15 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
                                 {...form.getInputProps('description')}
                                 value={form.values.description ?? ''}
                             />
+                            {hasSeveralConnections && savedOnConnectionName && (
+                                <Text fz="xs" c="dimmed">
+                                    Saves on the{' '}
+                                    <Text span fw={600} inherit>
+                                        {savedOnConnectionName}
+                                    </Text>{' '}
+                                    connection.
+                                </Text>
+                            )}
                         </Stack>
                     )}
 

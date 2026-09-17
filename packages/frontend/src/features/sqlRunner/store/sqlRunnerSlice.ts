@@ -200,6 +200,23 @@ export const sqlRunnerSlice = createSlice({
         ) => {
             state.connectionUuid = action.payload;
         },
+        // Seeding is not switching: the first connection a document resolves
+        // to leaves any loaded results alone.
+        switchActiveConnection: (state, action: PayloadAction<string>) => {
+            if (state.connectionUuid === action.payload) return;
+            state.connectionUuid = action.payload;
+            state.sqlColumns = undefined;
+            state.sqlRows = undefined;
+            state.queryUuid = undefined;
+            state.fileUrl = undefined;
+            state.queryError = undefined;
+            state.queryIsLoading = false;
+            state.resultConnectionUuid = undefined;
+            state.resultsTableConfig = undefined;
+            state.editorHighlightError = undefined;
+            state.successfulSqlQueries = withHistory(undefined);
+            state.hasUnrunChanges = false;
+        },
         updateParameterValue: (
             state,
             action: PayloadAction<{
@@ -435,6 +452,7 @@ export const {
     toggleActiveTable,
     setProjectUuid,
     setConnectionUuid,
+    switchActiveConnection,
     setFetchResultsOnLoad,
     updateName,
     setSql,
