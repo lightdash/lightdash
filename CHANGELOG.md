@@ -1,3 +1,10 @@
+## [2.253.1](https://github.com/lightdash/lightdash/compare/2.253.0...2.253.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* avoid preview copy bind parameter limits ([#29411](https://github.com/lightdash/lightdash/issues/29411)) ([29c349b](https://github.com/lightdash/lightdash/commit/29c349b27017de93959643e4f314e89efe166821))
+
 # [2.253.0](https://github.com/lightdash/lightdash/compare/2.252.0...2.253.0) (2026-09-17)
 
 
