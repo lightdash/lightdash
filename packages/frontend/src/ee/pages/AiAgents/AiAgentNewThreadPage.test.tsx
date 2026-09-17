@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { type ComponentProps } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter, Outlet, Route, Routes } from 'react-router';
@@ -83,6 +84,8 @@ const agent = {
     name: 'Jaffle analyst',
     imageUrl: null,
     adminOnly: false,
+    instruction: 'Internal instructions for the analyst',
+    description: 'Ask questions about your shop',
 };
 
 const renderPage = (isEmbed: boolean, agentCount: number) => {
@@ -154,6 +157,26 @@ describe('AiAgentNewThreadPage embed controls', () => {
         expect(
             screen.queryByRole('button', { name: 'Set as default agent' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('hides the instructions popover in embeds while keeping the public description', () => {
+        renderPage(true, 1);
+
+        expect(
+            screen.queryByRole('button', { name: '' }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText(agent.instruction)).not.toBeInTheDocument();
+        expect(screen.getByText(agent.description)).toBeVisible();
+    });
+
+    it('preserves the instructions popover outside embeds', async () => {
+        const user = userEvent.setup();
+        renderPage(false, 1);
+
+        await user.click(screen.getByRole('button', { name: '' }));
+
+        expect(await screen.findByText(agent.instruction)).toBeVisible();
+        expect(screen.getByText(agent.description)).toBeVisible();
     });
 
     it('preserves agent controls outside embeds', () => {
