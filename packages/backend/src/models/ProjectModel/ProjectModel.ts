@@ -305,6 +305,7 @@ type RawSummaryRow = {
     baseTableDatabase: Explore['tables'][string]['database'];
     baseTableSchema: Explore['tables'][string]['schema'];
     baseTableDescription: Explore['tables'][string]['description'] | null;
+    connectionUuid: string | null;
     baseTableRequiredAttributes:
         | Explore['tables'][string]['requiredAttributes']
         | null;
@@ -2768,6 +2769,7 @@ export class ProjectModel {
                     explore->'tables'->(explore->>'baseTable')->>'database' as "baseTableDatabase",
                     explore->'tables'->(explore->>'baseTable')->>'schema' as "baseTableSchema",
                     explore->'tables'->(explore->>'baseTable')->>'description' as "baseTableDescription",
+                    explore->'tables'->(explore->>'baseTable')->>'connectionUuid' as "connectionUuid",
                     explore->'tables'->(explore->>'baseTable')->'requiredAttributes' as "baseTableRequiredAttributes",
                     explore->'tables'->(explore->>'baseTable')->'anyAttributes' as "baseTableAnyAttributes",
                     explore->'aiHint' as "aiHint",
@@ -2785,6 +2787,7 @@ export class ProjectModel {
             databaseName: row.baseTableDatabase,
             schemaName: row.baseTableSchema,
             description: row.baseTableDescription ?? undefined,
+            connectionUuid: row.connectionUuid,
             aiHint: row.aiHint ?? undefined,
             customMeta: row.customMeta ?? undefined,
             type: row.type ?? undefined,

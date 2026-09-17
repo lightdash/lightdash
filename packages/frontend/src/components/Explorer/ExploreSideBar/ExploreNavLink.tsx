@@ -2,6 +2,7 @@ import {
     friendlyName,
     InlineErrorType,
     isSummaryExploreError,
+    type Connection,
     type SummaryExplore,
     ExploreType,
 } from '@lightdash/common';
@@ -12,12 +13,14 @@ import {
     HoverCard,
     NavLink,
     Paper,
+    Group,
     Stack,
 } from '@mantine/core';
 import { useToggle } from '@mantine/hooks';
 import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react';
 import React from 'react';
 import { getExploreIcon } from '../../../features/externalSources/utils/exploreIcons';
+import ConnectionBadge from '../../common/ConnectionBadge';
 import MantineIcon from '../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ExploreTree/TableTree/ItemDetailPreview';
 import WarningsHoverCardContent from '../WarningsHoverCardContent';
@@ -42,12 +45,14 @@ const getPreAggregateSource = (explore: SummaryExplore) =>
 
 type ExploreNavLinkProps = {
     explore: SummaryExplore;
+    connections: Connection[];
     query?: string;
     onClick: () => void;
 };
 
 const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
     explore,
+    connections,
     query,
     onClick,
 }: ExploreNavLinkProps) => {
@@ -159,15 +164,21 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                         offset={0}
                     >
                         <Stack gap={2}>
-                            <Highlight
-                                truncate
-                                fz="sm"
-                                fw={500}
-                                c="ldDark.8"
-                                highlight={query ?? ''}
-                            >
-                                {displayLabel}
-                            </Highlight>
+                            <Group gap="xs" wrap="nowrap">
+                                <Highlight
+                                    truncate
+                                    fz="sm"
+                                    fw={500}
+                                    c="ldDark.8"
+                                    highlight={query ?? ''}
+                                >
+                                    {displayLabel}
+                                </Highlight>
+                                <ConnectionBadge
+                                    connections={connections}
+                                    connectionUuid={explore.connectionUuid}
+                                />
+                            </Group>
                             {showUnderlyingName && (
                                 <Highlight
                                     truncate

@@ -43,6 +43,8 @@ import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutatio
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useChartPermissions } from '../../../hooks/useChartPermissions';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
+import { useExplore } from '../../../hooks/useExplore';
+import { useProject } from '../../../hooks/useProject';
 import { useProjectUrlIdentifier } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
@@ -57,6 +59,7 @@ import { ExplorerSection } from '../../../providers/Explorer/types';
 import useNativeFullscreenToggle from '../../../providers/Fullscreen/useNativeFullscreenToggle';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import { getConnectionName } from '../../common/connectionName';
 import { FavoriteActionIcon } from '../../common/FavoriteActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
@@ -156,6 +159,7 @@ const SavedChartsHeader: FC = () => {
     const compact = useCompactContentHeader();
     const { search } = useLocation();
     const projectUuid = useProjectUuid();
+    const { data: project } = useProject(projectUuid);
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const dashboardUuid = useSearchParams('fromDashboard');
     const isFromDashboard = !!dashboardUuid;
@@ -170,6 +174,7 @@ const SavedChartsHeader: FC = () => {
     );
 
     const savedChart = useExplorerSelector(selectSavedChart);
+    const { data: explore } = useExplore(savedChart?.tableName);
     const editChart = () =>
         void navigate({
             pathname: `/projects/${projectUrlIdentifier}/saved/${savedChart?.slug}/edit`,
@@ -220,6 +225,10 @@ const SavedChartsHeader: FC = () => {
         savedChart?.uuid,
     );
     const chartViewStats = useChartViewStats(savedChart?.uuid);
+    const connectionName =
+        project && project.connections.length > 1
+            ? getConnectionName(project.connections, explore?.connectionUuid)
+            : null;
 
     const schedulerDeepLink = useSchedulerDeepLink();
 
@@ -559,6 +568,7 @@ const SavedChartsHeader: FC = () => {
                                                     ?.firstViewedAt
                                             }
                                             withChartData={true}
+                                            connectionName={connectionName}
                                         />
                                     )}
                                 </HeaderMetadata>
@@ -803,6 +813,7 @@ const SavedChartsHeader: FC = () => {
                         viewStatsResourceType="chart"
                         firstViewedAt={chartViewStats.data?.firstViewedAt}
                         withChartData={true}
+                        connectionName={connectionName}
                     />
                 </MantineModal>
             )}

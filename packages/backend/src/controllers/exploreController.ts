@@ -122,9 +122,14 @@ export class ExploreController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiExploreResults }> {
         this.setStatus(200);
-        const results = await this.services
+        const explore = await this.services
             .getProjectService()
             .getExplore(req.account!, projectUuid, exploreId, undefined, false);
+        const results: ApiExploreResults = {
+            ...explore,
+            connectionUuid:
+                explore.tables[explore.baseTable]?.connectionUuid ?? null,
+        };
 
         return {
             status: 'ok',
