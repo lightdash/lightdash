@@ -36,7 +36,7 @@ export const canAccessAiAgent = async (
     if (!hasGroupAccess && !hasUserAccess) {
         return auditedAbility.can(
             'view',
-            subject('Project', {
+            subject('AiAgent', {
                 organizationUuid: agent.organizationUuid,
                 projectUuid: agent.projectUuid,
             }),

@@ -124,7 +124,7 @@ describe('validateMemoryObjects', () => {
 describe('AiAgentMemoryService', () => {
     const buildUser = (
         canViewProject: boolean,
-        { canManageAgents = false } = {},
+        { canViewAgents = true, canManageAgents = false } = {},
     ) => {
         const { build: buildAbility, can } = new AbilityBuilder<MemberAbility>(
             Ability,
@@ -133,6 +133,11 @@ describe('AiAgentMemoryService', () => {
             can('view', 'Project', {
                 organizationUuid: 'org-enabled',
             });
+            if (canViewAgents) {
+                can('view', 'AiAgent', {
+                    projectUuid: 'project-enabled',
+                });
+            }
             if (canManageAgents) {
                 can('manage', 'AiAgent', {
                     projectUuid: 'project-enabled',
@@ -465,6 +470,23 @@ describe('AiAgentMemoryService', () => {
                 source: { threadTitle: 'Owner-visible title' },
             },
         });
+    });
+
+    it('hides an owned memory when the owner has no AI Agent permissions', async () => {
+        const { service, findByProjectAndSlug } = build();
+        findByProjectAndSlug.mockResolvedValue({
+            memory: memoryRow({ user_uuid: 'current-user' }),
+            sources: [lineageSource()],
+            replacement: null,
+        });
+
+        await expect(
+            service.getMemory(
+                buildUser(true, { canViewAgents: false }),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+            ),
+        ).rejects.toThrow('Memory not found: net-revenue-ab12cd34');
     });
 
     it('lets the owner retire an active memory by UUID', async () => {
