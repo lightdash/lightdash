@@ -1,3 +1,10 @@
+## [2.256.2](https://github.com/lightdash/lightdash/compare/2.256.1...2.256.2) (2026-09-17)
+
+
+### Bug Fixes
+
+* **merge-queries:** keep the explorer query off while a merge owns the results ([#29460](https://github.com/lightdash/lightdash/issues/29460)) ([da9e9ba](https://github.com/lightdash/lightdash/commit/da9e9ba9fd79f55b0ad8e1faed3a28f9ef52beca))
+
 ## [2.256.1](https://github.com/lightdash/lightdash/compare/2.256.0...2.256.1) (2026-09-17)
 
 
