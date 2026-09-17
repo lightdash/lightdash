@@ -4730,6 +4730,50 @@ export class ProjectService extends BaseService {
         };
     }
 
+    async testConnectionWarehouseCredentials(
+        account: RegisteredAccount,
+        projectUuid: string,
+        warehouseConnection: CreateWarehouseCredentials,
+    ): Promise<WarehouseConnectionTestResults> {
+        assertIsAccountWithOrg(account);
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                    metadata: {
+                        projectUuid,
+                        projectName: project.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            warehouseConnection,
+        );
+        ProjectService.assertDatabaseListingSupported(warehouseConnection);
+        if (isMissingBigqueryKeyfile(warehouseConnection)) {
+            return buildConnectionTestResults([
+                {
+                    stage: 'database',
+                    status: 'failed',
+                    message:
+                        'No service account key file. Paste the key file, or save the connection with one first.',
+                },
+            ]);
+        }
+        const resolved = await this._resolveWarehouseClientCredentials(
+            { warehouseConnection },
+            account.user.userUuid,
+            project.organizationUuid,
+        );
+        return this.runWarehouseConnectionHops(resolved.warehouseConnection);
+    }
+
     /**
      * Tests warehouse credentials hop by hop without saving them. Secrets the
      * form does not send are taken from the saved project, as on save.

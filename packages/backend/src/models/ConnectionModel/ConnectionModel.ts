@@ -257,6 +257,17 @@ export class ConnectionModel {
         };
     }
 
+    async getOrganizationCredentialsForProject(
+        projectUuid: string,
+        organizationWarehouseCredentialsUuid: string,
+    ): Promise<CreateWarehouseCredentials> {
+        const project = await this.getProject(projectUuid);
+        return this.getOrganizationCredentials(
+            organizationWarehouseCredentialsUuid,
+            project.organization_uuid,
+        );
+    }
+
     async resolveSole(projectUuid: string): Promise<Connection> {
         const connections = await this.listByProject(projectUuid);
         if (connections.length === 0) {
@@ -338,13 +349,9 @@ export class ConnectionModel {
                 list_all_databases: listAllDatabases,
                 additional_databases:
                     normalizeAdditionalDatabases(additionalDatabases),
-                ...(organizationWarehouseCredentialsUuid
-                    ? {}
-                    : {
-                          encrypted_credentials: this.encryptCredentials(
-                              normalizedCredentials,
-                          ),
-                      }),
+                encrypted_credentials: organizationWarehouseCredentialsUuid
+                    ? null
+                    : this.encryptCredentials(normalizedCredentials),
             });
         return this.getByUuid(projectUuid, connectionUuid);
     }
