@@ -16,10 +16,7 @@ import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDa
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVizRenderMetadata } from '../../../features/chartTypes/hooks/useDataAppVizRender';
-import {
-    getUnboundRequiredDataAppVizFields,
-    reconcileDataAppVizFieldMapping,
-} from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
+import { reconcileDataAppVizFieldMapping } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { chartTypeBuilderPath } from '../../../features/chartTypes/utils/chartTypeBuilderPath';
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
 import {
@@ -41,6 +38,7 @@ import { type CustomChartTypeOption } from '../CustomChartType/customChartTypeOp
 import CustomChartTypeSection from '../CustomChartType/CustomChartTypeSection';
 import { useSelectProjectChartType } from '../CustomChartType/useSelectProjectChartType';
 import classes from './DataAppVizConfigTabs.module.css';
+import DataAppVizInputGuidance from './DataAppVizInputGuidance';
 import DataAppVizOptionTabs from './DataAppVizOptionTabs';
 import DataAppVizSettings from './DataAppVizSettings';
 import DataAppVizUpgradeNotice from './DataAppVizUpgradeNotice';
@@ -205,11 +203,6 @@ export const ConfigTabs: FC = memo(() => {
             );
         };
 
-        const unboundRequired = getUnboundRequiredDataAppVizFields(
-            fields,
-            effectiveMapping,
-        );
-
         const handleUpgrade = () => {
             if (!upgradeTarget) return;
             const nextMapping = reconcileDataAppVizFieldMapping(
@@ -235,31 +228,14 @@ export const ConfigTabs: FC = memo(() => {
 
         const settings = (
             <Stack>
-                {dataAppViz?.schema?.inputGuidance && (
-                    <Text fz="xs" c="dimmed" lh={1.5}>
-                        {dataAppViz.schema.inputGuidance}
-                    </Text>
-                )}
-                {unboundRequired.length > 0 && (
-                    <Text fz="xs" c="dimmed">
-                        Select{' '}
-                        {unboundRequired.length === 1 ? 'a field' : 'fields'}{' '}
-                        for{' '}
-                        {new Intl.ListFormat('en', {
-                            type: 'conjunction',
-                        }).format(
-                            unboundRequired.map(
-                                (field) => '“' + field.label + '”',
-                            ),
-                        )}{' '}
-                        to display your chart.
-                    </Text>
-                )}
                 <DataAppVizSettings
                     itemsMap={effectiveItemsMap}
                     fields={fields}
                     fieldMapping={effectiveMapping}
                     onFieldChange={handleFieldChange}
+                />
+                <DataAppVizInputGuidance
+                    guidance={dataAppViz?.schema?.inputGuidance}
                 />
                 {dataAppViz && !isInsideChartGallery && (
                     <Box className={classes.typeCard}>

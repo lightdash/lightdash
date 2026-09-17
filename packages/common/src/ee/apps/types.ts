@@ -830,24 +830,29 @@ export type DataAppVizSchema = {
 const uniqueNames = <T extends { name: string }>(arr: T[]): boolean =>
     new Set(arr.map((a) => a.name)).size === arr.length;
 
-const optionalInputHelp = (maxLength: number) =>
-    z
-        .string()
-        .trim()
-        .max(maxLength)
+export const MAX_DATA_APP_VIZ_FIELD_DESCRIPTION_LENGTH = 160;
+
+const optionalInputHelp = (maxLength?: number) => {
+    const text = z.string().trim();
+    return (maxLength === undefined ? text : text.max(maxLength))
         .nullable()
         .transform((value) => value || undefined)
         .optional();
+};
 
-const nullableOptionalFieldExamples = z
-    .array(z.union([z.string(), z.number(), z.boolean(), z.null()]))
-    .nullable()
-    .transform((value) => value ?? undefined)
-    .optional();
+const nullableOptionalFieldExamples = () =>
+    z
+        .array(z.union([z.string(), z.number(), z.boolean(), z.null()]))
+        .nullable()
+        .transform((value) => value ?? undefined)
+        .optional();
 
-const vizInputGuidance = optionalInputHelp(400).describe(
-    'Optional setup guidance in two or three short, plain sentences (maximum 400 characters). Describe the expected rows, ordering where relevant, and how to change a query that has a different shape.',
-);
+const vizInputGuidance = (strict: boolean) =>
+    optionalInputHelp(strict ? 200 : undefined).describe(
+        strict
+            ? 'Optional setup guidance in at most two short, plain sentences (maximum 200 characters). Describe the expected rows, ordering where relevant, and how to change a query that has a different shape.'
+            : 'Optional setup guidance describing the expected rows, ordering, and how to adapt a query with a different shape.',
+    );
 
 const optionBase = {
     name: z
@@ -869,39 +874,52 @@ const optionBase = {
         ),
 };
 
-const vizFields = z
-    .array(
-        z.object({
-            name: z
-                .string()
-                .min(1)
-                .describe(
-                    'Key the component reads from `fieldMapping`. Unique across fields, no spaces.',
-                ),
-            label: z
-                .string()
-                .describe('Human label shown in the field-mapping UI.'),
-            type: z
-                .enum(['dimension', 'metric', 'series', 'column'])
-                .describe(
-                    'dimension = a category/grouping column, metric = a numeric measure, series = a dimension used to split or colour the chart, column = any result column (metric or dimension) — use when the chart handles non-numeric values.',
-                ),
-            required: z
-                .boolean()
-                .describe(
-                    'false only when the chart still renders with this field unmapped.',
-                ),
-            description: optionalInputHelp(160).describe(
-                'Optional mapping help in one short, plain sentence (maximum 160 characters). Explain what this field represents and how to choose it, without naming a particular query.',
+const vizField = (strict: boolean) =>
+    z.object({
+        name: z
+            .string()
+            .min(1)
+            .describe(
+                'Key the component reads from `fieldMapping`. Unique across fields, no spaces.',
             ),
-            examples: nullableOptionalFieldExamples.describe(
-                'Optional scalar display examples for this field. Each value stands alone; do not provide paired rows or query fixtures.',
+        label: z
+            .string()
+            .describe('Human label shown in the field-mapping UI.'),
+        type: z
+            .enum(['dimension', 'metric', 'series', 'column'])
+            .describe(
+                'dimension = a category/grouping column, metric = a numeric measure, series = a dimension used to split or colour the chart, column = any result column (metric or dimension) — use when the chart handles non-numeric values.',
+            ),
+        required: z
+            .boolean()
+            .describe(
+                'false only when the chart still renders with this field unmapped.',
+            ),
+        description: optionalInputHelp(
+            strict ? MAX_DATA_APP_VIZ_FIELD_DESCRIPTION_LENGTH : undefined,
+        ).describe(
+            strict
+                ? 'Optional mapping help in one or two short, plain sentences (maximum 160 characters). Explain what this field represents and how to choose it, without naming a particular query.'
+                : 'Optional reusable mapping help explaining what this field represents.',
+        ),
+    });
+
+const vizFieldsDescription =
+    'Every data column the component reads. Declare exactly what you read — no more, no less.';
+
+const vizFieldsForRead = z
+    .array(
+        vizField(false).extend({
+            examples: nullableOptionalFieldExamples().describe(
+                'Optional legacy scalar display examples for this field. Each value stands alone.',
             ),
         }),
     )
-    .describe(
-        'Every data column the component reads. Declare exactly what you read — no more, no less.',
-    );
+    .describe(vizFieldsDescription);
+
+const vizFieldsForGeneration = z
+    .array(vizField(true))
+    .describe(vizFieldsDescription);
 
 const vizConfigOptions = z.array(
     z.discriminatedUnion('type', [
@@ -982,30 +1000,30 @@ const vizColorPalette = z
         'Declare this when the component colours anything from `colorPalette`. It surfaces the standard Lightdash palette picker, so the viz inherits the same colours as the charts around it. Not a config option: the chosen colours arrive on `colorPalette`, never on `options`. Null when the component colours nothing.',
     );
 
-// Runtime validator for the untrusted generated declaration, and for schemas
-// round-tripped through an app manifest. `configOptions` defaults to `[]` so a
-// declaration persisted before config options existed still parses.
+// Read validator for persisted schemas and app manifests. Older generated
+// metadata may exceed today's authoring limits; keep those charts usable.
+// `configOptions` defaults to `[]` for declarations from before it existed.
 export const dataAppVizSchema = z.object({
-    fields: vizFields.refine(uniqueNames, 'duplicate field name'),
+    fields: vizFieldsForRead.refine(uniqueNames, 'duplicate field name'),
     configOptions: vizConfigOptions
         .default([])
         .refine(uniqueNames, 'duplicate option name'),
     colorPalette: vizColorPalette.default(null),
-    inputGuidance: vizInputGuidance,
+    inputGuidance: vizInputGuidance(false),
 });
 
 // The stricter contract handed to the generator CLI: `configOptions` and
 // `colorPalette` are required, so an empty declaration is a deliberate answer
 // rather than the shape of the schema's defaults.
 export const dataAppVizGenerationSchema = z.object({
-    fields: vizFields.refine(uniqueNames, 'duplicate field name'),
+    fields: vizFieldsForGeneration.refine(uniqueNames, 'duplicate field name'),
     configOptions: vizConfigOptions
         .refine(uniqueNames, 'duplicate option name')
         .describe(
             'Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Series colours are not among them: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different.',
         ),
     colorPalette: vizColorPalette,
-    inputGuidance: vizInputGuidance,
+    inputGuidance: vizInputGuidance(true),
 });
 
 // Compile-time guard: the zod schema's output type must match the explicit

@@ -26,6 +26,7 @@ import {
     DATA_APP_CODEX_MODELS,
     DATA_APP_VIZ_TEMPLATE,
     DATA_REFERENCE_EXTRACTOR_VERSION,
+    dataAppVizGenerationSchema,
     dataAppVizJsonSchema,
     dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
@@ -8727,13 +8728,14 @@ export class AppGenerateService extends BaseService {
             );
             return;
         }
-        const schema = AppGenerateService.parseSchema(structuredOutput);
-        if (!schema) {
+        const parsed = dataAppVizGenerationSchema.safeParse(structuredOutput);
+        if (!parsed.success) {
             this.logger.warn(
                 `App ${appUuid}: structured schema failed validation; leaving viz_schema null`,
             );
             return;
         }
+        const schema = parsed.data;
         await this.appModel.setSchema(appUuid, version, schema);
         this.logger.info(
             `App ${appUuid} v${version}: persisted schema (${schema.fields.length} field(s), ${schema.configOptions.length} option(s))`,

@@ -1,6 +1,8 @@
 import { type DataAppVizField } from '@lightdash/common';
-import { Stack, Text } from '@mantine/core';
+import { Text, Tooltip } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
+import MantineIcon from '../../common/MantineIcon';
 import styles from './DataAppVizFieldGuidance.module.css';
 
 const defaultGuidance: Record<DataAppVizField['type'], string> = {
@@ -10,32 +12,40 @@ const defaultGuidance: Record<DataAppVizField['type'], string> = {
     column: 'Choose the result column the chart reads for this slot.',
 };
 
-const formatExample = (example: string | number | boolean | null): string =>
-    example === null ? 'null' : String(example);
+const getDescription = (field: DataAppVizField): string =>
+    field.description?.trim() || defaultGuidance[field.type];
 
 type Props = {
     field: DataAppVizField;
     id?: string;
-    showMappingHint?: boolean;
 };
 
-/** Reusable help for a declared field wherever a viewer maps it to query data. */
-const DataAppVizFieldGuidance: FC<Props> = ({ field, id, showMappingHint }) => (
-    <Stack id={id} gap="xxs">
-        <Text size="xs" c="dimmed" lh={1.4} className={styles.helpText}>
-            {field.description?.trim() || defaultGuidance[field.type]}
-        </Text>
-        {field.examples && field.examples.length > 0 && (
-            <Text size="xs" c="dimmed" lh={1.4} className={styles.helpText}>
-                Examples: {field.examples.map(formatExample).join(', ')}
-            </Text>
-        )}
-        {showMappingHint && field.required && (
-            <Text size="xs" c="dimmed" lh={1.4}>
-                Map this required field to continue.
-            </Text>
-        )}
-    </Stack>
+const DataAppVizFieldGuidance: FC<Props> = ({ field, id }) => (
+    <Text id={id} hidden>
+        {getDescription(field)}
+    </Text>
+);
+
+export const DataAppVizFieldHelp: FC<{ field: DataAppVizField }> = ({
+    field,
+}) => (
+    <Tooltip
+        label={getDescription(field)}
+        position="top"
+        events={{ hover: true, focus: true, touch: false }}
+        className={styles.helpText}
+    >
+        <MantineIcon
+            icon={IconInfoCircle}
+            size={14}
+            color="dimmed"
+            tabIndex={0}
+            role="img"
+            aria-hidden={false}
+            aria-label={`About ${field.label}`}
+            className="mantine-focus-auto"
+        />
+    </Tooltip>
 );
 
 export default DataAppVizFieldGuidance;

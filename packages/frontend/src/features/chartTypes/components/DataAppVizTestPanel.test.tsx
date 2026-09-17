@@ -351,7 +351,8 @@ describe('DataAppVizTestPanel', () => {
         expect(screen.getByText('Value')).toBeInTheDocument();
     });
 
-    it('explains the expected row shape and field examples before mapping', () => {
+    it('shows chart setup guidance without inline field descriptions', async () => {
+        const user = userEvent.setup();
         renderWithProviders(
             <TestDataAppVizPanel
                 projectUuid="p1"
@@ -361,16 +362,42 @@ describe('DataAppVizTestPanel', () => {
         );
 
         expect(
+            screen.getByRole('region', { name: 'How to use this chart' }),
+        ).toBeVisible();
+        expect(
             screen.getByText(
                 'Use one row per stage in order. Reshape separate metrics or flags into stage/count rows before mapping.',
             ),
-        ).toBeInTheDocument();
+        ).not.toBeVisible();
         expect(
             screen.getByText('The label for each funnel stage'),
-        ).toBeInTheDocument();
+        ).not.toBeVisible();
         expect(
-            screen.getByText('Examples: Listing started, 0, false, null'),
-        ).toBeInTheDocument();
+            screen.queryByText('Examples: Listing started, 0, false, null'),
+        ).not.toBeInTheDocument();
+
+        const setupHelp = screen.getByRole('button', {
+            name: 'How to use this chart',
+        });
+        expect(setupHelp).toHaveAttribute('aria-expanded', 'false');
+        await user.click(setupHelp);
+        expect(setupHelp).toHaveAttribute('aria-expanded', 'true');
+        await waitFor(() =>
+            expect(screen.getByText(/^Use one row per stage/)).toBeVisible(),
+        );
+
+        await user.hover(screen.getByRole('img', { name: 'About Source' }));
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'The label for each funnel stage',
+        );
+        expect(
+            screen.queryByText('Examples: Listing started, 0, false, null'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen
+                .getAllByText('The label for each funnel stage')
+                .some((element) => !element.hasAttribute('hidden')),
+        ).toBe(true);
     });
 
     it('links each field picker to its own mapping guidance after selecting an explore', async () => {
@@ -388,14 +415,10 @@ describe('DataAppVizTestPanel', () => {
 
         expect(
             screen.getByRole('button', { name: 'Source' }),
-        ).toHaveAccessibleDescription(
-            'The label for each funnel stage Examples: Listing started, 0, false, null Map this required field to continue.',
-        );
+        ).toHaveAccessibleDescription('The label for each funnel stage');
         expect(
             screen.getByRole('button', { name: 'Value' }),
-        ).toHaveAccessibleDescription(
-            'Choose the numeric value for each row. Map this required field to continue.',
-        );
+        ).toHaveAccessibleDescription('Choose the numeric value for each row.');
     });
 
     it('requests the same filtered Explore list as Explorer', () => {

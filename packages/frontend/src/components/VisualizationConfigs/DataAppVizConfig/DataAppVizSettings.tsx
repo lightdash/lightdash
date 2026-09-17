@@ -9,14 +9,16 @@ import {
     type Item,
     type ItemsMap,
 } from '@lightdash/common';
-import { Stack, Text } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine/core';
 import { useId, useMemo, type FC } from 'react';
 import { poolKeyForSlot } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
 import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
 import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
-import DataAppVizFieldGuidance from './DataAppVizFieldGuidance';
+import DataAppVizFieldGuidance, {
+    DataAppVizFieldHelp,
+} from './DataAppVizFieldGuidance';
 
 type Props = {
     itemsMap: ItemsMap;
@@ -86,11 +88,13 @@ const DataAppVizSettings: FC<Props> = ({
                 return (
                     <Config key={field.name}>
                         <Config.Section>
-                            <Config.Heading>{field.label}</Config.Heading>
+                            <Group gap="xxs">
+                                <Config.Heading>{field.label}</Config.Heading>
+                                <DataAppVizFieldHelp field={field} />
+                            </Group>
                             <DataAppVizFieldGuidance
                                 field={field}
                                 id={guidanceId}
-                                showMappingHint={!selectedId}
                             />
                             <FieldSelect
                                 size="xs"

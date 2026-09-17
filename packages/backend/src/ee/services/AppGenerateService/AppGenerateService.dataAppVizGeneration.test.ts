@@ -396,4 +396,96 @@ describe('AppGenerateService.parseSchema', () => {
             }),
         ).toBeNull();
     });
+
+    it('keeps legacy field examples and long guidance readable', () => {
+        const legacySchema = {
+            ...validSchema,
+            fields: [
+                {
+                    ...validSchema.fields[0],
+                    description: 'Legacy field help. '.repeat(20),
+                    examples: [0, false, null],
+                },
+            ],
+            inputGuidance: 'Legacy chart help. '.repeat(20),
+        };
+        expect(AppGenerateService.parseSchema(legacySchema)).toMatchObject({
+            ...legacySchema,
+            fields: [
+                {
+                    ...legacySchema.fields[0],
+                    description: legacySchema.fields[0].description.trim(),
+                },
+            ],
+            inputGuidance: legacySchema.inputGuidance.trim(),
+        });
+    });
+});
+
+describe('AppGenerateService.persistSchema', () => {
+    const field = {
+        name: 'category',
+        label: 'Category',
+        type: 'dimension',
+        required: true,
+    };
+
+    const buildPersistSchema = () => {
+        const setSchema = vi.fn();
+        const { service } = buildService({ appModel: { setSchema } });
+        const persistSchema = (structuredOutput: unknown) =>
+            (
+                service as unknown as {
+                    persistSchema: (
+                        output: unknown,
+                        appUuid: string,
+                        version: number,
+                    ) => Promise<void>;
+                }
+            ).persistSchema(structuredOutput, 'app-1', 1);
+        return { persistSchema, setSchema };
+    };
+
+    it.each([
+        [{ ...field, description: 'a'.repeat(161) }, undefined],
+        [field, 'a'.repeat(201)],
+    ])(
+        'rejects generated help over the limit',
+        async (inputField, inputGuidance) => {
+            const { persistSchema, setSchema } = buildPersistSchema();
+
+            await persistSchema({
+                fields: [inputField],
+                configOptions: [],
+                colorPalette: null,
+                inputGuidance,
+            });
+
+            expect(setSchema).not.toHaveBeenCalled();
+        },
+    );
+
+    it('persists valid generated help without legacy examples', async () => {
+        const { persistSchema, setSchema } = buildPersistSchema();
+
+        await persistSchema({
+            fields: [
+                {
+                    ...field,
+                    description: 'Category to plot.',
+                    examples: [0, false, null],
+                },
+            ],
+            configOptions: [],
+            colorPalette: null,
+            inputGuidance: 'One row per category.',
+        });
+
+        expect(setSchema).toHaveBeenCalledWith('app-1', 1, {
+            fields: [{ ...field, description: 'Category to plot.' }],
+            configOptions: [],
+            colorPalette: null,
+            inputGuidance: 'One row per category.',
+        });
+    });
 });

@@ -2,7 +2,10 @@ import { getItemId, type DataAppVizSchema } from '@lightdash/common';
 import { Group, Select, Stack, Text } from '@mantine/core';
 import { useId, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
-import DataAppVizFieldGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldGuidance';
+import DataAppVizFieldGuidance, {
+    DataAppVizFieldHelp,
+} from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldGuidance';
+import DataAppVizInputGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizInputGuidance';
 import { type DataAppVizTestContextState } from '../hooks/useDataAppVizTestContext';
 import DataAppVizFieldTypeBadge from './DataAppVizFieldTypeBadge';
 
@@ -27,11 +30,6 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
 
     return (
         <Stack gap="xs">
-            {schema.inputGuidance && (
-                <Text size="xs" c="dimmed" lh={1.4}>
-                    {schema.inputGuidance}
-                </Text>
-            )}
             <Select
                 size="xs"
                 label="Test with data"
@@ -58,11 +56,11 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                                     {field.label}
                                 </Text>
                                 <DataAppVizFieldTypeBadge type={field.type} />
+                                <DataAppVizFieldHelp field={field} />
                             </Group>
                             <DataAppVizFieldGuidance
                                 field={field}
                                 id={guidanceId}
-                                showMappingHint={!selectedId}
                             />
                             {exploreName && (
                                 <FieldSelect
@@ -89,6 +87,7 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                     );
                 })}
             </Stack>
+            <DataAppVizInputGuidance guidance={schema.inputGuidance} />
         </Stack>
     );
 };

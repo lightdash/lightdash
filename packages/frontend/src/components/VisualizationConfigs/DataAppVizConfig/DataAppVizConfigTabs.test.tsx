@@ -19,7 +19,7 @@ import {
     type ItemsMap,
     type TableCalculation,
 } from '@lightdash/common';
-import { act, screen } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -826,20 +826,24 @@ describe('DataAppVizConfigTabs', () => {
         expect(setPivotDimensions).toHaveBeenCalled();
     });
 
-    it('explains missing fields without presenting a warning', () => {
+    it('keeps missing mappings readable without repeating a warning', () => {
         mockContext({}, 'data-app-viz-uuid', {}, {});
         mockSchema([]);
 
         renderWithProviders(<ConfigTabs />);
 
         expect(
-            screen.getByText(
+            screen.queryByText(
                 'Select fields for “Source” and “Value” to display your chart.',
             ),
-        ).toBeInTheDocument();
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('textbox', { name: 'Source' }),
+        ).toHaveAccessibleDescription('The label for each funnel stage');
     });
 
-    it('shows reusable row-shape guidance and field help beside mappings', () => {
+    it('shows chart setup guidance and reveals field help on demand', async () => {
+        const user = userEvent.setup();
         mockContext({}, 'data-app-viz-uuid', {}, {});
         mockSchema(
             [],
@@ -851,29 +855,51 @@ describe('DataAppVizConfigTabs', () => {
         renderWithProviders(<ConfigTabs />);
 
         expect(
+            screen.getByRole('region', { name: 'How to use this chart' }),
+        ).toBeVisible();
+        expect(
             screen.getByText(
                 'Use one row per stage in order; reshape the query when it returns a different row shape.',
             ),
-        ).toBeInTheDocument();
+        ).not.toBeVisible();
         expect(
             screen.getByText('The label for each funnel stage'),
-        ).toBeInTheDocument();
+        ).not.toBeVisible();
         expect(
-            screen.getByText('Examples: Listing started, Price entered'),
-        ).toBeInTheDocument();
+            screen.queryByText('Examples: Listing started, Price entered'),
+        ).not.toBeInTheDocument();
         expect(
-            screen.getAllByText('Map this required field to continue.'),
-        ).toHaveLength(2);
+            screen.queryByText('Map this required field to continue.'),
+        ).not.toBeInTheDocument();
         expect(
             screen.getByRole('textbox', { name: 'Source' }),
-        ).toHaveAccessibleDescription(
-            'The label for each funnel stage Examples: Listing started, Price entered Map this required field to continue.',
-        );
+        ).toHaveAccessibleDescription('The label for each funnel stage');
         expect(
             screen.getByRole('textbox', { name: 'Value' }),
-        ).toHaveAccessibleDescription(
-            'Choose the numeric value for each row. Map this required field to continue.',
+        ).toHaveAccessibleDescription('Choose the numeric value for each row.');
+
+        const setupHelp = screen.getByRole('button', {
+            name: 'How to use this chart',
+        });
+        expect(setupHelp).toHaveAttribute('aria-expanded', 'false');
+        await user.click(setupHelp);
+        expect(setupHelp).toHaveAttribute('aria-expanded', 'true');
+        await waitFor(() =>
+            expect(screen.getByText(/^Use one row per stage/)).toBeVisible(),
         );
+
+        await user.hover(screen.getByRole('img', { name: 'About Source' }));
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'The label for each funnel stage',
+        );
+        expect(
+            screen.queryByText('Examples: Listing started, Price entered'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen
+                .getAllByText('The label for each funnel stage')
+                .some((element) => !element.hasAttribute('hidden')),
+        ).toBe(true);
     });
 
     it('clearly distinguishes a field named To from the instruction', () => {
@@ -896,8 +922,15 @@ describe('DataAppVizConfigTabs', () => {
         renderWithProviders(<ConfigTabs />);
 
         expect(
-            screen.getByText('Select a field for “To” to display your chart.'),
-        ).toBeInTheDocument();
+            screen.getByRole('textbox', { name: 'To' }),
+        ).toHaveAccessibleDescription(
+            'Choose the category or label that identifies each row.',
+        );
+        expect(
+            screen.queryByText(
+                'Select a field for “To” to display your chart.',
+            ),
+        ).not.toBeInTheDocument();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
