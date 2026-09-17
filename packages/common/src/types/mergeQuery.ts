@@ -504,8 +504,11 @@ export const validateMergeQuery = (
             }
             // The join compiles against the source's own output columns, so a
             // key naming a field the source does not select produces SQL that
-            // references a column the warehouse has never heard of. Result
-            // sources defer this to the compiler, which has their structure.
+            // references a column the warehouse has never heard of. The
+            // compiler groups a leg by any key dimension of its explore
+            // before validating, so what reaches here is a field the explore
+            // does not have. Result sources defer this to the compiler, which
+            // has their structure.
             if (
                 isMergeMetricSource(source) &&
                 !source.metricQuery.dimensions.includes(fieldId)
@@ -514,7 +517,7 @@ export const validateMergeQuery = (
                     kind: MergeQueryErrorKind.JOIN_KEY_NOT_SELECTED,
                     sourceId: source.id,
                     fieldIds: [fieldId],
-                    message: `Query "${source.id}" joins on ${fieldId}, which it does not group by. Add it to that query, or join on a field it already has.`,
+                    message: `Query "${source.id}" joins on ${fieldId}, which is not a dimension it can group by. Join on a dimension of that query's explore.`,
                 });
             }
         });

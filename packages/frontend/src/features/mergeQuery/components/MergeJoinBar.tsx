@@ -19,12 +19,7 @@ import { useId, useMemo, useState, type FC, type ReactNode } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-import {
-    explorerActions,
-    selectTableName,
-    useExplorerDispatch,
-    useExplorerSelector,
-} from '../../explorer/store';
+import { selectTableName, useExplorerSelector } from '../../explorer/store';
 import { EMPTY_MERGE, PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
@@ -164,7 +159,6 @@ const JoinTypePicker: FC<{
  * error is not chrome.
  */
 export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
-    const dispatch = useExplorerDispatch();
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const tableName = useExplorerSelector(selectTableName);
     const mergeContext = useMergeSafe();
@@ -177,7 +171,6 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
         addJoinPart,
         removeJoinPart,
         setJoinType,
-        toggleSourceField,
     } = mergeContext ?? EMPTY_MERGE;
     const additionalSource = additionalSources[0];
     const additionalSourceId = additionalSource?.id;
@@ -189,8 +182,6 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
         fanOut,
         joinKeyErrors,
         joinFieldLabel,
-        primaryJoinItems,
-        additionalJoinItems,
         availablePrimaryJoinItems,
         availableAdditionalJoinItems,
         suggestedAvailablePair,
@@ -377,36 +368,6 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                                         !additionalField
                                                     )
                                                         return;
-                                                    if (
-                                                        !primaryJoinItems.some(
-                                                            (item) =>
-                                                                getItemId(
-                                                                    item,
-                                                                ) ===
-                                                                primaryField,
-                                                        )
-                                                    ) {
-                                                        dispatch(
-                                                            explorerActions.toggleDimension(
-                                                                primaryField,
-                                                            ),
-                                                        );
-                                                    }
-                                                    if (
-                                                        !additionalJoinItems.some(
-                                                            (item) =>
-                                                                getItemId(
-                                                                    item,
-                                                                ) ===
-                                                                additionalField,
-                                                        )
-                                                    ) {
-                                                        toggleSourceField(
-                                                            additionalSourceId,
-                                                            additionalField,
-                                                            true,
-                                                        );
-                                                    }
                                                     setJoinField(
                                                         index,
                                                         PRIMARY_SOURCE_ID,
@@ -429,7 +390,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                         <FieldSelect
                                             aria-label={`${thisQuery} join field`}
                                             size="xs"
-                                            placeholder="Choose or add a field"
+                                            placeholder="Choose a field"
                                             hasGrouping
                                             items={availablePrimaryJoinItems}
                                             item={availablePrimaryJoinItems.find(
@@ -439,30 +400,15 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                                         PRIMARY_SOURCE_ID
                                                     ],
                                             )}
-                                            onChange={(value) => {
-                                                const fieldId = value
-                                                    ? getItemId(value)
-                                                    : null;
-                                                if (
-                                                    fieldId &&
-                                                    !primaryJoinItems.some(
-                                                        (item) =>
-                                                            getItemId(item) ===
-                                                            fieldId,
-                                                    )
-                                                ) {
-                                                    dispatch(
-                                                        explorerActions.toggleDimension(
-                                                            fieldId,
-                                                        ),
-                                                    );
-                                                }
+                                            onChange={(value) =>
                                                 setJoinField(
                                                     index,
                                                     PRIMARY_SOURCE_ID,
-                                                    fieldId,
-                                                );
-                                            }}
+                                                    value
+                                                        ? getItemId(value)
+                                                        : null,
+                                                )
+                                            }
                                         />
                                     </Stack>
                                     <Text
@@ -478,7 +424,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                         <FieldSelect
                                             aria-label={`${otherQuery} join field`}
                                             size="xs"
-                                            placeholder="Choose or add a field"
+                                            placeholder="Choose a field"
                                             hasGrouping
                                             items={availableAdditionalJoinItems}
                                             item={availableAdditionalJoinItems.find(
@@ -488,30 +434,15 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                                         additionalSourceId
                                                     ],
                                             )}
-                                            onChange={(value) => {
-                                                const fieldId = value
-                                                    ? getItemId(value)
-                                                    : null;
-                                                if (
-                                                    fieldId &&
-                                                    !additionalJoinItems.some(
-                                                        (item) =>
-                                                            getItemId(item) ===
-                                                            fieldId,
-                                                    )
-                                                ) {
-                                                    toggleSourceField(
-                                                        additionalSourceId,
-                                                        fieldId,
-                                                        true,
-                                                    );
-                                                }
+                                            onChange={(value) =>
                                                 setJoinField(
                                                     index,
                                                     additionalSourceId,
-                                                    fieldId,
-                                                );
-                                            }}
+                                                    value
+                                                        ? getItemId(value)
+                                                        : null,
+                                                )
+                                            }
                                         />
                                     </Stack>
                                     {effectiveParts.length > 1 ? (

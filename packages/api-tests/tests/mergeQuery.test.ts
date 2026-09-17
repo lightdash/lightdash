@@ -477,6 +477,52 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         });
     }, 60_000);
 
+    // A join key need not be a selected field: the leg groups by it, so a
+    // source that selects only metrics still merges at the key's grain and
+    // returns the values its query returns grouped by that key.
+    it('groups a leg by a join key its query does not select', async () => {
+        const [paymentsRows, runResp] = await Promise.all([
+            runSourceQuery(paymentsByMonth),
+            admin.post<Body<{ queryUuid: string }>>(
+                `/api/v1/projects/${projectUuid}/mergeQuery/run`,
+                {
+                    mergeQuery: {
+                        ...mergeQuery,
+                        sources: [
+                            { id: 'orders', metricQuery: ordersByMonth },
+                            {
+                                id: 'payments',
+                                metricQuery: {
+                                    ...paymentsByMonth,
+                                    dimensions: [],
+                                },
+                            },
+                        ],
+                    },
+                },
+            ),
+        ]);
+        const paymentsByKey = new Map(
+            paymentsRows.map((row) => [
+                monthOf(row.orders_order_date_month),
+                row.payments_unique_payment_count,
+            ]),
+        );
+
+        const results = await pollQueryResults(
+            admin,
+            runResp.body.results.queryUuid,
+        );
+
+        expect(results.rows.length).toBeGreaterThan(1);
+        results.rows.forEach((row) => {
+            const key = monthOf(cellOf(row, KEY_FIELD_ID).raw);
+            expect(numeric(cellOf(row, PAYMENTS_FIELD_ID).raw)).toEqual(
+                numeric(paymentsByKey.get(key) ?? null),
+            );
+        });
+    }, 60_000);
+
     // A sort is a merge-level input: the legs still run whole and unsorted,
     // and the merged statement orders once, by a merged field from either
     // side. Here by the second source's metric, which the primary query
