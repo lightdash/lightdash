@@ -343,7 +343,12 @@ export class ModelRepository
     public getAppModel(): AppModel {
         return this.getModel(
             'appModel',
-            () => new AppModel({ database: this.database }),
+            () =>
+                new AppModel({
+                    database: this.database,
+                    dataAppCodingAgent:
+                        this.lightdashConfig.appRuntime.dataAppCodingAgent,
+                }),
         );
     }
 

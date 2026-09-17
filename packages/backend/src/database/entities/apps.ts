@@ -1,8 +1,10 @@
 import {
+    type AppThreadOrigin,
     type AppVersionDependencies,
     type AppVersionResources,
     type AppVersionStatus,
     type AppVersionStatusHistoryEntry,
+    type DataAppCodingAgent,
     type DataAppGenerationUsage,
     type DataAppTemplate,
     type DataAppVizSchema,
@@ -19,6 +21,7 @@ export {
 
 export const AppsTableName = 'apps';
 export const AppVersionsTableName = 'app_versions';
+export const AppThreadsTableName = 'app_threads';
 
 export type DbApp = {
     app_id: string;
@@ -125,9 +128,51 @@ export type DbAppVersion = {
     generation_usage: DataAppGenerationUsage | null;
     // Registry version string this app version was installed/updated from.
     registry_version: string | null;
+    // Thread the version belongs to. Null only for rows written before
+    // threads existed or by an old pod mid-rollout; reads coalesce to thread 1.
+    app_thread_uuid: string | null;
     created_at: Date;
     created_by_user_uuid: string;
 };
+
+/** A version as read back through AppModel: the thread is always resolved. */
+export type DbAppVersionWithThread = DbAppVersion & {
+    app_thread_uuid: string;
+    thread_number: number;
+};
+
+export type DbAppThread = {
+    app_thread_uuid: string;
+    app_id: string;
+    thread_number: number;
+    origin: AppThreadOrigin;
+    // Ask AI thread that created the app; no FK (EE table, OSS schema).
+    ai_thread_uuid: string | null;
+    coding_agent: DataAppCodingAgent;
+    coding_agent_session_id: string | null;
+    created_at: Date;
+    created_by_user_uuid: string;
+};
+
+export type AppThreadsTable = Knex.CompositeTableType<
+    DbAppThread,
+    Pick<
+        DbAppThread,
+        | 'app_id'
+        | 'thread_number'
+        | 'origin'
+        | 'ai_thread_uuid'
+        | 'coding_agent'
+        | 'created_by_user_uuid'
+    > &
+        Partial<
+            Pick<
+                DbAppThread,
+                'app_thread_uuid' | 'coding_agent_session_id' | 'created_at'
+            >
+        >,
+    Partial<Pick<DbAppThread, 'coding_agent_session_id'>>
+>;
 
 /**
  * One row of the org-wide generation activity log: an `app_versions` row joined
@@ -167,6 +212,7 @@ export type AppVersionsTable = Knex.CompositeTableType<
                 | 'dependencies'
                 | 'viz_schema'
                 | 'registry_version'
+                | 'app_thread_uuid'
             >
         >,
     Partial<
@@ -181,6 +227,7 @@ export type AppVersionsTable = Knex.CompositeTableType<
             | 'data_references'
             | 'generation_usage'
             | 'registry_version'
+            | 'app_thread_uuid'
         >
     >
 >;

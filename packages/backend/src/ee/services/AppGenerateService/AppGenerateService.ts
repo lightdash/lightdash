@@ -77,6 +77,7 @@ import {
     type AppDashboardReference,
     type AppExternalConnectionReference,
     type AppGeneratePipelineJobPayload,
+    type AppThread,
     type AppVersionChartResource,
     type AppVersionDependencies,
     type AppVersionDependencyEntry,
@@ -8851,8 +8852,11 @@ export class AppGenerateService extends BaseService {
         pinnedListOrder: number | null;
         slug: string;
         views: number;
+        currentThread: AppThread;
         versions: {
             version: number;
+            threadUuid: string;
+            threadNumber: number;
             prompt: string;
             status: AppVersionStatus;
             statusMessage: string | null;
@@ -8897,6 +8901,7 @@ export class AppGenerateService extends BaseService {
             viewsCount,
             pinnedListUuid,
             pinnedListOrder,
+            currentThread,
             versions,
             hasMore,
             registrySlug,
@@ -8932,8 +8937,15 @@ export class AppGenerateService extends BaseService {
             pinnedListOrder: appAuthorization.directOnly
                 ? null
                 : pinnedListOrder,
+            currentThread: {
+                uuid: currentThread.app_thread_uuid,
+                number: currentThread.thread_number,
+                createdAt: currentThread.created_at,
+            },
             versions: versions.map((v) => ({
                 version: v.version,
+                threadUuid: v.app_thread_uuid,
+                threadNumber: v.thread_number,
                 prompt: v.prompt,
                 status: v.status,
                 statusMessage: v.status_message,

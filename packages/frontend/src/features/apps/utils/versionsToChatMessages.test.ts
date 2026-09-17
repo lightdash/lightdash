@@ -18,6 +18,8 @@ const version = (
     overrides: Partial<ApiAppVersionSummary> = {},
 ): ApiAppVersionSummary => ({
     version: 1,
+    threadUuid: 'app-thread-1',
+    threadNumber: 1,
     prompt: 'stacked bars per shipping method',
     status: 'ready',
     statusMessage: null,

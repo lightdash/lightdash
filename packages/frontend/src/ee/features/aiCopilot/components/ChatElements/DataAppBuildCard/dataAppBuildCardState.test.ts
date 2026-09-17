@@ -20,6 +20,8 @@ const version = (
     overrides: Partial<ApiAppVersionSummary>,
 ): ApiAppVersionSummary => ({
     version: 1,
+    threadUuid: 'app-thread-1',
+    threadNumber: 1,
     prompt: 'Build me a revenue app',
     status: 'generating',
     statusMessage: null,
@@ -48,6 +50,11 @@ const app = (
     pinnedListOrder: null,
     slug: 'revenue-app',
     views: 0,
+    currentThread: {
+        uuid: 'app-thread-1',
+        number: 1,
+        createdAt: new Date('2026-08-28T09:00:00.000Z'),
+    },
     versions,
     hasMore: false,
     latestReadyVersion: null,

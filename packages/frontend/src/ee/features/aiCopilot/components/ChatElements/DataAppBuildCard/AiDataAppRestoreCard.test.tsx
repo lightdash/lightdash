@@ -26,6 +26,8 @@ const IDS = {
 
 const readyVersion = (v: number): ApiAppVersionSummary => ({
     version: v,
+    threadUuid: 'app-thread-1',
+    threadNumber: 1,
     prompt: 'Build me a revenue app',
     status: 'ready',
     statusMessage: null,
@@ -50,6 +52,11 @@ const app: ApiGetAppResponse['results'] = {
     pinnedListOrder: null,
     slug: 'revenue-app',
     views: 0,
+    currentThread: {
+        uuid: 'app-thread-1',
+        number: 1,
+        createdAt: new Date('2026-08-28T09:00:00.000Z'),
+    },
     versions: [readyVersion(3), readyVersion(2), readyVersion(1)],
     hasMore: false,
     latestReadyVersion: 3,
