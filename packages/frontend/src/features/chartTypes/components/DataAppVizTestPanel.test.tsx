@@ -413,7 +413,7 @@ describe('DataAppVizTestPanel', () => {
         );
 
         expect(
-            screen.getByRole('region', { name: 'How to use this chart' }),
+            screen.getByRole('region', { name: 'How to use this chart type' }),
         ).toBeVisible();
         expect(
             screen.getByText(
@@ -428,7 +428,7 @@ describe('DataAppVizTestPanel', () => {
         ).not.toBeInTheDocument();
 
         const setupHelp = screen.getByRole('button', {
-            name: 'How to use this chart',
+            name: 'How to use this chart type',
         });
         expect(setupHelp).toHaveAttribute('aria-expanded', 'false');
         await user.click(setupHelp);
