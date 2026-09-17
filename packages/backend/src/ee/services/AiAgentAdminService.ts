@@ -127,6 +127,7 @@ import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificati
 import { type AiAgentService } from './AiAgentService/AiAgentService';
 import { isBitbucketCloudConnection } from './AiAgentService/writebackConnection';
 import { type AiOrganizationSettingsService } from './AiOrganizationSettingsService';
+import { hasAiWritebackSandboxConfig } from './AiWritebackService/utils';
 import { type WritebackPreviewService } from './AiWritebackService/WritebackPreviewService';
 import { type ProjectContextService } from './ProjectContextService/ProjectContextService';
 
@@ -1683,11 +1684,7 @@ export class AiAgentAdminService extends BaseService {
     }
 
     private hasSemanticWritebackConfig(): boolean {
-        return Boolean(
-            this.lightdashConfig.appRuntime.e2bApiKey &&
-            (this.lightdashConfig.ai.copilot.providers.anthropic?.apiKey ||
-                this.lightdashConfig.aiWriteback.legacyAnthropicApiKey),
-        );
+        return hasAiWritebackSandboxConfig(this.lightdashConfig);
     }
 
     private async getProjectWritebackAccessByUuid(
@@ -1787,7 +1784,7 @@ export class AiAgentAdminService extends BaseService {
                 );
             case 'missing_writeback_config':
                 throw new MissingConfigError(
-                    'AI writeback requires E2B_API_KEY and ANTHROPIC_API_KEY',
+                    'AI writeback requires a configured sandbox provider (SANDBOX_PROVIDER) and ANTHROPIC_API_KEY',
                 );
             case 'bitbucket_token_missing':
                 throw new ParameterError(

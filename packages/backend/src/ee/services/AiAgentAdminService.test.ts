@@ -525,7 +525,10 @@ const makeService = ({
         },
         lightdashConfig: {
             siteUrl: SITE_URL,
-            appRuntime: { e2bApiKey: 'e2b-api-key' },
+            appRuntime: {
+                sandboxProvider: 'e2b',
+                e2bApiKey: 'e2b-api-key',
+            },
             ai: {
                 copilot: {
                     providers: { anthropic: { apiKey: 'anthropic-api-key' } },

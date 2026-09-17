@@ -156,6 +156,8 @@ import {
     dbtSandboxVenvBin,
     extractPrMetadata,
     formatWritebackStep,
+    getAiWritebackAzureSandboxesConfig,
+    getAiWritebackSandboxProviderConfig,
     interpretAgentEvent,
     parseGithubConnection,
     parseGitlabConnection,
@@ -1466,21 +1468,15 @@ export class AiWritebackService extends BaseService {
                 );
             }
             this.sandboxManager = createSandboxManager({
-                provider: sandboxProvider,
-                e2bApiKey: this.lightdashConfig.appRuntime.e2bApiKey,
+                ...getAiWritebackSandboxProviderConfig(this.lightdashConfig),
+                // Surfaces the writeback-specific group variable rather than
+                // the factory's generic `AZURE_SANDBOXES_*` message.
+                ...(sandboxProvider === 'azure-sandboxes'
+                    ? { azureSandboxes: this.getAzureSandboxesConfig() }
+                    : {}),
                 dockerImage:
                     this.lightdashConfig.appRuntime
                         .sandboxAiWritebackDockerImage,
-                lambdaMicroVm: this.lightdashConfig.appRuntime.lambdaMicroVm,
-                azureSandboxes:
-                    sandboxProvider === 'azure-sandboxes'
-                        ? this.getAzureSandboxesConfig()
-                        : null,
-                // AI writeback on Cloud Run needs its own gateway service (the
-                // writeback toolchain image is baked into the gateway
-                // deployment); unsupported until one exists — the factory
-                // throws a clear config error if selected.
-                gcpCloudRun: null,
                 // Object-store snapshots are only for the backends with no
                 // native pause (Docker, GCP Cloud Run); native-pause providers
                 // (E2B, Lambda, Azure Sandboxes) never touch S3, so don't
@@ -1558,30 +1554,13 @@ export class AiWritebackService extends BaseService {
     /** Assemble the `azure-sandboxes` provider config for the AI writeback
      * pipeline (the writeback sandbox group + shared subscription/region settings). */
     private getAzureSandboxesConfig(): AzureSandboxesConfig {
-        const {
-            azureSandboxes,
-            azureSandboxesAiWritebackGroup,
-            sandboxIdleTimeoutMs,
-        } = this.lightdashConfig.appRuntime;
-        if (
-            !azureSandboxes.subscriptionId ||
-            !azureSandboxes.resourceGroup ||
-            !azureSandboxesAiWritebackGroup
-        ) {
+        const config = getAiWritebackAzureSandboxesConfig(this.lightdashConfig);
+        if (!config) {
             throw new MissingConfigError(
                 'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_AI_WRITEBACK_GROUP)',
             );
         }
-        return {
-            subscriptionId: azureSandboxes.subscriptionId,
-            resourceGroup: azureSandboxes.resourceGroup,
-            region: azureSandboxes.region,
-            sandboxGroup: azureSandboxesAiWritebackGroup,
-            apiVersion: azureSandboxes.apiVersion,
-            tokenScope: azureSandboxes.tokenScope,
-            resourceTier: azureSandboxes.resourceTier,
-            autoSuspendIdleSeconds: Math.floor(sandboxIdleTimeoutMs / 1000),
-        };
+        return config;
     }
 
     private getClaudeCodeEnv(): Record<string, string> {

@@ -28,6 +28,7 @@ import {
     dbtSandboxVenvBin,
     extractPrMetadata,
     formatWritebackStep,
+    hasAiWritebackSandboxConfig,
     interpretAgentEvent,
     parseGithubConnection,
     parseGitlabConnection,
@@ -820,5 +821,102 @@ describe('resolveSandboxAnthropicConfig', () => {
         expect(() => resolveSandboxAnthropicConfig(config(null, null))).toThrow(
             'ANTHROPIC_API_KEY',
         );
+    });
+});
+
+describe('hasAiWritebackSandboxConfig', () => {
+    const config = (appRuntime: Record<string, unknown>) =>
+        ({
+            appRuntime,
+            ai: {
+                copilot: {
+                    providers: { anthropic: { apiKey: 'anthropic-api-key' } },
+                },
+            },
+            aiWriteback: { legacyAnthropicApiKey: null },
+        }) as unknown as Parameters<typeof hasAiWritebackSandboxConfig>[0];
+
+    it('accepts e2b when its API key is set', () => {
+        expect(
+            hasAiWritebackSandboxConfig(
+                config({ sandboxProvider: 'e2b', e2bApiKey: 'e2b-api-key' }),
+            ),
+        ).toBe(true);
+    });
+
+    it('rejects e2b without an API key', () => {
+        expect(
+            hasAiWritebackSandboxConfig(
+                config({ sandboxProvider: 'e2b', e2bApiKey: null }),
+            ),
+        ).toBe(false);
+    });
+
+    it('accepts docker without an E2B API key', () => {
+        expect(
+            hasAiWritebackSandboxConfig(
+                config({ sandboxProvider: 'docker', e2bApiKey: null }),
+            ),
+        ).toBe(true);
+    });
+
+    it('accepts azure-sandboxes when the writeback group is configured', () => {
+        expect(
+            hasAiWritebackSandboxConfig(
+                config({
+                    sandboxProvider: 'azure-sandboxes',
+                    e2bApiKey: null,
+                    sandboxIdleTimeoutMs: 1_800_000,
+                    azureSandboxesAiWritebackGroup: 'lightdash-writeback',
+                    azureSandboxes: {
+                        subscriptionId: 'sub-1',
+                        resourceGroup: 'rg-1',
+                        region: 'westus',
+                        apiVersion: '2025-01-01',
+                        tokenScope: 'scope',
+                        resourceTier: 'M',
+                    },
+                }),
+            ),
+        ).toBe(true);
+    });
+
+    it('rejects azure-sandboxes without a writeback group', () => {
+        expect(
+            hasAiWritebackSandboxConfig(
+                config({
+                    sandboxProvider: 'azure-sandboxes',
+                    e2bApiKey: null,
+                    sandboxIdleTimeoutMs: 1_800_000,
+                    azureSandboxesAiWritebackGroup: null,
+                    azureSandboxes: {
+                        subscriptionId: 'sub-1',
+                        resourceGroup: 'rg-1',
+                        region: 'westus',
+                        apiVersion: '2025-01-01',
+                        tokenScope: 'scope',
+                        resourceTier: 'M',
+                    },
+                }),
+            ),
+        ).toBe(false);
+    });
+
+    it('rejects gcp-cloud-run, which writeback does not support', () => {
+        expect(
+            hasAiWritebackSandboxConfig(
+                config({ sandboxProvider: 'gcp-cloud-run', e2bApiKey: null }),
+            ),
+        ).toBe(false);
+    });
+
+    it('rejects a configured provider with no Anthropic key', () => {
+        expect(
+            hasAiWritebackSandboxConfig({
+                appRuntime: { sandboxProvider: 'docker', e2bApiKey: null },
+                ai: { copilot: { providers: {} } },
+                aiWriteback: { legacyAnthropicApiKey: null },
+            } as unknown as Parameters<typeof hasAiWritebackSandboxConfig>[0]),
+        ).toBe(false);
     });
 });

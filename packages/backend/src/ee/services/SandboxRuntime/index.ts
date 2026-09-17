@@ -69,12 +69,85 @@ export interface CreateSandboxProviderOptions {
 }
 
 /**
+ * The credentials the selected provider needs, without the runtime
+ * dependencies (`snapshotStore`, `logger`) a live provider also takes. Lets a
+ * caller ask whether a provider *could* start before building one.
+ */
+export type SandboxProviderConfig = Pick<
+    CreateSandboxProviderOptions,
+    'provider' | 'e2bApiKey' | 'lambdaMicroVm' | 'azureSandboxes' | 'gcpCloudRun'
+>;
+
+/**
+ * The config error the selected provider would fail with, or null when its
+ * credentials are present. Single source of truth for the credential checks in
+ * {@link createSandboxProvider} and for the feature-level eligibility gates
+ * that decide whether to offer a sandbox-backed action at all.
+ */
+export const getMissingSandboxProviderConfig = (
+    options: SandboxProviderConfig,
+): MissingConfigError | null => {
+    switch (options.provider) {
+        case 'e2b':
+            return options.e2bApiKey
+                ? null
+                : new MissingConfigError(
+                      'E2B API key is not configured (E2B_API_KEY)',
+                  );
+        case 'docker':
+            // The image has a default and the socket is checked at launch.
+            return null;
+        case 'lambda-microvm': {
+            const config = options.lambdaMicroVm;
+            if (!config) {
+                return new MissingConfigError(
+                    'Lambda MicroVMs is not configured (LAMBDA_MICROVM_*)',
+                );
+            }
+            if (!config.ingressConnectorArn || !config.egressConnectorArn) {
+                return new MissingConfigError(
+                    'Lambda MicroVMs ingress/egress connector ARNs are not configured',
+                );
+            }
+            return null;
+        }
+        case 'gcp-cloud-run':
+            return options.gcpCloudRun
+                ? null
+                : new MissingConfigError(
+                      'GCP Cloud Run sandboxes are not configured (GCP_CLOUD_RUN_SANDBOX_URL / GCP_CLOUD_RUN_SANDBOX_SECRET)',
+                  );
+        case 'azure-sandboxes':
+            return options.azureSandboxes?.sandboxGroup
+                ? null
+                : new MissingConfigError(
+                      'Azure Sandboxes is not configured (AZURE_SANDBOXES_*)',
+                  );
+        default:
+            return new MissingConfigError(
+                `Unknown SANDBOX_PROVIDER: ${options.provider as string}`,
+            );
+    }
+};
+
+/** Whether the selected provider has the credentials it needs to start. */
+export const isSandboxProviderConfigured = (
+    options: SandboxProviderConfig,
+): boolean => getMissingSandboxProviderConfig(options) === null;
+
+/**
  * Build the sandbox provider selected by `SANDBOX_PROVIDER`. Throws a clear
  * config error when the chosen provider is missing required configuration.
  */
 export const createSandboxProvider = (
     options: CreateSandboxProviderOptions,
 ): SandboxProvider => {
+    const missingConfig = getMissingSandboxProviderConfig(options);
+    if (missingConfig) {
+        throw missingConfig;
+    }
+    // `getMissingSandboxProviderConfig` has already rejected absent config; the
+    // remaining null checks below only narrow the types for the constructors.
     switch (options.provider) {
         case 'e2b':
             if (!options.e2bApiKey) {

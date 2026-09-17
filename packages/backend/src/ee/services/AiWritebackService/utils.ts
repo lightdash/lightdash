@@ -14,6 +14,11 @@ import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalyt
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { ClaudeCodeAnthropicConfig } from '../AppGenerateService/claudeCodeEnv';
 import {
+    isSandboxProviderConfigured,
+    type AzureSandboxesConfig,
+    type SandboxProviderConfig,
+} from '../SandboxRuntime';
+import {
     COMPILE_WRAPPER_PATH,
     DBT_VENV_BIN_PREFIX,
     PR_DESCRIPTION_CLOSE,
@@ -672,4 +677,83 @@ export const resolveSandboxAnthropicConfig = (
     throw new MissingConfigError(
         'Anthropic API key is not configured (ANTHROPIC_API_KEY)',
     );
+};
+
+/**
+ * Azure Sandboxes config for the writeback sandbox group, or null when the
+ * subscription, resource group, or writeback group is unset.
+ */
+export const getAiWritebackAzureSandboxesConfig = (
+    lightdashConfig: Pick<LightdashConfig, 'appRuntime'>,
+): AzureSandboxesConfig | null => {
+    const {
+        azureSandboxes,
+        azureSandboxesAiWritebackGroup,
+        sandboxIdleTimeoutMs,
+    } = lightdashConfig.appRuntime;
+    if (
+        !azureSandboxes.subscriptionId ||
+        !azureSandboxes.resourceGroup ||
+        !azureSandboxesAiWritebackGroup
+    ) {
+        return null;
+    }
+    return {
+        subscriptionId: azureSandboxes.subscriptionId,
+        resourceGroup: azureSandboxes.resourceGroup,
+        region: azureSandboxes.region,
+        sandboxGroup: azureSandboxesAiWritebackGroup,
+        apiVersion: azureSandboxes.apiVersion,
+        tokenScope: azureSandboxes.tokenScope,
+        resourceTier: azureSandboxes.resourceTier,
+        autoSuspendIdleSeconds: Math.floor(sandboxIdleTimeoutMs / 1000),
+    };
+};
+
+/**
+ * Credentials the sandbox provider selected by `SANDBOX_PROVIDER` needs to run
+ * AI writeback. Shared by the service that builds the sandbox manager and by
+ * the eligibility gate, so what the UI offers matches what a run would do.
+ *
+ * `gcpCloudRun` is always null: writeback needs its own gateway image (the
+ * writeback toolchain is baked into the gateway deployment), so the
+ * `gcp-cloud-run` provider is unsupported and reports as unconfigured.
+ */
+export const getAiWritebackSandboxProviderConfig = (
+    lightdashConfig: Pick<LightdashConfig, 'appRuntime'>,
+): SandboxProviderConfig => {
+    const { sandboxProvider, e2bApiKey, lambdaMicroVm } =
+        lightdashConfig.appRuntime;
+    return {
+        provider: sandboxProvider,
+        e2bApiKey,
+        lambdaMicroVm,
+        azureSandboxes:
+            sandboxProvider === 'azure-sandboxes'
+                ? getAiWritebackAzureSandboxesConfig(lightdashConfig)
+                : null,
+        gcpCloudRun: null,
+    };
+};
+
+/**
+ * Whether AI writeback has everything it needs to run: a sandbox provider the
+ * active `SANDBOX_PROVIDER` is configured for, and an Anthropic API key.
+ */
+export const hasAiWritebackSandboxConfig = (
+    lightdashConfig: Pick<LightdashConfig, 'appRuntime' | 'ai' | 'aiWriteback'>,
+): boolean => {
+    if (
+        !isSandboxProviderConfigured(
+            getAiWritebackSandboxProviderConfig(lightdashConfig),
+        )
+    ) {
+        return false;
+    }
+    try {
+        resolveSandboxAnthropicConfig(lightdashConfig);
+        return true;
+    } catch {
+        return false;
+    }
 };
