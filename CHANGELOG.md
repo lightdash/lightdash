@@ -1,3 +1,15 @@
+# [2.256.0](https://github.com/lightdash/lightdash/compare/2.255.3...2.256.0) (2026-09-17)
+
+
+### Bug Fixes
+
+* clarify chart type guidance heading ([#29483](https://github.com/lightdash/lightdash/issues/29483)) ([0f345e4](https://github.com/lightdash/lightdash/commit/0f345e41cccd31fe4bb23daf759a38cb50d6571a))
+
+
+### Features
+
+* support multiple fields per custom chart input ([#29481](https://github.com/lightdash/lightdash/issues/29481)) ([4420105](https://github.com/lightdash/lightdash/commit/44201058df7d700ba7940e2ba7e5f23b3c7bb4dc))
+
 ## [2.255.3](https://github.com/lightdash/lightdash/compare/2.255.2...2.255.3) (2026-09-17)
 
 

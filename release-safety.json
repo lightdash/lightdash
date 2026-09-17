@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.255.3",
-  "previousVersion": "2.255.2",
-  "releaseDate": "2026-09-17T16:35:37.536Z",
+  "version": "2.256.0",
+  "previousVersion": "2.255.3",
+  "releaseDate": "2026-09-17T17:35:51.812Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,8 +11,8 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": false,
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
@@ -41,5 +41,11 @@
     "minPreviousVersion": "1.111.0",
     "requiredStops": []
   },
-  "declaredBreaks": []
+  "declaredBreaks": [
+    {
+      "id": "custom-chart-ordered-field-mappings",
+      "reason": "Custom chart inputs declared with multiple: true now return ordered arrays in fieldMapping; single-field inputs still return strings. API and query SDK consumers reading arbitrary mapping entries must narrow string versus string[] before using a field id. Existing scalar saved configurations remain valid.",
+      "requiredStop": false
+    }
+  ]
 }

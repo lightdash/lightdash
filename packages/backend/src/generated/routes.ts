@@ -5033,9 +5033,25 @@ const models: TsoaRoute.Models = {
         enums: ['data_app_viz'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.string-or-string-Array_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'array', array: { dataType: 'string' } },
+                ],
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppVizFieldMapping: {
         dataType: 'refAlias',
-        type: { ref: 'Record_string.string_', validators: {} },
+        type: { ref: 'Record_string.string-or-string-Array_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppVizOptionValue: {
@@ -15585,22 +15601,6 @@ const models: TsoaRoute.Models = {
         enums: ['dimension'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string-or-string-Array_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'string' },
-                    { dataType: 'array', array: { dataType: 'string' } },
-                ],
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TimestampDomain: {
         dataType: 'refAlias',
         type: {
@@ -18302,6 +18302,7 @@ const models: TsoaRoute.Models = {
                     },
                 },
                 description: { dataType: 'string' },
+                multiple: { dataType: 'boolean' },
                 required: { dataType: 'boolean', required: true },
                 type: { ref: 'DataAppVizFieldType', required: true },
                 label: { dataType: 'string', required: true },
@@ -58073,7 +58074,73 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_':
+    'ChartAsCodeConfig__type-ChartType.DATA_APP_VIZ--config_63__58__fieldMapping-Record_string.string_--optionValues_63_-DataAppVizOptionValues_-and-_dataAppVizSlug_63_-string--dataAppVizUuid_63_-string___':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'BigNumberConfig' },
+                    { ref: 'CartesianChartConfig' },
+                    { ref: 'CustomVisConfig' },
+                    { ref: 'PieChartConfig' },
+                    { ref: 'FunnelChartConfig' },
+                    { ref: 'TableChartConfig' },
+                    { ref: 'TreemapChartConfig' },
+                    { ref: 'GaugeChartConfig' },
+                    { ref: 'MapChartConfig' },
+                    { ref: 'SankeyChartConfig' },
+                    {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            config: {
+                                dataType: 'intersection',
+                                subSchemas: [
+                                    {
+                                        dataType: 'nestedObjectLiteral',
+                                        nestedProperties: {
+                                            optionValues: {
+                                                ref: 'DataAppVizOptionValues',
+                                            },
+                                            fieldMapping: {
+                                                ref: 'Record_string.string_',
+                                                required: true,
+                                            },
+                                        },
+                                    },
+                                    {
+                                        dataType: 'nestedObjectLiteral',
+                                        nestedProperties: {
+                                            dataAppVizUuid: {
+                                                dataType: 'string',
+                                            },
+                                            dataAppVizSlug: {
+                                                dataType: 'string',
+                                            },
+                                        },
+                                    },
+                                ],
+                            },
+                            type: {
+                                ref: 'ChartType.DATA_APP_VIZ',
+                                required: true,
+                            },
+                        },
+                    },
+                ],
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DocumentChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ChartAsCodeConfig__type-ChartType.DATA_APP_VIZ--config_63__58__fieldMapping-Record_string.string_--optionValues_63_-DataAppVizOptionValues_-and-_dataAppVizSlug_63_-string--dataAppVizUuid_63_-string___',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_':
         {
             dataType: 'refAlias',
             type: {
@@ -58104,7 +58171,7 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
-                    chartConfig: { ref: 'ChartAsCodeConfig', required: true },
+                    chartConfig: { ref: 'DocumentChartConfig', required: true },
                     pivotConfig: {
                         dataType: 'union',
                         subSchemas: [
@@ -58162,7 +58229,7 @@ const models: TsoaRoute.Models = {
     SemanticChartAsCode: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_',
+            ref: 'Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_',
             validators: {},
         },
     },

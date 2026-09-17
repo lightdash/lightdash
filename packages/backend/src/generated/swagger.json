@@ -5284,9 +5284,27 @@
                 "enum": ["data_app_viz"],
                 "type": "string"
             },
+            "Record_string.string-or-string-Array_": {
+                "properties": {},
+                "additionalProperties": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    ]
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "DataAppVizFieldMapping": {
-                "$ref": "#/components/schemas/Record_string.string_",
-                "description": "Maps a data app viz's field name → the host query field id bound to it."
+                "$ref": "#/components/schemas/Record_string.string-or-string-Array_",
+                "description": "Maps a viz field name to one query field id or an ordered collection."
             },
             "DataAppVizOptionValue": {
                 "anyOf": [
@@ -16148,24 +16166,6 @@
                 "enum": ["dimension"],
                 "type": "string"
             },
-            "Record_string.string-or-string-Array_": {
-                "properties": {},
-                "additionalProperties": {
-                    "anyOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "items": {
-                                "type": "string"
-                            },
-                            "type": "array"
-                        }
-                    ]
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "TimestampDomain": {
                 "type": "string",
                 "enum": ["aware", "naive"],
@@ -19487,6 +19487,10 @@
                     "description": {
                         "type": "string",
                         "description": "Explain what belongs in this slot for a reusable visualization."
+                    },
+                    "multiple": {
+                        "type": "boolean",
+                        "description": "Whether this slot accepts an ordered collection of query fields."
                     },
                     "required": {
                         "type": "boolean"
@@ -58094,7 +58098,81 @@
                 ],
                 "type": "object"
             },
-            "Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_": {
+            "ChartAsCodeConfig__type-ChartType.DATA_APP_VIZ--config_63__58__fieldMapping-Record_string.string_--optionValues_63_-DataAppVizOptionValues_-and-_dataAppVizSlug_63_-string--dataAppVizUuid_63_-string___": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/BigNumberConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CartesianChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomVisConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PieChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FunnelChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TableChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TreemapChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/GaugeChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MapChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SankeyChartConfig"
+                    },
+                    {
+                        "properties": {
+                            "config": {
+                                "allOf": [
+                                    {
+                                        "properties": {
+                                            "optionValues": {
+                                                "$ref": "#/components/schemas/DataAppVizOptionValues"
+                                            },
+                                            "fieldMapping": {
+                                                "$ref": "#/components/schemas/Record_string.string_"
+                                            }
+                                        },
+                                        "required": ["fieldMapping"],
+                                        "type": "object"
+                                    },
+                                    {
+                                        "properties": {
+                                            "dataAppVizUuid": {
+                                                "type": "string"
+                                            },
+                                            "dataAppVizSlug": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                ]
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/ChartType.DATA_APP_VIZ"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ],
+                "description": "ChartConfig as serialized in chart YAML: viz bindings are slug-based.\nEnumerated rather than Exclude<ChartConfig, DataAppVizChartConfig> —\nTSOA cannot resolve Exclude over object unions, which corrupts the\ngenerated chart-as-code JSON schema. Keep in sync with ChartConfig."
+            },
+            "DocumentChartConfig": {
+                "$ref": "#/components/schemas/ChartAsCodeConfig__type-ChartType.DATA_APP_VIZ--config_63__58__fieldMapping-Record_string.string_--optionValues_63_-DataAppVizOptionValues_-and-_dataAppVizSlug_63_-string--dataAppVizUuid_63_-string___"
+            },
+            "Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -58125,7 +58203,7 @@
                         ]
                     },
                     "chartConfig": {
-                        "$ref": "#/components/schemas/ChartAsCodeConfig"
+                        "$ref": "#/components/schemas/DocumentChartConfig"
                     },
                     "pivotConfig": {
                         "properties": {
@@ -58169,7 +58247,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "SemanticChartAsCode": {
-                "$ref": "#/components/schemas/Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
+                "$ref": "#/components/schemas/Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
             },
             "MergeChartAsCode": {
                 "allOf": [
@@ -63460,7 +63538,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.255.3",
+        "version": "2.256.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
