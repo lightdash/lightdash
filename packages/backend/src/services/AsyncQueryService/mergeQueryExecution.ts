@@ -1,6 +1,7 @@
 import {
     getMergeSourceTableLabel,
     getResultColumnMetadataFromItem,
+    getUnaccountedDimensions,
     isField,
     isMergeMetricSource,
     QuerySourceType,
@@ -104,6 +105,7 @@ export const getMergeOutputColumnCount = (mergeQuery: MergeQuery): number =>
             // compiler's cell-cap clamp still applies to the merged limit.
             isMergeMetricSource(source)
                 ? count +
+                  getUnaccountedDimensions(source, mergeQuery.joinKey).length +
                   source.metricQuery.metrics.length +
                   source.metricQuery.tableCalculations.length
                 : count,

@@ -533,8 +533,20 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         );
 
         expect(results.totalResults).toBe(ordersRows.length);
+        // The split keeps its column: each merged row names its status
+        const statusByMonth = new Set(
+            ordersRows.map(
+                (row) =>
+                    `${monthOf(row.orders_order_date_month)}|${row.orders_status}`,
+            ),
+        );
         results.rows.forEach((row) => {
             const key = monthOf(cellOf(row, KEY_FIELD_ID).raw);
+            expect(
+                statusByMonth.has(
+                    `${key}|${cellOf(row, 'orders_orders_status').raw}`,
+                ),
+            ).toBe(true);
             expect(numeric(cellOf(row, PAYMENTS_FIELD_ID).raw)).toEqual(
                 numeric(paymentsByKey.get(key) ?? null),
             );

@@ -6955,6 +6955,58 @@ describe('ProjectService', () => {
             ]);
         });
 
+        test('keeps a dimension the other source repeats across as a value column', async () => {
+            const dim2 = {
+                ...validExplore.tables.a.dimensions.dim1,
+                name: 'dim2',
+                label: 'dim2',
+            };
+            const getExplore = vi
+                .spyOn(service, 'getExplore')
+                .mockResolvedValue({
+                    ...validExplore,
+                    tables: {
+                        ...validExplore.tables,
+                        a: {
+                            ...validExplore.tables.a,
+                            dimensions: {
+                                ...validExplore.tables.a.dimensions,
+                                dim2,
+                            },
+                        },
+                    },
+                });
+            const split = source('a');
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    sources: [
+                        {
+                            ...split,
+                            metricQuery: {
+                                ...split.metricQuery,
+                                dimensions: ['a_dim1', 'a_dim2'],
+                            },
+                        },
+                        { ...source('b'), repeatValues: true },
+                    ],
+                }),
+            });
+            getExplore.mockRestore();
+
+            expect(result.errors).toEqual([]);
+            expect(
+                result.fields.map((field) => [field.sourceFieldId, field.kind]),
+            ).toEqual([
+                [null, 'dimension'],
+                ['a_dim2', 'dimension'],
+                ['a_met1', 'metric'],
+                ['a_met1', 'metric'],
+            ]);
+            expect(result.legs[0].sql).toContain('AS `a_dim2`');
+        });
+
         test('refuses a join key the source explore has no dimension for', async () => {
             const result = await service.compileMergeQuery({
                 account: sessionAccount,
