@@ -81,7 +81,7 @@ describe('Explore', () => {
             .should('be.visible')
             .click();
         cy.wait(300); // Wait for configure panel to open
-        cy.findByRole('button', { name: 'Change' }).click();
+        cy.findByRole('button', { name: 'Change chart type' }).click();
         cy.findByRole('button', {
             name: 'Horizontal bar chart',
         }).click();
@@ -121,7 +121,7 @@ describe('Explore', () => {
 
         // open the chart gallery and change chart types
         cy.findByText('Configure').click();
-        cy.findByRole('button', { name: 'Change' }).click();
+        cy.findByRole('button', { name: 'Change chart type' }).click();
         cy.findByRole('button', { name: 'Bar chart', pressed: true }).should(
             'be.visible',
         );
@@ -356,7 +356,9 @@ describe('Explore', () => {
 
                     // open chart menu and change chart type to Table
                     cy.get('button').contains('Configure').click();
-                    cy.findByRole('button', { name: 'Change' }).click();
+                    cy.findByRole('button', {
+                        name: 'Change chart type',
+                    }).click();
                     cy.findByRole('button', { name: 'Table' }).click();
 
                     // check that chart table headers are correct (table names hidden by default)
@@ -401,7 +403,9 @@ describe('Explore', () => {
 
                     // open chart menu and change chart type to Table
                     cy.get('button').contains('Configure').click();
-                    cy.findByRole('button', { name: 'Change' }).click();
+                    cy.findByRole('button', {
+                        name: 'Change chart type',
+                    }).click();
                     cy.findByRole('button', { name: 'Table' }).click();
 
                     // check that chart table headers are correct (table names hidden by default)

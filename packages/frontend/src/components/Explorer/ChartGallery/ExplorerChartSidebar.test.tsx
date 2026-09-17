@@ -117,7 +117,9 @@ describe('ExplorerChartSidebar', () => {
                 onClose={vi.fn()}
             />,
         );
-        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        );
 
         expect(screen.queryByText('Selected:')).not.toBeInTheDocument();
         expect(
@@ -137,13 +139,17 @@ describe('ExplorerChartSidebar', () => {
             />,
             store,
         );
-        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        );
         const previousChart = store.getState().explorer.unsavedChartVersion;
         screen.getByRole('button', { name: 'Configure Table' }).focus();
         await userEvent.keyboard('{Enter}');
 
         expect(screen.getByText('Configure controls')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Change' })).toHaveFocus();
+        expect(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        ).toHaveFocus();
         expect(store.getState().explorer.unsavedChartVersion).toEqual(
             previousChart,
         );
@@ -268,6 +274,21 @@ describe('ExplorerChartSidebar', () => {
         ).toBeInTheDocument();
     });
 
+    it('outlines the close control so it reads as a button', () => {
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.TABLE}
+                onClose={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.getByRole('button', {
+                name: 'Close visualization config',
+            }),
+        ).toHaveAttribute('data-variant', 'default');
+    });
+
     it('keeps Choose open after selection until the configuration action is requested', async () => {
         renderSidebar(
             <ExplorerChartSidebar
@@ -282,7 +303,9 @@ describe('ExplorerChartSidebar', () => {
             ChartType.TABLE,
             null,
         );
-        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        );
         await userEvent.click(
             screen.getByRole('button', { name: 'Select chart' }),
         );
@@ -308,7 +331,9 @@ describe('ExplorerChartSidebar', () => {
             />,
             store,
         );
-        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        );
         const previousState = store.getState();
         const back = screen.getByRole('button', {
             name: 'Back to configuration',
@@ -318,7 +343,9 @@ describe('ExplorerChartSidebar', () => {
 
         expect(screen.getByText('Configure controls')).toBeInTheDocument();
         expect(screen.getByText('Table')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Change' })).toHaveFocus();
+        expect(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        ).toHaveFocus();
         expect(onClose).not.toHaveBeenCalled();
         expect(store.getState().explorer.unsavedChartVersion).toEqual(
             previousState.explorer.unsavedChartVersion,
@@ -333,7 +360,9 @@ describe('ExplorerChartSidebar', () => {
             />,
         );
 
-        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        );
         expect(screen.getByText('Choose chart type')).toBeInTheDocument();
 
         await userEvent.click(
@@ -354,7 +383,9 @@ describe('ExplorerChartSidebar', () => {
         // Nothing is stolen on mount; Configure is where the panel opens.
         expect(document.body).toHaveFocus();
 
-        await userEvent.click(screen.getByText('Change'));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        );
         expect(
             screen.getByRole('textbox', { name: 'Search chart types' }),
         ).toHaveFocus();
@@ -365,7 +396,9 @@ describe('ExplorerChartSidebar', () => {
         await userEvent.click(
             screen.getByRole('button', { name: 'Configure Table' }),
         );
-        expect(screen.getByText('Change')).toHaveFocus();
+        expect(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        ).toHaveFocus();
     });
 
     it('falls back to the panel title when Change is not on screen', async () => {
@@ -379,7 +412,9 @@ describe('ExplorerChartSidebar', () => {
             store,
         );
 
-        await userEvent.click(screen.getByText('Change'));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        );
         // Authoring returns to Configure and takes Change away with it; the
         // step still has somewhere to land.
         await act(async () =>
@@ -396,7 +431,9 @@ describe('ExplorerChartSidebar', () => {
     it('reopens in Configure after closing from Choose', async () => {
         renderSidebar(<ReopenHarness />);
 
-        await userEvent.click(screen.getByRole('button', { name: 'Change' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        );
         await userEvent.click(
             screen.getByRole('button', {
                 name: 'Close visualization config',
@@ -428,7 +465,7 @@ describe('ExplorerChartSidebar', () => {
         expect(screen.getByText('Configure controls')).toBeInTheDocument();
         expect(screen.getByText('New chart type')).toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: 'Change' }),
+            screen.queryByRole('button', { name: 'Change chart type' }),
         ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', {

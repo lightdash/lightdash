@@ -6,7 +6,6 @@ import {
 import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
     IconArrowLeft,
-    IconFilePencil,
     IconLayoutSidebarRightCollapse,
     IconSettings,
 } from '@tabler/icons-react';
@@ -105,9 +104,11 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
         isAuthoring && !selectedProjectType
             ? 'New chart type'
             : selectedItem.label;
+    const showEdit = !isAuthoring && canEditSelectedType;
     const closeButton = !isAuthoring && (
-        <Tooltip label="Close visualization config" position="right">
+        <Tooltip label="Close visualization config" position="bottom">
             <ActionIcon
+                variant="default"
                 size="sm"
                 aria-label="Close visualization config"
                 onClick={handleClose}
@@ -180,63 +181,79 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                         </>
                     ) : (
                         <Stack className={classes.configure} gap="md">
-                            <Group wrap="nowrap" gap="sm">
+                            <Group wrap="nowrap" gap="sm" align="center">
                                 <ChartTypeThumbnail
                                     small
                                     icon={selectedItem.icon}
                                     rotatedIcon={selectedItem.rotatedIcon}
                                 />
-                                <Text
-                                    id={
-                                        !isAuthoring
-                                            ? CHART_GALLERY_SIDEBAR_TITLE_ID
-                                            : undefined
-                                    }
-                                    fw={600}
-                                    fz="sm"
-                                    truncate
-                                    flex={1}
-                                    tabIndex={-1}
-                                >
-                                    {selectedLabel}
-                                </Text>
-                                {!isAuthoring && canEditSelectedType && (
-                                    <Tooltip
-                                        label="Edit chart type"
-                                        position="bottom"
+                                <Stack gap={2} flex={1} miw={0}>
+                                    <Text
+                                        id={
+                                            !isAuthoring
+                                                ? CHART_GALLERY_SIDEBAR_TITLE_ID
+                                                : undefined
+                                        }
+                                        fw={600}
+                                        fz="sm"
+                                        truncate
+                                        title={selectedLabel}
+                                        tabIndex={-1}
                                     >
-                                        <ActionIcon
-                                            size="sm"
-                                            aria-label="Edit chart type"
-                                            onClick={() =>
-                                                dataAppVizUuid !== null &&
-                                                dispatch(
-                                                    explorerActions.startChartTypeAuthoring(
-                                                        { dataAppVizUuid },
-                                                    ),
-                                                )
-                                            }
-                                        >
-                                            <MantineIcon
-                                                icon={IconFilePencil}
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                )}
-                                {!isAuthoring && (
-                                    <Anchor
-                                        ref={changeRef}
-                                        component="button"
-                                        type="button"
-                                        data-chart-type-gallery-change
-                                        className={classes.buttonAnchor}
-                                        fz="xs"
-                                        fw={500}
-                                        onClick={showChoose}
-                                    >
-                                        Change
-                                    </Anchor>
-                                )}
+                                        {selectedLabel}
+                                    </Text>
+                                    {!isAuthoring && (
+                                        <Group gap={6} wrap="nowrap">
+                                            <Anchor
+                                                ref={changeRef}
+                                                component="button"
+                                                type="button"
+                                                aria-label="Change chart type"
+                                                data-chart-type-gallery-change
+                                                className={classes.buttonAnchor}
+                                                fz="xs"
+                                                fw={500}
+                                                onClick={showChoose}
+                                            >
+                                                Change
+                                            </Anchor>
+                                            {showEdit && (
+                                                <>
+                                                    <Text
+                                                        c="dimmed"
+                                                        fz="xs"
+                                                        aria-hidden
+                                                    >
+                                                        ·
+                                                    </Text>
+                                                    <Anchor
+                                                        component="button"
+                                                        type="button"
+                                                        aria-label="Edit chart type"
+                                                        className={
+                                                            classes.buttonAnchor
+                                                        }
+                                                        fz="xs"
+                                                        fw={500}
+                                                        onClick={() =>
+                                                            dataAppVizUuid !==
+                                                                null &&
+                                                            dispatch(
+                                                                explorerActions.startChartTypeAuthoring(
+                                                                    {
+                                                                        dataAppVizUuid,
+                                                                    },
+                                                                ),
+                                                            )
+                                                        }
+                                                    >
+                                                        Edit
+                                                    </Anchor>
+                                                </>
+                                            )}
+                                        </Group>
+                                    )}
+                                </Stack>
                                 {closeButton}
                             </Group>
 
