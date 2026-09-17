@@ -1,4 +1,5 @@
 import {
+    type ApiDataAppAnalysisLookupResponse,
     type ApiDataAppAnalysisResponse,
     type ApiDataAppDetectResponse,
     type ApiDataAppInvestigateResponse,
@@ -16,14 +17,34 @@ export const detectDataAppAnomalies = ({
     projectUuid,
     appUuid,
     sources,
+    force,
+}: {
+    projectUuid: string;
+    appUuid: string;
+    sources: DataAppAnalysisSource[];
+    /** Run the model even when an analysis of identical rows is stored. */
+    force: boolean;
+}) =>
+    lightdashApi<ApiDataAppDetectResponse['results']>({
+        version: 'v2',
+        url: `${analysisBase(projectUuid, appUuid)}/detect`,
+        method: 'POST',
+        body: JSON.stringify({ sources, force }),
+    });
+
+/** A stored analysis of exactly these rows, or null. Never runs the model. */
+export const lookupDataAppAnalysis = ({
+    projectUuid,
+    appUuid,
+    sources,
 }: {
     projectUuid: string;
     appUuid: string;
     sources: DataAppAnalysisSource[];
 }) =>
-    lightdashApi<ApiDataAppDetectResponse['results']>({
+    lightdashApi<ApiDataAppAnalysisLookupResponse['results']>({
         version: 'v2',
-        url: `${analysisBase(projectUuid, appUuid)}/detect`,
+        url: `${analysisBase(projectUuid, appUuid)}/lookup`,
         method: 'POST',
         body: JSON.stringify({ sources }),
     });

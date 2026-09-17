@@ -1,11 +1,12 @@
 import { act, renderHook } from '@testing-library/react';
 import { type QueryEvent } from '../hooks/useAppSdkBridge';
-import { detectDataAppAnomalies } from './api';
+import { detectDataAppAnomalies, lookupDataAppAnalysis } from './api';
 import { useDataAppAnalysis } from './useDataAppAnalysis';
 
 vi.mock('./api', () => ({
     detectDataAppAnomalies: vi.fn(),
     investigateDataAppAnomaly: vi.fn(),
+    lookupDataAppAnalysis: vi.fn(),
 }));
 
 const readyQuery: QueryEvent = {
@@ -57,6 +58,64 @@ describe('useDataAppAnalysis', () => {
     beforeEach(() => {
         vi.mocked(detectDataAppAnomalies).mockImplementation(
             async ({ appUuid }) => analysis(appUuid),
+        );
+        vi.mocked(lookupDataAppAnalysis).mockResolvedValue(null);
+    });
+
+    it('opens with a stored analysis and its investigations when one exists', async () => {
+        const stored = analysis('app-a');
+        vi.mocked(lookupDataAppAnalysis).mockResolvedValue({
+            analysis: stored,
+            investigations: [
+                {
+                    investigationId: 'inv-1',
+                    analysisId: stored.analysisId,
+                    appUuid: 'app-a',
+                    appVersion: 1,
+                    generatedAt: new Date(),
+                    explanation: 'because',
+                    anomaly: {
+                        id: 'anom-1',
+                        severity: 'high',
+                        text: 't',
+                        queryUuid: 'q-1',
+                        fieldId: 'orders_count',
+                        dimensionValues: {},
+                        expected: null,
+                        actual: '1',
+                    },
+                    agentUuid: 'agent-1',
+                    threadUuid: 'thread-1',
+                    queriesRun: 2,
+                    partial: false,
+                },
+            ],
+        });
+        const { result } = render();
+        await act(async () => {});
+        expect(result.current.state.status).toBe('ready');
+        expect(result.current.investigations['anom-1']?.status).toBe('ready');
+        expect(detectDataAppAnomalies).not.toHaveBeenCalled();
+        expect(lookupDataAppAnalysis).toHaveBeenCalledTimes(1);
+
+        // Analysing a view that already shows a current analysis regenerates.
+        await act(async () => {
+            await result.current.analyse();
+        });
+        expect(detectDataAppAnomalies).toHaveBeenCalledWith(
+            expect.objectContaining({ force: true }),
+        );
+    });
+
+    it('stays idle on a lookup miss and does not force the first run', async () => {
+        const { result } = render();
+        await act(async () => {});
+        expect(result.current.state.status).toBe('idle');
+        await act(async () => {
+            await result.current.analyse();
+        });
+        expect(detectDataAppAnomalies).toHaveBeenCalledWith(
+            expect.objectContaining({ force: false }),
         );
     });
 
