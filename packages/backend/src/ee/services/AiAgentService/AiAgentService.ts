@@ -487,6 +487,12 @@ const AI_AGENT_SHUTDOWN_ERROR_MESSAGE =
     'The server restarted while generating this response. Please try again.';
 const AI_AGENT_SHUTDOWN_PERSIST_TIMEOUT_MS = 5_000;
 const AI_AGENT_SHUTDOWN_PERSIST_ATTEMPTS = 2;
+
+// Eval jobs time out after 10 minutes, so an older Graphile lock can only
+// belong to a worker that died without releasing it.
+const AI_AGENT_EVAL_STALE_LOCK_THRESHOLD_MINUTES = 15;
+const INTERRUPTED_EVAL_RESULT_ERROR_MESSAGE =
+    'Evaluation was interrupted by a scheduler restart before it completed';
 const EXPLICIT_SLACK_CHANNEL_LINKING_REQUIRED_REASON =
     'explicit_slack_channel_linking_required';
 const AGENT_AVATAR_MAX_BYTES = 5 * 1024 * 1024;
@@ -17506,6 +17512,37 @@ Use your existing tools to inspect them when relevant to the user's question (re
             completedAt: new Date(),
         });
         await this.aiAgentModel.checkAndUpdateEvalRunCompletion(evalRunUuid);
+    }
+
+    async sweepStaleEvalRuns(): Promise<{
+        failedResults: number;
+        completedRuns: number;
+    }> {
+        const interrupted =
+            await this.aiAgentModel.failInterruptedEvalRunResults({
+                staleLockThresholdMinutes:
+                    AI_AGENT_EVAL_STALE_LOCK_THRESHOLD_MINUTES,
+                errorMessage: INTERRUPTED_EVAL_RESULT_ERROR_MESSAGE,
+            });
+        if (interrupted.length > 0) {
+            Logger.warn(
+                `Failed ${interrupted.length} interrupted evaluation result(s): ${interrupted
+                    .map(({ resultUuid }) => resultUuid)
+                    .join(', ')}`,
+            );
+        }
+
+        const runUuids =
+            await this.aiAgentModel.findEvalRunsAwaitingCompletion();
+        await Promise.all(
+            runUuids.map((runUuid) =>
+                this.aiAgentModel.checkAndUpdateEvalRunCompletion(runUuid),
+            ),
+        );
+        return {
+            failedResults: interrupted.length,
+            completedRuns: runUuids.length,
+        };
     }
 
     async executeReviewRemediationRun({
