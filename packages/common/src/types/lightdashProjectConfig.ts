@@ -30,7 +30,7 @@ export type LightdashProjectParameter = {
     label: string;
     description?: string;
     type?: 'string' | 'number' | 'date'; // defaults to 'string' for backwards compatibility
-    default?: ParameterValue;
+    default?: ParameterValue; // for `type: date`, the sentinel `today` resolves to the current date at query time
     multiple?: boolean; // the parameter input will be a multi select
     allow_custom_values?: boolean; // allows users to input custom values beyond predefined options
     options?: string[] | number[] | LightdashParameterOption[]; // hardcoded options - string/number arrays or label+value pairs
