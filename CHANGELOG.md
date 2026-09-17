@@ -1,3 +1,16 @@
+# [2.246.0](https://github.com/lightdash/lightdash/compare/2.245.2...2.246.0) (2026-09-17)
+
+
+### Bug Fixes
+
+* **dashboards:** keep uuid lookups indexed ([#29402](https://github.com/lightdash/lightdash/issues/29402)) ([e7e2802](https://github.com/lightdash/lightdash/commit/e7e2802bc6d595ed591cc0edfcac9b06c9813f5c))
+* refresh analytics models before syncing content ([#29393](https://github.com/lightdash/lightdash/issues/29393)) ([5adb58c](https://github.com/lightdash/lightdash/commit/5adb58cf95fb25b5750b5548c87d7e9207e6bccb))
+
+
+### Features
+
+* link export events to chart and dashboard metadata ([#29388](https://github.com/lightdash/lightdash/issues/29388)) ([d5c515e](https://github.com/lightdash/lightdash/commit/d5c515e181b0be9f163f05d9c906f9f6f426f578))
+
 ## [2.245.2](https://github.com/lightdash/lightdash/compare/2.245.1...2.245.2) (2026-09-17)
 
 
