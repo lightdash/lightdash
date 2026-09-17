@@ -1,6 +1,7 @@
 import Ajv from 'ajv';
 import AjvErrors from 'ajv-errors';
 import addFormats from 'ajv-formats';
+import lightdashMetadataSchema from '../dbt/schemas/lightdashMetadata.json';
 import lightdashDbtYamlSchema from '../schemas/json/lightdash-dbt-2.0.json';
 import modelAsCodeSchema from '../schemas/json/model-as-code-1.0.json';
 
@@ -20,6 +21,10 @@ const modelYamlAjv = new Ajv({
 addFormats(modelYamlAjv);
 
 const validateDbtYaml = dbtYamlAjv.compile(lightdashDbtYamlSchema);
+dbtYamlAjv.addSchema(lightdashMetadataSchema);
+const validateManifestMetadata = dbtYamlAjv.compile({
+    $ref: `${lightdashMetadataSchema.$id}#/definitions/LightdashModelMetadata`,
+});
 const validateModelYaml = modelYamlAjv.compile(modelAsCodeSchema);
 
 const basePreAggregate = {
@@ -28,7 +33,7 @@ const basePreAggregate = {
     metrics: ['order_count'],
 };
 
-const validateInBothSchemas = (
+const validateInAllSchemas = (
     preAggregate: Record<string, unknown>,
     expected: boolean,
 ) => {
@@ -56,6 +61,9 @@ const validateInBothSchemas = (
     };
 
     expect(validateDbtYaml(dbtDocument)).toBe(expected);
+    expect(validateManifestMetadata({ pre_aggregates: [preAggregate] })).toBe(
+        expected,
+    );
     expect(validateModelYaml(modelDocument)).toBe(expected);
 };
 
@@ -162,6 +170,24 @@ describe('pre-aggregate sort schema parity', () => {
             valid: true,
         },
         {
+            name: 'sorts set to true',
+            preAggregate: { ...basePreAggregate, sorts: true },
+            valid: false,
+        },
+        {
+            name: 'sorts set to null',
+            preAggregate: { ...basePreAggregate, sorts: null },
+            valid: false,
+        },
+        {
+            name: 'sorts as a single object instead of an array',
+            preAggregate: {
+                ...basePreAggregate,
+                sorts: { fieldId: 'orders_status', descending: false },
+            },
+            valid: false,
+        },
+        {
             name: 'a non-object entry',
             preAggregate: {
                 ...basePreAggregate,
@@ -238,6 +264,6 @@ describe('pre-aggregate sort schema parity', () => {
             valid: false,
         },
     ])('$name is valid: $valid', ({ preAggregate, valid }) => {
-        validateInBothSchemas(preAggregate, valid);
+        validateInAllSchemas(preAggregate, valid);
     });
 });

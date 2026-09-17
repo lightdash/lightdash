@@ -8,6 +8,14 @@ const metadataSchemaId =
 const defaultTimeDimensionValidator = ManifestValidator.getValidator(
     `${metadataSchemaId}#/definitions/DefaultTimeDimension`,
 );
+const modelMetadataValidator = ManifestValidator.getValidator(
+    `${metadataSchemaId}#/definitions/LightdashModelMetadata`,
+);
+const basePreAggregate = {
+    name: 'orders_rollup',
+    dimensions: ['status'],
+    metrics: ['order_count'],
+};
 const withMeta = (meta: Record<string, unknown>): DbtRawModelNode =>
     ({ ...model, meta }) as unknown as DbtRawModelNode;
 
@@ -79,6 +87,143 @@ describe('DefaultTimeDimension metadata schema', () => {
             }),
         ).toEqual([true, undefined]);
     });
+});
+
+describe('PreAggregate metadata schema', () => {
+    test.each([
+        {
+            name: 'omitted sorts',
+            preAggregate: basePreAggregate,
+        },
+        {
+            name: 'disabled sorts',
+            preAggregate: { ...basePreAggregate, sorts: false },
+        },
+        {
+            name: 'disabled sorts with an empty array',
+            preAggregate: { ...basePreAggregate, sorts: [] },
+        },
+        {
+            name: 'canonical sorts',
+            preAggregate: {
+                ...basePreAggregate,
+                sorts: [{ fieldId: 'orders_status', descending: false }],
+            },
+        },
+    ])('accepts $name', ({ preAggregate }) => {
+        expect(
+            ManifestValidator.isValid(modelMetadataValidator, {
+                pre_aggregates: [preAggregate],
+            }),
+        ).toEqual([true, undefined]);
+    });
+
+    test.each([
+        {
+            name: 'a non-array pre_aggregates value',
+            metadata: { pre_aggregates: basePreAggregate },
+        },
+        {
+            name: 'a missing required property',
+            metadata: {
+                pre_aggregates: [
+                    {
+                        name: basePreAggregate.name,
+                        dimensions: basePreAggregate.dimensions,
+                    },
+                ],
+            },
+        },
+        {
+            name: 'a non-object filter',
+            metadata: {
+                pre_aggregates: [{ ...basePreAggregate, filters: [null] }],
+            },
+        },
+        {
+            name: 'a non-array, non-false sorts value',
+            metadata: {
+                pre_aggregates: [{ ...basePreAggregate, sorts: true }],
+            },
+        },
+        {
+            name: 'a sort entry missing descending',
+            metadata: {
+                pre_aggregates: [
+                    {
+                        ...basePreAggregate,
+                        sorts: [{ fieldId: 'orders_status' }],
+                    },
+                ],
+            },
+        },
+        {
+            // The production validator does not coerce types, so a numeric
+            // fieldId must fail even though coercing AJV configs accept it.
+            name: 'a non-string sort fieldId',
+            metadata: {
+                pre_aggregates: [
+                    {
+                        ...basePreAggregate,
+                        sorts: [{ fieldId: 123, descending: false }],
+                    },
+                ],
+            },
+        },
+        {
+            name: 'an invalid materialization role',
+            metadata: {
+                pre_aggregates: [
+                    {
+                        ...basePreAggregate,
+                        materialization_role: {
+                            email: 'materialize@example.com',
+                            attributes: { region: [123] },
+                        },
+                    },
+                ],
+            },
+        },
+    ])('rejects $name', ({ metadata }) => {
+        const [isValid, error] = ManifestValidator.isValid(
+            modelMetadataValidator,
+            metadata,
+        );
+
+        expect(isValid).toBe(false);
+        expect(error).toContain('pre_aggregates');
+    });
+
+    test.each(Object.values(DbtManifestVersion))(
+        'is composed into %s manifest model validation',
+        (manifestVersion) => {
+            const modelWithPreAggregates = {
+                ...model,
+                ...(manifestVersion === DbtManifestVersion.V7
+                    ? { root_path: 'root' }
+                    : {}),
+                meta: {
+                    pre_aggregates: [
+                        {
+                            ...basePreAggregate,
+                            sorts: [
+                                {
+                                    fieldId: 'orders_status',
+                                    descending: false,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            } satisfies DbtRawModelNode;
+
+            expect(
+                new ManifestValidator(manifestVersion).isModelValid(
+                    modelWithPreAggregates,
+                ),
+            ).toEqual([true, undefined]);
+        },
+    );
 });
 
 describe('AI hint manifest compatibility', () => {
