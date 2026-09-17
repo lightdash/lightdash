@@ -17,7 +17,6 @@ import {
 } from '../../../features/explorer/store';
 import { useMergeChangeSinceRun } from '../../../features/mergeQuery/hooks/useMergeChangeSinceRun';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
-import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
@@ -31,6 +30,7 @@ import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import SaveChartButton from '../SaveChartButton';
+import { useExplorerResultsData } from '../VisualizationCard/useExplorerResultsData';
 import QueryWarnings from './QueryWarnings';
 
 const ExplorerHeader: FC = memo(() => {
@@ -42,13 +42,21 @@ const ExplorerHeader: FC = memo(() => {
     // Get state from Redux and new hook
     const limit = useExplorerSelector(selectQueryLimit);
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
-    const { query, queryResults } = useExplorerQuery();
+    const { query, mergeResults, resultsData } = useExplorerResultsData();
 
-    // Compute values from new hook data
+    // A merge limits once, after the join, with the limit it was asked for;
+    // the legs run whole. So the rows on screen are a prefix of the merged
+    // result, never of a leg, and the remedy is the same row limit control.
+    const reachedLimit = mergeResults ? mergeResults.mergeQuery.limit : limit;
     const showLimitWarning = useMemo(
-        () => queryResults.totalResults && queryResults.totalResults >= limit,
-        [queryResults.totalResults, limit],
+        () =>
+            !!resultsData.totalResults &&
+            resultsData.totalResults >= reachedLimit,
+        [resultsData.totalResults, reachedLimit],
     );
+    const limitWarning = mergeResults
+        ? `The merged result reached its limit of ${reachedLimit} rows, so this is the first ${reachedLimit} rows of the merge. Each query ran whole; only the merged result is cut. To see more, increase the row limit or narrow the filters on either query.`
+        : `Query limit of ${limit} reached. There may be additional results that have not been displayed. To see more, increase the query limit or try narrowing filters.`;
     const queryWarnings = query.data?.warnings;
     // A merge whose join changed re-runs itself; one whose legs changed
     // waits for the user, and the rows on screen have to say so.
@@ -191,11 +199,7 @@ const ExplorerHeader: FC = memo(() => {
                 )}
 
                 {showLimitWarning && (
-                    <Tooltip
-                        w={400}
-                        label={`Query limit of ${limit} reached. There may be additional results that have not been displayed. To see more, increase the query limit or try narrowing filters.`}
-                        position={'bottom'}
-                    >
+                    <Tooltip w={400} label={limitWarning} position="bottom">
                         <Badge
                             leftSection={
                                 <MantineIcon
