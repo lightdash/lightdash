@@ -7,6 +7,7 @@ import {
     DashboardFilterRule,
     DashboardTileTarget,
     DashboardTileTypes,
+    PromotionAction,
 } from '@lightdash/common';
 import { CoderService } from './CoderService';
 import { withTileWarnings } from './dashboardReferences';
@@ -1863,6 +1864,7 @@ describe('CoderService', () => {
             );
             expect(result[0].chartConfig.config).toEqual({
                 dataAppVizSlug: 'my-chart-type',
+                dataAppVizVersion: 4,
                 fieldMapping: {},
             });
             expect(result[1]).toBe(charts[1]);
@@ -1890,13 +1892,21 @@ describe('CoderService', () => {
         const buildResolver = ({
             findAppsBySlugs = vi.fn().mockResolvedValue([]),
             findAppsByUuids = vi.fn().mockResolvedValue([]),
-            getLatestRenderableDataAppVizVersion = vi
-                .fn()
-                .mockResolvedValue({ version: 9 }),
+            getLatestRenderableDataAppVizVersion = vi.fn().mockResolvedValue({
+                version: 9,
+                status: 'ready',
+                viz_schema: {},
+            }),
+            getVersion = vi.fn().mockResolvedValue({
+                version: 2,
+                status: 'ready',
+                viz_schema: {},
+            }),
         }: {
             findAppsBySlugs?: ReturnType<typeof vi.fn>;
             findAppsByUuids?: ReturnType<typeof vi.fn>;
             getLatestRenderableDataAppVizVersion?: ReturnType<typeof vi.fn>;
+            getVersion?: ReturnType<typeof vi.fn>;
         } = {}) => {
             const warn = vi.fn();
             const service = {
@@ -1904,6 +1914,7 @@ describe('CoderService', () => {
                     findAppsBySlugs,
                     findAppsByUuids,
                     getLatestRenderableDataAppVizVersion,
+                    getVersion,
                 },
                 logger: { warn },
                 resolveDataAppVizBinding: (CoderService.prototype as AnyType)
@@ -1931,19 +1942,112 @@ describe('CoderService', () => {
                 config: {
                     dataAppVizUuid: 'source-viz-uuid',
                     dataAppVizSlug: 'my-chart-type',
+                    dataAppVizVersion: 2,
                     fieldMapping: { x: 'field_x' },
                 },
             });
             expect(result.config).toEqual({
                 dataAppVizUuid: 'target-viz-uuid',
-                dataAppVizVersion: 9,
+                dataAppVizVersion: 2,
                 fieldMapping: { x: 'field_x' },
             });
+            expect(service.appModel.getVersion).toHaveBeenCalledWith(
+                'target-viz-uuid',
+                2,
+            );
+            expect(
+                service.appModel.getLatestRenderableDataAppVizVersion,
+            ).not.toHaveBeenCalled();
             expect(service.appModel.findAppsBySlugs).toHaveBeenCalledWith(
                 'proj',
                 ['my-chart-type'],
                 { dataAppVizsFilter: 'only' },
             );
+        });
+
+        it('uses the latest renderable version for legacy slug files without a pin', async () => {
+            const getLatestRenderableDataAppVizVersion = vi
+                .fn()
+                .mockResolvedValue({
+                    version: 3,
+                    status: 'ready',
+                    viz_schema: {},
+                });
+            const { service } = buildResolver({
+                findAppsBySlugs: vi
+                    .fn()
+                    .mockResolvedValue([
+                        { app_id: 'target-viz-uuid', slug: 'my-chart-type' },
+                    ]),
+                getLatestRenderableDataAppVizVersion,
+            });
+            await expect(
+                service.resolveDataAppVizBinding('proj', {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizSlug: 'my-chart-type',
+                        fieldMapping: {},
+                    },
+                }),
+            ).resolves.toMatchObject({
+                config: {
+                    dataAppVizUuid: 'target-viz-uuid',
+                    dataAppVizVersion: 3,
+                },
+            });
+            expect(getLatestRenderableDataAppVizVersion).toHaveBeenCalledWith(
+                'target-viz-uuid',
+            );
+        });
+
+        it('preserves the exported pin when a newer target version exists', async () => {
+            const getLatestRenderableDataAppVizVersion = vi.fn();
+            const { service } = buildResolver({
+                findAppsBySlugs: vi
+                    .fn()
+                    .mockResolvedValue([
+                        { app_id: 'target-viz-uuid', slug: 'my-chart-type' },
+                    ]),
+                getLatestRenderableDataAppVizVersion,
+                getVersion: vi.fn().mockResolvedValue({
+                    version: 2,
+                    status: 'ready',
+                    viz_schema: {},
+                }),
+            });
+            const { withDataAppVizSlugs } = CoderService as unknown as {
+                withDataAppVizSlugs: (
+                    charts: AnyType[],
+                    slugByUuid: Map<string, string>,
+                ) => AnyType[];
+            };
+            const exportedConfig = withDataAppVizSlugs(
+                [
+                    {
+                        chartConfig: {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: {
+                                dataAppVizUuid: 'source-viz-uuid',
+                                dataAppVizVersion: 2,
+                                fieldMapping: {},
+                            },
+                        },
+                    },
+                ],
+                new Map([['source-viz-uuid', 'my-chart-type']]),
+            )[0].chartConfig.config;
+            await expect(
+                service.resolveDataAppVizBinding('proj', {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: exportedConfig,
+                }),
+            ).resolves.toMatchObject({
+                config: {
+                    dataAppVizUuid: 'target-viz-uuid',
+                    dataAppVizVersion: 2,
+                },
+            });
+            expect(getLatestRenderableDataAppVizVersion).not.toHaveBeenCalled();
         });
 
         it('keeps the original uuid (slug stripped) when the slug is missing but the uuid resolves in the project', async () => {
@@ -2059,6 +2163,41 @@ describe('CoderService', () => {
             );
         });
 
+        it.each([
+            { status: 'building', viz_schema: null },
+            { status: 'ready', viz_schema: null },
+            null,
+        ])(
+            'fails actionably when explicit target version is unavailable: %o',
+            async (version) => {
+                const { service } = buildResolver({
+                    findAppsBySlugs: vi.fn().mockResolvedValue([
+                        {
+                            app_id: 'target-viz-uuid',
+                            slug: 'my-chart-type',
+                        },
+                    ]),
+                    getVersion: vi
+                        .fn()
+                        .mockResolvedValue(
+                            version && { version: 2, ...version },
+                        ),
+                });
+                await expect(
+                    service.resolveDataAppVizBinding('proj', {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: {
+                            dataAppVizSlug: 'my-chart-type',
+                            dataAppVizVersion: 2,
+                            fieldMapping: {},
+                        },
+                    }),
+                ).rejects.toThrow(
+                    'version 2 is not renderable in this project. Upload a renderable version of this chart type, then re-upload this chart.',
+                );
+            },
+        );
+
         it('fails loudly when the slug is missing and there is no legacy uuid', async () => {
             const { service } = buildResolver();
             await expect(
@@ -2085,6 +2224,152 @@ describe('CoderService', () => {
                 'carries neither dataAppVizSlug nor dataAppVizUuid',
             );
         });
+    });
+});
+
+describe('CoderService.upsertChart custom chart type pins', () => {
+    const chartUuid = 'chart-uuid';
+    const vizUuid = 'viz-uuid';
+    const updatedAt = new Date('2026-09-01T12:00:00.000Z');
+    const savedConfig = {
+        type: ChartType.DATA_APP_VIZ,
+        config: { dataAppVizUuid: vizUuid, dataAppVizVersion: 2 },
+    };
+
+    const upload = async (requestedVersion?: number) => {
+        const currentChart = {
+            uuid: chartUuid,
+            slug: 'orders',
+            name: 'Orders',
+            description: null,
+            updatedAt,
+            spaceUuid: 'space-uuid',
+            chartConfig: savedConfig,
+        };
+        const getChartChanges = vi.fn(async (promotedChart: AnyType) => ({
+            spaces: [],
+            dashboards: [],
+            charts: [
+                {
+                    // The promotion comparator ignores chartConfig when the
+                    // downloaded timestamp and metadata have not changed.
+                    action: PromotionAction.NO_CHANGES,
+                    data: promotedChart.chart,
+                },
+            ],
+        }));
+        const upsertCharts = vi.fn(
+            async (_user: AnyType, changes: AnyType) => changes,
+        );
+        const service = Object.assign(Object.create(CoderService.prototype), {
+            resolveSyncEnabled: vi.fn(async () => false),
+            projectModel: {
+                get: vi.fn(async () => ({
+                    projectUuid: 'project-uuid',
+                    organizationUuid: 'organization-uuid',
+                })),
+            },
+            appModel: {
+                findAppsBySlugs: vi.fn(async () => [{ app_id: vizUuid }]),
+                getVersion: vi.fn(async (_uuid: string, version: number) => ({
+                    version,
+                    status: 'ready',
+                    viz_schema: {},
+                })),
+                getLatestRenderableDataAppVizVersion: vi.fn(async () => ({
+                    version: 3,
+                    status: 'ready',
+                    viz_schema: {},
+                })),
+            },
+            savedChartModel: {
+                find: vi.fn(async () => [currentChart]),
+            },
+            promoteService: {
+                getPromoteCharts: vi.fn(async () => ({
+                    promotedChart: {
+                        chart: currentChart,
+                        space: { uuid: 'space-uuid', slug: 'space' },
+                        spaces: [],
+                    },
+                    upstreamChart: {
+                        chart: {
+                            uuid: currentChart.uuid,
+                            name: currentChart.name,
+                            updatedAt: currentChart.updatedAt,
+                        },
+                        projectUuid: 'project-uuid',
+                    },
+                })),
+                getChartChanges,
+                upsertCharts,
+            },
+            createAuditedAbility: vi.fn(() => ({
+                can: () => true,
+                cannot: () => false,
+            })),
+            prepareDirectAccessReplace: vi.fn(async () => []),
+            findAccessibleSpace: vi.fn(async () => ({ uuid: 'space-uuid' })),
+            getOrCreateSpace: vi.fn(async () => ({
+                space: { uuid: 'space-uuid' },
+                created: false,
+            })),
+            assertSpaceContentAccess: vi.fn(async () => undefined),
+            syncVerification: vi.fn(async () => undefined),
+            stampAppliedChartSnapshot: vi.fn(async () => undefined),
+            applyDirectAccessPolicy: vi.fn(async () => undefined),
+        }) as CoderService;
+
+        await service.upsertChart(
+            { userUuid: 'user-uuid' } as AnyType,
+            'project-uuid',
+            'orders',
+            {
+                name: 'Orders',
+                description: null,
+                slug: 'orders',
+                spaceSlug: 'space',
+                updatedAt,
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizSlug: 'my-viz',
+                        ...(requestedVersion === undefined
+                            ? {}
+                            : { dataAppVizVersion: requestedVersion }),
+                    },
+                },
+                metricQuery: { exploreName: 'orders', filters: {} },
+            } as AnyType,
+        );
+
+        return { getChartChanges, upsertCharts };
+    };
+
+    it('updates an existing chart when an omitted legacy pin resolves to a newer ready version', async () => {
+        const { upsertCharts } = await upload();
+        expect(upsertCharts.mock.calls[0][1].charts[0]).toMatchObject({
+            action: PromotionAction.UPDATE,
+            data: {
+                chartConfig: {
+                    config: { dataAppVizUuid: vizUuid, dataAppVizVersion: 3 },
+                },
+            },
+        });
+    });
+
+    it('updates an existing chart when an explicit pin changes', async () => {
+        const { upsertCharts } = await upload(3);
+        expect(upsertCharts.mock.calls[0][1].charts[0].action).toBe(
+            PromotionAction.UPDATE,
+        );
+    });
+
+    it('keeps an existing chart unchanged when its explicit pin matches', async () => {
+        const { upsertCharts } = await upload(2);
+        expect(upsertCharts.mock.calls[0][1].charts[0].action).toBe(
+            PromotionAction.NO_CHANGES,
+        );
     });
 });
 

@@ -2551,27 +2551,13 @@ export class CoderService extends BaseService {
             ) {
                 return chart;
             }
-            const {
-                dataAppVizUuid,
-                dataAppVizVersion: _dataAppVizVersion,
-                ...portableConfig
-            } = chart.chartConfig.config;
+            const { dataAppVizUuid, ...portableConfig } =
+                chart.chartConfig.config;
             const dataAppVizSlug =
                 dataAppVizUuid !== undefined
                     ? dataAppVizSlugByUuid.get(dataAppVizUuid)
                     : undefined;
-            if (dataAppVizSlug === undefined) {
-                if (_dataAppVizVersion === undefined) {
-                    return chart;
-                }
-                return {
-                    ...chart,
-                    chartConfig: {
-                        ...chart.chartConfig,
-                        config: { ...portableConfig, dataAppVizUuid },
-                    },
-                };
-            }
+            if (dataAppVizSlug === undefined) return chart;
             return {
                 ...chart,
                 chartConfig: {
@@ -2602,18 +2588,33 @@ export class CoderService extends BaseService {
         if (chartConfig.config === undefined) {
             return { type: ChartType.DATA_APP_VIZ, config: undefined };
         }
-        const { dataAppVizSlug, dataAppVizUuid, ...configRest } =
-            chartConfig.config;
+        const {
+            dataAppVizSlug,
+            dataAppVizUuid,
+            dataAppVizVersion,
+            ...configRest
+        } = chartConfig.config;
         const withTargetVersion = async (
             targetDataAppVizUuid: string,
         ): Promise<ChartConfig> => {
             const targetVersion =
-                await this.appModel.getLatestRenderableDataAppVizVersion(
-                    targetDataAppVizUuid,
-                );
-            if (targetVersion === null) {
+                dataAppVizVersion === undefined
+                    ? await this.appModel.getLatestRenderableDataAppVizVersion(
+                          targetDataAppVizUuid,
+                      )
+                    : await this.appModel.getVersion(
+                          targetDataAppVizUuid,
+                          dataAppVizVersion,
+                      );
+            if (
+                targetVersion === null ||
+                targetVersion.status !== 'ready' ||
+                targetVersion.viz_schema === null
+            ) {
                 throw new NotFoundError(
-                    `Custom chart type ${targetDataAppVizUuid} has no renderable version`,
+                    dataAppVizVersion === undefined
+                        ? `Custom chart type ${targetDataAppVizUuid} has no renderable version`
+                        : `Custom chart type "${dataAppVizSlug ?? targetDataAppVizUuid}" version ${dataAppVizVersion} is not renderable in this project. Upload a renderable version of this chart type, then re-upload this chart.`,
                 );
             }
             return {
@@ -4091,7 +4092,18 @@ export class CoderService extends BaseService {
                 updatedChart,
                 upstreamChart,
             );
-        if (force) {
+        const resolvedConfig = chartWithDefaults.chartConfig;
+        const existingConfig = promotedChart.chart.chartConfig;
+        const vizBindingChanged =
+            resolvedConfig.type === ChartType.DATA_APP_VIZ &&
+            (existingConfig?.type !== ChartType.DATA_APP_VIZ ||
+                existingConfig.config?.dataAppVizUuid !==
+                    resolvedConfig.config?.dataAppVizUuid ||
+                existingConfig.config?.dataAppVizVersion !==
+                    resolvedConfig.config?.dataAppVizVersion);
+        // Promotion compares chart metadata and timestamps, not chart config.
+        // An as-code upload can change only the resolved chart-type pin.
+        if (force || vizBindingChanged) {
             promotionChanges = {
                 ...promotionChanges,
                 charts: promotionChanges.charts.map((c) =>
