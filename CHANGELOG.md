@@ -1,3 +1,10 @@
+## [2.255.3](https://github.com/lightdash/lightdash/compare/2.255.2...2.255.3) (2026-09-17)
+
+
+### Bug Fixes
+
+* **documents:** support slug-based URLs ([#29468](https://github.com/lightdash/lightdash/issues/29468)) ([f8997f4](https://github.com/lightdash/lightdash/commit/f8997f490351a7ed0ac3715cdc1e1627960f026e))
+
 ## [2.255.2](https://github.com/lightdash/lightdash/compare/2.255.1...2.255.2) (2026-09-17)
 
 

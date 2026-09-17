@@ -118457,7 +118457,7 @@ export function RegisterRoutes(app: Router) {
         },
         documentUuid: {
             in: 'path',
-            name: 'documentUuid',
+            name: 'documentUuidOrSlug',
             required: true,
             ref: 'UUID',
         },
@@ -118469,7 +118469,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.patch(
-        '/api/v1/projects/:projectUuid/documents/:documentUuid',
+        '/api/v1/projects/:projectUuid/documents/:documentUuidOrSlug',
         ...fetchMiddlewares<RequestHandler>(DocumentController),
         ...fetchMiddlewares<RequestHandler>(
             DocumentController.prototype.updateMetadata,
@@ -118656,15 +118656,15 @@ export function RegisterRoutes(app: Router) {
             required: true,
             ref: 'UUID',
         },
-        documentUuid: {
+        documentUuidOrSlug: {
             in: 'path',
-            name: 'documentUuid',
+            name: 'documentUuidOrSlug',
             required: true,
-            ref: 'UUID',
+            ref: 'UuidOrSlug',
         },
     };
     app.get(
-        '/api/v1/projects/:projectUuid/documents/:documentUuid',
+        '/api/v1/projects/:projectUuid/documents/:documentUuidOrSlug',
         ...fetchMiddlewares<RequestHandler>(DocumentController),
         ...fetchMiddlewares<RequestHandler>(DocumentController.prototype.get),
 
