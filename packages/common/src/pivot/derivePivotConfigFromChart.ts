@@ -1,3 +1,4 @@
+import { getDataAppVizFieldIds } from '../ee/apps/dataAppVizFieldMapping';
 /**
  * Derives pivot configuration from a saved chart's configuration and metric query
  * This enables consistent pivoting across all chart types
@@ -22,7 +23,6 @@ import {
     type SavedChart,
     type SavedChartDAO,
 } from '../types/savedCharts';
-import { getDataAppVizFieldIds } from '../ee/apps/dataAppVizFieldMapping';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     getColumnAxisType,

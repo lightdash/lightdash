@@ -1,4 +1,7 @@
-import { getDataAppVizFieldIds, type DataAppVizSchema } from '@lightdash/common';
+import {
+    getDataAppVizFieldIds,
+    type DataAppVizSchema,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { buildSampleVizContext } from './sampleVizContext';
 

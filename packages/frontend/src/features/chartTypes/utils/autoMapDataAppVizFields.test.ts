@@ -372,11 +372,9 @@ describe('reconcileDataAppVizFieldMapping', () => {
             ),
         ).toEqual({ values: ['orders_second'] });
         expect(
-            reconcileDataAppVizFieldMapping(
-                [field('value', 'metric')],
-                items,
-                { value: ['orders_second', 'orders_first'] },
-            ),
+            reconcileDataAppVizFieldMapping([field('value', 'metric')], items, {
+                value: ['orders_second', 'orders_first'],
+            }),
         ).toEqual({ value: 'orders_second' });
     });
 

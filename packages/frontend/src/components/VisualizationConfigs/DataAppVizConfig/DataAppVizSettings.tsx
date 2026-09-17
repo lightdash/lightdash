@@ -92,10 +92,11 @@ const DataAppVizSettings: FC<Props> = ({
                     : selectedValue
                       ? [selectedValue]
                       : [];
-                const selectedItem = !Array.isArray(selectedValue) && selectedValue
-                    ? (items.find((i) => getItemId(i) === selectedValue) ??
-                      addItems.find((i) => getItemId(i) === selectedValue))
-                    : undefined;
+                const selectedItem =
+                    !Array.isArray(selectedValue) && selectedValue
+                        ? (items.find((i) => getItemId(i) === selectedValue) ??
+                          addItems.find((i) => getItemId(i) === selectedValue))
+                        : undefined;
                 return (
                     <Config key={field.name}>
                         <Config.Section>
@@ -162,7 +163,9 @@ const DataAppVizSettings: FC<Props> = ({
                                         }
                                         onFieldChange(
                                             field.name,
-                                            newField ? getItemId(newField) : null,
+                                            newField
+                                                ? getItemId(newField)
+                                                : null,
                                         );
                                     }}
                                     clearable={!field.required}

@@ -58,7 +58,11 @@ const describeFieldChange = ({ before, after }: DataAppVizFieldChange) => {
     if (before.required !== after.required)
         parts.push(after.required ? 'now required' : 'now optional');
     if ((before.multiple === true) !== (after.multiple === true))
-        parts.push(after.multiple ? 'now accepts multiple fields' : 'now accepts one field');
+        parts.push(
+            after.multiple
+                ? 'now accepts multiple fields'
+                : 'now accepts one field',
+        );
     if (before.label !== after.label)
         parts.push(`renamed from "${before.label}"`);
     return parts.join(', ');

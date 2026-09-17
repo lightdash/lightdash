@@ -214,5 +214,6 @@ export const getUnboundRequiredDataAppVizFields = (
 ): DataAppVizField[] =>
     fields.filter(
         (field) =>
-            field.required && getDataAppVizFieldIds(mapping[field.name]).length === 0,
+            field.required &&
+            getDataAppVizFieldIds(mapping[field.name]).length === 0,
     );

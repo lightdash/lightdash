@@ -104,7 +104,10 @@ describe('resolveVizUnderlyingDataConfig', () => {
             resolveVizUnderlyingDataConfig(
                 { row, metric: 'value', fieldId: 'orders_status' },
                 {
-                    fieldMapping: { ...fieldMapping, value: ['orders_revenue'] },
+                    fieldMapping: {
+                        ...fieldMapping,
+                        value: ['orders_revenue'],
+                    },
                     itemsMap,
                     dateZoom: undefined,
                 },

@@ -67,8 +67,7 @@ const expandSampleFields = (schema: DataAppVizSchema) => {
         const expanded = Array.from({ length: copies }, (_, index) => ({
             ...field,
             name: copies === 1 ? field.name : `${field.name}_${index + 1}`,
-            label:
-                copies === 1 ? field.label : `${field.label} ${index + 1}`,
+            label: copies === 1 ? field.label : `${field.label} ${index + 1}`,
             multiple: false,
         }));
         fieldMapping[field.name] = field.multiple

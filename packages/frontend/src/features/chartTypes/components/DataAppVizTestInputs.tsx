@@ -5,8 +5,8 @@ import FieldSelect from '../../../components/common/FieldSelect';
 import DataAppVizFieldGuidance, {
     DataAppVizFieldHelp,
 } from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldGuidance';
-import OrderedDataAppVizFieldSelect from '../../../components/VisualizationConfigs/DataAppVizConfig/OrderedDataAppVizFieldSelect';
 import DataAppVizInputGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizInputGuidance';
+import OrderedDataAppVizFieldSelect from '../../../components/VisualizationConfigs/DataAppVizConfig/OrderedDataAppVizFieldSelect';
 import { type DataAppVizTestContextState } from '../hooks/useDataAppVizTestContext';
 import { poolKeyForSlot } from '../utils/autoMapDataAppVizFields';
 import DataAppVizFieldTypeBadge from './DataAppVizFieldTypeBadge';

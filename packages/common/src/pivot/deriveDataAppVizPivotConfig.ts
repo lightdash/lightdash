@@ -1,5 +1,5 @@
-import type { DataAppVizField } from '../ee/apps/types';
 import { getDataAppVizFieldIds } from '../ee/apps/dataAppVizFieldMapping';
+import type { DataAppVizField } from '../ee/apps/types';
 import type { DataAppVizFieldMapping, SavedChart } from '../types/savedCharts';
 
 /**
