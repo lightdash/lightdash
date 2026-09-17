@@ -216,6 +216,9 @@ importers:
       oxlint-tsgolint:
         specifier: 7.0.2001
         version: 7.0.2001
+      sharp:
+        specifier: 0.35.4
+        version: 0.35.4(@types/node@24.13.2)
       typescript:
         specifier: 7.0.2
         version: 7.0.2

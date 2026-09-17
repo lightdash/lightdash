@@ -1,0 +1,91 @@
+import { createClient, LightdashProvider, useVizContext } from '@lightdash/query-sdk';
+import { useEffect, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+
+const CONTEXT_MESSAGE = 'lightdash:sdk:data-app-viz-context';
+const CONTEXT_REQUEST = 'lightdash:sdk:viz-context-request';
+const DELAY_MS = 3_000;
+
+// This uses the current SDK transport, so the host sees its real feature
+// manifest before the deliberately delayed chart component mounts.
+const client = createClient();
+// Match the template's eager announcement; the real SDK supplies context and paint acknowledgement.
+window.parent.postMessage({ type: 'lightdash:sdk:screenshot-available' }, '*');
+
+function PaintedChart() {
+    const { ready, fieldMapping, rows } = useVizContext();
+    const fieldId = fieldMapping.status;
+    const cell = fieldId ? rows[0]?.[fieldId]?.value : undefined;
+
+    if (!ready || !fieldId || !cell) {
+        return <div data-fixture-phase="waiting-for-sdk-context" />;
+    }
+
+    const status = String(cell.formatted ?? cell.raw ?? 'unknown');
+    return (
+        <svg
+            data-fixture-phase="painted"
+            data-loc="src/App.tsx:1"
+            width="600"
+            height="360"
+            viewBox="0 0 600 360"
+            xmlns="http://www.w3.org/2000/svg"
+            role="img"
+            aria-label={`Slow visualization painted for ${status}`}
+        >
+            <rect width="600" height="360" fill="#ffffff" />
+            <rect x="32" y="32" width="536" height="296" fill="#ff00cc" />
+            <text x="52" y="100" fill="#111111" fontSize="24">
+                SDK context painted: {status}
+            </text>
+        </svg>
+    );
+}
+
+function DelayedMount() {
+    const [mountChart, setMountChart] = useState(false);
+
+    useEffect(() => {
+        let timer: number | undefined;
+        const onContext = (event: MessageEvent) => {
+            if (event.source !== window.parent) return;
+            const data = event.data;
+            if (data?.type !== CONTEXT_MESSAGE || timer !== undefined) return;
+            const fieldId = data.fieldMapping?.status;
+            if (
+                typeof fieldId !== 'string' ||
+                fieldId.length === 0 ||
+                !Array.isArray(data.rows) ||
+                !data.rows[0]?.[fieldId]?.value
+            ) {
+                return;
+            }
+
+            // The SDK hook is not mounted yet, so it cannot acknowledge this
+            // context before the mark exists. After the delay, it asks the host
+            // for the latest context and paints the magenta mark in that commit.
+            timer = window.setTimeout(() => setMountChart(true), DELAY_MS);
+        };
+
+        window.addEventListener('message', onContext);
+        window.parent.postMessage({ type: CONTEXT_REQUEST }, '*');
+        return () => {
+            window.removeEventListener('message', onContext);
+            if (timer !== undefined) window.clearTimeout(timer);
+        };
+    }, []);
+
+    return mountChart ? (
+        <PaintedChart />
+    ) : (
+        <div data-fixture-phase="delayed-mount" />
+    );
+}
+
+const root = document.getElementById('root');
+if (!root) throw new Error('Slow visualization fixture root is missing');
+createRoot(root).render(
+    <LightdashProvider client={client}>
+        <DelayedMount />
+    </LightdashProvider>,
+);

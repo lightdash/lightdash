@@ -82,6 +82,8 @@ type Props = {
      *  bundles never send one — the parent owns the silence timeout that
      *  classifies them as legacy (see `useSdkUpgradeStatus`). */
     onSdkManifest?: (manifest: SdkManifest) => void;
+    /** Reports that a chart-type SDK has painted the current host context. */
+    onVizRendered?: (renderId: string) => void;
     /** When true, clicks inside the iframe are intercepted to reveal the query. */
     lineageEnabled?: boolean;
     onLineageAvailabilityChange?: (available: boolean) => void;
@@ -119,6 +121,8 @@ type Props = {
     // Render context for data app vizs: the field mapping + host rows, pushed
     // into the iframe over the SDK bridge. Undefined for ordinary data apps.
     dataAppVizContext?: DataAppVizContext;
+    /** Opaque token that binds a paint acknowledgement to its host context. */
+    dataAppVizRenderId?: string;
     /** Rewrites the viz underlying-data virtual route into the real API
      *  request. Only set by DataAppVizRenderer when the capability is on. */
     rewriteVizUnderlyingDataRequest?: (intentBody: unknown) => {
@@ -195,11 +199,13 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onIframeLoad,
             capabilities,
             dataAppVizContext,
+            dataAppVizRenderId,
             rewriteVizUnderlyingDataRequest,
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
             urlStateSync,
             onSdkManifest,
+            onVizRendered,
             forceColorScheme,
             insights,
             onInsightAction,
@@ -299,11 +305,13 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onLineageSelected,
             onExternalRequestEvent,
             dataAppVizContext,
+            dataAppVizRenderId,
             rewriteVizUnderlyingDataRequest,
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
             onSdkManifest,
+            onVizRendered,
             colorScheme,
             insights,
             onInsightAction,

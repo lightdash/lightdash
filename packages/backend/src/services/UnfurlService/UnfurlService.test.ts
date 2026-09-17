@@ -1,9 +1,13 @@
+import { Ability } from '@casl/ability';
 import {
+    DashboardTileTypes,
     DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
+    ForbiddenError,
     LightdashPage,
     LightdashRequestMethodHeader,
     NotFoundError,
+    ParameterError,
     RequestMethod,
     SCREENSHOT_SELECTORS,
     UnexpectedServerError,
@@ -82,6 +86,7 @@ function createService(
         savedChartModel: Partial<SavedChartModel>;
         dashboardModel: Partial<DashboardModel>;
         projectModel: Partial<ProjectModel>;
+        spacePermissionService: Partial<SpacePermissionService>;
         slackAuthenticationModel: Partial<SlackAuthenticationModel>;
         headlessBrowser: Record<string, unknown>;
     }> = {},
@@ -114,7 +119,8 @@ function createService(
         analytics: {} as unknown as LightdashAnalytics,
         slackAuthenticationModel: (overrides.slackAuthenticationModel ??
             {}) as unknown as SlackAuthenticationModel,
-        spacePermissionService: {} as unknown as SpacePermissionService,
+        spacePermissionService: (overrides.spacePermissionService ??
+            {}) as unknown as SpacePermissionService,
         headlessBrowserLoginGrantModel:
             {} as unknown as HeadlessBrowserLoginGrantModel,
     });
@@ -126,6 +132,78 @@ describe('UnfurlService', () => {
     });
 
     describe('exportChart', () => {
+        const exportChartUuid = '11111111-1111-4111-8111-111111111111';
+        const exportProjectUuid = '22222222-2222-4222-8222-222222222222';
+        const exportDashboardUuid = '33333333-3333-4333-8333-333333333333';
+        const exportTileUuid = '44444444-4444-4444-8444-444444444444';
+        const exportTabUuid = '55555555-5555-4555-8555-555555555555';
+
+        const createDashboardChartExport = (
+            allowedSubjects: string[] = ['SavedChart', 'Dashboard'],
+        ) => {
+            const chart = {
+                uuid: exportChartUuid,
+                projectUuid: exportProjectUuid,
+                organizationUuid: 'organization-uuid',
+                spaceUuid: 'chart-space-uuid',
+                dashboardUuid: null,
+                name: 'Revenue',
+            };
+            const dashboard = {
+                uuid: exportDashboardUuid,
+                projectUuid: exportProjectUuid,
+                organizationUuid: 'organization-uuid',
+                spaceUuid: 'dashboard-space-uuid',
+                name: 'Operations',
+                tabs: [
+                    { uuid: 'first-tab', name: 'First', order: 0 },
+                    { uuid: exportTabUuid, name: 'Second', order: 1 },
+                ],
+                tiles: [
+                    {
+                        uuid: exportTileUuid,
+                        type: DashboardTileTypes.SAVED_CHART,
+                        tabUuid: exportTabUuid,
+                        properties: { savedChartUuid: exportChartUuid },
+                    },
+                ],
+            };
+            const get = vi.fn().mockResolvedValue(chart);
+            const getByIdOrSlug = vi.fn().mockResolvedValue(dashboard);
+            const resolveAccess = vi.fn().mockResolvedValue({
+                inheritsFromOrgOrProject: true,
+                access: [],
+            });
+            const service = createService({
+                savedChartModel: { get },
+                dashboardModel: { getByIdOrSlug },
+                spacePermissionService: { resolveAccess },
+            });
+            const unfurlImage = vi
+                .spyOn(service, 'unfurlImage')
+                .mockResolvedValue({
+                    imageUrl: 'https://app.lightdash.cloud/chart.png',
+                });
+            const user = {
+                userUuid: 'viewer-uuid',
+                ability: new Ability(
+                    allowedSubjects.map((subject) => ({
+                        action: 'view',
+                        subject,
+                    })),
+                ),
+            } as never;
+
+            return {
+                service,
+                user,
+                dashboard,
+                getByIdOrSlug,
+                resolveAccess,
+                unfurlImage,
+            };
+        };
+
         it('keeps legacy slug export compatible without a project', async () => {
             const get = vi.fn().mockRejectedValue(new Error('stop'));
             const service = createService({ savedChartModel: { get } });
@@ -171,6 +249,136 @@ describe('UnfurlService', () => {
                 undefined,
                 undefined,
             );
+        });
+
+        it('exports a chart tile from its own dashboard tab', async () => {
+            const { service, user, unfurlImage } = createDashboardChartExport();
+
+            await service.exportChart(
+                exportChartUuid,
+                user,
+                exportProjectUuid,
+                {
+                    dashboardUuid: exportDashboardUuid,
+                    dashboardTileUuid: exportTileUuid,
+                },
+            );
+
+            expect(unfurlImage).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: `http://headless-browser:8080/minimal/projects/${exportProjectUuid}/dashboards/${exportDashboardUuid}/view/tabs/${exportTabUuid}`,
+                    selector: `[data-dashboard-tile-uuid="${exportTileUuid}"]`,
+                }),
+            );
+        });
+
+        it('streams the captured PNG without hosting it again', async () => {
+            const { service, user, unfurlImage } = createDashboardChartExport();
+            const png = Buffer.from('captured-png');
+            unfurlImage.mockResolvedValue({ imageBuffer: png });
+
+            await expect(
+                service.exportChartImage(
+                    exportChartUuid,
+                    user,
+                    exportProjectUuid,
+                ),
+            ).resolves.toEqual(png);
+            expect(unfurlImage).toHaveBeenCalledWith(
+                expect.objectContaining({ hostImage: false }),
+            );
+        });
+
+        it('preserves dashboard filters, parameters, and a control-specific date zoom override', async () => {
+            const { service, user, unfurlImage } = createDashboardChartExport();
+            const dashboardFilters = {
+                dimensions: [{ id: 'region', values: ['Europe'] }],
+                metrics: [],
+                tableCalculations: [],
+            } as never;
+            const parameters = { currency: 'EUR' } as never;
+
+            await service.exportChart(
+                exportChartUuid,
+                user,
+                exportProjectUuid,
+                {
+                    dashboardUuid: exportDashboardUuid,
+                    dashboardTileUuid: exportTileUuid,
+                    dashboardFilters,
+                    parameters,
+                    dateZoomGranularity: 'Month',
+                    dateZoomControlGranularities: { 'control-uuid': 'Week' },
+                },
+            );
+
+            expect(unfurlImage).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: `http://headless-browser:8080/minimal/projects/${exportProjectUuid}/dashboards/${exportDashboardUuid}/view/tabs/${exportTabUuid}?dateZoom=month&dateZoom.control-uuid=week`,
+                    sendNowSchedulerDashboardFilters: dashboardFilters,
+                    sendNowSchedulerParameters: parameters,
+                }),
+            );
+        });
+
+        const permissionCases: Array<[string, string[]]> = [
+            ['chart', ['Dashboard']],
+            ['dashboard', ['SavedChart']],
+        ];
+        it.each(permissionCases)(
+            'denies export when the viewer cannot view the %s',
+            async (_resource, permissions) => {
+                const { service, user, unfurlImage } =
+                    createDashboardChartExport(permissions);
+
+                await expect(
+                    service.exportChart(
+                        exportChartUuid,
+                        user,
+                        exportProjectUuid,
+                        {
+                            dashboardUuid: exportDashboardUuid,
+                            dashboardTileUuid: exportTileUuid,
+                        },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+                expect(unfurlImage).not.toHaveBeenCalled();
+            },
+        );
+
+        it.each(permissionCases)(
+            'denies image-stream export when the viewer cannot view the %s',
+            async (_resource, permissions) => {
+                const { service, user, unfurlImage } =
+                    createDashboardChartExport(permissions);
+
+                await expect(
+                    service.exportChartImage(
+                        exportChartUuid,
+                        user,
+                        exportProjectUuid,
+                        {
+                            dashboardUuid: exportDashboardUuid,
+                            dashboardTileUuid: exportTileUuid,
+                        },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+                expect(unfurlImage).not.toHaveBeenCalled();
+            },
+        );
+
+        it('rejects a dashboard tile that does not reference the requested chart', async () => {
+            const { service, user, dashboard, unfurlImage } =
+                createDashboardChartExport();
+            dashboard.tiles[0].properties.savedChartUuid = 'another-chart';
+
+            await expect(
+                service.exportChart(exportChartUuid, user, exportProjectUuid, {
+                    dashboardUuid: exportDashboardUuid,
+                    dashboardTileUuid: exportTileUuid,
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(unfurlImage).not.toHaveBeenCalled();
         });
     });
 

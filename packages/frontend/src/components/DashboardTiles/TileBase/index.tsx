@@ -317,7 +317,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     ) : null;
 
     return (
-        <div ref={containerRef} className={styles.tileWrapper}>
+        <div
+            ref={containerRef}
+            className={styles.tileWrapper}
+            data-dashboard-tile-uuid={tile.uuid}
+        >
             {containerHovered && isEditMode && !minimal && (
                 <Paper
                     className={styles.dragHandleIcon}

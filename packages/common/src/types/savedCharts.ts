@@ -7,6 +7,7 @@ import { type ChartSourceType } from './content';
 import { type ContentDraftStaleness } from './contentAsCode/draftRebase';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type CompactOrAlias, type FieldId } from './field';
+import { type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type SavedMergeQuery } from './mergeQuery';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
@@ -1541,4 +1542,14 @@ export type ApiCreateSavedChartSchedulerResponse = {
 export type ApiExportChartImageResponse = {
     status: 'ok';
     results: string; // image URL
+};
+
+/** Runtime dashboard state needed to export one chart tile as it is visible. */
+export type ApiExportChartImageRequest = {
+    dashboardUuid?: string;
+    dashboardTileUuid?: string;
+    dashboardFilters?: DashboardFilters;
+    parameters?: ParametersValuesMap;
+    dateZoomGranularity?: string;
+    dateZoomControlGranularities?: Record<string, string>;
 };

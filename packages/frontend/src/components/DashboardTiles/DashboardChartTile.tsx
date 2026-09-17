@@ -676,6 +676,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         const performance = metadata?.performance;
 
         const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+        const dashboardFilters = useDashboardContext((c) => c.allFilters);
+        const dashboardParameters = useDashboardContext(
+            (c) => c.parameterValues,
+        );
+        const dashboardDateZoom = useDashboardContext(
+            (c) => c.dateZoomGranularity,
+        );
+        const dashboardDateZoomControlGranularities = useDashboardContext(
+            (c) => c.controlGranularities,
+        );
         const projectUuid = useProjectUuid();
         const projectUrlIdentifier = useProjectUrlIdentifier();
         const { canViewExplore, canViewUnderlyingData, canDrillInto } =
@@ -1996,6 +2006,22 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     chartName={chart.name}
                     isOpen={isImageExportModalOpen}
                     onClose={() => setIsImageExportModalOpen(false)}
+                    chartUuid={chart.uuid}
+                    projectUuid={projectUuid!}
+                    chartType={chart.chartConfig.type}
+                    dashboardContext={
+                        dashboardUuid
+                            ? {
+                                  dashboardUuid,
+                                  dashboardTileUuid: tileUuid,
+                                  dashboardFilters,
+                                  parameters: dashboardParameters,
+                                  dateZoomGranularity: dashboardDateZoom,
+                                  dateZoomControlGranularities:
+                                      dashboardDateZoomControlGranularities,
+                              }
+                            : undefined
+                    }
                 />
             </>
         );
@@ -2048,6 +2074,13 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
         executeQueryResponse: { metricQuery },
     } = dashboardChartReadyQuery;
     const projectUuid = useProjectUuid();
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    const dashboardFilters = useDashboardContext((c) => c.allFilters);
+    const dashboardParameters = useDashboardContext((c) => c.parameterValues);
+    const dashboardDateZoom = useDashboardContext((c) => c.dateZoomGranularity);
+    const dashboardDateZoomControlGranularities = useDashboardContext(
+        (c) => c.controlGranularities,
+    );
     const { canViewExplore } = useContextMenuPermissions({
         organizationUuid: chart.organizationUuid,
         projectUuid: chart.projectUuid,
@@ -2359,6 +2392,22 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                     chartName={chart.name}
                     isOpen={isImageExportModalOpen}
                     onClose={() => setIsImageExportModalOpen(false)}
+                    chartUuid={chart.uuid}
+                    projectUuid={projectUuid!}
+                    chartType={chart.chartConfig.type}
+                    dashboardContext={
+                        dashboardUuid
+                            ? {
+                                  dashboardUuid,
+                                  dashboardTileUuid: tileUuid,
+                                  dashboardFilters,
+                                  parameters: dashboardParameters,
+                                  dateZoomGranularity: dashboardDateZoom,
+                                  dateZoomControlGranularities:
+                                      dashboardDateZoomControlGranularities,
+                              }
+                            : undefined
+                    }
                 />
             )}
         </>

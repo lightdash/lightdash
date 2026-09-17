@@ -236,12 +236,6 @@ const rendererElement = (props?: Parameters<typeof DataAppVizRenderer>[0]) => (
 const renderRenderer = (props?: Parameters<typeof DataAppVizRenderer>[0]) =>
     render(rendererElement(props));
 
-const announceIframeAvailable = () => {
-    const iframeProps = mocks.iframePreview.mock.lastCall?.[0];
-    if (!iframeProps) throw new Error('Expected the iframe preview to render');
-    act(() => iframeProps.onScreenshotAvailabilityChange(true));
-};
-
 const loadIframe = () => {
     const iframeProps = mocks.iframePreview.mock.lastCall?.[0];
     if (!iframeProps) throw new Error('Expected the iframe preview to render');
@@ -683,8 +677,6 @@ describe('DataAppVizRenderer', () => {
             3,
         );
 
-        announceIframeAvailable();
-
         expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
     });
 
@@ -773,11 +765,43 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
             mocks.iframePreview.mock.calls.at(-1) as unknown[] | undefined
         )?.[0] as {
             onScreenshotAvailabilityChange?: (available: boolean) => void;
+            onSdkManifest?: (manifest: {
+                sdkVersion: string;
+                features: string[];
+            }) => void;
+            onVizRendered?: (renderId: string) => void;
+            dataAppVizRenderId?: string;
         };
 
     const announceScreenshotAvailable = () => {
         act(() => {
             lastIframeProps().onScreenshotAvailabilityChange?.(true);
+        });
+    };
+
+    const announceCurrentSdk = () => {
+        act(() => {
+            lastIframeProps().onSdkManifest?.({
+                sdkVersion: '2.234.0',
+                features: ['viz-rendered'],
+            });
+        });
+    };
+
+    const announceLegacySdk = () => {
+        act(() => {
+            lastIframeProps().onSdkManifest?.({
+                sdkVersion: '2.200.0',
+                features: [],
+            });
+        });
+    };
+
+    const announceVizRendered = (renderId?: string) => {
+        act(() => {
+            const id = renderId ?? lastIframeProps().dataAppVizRenderId;
+            if (!id) throw new Error('Expected a render id');
+            lastIframeProps().onVizRendered?.(id);
         });
     };
 
@@ -796,7 +820,7 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         mocks.trackingContext.current = { track: mocks.track };
     });
 
-    it('waits for iframe load after the SDK announces before signaling screenshot readiness', () => {
+    it('waits for the current context to paint after the SDK announces before signaling screenshot readiness', () => {
         const onScreenshotReady = vi.fn();
 
         renderRenderer({ onScreenshotReady });
@@ -807,49 +831,96 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         expect(onScreenshotReady).not.toHaveBeenCalled();
         loadIframe();
 
+        announceCurrentSdk();
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+
+        announceVizRendered();
+
         expect(onScreenshotReady).toHaveBeenCalledTimes(1);
     });
 
-    it('does not signal on announce while the viz context is missing, then signals once it arrives', () => {
+    it('does not accept a stale paint acknowledgement after the host pushes new context', () => {
         const onScreenshotReady = vi.fn();
-        mocks.vizContextOverrides.current = {
-            resultsData: { rows: undefined, setFetchAll: mocks.setFetchAll },
-        };
-
         const view = renderRenderer({ onScreenshotReady });
         loadIframe();
-        announceScreenshotAvailable();
+        announceCurrentSdk();
+        const staleRenderId = lastIframeProps().dataAppVizRenderId;
+        expect(staleRenderId).toBeDefined();
 
         expect(onScreenshotReady).not.toHaveBeenCalled();
 
-        mocks.vizContextOverrides.current = {};
+        mocks.vizContextOverrides.current = { colorPalette: ['#ff0000'] };
         view.rerender(rendererElement({ onScreenshotReady }));
+        const currentRenderId = lastIframeProps().dataAppVizRenderId;
+        expect(currentRenderId).not.toBe(staleRenderId);
 
+        announceVizRendered(staleRenderId);
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+
+        announceVizRendered(currentRenderId);
         expect(onScreenshotReady).toHaveBeenCalledTimes(1);
     });
 
-    it('waits for query loading to finish before signaling screenshot readiness', () => {
+    it('keeps a render id when an equivalent context is reallocated', () => {
+        const onScreenshotReady = vi.fn();
+        const view = renderRenderer({ onScreenshotReady });
+        loadIframe();
+        announceCurrentSdk();
+        const renderId = lastIframeProps().dataAppVizRenderId;
+
+        mocks.vizContextOverrides.current = { colorPalette: ['#7162FF'] };
+        view.rerender(rendererElement({ onScreenshotReady }));
+
+        expect(lastIframeProps().dataAppVizRenderId).toBe(renderId);
+        announceVizRendered(renderId);
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('requires a fresh post-paint acknowledgement after the iframe reloads', () => {
+        const onScreenshotReady = vi.fn();
+        const view = renderRenderer({ onScreenshotReady });
+        loadIframe();
+        announceCurrentSdk();
+        const previousRenderId = lastIframeProps().dataAppVizRenderId;
+
+        mocks.metadata.current = { ...readyMetadata(), version: 8 };
+        view.rerender(rendererElement({ onScreenshotReady }));
+        loadIframe();
+        announceCurrentSdk();
+        const currentRenderId = lastIframeProps().dataAppVizRenderId;
+
+        expect(currentRenderId).not.toBe(previousRenderId);
+        announceVizRendered(previousRenderId);
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+
+        announceVizRendered(currentRenderId);
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses the painted context once its host query has finished loading', () => {
         const onScreenshotReady = vi.fn();
         mocks.isLoading.current = true;
         const view = renderRenderer({ onScreenshotReady });
         loadIframe();
-        announceScreenshotAvailable();
+        announceCurrentSdk();
+        announceVizRendered();
         expect(onScreenshotReady).not.toHaveBeenCalled();
         mocks.isLoading.current = false;
         view.rerender(rendererElement({ onScreenshotReady }));
         expect(onScreenshotReady).toHaveBeenCalledTimes(1);
     });
 
-    it('signals after the fallback timeout when the sandbox never announces', () => {
+    it('signals after the fallback timeout only when a silent bundle is classified legacy', () => {
         vi.useFakeTimers();
         try {
             const onScreenshotReady = vi.fn();
 
             renderRenderer({ onScreenshotReady });
+            loadIframe();
 
-            act(() => {
-                vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS - 1);
-            });
+            void act(() =>
+                vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS - 1),
+            );
             expect(onScreenshotReady).not.toHaveBeenCalled();
 
             act(() => {
@@ -865,11 +936,32 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         }
     });
 
+    it('keeps an immediately identified legacy bundle on the same fallback deadline', () => {
+        vi.useFakeTimers();
+        try {
+            const onScreenshotReady = vi.fn();
+            renderRenderer({ onScreenshotReady });
+            announceLegacySdk();
+            loadIframe();
+
+            void act(() =>
+                vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS - 1),
+            );
+            expect(onScreenshotReady).not.toHaveBeenCalled();
+
+            void act(() => vi.advanceTimersByTime(1));
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('re-renders with a new callback identity do not reset the fallback timeout', () => {
         vi.useFakeTimers();
         try {
             const first = vi.fn();
             const view = renderRenderer({ onScreenshotReady: first });
+            loadIframe();
 
             act(() => {
                 vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS - 1000);
@@ -946,6 +1038,38 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         renderRenderer({ onScreenshotReady });
 
         expect(onScreenshotReady).not.toHaveBeenCalled();
+    });
+
+    it('signals ready when a pending render-metadata request settles with a generic error', () => {
+        const onScreenshotReady = vi.fn();
+        mocks.metadata.current = undefined;
+        const view = renderRenderer({ onScreenshotReady });
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+
+        mocks.metadataError.current = apiError(500);
+        view.rerender(rendererElement({ onScreenshotReady }));
+
+        expect(
+            screen.getByText('Custom chart type could not be loaded.'),
+        ).toBeInTheDocument();
+        expect(mocks.iframePreview).not.toHaveBeenCalled();
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('signals ready when a pending preview-token request settles with a generic error', () => {
+        const onScreenshotReady = vi.fn();
+        mocks.token.current = undefined;
+        const view = renderRenderer({ onScreenshotReady });
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+
+        mocks.tokenError.current = apiError(500);
+        view.rerender(rendererElement({ onScreenshotReady }));
+
+        expect(
+            screen.getByText('Custom chart type could not be loaded.'),
+        ).toBeInTheDocument();
+        expect(mocks.iframePreview).not.toHaveBeenCalled();
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
     });
 });
 

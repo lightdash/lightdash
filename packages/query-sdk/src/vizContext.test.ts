@@ -3,7 +3,7 @@ import {
     type DataAppVizContext,
     type DataAppVizOptionValue,
 } from '@lightdash/common';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Transport } from './types';
 import {
     buildVizDrillDown,
@@ -14,6 +14,7 @@ import {
     resolveValueColor,
     resolveVizFixtureUrl,
     toVizContextState,
+    scheduleVizRendered,
     type DataAppVizContextMessage,
     type VizContextOptionValue,
     type VizContextPivotDetails,
@@ -31,7 +32,7 @@ type IsAssignable<From, To> = From extends To ? true : false;
 
 const messageKeysMatchHost: Assert<
     Equal<
-        Exclude<keyof DataAppVizContextMessage, 'type'>,
+        Exclude<keyof DataAppVizContextMessage, 'type' | 'renderId'>,
         keyof DataAppVizContext
     >
 > = true;
@@ -47,7 +48,7 @@ const optionValueTypesMatchHost: Assert<
 const hostPayloadIsAcceptedBySdk: Assert<
     IsAssignable<
         DataAppVizContext,
-        Required<Omit<DataAppVizContextMessage, 'type'>>
+        Required<Omit<DataAppVizContextMessage, 'type' | 'renderId'>>
     >
 > = true;
 const inboundOptionsRemainOptional: Assert<
@@ -62,6 +63,9 @@ const inboundSeriesColorsRemainOptional: Assert<
 const inboundValueColorsRemainOptional: Assert<
     IsOptional<DataAppVizContextMessage, 'valueColors'>
 > = true;
+const inboundRenderIdRemainsOptional: Assert<
+    IsOptional<DataAppVizContextMessage, 'renderId'>
+> = true;
 void [
     messageKeysMatchHost,
     messageTypeMatchesHost,
@@ -71,6 +75,7 @@ void [
     inboundPaletteRemainsOptional,
     inboundSeriesColorsRemainOptional,
     inboundValueColorsRemainOptional,
+    inboundRenderIdRemainsOptional,
 ];
 
 const row: VizContextRow = {
@@ -117,6 +122,12 @@ const message = (
 });
 
 describe('toVizContextState', () => {
+    it('keeps the opaque host render id for its post-paint acknowledgement', () => {
+        expect(
+            toVizContextState(message({ renderId: 'render-42' })).renderId,
+        ).toBe('render-42');
+        expect(toVizContextState(message({})).renderId).toBeNull();
+    });
     it('carries every declared option value through, by type', () => {
         expect(
             toVizContextState(
@@ -241,6 +252,7 @@ describe('toVizContextState', () => {
                 }),
             ),
         ).toEqual({
+            renderId: null,
             fieldMapping: {},
             rows: [],
             options: {},
@@ -298,6 +310,49 @@ describe('toVizContextState', () => {
 
     it('defaults missing pivot metadata to null', () => {
         expect(toVizContextState(message({})).pivotDetails).toBeNull();
+    });
+});
+
+describe('viz rendered acknowledgement', () => {
+    const parent = { postMessage: vi.fn() } as unknown as Window;
+    const originalParent = Object.getOwnPropertyDescriptor(window, 'parent');
+
+    afterEach(() => {
+        if (originalParent)
+            Object.defineProperty(window, 'parent', originalParent);
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+    });
+
+    it('acknowledges the matching host context after two animation frames', () => {
+        Object.defineProperty(window, 'parent', {
+            configurable: true,
+            value: parent,
+        });
+        const frames: FrameRequestCallback[] = [];
+        vi.stubGlobal(
+            'requestAnimationFrame',
+            vi.fn((callback: FrameRequestCallback) => {
+                frames.push(callback);
+                return frames.length;
+            }),
+        );
+        vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+        scheduleVizRendered(window, 'current-context');
+        expect(frames).toHaveLength(1);
+
+        frames.shift()?.(0);
+        expect(parent.postMessage).not.toHaveBeenCalledWith(
+            { type: 'lightdash:sdk:viz-rendered', renderId: 'current-context' },
+            '*',
+        );
+
+        frames.shift()?.(16);
+        expect(parent.postMessage).toHaveBeenCalledWith(
+            { type: 'lightdash:sdk:viz-rendered', renderId: 'current-context' },
+            '*',
+        );
     });
 });
 
