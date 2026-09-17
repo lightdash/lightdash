@@ -191,6 +191,7 @@ const workspaceStub = (
         latest: readyVersion,
         latestReadyVersion: 1,
         hasOrigin: true,
+        currentThreadNumber: null,
         hasEarlier: false,
         isLoading: false,
         isError: false,
@@ -240,6 +241,7 @@ const newTypeWorkspace = () =>
             latest: null,
             latestReadyVersion: null,
             hasOrigin: false,
+            currentThreadNumber: null,
         },
     });
 

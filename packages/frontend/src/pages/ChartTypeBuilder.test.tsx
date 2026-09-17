@@ -193,6 +193,7 @@ const historyStub = (
     latest: versions.length ? versions[0] : null,
     latestReadyVersion,
     hasOrigin: versions.some((v) => v.version === 1),
+    currentThreadNumber: null,
     hasEarlier: false,
     isLoading: false,
     isError: false,

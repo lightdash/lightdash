@@ -240,6 +240,9 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                             history.isFetchingEarlier
                                         }
                                         fetchEarlier={history.fetchEarlier}
+                                        currentThreadNumber={
+                                            history.currentThreadNumber
+                                        }
                                     />
                                 </Box>
                             )}

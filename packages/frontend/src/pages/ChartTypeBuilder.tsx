@@ -230,6 +230,7 @@ const ChartTypeBuilder: FC = () => {
                 latestReadyVersion={history.latestReadyVersion}
                 hasHistory={workspace.hasHistory}
                 isHistoryOpen={isHistoryOpen}
+                isBuilding={isBuilding}
                 upgrade={
                     activeVizUuid && history.latestReadyVersion !== null
                         ? { ...workspace.sdkUpgradeOffer, disabled: isBuilding }
