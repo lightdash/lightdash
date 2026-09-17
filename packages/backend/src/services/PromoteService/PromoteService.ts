@@ -1271,23 +1271,11 @@ export class PromoteService extends BaseService {
             const upstreamAppVersion = appVersionMap.get(
                 chartConfig.config.dataAppVizUuid,
             );
-            // Keep a skipped viz's original reference, but never carry its
-            // project-local version number across.
+            // A skipped viz has no upstream replacement. Keep the complete
+            // binding so a placeholder chart remains pinned to the version it
+            // was saved with if that original reference becomes available.
             if (!upstreamAppUuid || upstreamAppVersion === undefined) {
-                const {
-                    dataAppVizVersion: _dataAppVizVersion,
-                    ...configWithoutVersion
-                } = chartConfig.config;
-                return {
-                    ...chartChange,
-                    data: {
-                        ...chartChange.data,
-                        chartConfig: {
-                            ...chartConfig,
-                            config: configWithoutVersion,
-                        },
-                    },
-                };
+                return chartChange;
             }
             return {
                 ...chartChange,

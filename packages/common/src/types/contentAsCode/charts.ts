@@ -37,6 +37,12 @@ export type DataAppVizChartAsCode = Omit<
 > & {
     dataAppVizSlug?: string;
     dataAppVizUuid?: string;
+    /**
+     * The version of the project chart type this saved chart renders.
+     * @isInt
+     * @minimum 1
+     */
+    dataAppVizVersion?: number;
 };
 
 export type DataAppVizChartConfigAsCode = {
