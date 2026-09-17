@@ -46218,6 +46218,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['sweepStaleAppLocks'] },
                 { dataType: 'enum', enums: ['sweepStaleAiWritebackRuns'] },
                 { dataType: 'enum', enums: ['sweepStaleAiDeepResearchRuns'] },
+                { dataType: 'enum', enums: ['sweepStaleAiEvalRuns'] },
                 { dataType: 'enum', enums: ['sweepAiAgentMemoryThreads'] },
                 { dataType: 'enum', enums: ['aiAgentMemoryDistill'] },
                 { dataType: 'enum', enums: ['consolidateAiAgentMemories'] },

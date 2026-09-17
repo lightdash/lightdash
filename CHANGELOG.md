@@ -1,3 +1,14 @@
+## [2.247.1](https://github.com/lightdash/lightdash/compare/2.247.0...2.247.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* **ai-evals:** fail evaluation results stranded by a dead or restarted worker ([#29391](https://github.com/lightdash/lightdash/issues/29391)) ([744e5f4](https://github.com/lightdash/lightdash/commit/744e5f480e7683bfcd6ea2fc866e105388500f64)), closes [#29390](https://github.com/lightdash/lightdash/issues/29390)
+* **frontend:** tighten verified content table columns ([#29403](https://github.com/lightdash/lightdash/issues/29403)) ([9f89073](https://github.com/lightdash/lightdash/commit/9f890737e6c9de5642b315c2d60bdf26241b66a4))
+* identify unused dimensions in chart warnings ([#29354](https://github.com/lightdash/lightdash/issues/29354)) ([bed1457](https://github.com/lightdash/lightdash/commit/bed14572eb8b94ad8c7a39e36f0f636ea558d932))
+* **scheduler:** drain in-flight jobs before releasing them on shutdown ([#29390](https://github.com/lightdash/lightdash/issues/29390)) ([2777cd3](https://github.com/lightdash/lightdash/commit/2777cd3b34dee4fd23c56387513f129defd68d2e)), closes [#27168](https://github.com/lightdash/lightdash/issues/27168) [#27168](https://github.com/lightdash/lightdash/issues/27168) [#27168](https://github.com/lightdash/lightdash/issues/27168)
+* show palette swatches in custom chart colour options ([#29335](https://github.com/lightdash/lightdash/issues/29335)) ([243558e](https://github.com/lightdash/lightdash/commit/243558ea629b3b1bc944b1828b75cf2ee7149336))
+
 # [2.247.0](https://github.com/lightdash/lightdash/compare/2.246.0...2.247.0) (2026-09-17)
 
 
