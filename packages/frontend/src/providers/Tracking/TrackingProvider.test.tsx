@@ -20,6 +20,13 @@ vi.mock('rudder-sdk-js', () => ({
 
 describe('TrackingProvider', () => {
     beforeEach(() => vi.clearAllMocks());
+
+    it('still reports a missing provider rather than silently disabling tracking', () => {
+        expect(() => renderHook(() => useTracking())).toThrow(
+            'useTracking must be used within a TrackingProvider',
+        );
+    });
+
     it.each([false, true])(
         'supports disabled tracking consumers (nested: %s) without sending analytics',
         (nested) => {
