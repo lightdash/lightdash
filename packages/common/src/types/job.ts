@@ -26,6 +26,7 @@ export enum JobStepType {
     TESTING_ADAPTOR = 'TESTING_ADAPTOR',
     COMPILING = 'COMPILING',
     CREATING_PROJECT = 'CREATING_PROJECT',
+    COPYING_PREVIEW_CONTENT = 'COPYING_PREVIEW_CONTENT',
     CACHING = 'CACHING',
     SYNCING_CONTENT = 'SYNCING_CONTENT',
 }
@@ -39,6 +40,7 @@ export const JobLabels = {
     TESTING_ADAPTOR: 'Testing adaptor',
     COMPILING: 'Compiling',
     CREATING_PROJECT: 'Creating project',
+    COPYING_PREVIEW_CONTENT: 'Copying preview content',
     CACHING: 'Saving cache',
     SYNCING_CONTENT: 'Syncing content from the repo',
 };
