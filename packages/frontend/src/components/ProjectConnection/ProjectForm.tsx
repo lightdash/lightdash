@@ -1,4 +1,9 @@
-import { ProjectType, DbtProjectType } from '@lightdash/common';
+import {
+    ProjectType,
+    DbtProjectType,
+    type DbtProjectConfig,
+    type Project,
+} from '@lightdash/common';
 import { TextInput, Flex, Stack, Text, Title, Avatar } from '@mantine/core';
 import { type FC } from 'react';
 import { useProjectConnectionLayout } from '../../hooks/useConnections';
@@ -23,6 +28,21 @@ interface Props {
     isProjectUpdate?: boolean;
     warehouseOnly?: boolean;
 }
+
+const shouldShowConnectionsPanel = (
+    savedProject: Project | undefined,
+    warehouseOnly: boolean,
+    isConnectionsPanelUsed: boolean,
+) =>
+    savedProject !== undefined &&
+    savedProject.type !== ProjectType.PREVIEW &&
+    !warehouseOnly &&
+    isConnectionsPanelUsed;
+
+const isNativeSemanticLayer = (dbt: DbtProjectConfig) =>
+    (dbt.type === DbtProjectType.GITHUB ||
+        dbt.type === DbtProjectType.BITBUCKET) &&
+    dbt.semanticLayer === 'lightdash';
 
 const WarehouseConnectionCard: FC<{
     disabled: boolean;
@@ -84,18 +104,15 @@ export const ProjectForm: FC<Props> = ({
 }) => {
     const form = useFormContext();
     const { savedProject } = useProjectFormContext();
-    const { showWarehouseForm } = useProjectConnectionLayout(
+    const { isConnectionsPanelUsed } = useProjectConnectionLayout(
         savedProject?.projectUuid,
     );
-    // The panel decides for itself whether the project may hold several.
-    const showConnectionsPanel =
-        savedProject !== undefined &&
-        savedProject.type !== ProjectType.PREVIEW &&
-        !warehouseOnly;
-    const isNative =
-        (form.values.dbt.type === DbtProjectType.GITHUB ||
-            form.values.dbt.type === DbtProjectType.BITBUCKET) &&
-        form.values.dbt.semanticLayer === 'lightdash';
+    const showConnectionsPanel = shouldShowConnectionsPanel(
+        savedProject,
+        warehouseOnly,
+        isConnectionsPanelUsed,
+    );
+    const isNative = isNativeSemanticLayer(form.values.dbt);
 
     return (
         <Stack gap="xl">
@@ -117,7 +134,7 @@ export const ProjectForm: FC<Props> = ({
                 </SettingsGridCard>
             )}
 
-            {showWarehouseForm && (
+            {!showConnectionsPanel && (
                 <WarehouseConnectionCard
                     disabled={disabled}
                     isProjectUpdate={isProjectUpdate}

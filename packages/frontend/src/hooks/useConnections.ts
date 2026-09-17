@@ -95,17 +95,12 @@ export const useConnection = (projectUuid: string, connectionUuid?: string) =>
         enabled: !!connectionUuid,
     });
 
-/**
- * How the project settings page should present connections. One connection is
- * still described by the single warehouse form; several are not.
- */
 export const useProjectConnectionLayout = (projectUuid?: string) => {
     const { data } = useConnections(projectUuid);
-    const connectionCount = data?.connections.length ?? 0;
-    return {
-        showWarehouseForm: connectionCount <= 1,
-        hasSeveralConnections: connectionCount > 1,
-    };
+    const isConnectionsPanelUsed =
+        data !== undefined &&
+        (data.capabilities.canAddConnection || data.connections.length > 1);
+    return { isConnectionsPanelUsed };
 };
 
 // A connection change moves the project payload between its single-connection
