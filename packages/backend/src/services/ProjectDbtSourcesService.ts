@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    AlreadyExistsError,
     ApiCreateProjectDbtSource,
     ApiUpdateProjectDbtSource,
     DbtProjectConfig,
@@ -8,7 +7,6 @@ import {
     EMPTY_WAREHOUSE_LOCATION,
     ForbiddenError,
     getDbtEnvironmentVariableKeyError,
-    getWarehouseLocation,
     normalizeWarehouseLocation,
     ParameterError,
     ProjectDbtSource,
@@ -41,11 +39,6 @@ const assertProjectDbtSourceName = (name: string): void => {
     if (validationError) throw new ParameterError(validationError);
 };
 
-/**
- * Manages the additional dbt sources connected to a project (PROD-7484). The
- * primary source is the project's own dbt_connection and is listed (synthesised)
- * but cannot be added or removed here.
- */
 export class ProjectDbtSourcesService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -112,6 +105,8 @@ export class ProjectDbtSourcesService extends BaseService {
     ): ProjectDbtSourceSummary {
         return {
             projectDbtSourceUuid: source.projectDbtSourceUuid,
+            connectionUuid: source.connectionUuid,
+            namespacePrefix: source.namespacePrefix,
             name: source.name,
             isPrimary: source.isPrimary,
             precedence: source.precedence,
@@ -201,26 +196,9 @@ export class ProjectDbtSourcesService extends BaseService {
         projectUuid: string,
     ): Promise<ProjectDbtSourceSummary[]> {
         await this.checkProjectAccess(account, projectUuid, 'view');
-        const [project, identity, sources] = await Promise.all([
-            this.projectModel.get(projectUuid),
-            this.projectModel.getDbtSourceIdentity(projectUuid),
-            this.projectDbtSourcesModel.getSources(projectUuid),
-        ]);
-        // The primary source is the project's own dbt_connection (precedence 0),
-        // synthesised here rather than stored as a row.
-        const primary: ProjectDbtSourceSummary = {
-            projectDbtSourceUuid: identity.dbtSourceUuid,
-            name: identity.dbtSourceName,
-            isPrimary: true,
-            precedence: 0,
-            type: project.dbtConnection.type,
-            warehouseLocation: project.warehouseConnection
-                ? getWarehouseLocation(project.warehouseConnection)
-                : EMPTY_WAREHOUSE_LOCATION,
-            hasCredentialError: false,
-            ...ProjectDbtSourcesService.gitIdentity(project.dbtConnection),
-        };
-        return [primary, ...sources.map(ProjectDbtSourcesService.toSummary)];
+        const sources =
+            await this.projectDbtSourcesModel.getSources(projectUuid);
+        return sources.map(ProjectDbtSourcesService.toSummary);
     }
 
     async createProjectDbtSource(
@@ -247,30 +225,42 @@ export class ProjectDbtSourcesService extends BaseService {
         ProjectDbtSourcesService.validateDbtEnvironmentVariables(
             data.dbtConnection,
         );
+        if (
+            !(await this.projectDbtSourcesModel.connectionBelongsToProject(
+                projectUuid,
+                data.connectionUuid,
+            ))
+        ) {
+            throw new ParameterError(
+                'The selected connection does not belong to this project',
+            );
+        }
         const warehouseLocation = await this.resolveWarehouseLocation(
             projectUuid,
             data.warehouseLocation,
         );
-        const identity =
-            await this.projectModel.getDbtSourceIdentity(projectUuid);
-        if (data.name === identity.dbtSourceName) {
-            throw new AlreadyExistsError(
-                `A dbt source named "${identity.dbtSourceName}" already exists on this project`,
-            );
-        }
         const existing =
             await this.projectDbtSourcesModel.getSources(projectUuid);
-        // Append after the highest existing precedence (primary is 0).
-        const precedence =
-            existing.reduce(
-                (max, source) => Math.max(max, source.precedence),
-                0,
-            ) + 1;
+        const isPrimary = existing.length === 0;
+        const namespacePrefix = isPrimary
+            ? ''
+            : data.namespacePrefix?.trim() || data.name;
+        if (namespacePrefix) {
+            assertProjectDbtSourceName(namespacePrefix);
+        }
+        const precedence = isPrimary
+            ? 0
+            : existing.reduce(
+                  (max, source) => Math.max(max, source.precedence),
+                  0,
+              ) + 1;
         const created = await this.projectDbtSourcesModel.createSource(
             projectUuid,
             {
+                connectionUuid: data.connectionUuid,
+                namespacePrefix,
                 name: data.name,
-                isPrimary: false,
+                isPrimary,
                 precedence,
                 dbtConnection: data.dbtConnection,
                 warehouseLocation:
@@ -283,7 +273,7 @@ export class ProjectDbtSourcesService extends BaseService {
             properties: {
                 organizationId: organizationUuid,
                 projectId: projectUuid,
-                dbtSourceCount: existing.length + 2,
+                dbtSourceCount: existing.length + 1,
             },
         });
         return ProjectDbtSourcesService.toSummary(created);
@@ -338,42 +328,6 @@ export class ProjectDbtSourcesService extends BaseService {
         data: ApiUpdateProjectDbtSource,
     ): Promise<ProjectDbtSourceSummary> {
         await this.checkProjectAccess(account, projectUuid, 'manage');
-        const identity =
-            await this.projectModel.getDbtSourceIdentity(projectUuid);
-        if (projectDbtSourceUuid === identity.dbtSourceUuid) {
-            if (
-                data.name === undefined ||
-                data.dbtConnection !== undefined ||
-                data.warehouseLocation !== undefined
-            ) {
-                throw new ParameterError(
-                    'Only the primary dbt source name can be updated here',
-                );
-            }
-            assertProjectDbtSourceName(data.name);
-            const [project, additionalSources] = await Promise.all([
-                this.projectModel.get(projectUuid),
-                this.projectDbtSourcesModel.getSources(projectUuid),
-            ]);
-            if (additionalSources.some((source) => source.name === data.name)) {
-                throw new AlreadyExistsError(
-                    `A dbt source named "${data.name}" already exists on this project`,
-                );
-            }
-            await this.projectModel.updateDbtSourceName(projectUuid, data.name);
-            return {
-                projectDbtSourceUuid: identity.dbtSourceUuid,
-                name: data.name,
-                isPrimary: true,
-                precedence: 0,
-                type: project.dbtConnection.type,
-                warehouseLocation: project.warehouseConnection
-                    ? getWarehouseLocation(project.warehouseConnection)
-                    : EMPTY_WAREHOUSE_LOCATION,
-                hasCredentialError: false,
-                ...ProjectDbtSourcesService.gitIdentity(project.dbtConnection),
-            };
-        }
         const existing =
             await this.projectDbtSourcesModel.getSource(projectDbtSourceUuid);
         if (existing.projectUuid !== projectUuid) {
@@ -381,13 +335,36 @@ export class ProjectDbtSourcesService extends BaseService {
                 'This dbt source does not belong to the project',
             );
         }
+        if (
+            data.namespacePrefix !== undefined &&
+            data.namespacePrefix !== existing.namespacePrefix
+        ) {
+            throw new ParameterError(
+                'The namespace prefix cannot be changed after source creation',
+            );
+        }
+        if (
+            data.connectionUuid !== undefined &&
+            !(await this.projectDbtSourcesModel.connectionBelongsToProject(
+                projectUuid,
+                data.connectionUuid,
+            ))
+        ) {
+            throw new ParameterError(
+                'The selected connection does not belong to this project',
+            );
+        }
+        if (
+            existing.isPrimary &&
+            (data.dbtConnection !== undefined ||
+                data.warehouseLocation !== undefined)
+        ) {
+            throw new ParameterError(
+                'Only the primary dbt source name and connection can be updated here',
+            );
+        }
         if (data.name !== undefined) {
             assertProjectDbtSourceName(data.name);
-            if (data.name === identity.dbtSourceName) {
-                throw new AlreadyExistsError(
-                    `A dbt source named "${identity.dbtSourceName}" already exists on this project`,
-                );
-            }
         }
         // GitHub-only for now, matching createProjectDbtSource.
         if (
@@ -422,11 +399,15 @@ export class ProjectDbtSourcesService extends BaseService {
         const updated = await this.projectDbtSourcesModel.updateSource(
             projectDbtSourceUuid,
             {
+                connectionUuid: data.connectionUuid,
                 name: data.name,
                 dbtConnection,
                 warehouseLocation,
             },
         );
+        if (existing.isPrimary && data.name !== undefined) {
+            await this.projectModel.updateDbtSourceName(projectUuid, data.name);
+        }
         return ProjectDbtSourcesService.toSummary(updated);
     }
 
@@ -447,6 +428,11 @@ export class ProjectDbtSourcesService extends BaseService {
                 'This dbt source does not belong to the project',
             );
         }
+        if (source.isPrimary) {
+            throw new ParameterError(
+                'The primary dbt source cannot be removed',
+            );
+        }
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         await this.projectDbtSourcesModel.deleteSource(projectDbtSourceUuid);
@@ -456,7 +442,7 @@ export class ProjectDbtSourcesService extends BaseService {
             properties: {
                 organizationId: organizationUuid,
                 projectId: projectUuid,
-                dbtSourceCount: sources.length,
+                dbtSourceCount: sources.length - 1,
             },
         });
     }
