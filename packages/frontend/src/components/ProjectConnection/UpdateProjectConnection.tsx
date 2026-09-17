@@ -6,9 +6,10 @@ import {
     type CreateWarehouseCredentials,
     type Project,
 } from '@lightdash/common';
-import { Alert, Anchor, Box, Button, Flex, Card } from '@mantine/core';
+import { Alert, Anchor, Box, Button, Card, Flex, Tooltip } from '@mantine/core';
 import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useProjectConnectionLayout } from '../../hooks/useConnections';
 import {
     useProject,
     useTestWarehouseConnectionMutation,
@@ -57,6 +58,9 @@ const UpdateProjectConnection: FC<{
         sortDirection: 'desc',
     });
     const latestCompilationLog = compiledLogs?.pages[0]?.data[0];
+    // A multi-connection project has no single warehouseConnection to send, so
+    // this form cannot describe it. Connections are edited in their own list.
+    const { hasSeveralConnections } = useProjectConnectionLayout(projectUuid);
     const warehouseType: WarehouseTypes =
         project.warehouseConnection?.type || WarehouseTypes.SNOWFLAKE;
 
@@ -212,15 +216,17 @@ const UpdateProjectConnection: FC<{
                             )}
                         </Box>
                         <Flex gap="sm" className={classes.actions}>
-                            <Button
-                                variant="default"
-                                loading={isTestingConnection}
-                                disabled={isDisabled || isTestingConnection}
-                                onClick={handleTestConnection}
-                            >
-                                Test connection
-                            </Button>
-                            {showSaveCredentials && (
+                            {!hasSeveralConnections && (
+                                <Button
+                                    variant="default"
+                                    loading={isTestingConnection}
+                                    disabled={isDisabled || isTestingConnection}
+                                    onClick={handleTestConnection}
+                                >
+                                    Test connection
+                                </Button>
+                            )}
+                            {showSaveCredentials && !hasSeveralConnections && (
                                 <Button
                                     variant="default"
                                     loading={isSavingCredentials}
@@ -230,16 +236,26 @@ const UpdateProjectConnection: FC<{
                                     Save credentials
                                 </Button>
                             )}
-                            <Button
-                                type="submit"
-                                loading={isSaving}
-                                disabled={isDisabled}
+                            <Tooltip
+                                w={300}
+                                disabled={!hasSeveralConnections}
+                                label="This project has several connections. Edit them in the connections list above."
                             >
-                                {project.dbtConnection?.type ===
-                                DbtProjectType.NONE
-                                    ? 'Save and test'
-                                    : 'Test & deploy project'}
-                            </Button>
+                                <div>
+                                    <Button
+                                        type="submit"
+                                        loading={isSaving}
+                                        disabled={
+                                            isDisabled || hasSeveralConnections
+                                        }
+                                    >
+                                        {project.dbtConnection?.type ===
+                                        DbtProjectType.NONE
+                                            ? 'Save and test'
+                                            : 'Test & deploy project'}
+                                    </Button>
+                                </div>
+                            </Tooltip>
                         </Flex>
                     </Card>
                 </FormContainer>
