@@ -9,6 +9,7 @@ import {
 import { pickEmbedProject } from './embedProject';
 
 const project: Project = {
+    connections: [],
     organizationUuid: 'org-uuid',
     projectUuid: 'project-uuid',
     slug: 'jaffle-shop',
@@ -63,6 +64,7 @@ describe('pickEmbedProject', () => {
                 type: WarehouseTypes.SNOWFLAKE,
                 startOfWeek: WeekDay.SUNDAY,
             },
+            connections: [],
             dbtVersion: SupportedDbtVersions.V1_11,
             schedulerTimezone: 'UTC',
             queryTimezone: 'Asia/Tokyo',

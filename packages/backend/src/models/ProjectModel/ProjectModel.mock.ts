@@ -90,6 +90,17 @@ export const expectedTablesConfiguration: TablesConfiguration = {
 };
 
 export const expectedProject: Project = {
+    connections: [
+        {
+            connectionUuid: 'connection-uuid',
+            name: 'BigQuery',
+            warehouseType: WarehouseTypes.BIGQUERY,
+            organizationWarehouseCredentialsUuid: null,
+            listAllDatabases: false,
+            additionalDatabases: [],
+            createdAt: new Date('2026-09-17T12:00:00Z'),
+        },
+    ],
     organizationUuid: 'organizationUuid',
     projectUuid,
     slug: 'my-project',
