@@ -1,3 +1,10 @@
+## [2.256.1](https://github.com/lightdash/lightdash/compare/2.256.0...2.256.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* **explorer:** make sidebar close visible and quiet Change ([#29485](https://github.com/lightdash/lightdash/issues/29485)) ([335b66f](https://github.com/lightdash/lightdash/commit/335b66f03f138f2a9b9cffbd09ef08e6c5114d35))
+
 # [2.256.0](https://github.com/lightdash/lightdash/compare/2.255.3...2.256.0) (2026-09-17)
 
 
