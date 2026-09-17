@@ -21,12 +21,15 @@ import { TablesPanel } from './TablesPanel';
 export const Sidebar: FC = () => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const connectionUuid = useAppSelector(
+        (state) => state.sqlRunner.connectionUuid,
+    );
 
     const {
         mutate: updateTables,
         isLoading,
         error,
-    } = useRefreshTables({ projectUuid });
+    } = useRefreshTables({ projectUuid, connectionUuid });
 
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,

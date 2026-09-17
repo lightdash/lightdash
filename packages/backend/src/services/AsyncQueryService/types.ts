@@ -100,6 +100,7 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
+    resolvedConnectionUuid?: string;
     documentQueryContext?: DocumentQueryContext;
     metricQuery: MetricQuery;
     dataAppPreviewToken?: string;
@@ -186,6 +187,7 @@ export type PreAggregationRoute = {
 };
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
+    connectionUuid?: string;
     sql: string;
     limit?: number;
     pivotConfiguration?: PivotConfiguration;
@@ -274,6 +276,7 @@ export const SCHEDULER_POLLING_OPTIONS: PollingOptions = {
 };
 
 export type RunAsyncWarehouseQueryArgs = {
+    connectionUuid?: string | null;
     projectUuid: string;
     userUuid: string;
     organizationUuid: string;

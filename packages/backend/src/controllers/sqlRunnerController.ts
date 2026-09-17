@@ -23,6 +23,7 @@ import {
     SqlRunnerPivotQueryBody,
     UpdateSqlChart,
     UpdateVirtualViewPayload,
+    UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -70,6 +71,7 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Query() database?: string,
+        @Query() connectionUuid?: UUID,
     ): Promise<ApiWarehouseTablesCatalog> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -81,6 +83,7 @@ export class SqlRunnerController extends BaseController {
                     toSessionUser(req.account),
                     projectUuid,
                     database,
+                    connectionUuid,
                 ),
         };
     }
@@ -96,6 +99,7 @@ export class SqlRunnerController extends BaseController {
     async getDatabases(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() connectionUuid?: UUID,
     ): Promise<ApiWarehouseDatabaseListing> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -103,7 +107,11 @@ export class SqlRunnerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getWarehouseDatabases(toSessionUser(req.account), projectUuid),
+                .getWarehouseDatabases(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    connectionUuid,
+                ),
         };
     }
 
@@ -125,6 +133,7 @@ export class SqlRunnerController extends BaseController {
         @Query() tableName?: string,
         @Query() schemaName?: string,
         @Query() databaseName?: string,
+        @Query() connectionUuid?: UUID,
     ): Promise<ApiWarehouseTableFields> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -140,6 +149,7 @@ export class SqlRunnerController extends BaseController {
                     tableName,
                     schemaName,
                     databaseName,
+                    connectionUuid,
                 ),
         };
     }
@@ -180,6 +190,8 @@ export class SqlRunnerController extends BaseController {
                     projectUuid,
                     body.sql,
                     body.limit,
+                    undefined,
+                    body.connectionUuid,
                 ),
         };
     }
@@ -593,6 +605,7 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Query() database?: string,
+        @Query() connectionUuid?: UUID,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -602,6 +615,7 @@ export class SqlRunnerController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 database,
+                connectionUuid,
             );
         return {
             status: 'ok',

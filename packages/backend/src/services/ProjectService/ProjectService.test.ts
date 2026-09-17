@@ -39,6 +39,7 @@ import {
     ParameterError,
     PreAggregateMissReason,
     ProjectType,
+    QueryExecutionContext,
     RedshiftAuthenticationType,
     RequestMethod,
     SessionUser,
@@ -49,6 +50,7 @@ import {
     WarehouseTypes,
     WeekDay,
     type ChartSummary,
+    type Connection,
     type CopyPreviewContentPayload,
     type CreateBigqueryCredentials,
     type CreateProject,
@@ -73,7 +75,10 @@ import {
     type WarehouseTables,
     type WarehouseTablesCatalog,
 } from '@lightdash/common';
-import { warehouseClientFromCredentials } from '@lightdash/warehouses';
+import {
+    SshTunnel,
+    warehouseClientFromCredentials,
+} from '@lightdash/warehouses';
 import { Readable } from 'stream';
 import { gunzipSync } from 'zlib';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -122,7 +127,10 @@ import {
     METRIC_QUERY,
     warehouseClientMock,
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
-import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
+import {
+    QueryComposer,
+    type QueryComposerContext,
+} from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -225,8 +233,33 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
     warehouseClientFromCredentials: vi.fn(() => warehouseClientMock),
 }));
 
+const runtimeConnection: Connection = {
+    connectionUuid: 'connection-uuid',
+    name: 'Warehouse',
+    warehouseType: WarehouseTypes.POSTGRES,
+    organizationWarehouseCredentialsUuid: null,
+    listAllDatabases: false,
+    additionalDatabases: [],
+    createdAt: new Date('2026-01-01'),
+};
+
 const projectModel = {
     duplicateContent: vi.fn(async () => ({ spaceMapping: {} })),
+    createVirtualView: vi.fn<ProjectModel['createVirtualView']>(
+        async () => virtualExplore,
+    ),
+    updateVirtualView: vi.fn<ProjectModel['updateVirtualView']>(
+        async () => virtualExplore,
+    ),
+    resolveConnection: vi.fn<ProjectModel['resolveConnection']>(
+        async (_projectUuid, connectionUuid) => ({
+            ...runtimeConnection,
+            connectionUuid: connectionUuid ?? runtimeConnection.connectionUuid,
+        }),
+    ),
+    getExploreConnectionUuid: vi.fn<ProjectModel['getExploreConnectionUuid']>(
+        async () => runtimeConnection.connectionUuid,
+    ),
     getCompileConnections: vi.fn(async () => [
         { connectionUuid: 'dbt_project-connection-uuid', name: 'Warehouse' },
     ]),
@@ -743,6 +776,7 @@ describe('ProjectService', () => {
                     testService as unknown as {
                         getWarehouseCredentials: () => Promise<
                             CreateWarehouseCredentials & {
+                                connectionUuid: string;
                                 userWarehouseCredentialsUuid?: string;
                             }
                         >;
@@ -751,6 +785,7 @@ describe('ProjectService', () => {
                 )
                 .mockResolvedValue({
                     ...credentials,
+                    connectionUuid: runtimeConnection.connectionUuid,
                     userWarehouseCredentialsUuid,
                 });
             const getWarehouseClient = vi
@@ -871,10 +906,14 @@ describe('ProjectService', () => {
                     'finance',
                 ),
             ).resolves.toEqual(fetchedCatalog);
-            expect(harness.getProjectTables).toHaveBeenCalledWith(projectUuid, {
-                listedDatabase: 'finance',
-                includeLegacyRows: false,
-            });
+            expect(harness.getProjectTables).toHaveBeenCalledWith(
+                projectUuid,
+                {
+                    listedDatabase: 'finance',
+                    includeLegacyRows: false,
+                },
+                runtimeConnection.connectionUuid,
+            );
             expect(harness.getTablesForDatabase).toHaveBeenCalledWith(
                 additionalDatabase,
             );
@@ -886,6 +925,7 @@ describe('ProjectService', () => {
                     includeLegacyRows: false,
                     clearAll: false,
                 },
+                runtimeConnection.connectionUuid,
             );
         });
 
@@ -910,6 +950,7 @@ describe('ProjectService', () => {
                     includeLegacyRows: true,
                     clearAll: true,
                 },
+                runtimeConnection.connectionUuid,
             );
         });
 
@@ -4696,6 +4737,7 @@ describe('ProjectService', () => {
 
                     expect(await getCredentials()).toEqual({
                         ...sharedCredentials,
+                        connectionUuid: runtimeConnection.connectionUuid,
                         userWarehouseCredentialsUuid: undefined,
                     });
                     expect(findPersonalCredentials).not.toHaveBeenCalled();
@@ -4746,6 +4788,7 @@ describe('ProjectService', () => {
             test('uses the shared connection when no personal credentials exist', async () => {
                 expect(await getCredentials()).toEqual({
                     ...projectCredentials,
+                    connectionUuid: runtimeConnection.connectionUuid,
                     userWarehouseCredentialsUuid: undefined,
                 });
             });
@@ -4807,6 +4850,7 @@ describe('ProjectService', () => {
             test('uses the shared connection for embedded users', async () => {
                 expect(await getCredentials(false)).toEqual({
                     ...projectCredentials,
+                    connectionUuid: runtimeConnection.connectionUuid,
                     userWarehouseCredentialsUuid: undefined,
                 });
                 expect(findPersonalCredentials).not.toHaveBeenCalled();
@@ -6925,6 +6969,44 @@ describe('ProjectService', () => {
             );
         });
 
+        test('isolates autocomplete entries when identical SQL moves between connections', async () => {
+            const testService = getMockedProjectService({
+                ...lightdashConfigMock,
+                results: {
+                    ...lightdashConfigMock.results,
+                    autocompleteEnabled: true,
+                    cacheStateTimeSeconds: 86400,
+                },
+            });
+            projectModel.getWarehouseCredentialsForProject
+                .mockResolvedValueOnce(warehouseClientMock.credentials)
+                .mockResolvedValueOnce(warehouseClientMock.credentials);
+            const lookups: string[] = [];
+            const cache = buildS3CacheMock(lookups, new Map());
+            (
+                testService as unknown as { s3CacheClient: typeof cache }
+            ).s3CacheClient = cache;
+            projectModel.getExploreConnectionUuid
+                .mockResolvedValueOnce('connection-a')
+                .mockResolvedValueOnce('connection-b');
+            const search = () =>
+                testService.searchFieldUniqueValues(
+                    user,
+                    projectUuid,
+                    'a',
+                    'a_dim1',
+                    'test',
+                    10,
+                    undefined,
+                    false,
+                );
+            await search();
+            await search();
+            expect(lookups).toHaveLength(2);
+            expect(lookups[0]).not.toBe(lookups[1]);
+            expect(cache.uploadResults).toHaveBeenCalledTimes(2);
+        });
+
         test('should use different cache keys for users with per-user warehouse credentials', async () => {
             const userA: SessionUser = {
                 ...user,
@@ -8370,6 +8452,287 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('runtime connection identity', () => {
+        const runtimeService = service as unknown as {
+            resolveExploreConnection: (
+                project: string,
+                exploreName: string,
+            ) => Promise<Connection>;
+        };
+
+        test('stamps a virtual view with its active connection and keeps that binding on update', async () => {
+            const testService = getMockedProjectService(lightdashConfigMock);
+            const author = {
+                ...sessionAccount,
+                user: {
+                    ...sessionAccount.user,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'all', action: 'manage' },
+                    ]),
+                },
+            } as typeof sessionAccount;
+            const view = { ...virtualExplore, type: ExploreType.VIRTUAL };
+            vi.spyOn(testService, 'findExplores')
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({ [view.name]: view });
+            vi.spyOn(testService, '_getWarehouseClient').mockResolvedValue({
+                warehouseClient: warehouseClientMock,
+                sshTunnel: { disconnect: vi.fn() } as never,
+                tunnelConnectMs: null,
+            });
+            projectModel.getWarehouseCredentialsForProject
+                .mockResolvedValueOnce(warehouseClientMock.credentials)
+                .mockResolvedValueOnce(warehouseClientMock.credentials);
+            const payload = {
+                name: view.name,
+                sql: 'select 1',
+                columns: [],
+                connectionUuid: 'view-connection',
+            };
+            await testService.createVirtualView(
+                author,
+                projectUuid,
+                payload,
+                false,
+            );
+            expect(projectModel.createVirtualView).toHaveBeenCalledWith(
+                projectUuid,
+                payload,
+                warehouseClientMock,
+                'view-connection',
+            );
+            projectModel.getExploreConnectionUuid.mockResolvedValueOnce(
+                'view-connection',
+            );
+            await testService.updateVirtualView(
+                author,
+                projectUuid,
+                view.name,
+                { ...payload, connectionUuid: 'different-active-connection' },
+                false,
+            );
+            expect(projectModel.updateVirtualView).toHaveBeenCalledWith(
+                projectUuid,
+                view.name,
+                expect.anything(),
+                warehouseClientMock,
+                undefined,
+                'view-connection',
+            );
+        });
+
+        test('refuses an unstamped virtual view when several connections exist', async () => {
+            const testService = getMockedProjectService(lightdashConfigMock);
+            const author = {
+                ...sessionAccount,
+                user: {
+                    ...sessionAccount.user,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'all', action: 'manage' },
+                    ]),
+                },
+            } as typeof sessionAccount;
+            const view = { ...virtualExplore, type: ExploreType.VIRTUAL };
+            vi.spyOn(testService, 'findExplores').mockResolvedValueOnce({
+                [view.name]: view,
+            });
+            projectModel.getExploreConnectionUuid.mockResolvedValueOnce(null);
+            projectModel.resolveConnection.mockRejectedValueOnce(
+                new MultipleConnectionsError(),
+            );
+            await expect(
+                testService.updateVirtualView(
+                    author,
+                    projectUuid,
+                    view.name,
+                    { name: view.name, sql: 'select 1', columns: [] },
+                    false,
+                ),
+            ).rejects.toThrow(MultipleConnectionsError);
+        });
+
+        test('resolves the persisted explore stamp', async () => {
+            projectModel.getExploreConnectionUuid.mockResolvedValueOnce(
+                'other-connection',
+            );
+            const connection = await runtimeService.resolveExploreConnection(
+                projectUuid,
+                validExplore.name,
+            );
+            expect(projectModel.getExploreConnectionUuid).toHaveBeenCalledWith(
+                projectUuid,
+                validExplore.name,
+            );
+            expect(projectModel.resolveConnection).toHaveBeenCalledWith(
+                projectUuid,
+                'other-connection',
+            );
+            expect(connection.connectionUuid).toBe('other-connection');
+        });
+
+        test('refuses an unstamped explore when the project is ambiguous', async () => {
+            projectModel.getExploreConnectionUuid.mockResolvedValueOnce(null);
+            projectModel.resolveConnection.mockRejectedValueOnce(
+                new MultipleConnectionsError(),
+            );
+            await expect(
+                runtimeService.resolveExploreConnection(
+                    projectUuid,
+                    validExplore.name,
+                ),
+            ).rejects.toThrow(MultipleConnectionsError);
+            expect(projectModel.resolveConnection).toHaveBeenCalledWith(
+                projectUuid,
+                null,
+            );
+        });
+
+        test('isolates warehouse clients and refreshes only changed credentials', async () => {
+            const testService = getMockedProjectService(lightdashConfigMock);
+            const credentials = {
+                ...warehouseClientMock.credentials,
+                connectionUuid: 'connection-a',
+            };
+            const secondCredentials = {
+                ...credentials,
+                connectionUuid: 'connection-b',
+            };
+            const changedCredentials = {
+                ...credentials,
+                dataTimezone: 'Europe/London',
+            };
+            for (const requested of [
+                credentials,
+                secondCredentials,
+                credentials,
+                changedCredentials,
+                secondCredentials,
+            ]) {
+                vi.mocked(SshTunnel).mockImplementationOnce(
+                    class {
+                        connect = async () => requested;
+                        disconnect = async () => undefined;
+                    } as unknown as typeof SshTunnel,
+                );
+            }
+            for (const requested of [
+                credentials,
+                secondCredentials,
+                changedCredentials,
+            ]) {
+                projectModel.getWarehouseClientFromCredentials.mockImplementationOnce(
+                    () => ({
+                        ...warehouseClientMock,
+                        credentials: requested,
+                        runQuery: vi.fn(async () => resultsWith1Row),
+                    }),
+                );
+            }
+            const first = await testService._getWarehouseClient(
+                projectUuid,
+                credentials,
+            );
+            const second = await testService._getWarehouseClient(
+                projectUuid,
+                secondCredentials,
+            );
+            const firstAgain = await testService._getWarehouseClient(
+                projectUuid,
+                credentials,
+            );
+            const updated = await testService._getWarehouseClient(
+                projectUuid,
+                changedCredentials,
+            );
+            const secondAgain = await testService._getWarehouseClient(
+                projectUuid,
+                secondCredentials,
+            );
+            expect(first.warehouseClient).not.toBe(second.warehouseClient);
+            expect(firstAgain.warehouseClient).toBe(first.warehouseClient);
+            expect(updated.warehouseClient).not.toBe(first.warehouseClient);
+            expect(secondAgain.warehouseClient).toBe(second.warehouseClient);
+        });
+
+        test('separates legacy result cache keys for identical SQL', async () => {
+            const testService = getMockedProjectService({
+                ...lightdashConfigMock,
+                results: { ...lightdashConfigMock.results, cacheEnabled: true },
+            });
+            const cache = {
+                getResultsMetadata: vi.fn(async (_key: string) => undefined),
+                uploadResults: vi.fn(
+                    async (_key: string, _buffer: Buffer) => undefined,
+                ),
+            };
+            (
+                testService as unknown as { s3CacheClient: typeof cache }
+            ).s3CacheClient = cache;
+            const client = {
+                ...warehouseClientMock,
+                runQuery: vi.fn(async () => resultsWith1Row),
+            };
+            const getResults = (connectionUuid: string) =>
+                testService.getResultsFromCacheOrWarehouse({
+                    projectUuid,
+                    connectionUuid,
+                    userUuid: null,
+                    user,
+                    context: QueryExecutionContext.EXPLORE,
+                    warehouseClient: client,
+                    query: 'select 1',
+                    metricQuery: METRIC_QUERY,
+                    resolvedTimezone: 'UTC',
+                    queryTags: {},
+                });
+            await getResults('connection-a');
+            await getResults('connection-b');
+            expect(cache.getResultsMetadata).toHaveBeenCalledTimes(2);
+            expect(cache.getResultsMetadata.mock.calls[0][0]).not.toBe(
+                cache.getResultsMetadata.mock.calls[1][0],
+            );
+            expect(cache.uploadResults.mock.calls[0][0]).not.toBe(
+                cache.uploadResults.mock.calls[1][0],
+            );
+        });
+
+        test('compiles with the stamped connection calendar and timezone settings', async () => {
+            projectModel.getExploreConnectionUuid.mockResolvedValueOnce(
+                'calendar-connection',
+            );
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                {
+                    ...warehouseClientMock.credentials,
+                    startOfWeek: WeekDay.SUNDAY,
+                    dataTimezone: 'America/New_York',
+                },
+            );
+            const compile = vi.spyOn(QueryComposer.prototype, 'compile');
+            try {
+                await service.compileQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    explore: validExplore,
+                    body: metricQueryMock,
+                    usePreAggregateCache: false,
+                });
+                expect(
+                    projectModel.getWarehouseCredentialsForProject,
+                ).toHaveBeenCalledWith(projectUuid, 'calendar-connection');
+                const { context } = compile.mock.instances[0] as unknown as {
+                    context: QueryComposerContext;
+                };
+                expect(context.dataTimezone).toBe('America/New_York');
+                expect(context.columnTimezone).toBe('America/New_York');
+                expect(context.warehouseSqlBuilder.getStartOfWeek()).toBe(
+                    WeekDay.SUNDAY,
+                );
+            } finally {
+                compile.mockRestore();
+            }
+        });
+    });
+
     describe('compileMergeQuery', () => {
         const source = (
             id: string,
@@ -8401,6 +8764,35 @@ describe('ProjectService', () => {
             tableCalculations: [],
             limit: 500,
             ...overrides,
+        });
+
+        test('refuses sources from different connections with their names', async () => {
+            projectModel.resolveConnection
+                .mockResolvedValueOnce({
+                    ...runtimeConnection,
+                    connectionUuid: 'connection-a',
+                    name: 'Finance',
+                })
+                .mockResolvedValueOnce({
+                    ...runtimeConnection,
+                    connectionUuid: 'connection-b',
+                    name: 'Operations',
+                });
+            await expect(
+                service.compileMergeQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    mergeQuery: mergeQuery(),
+                }),
+            ).rejects.toMatchObject({
+                name: 'CrossConnectionQueryError',
+                data: {
+                    connections: expect.arrayContaining([
+                        expect.objectContaining({ name: 'Finance' }),
+                        expect.objectContaining({ name: 'Operations' }),
+                    ]),
+                },
+            });
         });
 
         test('refuses a source calculation that depends on its own row set', async () => {

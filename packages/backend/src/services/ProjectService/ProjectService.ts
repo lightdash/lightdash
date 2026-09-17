@@ -33,6 +33,7 @@ import {
     CompilationSource,
     CompiledDimension,
     ConflictError,
+    Connection,
     ContentType,
     convertCustomMetricToDbt,
     convertExplores,
@@ -50,6 +51,7 @@ import {
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     CreateWarehouseCredentialsWithOptionalSecrets,
+    CrossConnectionQueryError,
     currentUtcWallClock,
     CustomDimension,
     CustomFormatType,
@@ -2107,35 +2109,48 @@ export class ProjectService extends BaseService {
         Then if the project's `requireUserCredentials` flag is enabled, we load the tokens from `userWarehouseCredentials` and replace them with the credentials from the project.
         If the flag is disabled, we just get an access token if needed for the warehouse (like Snowflake on SSO).
     */
+    protected async resolveExploreConnection(
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<Connection> {
+        const connectionUuid = await this.projectModel.getExploreConnectionUuid(
+            projectUuid,
+            exploreName,
+        );
+        return this.projectModel.resolveConnection(projectUuid, connectionUuid);
+    }
+
     protected async getWarehouseCredentials({
         projectUuid,
+        connectionUuid,
         userId,
         isRegisteredUser,
         isServiceAccount = false,
-        connectionUuid,
     }: {
         projectUuid: string;
+        connectionUuid?: string | null;
         userId: string;
         isRegisteredUser: boolean;
         isServiceAccount?: boolean;
-        connectionUuid?: string;
+        preloadedOrgWarehouseCredentialsUuid?: string | null;
     }) {
-        const {
-            connectionUuid: resolvedConnectionUuid,
-            organizationWarehouseCredentialsUuid,
-        } = await this.projectModel.getConnectionForProject(
+        const connection = await this.projectModel.resolveConnection(
             projectUuid,
             connectionUuid,
         );
+        const { organizationWarehouseCredentialsUuid } = connection;
 
         // Load base credentials from either organization or project table
         let credentials: CreateWarehouseCredentials =
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
-                resolvedConnectionUuid,
+                connection.connectionUuid,
             );
         const projectWarehouseConfig =
-            await this.projectModel.getProjectWarehouseConfig(projectUuid);
+            await this.projectModel.getProjectWarehouseConfig(
+                projectUuid,
+                connection.connectionUuid,
+            );
         const requireUserCredentials =
             ProjectModel.resolveRequireUserCredentials(
                 projectWarehouseConfig.requireUserCredentials,
@@ -2163,7 +2178,11 @@ export class ProjectService extends BaseService {
                 project.organizationUuid,
             );
             await this.assertAnalyticsProjectAccess(user, project);
-            return { ...credentials, userWarehouseCredentialsUuid };
+            return {
+                ...credentials,
+                connectionUuid: connection.connectionUuid,
+                userWarehouseCredentialsUuid,
+            };
         }
 
         if (organizationWarehouseCredentialsUuid && !requireUserCredentials) {
@@ -2199,7 +2218,7 @@ export class ProjectService extends BaseService {
                       projectUuid,
                       userId,
                       credentials.type,
-                      resolvedConnectionUuid,
+                      connection.connectionUuid,
                   )
                 : undefined;
 
@@ -2261,7 +2280,7 @@ export class ProjectService extends BaseService {
                     {
                         kind: 'project',
                         projectUuid,
-                        connectionUuid: resolvedConnectionUuid,
+                        connectionUuid: connection.connectionUuid,
                     },
                 );
             }
@@ -2283,13 +2302,14 @@ export class ProjectService extends BaseService {
                 {
                     kind: 'project',
                     projectUuid,
-                    connectionUuid: resolvedConnectionUuid,
+                    connectionUuid: connection.connectionUuid,
                 },
             );
         }
 
         return {
             ...credentials,
+            connectionUuid: connection.connectionUuid,
             userWarehouseCredentialsUuid,
         };
     }
@@ -2301,34 +2321,37 @@ export class ProjectService extends BaseService {
      */
     async getWarehouseCredentialsForEmbed({
         projectUuid,
-        account,
         connectionUuid,
+        account,
     }: {
         projectUuid: string;
+        connectionUuid?: string | null;
         account: AnonymousAccount;
-        connectionUuid?: string;
     }) {
         return this.getWarehouseCredentials({
             projectUuid,
+            connectionUuid,
             userId: account.user.id,
             isRegisteredUser: false,
-            connectionUuid,
         });
     }
 
     async _getWarehouseClient(
         projectUuid: string,
-        credentials: CreateWarehouseCredentials,
+        credentials: CreateWarehouseCredentials & { connectionUuid?: string },
         overrides?: {
             snowflakeVirtualWarehouse?: string;
             databricksCompute?: string;
         },
-        connectionUuid?: string,
     ): Promise<{
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
         tunnelConnectMs: number | null;
     }> {
+        const connection = await this.projectModel.resolveConnection(
+            projectUuid,
+            credentials.connectionUuid,
+        );
         Sentry.setTag('warehouse.type', credentials.type);
         // Setup SSH tunnel for client (user needs to close this)
         const sshTunnel = new SshTunnel(credentials);
@@ -2360,13 +2383,12 @@ export class ProjectService extends BaseService {
         const { snowflakeVirtualWarehouse, databricksCompute } =
             overrides || {};
 
-        const connection = await this.projectModel.getConnectionForProject(
+        const cacheKey = JSON.stringify([
             projectUuid,
-            connectionUuid,
-        );
-        const cacheKey = `${projectUuid}${connection.connectionUuid}${
-            snowflakeVirtualWarehouse || ''
-        }${databricksCompute || ''}`;
+            connection.connectionUuid,
+            snowflakeVirtualWarehouse ?? '',
+            databricksCompute ?? '',
+        ]);
         // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[cacheKey] as
             | (typeof this.warehouseClients)[string]
@@ -3278,7 +3300,7 @@ export class ProjectService extends BaseService {
                                 projectUuid,
                             );
                         const connection =
-                            await this.projectModel.getConnectionForProject(
+                            await this.projectModel.resolveConnection(
                                 projectUuid,
                             );
                         await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
@@ -4435,8 +4457,13 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        const updatedProject =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const primarySource = (
+            await this.projectDbtSourcesModel.getSources(projectUuid)
+        ).find((source) => source.isPrimary);
+        const updatedProject = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+            primarySource?.connectionUuid,
+        );
 
         // This job is the job model we use to compile projects
         // This is not the graphile Job id we use on scheduler
@@ -4787,6 +4814,8 @@ export class ProjectService extends BaseService {
                 dbtVersionOption,
                 this.lightdashConfig.dbt.environmentVariableAllowlist,
                 this.analytics,
+                undefined,
+                warehouseClient,
             );
             await adapter.test();
             this.analytics.track({
@@ -5879,7 +5908,6 @@ export class ProjectService extends BaseService {
                     .slice(0, 20),
             },
         );
-
         const sourceSelections = [
             {
                 manifest: primaryManifest,
@@ -6445,6 +6473,7 @@ export class ProjectService extends BaseService {
                 pivotDimensions?: string[];
             };
             projectUuid: string;
+            connectionUuid?: string;
             usePreAggregateCache?: boolean;
             /**
              * Compile without ORDER BY / LIMIT, for embedding as a CTE body
@@ -6529,11 +6558,28 @@ export class ProjectService extends BaseService {
             }
         }
 
-        // Get warehouse credentials to build the SQL builder (no full connection needed for compilation)
-        const warehouseCredentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
-                projectUuid,
-            );
+        let connection: Connection | null = null;
+        if (sourceExplore.type !== ExploreType.EXTERNAL_SOURCE) {
+            connection = args.connectionUuid
+                ? await this.projectModel.resolveConnection(
+                      projectUuid,
+                      args.connectionUuid,
+                  )
+                : await this.resolveExploreConnection(
+                      projectUuid,
+                      sourceExplore.name,
+                  );
+        }
+        const warehouseCredentials: CreateWarehouseCredentials = connection
+            ? await this.projectModel.getWarehouseCredentialsForProject(
+                  projectUuid,
+                  connection.connectionUuid,
+              )
+            : {
+                  type: WarehouseTypes.DUCKDB,
+                  connectionType: DuckdbConnectionType.EMBEDDED,
+                  dataset: ':memory:',
+              };
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
@@ -6660,7 +6706,12 @@ export class ProjectService extends BaseService {
         _account: Account,
         _projectUuid: string,
         _queryUuid: string,
-    ): Promise<{ metricQuery: MetricQuery; fields: ItemsMap }> {
+    ): Promise<{
+        metricQuery: MetricQuery;
+        fields: ItemsMap;
+        connectionUuid?: string | null;
+        executionBackend?: 'warehouse' | 'external';
+    }> {
         throw new ParameterError(
             'Merging existing query results is not available on this endpoint',
         );
@@ -6817,10 +6868,21 @@ export class ProjectService extends BaseService {
                             metricQuery: stored.metricQuery,
                             itemMap: stored.fields,
                             explore: null,
+                            connection:
+                                stored.executionBackend === 'external'
+                                    ? null
+                                    : await this.projectModel.resolveConnection(
+                                          projectUuid,
+                                          stored.connectionUuid,
+                                      ),
                         };
                     } catch (e) {
                         // Access denial surfaces as the same 403 that fetching the results would
-                        if (e instanceof ForbiddenError) throw e;
+                        if (
+                            e instanceof ForbiddenError ||
+                            e instanceof MultipleConnectionsError
+                        )
+                            throw e;
                         resolutionErrors.push({
                             kind: MergeQueryErrorKind.RESULT_SOURCE_UNAVAILABLE,
                             sourceId: source.id,
@@ -6852,6 +6914,13 @@ export class ProjectService extends BaseService {
                     ),
                     itemMap,
                     explore,
+                    connection:
+                        explore.type === ExploreType.EXTERNAL_SOURCE
+                            ? null
+                            : await this.resolveExploreConnection(
+                                  projectUuid,
+                                  explore.name,
+                              ),
                 };
             }),
         );
@@ -6877,6 +6946,21 @@ export class ProjectService extends BaseService {
         const resolvedSources = maybeResolvedSources.filter(
             (source): source is NonNullable<typeof source> => source !== null,
         );
+        const connections = new Map(
+            resolvedSources.flatMap(({ connection }) =>
+                connection
+                    ? [[connection.connectionUuid, connection] as const]
+                    : [],
+            ),
+        );
+        if (connections.size > 1) {
+            throw new CrossConnectionQueryError(
+                Array.from(
+                    connections.values(),
+                    ({ connectionUuid, name }) => ({ connectionUuid, name }),
+                ),
+            );
+        }
         const resolvedMetricQueryBySourceId = Object.fromEntries(
             resolvedSources.map((source) => [source.id, source.metricQuery]),
         );
@@ -7025,6 +7109,9 @@ export class ProjectService extends BaseService {
                     account,
                     projectUuid,
                     exploreName: resolvedMetricQuery.exploreName,
+                    connectionUuid: resolvedSources.find(
+                        ({ id }) => id === source.id,
+                    )?.connection?.connectionUuid,
                     body: {
                         ...resolvedMetricQuery,
                         sorts: [],
@@ -7629,10 +7716,20 @@ export class ProjectService extends BaseService {
             exploreName,
         );
 
-        const warehouseCredentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
-                projectUuid,
-            );
+        const connection =
+            explore.type === ExploreType.EXTERNAL_SOURCE
+                ? null
+                : await this.resolveExploreConnection(projectUuid, exploreName);
+        const warehouseCredentials: CreateWarehouseCredentials = connection
+            ? await this.projectModel.getWarehouseCredentialsForProject(
+                  projectUuid,
+                  connection.connectionUuid,
+              )
+            : {
+                  type: WarehouseTypes.DUCKDB,
+                  connectionType: DuckdbConnectionType.EMBEDDED,
+                  dataset: ':memory:',
+              };
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
@@ -8304,6 +8401,7 @@ export class ProjectService extends BaseService {
 
     async getResultsFromCacheOrWarehouse({
         projectUuid,
+        connectionUuid,
         userUuid,
         user,
         context,
@@ -8315,6 +8413,7 @@ export class ProjectService extends BaseService {
         invalidateCache,
     }: {
         projectUuid: string;
+        connectionUuid: string;
         userUuid: string | null;
         resolvedTimezone: string;
         user: Pick<
@@ -8340,6 +8439,7 @@ export class ProjectService extends BaseService {
                 // project timezone changes.
                 const hashParts = [
                     projectUuid,
+                    connectionUuid,
                     userUuid,
                     query,
                     resolvedTimezone,
@@ -8557,9 +8657,14 @@ export class ProjectService extends BaseService {
                             exploreName,
                         ));
 
+                    const connection = await this.resolveExploreConnection(
+                        projectUuid,
+                        explore.name,
+                    );
                     const warehouseCredentials =
                         await this.getWarehouseCredentials({
                             projectUuid,
+                            connectionUuid: connection.connectionUuid,
                             userId: account.user.id,
                             isRegisteredUser: account.isRegisteredUser(),
                             isServiceAccount: account.isServiceAccount(),
@@ -8718,6 +8823,7 @@ export class ProjectService extends BaseService {
                     const { rows, cacheMetadata } =
                         await this.getResultsFromCacheOrWarehouse({
                             projectUuid,
+                            connectionUuid: connection.connectionUuid,
                             userUuid,
                             user: {
                                 userUuid: account.user.id,
@@ -8760,6 +8866,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         sql: string,
+        connectionUuid?: string,
     ): Promise<ApiSqlQueryResults> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -8789,6 +8896,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             await this.getWarehouseCredentials({
                 projectUuid,
+                connectionUuid,
                 userId: user.userUuid,
                 isRegisteredUser: true,
             }),
@@ -8822,6 +8930,7 @@ export class ProjectService extends BaseService {
     async streamSqlQueryIntoFile({
         userUuid,
         projectUuid,
+        connectionUuid,
         sql,
         limit,
         sqlChartUuid,
@@ -8854,6 +8963,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             await this.getWarehouseCredentials({
                 projectUuid,
+                connectionUuid,
                 userId: userUuid,
                 isRegisteredUser: true,
             }),
@@ -8903,6 +9013,7 @@ export class ProjectService extends BaseService {
     async pivotQueryWorkerTask({
         userUuid,
         projectUuid,
+        connectionUuid,
         sql,
         limit,
         sqlChartUuid,
@@ -8923,6 +9034,7 @@ export class ProjectService extends BaseService {
 
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
+            connectionUuid,
             userId: userUuid,
             isRegisteredUser: true,
         });
@@ -9243,6 +9355,10 @@ export class ProjectService extends BaseService {
             };
         }
 
+        const connection = await this.resolveExploreConnection(
+            projectUuid,
+            explore.name,
+        );
         const [
             warehouseCredentials,
             { userAttributes, intrinsicUserAttributes },
@@ -9253,6 +9369,7 @@ export class ProjectService extends BaseService {
         ] = await Promise.all([
             this.getWarehouseCredentials({
                 projectUuid,
+                connectionUuid: connection.connectionUuid,
                 userId: user.userUuid,
                 isRegisteredUser: true,
             }),
@@ -9308,6 +9425,7 @@ export class ProjectService extends BaseService {
 
         const hashParts = [
             projectUuid,
+            connection.connectionUuid,
             userUuid,
             'cache_autocomplete',
             query,
@@ -10514,6 +10632,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         listedDatabaseName?: string,
+        connectionUuid?: string,
     ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -10529,6 +10648,7 @@ export class ProjectService extends BaseService {
 
         const credentials = await this.getWarehouseCredentials({
             projectUuid,
+            connectionUuid,
             userId: user.userUuid,
             isRegisteredUser: true,
         });
@@ -10538,6 +10658,7 @@ export class ProjectService extends BaseService {
             const databaseListing = await this.getWarehouseDatabases(
                 user,
                 projectUuid,
+                credentials.connectionUuid,
             );
             listedDatabase = databaseListing.databases.find(
                 ({ name }) => name === listedDatabaseName,
@@ -10593,6 +10714,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 warehouseTables,
                 scope,
+                credentials.connectionUuid,
             );
         }
 
@@ -10602,6 +10724,7 @@ export class ProjectService extends BaseService {
     async getWarehouseDatabases(
         user: SessionUser,
         projectUuid: string,
+        connectionUuid?: string,
     ): Promise<WarehouseDatabaseListing> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -10617,6 +10740,7 @@ export class ProjectService extends BaseService {
 
         const credentials = await this.getWarehouseCredentials({
             projectUuid,
+            connectionUuid,
             userId: user.userUuid,
             isRegisteredUser: true,
         });
@@ -10643,6 +10767,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         listedDatabaseName?: string,
+        connectionUuid?: string,
     ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -10658,6 +10783,7 @@ export class ProjectService extends BaseService {
 
         const credentials = await this.getWarehouseCredentials({
             projectUuid,
+            connectionUuid,
             userId: user.userUuid,
             isRegisteredUser: true,
         });
@@ -10667,6 +10793,7 @@ export class ProjectService extends BaseService {
             const databaseListing = await this.getWarehouseDatabases(
                 user,
                 projectUuid,
+                credentials.connectionUuid,
             );
             listedDatabase = databaseListing.databases.find(
                 ({ name }) => name === listedDatabaseName,
@@ -10697,6 +10824,7 @@ export class ProjectService extends BaseService {
                 await this.warehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials(
                     projectUuid,
                     scope,
+                    credentials.connectionUuid,
                 );
         }
 
@@ -10705,6 +10833,7 @@ export class ProjectService extends BaseService {
                 user,
                 projectUuid,
                 listedDatabaseName,
+                credentials.connectionUuid,
             );
         }
 
@@ -10721,6 +10850,7 @@ export class ProjectService extends BaseService {
         tableName?: string,
         schemaName?: string,
         databaseName?: string,
+        connectionUuid?: string,
     ): Promise<WarehouseTableSchema> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -10744,6 +10874,7 @@ export class ProjectService extends BaseService {
         }
         const credentials = await this.getWarehouseCredentials({
             projectUuid,
+            connectionUuid,
             userId: user.userUuid,
             isRegisteredUser: true,
         });
@@ -12695,7 +12826,7 @@ export class ProjectService extends BaseService {
         if (auditedAbility.cannot('view', subject('Project', project))) {
             throw new ForbiddenError();
         }
-        const connection = await this.projectModel.getConnectionForProject(
+        const connection = await this.projectModel.resolveConnection(
             projectUuid,
             connectionUuid,
         );
@@ -12780,7 +12911,7 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const connection = await this.projectModel.getConnectionForProject(
+        const connection = await this.projectModel.resolveConnection(
             projectUuid,
             connectionUuid,
         );
@@ -12891,10 +13022,15 @@ export class ProjectService extends BaseService {
                 'Virtual view with this name already exists',
             );
         }
+        const connection = await this.projectModel.resolveConnection(
+            projectUuid,
+            payload.connectionUuid,
+        );
         const { warehouseClient } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials({
                 projectUuid,
+                connectionUuid: connection.connectionUuid,
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -12915,6 +13051,7 @@ export class ProjectService extends BaseService {
                 parameterValues: effectiveParameterValues,
             },
             warehouseClient,
+            connection.connectionUuid,
         );
 
         this.analytics.trackAccount(account, {
@@ -12971,10 +13108,15 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const connection = await this.resolveExploreConnection(
+            projectUuid,
+            exploreName,
+        );
         const { warehouseClient } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials({
                 projectUuid,
+                connectionUuid: connection.connectionUuid,
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -12998,6 +13140,7 @@ export class ProjectService extends BaseService {
             },
             warehouseClient,
             expectedExplore,
+            connection.connectionUuid,
         );
 
         this.analytics.trackAccount(account, {

@@ -68,18 +68,23 @@ export class BaseResultsRunner implements IResultsRunner {
 
     private readonly runPivotQuery: RunPivotQuery;
 
+    private readonly connectionUuid: string | undefined;
+
     constructor({
         fields,
         rows,
         columnNames,
         runPivotQuery,
+        connectionUuid,
     }: {
         rows: RawResultRow[];
         columnNames: string[];
         fields: SqlRunnerField[];
         runPivotQuery: RunPivotQuery;
+        connectionUuid?: string;
     }) {
         this.runPivotQuery = runPivotQuery;
+        this.connectionUuid = connectionUuid;
 
         this.rows = rows;
 
@@ -99,7 +104,7 @@ export class BaseResultsRunner implements IResultsRunner {
 
     invalidatePivotCache(): void {
         void this.queryClient.invalidateQueries({
-            queryKey: ['transformedData'],
+            queryKey: ['transformedData', this.connectionUuid],
         });
     }
 
@@ -121,7 +126,7 @@ export class BaseResultsRunner implements IResultsRunner {
         }
 
         return this.queryClient.fetchQuery({
-            queryKey: ['transformedData', query],
+            queryKey: ['transformedData', this.connectionUuid, query],
             queryFn: () => this.runPivotQuery(query),
         });
     }

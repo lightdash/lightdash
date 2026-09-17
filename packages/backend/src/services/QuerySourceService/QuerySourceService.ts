@@ -1,8 +1,10 @@
 import { subject } from '@casl/ability';
 import {
     assertIsAccountWithOrg,
+    ExploreType,
     FeatureFlags,
     ForbiddenError,
+    isExploreError,
     ParameterError,
     QuerySourceType,
     UnexpectedServerError,
@@ -11,6 +13,7 @@ import {
     type ApiGetSourceQueryStatusResults,
     type ApiListQuerySourcesResults,
     type ApiScanQuerySourceSchemaResults,
+    type Connection,
     type QueryExecutionContext,
     type SourceQuery,
     type SourceQuerySubmission,
@@ -18,6 +21,10 @@ import {
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    assertSameQueryConnection,
+    resolveQueryHistoryConnection,
+} from '../AsyncQueryService/queryConnections';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
@@ -323,6 +330,82 @@ export class QuerySourceService extends BaseService {
         };
     }
 
+    private async resolveQueryConnections(
+        account: Account,
+        projectUuid: string,
+        ordered: ValidatedQuery[],
+    ): Promise<Map<string, Connection | null>> {
+        const connections = new Map<string, Connection | null>();
+        const queryConnections = await Promise.all(
+            ordered.map(async (entry) => {
+                if (entry.query.sourceType === QuerySourceType.SEMANTIC_LAYER) {
+                    const explore = await this.projectModel.getExploreFromCache(
+                        projectUuid,
+                        entry.query.exploreName,
+                    );
+                    if (
+                        !isExploreError(explore) &&
+                        explore.type === ExploreType.EXTERNAL_SOURCE
+                    )
+                        return null;
+                    return this.projectModel.resolveConnection(
+                        projectUuid,
+                        await this.projectModel.getExploreConnectionUuid(
+                            projectUuid,
+                            entry.query.exploreName,
+                        ),
+                    );
+                }
+                if (entry.query.sourceType === QuerySourceType.SQL) {
+                    return this.projectModel.resolveConnection(
+                        projectUuid,
+                        entry.query.connectionUuid,
+                    );
+                }
+                return null;
+            }),
+        );
+        ordered.forEach((entry, index) =>
+            connections.set(entry.nodeId, queryConnections[index]),
+        );
+        const existingReferences = [
+            ...new Set(
+                ordered.flatMap((entry) =>
+                    entry.source
+                        .getQueryReferences(entry.query)
+                        .filter((reference) => !connections.has(reference)),
+                ),
+            ),
+        ];
+        const existingConnections = await Promise.all(
+            existingReferences.map(async (queryUuid) => {
+                const history = await this.queryHistoryModel.get(
+                    queryUuid,
+                    projectUuid,
+                    account,
+                );
+                return resolveQueryHistoryConnection(
+                    this.projectModel,
+                    projectUuid,
+                    history,
+                );
+            }),
+        );
+        existingReferences.forEach((reference, index) =>
+            connections.set(reference, existingConnections[index]),
+        );
+        ordered.forEach((entry) => {
+            const connection = assertSameQueryConnection([
+                connections.get(entry.nodeId) ?? null,
+                ...entry.source
+                    .getQueryReferences(entry.query)
+                    .map((reference) => connections.get(reference) ?? null),
+            ]);
+            connections.set(entry.nodeId, connection);
+        });
+        return connections;
+    }
+
     /**
      * The ungated submission: no feature flag, no ability check. For callers
      * inside the server that have already authorized what they submit, such
@@ -349,6 +432,11 @@ export class QuerySourceService extends BaseService {
     }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
         const ordered = this.validateQueries(queries, plans);
         QuerySourceService.assertPlansNameDuckdbNodes(ordered, plans);
+        const connections = await this.resolveQueryConnections(
+            account,
+            projectUuid,
+            ordered,
+        );
 
         // nodeId -> queryUuid, grown as submissions happen so later queries'
         // node-id references resolve
@@ -362,6 +450,8 @@ export class QuerySourceService extends BaseService {
                 projectUuid,
                 context,
                 query: entry.query,
+                resolvedConnectionUuid: connections.get(entry.nodeId)
+                    ?.connectionUuid,
                 resolvedReferences: { ...resolvedReferences },
                 parameters,
                 userAttributeOverrides,

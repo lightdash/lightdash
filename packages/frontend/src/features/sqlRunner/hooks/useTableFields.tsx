@@ -10,6 +10,7 @@ import { lightdashApi } from '../../../api';
 
 export type TableFieldsTarget = {
     projectUuid: string;
+    connectionUuid?: string;
     tableName: string | undefined;
     schema: string | undefined;
     database: string | undefined;
@@ -21,6 +22,7 @@ export type GetTableFieldsParams = TableFieldsTarget & {
 
 export const tableFieldsQueryKey = ({
     projectUuid,
+    connectionUuid,
     tableName,
     schema,
     database,
@@ -28,6 +30,7 @@ export const tableFieldsQueryKey = ({
     'sqlRunner',
     'fields',
     projectUuid,
+    connectionUuid,
     database ?? '',
     schema ?? '',
     tableName ?? '',
@@ -35,6 +38,7 @@ export const tableFieldsQueryKey = ({
 
 export const fetchTableFields = async ({
     projectUuid,
+    connectionUuid,
     tableName,
     schema,
     database,
@@ -43,6 +47,7 @@ export const fetchTableFields = async ({
         ...(tableName ? { tableName } : {}),
         ...(schema ? { schemaName: schema } : {}),
         ...(database ? { databaseName: database } : {}),
+        ...(connectionUuid ? { connectionUuid } : {}),
     };
     const query = new URLSearchParams(params).toString();
     return lightdashApi<WarehouseTableSchema>({
@@ -65,6 +70,7 @@ export type WarehouseTableFieldWithContext = WarehouseTableField & {
 
 export const useTableFields = ({
     projectUuid,
+    connectionUuid,
     tableName,
     search,
     schema,
@@ -77,6 +83,7 @@ export const useTableFields = ({
     >({
         queryKey: tableFieldsQueryKey({
             projectUuid,
+            connectionUuid,
             tableName,
             schema,
             database,
@@ -84,6 +91,7 @@ export const useTableFields = ({
         queryFn: () =>
             fetchTableFields({
                 projectUuid,
+                connectionUuid,
                 tableName,
                 schema,
                 database,

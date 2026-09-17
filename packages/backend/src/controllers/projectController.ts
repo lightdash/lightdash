@@ -546,7 +546,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     @Deprecated()
     async runSqlQuery(
         @Path() projectUuid: string,
-        @Body() body: { sql: string },
+        @Body() body: { sql: string; connectionUuid?: string },
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiSqlQueryResults }> {
         assertRegisteredAccount(req.account);
@@ -555,7 +555,12 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .runSqlQuery(toSessionUser(req.account), projectUuid, body.sql),
+                .runSqlQuery(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    body.sql,
+                    body.connectionUuid,
+                ),
         };
     }
 

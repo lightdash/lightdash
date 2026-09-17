@@ -42,6 +42,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         sql,
         sortBy,
         parameters,
+        connectionUuid,
     }: {
         columns: VizColumn[];
         rows: RawResultRow[];
@@ -50,6 +51,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         sql: string;
         sortBy?: VizSortBy[];
         parameters: ParametersValuesMap;
+        connectionUuid?: string;
     }) {
         const fields: SqlRunnerField[] = columns.map((column) => ({
             kind: FieldType.DIMENSION,
@@ -67,6 +69,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
             fields,
             rows,
             columnNames: fields.map((field) => field.name),
+            connectionUuid,
             runPivotQuery: getPivotQueryFunctionForSqlQuery({
                 projectUuid,
                 limit,
@@ -75,6 +78,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
                 sortBy,
                 context: QueryExecutionContext.SQL_RUNNER,
                 parameters,
+                connectionUuid,
             }),
         });
     }

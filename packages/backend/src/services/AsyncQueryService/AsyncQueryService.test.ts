@@ -3,8 +3,10 @@ import {
     Account,
     AnyType,
     assertUnreachable,
+    ChartKind,
     ChartType,
     CreateWarehouseCredentials,
+    CrossConnectionQueryError,
     DimensionType,
     DownloadFileType,
     DuckdbExecutionSpec,
@@ -35,11 +37,13 @@ import {
     QueryTrigger,
     ResultColumns,
     ResultsExpiredError,
+    SpaceMemberRole,
     upgradeSavedMergeQuery,
     VizAggregationOptions,
     VizIndexType,
     WarehouseClient,
     WarehouseTypes,
+    type Connection,
     type Document,
     type DocumentQueryReference,
     type Explore,
@@ -52,6 +56,7 @@ import {
     type PivotConfiguration,
     type ProjectDefaults,
     type RegisteredAccount,
+    type SqlChart,
     type UserAccessControls,
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
@@ -200,6 +205,7 @@ vi.mock('@lightdash/warehouses', async () => ({
 
 const warehouseCredentialsMock = {
     ...warehouseClientMock.credentials,
+    connectionUuid: 'connection-a',
     userWarehouseCredentialsUuid: undefined,
 };
 
@@ -246,7 +252,26 @@ const createQueryComposerMock = ({
         getAvailableParameterDefinitions: () => availableParameterDefinitions,
     }) as unknown as QueryComposer;
 
+const connection: Connection = {
+    connectionUuid: 'connection-a',
+    name: 'Warehouse A',
+    warehouseType: WarehouseTypes.POSTGRES,
+    organizationWarehouseCredentialsUuid: null,
+    listAllDatabases: false,
+    additionalDatabases: [],
+    createdAt: new Date(),
+};
+
 const projectModel = {
+    resolveConnection: vi.fn<ProjectModel['resolveConnection']>(
+        async (_projectUuid, connectionUuid) => ({
+            ...connection,
+            connectionUuid: connectionUuid ?? connection.connectionUuid,
+        }),
+    ),
+    getExploreConnectionUuid: vi.fn<ProjectModel['getExploreConnectionUuid']>(
+        async () => connection.connectionUuid,
+    ),
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
     get: vi.fn(async () => projectWithSensitiveFields),
     getSummary: vi.fn(async () => projectSummary),
@@ -453,7 +478,10 @@ const getMockedAsyncQueryService = (
         queryHistoryModel: {
             create: vi.fn(async () => ({ queryUuid: 'queryUuid' })),
             get: vi.fn(async () => undefined),
-            getByQueryUuid: vi.fn(async () => undefined),
+            getByQueryUuid: vi.fn(async () => ({
+                connectionUuid: connection.connectionUuid,
+                projectUuid,
+            })),
             update: vi.fn(),
             updateStatusToError: vi.fn(async () => 1),
             updateStatusToQueued: vi.fn(async () => 1),
@@ -853,6 +881,7 @@ describe('AsyncQueryService', () => {
             resultsExpiresAt: null,
             columns: { one: { reference: 'one', type: DimensionType.NUMBER } },
             metricQuery: { exploreName: 'orders' },
+            connectionUuid: connection.connectionUuid,
         } as unknown as QueryHistory;
 
         test('runs a compose SQL query over referenced results without a license', async () => {
@@ -920,6 +949,36 @@ describe('AsyncQueryService', () => {
                     "read_json('s3://mock_bucket/referenced-results.jsonl'",
                 ),
             });
+        });
+
+        test('refuses a direct compose across persisted warehouse connections before creating a job', async () => {
+            const secondQueryUuid = '11111111-1111-4111-8111-111111111111';
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: composeFlags,
+            } as never);
+            vi.mocked(service.queryHistoryModel.get).mockImplementation(
+                async (queryUuid) => ({
+                    ...referencedQueryHistory,
+                    queryUuid,
+                    connectionUuid:
+                        queryUuid === secondQueryUuid
+                            ? 'connection-b'
+                            : 'connection-a',
+                }),
+            );
+            await expect(
+                service.executeAsyncComposeSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    sql: 'SELECT * FROM a JOIN b ON TRUE',
+                    references: {
+                        a: referencedQueryHistory.queryUuid,
+                        b: secondQueryUuid,
+                    },
+                }),
+            ).rejects.toBeInstanceOf(CrossConnectionQueryError);
+            expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
         });
 
         test('refuses a compose SQL query naming the missing results storage', async () => {
@@ -1212,7 +1271,10 @@ describe('AsyncQueryService', () => {
                     fields: fieldsMap,
                     originalColumns,
                     metricQuery,
-                    requestParameters,
+                    requestParameters: {
+                        ...requestParameters,
+                        executionBackend: 'warehouse',
+                    },
                     usedParameters: { region: 'EU' },
                     pivotConfiguration: null,
                     compiledSql: 'SELECT * FROM orders ORDER BY 1',
@@ -4859,6 +4921,83 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    test('prepares a saved SQL chart with the connection stored on its version', async () => {
+        const chart: SqlChart = {
+            savedSqlUuid: 'sql-chart',
+            connectionUuid: 'version-connection',
+            name: 'Chart',
+            description: null,
+            slug: 'chart',
+            sql: 'SELECT 1',
+            limit: 10,
+            config: {
+                type: ChartKind.TABLE,
+                metadata: { version: 1 },
+                columns: {},
+                display: undefined,
+            },
+            chartKind: ChartKind.TABLE,
+            createdAt: new Date(),
+            createdBy: null,
+            lastUpdatedAt: new Date(),
+            lastUpdatedBy: null,
+            space: {
+                uuid: 'space',
+                name: 'Space',
+                userAccess: {
+                    userUuid: sessionAccount.user.id,
+                    role: SpaceMemberRole.VIEWER,
+                    hasDirectAccess: true,
+                    projectRole: undefined,
+                    inheritedRole: undefined,
+                    inheritedFrom: undefined,
+                },
+            },
+            dashboard: null,
+            project: { projectUuid },
+            organization: { organizationUuid: projectSummary.organizationUuid },
+            views: 0,
+            firstViewedAt: new Date(),
+            lastViewedAt: new Date(),
+            resolvedColorPalette: {
+                colors: [],
+                darkColors: null,
+                paletteUuid: null,
+                paletteName: null,
+                source: { type: 'default' },
+            },
+        };
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedSqlModel: {
+                getByUuid: vi
+                    .fn<SavedSqlModel['getByUuid']>()
+                    .mockResolvedValue(chart),
+            } as unknown as SavedSqlModel,
+        } as never);
+        service['assertSavedChartAccess'] = vi
+            .fn<(typeof service)['assertSavedChartAccess']>()
+            .mockResolvedValue(undefined);
+        const stopped = new Error('preparation intercepted');
+        const prepare = vi
+            .fn<(typeof service)['prepareSqlChartAsyncQueryArgs']>()
+            .mockRejectedValue(stopped);
+        service['prepareSqlChartAsyncQueryArgs'] = prepare;
+        await expect(
+            service.executeAsyncSqlChartQuery({
+                account: sessionAccount,
+                projectUuid,
+                savedSqlUuid: chart.savedSqlUuid,
+                context: QueryExecutionContext.SQL_RUNNER,
+            }),
+        ).rejects.toBe(stopped);
+        expect(prepare).toHaveBeenCalledWith(
+            expect.objectContaining({
+                connectionUuid: 'version-connection',
+                sql: chart.sql,
+            }),
+        );
+    });
+
     describe('runAsyncWarehouseQueryFromHistory', () => {
         test('rebuilds originalColumns from the query history row', async () => {
             const mockOriginalColumns: ResultColumns = {
@@ -4872,6 +5011,7 @@ describe('AsyncQueryService', () => {
             ).mockResolvedValue({
                 ...createMockQueryHistory(QueryHistoryStatus.QUEUED),
                 originalColumns: mockOriginalColumns,
+                connectionUuid: 'persisted-connection-a',
             });
             const runAsyncWarehouseQuerySpy = vi
                 .spyOn(service, 'runAsyncWarehouseQuery')
@@ -4886,9 +5026,51 @@ describe('AsyncQueryService', () => {
             expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     originalColumns: mockOriginalColumns,
+                    connectionUuid: 'persisted-connection-a',
                 }),
             );
         });
+    });
+
+    test('identical SQL on two resolved connections has isolated async result caches', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.spyOn(service, 'findResultsCache').mockResolvedValue({
+            cacheHit: false,
+            updatedAt: undefined,
+            expiresAt: undefined,
+        });
+        vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+            undefined,
+        );
+        const execute = (connectionUuid: string) =>
+            service['executeAsyncQuery'](
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.EXPLORE,
+                    queryTags: { query_context: QueryExecutionContext.EXPLORE },
+                    queryComposer: createQueryComposerMock({ sql: 'SELECT 1' }),
+                    warehouseCredentials: {
+                        ...warehouseCredentialsMock,
+                        connectionUuid,
+                    },
+                },
+                { query: metricQueryMock },
+            );
+        await execute('connection-a');
+        await execute('connection-b');
+        const creations = vi.mocked(service.queryHistoryModel.create).mock
+            .calls;
+        expect(creations.map(([, args]) => args.connectionUuid)).toEqual([
+            'connection-a',
+            'connection-b',
+        ]);
+        expect(creations[0][1].cacheKey).not.toEqual(creations[1][1].cacheKey);
+        expect(
+            creations.map(
+                ([, args]) => args.requestParameters.executionBackend,
+            ),
+        ).toEqual(['warehouse', 'warehouse']);
     });
 
     describe('executeAsyncQuery with originalColumns', () => {
@@ -5042,6 +5224,47 @@ describe('AsyncQueryService', () => {
     });
 
     describe('runAsyncWarehouseQuery', () => {
+        test('executes persisted connection A after rebinding the explore to B', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.mocked(
+                service.queryHistoryModel.getByQueryUuid,
+            ).mockResolvedValue({
+                ...createMockQueryHistory(QueryHistoryStatus.QUEUED),
+                connectionUuid: 'persisted-connection-a',
+            });
+            const currentBinding = vi
+                .spyOn(projectModel, 'getExploreConnectionUuid')
+                .mockResolvedValue('rebound-connection-b')
+                .mockClear();
+            const credentials = vi.spyOn(
+                projectModel,
+                'getWarehouseCredentialsForProject',
+            );
+            await service.runAsyncWarehouseQuery({
+                connectionUuid: 'incorrect-argument-connection',
+                projectUuid,
+                queryUuid: 'test-query-uuid',
+                userUuid: sessionAccount.user.id,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                isRegisteredUser: true,
+                isPreviewProject: false,
+                onboardingFlow: 'legacy',
+                queryTags: { query_context: QueryExecutionContext.EXPLORE },
+                query: 'SELECT 1',
+                fieldsMap: {},
+                usedParameters: null,
+                cacheKey: 'cache-key',
+                queryCreatedAt: new Date(),
+                displayTimezone: null,
+            });
+            expect(credentials).toHaveBeenLastCalledWith(
+                projectUuid,
+                'persisted-connection-a',
+            );
+            expect(currentBinding).not.toHaveBeenCalled();
+            currentBinding.mockRestore();
+        });
+
         describe('when credentials have sshTunnel config', () => {
             const originalCredentials: CreateWarehouseCredentials = {
                 type: WarehouseTypes.POSTGRES,
@@ -5137,7 +5360,11 @@ describe('AsyncQueryService', () => {
                 // THEN: _getWarehouseClient called with original credentials
                 expect(getWarehouseClientSpy).toHaveBeenCalledWith(
                     projectUuid,
-                    originalCredentials,
+                    {
+                        ...originalCredentials,
+                        connectionUuid: connection.connectionUuid,
+                        userWarehouseCredentialsUuid: undefined,
+                    },
                     undefined,
                 );
 
@@ -5471,7 +5698,7 @@ describe('AsyncQueryService', () => {
         });
 
         describe('cache invalidation', () => {
-            it('skips cache when invalidateCache is true', async () => {
+            it('skips cache and returns the resolved connection when the selector is omitted', async () => {
                 const service = getMockedAsyncQueryService({
                     ...lightdashConfigMock,
                     results: {
@@ -5525,13 +5752,21 @@ describe('AsyncQueryService', () => {
                     tunnelConnectMs: null,
                 }));
 
-                await service.executeAsyncSqlQuery({
+                const result = await service.executeAsyncSqlQuery({
                     account: sessionAccount,
                     projectUuid,
                     sql: 'SELECT 1',
                     context: QueryExecutionContext.SQL_RUNNER,
                     invalidateCache: true,
                 });
+
+                expect(result.connectionUuid).toBe(connection.connectionUuid);
+                expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
+                    sessionAccount,
+                    expect.objectContaining({
+                        connectionUuid: result.connectionUuid,
+                    }),
+                );
 
                 expect(service.findResultsCache).toHaveBeenCalledWith(
                     projectUuid,
@@ -8121,6 +8356,15 @@ describe('saved chart query result access', () => {
         'retains source access when %s are prepared before revocation',
         async (operation) => {
             const { account, service, history, resolveAccess } = buildFixture();
+            history.connectionUuid = 'persisted-connection-a';
+            const currentBinding = vi
+                .spyOn(projectModel, 'getExploreConnectionUuid')
+                .mockResolvedValue('rebound-connection-b')
+                .mockClear();
+            const credentials = vi.spyOn(
+                projectModel,
+                'getWarehouseCredentialsForProject',
+            );
             resolveAccess.mockResolvedValue({
                 inheritsFromOrgOrProject: false,
                 access: [{ userUuid: account.user.id, role: 'viewer' }],
@@ -8193,6 +8437,12 @@ describe('saved chart query result access', () => {
             const result = await derive();
             expect(result).toMatchObject({ queryUuid: 'derived-query-uuid' });
             expect(persist).toHaveBeenCalledTimes(1);
+            expect(credentials).toHaveBeenLastCalledWith(
+                projectUuid,
+                'persisted-connection-a',
+            );
+            expect(currentBinding).not.toHaveBeenCalled();
+            currentBinding.mockRestore();
             const persistedParameters = persist.mock.calls[0][1];
             expect(persistedParameters).not.toHaveProperty('chartUuid');
             if (operation === 'underlying') {
@@ -8380,6 +8630,14 @@ describe('runDuckdbQuery', () => {
                 configuration: { bucket: 'results-bucket' },
             } as unknown as S3ResultsFileStorageClient,
             queryHistoryModel: {
+                getByQueryUuid: vi.fn(async () => ({
+                    projectUuid,
+                    connectionUuid: null,
+                    requestParameters: {
+                        sql: 'SELECT 1',
+                        executionBackend: 'external',
+                    },
+                })),
                 update: vi.fn(),
                 pollForQueryCompletion,
                 recordDuckdbRefusal,
@@ -8678,6 +8936,14 @@ describe('runDuckdbQuery', () => {
                 configuration: { bucket: 'results-bucket' },
             } as unknown as S3ResultsFileStorageClient,
             queryHistoryModel: {
+                getByQueryUuid: vi.fn(async () => ({
+                    projectUuid,
+                    connectionUuid: null,
+                    requestParameters: {
+                        sql: 'SELECT 1',
+                        executionBackend: 'external',
+                    },
+                })),
                 update: vi.fn(),
                 pollForQueryCompletion: vi.fn(
                     async ({ queryUuid }: { queryUuid: string }) => ({
@@ -9160,6 +9426,7 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             resultsExpiresAt: null,
             columns: {},
             metricQuery: metricQueryMock,
+            connectionUuid: connection.connectionUuid,
         }) as unknown as QueryHistory;
 
     const legResultByExploreName = (exploreName: string) =>
@@ -9911,6 +10178,7 @@ describe('query sources carry the execution context', () => {
             resultsExpiresAt: null,
             columns: {},
             metricQuery: { exploreName: 'orders' },
+            connectionUuid: connection.connectionUuid,
         });
 
         await expect(
@@ -10324,6 +10592,7 @@ describe('DuckDB source queries on the worker', () => {
         status: QueryHistoryStatus.READY,
         columns: {},
         metricQuery: { exploreName: 'orders' },
+        connectionUuid: connection.connectionUuid,
     } as unknown as QueryHistory;
 
     const buildWorkerService = (config: LightdashConfig) => {

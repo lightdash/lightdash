@@ -1066,7 +1066,7 @@ export type ApiExecuteAsyncDashboardChartQueryResults =
 
 export type ApiExecuteAsyncSqlQueryResults =
     ApiExecuteAsyncQueryResultsCommon & {
-        // leaving empty for now
+        connectionUuid?: string;
     };
 
 export type ApiExecuteAsyncDashboardSqlChartQueryResults =

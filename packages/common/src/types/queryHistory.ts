@@ -47,6 +47,7 @@ export type QueryHistory = {
     createdByActorType: AuthType | null;
     organizationUuid: string;
     projectUuid: string | null;
+    connectionUuid?: string | null;
     warehouseQueryId: string | null;
     warehouseQueryMetadata: WarehouseQueryMetadata | null;
     context: QueryExecutionContext;

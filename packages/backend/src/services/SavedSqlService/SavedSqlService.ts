@@ -427,10 +427,14 @@ export class SavedSqlService
             },
         );
 
+        const connection = await this.projectModel.resolveConnection(
+            projectUuid,
+            sqlChart.connectionUuid,
+        );
         const createdChart = await this.savedSqlModel.create(
             user.userUuid,
             projectUuid,
-            sqlChart,
+            { ...sqlChart, connectionUuid: connection.connectionUuid },
         );
 
         this.analytics.track({
@@ -499,10 +503,28 @@ export class SavedSqlService
             },
         );
 
+        const connection = sqlChart.versionedData
+            ? await this.projectModel.resolveConnection(
+                  projectUuid,
+                  sqlChart.versionedData.connectionUuid === undefined
+                      ? savedChart.connectionUuid
+                      : sqlChart.versionedData.connectionUuid,
+              )
+            : undefined;
         const updatedChart = await this.savedSqlModel.update({
             userUuid: user.userUuid,
             savedSqlUuid,
-            sqlChart,
+            sqlChart: {
+                ...sqlChart,
+                ...(sqlChart.versionedData && connection
+                    ? {
+                          versionedData: {
+                              ...sqlChart.versionedData,
+                              connectionUuid: connection.connectionUuid,
+                          },
+                      }
+                    : {}),
+            },
         });
 
         this.analytics.track({
@@ -727,6 +749,7 @@ export class SavedSqlService
         sql: string,
         limit?: number,
         context: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
+        connectionUuid?: string,
     ): Promise<{ jobId: string }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -750,7 +773,12 @@ export class SavedSqlService
             throw new ForbiddenError();
         }
 
+        const connection = await this.projectModel.resolveConnection(
+            projectUuid,
+            connectionUuid,
+        );
         const jobId = await this.schedulerClient.runSql({
+            connectionUuid: connection.connectionUuid,
             userUuid: user.userUuid,
             organizationUuid,
             projectUuid,
@@ -810,7 +838,12 @@ export class SavedSqlService
                 throw new ForbiddenError();
             }
         }
+        const connection = await this.projectModel.resolveConnection(
+            projectUuid,
+            savedChart ? savedChart.connectionUuid : body.connectionUuid,
+        );
         const jobId = await this.schedulerClient.runSqlPivotQuery({
+            connectionUuid: connection.connectionUuid,
             savedSqlUuid: savedChart?.savedSqlUuid,
             sql: savedChart?.sql || body.sql,
             limit: savedChart?.limit || body.limit,
@@ -852,7 +885,12 @@ export class SavedSqlService
             throw new ForbiddenError();
         }
 
+        const connection = await this.projectModel.resolveConnection(
+            projectUuid,
+            savedChart.connectionUuid,
+        );
         const jobId = await this.schedulerClient.runSql({
+            connectionUuid: connection.connectionUuid,
             userUuid: user.userUuid,
             organizationUuid: savedChart.organization.organizationUuid,
             projectUuid: savedChart.project.projectUuid,

@@ -61,6 +61,9 @@ const virtualViewAnchor = {
 
 export const HeaderCreate: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const connectionUuid = useAppSelector(
+        (state) => state.sqlRunner.connectionUuid,
+    );
     const { data: project } = useProject(projectUuid);
 
     const { user } = useApp();
@@ -545,6 +548,7 @@ export const HeaderCreate: FC = () => {
                 key={`${isCreateVirtualViewModalOpen}-createVirtualViewModal`}
                 opened={isCreateVirtualViewModalOpen}
                 onClose={onCloseCreateVirtualViewModal}
+                connectionUuid={connectionUuid}
             />
 
             <WriteBackToDbtModal

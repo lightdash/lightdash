@@ -579,6 +579,7 @@ export class QueryController extends BaseController {
                 projectUuid,
                 invalidateCache: body.invalidateCache ?? false,
                 sql: body.sql,
+                connectionUuid: body.connectionUuid,
                 context: context ?? QueryExecutionContext.SQL_RUNNER,
                 pivotConfiguration: body.pivotConfiguration,
                 limit: body.limit,

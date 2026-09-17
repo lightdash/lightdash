@@ -10,6 +10,7 @@ import {
 
 export type TableReference = {
     projectUuid: string;
+    connectionUuid?: string;
     tableName: string;
     schema: string;
     database: string;
@@ -18,13 +19,14 @@ export type TableReference = {
 export const useMultipleTableFields = (tableReferences: TableReference[]) => {
     // Create queries for each unique table reference
     const queries = useMemo(() => {
-        // Deduplicate table references based on projectUuid + database + schema + tableName
+        // Deduplicate table references based on projectUuid + connectionUuid + database + schema + tableName
         const uniqueReferences = tableReferences.filter(
             (ref, index, self) =>
                 index ===
                 self.findIndex(
                     (r) =>
                         r.projectUuid === ref.projectUuid &&
+                        r.connectionUuid === ref.connectionUuid &&
                         r.database === ref.database &&
                         r.schema === ref.schema &&
                         r.tableName === ref.tableName,
@@ -36,6 +38,7 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
             queryFn: () =>
                 fetchTableFields({
                     projectUuid: ref.projectUuid,
+                    connectionUuid: ref.connectionUuid,
                     tableName: ref.tableName,
                     schema: ref.schema,
                     database: ref.database,
@@ -48,6 +51,7 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
                 schema: ref.schema,
                 database: ref.database,
                 projectUuid: ref.projectUuid,
+                connectionUuid: ref.connectionUuid,
             },
         }));
     }, [tableReferences]);

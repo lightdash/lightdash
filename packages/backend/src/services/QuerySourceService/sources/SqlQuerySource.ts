@@ -103,6 +103,7 @@ export class SqlQuerySource implements QuerySourceClient {
         userAttributeOverrides,
         invalidateCache,
         pivotConfiguration,
+        resolvedConnectionUuid,
     }: SubmitSourceQueryArgs): Promise<{
         queryUuid: string;
         cacheHit: boolean;
@@ -113,6 +114,8 @@ export class SqlQuerySource implements QuerySourceClient {
             account,
             projectUuid,
             sql: sourceQuery.sql,
+            connectionUuid:
+                resolvedConnectionUuid ?? sourceQuery.connectionUuid,
             limit: sourceQuery.limit,
             context,
             parameters,

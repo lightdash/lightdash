@@ -50,6 +50,9 @@ export const HeaderEdit: FC = () => {
     const savedSqlChart = useAppSelector(
         (state) => state.sqlRunner.savedSqlChart,
     );
+    const connectionUuid = useAppSelector(
+        (state) => state.sqlRunner.connectionUuid,
+    );
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
@@ -90,12 +93,13 @@ export const HeaderEdit: FC = () => {
                     config,
                     sql,
                     limit: limit ?? DEFAULT_SQL_LIMIT,
+                    connectionUuid,
                 },
             });
             setInitialChartConfig(config);
             setInitialSavedSqlChart({ sql, limit: limit ?? DEFAULT_SQL_LIMIT });
         }
-    }, [config, sql, mutate, limit]);
+    }, [config, sql, mutate, limit, connectionUuid]);
 
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,

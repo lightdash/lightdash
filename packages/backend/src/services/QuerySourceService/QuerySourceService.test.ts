@@ -1,4 +1,5 @@
 import {
+    CrossConnectionQueryError,
     DimensionType,
     ForbiddenError,
     ParameterError,
@@ -8,6 +9,8 @@ import {
     UnexpectedServerError,
     VizAggregationOptions,
     VizIndexType,
+    WarehouseTypes,
+    type Connection,
     type PivotConfiguration,
     type SourceQuery,
 } from '@lightdash/common';
@@ -20,6 +23,7 @@ import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import type { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import type { ProjectService } from '../ProjectService/ProjectService';
+import { validExplore } from '../ProjectService/ProjectService.mock';
 import { QuerySourceRegistry } from './QuerySourceRegistry';
 import { QuerySourceService } from './QuerySourceService';
 import { DuckdbQuerySource } from './sources/DuckdbQuerySource';
@@ -33,6 +37,15 @@ import type {
 const account = buildAccount();
 const projectUuid = 'test-project-uuid';
 const organizationUuid = 'test-org-uuid';
+const connection: Connection = {
+    connectionUuid: 'connection-a',
+    name: 'Warehouse A',
+    warehouseType: WarehouseTypes.POSTGRES,
+    organizationWarehouseCredentialsUuid: null,
+    listAllDatabases: false,
+    additionalDatabases: [],
+    createdAt: new Date(),
+};
 const executionContext: SourceQueryExecutionContext = {
     parameters: {},
     userAttributeOverrides: {},
@@ -63,7 +76,18 @@ const createFakeSource = (
 
 type Mocks = {
     featureFlagModel: { get: Mock };
-    projectModel: { getSummary: Mock };
+    projectModel: {
+        getSummary: Mock;
+        resolveConnection: ReturnType<
+            typeof vi.fn<ProjectModel['resolveConnection']>
+        >;
+        getExploreConnectionUuid: ReturnType<
+            typeof vi.fn<ProjectModel['getExploreConnectionUuid']>
+        >;
+        getExploreFromCache: ReturnType<
+            typeof vi.fn<ProjectModel['getExploreFromCache']>
+        >;
+    };
     queryHistoryModel: { get: Mock };
 };
 
@@ -73,11 +97,25 @@ const createService = (registry: QuerySourceRegistry) => {
             get: vi.fn().mockResolvedValue({ enabled: true }),
         },
         projectModel: {
+            resolveConnection: vi.fn<ProjectModel['resolveConnection']>(
+                async (_projectUuid, connectionUuid) => ({
+                    ...connection,
+                    connectionUuid: connectionUuid ?? connection.connectionUuid,
+                }),
+            ),
+            getExploreConnectionUuid: vi.fn<
+                ProjectModel['getExploreConnectionUuid']
+            >(async () => connection.connectionUuid),
+            getExploreFromCache: vi.fn<ProjectModel['getExploreFromCache']>(
+                async () => validExplore,
+            ),
             getSummary: vi.fn().mockResolvedValue({ organizationUuid }),
         },
         queryHistoryModel: {
             get: vi.fn(async (queryUuid: string) => ({
                 queryUuid,
+                connectionUuid: connection.connectionUuid,
+                requestParameters: {},
                 status: QueryHistoryStatus.READY,
                 error: null,
             })),
@@ -956,5 +994,134 @@ describe('composer pipelines return the standard results interface', () => {
                 ],
             }),
         ).rejects.toThrow(ParameterError);
+    });
+});
+
+describe('query-source connection preflight', () => {
+    const queries: SourceQuery[] = [
+        {
+            nodeId: 'a',
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            exploreName: 'orders',
+            dimensions: [],
+            metrics: [],
+        },
+        {
+            nodeId: 'b',
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            exploreName: 'payments',
+            dimensions: [],
+            metrics: [],
+        },
+        {
+            nodeId: 'joined',
+            sourceType: QuerySourceType.DUCKDB,
+            sql: 'SELECT * FROM a JOIN b ON TRUE',
+            references: ['a', 'b'],
+        },
+    ];
+
+    it('refuses different bindings before either warehouse leg is submitted', async () => {
+        const { registry, sqlSource, semanticLayerSource, duckdbSource } =
+            createRegistryWithFakes();
+        const { service, mocks } = createService(registry);
+        mocks.projectModel.getExploreConnectionUuid.mockImplementation(
+            async (_project, exploreName) =>
+                exploreName === 'orders' ? 'connection-a' : 'connection-b',
+        );
+        await expect(
+            service.executeSourceQueries({
+                ...executionContext,
+                account,
+                projectUuid,
+                queries,
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+            }),
+        ).rejects.toBeInstanceOf(CrossConnectionQueryError);
+        expect(semanticLayerSource.submitQuery).not.toHaveBeenCalled();
+        expect(sqlSource.submitQuery).not.toHaveBeenCalled();
+        expect(duckdbSource.submitQuery).not.toHaveBeenCalled();
+    });
+
+    it('pins the resolved identity for a same-connection DAG', async () => {
+        const { registry, semanticLayerSource, duckdbSource } =
+            createRegistryWithFakes();
+        const { service } = createService(registry);
+        await service.executeSourceQueries({
+            ...executionContext,
+            account,
+            projectUuid,
+            queries,
+            context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+        });
+        expect(semanticLayerSource.submitQuery).toHaveBeenCalledTimes(2);
+        expect(semanticLayerSource.submitQuery).toHaveBeenCalledWith(
+            expect.objectContaining({
+                resolvedConnectionUuid: connection.connectionUuid,
+            }),
+        );
+        expect(duckdbSource.submitQuery).toHaveBeenCalledWith(
+            expect.objectContaining({
+                resolvedConnectionUuid: connection.connectionUuid,
+            }),
+        );
+    });
+
+    it('checks persisted result identities against new warehouse legs', async () => {
+        const { registry, semanticLayerSource } = createRegistryWithFakes();
+        const { service, mocks } = createService(registry);
+        const priorQueryUuid = '11111111-1111-4111-8111-111111111111';
+        mocks.queryHistoryModel.get.mockResolvedValue({
+            connectionUuid: 'connection-b',
+            requestParameters: { sql: 'SELECT 1' },
+        });
+        await expect(
+            service.executeSourceQueries({
+                ...executionContext,
+                account,
+                projectUuid,
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                queries: [
+                    queries[0],
+                    {
+                        nodeId: 'joined',
+                        sourceType: QuerySourceType.DUCKDB,
+                        sql: 'SELECT * FROM a JOIN prior ON TRUE',
+                        references: { a: 'a', prior: priorQueryUuid },
+                    },
+                ],
+            }),
+        ).rejects.toBeInstanceOf(CrossConnectionQueryError);
+        expect(semanticLayerSource.submitQuery).not.toHaveBeenCalled();
+        expect(mocks.queryHistoryModel.get).toHaveBeenCalledWith(
+            priorQueryUuid,
+            projectUuid,
+            account,
+        );
+    });
+
+    it('resolves SQL source selectors before submission', async () => {
+        const { registry, sqlSource } = createRegistryWithFakes();
+        const { service, mocks } = createService(registry);
+        await service.executeSourceQueries({
+            ...executionContext,
+            account,
+            projectUuid,
+            context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+            queries: [
+                {
+                    sourceType: QuerySourceType.SQL,
+                    sql: 'SELECT 1',
+                    connectionUuid: 'connection-b',
+                },
+            ],
+        });
+        expect(mocks.projectModel.resolveConnection).toHaveBeenCalledWith(
+            projectUuid,
+            'connection-b',
+        );
+        expect(sqlSource.submitQuery).toHaveBeenCalledWith(
+            expect.objectContaining({ resolvedConnectionUuid: 'connection-b' }),
+        );
     });
 });

@@ -118,6 +118,7 @@ export type SemanticLayerSourceQuery = {
 
 /** A raw warehouse SQL query as a source query. */
 export type SqlSourceQuery = {
+    connectionUuid?: string;
     sourceType: QuerySourceType.SQL;
     /** Names this query so other queries in the same submission can reference its results. */
     nodeId?: QueryNodeId;

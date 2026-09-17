@@ -5,6 +5,7 @@ describeContentAsCodeSchemaContract({
     modelSchema: 'SqlChart',
     documentSchema: 'SqlChartAsCode',
     skippedModelFields: [
+        'connectionUuid',
         'createdAt',
         'createdBy',
         'dashboard',

@@ -138,6 +138,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         userAttributeOverrides,
         invalidateCache,
         pivotConfiguration,
+        resolvedConnectionUuid,
         documentQueryContext,
     }: SubmitSourceQueryArgs): Promise<{
         queryUuid: string;
@@ -167,6 +168,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
             account,
             projectUuid,
             metricQuery,
+            resolvedConnectionUuid,
             context,
             parameters,
             userAttributeOverrides,

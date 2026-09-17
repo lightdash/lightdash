@@ -93,6 +93,33 @@ describe('ConnectionModel', () => {
         await expect(
             model.getByUuid(projectUuid, connectionUuid),
         ).rejects.toBeInstanceOf(NotFoundError);
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining([projectUuid, connectionUuid]),
+        );
+    });
+
+    test('rejects an org connection not owned by the project organization', async () => {
+        tracker.on.select(connectionQuery).response([
+            {
+                ...connectionRow,
+                encrypted_credentials: null,
+                organization_warehouse_credentials_uuid:
+                    'foreign-organization-credentials-uuid',
+            },
+        ]);
+        tracker.on.select(/organization_warehouse_credentials/).response([]);
+
+        await expect(
+            model.getByUuid(projectUuid, connectionUuid),
+        ).rejects.toEqual(
+            new NotFoundError('Organization warehouse credentials not found'),
+        );
+        expect(tracker.history.select[1].bindings).toEqual(
+            expect.arrayContaining([
+                'foreign-organization-credentials-uuid',
+                'organization-uuid',
+            ]),
+        );
     });
 
     test('decrypts project-owned credentials and merges listing fields', async () => {
@@ -183,12 +210,89 @@ describe('ConnectionModel', () => {
         expect(tracker.history.update[0].bindings).toContain(null);
     });
 
+    test('changes the credential revision when organization credentials change', async () => {
+        tracker.on.select(connectionQuery).response([
+            {
+                ...connectionRow,
+                encrypted_credentials: null,
+                organization_warehouse_credentials_uuid:
+                    'organization-credentials-uuid',
+            },
+        ]);
+        tracker.on.select(/organization_warehouse_credentials/).responseOnce([
+            {
+                warehouse_connection: Buffer.from(
+                    JSON.stringify({
+                        ...credentials,
+                        host: 'first.example.com',
+                    }),
+                ),
+            },
+        ]);
+        tracker.on.select(/organization_warehouse_credentials/).responseOnce([
+            {
+                warehouse_connection: Buffer.from(
+                    JSON.stringify({
+                        ...credentials,
+                        host: 'second.example.com',
+                    }),
+                ),
+            },
+        ]);
+
+        const first = await model.getCredentialsRevision(
+            projectUuid,
+            connectionUuid,
+        );
+        const second = await model.getCredentialsRevision(
+            projectUuid,
+            connectionUuid,
+        );
+
+        expect(first).not.toBe(second);
+    });
+
+    test('keeps the credential revision stable across a rename', async () => {
+        tracker.on.select(connectionQuery).responseOnce([connectionRow]);
+        tracker.on
+            .select(connectionQuery)
+            .responseOnce([{ ...connectionRow, name: 'Renamed connection' }]);
+
+        const first = await model.getCredentialsRevision(
+            projectUuid,
+            connectionUuid,
+        );
+        const second = await model.getCredentialsRevision(
+            projectUuid,
+            connectionUuid,
+        );
+
+        expect(first).toBe(second);
+    });
+
     test('resolves one live connection', async () => {
         tracker.on.select(connectionQuery).response([connectionRow]);
 
         await expect(model.resolveSole(projectUuid)).resolves.toMatchObject({
             connectionUuid,
         });
+    });
+
+    test('validates org ownership while resolving the sole connection', async () => {
+        tracker.on.select(connectionQuery).response([
+            {
+                ...connectionRow,
+                encrypted_credentials: null,
+                organization_warehouse_credentials_uuid:
+                    'foreign-organization-credentials-uuid',
+            },
+        ]);
+        tracker.on.select(/organization_warehouse_credentials/).response([]);
+
+        await expect(model.resolveSole(projectUuid)).rejects.toBeInstanceOf(
+            NotFoundError,
+        );
+        expect(tracker.history.select).toHaveLength(3);
     });
 
     test('refuses a project without connections', async () => {
@@ -230,12 +334,6 @@ describe('ConnectionModel', () => {
             sql.includes('pg_advisory_xact_lock'),
         );
         expect(lock?.bindings).toEqual([42]);
-    });
-
-    test('detects when the multi-connection contract is applied', async () => {
-        tracker.on.select('pg_constraint').response([]);
-
-        await expect(model.contractApplied()).resolves.toBe(true);
     });
 
     test('binds only the unbound content of the project to a connection', async () => {

@@ -88,6 +88,7 @@ export type ExecuteAsyncComposeMergeQueryRequestParams =
 
 export type ExecuteAsyncSqlQueryRequestParams =
     CommonExecuteQueryRequestParams & {
+        connectionUuid?: UUID;
         sql: string;
         limit?: number;
         pivotConfiguration?: PivotConfiguration;
@@ -215,7 +216,10 @@ export type ExecuteAsyncQueryRequestParams = (
     | ExecuteAsyncUnderlyingDataRequestParams
     | ExecuteAsyncDashboardSqlChartRequestParams
     | ExecuteAsyncFieldValueSearchRequestParams
-) & { documentSource?: DocumentQueryReference };
+) & {
+    documentSource?: DocumentQueryReference;
+    executionBackend?: 'warehouse' | 'external';
+};
 
 // Recovers dateZoom from a persisted request-parameters union without duck-typing at call sites.
 export const getDateZoomFromRequestParameters = (

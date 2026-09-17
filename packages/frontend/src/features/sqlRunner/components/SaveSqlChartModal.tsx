@@ -53,6 +53,7 @@ type SaveSqlChartModalContentProps = Props & {
     sql: string;
     limit: number;
     currentVizConfig: AllVizChartConfig;
+    connectionUuid?: string;
     hasUnrunChanges: boolean;
     redirectOnSuccess?: boolean;
     onSaved?: (
@@ -88,6 +89,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
     sql,
     limit,
     currentVizConfig,
+    connectionUuid,
     hasUnrunChanges,
     redirectOnSuccess,
     onSaved,
@@ -186,6 +188,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
                     limit: limit ?? DEFAULT_SQL_LIMIT,
                     config: currentVizConfig,
                     spaceUuid: spaceUuid,
+                    connectionUuid,
                 });
 
                 onClose();
@@ -201,6 +204,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
         form.values.description,
         handleCreateNewSpace,
         currentVizConfig,
+        connectionUuid,
         sql,
         createSavedSqlChart,
         limit,
@@ -376,6 +380,9 @@ export const SaveSqlChartModal: FC<Props> = (props) => {
     const description = useAppSelector((state) => state.sqlRunner.description);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const limit = useAppSelector((state) => state.sqlRunner.limit);
+    const connectionUuid = useAppSelector(
+        (state) => state.sqlRunner.connectionUuid,
+    );
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
@@ -402,6 +409,7 @@ export const SaveSqlChartModal: FC<Props> = (props) => {
             sql={sql}
             limit={limit ?? DEFAULT_SQL_LIMIT}
             currentVizConfig={currentVizConfig}
+            connectionUuid={connectionUuid}
             hasUnrunChanges={hasUnrunChanges}
             onSaved={(_, savedName) => {
                 dispatch(updateName(savedName));
