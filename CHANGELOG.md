@@ -1,3 +1,10 @@
+## [2.254.1](https://github.com/lightdash/lightdash/compare/2.254.0...2.254.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* **navbar:** preserve Autopilot group border radius ([#29458](https://github.com/lightdash/lightdash/issues/29458)) ([1de493b](https://github.com/lightdash/lightdash/commit/1de493bc5948b4172e27ca976a4b3338b52f89b5))
+
 # [2.254.0](https://github.com/lightdash/lightdash/compare/2.253.2...2.254.0) (2026-09-17)
 
 
