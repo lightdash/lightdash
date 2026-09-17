@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
                           label: string;
                           type: 'dimension' | 'metric';
                           required: boolean;
+                          multiple?: boolean;
                       }>;
                       configOptions: Array<{
                           type: 'text';
@@ -56,6 +57,12 @@ const mocks = vi.hoisted(() => ({
     embedToken: { current: undefined as string | undefined },
     dataAppVizUuid: { current: 'viz-uuid' as string | null },
     dataAppVizVersion: { current: 7 as number | undefined },
+    fieldMapping: {
+        current: { category: 'orders_category' } as Record<
+            string,
+            string | string[]
+        >,
+    },
     setDataAppVizVersion: vi.fn(),
     iframePreview: vi.fn(
         (_props: {
@@ -165,7 +172,7 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
                               dataAppVizUuid: mocks.dataAppVizUuid.current,
                               dataAppVizVersion:
                                   mocks.dataAppVizVersion.current,
-                              fieldMapping: { category: 'orders_category' },
+                              fieldMapping: mocks.fieldMapping.current,
                               optionValues: { title: 12 },
                           },
                 setDataAppVizVersion: mocks.setDataAppVizVersion,
@@ -280,6 +287,7 @@ const readyMetadata = () => ({
 describe('DataAppVizRenderer', () => {
     beforeEach(() => {
         mocks.metadata.current = readyMetadata();
+        mocks.fieldMapping.current = { category: 'orders_category' };
         mocks.metadataError.current = undefined;
         mocks.token.current = 'preview-token';
         mocks.tokenError.current = undefined;
@@ -591,6 +599,44 @@ describe('DataAppVizRenderer', () => {
                     seriesColors: {},
                     valueColors: {
                         orders_category: { Hardware: '#00ff00' },
+                    },
+                }),
+            }),
+            undefined,
+        );
+    });
+
+    it('delivers reconciled multiple bindings to the iframe context', () => {
+        const metadata = readyMetadata();
+        mocks.metadata.current = {
+            ...metadata,
+            schema: {
+                ...metadata.schema,
+                fields: [
+                    ...metadata.schema.fields,
+                    {
+                        name: 'values',
+                        label: 'Values',
+                        type: 'metric',
+                        required: true,
+                        multiple: true,
+                    },
+                ],
+            },
+        };
+        mocks.fieldMapping.current = {
+            category: 'orders_category',
+            values: ['orders_count'],
+        };
+
+        renderRenderer();
+
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                dataAppVizContext: expect.objectContaining({
+                    fieldMapping: {
+                        category: 'orders_category',
+                        values: ['orders_count'],
                     },
                 }),
             }),

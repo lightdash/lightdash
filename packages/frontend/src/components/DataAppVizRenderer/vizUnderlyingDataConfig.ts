@@ -1,11 +1,16 @@
-import { isDimension, type DateZoom, type ItemsMap } from '@lightdash/common';
+import {
+    isDimension,
+    type DataAppVizFieldMapping,
+    type DateZoom,
+    type ItemsMap,
+} from '@lightdash/common';
 import { type UnderlyingDataConfig } from '../MetricQueryData/types';
-import { isVizIntent, toVizFieldValues } from './vizIntent';
+import { isVizIntent, resolveVizFieldId, toVizFieldValues } from './vizIntent';
 
 export const resolveVizUnderlyingDataConfig = (
     intent: unknown,
     args: {
-        fieldMapping: Record<string, string>;
+        fieldMapping: DataAppVizFieldMapping;
         itemsMap: ItemsMap;
         dateZoom: DateZoom | undefined;
     },
@@ -14,8 +19,8 @@ export const resolveVizUnderlyingDataConfig = (
         throw new Error('Invalid underlying-data request.');
     }
 
-    const fieldId = args.fieldMapping[intent.metric];
-    const item = fieldId ? args.itemsMap[fieldId] : undefined;
+    const fieldId = resolveVizFieldId(intent, args.fieldMapping);
+    const item = args.itemsMap[fieldId];
     if (!fieldId || !item) {
         throw new Error(
             `"${intent.metric}" is not bound to a query field on this chart.`,

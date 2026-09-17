@@ -271,6 +271,8 @@ export type VizUnderlyingDataIntent = {
         { value?: { raw?: unknown; formatted?: string } } | undefined
     >;
     metric: string;
+    /** The clicked query field id when `metric` is a multi-field slot. */
+    fieldId?: string;
     limit?: number | null;
 };
 
@@ -295,6 +297,8 @@ export type VizDrillDownIntent = {
         { value?: { raw?: unknown; formatted?: string } } | undefined
     >;
     metric: string;
+    /** The clicked query field id when `metric` is a multi-field slot. */
+    fieldId?: string;
 };
 
 // --- Client config ---

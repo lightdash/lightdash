@@ -813,6 +813,8 @@ export type DataAppVizField = {
     label: string;
     type: DataAppVizFieldType;
     required: boolean;
+    /** Whether this slot accepts an ordered collection of query fields. */
+    multiple?: boolean;
     /** Explain what belongs in this slot for a reusable visualization. */
     description?: string;
     /** Scalar display examples for this slot, independent of any one query. */
@@ -896,6 +898,14 @@ const vizField = (strict: boolean) =>
             .boolean()
             .describe(
                 'false only when the chart still renders with this field unmapped.',
+            ),
+        multiple: z
+            .boolean()
+            .nullable()
+            .transform((value) => value ?? undefined)
+            .optional()
+            .describe(
+                'Whether this slot accepts an ordered collection of fields. Omit or set false for one field.',
             ),
         description: optionalInputHelp(
             strict ? MAX_DATA_APP_VIZ_FIELD_DESCRIPTION_LENGTH : undefined,
@@ -1303,6 +1313,8 @@ export const APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH =
 export type DataAppVizUnderlyingDataIntent = {
     row: ResultRow;
     metric: string;
+    /** Required by hosts for a multi-metric slot; must belong to that slot. */
+    fieldId?: string;
     limit?: number | null;
 };
 
@@ -1317,6 +1329,8 @@ export const APP_SDK_VIZ_DRILL_DOWN_PATH = '/__sdk/viz/drill-down';
 export type DataAppVizDrillDownIntent = {
     row: ResultRow;
     metric: string;
+    /** Required by hosts for a multi-metric slot; must belong to that slot. */
+    fieldId?: string;
 };
 
 // Host-owned render context pushed into a data app viz: field name → bound query
@@ -1329,7 +1343,7 @@ export type DataAppVizDrillDownIntent = {
 // `drillDown.enabled` are required so every push site decides availability
 // explicitly.
 export type DataAppVizContext = {
-    fieldMapping: Record<string, string>;
+    fieldMapping: Record<string, string | string[]>;
     rows: ResultRow[];
     options: Record<string, DataAppVizOptionValue>;
     colorPalette: string[];

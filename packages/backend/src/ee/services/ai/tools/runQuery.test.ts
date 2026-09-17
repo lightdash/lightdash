@@ -886,6 +886,40 @@ describe('getRunQuery custom chart types', () => {
         );
     });
 
+    it.each([false, true])(
+        'persists ordered multi-field bindings with filter expressions %s',
+        async (enableFilterExpressions) => {
+            const chartConfig: ToolRunQueryCustomChartTypeConfig = {
+                ...customChartConfig,
+                fieldMapping: { x: 'a_dim1', y: ['a_met1'] },
+            };
+            const multiSchema = {
+                ...vizSchema,
+                fields: vizSchema.fields.map((field) =>
+                    field.name === 'y' ? { ...field, multiple: true } : field,
+                ),
+            };
+            const { output, createOrUpdateArtifact } = await executeCustom({
+                chartConfig,
+                enableFilterExpressions,
+                resolveCustomChartType: vi.fn().mockResolvedValue({
+                    dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                    schema: multiSchema,
+                }) as ResolveCustomChartTypeFn,
+            });
+
+            expect(output.metadata).toMatchObject({ status: 'success' });
+            expect(createOrUpdateArtifact).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    vizConfig: expect.objectContaining({
+                        source: 'customChartType',
+                        config: expect.objectContaining({ chartConfig }),
+                    }),
+                }),
+            );
+        },
+    );
+
     it('persists resolved expression args for custom chart types', async () => {
         const { output, createOrUpdateArtifact } = await executeCustom({
             chartConfig: customChartConfig,

@@ -141,13 +141,11 @@ export const useDataAppVizBuild = ({
             if (version.status === 'ready') {
                 // Only new visualizations need selecting; later picker choices win.
                 if (target?.isNew && dataAppVizUuid === null) {
-                    onCreated(
-                        target.appUuid,
-                        autoMapDataAppVizFields(
-                            version.resources?.vizSchema?.fields ?? [],
-                            itemsMap,
-                        ),
+                    const fieldMapping = autoMapDataAppVizFields(
+                        version.resources?.vizSchema?.fields ?? [],
+                        itemsMap,
                     );
+                    onCreated(target.appUuid, fieldMapping);
                 }
                 return;
             }

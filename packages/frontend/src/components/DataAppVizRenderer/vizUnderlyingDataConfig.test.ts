@@ -73,4 +73,49 @@ describe('resolveVizUnderlyingDataConfig', () => {
             ),
         ).toThrow('"category" is not a metric on this chart.');
     });
+
+    it('requires the clicked field id for a multi-metric binding', () => {
+        const fieldMapping = {
+            value: ['orders_revenue', 'orders_status'],
+        };
+        expect(() =>
+            resolveVizUnderlyingDataConfig(
+                { row, metric: 'value' },
+                {
+                    fieldMapping,
+                    itemsMap,
+                    dateZoom: undefined,
+                },
+            ),
+        ).toThrow('"value" has multiple fields; choose a bound field id.');
+        expect(
+            resolveVizUnderlyingDataConfig(
+                { row, metric: 'value', fieldId: 'orders_revenue' },
+                {
+                    fieldMapping,
+                    itemsMap,
+                    dateZoom: undefined,
+                },
+            ).item,
+        ).toBe(metricItem);
+    });
+
+    it('rejects a field id outside a scalar or singleton binding', () => {
+        expect(() =>
+            resolveVizUnderlyingDataConfig(
+                { row, metric: 'value', fieldId: 'orders_status' },
+                { fieldMapping, itemsMap, dateZoom: undefined },
+            ),
+        ).toThrow('"orders_status" is not bound to "value" on this chart.');
+        expect(() =>
+            resolveVizUnderlyingDataConfig(
+                { row, metric: 'value', fieldId: 'orders_status' },
+                {
+                    fieldMapping: { value: ['orders_revenue'] },
+                    itemsMap,
+                    dateZoom: undefined,
+                },
+            ),
+        ).toThrow('"orders_status" is not bound to "value" on this chart.');
+    });
 });

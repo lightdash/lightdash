@@ -131,7 +131,9 @@ export const serializeCustomChartTypeSchema = (
         lines.push(
             `- ${field.name} "${field.label}" (${field.type}, ${
                 field.required ? 'required' : 'optional'
-            })${details ? ` — ${details}` : ''}`,
+            }${field.multiple ? ', multiple' : ''})${
+                details ? ` — ${details}` : ''
+            }`,
         );
     }
     if (type.schema.configOptions.length === 0) {

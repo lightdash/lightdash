@@ -597,7 +597,11 @@ describe('Slack AI agent blocks', () => {
                                 fieldMapping: {
                                     x: 'orders_order_date_month',
                                     y: 'orders_unique_order_count',
-                                    series: 'orders_status',
+
+                                    series: [
+                                        'orders_status',
+                                        'orders_order_date_month',
+                                    ],
                                 },
                                 options: null,
                             },
@@ -621,6 +625,7 @@ describe('Slack AI agent blocks', () => {
                         label: 'Series',
                         type: 'series',
                         required: false,
+                        multiple: true,
                     },
                 ];
             },
@@ -639,11 +644,14 @@ describe('Slack AI agent blocks', () => {
                 fieldMapping: {
                     x: 'orders_order_date_month',
                     y: 'orders_unique_order_count',
-                    series: 'orders_status',
+
+                    series: ['orders_status', 'orders_order_date_month'],
                 },
             },
         });
-        expect(saved.pivotConfig).toEqual({ columns: ['orders_status'] });
+        expect(saved.pivotConfig).toEqual({
+            columns: ['orders_status', 'orders_order_date_month'],
+        });
     });
 
     it('keeps the table fallback for custom chart type answers when the schema is unavailable', async () => {

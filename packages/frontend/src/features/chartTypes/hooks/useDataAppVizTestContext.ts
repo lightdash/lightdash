@@ -7,6 +7,7 @@ import {
     isSummaryExploreError,
     QueryExecutionContext,
     type DataAppVizContext,
+    type DataAppVizFieldMapping,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
     type DataAppVizSchema,
@@ -28,7 +29,10 @@ import {
 import { getDataAppVizFieldItems } from '../utils/getDataAppVizFieldItems';
 import { useDataAppVizResolvedColors } from './useDataAppVizResolvedColors';
 
-type Run = { args: QueryResultsProps; mapping: Record<string, string> };
+type Run = {
+    args: QueryResultsProps;
+    fieldMapping: DataAppVizFieldMapping;
+};
 
 const EMPTY_FIELD_MAPPING = {};
 
@@ -42,8 +46,8 @@ export type DataAppVizTestContextState = {
     exploreName: string | null;
     exploreOptions: { value: string; label: string }[];
     handleExploreChange: (value: string | null) => void;
-    fieldMapping: Record<string, string>;
-    setField: (name: string, id: string | null) => void;
+    fieldMapping: DataAppVizFieldMapping;
+    setField: (name: string, id: string | string[] | null) => void;
     itemsMap: ItemsMap;
     dimensions: ReturnType<typeof getDataAppVizFieldItems>['dimensions'];
     metrics: ReturnType<typeof getDataAppVizFieldItems>['metrics'];
@@ -72,7 +76,7 @@ export const useDataAppVizTestContext = ({
     onContextChange,
 }: Args): DataAppVizTestContextState => {
     const [exploreName, setExploreName] = useState<string | null>(null);
-    const [fieldMapping, setFieldMapping] = useState<Record<string, string>>(
+    const [fieldMapping, setFieldMapping] = useState<DataAppVizFieldMapping>(
         {},
     );
     // Only what the user explicitly changed; defaults resolve at push time.
@@ -132,7 +136,7 @@ export const useDataAppVizTestContext = ({
     const resolvedColors = useDataAppVizResolvedColors({
         itemsMap,
         rows,
-        fieldMapping: run?.mapping ?? EMPTY_FIELD_MAPPING,
+        fieldMapping: run?.fieldMapping ?? EMPTY_FIELD_MAPPING,
         pivotDetails: queryResults.pivotDetails ?? null,
         colorPalette,
     });
@@ -148,7 +152,7 @@ export const useDataAppVizTestContext = ({
             queryResults.queryUuid === runQueryUuid
         ) {
             onContextChange({
-                fieldMapping: run.mapping,
+                fieldMapping: run.fieldMapping,
                 rows,
                 options: effectiveOptions,
                 colorPalette,
@@ -187,10 +191,10 @@ export const useDataAppVizTestContext = ({
     );
 
     const setField = useCallback(
-        (name: string, id: string | null) => {
+        (name: string, id: string | string[] | null) => {
             setFieldMapping((prev) => {
                 const next = { ...prev };
-                if (id) next[name] = id;
+                if (id !== null) next[name] = id;
                 else delete next[name];
                 return next;
             });
@@ -212,6 +216,7 @@ export const useDataAppVizTestContext = ({
             exploreName,
             schema,
             fieldMapping,
+            itemsMap,
         );
         const pivotConfig = deriveDataAppVizPivotConfig(
             schema.fields,
@@ -230,7 +235,7 @@ export const useDataAppVizTestContext = ({
                     itemsMap,
                 ),
             },
-            mapping: fieldMapping,
+            fieldMapping,
         });
     }, [exploreName, schema, fieldMapping, projectUuid, itemsMap]);
 

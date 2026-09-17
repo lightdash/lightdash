@@ -114,6 +114,37 @@ describe('dataAppVizGenerationSchema input guidance limits', () => {
 });
 
 describe('dataAppVizSchema', () => {
+    it('keeps omitted multiple scalar and accepts explicit multi fields', () => {
+        expect(
+            dataAppVizSchema.parse({
+                ...validFields,
+                configOptions: [],
+                colorPalette: null,
+            }).fields[0]?.multiple,
+        ).toBeUndefined();
+        expect(
+            dataAppVizGenerationSchema.parse({
+                ...validFields,
+                fields: [{ ...validFields.fields[0], multiple: true }],
+                configOptions: [],
+                colorPalette: null,
+            }).fields[0]?.multiple,
+        ).toBe(true);
+    });
+
+    it('accepts the null emitted for optional multiple by OpenAI strict JSON', () => {
+        const declaration = {
+            ...validFields,
+            fields: [{ ...validFields.fields[0], multiple: null }],
+            configOptions: [],
+            colorPalette: null,
+        };
+        expect(dataAppVizGenerationSchema.parse(declaration).fields[0]).toEqual(
+            validFields.fields[0],
+        );
+        expect(JSON.stringify(dataAppVizJsonSchema)).toContain('multiple');
+    });
+
     it('keeps previously saved long guidance readable while generation rejects it', () => {
         const savedSchema = {
             fields: [

@@ -269,6 +269,25 @@ describe('useDataAppVizResolvedColors', () => {
         });
     });
 
+    it('resolves colors for every dimension in a multiple binding', () => {
+        const { result } = renderResolvedColors({
+            rows: [
+                {
+                    orders_status: cell('completed'),
+                    orders_priority: cell(1),
+                },
+            ],
+            fieldMapping: {
+                categories: ['orders_status', 'orders_priority'],
+            },
+        });
+
+        expect(
+            result.current.valueColors.orders_status.completed,
+        ).toBeDefined();
+        expect(result.current.valueColors.orders_priority['1']).toBeDefined();
+    });
+
     it('cycles the palette per metric for a multi-metric pivot', () => {
         const { result } = renderResolvedColors({
             pivotDetails: pivotDetails([

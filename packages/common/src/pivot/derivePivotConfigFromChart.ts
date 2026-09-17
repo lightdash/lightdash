@@ -2,6 +2,7 @@
  * Derives pivot configuration from a saved chart's configuration and metric query
  * This enables consistent pivoting across all chart types
  */
+import { getDataAppVizFieldIds } from '../ee/apps/dataAppVizFieldMapping';
 import {
     CustomDimensionType,
     DimensionType,
@@ -450,7 +451,9 @@ export function deriveDataAppVizPivotConfiguration(
         return undefined;
     }
 
-    const mappedFieldIds = new Set(Object.values(fieldMapping));
+    const mappedFieldIds = new Set(
+        Object.values(fieldMapping).flatMap(getDataAppVizFieldIds),
+    );
     const groupByColumns = pivotConfig.columns
         .filter(
             (fieldId) =>

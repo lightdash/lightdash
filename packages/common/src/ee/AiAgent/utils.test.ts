@@ -468,6 +468,37 @@ describe('getDataAppVizChartFromArtifact', () => {
         });
     });
 
+    it('preserves ordered multiple bindings alongside scalar bindings', () => {
+        expect(
+            getDataAppVizChartFromArtifact({
+                source: 'customChartType',
+                schemaVersion: 1,
+                dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                config: {
+                    ...semanticConfig,
+                    queryConfig: {
+                        ...semanticConfig.queryConfig,
+                        parameters: null,
+                    },
+                    chartConfig: {
+                        ...customChartTypeSlugChartConfig,
+                        fieldMapping: {
+                            ...customChartTypeSlugChartConfig.fieldMapping,
+                            values: ['orders_count', 'orders_revenue'],
+                        },
+                    },
+                },
+            }),
+        ).toEqual({
+            dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+            fieldMapping: {
+                ...customChartTypeSlugChartConfig.fieldMapping,
+                values: ['orders_count', 'orders_revenue'],
+            },
+            optionValues: { showLegend: true },
+        });
+    });
+
     it('omits optionValues when the model set no options', () => {
         expect(
             getDataAppVizChartFromArtifact({

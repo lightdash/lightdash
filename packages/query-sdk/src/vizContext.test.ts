@@ -3,7 +3,7 @@ import {
     type DataAppVizContext,
     type DataAppVizOptionValue,
 } from '@lightdash/common';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { Transport } from './types';
 import {
     buildVizDrillDown,
@@ -15,6 +15,7 @@ import {
     resolveVizFixtureUrl,
     toVizContextState,
     type DataAppVizContextMessage,
+    type VizContext,
     type VizContextOptionValue,
     type VizContextPivotDetails,
     type VizContextRow,
@@ -45,11 +46,23 @@ const optionValueTypesMatchHost: Assert<
     Equal<VizContextOptionValue, DataAppVizOptionValue>
 > = true;
 const hostPayloadIsAcceptedBySdk: Assert<
-    IsAssignable<
-        DataAppVizContext,
-        Required<Omit<DataAppVizContextMessage, 'type'>>
-    >
+    IsAssignable<DataAppVizContext, Omit<DataAppVizContextMessage, 'type'>>
 > = true;
+expectTypeOf<VizContext['fieldMapping']>().toEqualTypeOf<
+    Record<string, string | string[]>
+>();
+expectTypeOf<DataAppVizContextMessage['fieldMapping']>().toEqualTypeOf<
+    Record<string, string | string[]>
+>();
+expectTypeOf<Parameters<typeof getFormatted>[1]>().toEqualTypeOf<
+    string | string[] | undefined
+>();
+expectTypeOf<Parameters<typeof getRaw>[1]>().toEqualTypeOf<
+    string | string[] | undefined
+>();
+expectTypeOf<Parameters<typeof resolveValueColor>[1]>().toEqualTypeOf<
+    string | string[]
+>();
 const inboundOptionsRemainOptional: Assert<
     IsOptional<DataAppVizContextMessage, 'options'>
 > = true;
@@ -80,6 +93,18 @@ const row: VizContextRow = {
 };
 
 describe('getFormatted', () => {
+    it('requires selecting a field before reading a multi-field binding', () => {
+        expect(getFormatted(row, ['orders_status'])).toBe('');
+        expect(getFormatted(row, ['orders_status', 'orders_count'])).toBe('');
+    });
+
+    it('accepts a scalar field mapping lookup', () => {
+        const fieldMapping: VizContext['fieldMapping'] = {
+            status: 'orders_status',
+        };
+        expect(getFormatted(row, fieldMapping.status)).toBe('Completed');
+    });
+
     it('returns the formatted display string for a bound field', () => {
         expect(getFormatted(row, 'orders_status')).toBe('Completed');
         expect(getFormatted(row, 'orders_count')).toBe('42');
@@ -94,6 +119,11 @@ describe('getFormatted', () => {
 });
 
 describe('getRaw', () => {
+    it('requires selecting a field before reading a multi-field binding', () => {
+        expect(getRaw(row, ['orders_status'])).toBeNull();
+        expect(getRaw(row, ['orders_status', 'orders_count'])).toBeNull();
+    });
+
     it('returns the raw value for a bound field', () => {
         expect(getRaw(row, 'orders_status')).toBe('completed');
         expect(getRaw(row, 'orders_count')).toBe(42);
@@ -117,6 +147,27 @@ const message = (
 });
 
 describe('toVizContextState', () => {
+    it('preserves ordered multi-field mappings alongside scalar bindings', () => {
+        const state = toVizContextState(
+            message({
+                fieldMapping: {
+                    category: 'orders_status',
+                    values: ['orders_total', 'orders_count', 'orders_average'],
+                },
+            }),
+        );
+        expect(state.fieldMapping).toEqual({
+            category: 'orders_status',
+            values: ['orders_total', 'orders_count', 'orders_average'],
+        });
+    });
+
+    it('preserves scalar mappings delivered by older hosts', () => {
+        expect(toVizContextState(message({})).fieldMapping).toEqual({
+            category: 'orders_status',
+        });
+    });
+
     it('carries every declared option value through, by type', () => {
         expect(
             toVizContextState(
@@ -546,6 +597,24 @@ describe('buildVizUnderlyingData', () => {
         });
     });
 
+    it('forwards the selected field id for a multi-metric slot', async () => {
+        const underlyingData = buildVizUnderlyingData(
+            true,
+            true,
+            supportedTransport,
+        );
+        await underlyingData.open({
+            row,
+            metric: 'values',
+            fieldId: 'orders_count',
+        });
+        expect(supportedTransport.openVizUnderlyingData).toHaveBeenCalledWith({
+            row,
+            metric: 'values',
+            fieldId: 'orders_count',
+        });
+    });
+
     it('get() rejects with an actionable message when the host disabled it', async () => {
         await expect(
             buildVizUnderlyingData(false, true, supportedTransport).get({
@@ -623,6 +692,21 @@ describe('buildVizDrillDown', () => {
         expect(open).toHaveBeenCalledWith({ row, metric: 'value' });
     });
 
+    it('forwards a selected field id for a multi-metric slot', async () => {
+        const open = vi.fn().mockResolvedValue(undefined);
+        const row = { m: { value: { raw: 1, formatted: '1' } } };
+        await buildVizDrillDown(true, transportWith(open)).open({
+            row,
+            metric: 'values',
+            fieldId: 'orders_count',
+        });
+        expect(open).toHaveBeenCalledWith({
+            row,
+            metric: 'values',
+            fieldId: 'orders_count',
+        });
+    });
+
     it('open() rejects with clear messages when disabled or unsupported', async () => {
         await expect(
             buildVizDrillDown(false, transportWith(vi.fn())).open({
@@ -638,5 +722,22 @@ describe('buildVizDrillDown', () => {
         ).rejects.toThrow(
             'This SDK build predates drill-down. Rebuild the app on the current template.',
         );
+    });
+});
+
+describe('resolveValueColor multi-field bindings', () => {
+    it('requires selecting a field before resolving its value color', () => {
+        expect(
+            resolveValueColor(
+                {
+                    colorPalette: ['#123456'],
+                    seriesColors: {},
+                    valueColors: {},
+                },
+                ['orders_status'],
+                'completed',
+                0,
+            ),
+        ).toBeUndefined();
     });
 });
