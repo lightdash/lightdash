@@ -61,6 +61,7 @@ type DbWarehouseCredentialsIn = Omit<
 type DbWarehouseCredentialsUpdate = Partial<
     Pick<
         DbWarehouseCredentials,
+        | 'name'
         | 'warehouse_type'
         | 'encrypted_credentials'
         | 'organization_warehouse_credentials_uuid'
