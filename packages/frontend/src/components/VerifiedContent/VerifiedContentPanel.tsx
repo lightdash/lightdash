@@ -1,7 +1,6 @@
 import { ContentType, type VerifiedContentListItem } from '@lightdash/common';
 import {
     ActionIcon,
-    Anchor,
     Button,
     Group,
     Menu,
@@ -11,7 +10,11 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconCircleX, IconDots, IconLayoutDashboard } from '@tabler/icons-react';
+import {
+    IconCircleX,
+    IconDots,
+    IconLayoutDashboard,
+} from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import {
@@ -104,16 +107,16 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                                     className={classes.typeIcon}
                                 />
                             </Tooltip>
-                            <Anchor
+                            <TruncatedText
                                 component={Link}
                                 to={href}
+                                maxWidth="100%"
+                                fw={500}
+                                c="blue"
                                 className={classes.nameLink}
-                                underline="hover"
                             >
-                                <TruncatedText maxWidth="100%" inline fw={500}>
-                                    {item.name}
-                                </TruncatedText>
-                            </Anchor>
+                                {item.name}
+                            </TruncatedText>
                         </Group>
                     );
                 },
