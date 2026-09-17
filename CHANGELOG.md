@@ -1,3 +1,10 @@
+## [2.250.1](https://github.com/lightdash/lightdash/compare/2.250.0...2.250.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* **preview:** index content-copy mappings and chunk remaining bulk inserts ([#29410](https://github.com/lightdash/lightdash/issues/29410)) ([9ceced2](https://github.com/lightdash/lightdash/commit/9ceced2b27528cf207b436c8a28c7eacb4b50818))
+
 # [2.250.0](https://github.com/lightdash/lightdash/compare/2.249.0...2.250.0) (2026-09-17)
 
 
