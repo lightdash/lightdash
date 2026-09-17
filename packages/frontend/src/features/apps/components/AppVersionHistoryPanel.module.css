@@ -35,7 +35,8 @@
     transition: background 120ms;
 }
 
-.entry:first-child {
+.entry:first-child,
+.threadDivider + .entry {
     border-top: none;
 }
 
@@ -49,8 +50,14 @@
     border-left-color: var(--mantine-color-placeholder);
 }
 
+/* Where the agent context was cleared: the group above is a newer thread. */
+.threadDivider {
+    padding: 8px 14px;
+    border-top: 1px solid var(--mantine-color-ldGray-1);
+}
+
 /* The view target: the version line and the prompt that produced it. The
-   footer row stays outside it so the restore button is not nested in it. */
+   footer row stays outside it so the actions are not nested in it. */
 .entryMain {
     display: flex;
     flex-direction: column;
@@ -99,12 +106,11 @@
     --ai-markdown-font-size: 11px;
 }
 
-.buildDetails,
-.changes {
+.disclosure {
     border-top: 1px solid var(--mantine-color-ldGray-2);
 }
 
-.buildDetailsToggle {
+.disclosureToggle {
     display: flex;
     align-items: center;
     gap: 4px;
@@ -114,16 +120,16 @@
     text-align: left;
 }
 
-.buildDetailsChevron {
+.disclosureChevron {
     flex-shrink: 0;
     transition: transform 150ms ease;
 }
 
-.buildDetailsChevron[data-open='true'] {
+.disclosureChevron[data-open='true'] {
     transform: rotate(90deg);
 }
 
-.buildDetailsNarration {
+.disclosureContent {
     padding-top: 5px;
 }
 
@@ -135,15 +141,17 @@
 
 /* Kept out of the way until the row is engaged, so the list reads as history
    rather than a row of actions. */
-.restore {
+.actions {
     margin-left: auto;
+    display: flex;
+    gap: 6px;
     opacity: 0;
     transition: opacity 120ms;
 }
 
-.entry:hover .restore,
-.entry:focus-within .restore,
-.entry[data-active='true'] .restore {
+.entry:hover .actions,
+.entry:focus-within .actions,
+.entry[data-active='true'] .actions {
     opacity: 1;
 }
 

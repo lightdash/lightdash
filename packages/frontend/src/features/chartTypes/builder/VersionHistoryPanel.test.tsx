@@ -11,7 +11,7 @@ import VersionHistoryPanel from './VersionHistoryPanel';
 const styles = readFileSync(
     join(
         process.cwd(),
-        'src/features/chartTypes/builder/VersionHistoryPanel.module.css',
+        'src/features/apps/components/AppVersionHistoryPanel.module.css',
     ),
     'utf8',
 );

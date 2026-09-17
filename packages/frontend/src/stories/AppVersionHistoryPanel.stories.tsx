@@ -1,0 +1,110 @@
+import { type ApiAppVersionSummary } from '@lightdash/common';
+import { Box } from '@mantine/core';
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { fn } from 'storybook/test';
+import AppVersionHistoryPanel from '../features/apps/components/AppVersionHistoryPanel';
+import { appVersion } from '../features/apps/testing/appVersionHistory';
+
+const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000);
+
+const entry = (
+    version: number,
+    threadNumber: number,
+    prompt: string,
+    overrides: Partial<ApiAppVersionSummary> = {},
+): ApiAppVersionSummary => ({
+    ...appVersion({
+        version,
+        prompt,
+        createdAt: minutesAgo((8 - version) * 47),
+        statusHistory: [],
+        statusMessage: null,
+        error: null,
+    }),
+    threadUuid: `thread-${threadNumber}`,
+    threadNumber,
+    ...overrides,
+});
+
+const thread1 = [
+    entry(1, 1, 'a dashboard of weekly revenue by region'),
+    entry(2, 1, 'add a totals row under the table'),
+    entry(3, 1, 'make the chart a stacked bar', { status: 'error' }),
+    entry(4, 1, 'try the stacked bar again, keep the legend on the right'),
+];
+
+const thread2 = [
+    entry(5, 2, ''),
+    entry(6, 2, 'add a region filter to the header'),
+];
+
+const thread3 = [entry(7, 3, 'switch the palette to the brand colours')];
+
+const meta: Meta<typeof AppVersionHistoryPanel> = {
+    title: 'Data apps/Version history panel',
+    component: AppVersionHistoryPanel,
+    args: {
+        versions: [...thread1, ...thread2, ...thread3],
+        latestReadyVersion: 7,
+        viewedVersion: null,
+        onView: fn(),
+        onRestore: fn(),
+        onClose: null,
+        onBack: fn(),
+        liveBuild: null,
+        hasEarlier: false,
+        isFetchingEarlier: false,
+        fetchEarlier: fn(),
+        emptyPromptLabel: null,
+        olderVersionTime: 'relative',
+        showPreviewButton: true,
+    },
+    decorators: [
+        (renderStory) => (
+            <Box w={360} h={640}>
+                {renderStory()}
+            </Box>
+        ),
+    ],
+};
+
+export default meta;
+
+type Story = StoryObj<typeof AppVersionHistoryPanel>;
+
+/** Three threads: a divider between each group, newest thread first. */
+export const MultiThread: Story = {};
+
+/** One thread: no divider. */
+export const SingleThread: Story = {
+    args: { versions: thread1, latestReadyVersion: 4 },
+};
+
+export const Empty: Story = {
+    args: { versions: [], latestReadyVersion: null },
+};
+
+/** Viewing an older version; its row is marked and offers Restore only. */
+export const ViewingOlderVersion: Story = { args: { viewedVersion: 4 } };
+
+export const BuildInProgress: Story = {
+    args: {
+        liveBuild: { claimedVersion: 8, pendingPrompt: 'add a date picker' },
+    },
+};
+
+export const LoadingEarlier: Story = {
+    args: { hasEarlier: true, isFetchingEarlier: true },
+};
+
+/** How the chart type builder hosts it: collapse control, absolute times,
+ *  a stand-in for empty prompts and no Preview button. */
+export const ChartTypeBuilderHost: Story = {
+    args: {
+        onBack: null,
+        onClose: fn(),
+        emptyPromptLabel: 'Uploaded from source',
+        olderVersionTime: 'absolute',
+        showPreviewButton: false,
+    },
+};
