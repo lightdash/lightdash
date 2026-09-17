@@ -9,6 +9,8 @@ import useToaster from '../../../hooks/toaster/useToaster';
 type InstallRegistryChartTypeParams = {
     projectUuid: string;
     chartSlug: string;
+    /** Also move every pinned consuming saved chart onto the installed version. */
+    upgradeConsumingCharts?: boolean;
 };
 
 type InstallRegistryChartTypeResult =
@@ -17,11 +19,14 @@ type InstallRegistryChartTypeResult =
 const installRegistryChartType = ({
     projectUuid,
     chartSlug,
+    upgradeConsumingCharts,
 }: InstallRegistryChartTypeParams) =>
     lightdashApi<InstallRegistryChartTypeResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/registry/charts/${chartSlug}/install`,
-        body: undefined,
+        body: JSON.stringify({
+            upgradeConsumingCharts: upgradeConsumingCharts === true,
+        }),
     });
 
 export const useInstallRegistryChartType = () => {
@@ -45,6 +50,12 @@ export const useInstallRegistryChartType = () => {
                     result.action === 'upgraded'
                         ? 'Chart type upgraded'
                         : 'Chart type installed',
+                subtitle:
+                    result.upgradedChartCount > 0
+                        ? `${result.upgradedChartCount} saved chart${
+                              result.upgradedChartCount === 1 ? '' : 's'
+                          } moved to the new version`
+                        : undefined,
             });
         },
         onError: ({ error }) => {

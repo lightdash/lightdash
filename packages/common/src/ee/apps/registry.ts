@@ -194,9 +194,20 @@ export type ApiListRegistryChartTypesResponse = ApiSuccess<{
     charts: RegistryChartTypeListItem[];
 }>;
 
+export type InstallRegistryChartTypeBody = {
+    /**
+     * Also move every consuming saved chart's pinned version onto the
+     * installed version, deliberately overriding per-chart pins. Unpinned
+     * charts already follow the latest version and are left untouched.
+     */
+    upgradeConsumingCharts?: boolean;
+};
+
 export type ApiInstallRegistryChartTypeResponse = ApiSuccess<{
     appUuid: string;
     slug: string;
     version: number;
     action: 'installed' | 'upgraded' | 'unchanged';
+    /** Saved charts repinned by `upgradeConsumingCharts` (0 when not requested). */
+    upgradedChartCount: number;
 }>;

@@ -194,6 +194,7 @@ const analyticsTrackSpy = vi.fn();
 function buildService(overrides: {
     appModel?: Record<string, unknown>;
     projectModel?: Record<string, unknown>;
+    savedChartModel?: Record<string, unknown>;
     chartRegistryClient?: Record<string, unknown>;
     s3ClientOverride?: { client: never; bucket: string };
     ability?: { can: () => boolean; cannot: () => boolean };
@@ -203,6 +204,7 @@ function buildService(overrides: {
     const {
         appModel = {},
         projectModel = {},
+        savedChartModel = {},
         chartRegistryClient = {},
         s3ClientOverride,
         ability = { can: () => true, cannot: () => false },
@@ -257,7 +259,7 @@ function buildService(overrides: {
         projectModel: fullProjectModel as never,
         projectParametersModel: {} as never,
         spaceModel: {} as never,
-        savedChartModel: {} as never,
+        savedChartModel: savedChartModel as never,
         schedulerClient: {} as never,
         savedChartService: {} as never,
         spacePermissionService: spacePermissionService as never,
@@ -515,6 +517,7 @@ describe('AppGenerateService.installRegistryChartType', () => {
             slug: 'sankey',
             version: 4,
             action: 'unchanged',
+            upgradedChartCount: 0,
         });
         expect(fakeS3.send).not.toHaveBeenCalled();
         expect(appModel.createVersion).not.toHaveBeenCalled();
@@ -572,6 +575,7 @@ describe('AppGenerateService.installRegistryChartType', () => {
             slug: 'sankey',
             version: 3,
             action: 'upgraded',
+            upgradedChartCount: 0,
         });
         expect(createVersion).toHaveBeenCalledWith(
             'existing-app-uuid',
@@ -642,6 +646,7 @@ describe('AppGenerateService.installRegistryChartType', () => {
             slug: 'sankey',
             version: 4,
             action: 'upgraded',
+            upgradedChartCount: 0,
         });
         expect(createVersion).toHaveBeenCalledWith(
             'existing-app-uuid',
@@ -870,6 +875,7 @@ describe('reinstall revives a soft-deleted install', () => {
             slug: 'sankey',
             version: 3,
             action: 'installed',
+            upgradedChartCount: 0,
         });
         expect(downloadArtifact).not.toHaveBeenCalled();
         expect(updateApp).toHaveBeenCalledWith(
@@ -952,6 +958,132 @@ describe('reinstall revives a soft-deleted install', () => {
         ).rejects.toThrow(
             'This chart type was just installed by someone else — refresh',
         );
+    });
+});
+
+describe('upgradeConsumingCharts sweep', () => {
+    const upgradeAppModel = () => ({
+        listRegistryInstalledApps: vi.fn().mockResolvedValue([
+            {
+                app_id: 'existing-app-uuid',
+                registry_slug: 'sankey',
+                latest_ready_registry_version: '1.2.0',
+            },
+        ]),
+        getLatestVersion: vi.fn().mockResolvedValue({ version: 2 }),
+        createVersion: vi.fn().mockResolvedValue({ version: 3 }),
+        updateApp: vi.fn().mockResolvedValue(undefined),
+    });
+    const upgradeRegistryClient = async () => {
+        const sourceTar = await buildTar([
+            { name: 'src/App.tsx', content: 'x' },
+        ]);
+        const distTar = await buildTar([
+            { name: 'dist/index.html', content: '<html/>' },
+        ]);
+        return {
+            getEntry: vi.fn().mockResolvedValue(makeEntry()),
+            downloadArtifact: vi
+                .fn()
+                .mockImplementation(
+                    (_entry: unknown, kind: 'source' | 'dist') =>
+                        Promise.resolve(
+                            kind === 'source' ? sourceTar : distTar,
+                        ),
+                ),
+        };
+    };
+
+    it('repins consumers onto the appended version and reports the count', async () => {
+        const repinChartsUsingDataAppViz = vi.fn().mockResolvedValue(5);
+        const svc = buildService({
+            appModel: upgradeAppModel(),
+            savedChartModel: { repinChartsUsingDataAppViz },
+            chartRegistryClient: await upgradeRegistryClient(),
+            s3ClientOverride: makeFakeS3(),
+        });
+
+        const result = await svc.installRegistryChartType(
+            fakeUser,
+            PROJECT_UUID,
+            'sankey',
+            { upgradeConsumingCharts: true },
+        );
+
+        expect(repinChartsUsingDataAppViz).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            'existing-app-uuid',
+            3,
+        );
+        expect(result).toMatchObject({
+            action: 'upgraded',
+            version: 3,
+            upgradedChartCount: 5,
+        });
+        expect(analyticsTrackSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'data_app.registry_installed',
+                properties: expect.objectContaining({
+                    action: 'upgraded',
+                    upgradedChartCount: 5,
+                }),
+            }),
+        );
+    });
+
+    it('never sweeps without the flag', async () => {
+        const repinChartsUsingDataAppViz = vi.fn();
+        const svc = buildService({
+            appModel: upgradeAppModel(),
+            savedChartModel: { repinChartsUsingDataAppViz },
+            chartRegistryClient: await upgradeRegistryClient(),
+            s3ClientOverride: makeFakeS3(),
+        });
+
+        const result = await svc.installRegistryChartType(
+            fakeUser,
+            PROJECT_UUID,
+            'sankey',
+        );
+
+        expect(repinChartsUsingDataAppViz).not.toHaveBeenCalled();
+        expect(result.upgradedChartCount).toBe(0);
+    });
+
+    it('still sweeps when already at the latest version (concurrent upgrade recovery)', async () => {
+        const repinChartsUsingDataAppViz = vi.fn().mockResolvedValue(2);
+        const svc = buildService({
+            appModel: {
+                listRegistryInstalledApps: vi.fn().mockResolvedValue([
+                    {
+                        app_id: 'existing-app-uuid',
+                        registry_slug: 'sankey',
+                        latest_ready_registry_version: '1.3.0',
+                    },
+                ]),
+                getLatestReadyVersion: vi
+                    .fn()
+                    .mockResolvedValue({ version: 4 }),
+            },
+            savedChartModel: { repinChartsUsingDataAppViz },
+        });
+
+        const result = await svc.installRegistryChartType(
+            fakeUser,
+            PROJECT_UUID,
+            'sankey',
+            { upgradeConsumingCharts: true },
+        );
+
+        expect(repinChartsUsingDataAppViz).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            'existing-app-uuid',
+            4,
+        );
+        expect(result).toMatchObject({
+            action: 'unchanged',
+            upgradedChartCount: 2,
+        });
     });
 });
 

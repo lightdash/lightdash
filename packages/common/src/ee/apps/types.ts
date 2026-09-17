@@ -1154,6 +1154,15 @@ export type DataAppVizDeleteImpact = {
 export type ApiDataAppVizDeleteImpactResponse =
     ApiSuccess<DataAppVizDeleteImpact>;
 
+export type DataAppVizUpgradeImpact = {
+    chartCount: number;
+    /** Charts whose config pins a chart type version (`dataAppVizVersion`). */
+    pinnedChartCount: number;
+};
+
+export type ApiDataAppVizUpgradeImpactResponse =
+    ApiSuccess<DataAppVizUpgradeImpact>;
+
 export type DataAppVizRenderMetadata =
     | {
           state: 'ready';

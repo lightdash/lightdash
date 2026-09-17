@@ -107,11 +107,13 @@ import {
     type DataAppVizRenderMetadata,
     type DataAppVizSchema,
     type DataAppVizsFilter,
+    type DataAppVizUpgradeImpact,
     type EmbedProjectApp,
     type Explore,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ImportAppCodeRequestBody,
+    type InstallRegistryChartTypeBody,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type LightdashProjectParameter,
@@ -8852,16 +8854,20 @@ export class AppGenerateService extends BaseService {
      * it heal and the slug is not suffixed by the deleted row that owns it.
      * Registry artifacts are verified (digest-checked) and downloaded before
      * any S3 or DB write; a DB write failure rolls back the copied S3 keys.
+     * `upgradeConsumingCharts` additionally moves every pinned consuming
+     * saved chart onto the installed version — a deliberate pin override.
      */
     async installRegistryChartType(
         user: SessionUser,
         projectUuid: string,
         chartSlug: string,
+        options: InstallRegistryChartTypeBody = {},
     ): Promise<{
         appUuid: string;
         slug: string;
         version: number;
         action: 'installed' | 'upgraded' | 'unchanged';
+        upgradedChartCount: number;
     }> {
         await this.assertChartTypeLibraryEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
@@ -8932,6 +8938,15 @@ export class AppGenerateService extends BaseService {
             const latest = await this.appModel.getLatestReadyVersion(
                 existing.app_id,
             );
+            // With nothing new to install the sweep still applies: a
+            // concurrent admin may have upgraded without moving charts.
+            const upgradedChartCount = options.upgradeConsumingCharts
+                ? await this.savedChartModel.repinChartsUsingDataAppViz(
+                      projectUuid,
+                      existing.app_id,
+                      latest!.version,
+                  )
+                : 0;
             if (revived) {
                 // The registry icon may have moved on while uninstalled.
                 await this.appModel.updateApp(existing.app_id, projectUuid, {
@@ -8949,6 +8964,7 @@ export class AppGenerateService extends BaseService {
                         registryVersion: entry.version,
                         action: 'installed',
                         revived: true,
+                        upgradedChartCount,
                     },
                 });
             }
@@ -8957,6 +8973,7 @@ export class AppGenerateService extends BaseService {
                 slug: chartSlug,
                 version: latest!.version,
                 action: revived ? 'installed' : 'unchanged',
+                upgradedChartCount,
             };
         }
 
@@ -9066,6 +9083,14 @@ export class AppGenerateService extends BaseService {
         // A revived install reads as an install to the user even though it
         // appends a version like an upgrade does.
         const action = existing && !revived ? 'upgraded' : 'installed';
+        // Fresh installs have no consumers, so the sweep is a no-op there.
+        const upgradedChartCount = options.upgradeConsumingCharts
+            ? await this.savedChartModel.repinChartsUsingDataAppViz(
+                  projectUuid,
+                  appUuid,
+                  version,
+              )
+            : 0;
         this.analytics.track({
             event: 'data_app.registry_installed',
             userId: user.userUuid,
@@ -9078,10 +9103,17 @@ export class AppGenerateService extends BaseService {
                 registryVersion: entry.version,
                 action,
                 revived,
+                upgradedChartCount,
             },
         });
 
-        return { appUuid, slug: entry.slug, version, action };
+        return {
+            appUuid,
+            slug: entry.slug,
+            version,
+            action,
+            upgradedChartCount,
+        };
     }
 
     /**
@@ -9126,6 +9158,38 @@ export class AppGenerateService extends BaseService {
                 dataAppViz.app_id,
             ),
         };
+    }
+
+    /**
+     * Blast radius for the chart type upgrade confirmation: how many saved
+     * charts consume this viz, and how many of those pin a version. Gated
+     * like install, the action it informs.
+     */
+    async getDataAppVizUpgradeImpact(
+        user: SessionUser,
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<DataAppVizUpgradeImpact> {
+        await this.assertChartTypeLibraryEnabled(user);
+        await this.assertDataAppAbility(
+            user,
+            'create',
+            projectUuid,
+            'Insufficient permissions to upgrade chart types',
+        );
+        const dataAppViz = await this.appModel.findVisualizationApp(
+            dataAppVizUuid,
+            projectUuid,
+        );
+        if (!dataAppViz) {
+            throw new NotFoundError(
+                `Data app visualization not found: ${dataAppVizUuid}`,
+            );
+        }
+        return this.savedChartModel.getDataAppVizUsageCounts(
+            projectUuid,
+            dataAppViz.app_id,
+        );
     }
 
     /**

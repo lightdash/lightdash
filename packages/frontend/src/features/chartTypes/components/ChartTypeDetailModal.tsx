@@ -19,12 +19,12 @@ import { EventName } from '../../../types/Events';
 import { useAppVersionHistory } from '../../apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
-import { useInstallRegistryChartType } from '../hooks/useInstallRegistryChartType';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import classes from './ChartTypeDetailModal.module.css';
 import ChartTypeForkModal from './ChartTypeForkModal';
 import ChartTypeSamplePreview from './ChartTypeSamplePreview';
+import ChartTypeUpgradeModal from './ChartTypeUpgradeModal';
 import DataAppVizFieldsList from './DataAppVizFieldsList';
 import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 
@@ -59,8 +59,8 @@ const ChartTypeDetailModal: FC<Props> = ({
         true;
     const isOfficial = isOfficialChartType(dataAppViz);
     const [isForkOpen, setIsForkOpen] = useState(false);
-    const isDetailActive = opened && isActive && !isForkOpen;
-    const upgradeMutation = useInstallRegistryChartType();
+    const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+    const isDetailActive = opened && isActive && !isForkOpen && !isUpgradeOpen;
     const { track } = useTracking();
     const registryUpdate =
         registryEntry?.state === 'update_available' ? registryEntry : null;
@@ -208,22 +208,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                                     <Button
                                         size="xs"
                                         variant="default"
-                                        loading={upgradeMutation.isLoading}
-                                        onClick={() => {
-                                            track({
-                                                name: EventName.CHART_TYPE_LIBRARY_INSTALL_CLICKED,
-                                                properties: {
-                                                    projectUuid,
-                                                    chartSlug:
-                                                        registryUpdate.slug,
-                                                    action: 'upgrade',
-                                                },
-                                            });
-                                            upgradeMutation.mutate({
-                                                projectUuid,
-                                                chartSlug: registryUpdate.slug,
-                                            });
-                                        }}
+                                        onClick={() => setIsUpgradeOpen(true)}
                                     >
                                         Upgrade to v{registryUpdate.version}
                                     </Button>
@@ -287,6 +272,14 @@ const ChartTypeDetailModal: FC<Props> = ({
                     projectUuid={projectUuid}
                     appUuid={dataAppViz.dataAppVizUuid}
                     defaultName={`${dataAppViz.name} (custom)`}
+                />
+            )}
+            {isUpgradeOpen && registryUpdate && (
+                <ChartTypeUpgradeModal
+                    projectUuid={projectUuid}
+                    dataAppViz={dataAppViz}
+                    registryUpdate={registryUpdate}
+                    onClose={() => setIsUpgradeOpen(false)}
                 />
             )}
         </>
