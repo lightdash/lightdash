@@ -108,6 +108,11 @@ function buildService() {
         }),
         createVersion: vi.fn().mockResolvedValue({ version: 7 }),
         getVersion: vi.fn().mockResolvedValue(sourceVersion),
+        getCurrentThread: vi.fn().mockResolvedValue({
+            app_thread_uuid: 'thread-1',
+            thread_number: 1,
+            coding_agent_session_id: null,
+        }),
         setUpstreamAppUuid: vi.fn().mockResolvedValue(undefined),
         syncPromotedApp: vi.fn().mockResolvedValue(undefined),
         updateStatusMessage: vi.fn().mockResolvedValue(undefined),
@@ -406,7 +411,7 @@ describe('version metadata propagation on app copy paths', () => {
             { images: [] },
             DEPENDENCIES,
             VIZ_SCHEMA,
-            { registryVersion: undefined },
+            expect.objectContaining({ registryVersion: undefined }),
         );
     });
 

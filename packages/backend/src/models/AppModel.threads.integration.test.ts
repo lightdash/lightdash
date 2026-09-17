@@ -125,6 +125,177 @@ describe('AppModel threads PostgreSQL integration', () => {
         expect(firstVersion?.app_thread_uuid).toBe(first.app_thread_uuid);
     });
 
+    it('puts a restore made while thread 3 is current under thread 3', async () => {
+        const { app } = await createApp();
+        await model.createThread({
+            appUuid: app.app_id,
+            origin: 'builder',
+            aiThreadUuid: null,
+            createdByUserUuid: userUuid,
+        });
+        const third = await model.createThread({
+            appUuid: app.app_id,
+            origin: 'builder',
+            aiThreadUuid: null,
+            createdByUserUuid: userUuid,
+        });
+
+        // Mirrors restoreVersion: the current thread is resolved up front and
+        // passed explicitly.
+        const current = await model.getCurrentThread(app.app_id);
+        await model.createVersion(
+            app.app_id,
+            { version: 2, prompt: 'Restore version 1' },
+            'ready',
+            userUuid,
+            undefined,
+            undefined,
+            undefined,
+            { appThreadUuid: current.app_thread_uuid },
+        );
+
+        const restored = await model.getVersion(app.app_id, 2);
+        expect(restored?.app_thread_uuid).toBe(third.app_thread_uuid);
+        expect(restored?.thread_number).toBe(3);
+    });
+
+    describe('threadHasVersionThatReachedCodingAgent', () => {
+        const newThread = (appUuid: string) =>
+            model.createThread({
+                appUuid,
+                origin: 'builder',
+                aiThreadUuid: null,
+                createdByUserUuid: userUuid,
+            });
+
+        const buildVersionWithAgentNarration = async (
+            appUuid: string,
+            version: number,
+        ) => {
+            await model.createVersion(
+                appUuid,
+                { version, prompt: `prompt ${version}` },
+                'pending',
+                userUuid,
+            );
+            await model.recordBuildNarration(
+                appUuid,
+                version,
+                'Reading App.tsx',
+                'tool',
+            );
+        };
+
+        it('is false for a freshly cleared thread', async () => {
+            const { app } = await createApp();
+            const second = await newThread(app.app_id);
+
+            expect(
+                await model.threadHasVersionThatReachedCodingAgent(
+                    second.app_thread_uuid,
+                    null,
+                ),
+            ).toBe(false);
+        });
+
+        it('ignores versions written without the agent, such as restores', async () => {
+            const { app } = await createApp();
+            const second = await newThread(app.app_id);
+            await model.createVersion(
+                app.app_id,
+                { version: 2, prompt: 'Restore version 1' },
+                'ready',
+                userUuid,
+            );
+
+            expect(
+                await model.threadHasVersionThatReachedCodingAgent(
+                    second.app_thread_uuid,
+                    null,
+                ),
+            ).toBe(false);
+        });
+
+        it('is true once a version in the thread ran the agent, excluding the one being built', async () => {
+            const { app } = await createApp();
+            const second = await newThread(app.app_id);
+            await buildVersionWithAgentNarration(app.app_id, 2);
+
+            expect(
+                await model.threadHasVersionThatReachedCodingAgent(
+                    second.app_thread_uuid,
+                    2,
+                ),
+            ).toBe(false);
+            expect(
+                await model.threadHasVersionThatReachedCodingAgent(
+                    second.app_thread_uuid,
+                    3,
+                ),
+            ).toBe(true);
+        });
+
+        it('counts every earlier version of a backfilled thread 1, narration or not', async () => {
+            const { app, thread: first } = await createApp();
+
+            expect(
+                await model.threadHasVersionThatReachedCodingAgent(
+                    first.app_thread_uuid,
+                    1,
+                ),
+            ).toBe(false);
+            expect(
+                await model.threadHasVersionThatReachedCodingAgent(
+                    first.app_thread_uuid,
+                    null,
+                ),
+            ).toBe(true);
+            await model.createVersion(
+                app.app_id,
+                { version: 2, prompt: 'a second prompt' },
+                'pending',
+                userUuid,
+            );
+            expect(
+                await model.threadHasVersionThatReachedCodingAgent(
+                    first.app_thread_uuid,
+                    2,
+                ),
+            ).toBe(true);
+        });
+
+        it('counts pre-thread versions towards thread 1 only', async () => {
+            const { app, thread: first } = await createApp();
+            await transaction(AppVersionsTableName).insert({
+                app_id: app.app_id,
+                version: 2,
+                prompt: 'built by an old pod',
+                status: 'pending',
+                created_by_user_uuid: userUuid,
+            });
+            await model.recordBuildNarration(
+                app.app_id,
+                2,
+                'Editing App.tsx',
+                'tool',
+            );
+            const second = await newThread(app.app_id);
+
+            expect(
+                await model.threadHasVersionThatReachedCodingAgent(
+                    first.app_thread_uuid,
+                    null,
+                ),
+            ).toBe(true);
+            expect(
+                await model.threadHasVersionThatReachedCodingAgent(
+                    second.app_thread_uuid,
+                    null,
+                ),
+            ).toBe(false);
+        });
+    });
+
     it('reads a version with no thread back under thread 1', async () => {
         const { app, thread } = await createApp();
         await transaction(AppVersionsTableName).insert({
