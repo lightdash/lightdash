@@ -1,3 +1,11 @@
+## [2.254.2](https://github.com/lightdash/lightdash/compare/2.254.1...2.254.2) (2026-09-17)
+
+
+### Bug Fixes
+
+* **frontend:** keep desktop filter controls inline ([#29462](https://github.com/lightdash/lightdash/issues/29462)) ([0e94c57](https://github.com/lightdash/lightdash/commit/0e94c57e085aee315a14e3cc0453ce3f29078a20))
+* hide agent instructions popover in embeds ([#29450](https://github.com/lightdash/lightdash/issues/29450)) ([f0a4174](https://github.com/lightdash/lightdash/commit/f0a41745cb172a4e8351a07cd34a4f6dcebf1aa8))
+
 ## [2.254.1](https://github.com/lightdash/lightdash/compare/2.254.0...2.254.1) (2026-09-17)
 
 
