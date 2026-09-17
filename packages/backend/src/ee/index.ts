@@ -573,6 +573,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     chartRegistryClient: new ChartRegistryClient({
                         lightdashConfig: context.lightdashConfig,
                     }),
+                    contentVerificationModel:
+                        models.getContentVerificationModel(),
                 }),
             roadmapService: ({ context }) =>
                 new RoadmapService({

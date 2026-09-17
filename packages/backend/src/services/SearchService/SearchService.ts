@@ -148,7 +148,9 @@ export class SearchService extends BaseService {
                     ...opts,
                 }),
             ),
-            // Data Apps have no verification state, so verifiedOnly does not apply.
+            // Data app search does not join verification yet, so verifiedOnly
+            // does not filter apps. Verified apps are listed via content
+            // verification instead.
             this.appGenerateService
                 ? this.appGenerateService
                       .dataAppsEnabledFor(user)

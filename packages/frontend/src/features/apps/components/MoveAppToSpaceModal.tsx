@@ -222,6 +222,7 @@ export const MoveAppToSpaceModal: FC<Props> = ({
                                     : null,
                             pinnedListUuid: null,
                             pinnedListOrder: null,
+                            verification: null,
                         },
                     },
                 ]}

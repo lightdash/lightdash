@@ -54,6 +54,7 @@ const app: ApiGetAppResponse['results'] = {
     hasMore: false,
     latestReadyVersion: 3,
     icon: null,
+    verification: null,
 };
 
 const item: DataAppRestoreContextItem = {

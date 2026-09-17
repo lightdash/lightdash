@@ -39,9 +39,21 @@ export type VerifiedDashboardListItem = VerifiedContentListItemBase & {
     slug: string;
 };
 
+export type VerifiedDataAppListItem = Omit<
+    VerifiedContentListItemBase,
+    'spaceUuid' | 'spaceName'
+> & {
+    contentType: ContentType.DATA_APP;
+    slug: string;
+    spaceUuid: string | null;
+    spaceName: string | null;
+    createdByUserUuid: string;
+};
+
 export type VerifiedContentListItem =
     | VerifiedChartListItem
-    | VerifiedDashboardListItem;
+    | VerifiedDashboardListItem
+    | VerifiedDataAppListItem;
 
 export type ApiContentVerificationResponse = {
     status: 'ok';

@@ -61,6 +61,7 @@ export default function AppPreviewTest() {
     const appCreatedByUserUuid = firstPage?.createdByUserUuid ?? null;
     const appSlug = firstPage?.slug ?? null;
     const appViews = firstPage?.views ?? null;
+    const appVerification = firstPage?.verification ?? null;
     // Latest build activity stands in for "last modified" — apps have no
     // updated-at of their own.
     const newestVersion = firstPage?.versions[0];
@@ -332,6 +333,7 @@ export default function AppPreviewTest() {
                         lastModified: appLastModified,
                         views: appViews,
                         slug: appSlug,
+                        verification: appVerification,
                     }}
                     rightSection={
                         <AppHeaderActions
@@ -393,6 +395,7 @@ export default function AppPreviewTest() {
                             appDescription={appDescription}
                             appSpaceUuid={appSpaceUuid}
                             appCreatedByUserUuid={appCreatedByUserUuid}
+                            verification={appVerification}
                             latestVersionNumber={latestReadyVersion ?? null}
                             latestVersionStatus={
                                 latestReadyVersion ? 'ready' : null

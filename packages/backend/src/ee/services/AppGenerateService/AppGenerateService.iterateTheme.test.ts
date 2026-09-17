@@ -94,6 +94,11 @@ function buildService() {
         sandboxManager: null,
         appRuntimeS3: null,
         chartRegistryClient: {} as never,
+        contentVerificationModel: {
+            getByContent: async () => null,
+            verify: async () => undefined,
+            unverify: async () => undefined,
+        } as never,
     });
     // Bypass real CASL — the prompt the pipeline receives is what these tests cover.
     (

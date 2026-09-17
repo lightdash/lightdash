@@ -490,6 +490,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                             appDescription={app.description || null}
                             appSpaceUuid={app.spaceUuid}
                             appCreatedByUserUuid={app.createdByUserUuid}
+                            verification={app.verification ?? null}
                             latestVersionNumber={latestReadyVersion}
                             latestVersionStatus={
                                 latestReadyVersion !== null ? 'ready' : null

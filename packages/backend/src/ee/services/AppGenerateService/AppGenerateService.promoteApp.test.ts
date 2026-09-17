@@ -295,6 +295,11 @@ async function buildScenario() {
         } as never,
         appModel: appModel as never,
         chartRegistryClient: {} as never,
+        contentVerificationModel: {
+            getByContent: async () => null,
+            verify: async () => undefined,
+            unverify: async () => undefined,
+        } as never,
         featureFlagModel: { get: async () => ({ enabled: true }) } as never,
         organizationDesignModel: {
             findInOrganization: async () => null,

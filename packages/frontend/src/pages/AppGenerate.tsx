@@ -724,6 +724,7 @@ const AppGenerate: FC = () => {
     const appPersistedTemplate = appData?.pages?.[0]?.template ?? null;
     const appSlug = appData?.pages?.[0]?.slug ?? null;
     const appViews = appData?.pages?.[0]?.views ?? null;
+    const appVerification = appData?.pages?.[0]?.verification ?? null;
     // Latest build activity stands in for "last modified" — apps have no
     // updated-at of their own.
     const appNewestVersion = appData?.pages?.[0]?.versions[0];
@@ -3050,6 +3051,7 @@ const AppGenerate: FC = () => {
                                         lastModified: appLastModified,
                                         views: appViews,
                                         slug: appSlug,
+                                        verification: appVerification,
                                     }}
                                     rightSection={
                                         <AppHeaderActions
@@ -3072,6 +3074,7 @@ const AppGenerate: FC = () => {
                                             appCreatedByUserUuid={
                                                 appCreatedByUserUuid
                                             }
+                                            verification={appVerification}
                                             latestVersionNumber={
                                                 latestReadyVersion?.version ??
                                                 null

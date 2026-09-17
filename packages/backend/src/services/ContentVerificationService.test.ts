@@ -159,5 +159,47 @@ describe('ContentVerificationService', () => {
 
             expect(result).toEqual([]);
         });
+
+        it('should include personal verified data apps only for their creator', async () => {
+            const personalApp = {
+                uuid: 'cv-uuid-app',
+                contentType: ContentType.DATA_APP,
+                contentUuid: 'app-uuid',
+                slug: 'personal-app',
+                name: 'Personal app',
+                description: null,
+                views: 0,
+                lastUpdatedAt: null,
+                spaceUuid: null,
+                spaceName: null,
+                createdByUserUuid: adminUser.userUuid,
+                verifiedBy: {
+                    userUuid: adminUser.userUuid,
+                    firstName: 'Admin',
+                    lastName: 'User',
+                },
+                verifiedAt: new Date(),
+            };
+            contentVerificationModel.getAllForProject.mockResolvedValueOnce([
+                ...mockVerifiedItems,
+                personalApp,
+            ]);
+
+            const creatorResult = await service.listVerifiedContent(
+                adminUser,
+                'project-uuid',
+            );
+            expect(creatorResult).toEqual([...mockVerifiedItems, personalApp]);
+
+            contentVerificationModel.getAllForProject.mockResolvedValueOnce([
+                ...mockVerifiedItems,
+                personalApp,
+            ]);
+            const otherUserResult = await service.listVerifiedContent(
+                viewOnlyUser,
+                'project-uuid',
+            );
+            expect(otherUserResult).toEqual(mockVerifiedItems);
+        });
     });
 });

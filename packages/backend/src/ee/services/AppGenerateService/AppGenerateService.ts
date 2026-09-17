@@ -13,6 +13,7 @@ import {
 import { subject, type Ability } from '@casl/ability';
 import {
     AlreadyExistsError,
+    canMutateVerifiedContent,
     APP_UPGRADE_PROMPT_LABEL,
     APP_VERSION_CANCELLED_BY_USER,
     assertEmbeddedAuth,
@@ -22,6 +23,7 @@ import {
     checkThemeLimits,
     compareSemverVersions,
     ConflictError,
+    ContentType,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_CODEX_MODELS,
     DATA_APP_VIZ_TEMPLATE,
@@ -83,6 +85,7 @@ import {
     type ChartReference,
     type ChartSampleData,
     type ChartTypeIcon,
+    type ContentVerificationInfo,
     type CompiledExploreJoin,
     type CompiledTable,
     type DashboardBlueprint,
@@ -170,6 +173,7 @@ import {
     type PreviewChartVizBindingMapping,
 } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
+import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
@@ -391,6 +395,7 @@ type AppGenerateServiceDeps = {
     sandboxManager: SandboxManagerPort | null;
     appRuntimeS3: AppRuntimeS3 | null;
     chartRegistryClient: ChartRegistryClient;
+    contentVerificationModel: ContentVerificationModel;
 };
 
 // Inputs for the AI agent's code-free data app read: manifest fields, the
@@ -619,6 +624,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly chartRegistryClient: ChartRegistryClient;
 
+    private readonly contentVerificationModel: ContentVerificationModel;
+
     private sandboxManager: SandboxManagerPort | undefined;
 
     private readonly dataReferenceRefreshes = new Map<
@@ -653,6 +660,7 @@ export class AppGenerateService extends BaseService {
         sandboxManager,
         appRuntimeS3,
         chartRegistryClient,
+        contentVerificationModel,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -681,6 +689,7 @@ export class AppGenerateService extends BaseService {
         this.sandboxManager = sandboxManager ?? undefined;
         this.appRuntimeS3 = appRuntimeS3;
         this.chartRegistryClient = chartRegistryClient;
+        this.contentVerificationModel = contentVerificationModel;
     }
 
     private async getDataAppProjectContext(
@@ -895,6 +904,197 @@ export class AppGenerateService extends BaseService {
             },
         );
         return appContext;
+    }
+
+    private async assertCanMutateVerifiedApp({
+        user,
+        appUuid,
+        projectUuid,
+        organizationUuid,
+    }: {
+        user: SessionUser;
+        appUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        const verification = await this.contentVerificationModel.getByContent(
+            ContentType.DATA_APP,
+            appUuid,
+        );
+        if (
+            !canMutateVerifiedContent(
+                this.createAuditedAbility(user),
+                { organizationUuid, projectUuid },
+                verification,
+                user.userUuid,
+            )
+        ) {
+            throw new ForbiddenError(
+                'This data app is verified. You need permission to edit verified content, or ask an admin to unverify it first.',
+            );
+        }
+    }
+
+    private async getVerificationAfterAppUpdate({
+        user,
+        appUuid,
+        projectUuid,
+        organizationUuid,
+    }: {
+        user: SessionUser;
+        appUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+    }): Promise<ContentVerificationInfo | null> {
+        const verification = await this.contentVerificationModel.getByContent(
+            ContentType.DATA_APP,
+            appUuid,
+        );
+        if (!verification) return null;
+
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageVerification = auditedAbility.can(
+            'manage',
+            subject('ContentVerification', {
+                organizationUuid,
+                projectUuid,
+                metadata: { appUuid },
+            }),
+        );
+        const isVerifier = verification.verifiedBy.userUuid === user.userUuid;
+
+        if (canManageVerification || isVerifier) return verification;
+
+        return null;
+    }
+
+    private async unverifyAppIfNotPreserved({
+        user,
+        appUuid,
+        projectUuid,
+        organizationUuid,
+    }: {
+        user: SessionUser;
+        appUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        const verificationAfterUpdate =
+            await this.getVerificationAfterAppUpdate({
+                user,
+                appUuid,
+                projectUuid,
+                organizationUuid,
+            });
+        if (verificationAfterUpdate === null) {
+            await this.contentVerificationModel.unverify(
+                ContentType.DATA_APP,
+                appUuid,
+            );
+        }
+    }
+
+    async verifyDataApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<ContentVerificationInfo> {
+        await this.assertDataAppsEnabled(user);
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        const { organizationUuid } = await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to manage data apps',
+        );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError('Only admins can verify data apps');
+        }
+
+        await this.contentVerificationModel.verify(
+            ContentType.DATA_APP,
+            appUuid,
+            projectUuid,
+            user.userUuid,
+        );
+
+        const verification = await this.contentVerificationModel.getByContent(
+            ContentType.DATA_APP,
+            appUuid,
+        );
+
+        if (!verification) {
+            throw new Error('Failed to verify data app');
+        }
+
+        this.analytics.track({
+            event: 'content_verification.created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                contentType: ContentType.DATA_APP,
+                contentId: appUuid,
+            },
+        });
+
+        return verification;
+    }
+
+    async unverifyDataApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<void> {
+        await this.assertDataAppsEnabled(user);
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        const { organizationUuid } = await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to manage data apps',
+        );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only admins can remove data app verification',
+            );
+        }
+
+        await this.contentVerificationModel.unverify(
+            ContentType.DATA_APP,
+            appUuid,
+        );
+
+        this.analytics.track({
+            event: 'content_verification.deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                contentType: ContentType.DATA_APP,
+                contentId: appUuid,
+            },
+        });
     }
 
     /** Registry-installed chart types only receive versions from the registry. */
@@ -6597,6 +6797,12 @@ export class AppGenerateService extends BaseService {
             app,
             'Insufficient permissions to modify data apps',
         );
+        await this.assertCanMutateVerifiedApp({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
         AppGenerateService.assertNotRegistryManaged(app, 'edited');
 
         // Resolve attachment types/filenames from the staged S3 objects so the
@@ -6644,6 +6850,13 @@ export class AppGenerateService extends BaseService {
                 'A version is already building for this app',
             );
         }
+
+        await this.unverifyAppIfNotPreserved({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
 
         const newVersion = (latestVersion?.version ?? 0) + 1;
         const claudeEffort = resolveClaudeEffort(newVersion, app.template);
@@ -6988,11 +7201,17 @@ export class AppGenerateService extends BaseService {
         await this.assertDataAppsEnabled(user);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
+        const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
             'Insufficient permissions to upgrade this data app',
         );
+        await this.assertCanMutateVerifiedApp({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
         AppGenerateService.assertNotRegistryManaged(app, 'upgraded here');
 
         const latestVersion = await this.appModel.getLatestVersion(appUuid);
@@ -7010,6 +7229,13 @@ export class AppGenerateService extends BaseService {
                 'This app has no ready version to upgrade',
             );
         }
+
+        await this.unverifyAppIfNotPreserved({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
 
         const newVersion = (latestVersion?.version ?? 0) + 1;
         this.logger.info(
@@ -7109,11 +7335,17 @@ export class AppGenerateService extends BaseService {
         await this.assertDataAppsEnabled(user);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
+        const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
             'Insufficient permissions to modify data apps',
         );
+        await this.assertCanMutateVerifiedApp({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
 
         const latestVersion = await this.appModel.getLatestVersion(appUuid);
         if (
@@ -7143,6 +7375,14 @@ export class AppGenerateService extends BaseService {
                 `Cannot restore version ${sourceVersion}: status is ${source.status}, expected ready`,
             );
         }
+
+        await this.unverifyAppIfNotPreserved({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
+
         const newVersion = (latestVersion?.version ?? 0) + 1;
         const { client: s3Client, bucket } = this.getS3Client();
 
@@ -8559,6 +8799,7 @@ export class AppGenerateService extends BaseService {
         latestReadyVersion: number | null;
         registrySlug: string | null;
         icon: ChartTypeIcon | null;
+        verification: ContentVerificationInfo | null;
     }> {
         await this.assertDataAppsEnabled(user);
 
@@ -8599,6 +8840,10 @@ export class AppGenerateService extends BaseService {
         // The latest ready version can be older than the returned page of
         // versions, so resolve it independently of pagination.
         const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
+        const verification = await this.contentVerificationModel.getByContent(
+            ContentType.DATA_APP,
+            appUuid,
+        );
 
         return {
             appUuid,
@@ -8671,6 +8916,7 @@ export class AppGenerateService extends BaseService {
             registrySlug,
             // An icon retired from the curated set reads back as no icon.
             icon: isChartTypeIcon(icon) ? icon : null,
+            verification,
         };
     }
 
@@ -9588,11 +9834,17 @@ export class AppGenerateService extends BaseService {
     }> {
         await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
+        const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
             'Insufficient permissions to manage data apps',
         );
+        await this.assertCanMutateVerifiedApp({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
         AppGenerateService.assertNotRegistryManaged(app, 'renamed');
 
         const fieldsToUpdate: Partial<{
@@ -9646,6 +9898,12 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             fieldsToUpdate,
         );
+        await this.unverifyAppIfNotPreserved({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
         return {
             appUuid: updatedApp.app_id,
             name: updatedApp.name,
@@ -9688,6 +9946,12 @@ export class AppGenerateService extends BaseService {
                 app,
                 'Insufficient permissions to delete data apps',
             );
+            await this.assertCanMutateVerifiedApp({
+                user,
+                appUuid,
+                projectUuid,
+                organizationUuid: app.organization_uuid,
+            });
         }
 
         const softDeleteEnabled = this.lightdashConfig.softDelete.enabled;
@@ -10038,6 +10302,12 @@ export class AppGenerateService extends BaseService {
                 app,
                 'Insufficient permissions to move data apps',
             );
+            await this.assertCanMutateVerifiedApp({
+                user,
+                appUuid,
+                projectUuid,
+                organizationUuid: app.organization_uuid,
+            });
             // …and manage on the target space, otherwise a user could move an
             // app into a space they don't own.
             const targetSpaceContext =

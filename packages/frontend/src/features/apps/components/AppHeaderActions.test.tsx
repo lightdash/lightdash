@@ -102,6 +102,7 @@ const baseProps = {
     appDescription: null,
     appSpaceUuid: null,
     appCreatedByUserUuid: null,
+    verification: null,
     latestVersionNumber: 1,
     latestVersionStatus: 'ready' as const,
     onRefresh: vi.fn(),

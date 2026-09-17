@@ -1,10 +1,12 @@
 import { subject } from '@casl/ability';
 import {
+    canMutateVerifiedContent,
     DirectAccessResourceType,
     getAppDisplayName,
     isApiError,
     type ApiDuplicateAppResponse,
     type AppVersionStatus,
+    type ContentVerificationInfo,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -17,6 +19,8 @@ import {
 import {
     IconArrowsUpDown,
     IconCamera,
+    IconCircleCheck,
+    IconCircleCheckFilled,
     IconCirclesRelation,
     IconCopy,
     IconDatabaseExport,
@@ -52,6 +56,10 @@ import {
     useAppThumbnailDelete,
     useAppThumbnailUrl,
 } from '../hooks/useAppThumbnail';
+import {
+    useUnverifyDataAppMutation,
+    useVerifyDataAppMutation,
+} from '../../../hooks/useContentVerification';
 import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../hooks/useCanEditDataApp';
 import { useDuplicateApp } from '../hooks/useDuplicateApp';
@@ -67,6 +75,7 @@ export type AppActionsMenuProps = {
     appDescription: string | null;
     appSpaceUuid: string | null;
     appCreatedByUserUuid: string | null;
+    verification: ContentVerificationInfo | null;
     /** The latest ready version's number + status — used by the favorite flow
      *  and to gate the Promote action. */
     latestVersionNumber: number | null;
@@ -152,6 +161,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     appDescription,
     appSpaceUuid,
     appCreatedByUserUuid,
+    verification,
     latestVersionNumber,
     latestVersionStatus,
     viewNetwork,
@@ -168,16 +178,36 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
 }) => {
     const navigate = useNavigate();
 
+    const { user, health } = useApp();
     const canEdit = useCanEditDataApp(projectUuid, {
         spaceUuid: appSpaceUuid,
         createdByUserUuid: appCreatedByUserUuid,
     });
+    const canMutateVerified = canMutateVerifiedContent(
+        user.data?.ability ?? { can: () => false },
+        {
+            organizationUuid: user.data?.organizationUuid ?? '',
+            projectUuid,
+        },
+        verification,
+        user.data?.userUuid,
+    );
+    const canEditVerified = canEdit && canMutateVerified;
+    const isAppVerified = verification !== null;
+    const userCanManageVerification =
+        user.data?.ability.can(
+            'manage',
+            subject('ContentVerification', {
+                organizationUuid: user.data.organizationUuid,
+                projectUuid,
+            }),
+        ) === true;
+    const { mutate: verifyDataApp } = useVerifyDataAppMutation();
+    const { mutate: unverifyDataApp } = useUnverifyDataAppMutation();
 
     // Duplicating forks the app into the user's own personal app, so it only
     // needs `create:DataApp` — not manage rights on this app.
     const canDuplicate = useCanCreateDataApp(projectUuid);
-
-    const { user, health } = useApp();
     const canCreateScheduledDeliveries =
         user.data?.ability.can(
             'create',
@@ -385,8 +415,35 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                             </Menu.Item>
                         </Can>
                     )}
-                    {(canEdit || canDuplicate) && <Menu.Divider />}
-                    {canEdit && upgrade && (
+                    {(canEditVerified ||
+                        canDuplicate ||
+                        userCanManageVerification) && <Menu.Divider />}
+                    {userCanManageVerification && (
+                        <Menu.Item
+                            leftSection={
+                                isAppVerified ? (
+                                    <IconCircleCheckFilled
+                                        size={18}
+                                        color="var(--mantine-color-green-6)"
+                                    />
+                                ) : (
+                                    <IconCircleCheck size={18} />
+                                )
+                            }
+                            onClick={() => {
+                                if (isAppVerified) {
+                                    unverifyDataApp({ projectUuid, appUuid });
+                                } else {
+                                    verifyDataApp({ projectUuid, appUuid });
+                                }
+                            }}
+                        >
+                            {isAppVerified
+                                ? 'Remove verification'
+                                : 'Verify'}
+                        </Menu.Item>
+                    )}
+                    {canEditVerified && upgrade && (
                         <Menu.Item
                             leftSection={
                                 <MantineIcon icon={IconSparkles} size={14} />
@@ -404,7 +461,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                             Upgrade app
                         </Menu.Item>
                     )}
-                    {canEdit && (
+                    {canEditVerified && (
                         <Menu.Item
                             leftSection={
                                 <MantineIcon icon={IconEdit} size={14} />
@@ -414,7 +471,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                             Rename
                         </Menu.Item>
                     )}
-                    {canEdit && captureThumbnail && (
+                    {canEditVerified && captureThumbnail && (
                         <>
                             <Menu.Item
                                 leftSection={
@@ -448,7 +505,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                             Duplicate
                         </Menu.Item>
                     )}
-                    {canEdit && (
+                    {canEditVerified && (
                         <>
                             <Menu.Item
                                 leftSection={

@@ -134,6 +134,91 @@ export const useVerifyDashboardMutation = () => {
     );
 };
 
+const verifyDataApp = async ({
+    projectUuid,
+    appUuid,
+}: {
+    projectUuid: string;
+    appUuid: string;
+}): Promise<ContentVerificationInfo> =>
+    [REDACTED]Api<ApiContentVerificationResponse['results']>({
+        url: `/ee/projects/${projectUuid}/apps/${appUuid}/verification`,
+        method: 'POST',
+        body: undefined,
+    });
+
+const unverifyDataApp = async ({
+    projectUuid,
+    appUuid,
+}: {
+    projectUuid: string;
+    appUuid: string;
+}): Promise<void> => {
+    await [REDACTED]Api<null>({
+        url: `/ee/projects/${projectUuid}/apps/${appUuid}/verification`,
+        method: 'DELETE',
+        body: undefined,
+    });
+};
+
+export const useVerifyDataAppMutation = () => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+
+    return useMutation<
+        ContentVerificationInfo,
+        ApiError,
+        { projectUuid: string; appUuid: string }
+    >(({ projectUuid, appUuid }) => verifyDataApp({ projectUuid, appUuid }), {
+        mutationKey: ['data_app_verify'],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(['spaces']);
+            await queryClient.invalidateQueries(['content']);
+            await queryClient.invalidateQueries(['app']);
+            await queryClient.invalidateQueries(['verified-content-homepage']);
+            await queryClient.invalidateQueries(['verified-content']);
+            showToastSuccess({
+                title: 'Data app verified',
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to verify data app',
+                apiError: error,
+            });
+        },
+    });
+};
+
+export const useUnverifyDataAppMutation = () => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+
+    return useMutation<
+        void,
+        ApiError,
+        { projectUuid: string; appUuid: string }
+    >(({ projectUuid, appUuid }) => unverifyDataApp({ projectUuid, appUuid }), {
+        mutationKey: ['data_app_unverify'],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(['spaces']);
+            await queryClient.invalidateQueries(['content']);
+            await queryClient.invalidateQueries(['app']);
+            await queryClient.invalidateQueries(['verified-content-homepage']);
+            await queryClient.invalidateQueries(['verified-content']);
+            showToastSuccess({
+                title: 'Data app verification removed',
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to remove data app verification',
+                apiError: error,
+            });
+        },
+    });
+};
+
 export const useUnverifyDashboardMutation = () => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
