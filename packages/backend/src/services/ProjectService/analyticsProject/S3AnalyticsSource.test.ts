@@ -96,6 +96,7 @@ describe('signed analytics file manifests', () => {
             Contents: [
                 { Key: key('ai_usage') },
                 { Key: key('data_app_events') },
+                { Key: key('export_events') },
             ],
         });
         const source = await createS3AnalyticsSourceResolver(config)();
@@ -103,8 +104,9 @@ describe('signed analytics file manifests', () => {
             'query_events',
             'ai_usage',
             'data_app_events',
+            'export_events',
         ]);
-        expect(getSignedUrl).toHaveBeenCalledTimes(4);
+        expect(getSignedUrl).toHaveBeenCalledTimes(5);
         expect(
             vi
                 .mocked(getSignedUrl)
@@ -116,6 +118,7 @@ describe('signed analytics file manifests', () => {
             key(),
             key('ai_usage'),
             key('data_app_events'),
+            key('export_events'),
         ]);
         expect(send.mock.calls[1][0].input.ContinuationToken).toBe('next');
     });
@@ -166,6 +169,13 @@ describe('signed analytics file manifests', () => {
 
     it.each([
         { Contents: [{ Key: 'events/compacted/org_id=other/file.parquet' }] },
+        {
+            Contents: [
+                {
+                    Key: 'events/compacted/org_id=00000000-0000-0000-0000-000000000002/stream=export_events/dt=2026-09-07/part.parquet',
+                },
+            ],
+        },
         { Contents: [], IsTruncated: true },
     ])('fails closed on invalid or incomplete manifests', async (response) => {
         send.mockResolvedValue(response);

@@ -4,11 +4,16 @@ import { createAnalyticsExplores } from './createAnalyticsExplores';
 describe('createAnalyticsExplores', () => {
     it('compiles curated metrics and time dimensions against internal views', () => {
         const explores = createAnalyticsExplores();
-        const [queries, ai, apps] = explores;
+        const [queries, ai, apps, exports] = explores;
+        expect(exports.tables.export_events.metrics.total_events.type).toBe(
+            MetricType.COUNT,
+        );
+        expect(exports.tables.export_events.dimensions.format).toBeDefined();
         expect(explores.map(({ name }) => name)).toEqual([
             'query_events',
             'ai_usage',
             'data_app_events',
+            'export_events',
         ]);
         expect(apps.tables.data_app_events.dimensions.app_id).toBeDefined();
         expect(apps.tables.data_app_events.dimensions.user_id).toBeDefined();

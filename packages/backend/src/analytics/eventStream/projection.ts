@@ -7,7 +7,8 @@ export type StreamName =
     | 'query_events'
     | 'ai_usage'
     | 'agent_steps'
-    | 'data_app_events';
+    | 'data_app_events'
+    | 'export_events';
 
 /**
  * Common envelope stamped on every row pushed into the usage event stream.
