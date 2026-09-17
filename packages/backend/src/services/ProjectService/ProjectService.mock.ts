@@ -367,6 +367,7 @@ export const expectedCatalog = {
 export const sessionAccount = buildAccount();
 
 export const projectWithSensitiveFields: Project = {
+    connections: [],
     organizationUuid: sessionAccount.organization.organizationUuid!,
     projectUuid: 'projectUuid',
     slug: 'name',

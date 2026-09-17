@@ -23,6 +23,7 @@ export type DbQueryHistory = {
     created_by_account: string | null;
     created_by_actor_type: AuthType | null;
     project_uuid: string | null;
+    connection_uuid: string | null;
     organization_uuid: string;
     context: QueryExecutionContext;
     default_page_size: number | null;
@@ -57,9 +58,10 @@ export type DbQueryHistory = {
 
 export type DbQueryHistoryIn = Omit<
     DbQueryHistory,
-    'query_uuid' | 'created_at' | 'created_by_actor_type'
+    'query_uuid' | 'created_at' | 'created_by_actor_type' | 'connection_uuid'
 > & {
     created_by_actor_type: AuthType;
+    connection_uuid?: string | null;
 };
 
 export type DbQueryHistoryUpdate = Partial<
@@ -90,6 +92,7 @@ export type DbQueryHistoryUpdate = Partial<
         | 'pre_aggregate_fallback_reason'
         | 'processing_started_at'
         | 'duckdb_execution'
+        | 'connection_uuid'
     >
 >;
 

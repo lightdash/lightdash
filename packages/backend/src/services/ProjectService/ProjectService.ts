@@ -252,8 +252,8 @@ import {
     WarehouseConnectionError,
     WarehouseConnectionTestResults,
     WarehouseCredentials,
-    WarehouseDatabaseListingNotSupportedError,
     WarehouseDatabaseListing,
+    WarehouseDatabaseListingNotSupportedError,
     WarehouseListedDatabase,
     WarehouseTables,
     WarehouseTablesCatalog,
@@ -509,7 +509,7 @@ const manifestWithCompilationSelection = (
 const gzipAsync = promisify(gzip);
 
 type RefreshTokenRotationSource =
-    | { kind: 'project'; projectUuid: string }
+    | { kind: 'project'; projectUuid: string; connectionUuid: string }
     | {
           kind: 'organization';
           organizationWarehouseCredentialsUuid: string;
@@ -1702,7 +1702,7 @@ export class ProjectService extends BaseService {
     ): string {
         switch (source.kind) {
             case 'project':
-                return source.projectUuid;
+                return source.connectionUuid;
             case 'organization':
                 return source.organizationWarehouseCredentialsUuid;
             case 'user':
@@ -1728,6 +1728,7 @@ export class ProjectService extends BaseService {
                         source.projectUuid,
                         oldRefreshToken,
                         newRefreshToken,
+                        source.connectionUuid,
                     );
                     break;
                 case 'organization':
@@ -2194,28 +2195,27 @@ export class ProjectService extends BaseService {
         userId,
         isRegisteredUser,
         isServiceAccount = false,
-        preloadedOrgWarehouseCredentialsUuid,
+        connectionUuid,
     }: {
         projectUuid: string;
         userId: string;
         isRegisteredUser: boolean;
         isServiceAccount?: boolean;
-        preloadedOrgWarehouseCredentialsUuid?: string | null;
+        connectionUuid?: string;
     }) {
-        // Use preloaded config if available, otherwise fetch it
-        const organizationWarehouseCredentialsUuid =
-            preloadedOrgWarehouseCredentialsUuid !== undefined
-                ? preloadedOrgWarehouseCredentialsUuid
-                : (
-                      await this.projectModel.getProjectWarehouseConfig(
-                          projectUuid,
-                      )
-                  ).organizationWarehouseCredentialsUuid;
+        const {
+            connectionUuid: resolvedConnectionUuid,
+            organizationWarehouseCredentialsUuid,
+        } = await this.projectModel.getConnectionForProject(
+            projectUuid,
+            connectionUuid,
+        );
 
         // Load base credentials from either organization or project table
         let credentials: CreateWarehouseCredentials =
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
+                resolvedConnectionUuid,
             );
         let userWarehouseCredentialsUuid: string | undefined;
 
@@ -2339,7 +2339,11 @@ export class ProjectService extends BaseService {
                 credentials = await this.refreshCredentialsAndPersistRotation(
                     credentials,
                     userId,
-                    { kind: 'project', projectUuid },
+                    {
+                        kind: 'project',
+                        projectUuid,
+                        connectionUuid: resolvedConnectionUuid,
+                    },
                 );
             }
         } else if (credentials.requireUserCredentials) {
@@ -2357,7 +2361,11 @@ export class ProjectService extends BaseService {
             credentials = await this.refreshCredentialsAndPersistRotation(
                 credentials,
                 userId,
-                { kind: 'project', projectUuid },
+                {
+                    kind: 'project',
+                    projectUuid,
+                    connectionUuid: resolvedConnectionUuid,
+                },
             );
         }
 
@@ -2375,14 +2383,17 @@ export class ProjectService extends BaseService {
     async getWarehouseCredentialsForEmbed({
         projectUuid,
         account,
+        connectionUuid,
     }: {
         projectUuid: string;
         account: AnonymousAccount;
+        connectionUuid?: string;
     }) {
         return this.getWarehouseCredentials({
             projectUuid,
             userId: account.user.id,
             isRegisteredUser: false,
+            connectionUuid,
         });
     }
 
@@ -2393,6 +2404,7 @@ export class ProjectService extends BaseService {
             snowflakeVirtualWarehouse?: string;
             databricksCompute?: string;
         },
+        connectionUuid?: string,
     ): Promise<{
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
@@ -2429,9 +2441,13 @@ export class ProjectService extends BaseService {
         const { snowflakeVirtualWarehouse, databricksCompute } =
             overrides || {};
 
-        const cacheKey = `${projectUuid}${snowflakeVirtualWarehouse || ''}${
-            databricksCompute || ''
-        }`;
+        const connection = await this.projectModel.getConnectionForProject(
+            projectUuid,
+            connectionUuid,
+        );
+        const cacheKey = `${projectUuid}${connection.connectionUuid}${
+            snowflakeVirtualWarehouse || ''
+        }${databricksCompute || ''}`;
         // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[cacheKey] as
             | (typeof this.warehouseClients)[string]
@@ -5079,7 +5095,11 @@ export class ProjectService extends BaseService {
             project.warehouseConnection.refreshToken = newRefreshToken;
             if (newRefreshToken !== oldRefreshToken) {
                 await this.persistRefreshTokenRotation({
-                    source: { kind: 'project', projectUuid },
+                    source: {
+                        kind: 'project',
+                        projectUuid,
+                        connectionUuid: project.connections[0].connectionUuid,
+                    },
                     oldRefreshToken,
                     newRefreshToken,
                 });

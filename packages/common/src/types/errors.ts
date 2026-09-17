@@ -436,6 +436,18 @@ export class ConflictError extends LightdashError {
     }
 }
 
+export class MultipleConnectionsError extends LightdashError {
+    constructor() {
+        super({
+            message:
+                'This project has several connections. Name one or upgrade the client.',
+            name: 'MultipleConnectionsError',
+            statusCode: 409,
+            data: {},
+        });
+    }
+}
+
 export class MissingConfigError extends LightdashError {
     constructor(message: string) {
         super({

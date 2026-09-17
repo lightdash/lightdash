@@ -257,6 +257,15 @@ const projectModel = {
         organizationWarehouseCredentialsUuid: null,
         queryTimezone: null,
     })),
+    getConnectionForProject: vi.fn(async () => ({
+        connectionUuid: 'connection-uuid',
+        name: 'Postgres',
+        warehouseType: WarehouseTypes.POSTGRES,
+        organizationWarehouseCredentialsUuid: null,
+        listAllDatabases: false,
+        additionalDatabases: [],
+        createdAt: new Date('2026-09-17T12:00:00Z'),
+    })),
     findExploresFromCache: vi.fn(async () => allExplores),
     lockProcess: vi.fn((_projectUuid, fun) => fun()),
     getWarehouseCredentialsForProject: vi.fn(
