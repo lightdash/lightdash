@@ -117,6 +117,10 @@ const schedulerModel = {
     getSchedulerAndTargets: vi.fn(async () => dashboardScheduler),
 };
 
+const schedulerProjectModel = {
+    get: vi.fn(async () => ({ schedulerTimezone: 'Europe/London' })),
+};
+
 const savedChartModel = {
     getSummary: vi.fn(async () => ({
         organizationUuid,
@@ -127,6 +131,7 @@ const savedChartModel = {
 
 const dashboardModel = {
     getByIdOrSlug: vi.fn(async () => dashboardSummary),
+    getSummaryByUuid: vi.fn(async () => dashboardSummary),
 };
 
 const savedSqlModel = {
@@ -178,7 +183,7 @@ const buildService = () =>
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
         appModel: {} as AppModel,
-        projectModel: {} as ProjectModel,
+        projectModel: schedulerProjectModel as unknown as ProjectModel,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
         slackClient: slackClient as unknown as SlackClient,
         emailClient: {} as EmailClient,
@@ -195,6 +200,36 @@ describe('SchedulerService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('getSchedulerProjectContext', () => {
+        test('uses the dashboard summary lookup', async () => {
+            await expect(
+                service.getSchedulerProjectContext(dashboardScheduler),
+            ).resolves.toEqual(dashboardSummary);
+
+            expect(dashboardModel.getSummaryByUuid).toHaveBeenCalledWith(
+                dashboardScheduler.dashboardUuid,
+            );
+            expect(dashboardModel.getByIdOrSlug).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getSchedulerDefaultTimezoneForScheduler', () => {
+        test('uses the loaded scheduler and project context', async () => {
+            await expect(
+                service.getSchedulerDefaultTimezoneForScheduler(
+                    dashboardScheduler,
+                    dashboardSummary,
+                ),
+            ).resolves.toBe('Europe/London');
+
+            expect(schedulerProjectModel.get).toHaveBeenCalledWith(projectUuid);
+            expect(
+                schedulerModel.getSchedulerAndTargets,
+            ).not.toHaveBeenCalled();
+            expect(dashboardModel.getSummaryByUuid).not.toHaveBeenCalled();
+        });
     });
 
     describe('sendSchedulerByUuid', () => {
