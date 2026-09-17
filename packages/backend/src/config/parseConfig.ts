@@ -3822,7 +3822,7 @@ export const parseConfig = (): LightdashConfig => {
                 parseEnum<ManagedAgentRuntime>(
                     process.env.MANAGED_AGENT_RUNTIME,
                     MANAGED_AGENT_RUNTIMES,
-                ) ?? 'anthropic-managed',
+                ) ?? 'ai-sdk',
             anthropicApiKey:
                 process.env.MANAGED_AGENT_ANTHROPIC_API_KEY ||
                 (!process.env.ANTHROPIC_BASE_URL
