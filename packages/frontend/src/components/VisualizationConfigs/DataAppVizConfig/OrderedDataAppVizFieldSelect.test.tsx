@@ -1,4 +1,5 @@
 import { getItemLabelWithoutTableName, type Item } from '@lightdash/common';
+import { Box, Text } from '@mantine/core';
 import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode, useState } from 'react';
@@ -42,17 +43,17 @@ vi.mock('../../common/FieldSelect', () => ({
     default: (props: FieldSelectProps) => {
         fieldSelectProps.push(props);
         return (
-            <div>
-                <span>
+            <Box>
+                <Text component="span">
                     {props.item && getItemLabelWithoutTableName(props.item)}
-                </span>
+                </Text>
                 {props.rightSection}
-            </div>
+            </Box>
         );
     },
 }));
 
-const header = <span>Values</span>;
+const header = <Text component="span">Values</Text>;
 
 describe('OrderedDataAppVizFieldSelect', () => {
     it('adds, replaces in place, prevents duplicates, and adds query fields', async () => {
