@@ -204,7 +204,10 @@ export const buildSampleVizContext = (
     const fields: SampleFields = {
         dimensions: schema.fields.filter((f) => f.type === 'dimension'),
         series: schema.fields.filter((f) => f.type === 'series'),
-        metrics: schema.fields.filter((f) => f.type === 'metric'),
+        // Any-column slots use numeric samples and follow the metric pivot path.
+        metrics: schema.fields.filter(
+            (f) => f.type === 'metric' || f.type === 'column',
+        ),
     };
 
     // A chart type that declares a series field renders from pivoted rows, so

@@ -1,8 +1,14 @@
 import { FeatureFlags, type DataAppViz } from '@lightdash/common';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import {
+    act,
+    fireEvent,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAppVersionHistory } from '../features/apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
@@ -219,6 +225,13 @@ const setRegistryCharts = (
 };
 
 describe('ChartTypeGallery', () => {
+    // Flush queued React Query notifications before the jsdom window is torn down.
+    afterEach(async () => {
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        });
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
         setFlags();
