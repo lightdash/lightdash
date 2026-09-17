@@ -167,18 +167,11 @@ export function versionsToChatMessages(
 }
 
 export type ThreadChat = {
-    /**
-     * Set when an earlier thread exists: the version the current thread
-     * iterates from, shown as the "context cleared" divider above the chat.
-     */
+    /** The version the current thread iterates from; null on the first thread. */
     divider: { fromVersion: number } | null;
     /** Bubbles for the current thread only, oldest first. */
     messages: ChatMessage[];
-    /**
-     * Every version of the current thread is loaded. Threads are contiguous
-     * version ranges, so seeing version 1 or any earlier-thread version means
-     * loading more pages only adds versions that belong in History.
-     */
+    /** Every version of the current thread is loaded; older pages belong in History. */
     isThreadComplete: boolean;
 };
 
