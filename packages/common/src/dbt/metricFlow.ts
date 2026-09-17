@@ -307,12 +307,15 @@ export const translateMetricFlowMetrics = ({
                 uniqueId: metric.unique_id,
                 name: metric.name,
                 lightdash_source_name: metric.lightdash_source_name,
+                lightdash_namespace_prefix: metric.lightdash_namespace_prefix,
                 package_name: metric.package_name,
             })),
             ...autoMetricCandidates.map(({ semanticModel, measure }) => ({
                 uniqueId: getAutoMetricUniqueId(semanticModel, measure),
                 name: measure.name,
                 lightdash_source_name: semanticModel.lightdash_source_name,
+                lightdash_namespace_prefix:
+                    semanticModel.lightdash_namespace_prefix,
                 package_name: semanticModel.package_name,
             })),
         ],
@@ -1025,6 +1028,7 @@ export const applyMetricFlowMetricsToModels = (
                 uniqueId: model.unique_id,
                 name: model.name,
                 lightdash_source_name: model.lightdash_source_name,
+                lightdash_namespace_prefix: model.lightdash_namespace_prefix,
                 package_name: model.package_name,
             })),
             'model',

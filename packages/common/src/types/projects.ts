@@ -1205,6 +1205,8 @@ export type WarehouseLocation = {
 export type ProjectDbtSource = {
     projectDbtSourceUuid: string;
     projectUuid: string;
+    connectionUuid: string;
+    namespacePrefix: string;
     name: string;
     isPrimary: boolean;
     precedence: number;
@@ -1232,6 +1234,8 @@ export const validateProjectDbtSourceName = (name: string): string | null => {
 };
 
 export type CreateProjectDbtSource = {
+    connectionUuid: string;
+    namespacePrefix: string;
     name: string;
     isPrimary: boolean;
     precedence: number;
@@ -1240,6 +1244,7 @@ export type CreateProjectDbtSource = {
 };
 
 export type UpdateProjectDbtSource = {
+    connectionUuid?: string;
     name?: string;
     precedence?: number;
     dbtConnection?: DbtProjectConfig | null;
@@ -1262,6 +1267,8 @@ export type UpdateProjectDbtSource = {
  */
 export type ProjectDbtSourceSummary = {
     projectDbtSourceUuid: string;
+    connectionUuid: string;
+    namespacePrefix: string;
     name: string;
     isPrimary: boolean;
     precedence: number;
@@ -1274,6 +1281,8 @@ export type ProjectDbtSourceSummary = {
 };
 
 export type ApiCreateProjectDbtSource = {
+    connectionUuid: string;
+    namespacePrefix?: string;
     name: string;
     dbtConnection: DbtProjectConfig;
     warehouseLocation?: WarehouseLocation;
@@ -1304,6 +1313,8 @@ export type ApiProjectDbtSourceWithConnectionResponse = {
 };
 
 export type ApiUpdateProjectDbtSource = {
+    connectionUuid?: string;
+    namespacePrefix?: string;
     name?: string;
     dbtConnection?: DbtProjectConfig;
     warehouseLocation?: WarehouseLocation;
