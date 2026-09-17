@@ -212,6 +212,7 @@ export {
     getDbtVersionSupportedWarehouses,
     getInvalidDbtEnvironmentVariableKeys,
     getLatestSupportDbtVersion,
+    hasConnectionListingFields,
     isDbtVersion110OrHigher,
     PROJECT_DBT_SOURCE_NAME_MAX_LENGTH,
     PROJECT_DBT_SOURCE_NAME_PATTERN,
@@ -236,8 +237,10 @@ export {
     SnowflakeAuthenticationType,
     stripDucklakeNestedSensitive,
     SupportedDbtVersions,
+    supportsDatabaseListing,
     supportsOptionalUserCredentials,
     allowsOptionalUserCredentials,
+    WAREHOUSE_TYPES_WITH_DATABASE_LISTING,
     WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS,
     WarehouseTypes,
 } from './types/projects';
@@ -336,6 +339,7 @@ export type {
     UpdateSchedulerSettings,
     CreateWarehouseCredentialsWithOptionalSecrets,
     WarehouseCredentials,
+    WarehouseConnectionListingFields,
     WarehouseLocation,
 } from './types/projects';
 export * from './types/promotion';
