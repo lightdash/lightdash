@@ -1,6 +1,10 @@
 import { subject } from '@casl/ability';
 import { Badge, Box, Button, Group, Tooltip } from '@mantine/core';
-import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconArrowLeft,
+    IconRefreshAlert,
+} from '@tabler/icons-react';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import {
@@ -11,6 +15,7 @@ import {
     selectUnsavedChartVersion,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useMergeChangeSinceRun } from '../../../features/mergeQuery/hooks/useMergeChangeSinceRun';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
@@ -45,6 +50,10 @@ const ExplorerHeader: FC = memo(() => {
         [queryResults.totalResults, limit],
     );
     const queryWarnings = query.data?.warnings;
+    // A merge whose join changed re-runs itself; one whose legs changed
+    // waits for the user, and the rows on screen have to say so.
+    const { sinceResults: mergeChangeSinceResults } = useMergeChangeSinceRun();
+    const showMergeOutOfDate = mergeChangeSinceResults === 'sources';
 
     const savedChart = useExplorerSelector(selectSavedChart);
     // A chart type being authored is not the chart; it finishes or cancels first.
@@ -159,6 +168,28 @@ const ExplorerHeader: FC = memo(() => {
             </Box>
 
             <Group gap="xs">
+                {showMergeOutOfDate && (
+                    <Tooltip
+                        w={400}
+                        label="A query in this merge changed since it last ran. Run the query to see the merged result for the current queries."
+                        position="bottom"
+                    >
+                        <Badge
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconRefreshAlert}
+                                    size="sm"
+                                />
+                            }
+                            color="yellow"
+                            variant="outline"
+                            style={{ cursor: 'help' }}
+                        >
+                            Results out of date
+                        </Badge>
+                    </Tooltip>
+                )}
+
                 {showLimitWarning && (
                     <Tooltip
                         w={400}

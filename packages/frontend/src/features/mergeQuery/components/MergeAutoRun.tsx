@@ -1,6 +1,7 @@
 import { resolveMergeSorts, type SortField } from '@lightdash/common';
 import { useEffect, useRef, type FC } from 'react';
 import { useMergeSafe } from '../context/useMerge';
+import { useMergeChangeSinceRun } from '../hooks/useMergeChangeSinceRun';
 import { useMergeSetup } from '../hooks/useMergeSetup';
 
 const sortsKey = (sorts: SortField[]) =>
@@ -9,8 +10,8 @@ const sortsKey = (sorts: SortField[]) =>
     );
 
 /**
- * Runs a restored merge once, headlessly, and re-runs a merge whose sort
- * changed after it ran.
+ * Runs a restored merge once, headlessly, and re-runs a merge whose sort or
+ * relationship changed after it ran.
  *
  * A merge that arrived with the chart has to run itself: without this a saved
  * merged chart opens showing only the primary source's results — the wrong numbers, presented
@@ -71,6 +72,17 @@ export const MergeAutoRun: FC = () => {
         if (isRunning || !canRun || isRefused) return;
         handleRun();
     }, [wantedSorts, ranSorts, isRunning, canRun, isRefused, handleRun]);
+
+    // The join type, join key and limit are inputs of the join alone. The
+    // legs are cached, so changing them re-runs only the join; leaving the
+    // old rows on screen would say the change did nothing. A leg change is
+    // a warehouse query and stays in the user's hands.
+    const { sinceLastRun } = useMergeChangeSinceRun();
+    useEffect(() => {
+        if (sinceLastRun !== 'join' || !mergeResults) return;
+        if (isRunning || !canRun || isRefused) return;
+        handleRun();
+    }, [sinceLastRun, mergeResults, isRunning, canRun, isRefused, handleRun]);
 
     return null;
 };

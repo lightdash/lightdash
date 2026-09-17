@@ -1,5 +1,7 @@
 import {
+    MergeJoinType,
     MergeQueryErrorKind,
+    type MergeQuery,
     type MergeQueryError,
     type SortField,
 } from '@lightdash/common';
@@ -12,22 +14,23 @@ type MergeResultsStub = {
     queryUuid: string;
     columnOrder: string[];
     metricQuery: { sorts: SortField[] };
+    mergeQuery?: MergeQuery;
 };
+
+type MergeQueryStub = Partial<MergeQuery> & Pick<MergeQuery, 'sources'>;
 
 const state = vi.hoisted(() => ({
     merge: {
         wasRestored: true,
         isRunning: false,
         mergeResults: null as MergeResultsStub | null,
+        lastRunMergeQuery: null as MergeQuery | null,
         refuseRestoredRun: vi.fn(),
     },
     setup: {
         canRun: true,
         handleRun: vi.fn(),
-        mergeQuery: { sources: [], sorts: [] } as {
-            sources: unknown[];
-            sorts: SortField[];
-        } | null,
+        mergeQuery: { sources: [], sorts: [] } as MergeQueryStub | null,
         setupStep: null as string | null,
         joinKeyErrors: [] as MergeQueryError[],
         fanOut: [] as FanOut[],
@@ -52,6 +55,7 @@ describe('MergeAutoRun', () => {
         state.merge.wasRestored = true;
         state.merge.isRunning = false;
         state.merge.mergeResults = null;
+        state.merge.lastRunMergeQuery = null;
         state.setup.canRun = true;
         state.setup.mergeQuery = { sources: [], sorts: [] };
         state.setup.setupStep = null;
@@ -173,6 +177,123 @@ describe('MergeAutoRun', () => {
                 sources: [],
                 sorts: [{ fieldId: 'b_payments_count', descending: true }],
             };
+
+            render(<MergeAutoRun />);
+
+            expect(state.setup.handleRun).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('the relationship changed after the merge ran', () => {
+        const metricQuery = {
+            exploreName: 'orders',
+            dimensions: ['orders_month'],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+        };
+        const ranMerge: MergeQuery = {
+            sources: [
+                { id: 'a', metricQuery },
+                { id: 'b', metricQuery: { ...metricQuery, exploreName: 'p' } },
+            ],
+            joinKey: [
+                {
+                    name: 'join_key_0',
+                    fieldIdBySourceId: { a: 'orders_month', b: 'p_month' },
+                },
+            ],
+            joinType: MergeJoinType.FULL,
+            tableCalculations: [],
+            sorts: [],
+            limit: 500,
+        };
+        const ranWith = (mergeQuery: MergeQuery): MergeResultsStub => ({
+            queryUuid: 'q1',
+            columnOrder: ['merge_join_key_0', 'b_p_count'],
+            metricQuery: { sorts: [] },
+            mergeQuery,
+        });
+
+        beforeEach(() => {
+            state.merge.wasRestored = false;
+            state.merge.mergeResults = ranWith(ranMerge);
+            state.merge.lastRunMergeQuery = ranMerge;
+        });
+
+        it('re-runs the join when the join type changes', () => {
+            state.setup.mergeQuery = {
+                ...ranMerge,
+                joinType: MergeJoinType.LEFT,
+            };
+
+            render(<MergeAutoRun />);
+
+            expect(state.setup.handleRun).toHaveBeenCalledTimes(1);
+        });
+
+        it('re-runs the join when a join field changes', () => {
+            state.setup.mergeQuery = {
+                ...ranMerge,
+                joinKey: [
+                    {
+                        name: 'join_key_0',
+                        fieldIdBySourceId: {
+                            a: 'orders_status',
+                            b: 'p_status',
+                        },
+                    },
+                ],
+            };
+
+            render(<MergeAutoRun />);
+
+            expect(state.setup.handleRun).toHaveBeenCalledTimes(1);
+        });
+
+        it('stays put when nothing but the sort differs', () => {
+            state.setup.mergeQuery = {
+                ...ranMerge,
+                sorts: [{ fieldId: 'orders_total', descending: true }],
+            };
+
+            render(<MergeAutoRun />);
+
+            expect(state.setup.handleRun).not.toHaveBeenCalled();
+        });
+
+        // A leg change is a warehouse query; the badge says the rows are
+        // out of date and the user decides when to run.
+        it('leaves a changed source to the user', () => {
+            state.setup.mergeQuery = {
+                ...ranMerge,
+                joinType: MergeJoinType.LEFT,
+                sources: [
+                    ranMerge.sources[0],
+                    {
+                        id: 'b',
+                        metricQuery: {
+                            ...metricQuery,
+                            exploreName: 'p',
+                            metrics: ['p_count', 'p_total'],
+                        },
+                    },
+                ],
+            };
+
+            render(<MergeAutoRun />);
+
+            expect(state.setup.handleRun).not.toHaveBeenCalled();
+        });
+
+        // The refused submission is the last run, so the same edit is not
+        // asked for again on every render.
+        it('does not retry a join change the server already refused', () => {
+            const wanted = { ...ranMerge, joinType: MergeJoinType.INNER };
+            state.merge.lastRunMergeQuery = wanted;
+            state.setup.mergeQuery = wanted;
 
             render(<MergeAutoRun />);
 
