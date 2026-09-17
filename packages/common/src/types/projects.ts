@@ -281,6 +281,7 @@ export type ClickhouseCredentials = Omit<
 
 export type CreateAthenaCredentials = WarehouseConnectionListingFields & {
     type: WarehouseTypes.ATHENA;
+    connectionUuid?: string;
     region: string;
     database: string;
     schema: string;

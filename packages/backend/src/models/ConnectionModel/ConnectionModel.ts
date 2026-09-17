@@ -257,6 +257,9 @@ export class ConnectionModel {
         }
         return {
             ...credentials,
+            ...(credentials.type === WarehouseTypes.ATHENA
+                ? { connectionUuid: row.warehouse_credentials_uuid }
+                : {}),
             listAllDatabases: row.list_all_databases,
             additionalDatabases: row.additional_databases,
         };

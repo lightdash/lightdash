@@ -779,6 +779,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     async getUserWarehouseCredentialsPreference(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() connectionUuid?: string,
     ): Promise<{
         status: 'ok';
         results: UserWarehouseCredentials | undefined;
@@ -792,6 +793,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 .getProjectCredentialsPreference(
                     toSessionUser(req.account),
                     projectUuid,
+                    connectionUuid,
                 ),
         };
     }
@@ -836,6 +838,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         @Path() projectUuid: string,
         @Path() userWarehouseCredentialsUuid: string,
         @Request() req: express.Request,
+        @Query() connectionUuid?: string,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -845,6 +848,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 toSessionUser(req.account),
                 projectUuid,
                 userWarehouseCredentialsUuid,
+                connectionUuid,
             );
         return {
             status: 'ok',

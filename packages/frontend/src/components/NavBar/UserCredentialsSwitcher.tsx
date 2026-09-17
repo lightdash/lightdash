@@ -1,4 +1,7 @@
-import { allowsOptionalUserCredentials } from '@lightdash/common';
+import {
+    allowsOptionalUserCredentials,
+    type Connection,
+} from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -25,6 +28,11 @@ const routesThatNeedWarehouseCredentials = [
     '/projects/:projectUuid/sqlRunner',
 ];
 
+const getDefaultPreferenceConnectionUuid = (
+    connections: Connection[],
+): string | undefined =>
+    connections.length > 1 ? connections[0]?.connectionUuid : undefined;
+
 const UserCredentialsSwitcher = () => {
     const menuProps = useNavBarMenuProps();
     const { user } = useApp();
@@ -46,8 +54,14 @@ const UserCredentialsSwitcher = () => {
         isInitialLoading: isLoadingCredentials,
         data: userWarehouseCredentials,
     } = useProjectUserWarehouseCredentials(activeProjectUuid);
+    const defaultConnectionUuid = activeProject
+        ? getDefaultPreferenceConnectionUuid(activeProject.connections)
+        : undefined;
     const { data: preferredCredentials } =
-        useProjectUserWarehouseCredentialsPreference(activeProjectUuid);
+        useProjectUserWarehouseCredentialsPreference(
+            activeProjectUuid,
+            defaultConnectionUuid,
+        );
     const { mutate } = useProjectUserWarehouseCredentialsPreferenceMutation({
         onSuccess: () => {
             if (isRouteThatNeedsWarehouseCredentials) {
@@ -217,6 +231,7 @@ const UserCredentialsSwitcher = () => {
                                 mutate({
                                     projectUuid: activeProjectUuid,
                                     userWarehouseCredentialsUuid: item.uuid,
+                                    connectionUuid: defaultConnectionUuid,
                                 });
                             }}
                         >
@@ -264,10 +279,12 @@ const UserCredentialsSwitcher = () => {
                         warehouseType={activeProject.warehouseConnection?.type}
                         projectUuid={activeProjectUuid}
                         projectName={activeProject.name}
-                        onSuccess={(data) => {
+                        connections={activeProject.connections}
+                        onSuccess={(data, connectionUuid) => {
                             mutate({
                                 projectUuid: activeProjectUuid,
                                 userWarehouseCredentialsUuid: data.uuid,
+                                connectionUuid,
                             });
                         }}
                         onClose={() => setIsCreatingCredentials(false)}

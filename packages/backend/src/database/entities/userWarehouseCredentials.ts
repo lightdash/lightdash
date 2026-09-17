@@ -34,6 +34,7 @@ type Update = Pick<
 export type DbProjectUserWarehouseCredentialPreference = {
     user_uuid: string;
     project_uuid: string;
+    connection_uuid: string | null;
     user_warehouse_credentials_uuid: string;
 };
 export const ProjectUserWarehouseCredentialPreferenceTableName =

@@ -4304,6 +4304,7 @@ describe('ProjectService', () => {
                 projectUuid,
                 sessionAccount.user.id,
                 WarehouseTypes.DATABRICKS,
+                'connection-uuid',
             );
 
             // Query should still execute successfully with user credentials
@@ -4312,6 +4313,93 @@ describe('ProjectService', () => {
     });
 
     describe('user warehouse credentials override', () => {
+        test('resolves required personal credentials independently per connection', async () => {
+            const scopedService = getMockedProjectService(lightdashConfigMock);
+            const findForProjectWithSecrets = vi.fn(async () => undefined);
+            (
+                scopedService as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecrets;
+
+            vi.mocked(projectModel.getConnectionForProject)
+                .mockResolvedValueOnce({
+                    connectionUuid: 'required-connection',
+                    name: 'Required',
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    organizationWarehouseCredentialsUuid: null,
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                    createdAt: new Date(),
+                })
+                .mockResolvedValueOnce({
+                    connectionUuid: 'shared-connection',
+                    name: 'Shared',
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    organizationWarehouseCredentialsUuid: null,
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                    createdAt: new Date(),
+                });
+            vi.mocked(projectModel.getWarehouseCredentialsForProject)
+                .mockResolvedValueOnce({
+                    type: WarehouseTypes.POSTGRES,
+                    host: 'required.example.com',
+                    port: 5432,
+                    dbname: 'analytics',
+                    schema: 'public',
+                    user: 'shared',
+                    password: 'shared-password',
+                    requireUserCredentials: true,
+                })
+                .mockResolvedValueOnce({
+                    type: WarehouseTypes.POSTGRES,
+                    host: 'shared.example.com',
+                    port: 5432,
+                    dbname: 'analytics',
+                    schema: 'public',
+                    user: 'shared',
+                    password: 'shared-password',
+                    requireUserCredentials: false,
+                });
+
+            const getCredentials = (connectionUuid: string) =>
+                (
+                    scopedService as unknown as {
+                        getWarehouseCredentials: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                            connectionUuid: string;
+                        }) => Promise<CreateWarehouseCredentials>;
+                    }
+                ).getWarehouseCredentials({
+                    projectUuid,
+                    userId: sessionAccount.user.id,
+                    isRegisteredUser: true,
+                    connectionUuid,
+                });
+
+            await expect(getCredentials('required-connection')).rejects.toThrow(
+                MissingWarehouseCredentialsError,
+            );
+            await expect(getCredentials('shared-connection')).resolves.toEqual(
+                expect.objectContaining({
+                    host: 'shared.example.com',
+                    requireUserCredentials: false,
+                }),
+            );
+            expect(findForProjectWithSecrets).toHaveBeenCalledExactlyOnceWith(
+                projectUuid,
+                sessionAccount.user.id,
+                WarehouseTypes.POSTGRES,
+                'required-connection',
+            );
+        });
+
         test("should not let user credentials clear the project's requireUserCredentials setting", async () => {
             service.warehouseClients = {};
 
@@ -4483,6 +4571,7 @@ describe('ProjectService', () => {
                         projectUuid,
                         sessionAccount.user.id,
                         WarehouseTypes.BIGQUERY,
+                        'connection-uuid',
                     );
                     expect(credentials).toEqual(
                         expect.objectContaining({
@@ -4638,6 +4727,7 @@ describe('ProjectService', () => {
                     projectUuid,
                     sessionAccount.user.id,
                     WarehouseTypes.TRINO,
+                    'connection-uuid',
                 );
                 expect(credentials).toEqual(
                     expect.objectContaining({
@@ -4856,6 +4946,7 @@ describe('ProjectService', () => {
                 projectUuid,
                 sessionAccount.user.id,
                 WarehouseTypes.REDSHIFT,
+                'connection-uuid',
             );
             expect(mergedCredentials).toEqual(
                 expect.objectContaining({
