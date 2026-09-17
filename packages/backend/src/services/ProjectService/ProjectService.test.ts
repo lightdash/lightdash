@@ -108,6 +108,7 @@ import { UserModel } from '../../models/UserModel';
 import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { CompileGroup } from '../../projectAdapters/CompileGroup';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import * as projectAdapterModule from '../../projectAdapters/projectAdapter';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -210,6 +211,7 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
         function MockSshTunnel() {
             return {
                 connect: vi.fn(() => warehouseClientMock.credentials),
+                overrideCredentials: warehouseClientMock.credentials,
                 disconnect: vi.fn(),
             };
         },
@@ -221,6 +223,10 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
 }));
 
 const projectModel = {
+    getCompileConnections: vi.fn(async () => [
+        { connectionUuid: 'dbt_project-connection-uuid', name: 'Warehouse' },
+    ]),
+    getCompileProject: vi.fn(async () => projectWithSensitiveFields),
     runInAnalyticsProvisioningLock: vi.fn(
         async (_org: string, callback: () => Promise<unknown>) => callback(),
     ),
@@ -326,7 +332,7 @@ const projectModel = {
     deleteMergedManifest: vi.fn<ProjectModel['deleteMergedManifest']>(
         async () => undefined,
     ),
-    upsertMergedManifest: vi.fn<ProjectModel['upsertMergedManifest']>(
+    replaceMergedManifests: vi.fn<ProjectModel['replaceMergedManifests']>(
         async () => undefined,
     ),
     stampProjectContent: vi.fn<ProjectModel['stampProjectContent']>(
@@ -496,6 +502,7 @@ const getMockedProjectService = (
             overrides.projectDbtSourcesModel ??
             ({
                 copySources: vi.fn(async () => undefined),
+                getSources: vi.fn(async () => []),
             } as unknown as ProjectDbtSourcesModel),
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
@@ -2981,16 +2988,16 @@ describe('ProjectService', () => {
             config: { label: 'Status', type: 'string' as const },
         };
         const upstreamTableGroups = { sales: { label: 'Sales' } };
-        const upstreamDefaults = { showUnderlyingValues: ['a'] };
+        const upstreamDefaults = { case_sensitive: false };
 
-        const nonePreviewProject = {
+        const nonePreviewProject: Project = {
             ...projectWithSensitiveFields,
             projectUuid: previewProjectUuid,
             type: ProjectType.PREVIEW,
             dbtConnection: { type: DbtProjectType.NONE },
             upstreamProjectUuid,
         };
-        const upstreamProject = {
+        const upstreamProject: Project = {
             ...projectWithSensitiveFields,
             projectUuid: upstreamProjectUuid,
             dbtConnection: { type: DbtProjectType.NONE },
@@ -3022,9 +3029,10 @@ describe('ProjectService', () => {
                 'buildAdapter',
             );
 
-            (projectModel.get as import('vitest').Mock)
-                .mockResolvedValueOnce(nonePreviewProject) // preview
-                .mockResolvedValueOnce(upstreamProject); // upstream
+            projectModel.getCompileProject.mockResolvedValueOnce(
+                nonePreviewProject,
+            );
+            projectModel.get.mockResolvedValueOnce(upstreamProject);
             (
                 projectModel.getAllExploresFromCache as import('vitest').Mock
             ).mockResolvedValueOnce({ 'explore-uuid': validExplore });
@@ -7550,6 +7558,7 @@ type ResolveCompileAdapterArgs = {
     primary: {
         adapter: ProjectAdapter;
         warehouseCredentials: CreateWarehouseCredentials;
+        warehouseClient: typeof warehouseClientMock;
         cachedWarehouse: { warehouseCatalog: {}; warehouseTables: {} };
         dbtVersionOption: DbtVersionOptionLatest;
     };
@@ -7566,7 +7575,7 @@ type BuildMergedManifestAdapterArgs = {
 
 type ResolvedCompileAdapter = {
     adapter: ProjectAdapter;
-    stagedMergedManifest?: Buffer;
+    stagedMergedManifest?: { connectionUuid: string; manifest: Buffer }[];
 };
 
 // resolveCompileAdapter/buildMergedManifestAdapter/featureFlagModel/
@@ -7585,6 +7594,10 @@ type ProjectServiceInternals = {
         projectUuid: string,
         manifest: DbtManifest,
     ) => Promise<Buffer | undefined>;
+    persistMergedManifest: (
+        projectUuid: string,
+        manifests: ResolvedCompileAdapter['stagedMergedManifest'],
+    ) => Promise<void>;
     buildSourceAdapter: (...args: unknown[]) => Promise<ProjectAdapter>;
     logger: { warn: (...args: unknown[]) => void };
 };
@@ -7594,7 +7607,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         projectModel.deleteMergedManifest
             .mockReset()
             .mockResolvedValue(undefined);
-        projectModel.upsertMergedManifest
+        projectModel.replaceMergedManifests
             .mockReset()
             .mockResolvedValue(undefined);
     });
@@ -7609,6 +7622,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     const primary = {
         adapter: primaryAdapter,
         warehouseCredentials: warehouseClientMock.credentials,
+        warehouseClient: warehouseClientMock,
         cachedWarehouse: { warehouseCatalog: {}, warehouseTables: {} },
         dbtVersionOption: DbtVersionOptionLatest.LATEST,
     };
@@ -7763,7 +7777,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     ): ProjectDbtSource => ({
         projectDbtSourceUuid: `${name}-uuid`,
         projectUuid: 'project-uuid',
-        connectionUuid: `${name}-connection-uuid`,
+        connectionUuid: 'dbt_project-connection-uuid',
         namespacePrefix: isPrimary ? '' : name,
         name,
         isPrimary,
@@ -7824,6 +7838,113 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
         return (await adapter).adapter;
     };
+
+    it('builds independent compile groups for the same repository on two connections', async () => {
+        const projectService = getMockedProjectService(
+            lightdashConfigMock,
+        ) as unknown as ProjectServiceInternals;
+        const sameManifest = buildManifest([
+            {
+                uniqueId: 'model.shared.orders',
+                name: 'orders',
+                packageName: 'shared',
+            },
+        ]);
+        const secondary = {
+            ...buildSource('east'),
+            connectionUuid: 'east-connection',
+        };
+        const westCatalog = {
+            analytics: { public: { orders: { id: DimensionType.NUMBER } } },
+        };
+        const eastCatalog = {
+            analytics: { public: { orders: { id: DimensionType.STRING } } },
+        };
+        const westClient = {
+            ...warehouseClientMock,
+            getCatalog: vi.fn(async () => westCatalog),
+        };
+        const eastClient = {
+            ...warehouseClientMock,
+            getCatalog: vi.fn(async () => eastCatalog),
+        };
+        projectModel.getCompileConnections.mockResolvedValueOnce([
+            { connectionUuid: 'dbt_project-connection-uuid', name: 'London' },
+            { connectionUuid: 'east-connection', name: 'Tokyo' },
+        ]);
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            warehouseConnection: warehouseClientMock.credentials,
+        });
+        vi.mocked(warehouseClientFromCredentials).mockReturnValueOnce(
+            eastClient,
+        );
+        vi.spyOn(
+            projectAdapterModule,
+            'projectAdapterFromConfig',
+        ).mockResolvedValueOnce(buildAdapterWithManifest(sameManifest));
+        const result = await projectService.buildMergedManifestAdapter({
+            projectUuid: 'project-uuid',
+            organizationUuid: 'org-uuid',
+            primary: {
+                ...primary,
+                warehouseClient: westClient,
+                adapter: buildAdapterWithManifest(sameManifest),
+            },
+            sources: [
+                buildSource('dbt_project', EMPTY_WAREHOUSE_LOCATION, true),
+                secondary,
+            ],
+            manifestFetchAdapters: [],
+        });
+        const explores = await result.adapter.compileAllExplores(undefined);
+        expect(explores.map((explore) => explore.name)).toEqual([
+            'orders',
+            'east__orders',
+        ]);
+        expect(explores[0]).toMatchObject({
+            tables: {
+                orders: {
+                    connectionUuid: 'dbt_project-connection-uuid',
+                    dimensions: { id: { type: DimensionType.NUMBER } },
+                },
+            },
+        });
+        expect(explores[1]).toMatchObject({
+            tables: {
+                east__orders: {
+                    connectionUuid: 'east-connection',
+                    dimensions: { id: { type: DimensionType.STRING } },
+                },
+            },
+        });
+        expect(projectModel.getWithSensitiveFields).toHaveBeenCalledWith(
+            'project-uuid',
+            'east-connection',
+        );
+        expect(projectModel.getWarehouseFromCache).toHaveBeenCalledWith(
+            'project-uuid',
+            'east-connection',
+        );
+        expect(projectModel.saveWarehouseToCache).toHaveBeenCalledWith(
+            'project-uuid',
+            westCatalog,
+            'dbt_project-connection-uuid',
+        );
+        expect(projectModel.saveWarehouseToCache).toHaveBeenCalledWith(
+            'project-uuid',
+            eastCatalog,
+            'east-connection',
+        );
+        expect(
+            result.stagedMergedManifest?.map(
+                ({ connectionUuid }) => connectionUuid,
+            ),
+        ).toEqual(['dbt_project-connection-uuid', 'east-connection']);
+        expect(() => result.adapter.getDbtManifest()).toThrow(
+            'This project has several connections',
+        );
+    });
 
     it('returns the deduplicated union when both sources select models', async () => {
         const primaryManifest = buildManifest([
@@ -8078,7 +8199,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             sourceExplore?.tables?.[
                 sourceExplore.baseTable ?? sourceExplore.name
             ]?.connectionUuid,
-        ).toBe('source-b-connection-uuid');
+        ).toBe('dbt_project-connection-uuid');
     });
 
     it('still rejects the same model unique_id from two sources', async () => {
@@ -8251,9 +8372,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             primary,
         );
 
-        expect(warehouseClientFromCredentials).toHaveBeenCalledWith(
-            expect.objectContaining({ schema: 'source_schema' }),
-        );
+        expect(warehouseClientFromCredentials).not.toHaveBeenCalled();
     });
 
     it('BC-7: stages the projected merged manifest without publishing it during adapter construction', async () => {
@@ -8276,12 +8395,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             buildMergedAdapterWithService(primaryManifest, sourceManifest);
         const { stagedMergedManifest } = await buildMergedAdapterResult;
 
-        expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+        expect(projectModel.replaceMergedManifests).not.toHaveBeenCalled();
         if (!stagedMergedManifest) {
             throw new Error('Expected a staged merged manifest');
         }
         const persisted = JSON.parse(
-            gunzipSync(stagedMergedManifest).toString('utf8'),
+            gunzipSync(stagedMergedManifest[0].manifest).toString('utf8'),
         ) as DbtManifest;
         expect(Object.keys(persisted.nodes)).toEqual([
             'model.pkg_a.orders',
@@ -8289,6 +8408,37 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             'model.pkg_b.customers',
             'seed.pkg_b.country_codes',
         ]);
+    });
+
+    it('keeps previous artifacts when a group manifest cannot be staged', async () => {
+        const { projectService, adapter } = buildMergedAdapterWithService(
+            buildManifest([
+                {
+                    uniqueId: 'model.pkg_a.orders',
+                    name: 'orders',
+                    packageName: 'pkg_a',
+                },
+            ]),
+            buildManifest([
+                {
+                    uniqueId: 'model.pkg_b.customers',
+                    name: 'customers',
+                    packageName: 'pkg_b',
+                },
+            ]),
+        );
+        vi.spyOn(projectService, 'stageMergedManifest').mockResolvedValueOnce(
+            undefined,
+        );
+
+        const result = await adapter;
+
+        expect(result.stagedMergedManifest).toBeUndefined();
+        await projectService.persistMergedManifest(
+            'project-uuid',
+            result.stagedMergedManifest,
+        );
+        expect(projectModel.replaceMergedManifests).not.toHaveBeenCalled();
     });
 
     it('persists exactly the model selection compiled by the merged adapter', async () => {
@@ -8347,12 +8497,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 source: ['model.pkg_b.customers'],
             },
         ).adapter;
-        expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+        expect(projectModel.replaceMergedManifests).not.toHaveBeenCalled();
         if (!stagedMergedManifest) {
             throw new Error('Expected a staged merged manifest');
         }
         const persisted = JSON.parse(
-            gunzipSync(stagedMergedManifest).toString('utf8'),
+            gunzipSync(stagedMergedManifest[0].manifest).toString('utf8'),
         ) as DbtManifest;
         const compiledNodes = getCompiledModels(
             getModelsFromManifest(persisted),
@@ -8430,6 +8580,22 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
     });
 
+    it('compiles existing bindings across connections when the creation rollout flag is off', async () => {
+        projectModel.getCompileConnections.mockResolvedValueOnce([
+            { connectionUuid: 'first', name: 'First' },
+            { connectionUuid: 'second', name: 'Second' },
+        ]);
+        const { projectService } = buildServiceWithMocks(false, [
+            { name: 'second-source' },
+        ]);
+        const build = vi
+            .spyOn(projectService, 'buildMergedManifestAdapter')
+            .mockResolvedValue({ adapter: primaryAdapter });
+        await projectService.resolveCompileAdapter(baseArgs);
+        expect(build).toHaveBeenCalledOnce();
+        expect(projectModel.deleteMergedManifest).not.toHaveBeenCalled();
+    });
+
     it('flag ON rejects a project without a materialised primary source', async () => {
         const { projectService, getSources } = buildServiceWithMocks(true, []);
 
@@ -8439,7 +8605,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             'The project does not have a materialised primary dbt source',
         );
         expect(getSources).toHaveBeenCalledTimes(1);
-        expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+        expect(projectModel.replaceMergedManifests).not.toHaveBeenCalled();
     });
 
     it('BC-6: feature flag off returns the primary adapter when stale manifest deletion fails', async () => {
@@ -8461,7 +8627,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         const mergedAdapter = {
             id: 'merged-adapter',
         } as unknown as ProjectAdapter;
-        const stagedMergedManifest = Buffer.from('staged-manifest');
+        const stagedMergedManifest = [
+            {
+                connectionUuid: 'connection',
+                manifest: Buffer.from('staged-manifest'),
+            },
+        ];
         const { projectService } = buildServiceWithMocks(true, [
             { name: 'jaffle-2' },
         ]);
@@ -8546,8 +8717,15 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         } as unknown as ProjectAdapter;
         vi.spyOn(projectAdapterModule, 'projectAdapterFromConfig')
             .mockResolvedValueOnce(primaryCompileAdapter)
-            .mockResolvedValueOnce(sourceAdapter)
-            .mockResolvedValueOnce(mergedAdapter);
+            .mockResolvedValueOnce(sourceAdapter);
+        vi.spyOn(
+            CompileGroup.prototype,
+            'prepareExploreStream',
+        ).mockImplementation(mergedAdapter.prepareExploreStream);
+        vi.spyOn(
+            CompileGroup.prototype,
+            'getLightdashProjectConfig',
+        ).mockImplementation(mergedAdapter.getLightdashProjectConfig);
 
         const compiledProject: Project = {
             ...projectWithSensitiveFields,
@@ -8562,11 +8740,14 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             .mockReset()
             .mockResolvedValue(compiledProject);
         projectModel.get.mockReset().mockResolvedValue(compiledProject);
+        projectModel.getCompileProject
+            .mockReset()
+            .mockResolvedValue(compiledProject);
         projectModel.getSummary.mockReset().mockResolvedValue(projectSummary);
         projectModel.getWarehouseFromCache
             .mockReset()
             .mockResolvedValue(undefined);
-        projectModel.upsertMergedManifest
+        projectModel.replaceMergedManifests
             .mockReset()
             .mockResolvedValue(undefined);
 
@@ -8590,6 +8771,29 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             projectDbtSourcesModel,
         });
     };
+
+    it('preserves project content when connection preparation fails', async () => {
+        const projectService = buildCompilationBoundaryService();
+        vi.spyOn(warehouseClientMock, 'test').mockRejectedValueOnce(
+            new Error('credentials failed'),
+        );
+        projectModel.saveExploreStreamToCache.mockClear();
+        projectModel.setTableGroups.mockClear();
+        projectModel.saveWarehouseToCache.mockClear();
+        await projectService.compileProject(
+            compileUser,
+            'projectUuid',
+            RequestMethod.WEB_APP,
+            'compile-job-uuid',
+        );
+        expect(projectModel.saveExploreStreamToCache).not.toHaveBeenCalled();
+        expect(projectModel.saveWarehouseToCache).not.toHaveBeenCalled();
+        expect(projectModel.replaceMergedManifests).not.toHaveBeenCalled();
+        expect(projectModel.setTableGroups).not.toHaveBeenCalled();
+        expect(jobModel.update).toHaveBeenCalledWith('compile-job-uuid', {
+            jobStatus: JobStatusType.ERROR,
+        });
+    });
 
     it('BC-7: distinguishes manifest staging failures from persistence failures', async () => {
         const projectService = buildCompilationBoundaryService();
@@ -8625,14 +8829,14 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 cacheCompleted = true;
                 return { cachedExploreUuids: [] };
             });
-        projectModel.upsertMergedManifest.mockImplementationOnce(
+        projectModel.replaceMergedManifests.mockImplementationOnce(
             async (_projectUuid, manifest) => {
                 if (!cacheCompleted) {
                     throw new Error(
                         'cache did not complete before publication',
                     );
                 }
-                persistedManifest = manifest;
+                persistedManifest = manifest[0].manifest;
             },
         );
 
@@ -8644,12 +8848,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
 
         expect(projectModel.saveExploreStreamToCache).toHaveBeenCalledTimes(1);
-        expect(projectModel.upsertMergedManifest).toHaveBeenCalledTimes(1);
+        expect(projectModel.replaceMergedManifests).toHaveBeenCalledTimes(1);
         expect(
             vi.mocked(projectModel.saveExploreStreamToCache).mock
                 .invocationCallOrder[0],
         ).toBeLessThan(
-            vi.mocked(projectModel.upsertMergedManifest).mock
+            vi.mocked(projectModel.replaceMergedManifests).mock
                 .invocationCallOrder[0],
         );
         expect(persistedManifest).toBeDefined();
@@ -8669,14 +8873,14 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 cacheCompleted = true;
                 return { cachedExploreUuids: [] };
             });
-        projectModel.upsertMergedManifest.mockImplementationOnce(
+        projectModel.replaceMergedManifests.mockImplementationOnce(
             async (_projectUuid, manifest) => {
                 if (!cacheCompleted) {
                     throw new Error(
                         'cache did not complete before publication',
                     );
                 }
-                persistedManifest = manifest;
+                persistedManifest = manifest[0].manifest;
             },
         );
 
@@ -8688,12 +8892,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
 
         expect(projectModel.saveExploreStreamToCache).toHaveBeenCalledTimes(1);
-        expect(projectModel.upsertMergedManifest).toHaveBeenCalledTimes(1);
+        expect(projectModel.replaceMergedManifests).toHaveBeenCalledTimes(1);
         expect(
             vi.mocked(projectModel.saveExploreStreamToCache).mock
                 .invocationCallOrder[0],
         ).toBeLessThan(
-            vi.mocked(projectModel.upsertMergedManifest).mock
+            vi.mocked(projectModel.replaceMergedManifests).mock
                 .invocationCallOrder[0],
         );
         expect(persistedManifest).toBeDefined();
@@ -8708,7 +8912,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         projectModel.saveExploreStreamToCache
             .mockReset()
             .mockResolvedValueOnce({ cachedExploreUuids: [] });
-        projectModel.upsertMergedManifest.mockRejectedValueOnce(
+        projectModel.replaceMergedManifests.mockRejectedValueOnce(
             new Error('database unavailable'),
         );
 
@@ -8738,9 +8942,9 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         projectModel.getMergedManifest
             .mockReset()
             .mockImplementation(async () => persistedManifest);
-        projectModel.upsertMergedManifest.mockImplementation(
+        projectModel.replaceMergedManifests.mockImplementation(
             async (_projectUuid, manifest) => {
-                persistedManifest = Buffer.from(manifest);
+                persistedManifest = Buffer.from(manifest[0].manifest);
             },
         );
         const deployAccount = {
@@ -8765,7 +8969,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         await expect(
             projectService.getMergedManifest(deployAccount, 'projectUuid'),
         ).resolves.toBe(previousManifest);
-        expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+        expect(projectModel.replaceMergedManifests).not.toHaveBeenCalled();
     });
 
     it('propagates a ParameterError from buildMergedManifestAdapter when sources collide', async () => {
