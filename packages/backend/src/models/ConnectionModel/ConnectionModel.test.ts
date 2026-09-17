@@ -107,6 +107,34 @@ describe('ConnectionModel', () => {
         });
     });
 
+    test('adds the connection uuid to Athena runtime credentials', async () => {
+        const athenaCredentials = {
+            type: WarehouseTypes.ATHENA,
+            region: 'eu-west-1',
+            database: 'analytics',
+            schema: 'reporting',
+            s3StagingDir: 's3://staging',
+        };
+        tracker.on.select(connectionQuery).response([
+            {
+                ...connectionRow,
+                warehouse_type: WarehouseTypes.ATHENA,
+                encrypted_credentials: Buffer.from(
+                    JSON.stringify(athenaCredentials),
+                ),
+            },
+        ]);
+
+        await expect(
+            model.getCredentials(projectUuid, connectionUuid),
+        ).resolves.toEqual({
+            ...athenaCredentials,
+            connectionUuid,
+            listAllDatabases: false,
+            additionalDatabases: ['finance'],
+        });
+    });
+
     test('loads organization credentials from the project organization', async () => {
         tracker.on.select(connectionQuery).response([
             {

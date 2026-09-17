@@ -1,6 +1,7 @@
 import {
     RedshiftAuthenticationType,
     WarehouseTypes,
+    type Connection,
     type UpsertUserWarehouseCredentials,
     type UserWarehouseCredentials,
 } from '@lightdash/common';
@@ -31,7 +32,11 @@ type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     warehouseType?: WarehouseTypes;
     projectUuid?: string;
     projectName?: string;
-    onSuccess?: (data: UserWarehouseCredentials) => void;
+    connections?: Connection[];
+    onSuccess?: (
+        data: UserWarehouseCredentials,
+        connectionUuid?: string,
+    ) => void;
 };
 
 const getDefaultCredentials = (
@@ -100,6 +105,35 @@ const warehouseTypes = Object.values(WarehouseTypes);
 
 const FORM_ID = 'create-credentials-form';
 
+const ConnectionSelector: FC<{
+    connections?: Connection[];
+    value?: string;
+    disabled: boolean;
+    onChange: (connection: Connection) => void;
+}> = ({ connections, value, disabled, onChange }) => {
+    if (!connections || connections.length <= 1) return null;
+
+    return (
+        <Select
+            required
+            label="Connection"
+            size="xs"
+            disabled={disabled}
+            data={connections.map((connection) => ({
+                value: connection.connectionUuid,
+                label: connection.name,
+            }))}
+            value={value}
+            onChange={(nextValue) => {
+                const connection = connections.find(
+                    (item) => item.connectionUuid === nextValue,
+                );
+                if (connection) onChange(connection);
+            }}
+        />
+    );
+};
+
 export const CreateCredentialsModal: FC<Props> = ({
     opened,
     onClose,
@@ -109,12 +143,19 @@ export const CreateCredentialsModal: FC<Props> = ({
     warehouseType,
     projectUuid,
     projectName,
+    connections,
     onSuccess,
 }) => {
+    const [connectionUuid, setConnectionUuid] = React.useState(
+        connections?.[0]?.connectionUuid,
+    );
+    const selectedConnection = connections?.find(
+        (connection) => connection.connectionUuid === connectionUuid,
+    );
+    const effectiveWarehouseType =
+        selectedConnection?.warehouseType ?? warehouseType;
     const { mutateAsync, isLoading: isSaving } =
-        useUserWarehouseCredentialsCreateMutation({
-            onSuccess,
-        });
+        useUserWarehouseCredentialsCreateMutation();
     const isDatabricksSsoEnabled = useIsDatabricksSsoEnabled();
     const isSnowflakeSsoEnabled = useIsSnowflakeSsoEnabled();
     const ssoEnabled = {
@@ -125,7 +166,7 @@ export const CreateCredentialsModal: FC<Props> = ({
         initialValues: {
             name: '',
             credentials: getDefaultCredentials(
-                warehouseType || WarehouseTypes.POSTGRES,
+                effectiveWarehouseType || WarehouseTypes.POSTGRES,
                 ssoEnabled,
             ),
         },
@@ -168,10 +209,11 @@ export const CreateCredentialsModal: FC<Props> = ({
             <form
                 id={FORM_ID}
                 onSubmit={form.onSubmit(async (formData) => {
-                    await mutateAsync({
+                    const data = await mutateAsync({
                         ...formData,
                         name: nameValue || formData.name,
                     });
+                    onSuccess?.(data, connectionUuid);
                     onClose();
                 })}
             >
@@ -188,7 +230,23 @@ export const CreateCredentialsModal: FC<Props> = ({
                         />
                     )}
 
-                    {!warehouseType && (
+                    <ConnectionSelector
+                        connections={connections}
+                        value={connectionUuid}
+                        disabled={isSaving}
+                        onChange={(connection) => {
+                            setConnectionUuid(connection.connectionUuid);
+                            form.setFieldValue(
+                                'credentials',
+                                getDefaultCredentials(
+                                    connection.warehouseType,
+                                    ssoEnabled,
+                                ),
+                            );
+                        }}
+                    />
+
+                    {!effectiveWarehouseType && (
                         <Select
                             required
                             label="Warehouse"
@@ -216,7 +274,7 @@ export const CreateCredentialsModal: FC<Props> = ({
                         form={form}
                         disabled={isSaving}
                         onClose={onClose}
-                        onSuccess={onSuccess}
+                        onSuccess={(data) => onSuccess?.(data, connectionUuid)}
                         projectUuid={projectUuid}
                         projectName={projectName}
                         databricksCredentialsName={

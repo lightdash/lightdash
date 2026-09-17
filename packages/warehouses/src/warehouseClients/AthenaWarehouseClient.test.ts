@@ -168,6 +168,24 @@ describe('AthenaWarehouseClient', () => {
             });
         });
 
+        test('uses the connection uuid in the assume-role session name', () => {
+            const creds: CreateAthenaCredentials = {
+                ...baseCredentials,
+                connectionUuid: '12345678-1234-4abc-9876-123456789abc',
+                assumeRoleArn: 'arn:aws:iam::123456789012:role/my-role',
+            };
+            // eslint-disable-next-line no-new
+            new AthenaWarehouseClient(creds);
+
+            expect(mockFromTemporaryCredentials).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    params: expect.objectContaining({
+                        RoleSessionName: 'lightdash-12345678-123',
+                    }),
+                }),
+            );
+        });
+
         test('should not wrap credentials when assumeRoleArn is not set', () => {
             // eslint-disable-next-line no-new
             new AthenaWarehouseClient(baseCredentials);
