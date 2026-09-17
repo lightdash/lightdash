@@ -29,6 +29,7 @@ const defaultProps = {
     emptyPromptLabel: null,
     olderVersionTime: 'relative' as const,
     showPreviewButton: true,
+    currentThreadNumber: null as number | null,
 };
 
 describe('AppVersionHistoryPanel', () => {

@@ -73,7 +73,7 @@ export type AppVersionHistoryPanelProps = {
     /** Host-specific content under an entry's prompt. */
     renderEntryExtras?: (version: ApiAppVersionSummary) => ReactNode;
     /** The app's current thread; a rule tops the list when it has no versions yet. */
-    currentThreadNumber?: number | null;
+    currentThreadNumber: number | null;
 };
 
 type DotState = 'current' | 'failed' | 'building' | 'past';
@@ -175,7 +175,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
     showPreviewButton,
     showTimeline = true,
     renderEntryExtras,
-    currentThreadNumber = null,
+    currentThreadNumber,
 }) => {
     const groups = groupVersionsByThread(versions);
     const isEmpty = groups.length === 0 && liveBuild === null;

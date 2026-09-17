@@ -120,6 +120,7 @@ const VersionHistoryPanel: FC<Props> = ({
                 emptyPromptLabel="Uploaded from source"
                 olderVersionTime="absolute"
                 showPreviewButton={false}
+                currentThreadNumber={null}
                 renderEntryExtras={(version) => {
                     const changes = schemaChanges.get(version.version);
                     return changes ? (

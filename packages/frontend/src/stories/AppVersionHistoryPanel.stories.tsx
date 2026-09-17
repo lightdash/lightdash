@@ -62,6 +62,7 @@ const meta: Meta<typeof AppVersionHistoryPanel> = {
         olderVersionTime: 'relative',
         showPreviewButton: true,
         showTimeline: true,
+        currentThreadNumber: null,
     },
     parameters: { layout: 'fullscreen' },
     decorators: [
