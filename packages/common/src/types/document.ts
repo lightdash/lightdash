@@ -1,11 +1,22 @@
 import type { ApiExecuteAsyncMetricQueryResults } from './api';
 import type { ApiSuccess } from './api/success';
-import type { ChartAsCode } from './contentAsCode/charts';
+import type { ChartAsCode, ChartAsCodeConfig } from './contentAsCode/charts';
 import type { SavedMergeQuery } from './mergeQuery';
+import type { ChartType, DataAppVizOptionValues } from './savedCharts';
 import type { SpaceAccess, SpaceMemberRole } from './space';
 
+// Keep the published Document contract stable; custom chart types are rejected
+// by parseDocumentContent and their new capabilities belong to saved charts.
+type DocumentChartConfig = ChartAsCodeConfig<{
+    type: ChartType.DATA_APP_VIZ;
+    config?: {
+        fieldMapping: Record<string, string>;
+        optionValues?: DataAppVizOptionValues;
+    } & { dataAppVizSlug?: string; dataAppVizUuid?: string };
+}>;
+
 export type SemanticChartAsCode = Pick<
-    ChartAsCode,
+    Omit<ChartAsCode, 'chartConfig'> & { chartConfig: DocumentChartConfig },
     | 'name'
     | 'description'
     | 'tableName'

@@ -168,6 +168,23 @@ describe('serializeCustomChartTypeSchema', () => {
         );
     });
 
+    it('marks only multi-field slots so an agent can author array mappings', () => {
+        expect(
+            serializeCustomChartTypeSchema({
+                ...minimal,
+                schema: {
+                    ...minimal.schema,
+                    fields: [
+                        {
+                            ...minimal.schema.fields[0],
+                            multiple: true,
+                        },
+                    ],
+                },
+            }),
+        ).toContain('- status "Status" (dimension, required, multiple)');
+    });
+
     it('quotes multiline guidance and descriptions as single values', () => {
         const withMultilineHelp: CustomChartType = {
             ...minimal,

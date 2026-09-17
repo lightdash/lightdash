@@ -1,4 +1,7 @@
-import { type DataAppVizSchema } from '@lightdash/common';
+import {
+    getDataAppVizFieldIds,
+    type DataAppVizSchema,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { buildSampleVizContext } from './sampleVizContext';
 
@@ -57,6 +60,101 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
         );
     });
 
+    it('gives a multiple field ordered representative sample columns', () => {
+        const context = buildSampleVizContext({
+            ...flatSchema,
+            fields: flatSchema.fields.map((field) =>
+                field.name === 'value' ? { ...field, multiple: true } : field,
+            ),
+        });
+
+        expect(context.fieldMapping.value).toEqual([
+            'sample_value_1',
+            'sample_value_2',
+            'sample_value_3',
+        ]);
+        expect(Object.keys(context.rows[0])).toEqual(
+            expect.arrayContaining([
+                'sample_value_1',
+                'sample_value_2',
+                'sample_value_3',
+            ]),
+        );
+    });
+
+    it('includes single and multiple column slots in sample rows', () => {
+        const context = buildSampleVizContext({
+            ...flatSchema,
+            fields: [
+                {
+                    name: 'column',
+                    label: 'Column',
+                    type: 'column',
+                    required: true,
+                },
+                {
+                    name: 'columns',
+                    label: 'Columns',
+                    type: 'column',
+                    required: true,
+                    multiple: true,
+                },
+            ],
+        });
+
+        for (const id of Object.values(context.fieldMapping).flatMap(
+            getDataAppVizFieldIds,
+        )) {
+            expect(context.rows[0][id]).toBeDefined();
+        }
+    });
+
+    it.each([false, true])(
+        'keeps generated columns unique when a scalar slot uses a multiple slot suffix (series: %s)',
+        (withSeries) => {
+            const source = withSeries ? schema : flatSchema;
+            const value = source.fields.find((field) => field.name === 'value');
+            if (!value) throw new Error('Missing value field');
+            const context = buildSampleVizContext({
+                ...source,
+                fields: [
+                    ...source.fields.map((field) =>
+                        field.name === 'value'
+                            ? { ...field, multiple: true }
+                            : field,
+                    ),
+                    { ...value, name: 'value_1', label: 'Other value' },
+                ],
+            });
+            const mappedIds = Object.values(context.fieldMapping).flatMap(
+                getDataAppVizFieldIds,
+            );
+
+            expect(new Set(mappedIds).size).toBe(mappedIds.length);
+            expect(context.fieldMapping.value_1).toBe('sample_value_1');
+            expect(
+                getDataAppVizFieldIds(context.fieldMapping.value),
+            ).not.toContain('sample_value_1');
+            if (withSeries) {
+                expect(
+                    Object.keys(context.pivotDetails?.originalColumns ?? {}),
+                ).toEqual(expect.arrayContaining(mappedIds));
+                const pivotColumns =
+                    context.pivotDetails?.valuesColumns.map(
+                        ({ pivotColumnName }) => pivotColumnName,
+                    ) ?? [];
+                expect(new Set(pivotColumns).size).toBe(pivotColumns.length);
+                expect(Object.keys(context.rows[0])).toEqual(
+                    expect.arrayContaining(pivotColumns),
+                );
+            } else {
+                expect(Object.keys(context.rows[0])).toEqual(
+                    expect.arrayContaining(mappedIds),
+                );
+            }
+        },
+    );
+
     describe('without a series field', () => {
         it('leaves the rows flat', () => {
             const context = buildSampleVizContext(flatSchema);
@@ -69,7 +167,9 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
             const context = buildSampleVizContext(flatSchema);
 
             for (const row of context.rows) {
-                for (const columnId of Object.values(context.fieldMapping)) {
+                for (const columnId of Object.values(
+                    context.fieldMapping,
+                ).flatMap(getDataAppVizFieldIds)) {
                     expect(row[columnId].value.raw).toBeDefined();
                     expect(row[columnId].value.formatted).not.toBe('');
                 }
@@ -78,7 +178,9 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
 
         it('gives dimensions date raw values with display-formatted labels', () => {
             const context = buildSampleVizContext(flatSchema);
-            const columnId = context.fieldMapping.category;
+            const [columnId] = getDataAppVizFieldIds(
+                context.fieldMapping.category,
+            );
 
             for (const row of context.rows) {
                 const { raw, formatted } = row[columnId].value;

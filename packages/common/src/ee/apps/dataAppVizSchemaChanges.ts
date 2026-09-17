@@ -29,7 +29,10 @@ export type DataAppVizSchemaChanges = {
 };
 
 const isSameField = (a: DataAppVizField, b: DataAppVizField): boolean =>
-    a.label === b.label && a.type === b.type && a.required === b.required;
+    a.label === b.label &&
+    a.type === b.type &&
+    a.required === b.required &&
+    (a.multiple === true) === (b.multiple === true);
 
 const isSameOption = (
     a: DataAppVizConfigOption,

@@ -487,9 +487,9 @@ export class SavedChartService
                     ? {
                           dataAppVizUuid:
                               savedChart.chartConfig.config.dataAppVizUuid,
-                          mappedFieldCount: Object.keys(
+                          mappedFieldCount: Object.values(
                               savedChart.chartConfig.config.fieldMapping || {},
-                          ).length,
+                          ).filter((binding) => binding.length > 0).length,
                           changedOptionCount: Object.keys(
                               savedChart.chartConfig.config.optionValues || {},
                           ).length,

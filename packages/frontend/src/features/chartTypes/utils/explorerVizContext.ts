@@ -54,17 +54,20 @@ export const buildExplorerVizContext = ({
     colorPalette,
     optionValues,
     resolvedColors,
-}: Args): DataAppVizContext => ({
-    fieldMapping: resolveExplorerVizFieldMapping({
+}: Args): DataAppVizContext => {
+    const fieldMapping = resolveExplorerVizFieldMapping({
         schema,
         itemsMap,
         persistedFieldMapping,
-    }),
-    rows,
-    options: getEffectiveOptionValues(schema.configOptions, optionValues),
-    colorPalette,
-    ...resolvedColors,
-    pivotDetails,
-    underlyingData: { enabled: false },
-    drillDown: { enabled: false },
-});
+    });
+    return {
+        fieldMapping,
+        rows,
+        options: getEffectiveOptionValues(schema.configOptions, optionValues),
+        colorPalette,
+        ...resolvedColors,
+        pivotDetails,
+        underlyingData: { enabled: false },
+        drillDown: { enabled: false },
+    };
+};

@@ -36,7 +36,15 @@ The scaffold ships a `viz-fixture.json` at the folder root. To use it:
 
 1. `lightdash apps preview` (or `npm run dev`) to start the dev server.
 2. Open the dev URL with the param, e.g. `http://localhost:5173/?vizFixture=/viz-fixture.json`. The chart renders from the fixture.
-3. Edit `viz-fixture.json` to match your declared `vizSchema` — `fieldMapping` (declared field name → any string id), `rows` (each cell is `{ "value": { "raw": ..., "formatted": "..." } }`, keyed by those ids), `options` (declared option name → value), `colorPalette`, and `pivotDetails` (`null` unless you map a `series` field). Reload to see changes.
+3. Edit `viz-fixture.json` to match your declared `vizSchema` — `fieldMapping` (input name → string id, or an ordered array of ids for multiple-field inputs), `rows` (each cell is `{ "value": { "raw": ..., "formatted": "..." } }`, keyed by those ids), `options` (declared option name → value), `colorPalette`, and `pivotDetails` (`null` unless you map a `series` field). Reload to see changes.
+
+For multiple-field inputs, set `multiple: true` on the `vizSchema.fields` entry and iterate
+the array at `useVizContext().fieldMapping[name]` in its existing order, narrowing with
+`Array.isArray` first. Single-field
+inputs continue to read a string from `fieldMapping[name]`. Test three
+metrics and multiple dimensions, remove and re-add one, then save and reopen the chart
+in the explorer. Verify fields follow the order they were added, with re-added fields at the end. Keep the input names stable across upgrades. Single-field inputs
+retain string bindings; details and examples live in the reusable-visualization skill.
 
 This is for **layout and option iteration only**, and never fires in production (an embedded viz has a real host whose context always wins, and the param must be explicitly present). The fixture is fake data you hand-maintain: colors fall back to the palette (no model or shared-dashboard colors), `pivotDetails` must be shaped by hand, and formatting is whatever you type. **The explorer with real data remains the source of truth for correctness** — still run the upload → verify loop above before finishing, and verify every declared option actually changes the chart there.
 

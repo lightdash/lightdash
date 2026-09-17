@@ -183,7 +183,7 @@ export const ConfigTabs: FC = memo(() => {
         );
         // A rebuild can change the contract under a stable uuid, so the selects
         // show the saved mapping reconciled the way the renderer does.
-        const effectiveMapping = reconcileDataAppVizFieldMapping(
+        const effectiveBindings = reconcileDataAppVizFieldMapping(
             fields,
             effectiveItemsMap,
             selectedViz.fieldMapping,
@@ -191,28 +191,33 @@ export const ConfigTabs: FC = memo(() => {
 
         const handleFieldChange = (
             fieldName: string,
-            fieldId: string | null,
+            fieldId: string | string[] | null,
         ) => {
-            const nextMapping = { ...effectiveMapping };
-            if (fieldId) nextMapping[fieldName] = fieldId;
-            else delete nextMapping[fieldName];
+            const nextFieldMapping = { ...effectiveBindings };
+            if (Array.isArray(fieldId)) {
+                nextFieldMapping[fieldName] = fieldId;
+            } else if (fieldId !== null) {
+                nextFieldMapping[fieldName] = fieldId;
+            } else {
+                delete nextFieldMapping[fieldName];
+            }
 
             setField(fieldName, fieldId);
             setPivotDimensions(
-                deriveDataAppVizPivotConfig(fields, nextMapping)?.columns,
+                deriveDataAppVizPivotConfig(fields, nextFieldMapping)?.columns,
             );
         };
 
         const handleUpgrade = () => {
             if (!upgradeTarget) return;
-            const nextMapping = reconcileDataAppVizFieldMapping(
+            const nextBindings = reconcileDataAppVizFieldMapping(
                 upgradeTarget.schema.fields,
                 effectiveItemsMap,
                 selectedViz.fieldMapping,
             );
             upgradeDataAppVizVersion(
                 upgradeTarget.version,
-                nextMapping,
+                nextBindings,
                 pruneDataAppVizOptionValues(
                     upgradeTarget.schema.configOptions,
                     selectedViz.optionValues,
@@ -221,7 +226,7 @@ export const ConfigTabs: FC = memo(() => {
             setPivotDimensions(
                 deriveDataAppVizPivotConfig(
                     upgradeTarget.schema.fields,
-                    nextMapping,
+                    nextBindings,
                 )?.columns,
             );
         };
@@ -231,7 +236,7 @@ export const ConfigTabs: FC = memo(() => {
                 <DataAppVizSettings
                     itemsMap={effectiveItemsMap}
                     fields={fields}
-                    fieldMapping={effectiveMapping}
+                    fieldMapping={effectiveBindings}
                     onFieldChange={handleFieldChange}
                 />
                 <DataAppVizInputGuidance

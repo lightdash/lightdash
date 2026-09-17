@@ -792,8 +792,8 @@ export type CustomVis = {
     spec?: Record<string, unknown>;
 };
 
-/** Maps a data app viz's field name → the host query field id bound to it. */
-export type DataAppVizFieldMapping = Record<string, string>;
+/** Maps a viz field name to one query field id or an ordered collection. */
+export type DataAppVizFieldMapping = Record<string, string | string[]>;
 
 /** Maps a declared config option's name → the value the user chose for it. */
 export type DataAppVizOptionValues = Record<string, DataAppVizOptionValue>;

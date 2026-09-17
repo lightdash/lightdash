@@ -1,6 +1,10 @@
 {
     "$schema": "./scripts/release-safety-declarations.schema.json",
     "declarations": {
+        "custom-chart-ordered-field-mappings": {
+            "reason": "Custom chart inputs declared with multiple: true now return ordered arrays in fieldMapping; single-field inputs still return strings. API and query SDK consumers reading arbitrary mapping entries must narrow string versus string[] before using a field id. Existing scalar saved configurations remain valid.",
+            "requiredStop": false
+        },
         "documents-id-free-cell-contract": {
             "reason": "The unshipped documents-flag API now uses schema version 1 with ID-free ordered cells. Experimental clients must replace ID-based cell edits with complete content plus baseVersionUuid and query charts by zero-based cellIndex plus versionUuid. Earlier experimental Document payloads and persisted versions are not supported; no compatibility migration is provided.",
             "requiredStop": false

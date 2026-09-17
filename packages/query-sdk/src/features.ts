@@ -114,6 +114,14 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Receive query context when app visualizations are embedded in dashboards.',
     },
     {
+        key: 'viz-multiple-fields',
+        appliesTo: ['chart_type'],
+        label: 'Multiple visualization fields',
+        description:
+            'Receive ordered mappings for reusable visualization slots that accept multiple metrics or dimensions.',
+        wiring: 'Declare multiple: true for a viz schema field, then read fieldMapping[name] as an ordered array of query field ids. Existing single-field slots continue to use fieldMapping[name] as a string.',
+    },
+    {
         key: 'viz-config-options',
         appliesTo: ['chart_type'],
         label: 'Visualization config options',

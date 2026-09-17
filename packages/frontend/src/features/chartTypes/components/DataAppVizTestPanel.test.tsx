@@ -9,6 +9,7 @@ import {
     type DataAppVizSchema,
     type Explore,
     type Item,
+    type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
@@ -252,6 +253,56 @@ describe('buildTestMetricQuery', () => {
         });
         expect(q.dimensions).toEqual(['orders_status']);
         expect(q.metrics).toEqual(['orders_total']);
+    });
+
+    it('flattens ordered multiple bindings into the test query', () => {
+        const q = buildTestMetricQuery(
+            'orders',
+            {
+                ...schema,
+                fields: schema.fields.map((field) =>
+                    field.name === 'value'
+                        ? { ...field, multiple: true }
+                        : field,
+                ),
+            },
+            {
+                source: 'orders_status',
+                value: ['orders_total', 'orders_average_order_size'],
+            },
+            {},
+        );
+
+        expect(q.metrics).toEqual([
+            'orders_total',
+            'orders_average_order_size',
+        ]);
+    });
+
+    it('routes a multiple column slot by each selected field kind', () => {
+        const q = buildTestMetricQuery(
+            'orders',
+            {
+                ...schema,
+                fields: [
+                    {
+                        name: 'columns',
+                        label: 'Columns',
+                        type: 'column',
+                        required: true,
+                        multiple: true,
+                    },
+                ],
+            },
+            { columns: ['orders_visible', 'orders_visible_metric'] },
+            {
+                orders_visible: makeDimension('visible', false),
+                orders_visible_metric: makeMetric('visible_metric', false),
+            } as ItemsMap,
+        );
+
+        expect(q.dimensions).toEqual(['orders_visible']);
+        expect(q.metrics).toEqual(['orders_visible_metric']);
     });
 });
 

@@ -1,4 +1,8 @@
-import { getItemId, type DataAppVizSchema } from '@lightdash/common';
+import {
+    getDataAppVizFieldIds,
+    getItemId,
+    type DataAppVizSchema,
+} from '@lightdash/common';
 import { Group, Select, Stack, Text } from '@mantine/core';
 import { useId, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
@@ -6,7 +10,9 @@ import DataAppVizFieldGuidance, {
     DataAppVizFieldHelp,
 } from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldGuidance';
 import DataAppVizInputGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizInputGuidance';
+import OrderedDataAppVizFieldSelect from '../../../components/VisualizationConfigs/DataAppVizConfig/OrderedDataAppVizFieldSelect';
 import { type DataAppVizTestContextState } from '../hooks/useDataAppVizTestContext';
+import { poolKeyForSlot } from '../utils/autoMapDataAppVizFields';
 import DataAppVizFieldTypeBadge from './DataAppVizFieldTypeBadge';
 
 type Props = {
@@ -46,45 +52,106 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                         ? `${guidanceIdPrefix}-${field.name}`
                         : undefined;
                     const items =
-                        field.type === 'metric' ? metrics : dimensions;
-                    const selectedId = fieldMapping[field.name];
-                    const selectedItem = selectedId
-                        ? items.find((i) => getItemId(i) === selectedId)
-                        : undefined;
+                        poolKeyForSlot(field) === 'metric'
+                            ? metrics
+                            : poolKeyForSlot(field) === 'dimension'
+                              ? dimensions
+                              : [...metrics, ...dimensions];
+                    const selectedValue = fieldMapping[field.name];
+                    const selectedIds = getDataAppVizFieldIds(selectedValue);
+                    const selectedItem =
+                        typeof selectedValue === 'string'
+                            ? items.find((i) => getItemId(i) === selectedValue)
+                            : undefined;
                     return (
                         <Stack key={field.name} gap={2}>
-                            <Group gap="xs">
-                                <Text size="xs" fw={500}>
-                                    {field.label}
-                                </Text>
-                                <DataAppVizFieldTypeBadge type={field.type} />
-                                <DataAppVizFieldHelp field={field} />
-                            </Group>
-                            <DataAppVizFieldGuidance
-                                field={field}
-                                id={guidanceId}
-                            />
-                            {exploreName && (
-                                <FieldSelect
-                                    size="xs"
-                                    aria-label={field.label}
-                                    aria-describedby={guidanceId}
-                                    placeholder={`Select ${field.label.toLowerCase()}`}
-                                    disabled={items.length === 0}
-                                    item={selectedItem}
-                                    items={items}
-                                    onChange={(newField) =>
-                                        setField(
-                                            field.name,
-                                            newField
-                                                ? getItemId(newField)
-                                                : null,
-                                        )
-                                    }
-                                    clearable={!field.required}
-                                    hasGrouping
-                                />
+                            {!exploreName && (
+                                <>
+                                    <Group gap="xs">
+                                        <Text size="xs" fw={500}>
+                                            {field.label}
+                                        </Text>
+                                        <DataAppVizFieldTypeBadge
+                                            type={field.type}
+                                        />
+                                        <DataAppVizFieldHelp field={field} />
+                                    </Group>
+                                    <DataAppVizFieldGuidance
+                                        field={field}
+                                        id={guidanceId}
+                                    />
+                                </>
                             )}
+                            {exploreName &&
+                                (field.multiple ? (
+                                    <OrderedDataAppVizFieldSelect
+                                        header={
+                                            <Stack gap={2} flex={1}>
+                                                <Group gap="xs">
+                                                    <Text size="xs" fw={500}>
+                                                        {field.label}
+                                                    </Text>
+                                                    <DataAppVizFieldTypeBadge
+                                                        type={field.type}
+                                                    />
+                                                    <DataAppVizFieldHelp
+                                                        field={field}
+                                                    />
+                                                </Group>
+                                                <DataAppVizFieldGuidance
+                                                    field={field}
+                                                    id={guidanceId}
+                                                />
+                                            </Stack>
+                                        }
+                                        label={field.label}
+                                        items={items}
+                                        selectedIds={selectedIds}
+                                        describedBy={guidanceId}
+                                        addDisabled={items.length === 0}
+                                        emptyPlaceholder={`You need at least one ${poolKeyForSlot(field)} in the selected explore`}
+                                        onChange={(ids) =>
+                                            setField(field.name, ids)
+                                        }
+                                    />
+                                ) : (
+                                    <>
+                                        <Group gap="xs">
+                                            <Text size="xs" fw={500}>
+                                                {field.label}
+                                            </Text>
+                                            <DataAppVizFieldTypeBadge
+                                                type={field.type}
+                                            />
+                                            <DataAppVizFieldHelp
+                                                field={field}
+                                            />
+                                        </Group>
+                                        <DataAppVizFieldGuidance
+                                            field={field}
+                                            id={guidanceId}
+                                        />
+                                        <FieldSelect
+                                            size="xs"
+                                            aria-label={field.label}
+                                            aria-describedby={guidanceId}
+                                            placeholder={`Select ${field.label.toLowerCase()}`}
+                                            disabled={items.length === 0}
+                                            item={selectedItem}
+                                            items={items}
+                                            onChange={(newField) =>
+                                                setField(
+                                                    field.name,
+                                                    newField
+                                                        ? getItemId(newField)
+                                                        : null,
+                                                )
+                                            }
+                                            clearable={!field.required}
+                                            hasGrouping
+                                        />
+                                    </>
+                                ))}
                         </Stack>
                     );
                 })}
