@@ -3,18 +3,9 @@ import {
     getItemLabelWithoutTableName,
     type Item,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    CloseButton,
-    Group,
-    Loader,
-    Stack,
-    Tooltip,
-} from '@mantine/core';
-import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
+import { CloseButton, Group, Loader, Stack, Tooltip } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import FieldSelect from '../../common/FieldSelect';
-import MantineIcon from '../../common/MantineIcon';
 import { AddButton } from '../common/AddButton';
 
 type Props = {
@@ -78,14 +69,6 @@ const OrderedDataAppVizFieldSelect: FC<Props> = ({
         onChange(next);
     };
 
-    const move = (index: number, direction: -1 | 1) => {
-        const destination = index + direction;
-        if (destination < 0 || destination >= selectedIds.length) return;
-        const next = [...selectedIds];
-        [next[index], next[destination]] = [next[destination], next[index]];
-        onChange(next);
-    };
-
     return (
         <Stack gap="xs">
             <Group justify="space-between" gap="xs" wrap="nowrap">
@@ -127,7 +110,7 @@ const OrderedDataAppVizFieldSelect: FC<Props> = ({
                         onChange={(newItem) => replace(index, newItem)}
                         hasGrouping
                         rightSectionPointerEvents="all"
-                        rightSectionWidth={isFieldPending?.(id) ? 92 : 72}
+                        rightSectionWidth={isFieldPending?.(id) ? 48 : 28}
                         rightSection={
                             <Group gap={2} wrap="nowrap">
                                 {isFieldPending?.(id) && (
@@ -138,28 +121,6 @@ const OrderedDataAppVizFieldSelect: FC<Props> = ({
                                         <Loader size="xs" />
                                     </Tooltip>
                                 )}
-                                <Tooltip label="Move up" openDelay={300}>
-                                    <ActionIcon
-                                        aria-label={`Move ${itemLabel} up`}
-                                        size="xs"
-                                        disabled={index === 0}
-                                        onClick={() => move(index, -1)}
-                                    >
-                                        <MantineIcon icon={IconChevronUp} />
-                                    </ActionIcon>
-                                </Tooltip>
-                                <Tooltip label="Move down" openDelay={300}>
-                                    <ActionIcon
-                                        aria-label={`Move ${itemLabel} down`}
-                                        size="xs"
-                                        disabled={
-                                            index === selectedIds.length - 1
-                                        }
-                                        onClick={() => move(index, 1)}
-                                    >
-                                        <MantineIcon icon={IconChevronDown} />
-                                    </ActionIcon>
-                                </Tooltip>
                                 <CloseButton
                                     aria-label={`Remove ${itemLabel}`}
                                     size="xs"

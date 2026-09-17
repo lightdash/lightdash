@@ -247,8 +247,9 @@ dimensions, series, or any result columns. For example:
 `useVizContext().fieldMapping.values` then contains an array such as
 `["orders_total_revenue", "orders_total_order_amount", "orders_order_count"]`. The chart
 iterates that array in order. A multiple dimension input uses the same declaration with
-`"type": "dimension"`. The configuration panel supports selection, removal and reordering;
-the saved chart and chart-as-code config preserve the array. `[]` records an explicitly
+`"type": "dimension"`. Fields appear in the order they are added. Replacing a field keeps
+its position; removing and adding it again appends it to the end. The saved chart and
+chart-as-code config preserve that selection order. `[]` records an explicitly
 cleared input; a required input with no selections is unbound.
 
 Omitting `multiple` (or setting it to `false`) retains the original string binding, so

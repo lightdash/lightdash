@@ -102,7 +102,7 @@ describe('OrderedDataAppVizFieldSelect', () => {
         expect(onChange).toHaveBeenCalledTimes(2);
     });
 
-    it('keeps stateful order when fields are removed, added again, and moved', async () => {
+    it('appends re-added fields in selection order without reorder controls', async () => {
         const user = userEvent.setup();
         const StatefulPicker = () => {
             const [selectedIds, setSelectedIds] = useState([
@@ -132,12 +132,9 @@ describe('OrderedDataAppVizFieldSelect', () => {
                 .map((node) => node.textContent),
         ).toEqual(['Second', 'First']);
 
-        await user.click(screen.getByLabelText('Move First up'));
         expect(
-            screen
-                .getAllByText(/^(First|Second)$/)
-                .map((node) => node.textContent),
-        ).toEqual(['First', 'Second']);
+            screen.queryAllByRole('button', { name: /^Move .+ (up|down)$/ }),
+        ).toHaveLength(0);
     });
 
     it('uses an addable field once the query fields are selected', async () => {
@@ -188,7 +185,7 @@ describe('OrderedDataAppVizFieldSelect', () => {
         expect(onChange).toHaveBeenCalledWith([]);
     });
 
-    it('keeps pending fields removable and reorderable', async () => {
+    it('keeps pending fields removable', async () => {
         const user = userEvent.setup();
         const onChange = vi.fn();
         renderWithProviders(
@@ -205,14 +202,8 @@ describe('OrderedDataAppVizFieldSelect', () => {
 
         const latestProps = fieldSelectProps.slice(-2);
         expect(latestProps[0].loading).toBeUndefined();
-        expect(screen.getByLabelText('Move First down')).toBeEnabled();
         expect(screen.getByLabelText('Remove First')).toBeEnabled();
 
-        await user.click(screen.getByLabelText('Move First down'));
-        expect(onChange).toHaveBeenLastCalledWith([
-            'orders_second',
-            'orders_first',
-        ]);
         await user.click(screen.getByLabelText('Remove First'));
         expect(onChange).toHaveBeenLastCalledWith(['orders_second']);
     });
