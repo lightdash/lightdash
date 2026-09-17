@@ -2,6 +2,11 @@ import { z } from 'zod';
 import { type ApiSuccess } from '../../types/api/success';
 import { chartTypeIconSchema, type ChartTypeIcon } from './chartTypeIcons';
 import { isValidDataAppSlug } from './code';
+import {
+    dataAppVizPreviewSchema,
+    getDataAppVizPreviewSchema,
+    type DataAppVizPreview,
+} from './preview';
 import { dataAppVizSchema, type DataAppVizSchema } from './types';
 
 export const CHART_REGISTRY_INDEX_SCHEMA_VERSION = 1 as const;
@@ -65,6 +70,7 @@ export type ChartRegistryEntry = {
     /** Release channel; absent = stable (the stable index omits the field) */
     channel?: 'stable' | 'beta';
     vizSchema: DataAppVizSchema;
+    preview: DataAppVizPreview | null;
     thumbnail: string | null;
     /** Dark-scheme thumbnail variant; null = reuse `thumbnail` in both schemes */
     thumbnailDark: string | null;
@@ -77,26 +83,38 @@ export type ChartRegistryEntry = {
     };
 };
 
-const registryEntrySchema = z.object({
-    slug: registrySlug,
-    name: z.string().min(1),
-    description: z.string(),
-    version: semverString,
-    publishedAt: z.string(),
-    tags: z.array(z.string()).default([]),
-    changelog: z.string().default(''),
-    minLightdashVersion: semverString.nullable().default(null),
-    channel: z.enum(['stable', 'beta']).optional(),
-    vizSchema: dataAppVizSchema,
-    thumbnail: z.string().nullable().default(null),
-    thumbnailDark: z.string().nullable().default(null),
-    screenshots: z.array(z.string()).default([]),
-    icon: chartTypeIconSchema.nullable().default(null),
-    artifacts: z.object({
-        source: registryArtifactSchema,
-        dist: registryArtifactSchema,
-    }),
-});
+const registryEntrySchema = z
+    .object({
+        slug: registrySlug,
+        name: z.string().min(1),
+        description: z.string(),
+        version: semverString,
+        publishedAt: z.string(),
+        tags: z.array(z.string()).default([]),
+        changelog: z.string().default(''),
+        minLightdashVersion: semverString.nullable().default(null),
+        channel: z.enum(['stable', 'beta']).optional(),
+        vizSchema: dataAppVizSchema,
+        preview: dataAppVizPreviewSchema.nullable().default(null),
+        thumbnail: z.string().nullable().default(null),
+        thumbnailDark: z.string().nullable().default(null),
+        screenshots: z.array(z.string()).default([]),
+        icon: chartTypeIconSchema.nullable().default(null),
+        artifacts: z.object({
+            source: registryArtifactSchema,
+            dist: registryArtifactSchema,
+        }),
+    })
+    .superRefine((entry, ctx) => {
+        if (!entry.preview) return;
+        const result = getDataAppVizPreviewSchema(entry.vizSchema).safeParse(
+            entry.preview,
+        );
+        if (!result.success)
+            result.error.issues.forEach((issue) =>
+                ctx.addIssue({ ...issue, path: ['preview', ...issue.path] }),
+            );
+    });
 
 export type ChartRegistryIndex = {
     schemaVersion: typeof CHART_REGISTRY_INDEX_SCHEMA_VERSION;

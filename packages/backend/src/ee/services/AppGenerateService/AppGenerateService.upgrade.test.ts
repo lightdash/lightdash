@@ -192,6 +192,7 @@ describe('upgradeApp', () => {
             undefined,
             undefined,
             undefined,
+            { vizPreview: undefined },
         );
 
         const payload = schedulerClient.appGeneratePipeline.mock.calls[0][0];
@@ -306,6 +307,7 @@ describe('upgradeApp', () => {
             undefined,
             undefined,
             VIZ_SCHEMA,
+            { vizPreview: undefined },
         );
         const payload = schedulerClient.appGeneratePipeline.mock.calls[0][0];
         // Query and Sheets features never apply to a chart type: neither the

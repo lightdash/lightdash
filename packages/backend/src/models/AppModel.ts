@@ -13,6 +13,7 @@ import {
     type ChartConfig,
     type DataAppActivityFilters,
     type DataAppGenerationUsage,
+    type DataAppVizPreview,
     type DataAppVizSchema,
     type DataAppVizsFilter,
     type KnexPaginateArgs,
@@ -108,7 +109,11 @@ export class AppModel {
         // silently minting suffixed duplicates. Default: app.slug is a base
         // hint — normalized and dedupe-suffixed (duplication derives copies'
         // slugs from the source slug this way).
-        opts?: { forceSlug?: boolean; registryVersion?: string },
+        opts?: {
+            forceSlug?: boolean;
+            registryVersion?: string;
+            vizPreview?: DataAppVizPreview | null;
+        },
     ): Promise<{ app: DbApp; version: DbAppVersion }> {
         return this.database.transaction(async (trx) => {
             const appId = app.app_id ?? uuidv4();
@@ -185,6 +190,11 @@ export class AppModel {
                           }
                         : {}),
                     registry_version: opts?.registryVersion ?? null,
+                    viz_preview: opts?.vizPreview
+                        ? (JSON.stringify(
+                              opts.vizPreview,
+                          ) as unknown as DataAppVizPreview)
+                        : null,
                 })
                 .returning('*');
             return { app: appRow, version: versionRow };
@@ -711,7 +721,10 @@ export class AppModel {
         resources?: AppVersionResources,
         dependencies?: AppVersionDependencies,
         vizSchema?: DataAppVizSchema,
-        opts?: { registryVersion?: string },
+        opts?: {
+            registryVersion?: string;
+            vizPreview?: DataAppVizPreview | null;
+        },
     ): Promise<DbAppVersion> {
         const [row] = await this.database(AppVersionsTableName)
             .insert({
@@ -720,6 +733,11 @@ export class AppModel {
                 status,
                 created_by_user_uuid: createdByUserUuid,
                 registry_version: opts?.registryVersion ?? null,
+                viz_preview: opts?.vizPreview
+                    ? (JSON.stringify(
+                          opts.vizPreview,
+                      ) as unknown as DataAppVizPreview)
+                    : null,
                 ...(resources
                     ? {
                           resources: JSON.stringify(

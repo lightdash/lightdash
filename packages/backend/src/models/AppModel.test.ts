@@ -378,3 +378,40 @@ describe('AppModel.remapPreviewChartVizBindings', () => {
         expect(update.bindings).toEqual([previewAppUuid, 3, [10, 11]]);
     });
 });
+
+describe('AppModel preview persistence', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new AppModel({ database });
+    let tracker: Tracker;
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('serializes demo data as JSONB for a new version', async () => {
+        const preview = {
+            rows: [{ value: 42 }],
+            optionValues: { target: 100 },
+        };
+        tracker.on
+            .insert(AppVersionsTableName)
+            .responseOnce([{ version: 2, viz_preview: preview }]);
+        const result = await model.createVersion(
+            appId,
+            { version: 2, prompt: '' },
+            'ready',
+            appRow.created_by_user_uuid,
+            undefined,
+            undefined,
+            undefined,
+            { vizPreview: preview },
+        );
+        expect(tracker.history.insert[0].sql).toContain('"viz_preview"');
+        expect(tracker.history.insert[0].bindings).toContain(
+            JSON.stringify(preview),
+        );
+        expect(result.viz_preview).toEqual(preview);
+    });
+});

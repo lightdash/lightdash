@@ -62,7 +62,7 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
             const context = buildSampleVizContext(flatSchema);
 
             expect(context.pivotDetails).toBeNull();
-            expect(context.rows.length).toBe(6);
+            expect(context.rows.length).toBe(12);
         });
 
         it('writes a cell for every mapped column in every row', () => {
@@ -123,7 +123,7 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
             );
 
             // One row per category, not one per category × series value.
-            expect(rows.length).toBe(6);
+            expect(rows.length).toBe(12);
             for (const row of rows) {
                 expect(Object.keys(row).sort()).toEqual(
                     ['sample_category', ...pivotColumnNames].sort(),
@@ -222,4 +222,118 @@ describe('mixed metric and column fields', () => {
             }
         },
     );
+});
+
+describe('authored preview data', () => {
+    it('uses field names and preserves primitive and null values', () => {
+        const schema: DataAppVizSchema = {
+            ...baseSchema,
+            fields: [
+                {
+                    name: 'value',
+                    label: 'Value',
+                    type: 'column',
+                    required: true,
+                },
+            ],
+        };
+        const context = buildSampleVizContext(
+            schema,
+            ['#123456'],
+            {},
+            {
+                rows: [
+                    { value: 75 },
+                    { value: 'Ready' },
+                    { value: false },
+                    { value: null },
+                ],
+                optionValues: { showLegend: false },
+            },
+        );
+        expect(context.rows.map((row) => row.sample_value.value)).toEqual([
+            { raw: 75, formatted: '75' },
+            { raw: 'Ready', formatted: 'Ready' },
+            { raw: false, formatted: 'false' },
+            { raw: null, formatted: '' },
+        ]);
+        expect(context.pivotDetails).toBeNull();
+        expect(context.options).toEqual({ showLegend: false });
+        expect(context.colorPalette).toEqual(['#123456']);
+        expect(context.underlyingData.enabled).toBe(false);
+    });
+
+    it('merges demo options over defaults and explicit options over demo options', () => {
+        const preview = { optionValues: { showLegend: false } };
+        expect(
+            buildSampleVizContext(baseSchema, undefined, {}, preview).options
+                .showLegend,
+        ).toBe(false);
+        expect(
+            buildSampleVizContext(
+                baseSchema,
+                undefined,
+                { showLegend: true },
+                preview,
+            ).options.showLegend,
+        ).toBe(true);
+        expect(
+            buildSampleVizContext(baseSchema, undefined, {}, preview).rows,
+        ).toEqual(buildSampleVizContext(baseSchema).rows);
+    });
+
+    it('pivots authored series, preserving sparse groups and column metadata', () => {
+        const context = buildSampleVizContext(
+            baseSchema,
+            undefined,
+            {},
+            {
+                rows: [
+                    { category: 'North', split: 'Retail', value: 30 },
+                    { category: 'North', split: 'Online', value: 45 },
+                    { category: 'South', split: 'Retail', value: 20 },
+                    { category: 'North', split: 'Retail', value: 99 },
+                ],
+            },
+        );
+        expect(context.rows).toHaveLength(2);
+        expect(context.rows[0].sample_value_any_Retail.value.raw).toBe(30);
+        expect(context.rows[0].sample_value_any_Online.value.raw).toBe(45);
+        expect(context.rows[1].sample_value_any_Online.value.raw).toBeNull();
+        expect(context.pivotDetails?.valuesColumns).toHaveLength(2);
+        expect(context.pivotDetails?.indexColumn).toEqual([
+            { reference: 'sample_category', type: 'category' },
+        ]);
+        expect(
+            context.pivotDetails?.originalColumns?.sample_category.type,
+        ).toBe('string');
+    });
+
+    it('uses null cells for omitted optional fields', () => {
+        const context = buildSampleVizContext(
+            {
+                ...baseSchema,
+                fields: baseSchema.fields.filter(
+                    (field) => field.type !== 'metric',
+                ),
+            },
+            undefined,
+            {},
+            {
+                rows: [{ category: 'North' }],
+            },
+        );
+        expect(context.rows[0].sample_split.value.raw).toBeNull();
+    });
+
+    it('falls back safely when demo data no longer matches the schema', () => {
+        expect(
+            buildSampleVizContext(
+                baseSchema,
+                undefined,
+                {},
+                { rows: [{ removedField: 1 }] },
+            ),
+        ).toEqual(buildSampleVizContext(baseSchema));
+    });
 });

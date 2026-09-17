@@ -39,6 +39,7 @@ import {
     formatPromptWithClarifications,
     getContentAsCodePathFromLtreePath,
     getCustomSqlFieldKey,
+    getDataAppVizPreviewSchema,
     getEffectiveFieldAiHints,
     getErrorMessage,
     getSdkFeaturesForTarget,
@@ -104,6 +105,7 @@ import {
     type DataAppTemplate,
     type DataAppViz,
     type DataAppVizDeleteImpact,
+    type DataAppVizPreview,
     type DataAppVizRenderMetadata,
     type DataAppVizSchema,
     type DataAppVizsFilter,
@@ -6742,6 +6744,8 @@ export class AppGenerateService extends BaseService {
             user.userUuid,
             resources,
             carriedDependencies,
+            undefined,
+            { vizPreview: latestVersion?.viz_preview },
         );
 
         if (isThemeChange) {
@@ -7039,6 +7043,7 @@ export class AppGenerateService extends BaseService {
             app.template === DATA_APP_VIZ_TEMPLATE
                 ? (latestReady.viz_schema ?? undefined)
                 : undefined,
+            { vizPreview: latestReady.viz_preview },
         );
 
         this.analytics.track({
@@ -7231,7 +7236,10 @@ export class AppGenerateService extends BaseService {
             // declares a schema, so dropping it here delists the viz and
             // strips the contract from every chart bound to it.
             source.viz_schema ?? undefined,
-            { registryVersion: source.registry_version ?? undefined },
+            {
+                registryVersion: source.registry_version ?? undefined,
+                vizPreview: source.viz_preview,
+            },
         );
         await this.persistVersionDataReferences(
             appUuid,
@@ -7749,6 +7757,7 @@ export class AppGenerateService extends BaseService {
                     resources,
                     undefined,
                     sourceVersion.viz_schema ?? undefined,
+                    { vizPreview: sourceVersion.viz_preview },
                 );
                 await this.appModel.syncPromotedApp(targetAppUuid, metadata);
             } else {
@@ -7765,6 +7774,7 @@ export class AppGenerateService extends BaseService {
                     resources,
                     undefined,
                     sourceVersion.viz_schema ?? undefined,
+                    { vizPreview: sourceVersion.viz_preview },
                 );
                 await this.appModel.setUpstreamAppUuid(
                     sourceApp.app_id,
@@ -8091,6 +8101,7 @@ export class AppGenerateService extends BaseService {
                 resources,
                 undefined,
                 sourceVersion.viz_schema ?? undefined,
+                { vizPreview: sourceVersion.viz_preview },
             );
             newAppSlug = app.slug;
             await this.persistVersionDataReferences(
@@ -8354,6 +8365,7 @@ export class AppGenerateService extends BaseService {
                 resources,
                 undefined,
                 sourceVersion.viz_schema ?? undefined,
+                { vizPreview: sourceVersion.viz_preview },
             );
             await this.persistVersionDataReferences(
                 newAppUuid,
@@ -8647,6 +8659,7 @@ export class AppGenerateService extends BaseService {
                               codexModel: v.resources?.codexModel,
                               design: v.resources?.design,
                               vizSchema: v.viz_schema ?? null,
+                              vizPreview: v.viz_preview ?? null,
                           }
                         : null,
                 createdAt: v.created_at,
@@ -9018,7 +9031,10 @@ export class AppGenerateService extends BaseService {
                     undefined,
                     undefined,
                     vizSchema,
-                    { registryVersion: entry.version },
+                    {
+                        registryVersion: entry.version,
+                        vizPreview: entry.preview,
+                    },
                 );
                 // Registry-installed apps are read-only, so the registry's
                 // icon always wins on upgrade.
@@ -9044,7 +9060,10 @@ export class AppGenerateService extends BaseService {
                     undefined,
                     undefined,
                     vizSchema,
-                    { registryVersion: entry.version },
+                    {
+                        registryVersion: entry.version,
+                        vizPreview: entry.preview,
+                    },
                 );
             }
         } catch (e) {
@@ -11397,7 +11416,10 @@ export class AppGenerateService extends BaseService {
             // Only viz versions carry a schema; omit the key entirely otherwise
             // so non-viz manifests stay unchanged.
             ...(versionRow?.viz_schema
-                ? { vizSchema: versionRow.viz_schema }
+                ? {
+                      vizSchema: versionRow.viz_schema,
+                      preview: versionRow.viz_preview ?? null,
+                  }
                 : {}),
             ...(appLinks.length > 0
                 ? {
@@ -11722,6 +11744,7 @@ export class AppGenerateService extends BaseService {
         sourceFiles: DataAppCodeFile[],
         dependencySummary: AppVersionDependencies | undefined,
         manifestVizSchema: DataAppVizSchema | undefined,
+        manifestPreview: DataAppVizPreview | null,
     ): Promise<boolean> {
         if (dependencySummary === undefined) {
             if (versionRow.dependencies !== null) return false;
@@ -11742,6 +11765,8 @@ export class AppGenerateService extends BaseService {
                 return false;
             }
         }
+        if (!isEqual(versionRow.viz_preview ?? null, manifestPreview))
+            return false;
         if (!isEqual(versionRow.viz_schema ?? null, manifestVizSchema ?? null))
             return false;
 
@@ -11836,6 +11861,22 @@ export class AppGenerateService extends BaseService {
                 );
             }
             manifestVizSchema = parsed.data;
+        }
+
+        let manifestPreview: DataAppVizPreview | null = null;
+        if (code.manifest.preview != null) {
+            if (!manifestVizSchema)
+                throw new ParameterError(
+                    'A preview requires a vizSchema in the app manifest',
+                );
+            const parsed = getDataAppVizPreviewSchema(
+                manifestVizSchema,
+            ).safeParse(code.manifest.preview);
+            if (!parsed.success)
+                throw new ParameterError(
+                    `Invalid preview in the app manifest: ${parsed.error.message}`,
+                );
+            manifestPreview = parsed.data;
         }
 
         const trackUploadRejected = (
@@ -12078,6 +12119,9 @@ export class AppGenerateService extends BaseService {
                     existingApp.template === DATA_APP_VIZ_TEMPLATE
                         ? manifestVizSchema
                         : undefined,
+                    existingApp.template === DATA_APP_VIZ_TEMPLATE
+                        ? manifestPreview
+                        : null,
                 ))
             ) {
                 await this.updateAppMetadataIfChanged(
@@ -12220,6 +12264,12 @@ export class AppGenerateService extends BaseService {
                 existingApp.template === DATA_APP_VIZ_TEMPLATE
                     ? manifestVizSchema
                     : undefined,
+                {
+                    vizPreview:
+                        existingApp.template === DATA_APP_VIZ_TEMPLATE
+                            ? manifestPreview
+                            : null,
+                },
             );
         } else {
             await this.assertDataAppAbility(
@@ -12301,7 +12351,13 @@ export class AppGenerateService extends BaseService {
                     : undefined,
                 // Verbatim slug + loud conflict, so re-uploads stay
                 // idempotent (never silently minting suffixed duplicates).
-                { forceSlug: true },
+                {
+                    forceSlug: true,
+                    vizPreview:
+                        code.manifest.template === DATA_APP_VIZ_TEMPLATE
+                            ? manifestPreview
+                            : null,
+                },
             );
             newAppUuid = app.app_id;
             newAppSlug = app.slug;
