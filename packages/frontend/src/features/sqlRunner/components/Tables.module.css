@@ -51,8 +51,13 @@
 }
 
 .messageRow {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
     padding: rem(6px) rem(8px);
-    padding-inline-start: calc(rem(28px) + var(--tree-depth, 0) * rem(14px));
+    padding-inline-start: calc(rem(48px) + var(--tree-depth, 0) * rem(14px));
+    white-space: normal;
+    overflow-wrap: break-word;
 }
 
 .copyButton {
