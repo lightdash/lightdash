@@ -16,17 +16,25 @@ const ThreadDivider: FC<Props> = ({ fromVersion, onShowHistory }) => (
         labelPosition="center"
         label={
             <Group gap="xs" wrap="nowrap">
-                <Text fz="sm" c="dimmed">
-                    Context cleared, starting fresh from v{fromVersion}
+                <Text fz="xs" lh={1.4} c="dimmed">
+                    Context cleared, starting fresh from{' '}
+                    <Text span ff="monospace" fz="xs" c="gray.7">
+                        v{fromVersion}
+                    </Text>
                 </Text>
                 <Tooltip label="Show project history">
                     <ActionIcon
                         size="sm"
                         variant="default"
+                        c="gray.7"
                         aria-label="Show project history"
                         onClick={onShowHistory}
                     >
-                        <MantineIcon icon={IconHistory} size={14} />
+                        <MantineIcon
+                            icon={IconHistory}
+                            size={13}
+                            stroke={1.7}
+                        />
                     </ActionIcon>
                 </Tooltip>
             </Group>
@@ -34,5 +42,4 @@ const ThreadDivider: FC<Props> = ({ fromVersion, onShowHistory }) => (
     />
 );
 
-// ts-unused-exports:disable-next-line
 export default ThreadDivider;
