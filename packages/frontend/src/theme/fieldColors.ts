@@ -20,10 +20,10 @@ export const LD_FIELD_COLORS = {
         mantineColor: 'dimension',
     },
     metric: {
-        bg: 'light-dark(#FBE9E0, #3E2F1A)',
-        bgHover: 'light-dark(#e8590c30, #81510d75)',
-        color: 'light-dark(#de7f0b, #e08a20)',
-        columnHeaderColor: 'light-dark(#502e06, #de7f0b)',
+        bg: 'light-dark(#FBE9E0, rgb(249 115 22 / 7%))',
+        bgHover: 'light-dark(#e8590c30, rgb(249 115 22 / 12%))',
+        color: 'light-dark(#de7f0b, #FB923C)',
+        columnHeaderColor: 'light-dark(#502e06, #F0A15A)',
         mantineColor: 'metric',
     },
     calculation: {
