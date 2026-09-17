@@ -235,6 +235,28 @@ exists, the explorer's configure panel offers an upgrade that lists the field, o
 re-pins the chart being edited and reconciles its field mapping and option values against the new contract, and
 nothing is persisted until the chart is saved.
 
+### Ordered field inputs
+
+A viz schema field can set `multiple: true` to accept an ordered selection of metrics,
+dimensions, series, or any result columns. For example:
+
+```json
+{ "name": "values", "label": "Measures", "type": "metric", "required": true, "multiple": true }
+```
+
+`useVizContext().fieldMapping.values` then contains an array such as
+`["orders_total_revenue", "orders_total_order_amount", "orders_order_count"]`. The chart
+iterates that array in order. A multiple dimension input uses the same declaration with
+`"type": "dimension"`. The configuration panel supports selection, removal and reordering;
+the saved chart and chart-as-code config preserve the array. `[]` records an explicitly
+cleared input; a required input with no selections is unbound.
+
+Omitting `multiple` (or setting it to `false`) retains the original string binding, so
+existing saved charts and registry declarations keep working. Compatible upgrades preserve
+the order of surviving bindings. Changing an input from single to multiple wraps its current
+field in an array; changing back retains the first compatible field and appears in the upgrade
+summary. Registry manifests and app-as-code `vizSchema` use the same declaration schema.
+
 ---
 
 ## Infrastructure

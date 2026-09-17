@@ -5,6 +5,7 @@ import {
     isCustomBinDimension,
     isField,
     QueryExecutionContext,
+    type DataAppVizFieldMapping,
     type DataAppVizUnderlyingDataIntent,
     type DateZoom,
     type ExecuteAsyncUnderlyingDataRequestParams,
@@ -18,14 +19,14 @@ import {
     combineUnderlyingDataFilters,
     getUnderlyingDataFilterParts,
 } from '../MetricQueryData/underlyingDataFilters';
-import { isVizIntent, toVizFieldValues } from './vizIntent';
+import { isVizIntent, resolveVizFieldId, toVizFieldValues } from './vizIntent';
 
 export type VizUnderlyingDataRewriteArgs = {
     projectUuid: string;
     /** queryUuid of the source query the host ran for this chart. */
     queryUuid: string;
     /** The RECONCILED mapping — exactly what was pushed to the iframe. */
-    fieldMapping: Record<string, string>;
+    fieldMapping: DataAppVizFieldMapping;
     itemsMap: ItemsMap;
     metricQuery: MetricQuery;
     explore: Explore;
@@ -54,8 +55,8 @@ export const buildVizUnderlyingDataRequest = (
     }
     const { limit } = intent as DataAppVizUnderlyingDataIntent;
 
-    const fieldId = args.fieldMapping[intent.metric];
-    const item = fieldId ? args.itemsMap[fieldId] : undefined;
+    const fieldId = resolveVizFieldId(intent, args.fieldMapping);
+    const item = args.itemsMap[fieldId];
     if (!fieldId || !item) {
         throw new Error(
             `"${intent.metric}" is not bound to a query field on this chart.`,

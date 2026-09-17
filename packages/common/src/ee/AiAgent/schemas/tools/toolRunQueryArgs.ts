@@ -237,9 +237,20 @@ const chartConfigCustomChartTypeSchema = z.object({
             'Slug of the custom chart type to render this answer through. Must be a slug from availableCustomChartTypes or findCustomChartTypes.',
         ),
     fieldMapping: z
-        .record(z.string(), getFieldIdSchema({ additionalDescription: null }))
+        .record(
+            z.string(),
+            z.union([
+                getFieldIdSchema({ additionalDescription: null }),
+                z
+                    .array(getFieldIdSchema({ additionalDescription: null }))
+                    .refine(
+                        (ids) => new Set(ids).size === ids.length,
+                        'field ids must be unique',
+                    ),
+            ]),
+        )
         .describe(
-            "Binds the custom chart type's field slots to this query's fields: slot name (from the type's schema) → a field id selected in queryConfig. Every required slot must be bound.",
+            "Binds the custom chart type's field slots to this query's fields: slot name (from the type's schema) → a field id, or an ordered array for a slot declared multiple. Every required slot must be bound.",
         ),
     options: z
         .record(z.string(), customChartTypeOptionValueSchema)

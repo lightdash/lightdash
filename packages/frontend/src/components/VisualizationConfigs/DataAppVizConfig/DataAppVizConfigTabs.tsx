@@ -191,10 +191,10 @@ export const ConfigTabs: FC = memo(() => {
 
         const handleFieldChange = (
             fieldName: string,
-            fieldId: string | null,
+            fieldId: string | string[] | null,
         ) => {
             const nextMapping = { ...effectiveMapping };
-            if (fieldId) nextMapping[fieldName] = fieldId;
+            if (fieldId !== null) nextMapping[fieldName] = fieldId;
             else delete nextMapping[fieldName];
 
             setField(fieldName, fieldId);

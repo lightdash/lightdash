@@ -20,6 +20,17 @@ describe('deriveDataAppVizPivotConfig', () => {
         ).toEqual({ columns: ['orders_status', 'orders_region'] });
     });
 
+    it('flattens ordered multi-series mappings without duplicate columns', () => {
+        expect(
+            deriveDataAppVizPivotConfig(fields, {
+                category: 'orders_created_date',
+                value: ['orders_total', 'orders_count'],
+                colour: ['orders_status', 'orders_region', 'orders_status'],
+                facet: 'orders_region',
+            }),
+        ).toEqual({ columns: ['orders_status', 'orders_region'] });
+    });
+
     it('ignores unmapped series fields', () => {
         expect(
             deriveDataAppVizPivotConfig(fields, {

@@ -521,9 +521,11 @@ export const renameChartConfigType = (
                     fieldMapping: Object.fromEntries(
                         Object.entries(
                             dataAppVizConfig.config.fieldMapping,
-                        ).map(([field, fieldId]) => [
+                        ).map(([field, value]) => [
                             field,
-                            replaceId(fieldId),
+                            Array.isArray(value)
+                                ? value.map(replaceId)
+                                : replaceId(value),
                         ]),
                     ),
                 },

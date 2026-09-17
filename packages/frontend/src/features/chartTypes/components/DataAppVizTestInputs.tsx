@@ -5,8 +5,10 @@ import FieldSelect from '../../../components/common/FieldSelect';
 import DataAppVizFieldGuidance, {
     DataAppVizFieldHelp,
 } from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldGuidance';
+import OrderedDataAppVizFieldSelect from '../../../components/VisualizationConfigs/DataAppVizConfig/OrderedDataAppVizFieldSelect';
 import DataAppVizInputGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizInputGuidance';
 import { type DataAppVizTestContextState } from '../hooks/useDataAppVizTestContext';
+import { poolKeyForSlot } from '../utils/autoMapDataAppVizFields';
 import DataAppVizFieldTypeBadge from './DataAppVizFieldTypeBadge';
 
 type Props = {
@@ -46,11 +48,21 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                         ? `${guidanceIdPrefix}-${field.name}`
                         : undefined;
                     const items =
-                        field.type === 'metric' ? metrics : dimensions;
-                    const selectedId = fieldMapping[field.name];
-                    const selectedItem = selectedId
-                        ? items.find((i) => getItemId(i) === selectedId)
-                        : undefined;
+                        poolKeyForSlot(field) === 'metric'
+                            ? metrics
+                            : poolKeyForSlot(field) === 'dimension'
+                              ? dimensions
+                              : [...metrics, ...dimensions];
+                    const selectedValue = fieldMapping[field.name];
+                    const selectedIds = Array.isArray(selectedValue)
+                        ? selectedValue
+                        : selectedValue
+                          ? [selectedValue]
+                          : [];
+                    const selectedItem =
+                        !Array.isArray(selectedValue) && selectedValue
+                            ? items.find((i) => getItemId(i) === selectedValue)
+                            : undefined;
                     return (
                         <Stack key={field.name} gap={2}>
                             <Group gap="xs">
@@ -64,27 +76,39 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                                 field={field}
                                 id={guidanceId}
                             />
-                            {exploreName && (
-                                <FieldSelect
-                                    size="xs"
-                                    aria-label={field.label}
-                                    aria-describedby={guidanceId}
-                                    placeholder={`Select ${field.label.toLowerCase()}`}
-                                    disabled={items.length === 0}
-                                    item={selectedItem}
-                                    items={items}
-                                    onChange={(newField) =>
-                                        setField(
-                                            field.name,
-                                            newField
-                                                ? getItemId(newField)
-                                                : null,
-                                        )
-                                    }
-                                    clearable={!field.required}
-                                    hasGrouping
-                                />
-                            )}
+                            {exploreName &&
+                                (field.multiple ? (
+                                    <OrderedDataAppVizFieldSelect
+                                        label={field.label}
+                                        items={items}
+                                        selectedIds={selectedIds}
+                                        describedBy={guidanceId}
+                                        addDisabled={items.length === 0}
+                                        onChange={(ids) =>
+                                            setField(field.name, ids)
+                                        }
+                                    />
+                                ) : (
+                                    <FieldSelect
+                                        size="xs"
+                                        aria-label={field.label}
+                                        aria-describedby={guidanceId}
+                                        placeholder={`Select ${field.label.toLowerCase()}`}
+                                        disabled={items.length === 0}
+                                        item={selectedItem}
+                                        items={items}
+                                        onChange={(newField) =>
+                                            setField(
+                                                field.name,
+                                                newField
+                                                    ? getItemId(newField)
+                                                    : null,
+                                            )
+                                        }
+                                        clearable={!field.required}
+                                        hasGrouping
+                                    />
+                                ))}
                         </Stack>
                     );
                 })}

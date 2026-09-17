@@ -1,4 +1,5 @@
 import type { DataAppVizField } from '../ee/apps/types';
+import { getDataAppVizFieldIds } from '../ee/apps/dataAppVizFieldMapping';
 import type { DataAppVizFieldMapping, SavedChart } from '../types/savedCharts';
 
 /**
@@ -12,13 +13,14 @@ export const deriveDataAppVizPivotConfig = (
     fieldMapping: DataAppVizFieldMapping,
 ): SavedChart['pivotConfig'] => {
     const columns = fields.reduce<string[]>((mappedSeries, field) => {
-        const fieldId = fieldMapping[field.name];
-        if (
-            field.type === 'series' &&
-            fieldId &&
-            !mappedSeries.includes(fieldId)
-        ) {
-            mappedSeries.push(fieldId);
+        if (field.type === 'series') {
+            for (const fieldId of getDataAppVizFieldIds(
+                fieldMapping[field.name],
+            )) {
+                if (!mappedSeries.includes(fieldId)) {
+                    mappedSeries.push(fieldId);
+                }
+            }
         }
         return mappedSeries;
     }, []);

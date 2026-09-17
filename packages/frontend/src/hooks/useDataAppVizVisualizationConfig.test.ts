@@ -202,6 +202,30 @@ describe('useDataAppVizVisualizationConfig', () => {
         });
     });
 
+    it('persists an ordered multiple field binding, including an explicit clear', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        );
+
+        act(() =>
+            result.current.setField('values', [
+                'orders_total',
+                'orders_average_order_size',
+            ]),
+        );
+        expect(result.current.validConfig?.fieldMapping).toMatchObject({
+            values: ['orders_total', 'orders_average_order_size'],
+        });
+
+        act(() => result.current.setField('values', []));
+        expect(onConfigChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                fieldMapping: expect.objectContaining({ values: [] }),
+            }),
+        );
+    });
+
     it('clears option values when the viz is switched', () => {
         const onConfigChange = vi.fn();
         const { result } = renderHook(() =>

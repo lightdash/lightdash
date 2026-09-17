@@ -7,6 +7,7 @@ import {
     isSummaryExploreError,
     QueryExecutionContext,
     type DataAppVizContext,
+    type DataAppVizFieldMapping,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
     type DataAppVizSchema,
@@ -28,7 +29,7 @@ import {
 import { getDataAppVizFieldItems } from '../utils/getDataAppVizFieldItems';
 import { useDataAppVizResolvedColors } from './useDataAppVizResolvedColors';
 
-type Run = { args: QueryResultsProps; mapping: Record<string, string> };
+type Run = { args: QueryResultsProps; mapping: DataAppVizFieldMapping };
 
 const EMPTY_FIELD_MAPPING = {};
 
@@ -42,8 +43,8 @@ export type DataAppVizTestContextState = {
     exploreName: string | null;
     exploreOptions: { value: string; label: string }[];
     handleExploreChange: (value: string | null) => void;
-    fieldMapping: Record<string, string>;
-    setField: (name: string, id: string | null) => void;
+    fieldMapping: DataAppVizFieldMapping;
+    setField: (name: string, id: string | string[] | null) => void;
     itemsMap: ItemsMap;
     dimensions: ReturnType<typeof getDataAppVizFieldItems>['dimensions'];
     metrics: ReturnType<typeof getDataAppVizFieldItems>['metrics'];
@@ -72,7 +73,7 @@ export const useDataAppVizTestContext = ({
     onContextChange,
 }: Args): DataAppVizTestContextState => {
     const [exploreName, setExploreName] = useState<string | null>(null);
-    const [fieldMapping, setFieldMapping] = useState<Record<string, string>>(
+    const [fieldMapping, setFieldMapping] = useState<DataAppVizFieldMapping>(
         {},
     );
     // Only what the user explicitly changed; defaults resolve at push time.
@@ -187,7 +188,7 @@ export const useDataAppVizTestContext = ({
     );
 
     const setField = useCallback(
-        (name: string, id: string | null) => {
+        (name: string, id: string | string[] | null) => {
             setFieldMapping((prev) => {
                 const next = { ...prev };
                 if (id) next[name] = id;
@@ -212,6 +213,7 @@ export const useDataAppVizTestContext = ({
             exploreName,
             schema,
             fieldMapping,
+            itemsMap,
         );
         const pivotConfig = deriveDataAppVizPivotConfig(
             schema.fields,

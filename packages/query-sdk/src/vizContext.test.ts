@@ -15,6 +15,7 @@ import {
     resolveVizFixtureUrl,
     toVizContextState,
     type DataAppVizContextMessage,
+    type VizContext,
     type VizContextOptionValue,
     type VizContextPivotDetails,
     type VizContextRow,
@@ -80,6 +81,17 @@ const row: VizContextRow = {
 };
 
 describe('getFormatted', () => {
+    it('accepts a field mapping lookup while refusing ambiguous multi bindings', () => {
+        const fieldMapping: VizContext['fieldMapping'] = {
+            status: 'orders_status',
+            values: ['orders_count'],
+        };
+        // This call is also a compile-time compatibility assertion for the
+        // common `getFormatted(row, fieldMapping.slot)` authoring pattern.
+        expect(getFormatted(row, fieldMapping.status)).toBe('Completed');
+        expect(getFormatted(row, fieldMapping.values)).toBe('');
+    });
+
     it('returns the formatted display string for a bound field', () => {
         expect(getFormatted(row, 'orders_status')).toBe('Completed');
         expect(getFormatted(row, 'orders_count')).toBe('42');
@@ -104,6 +116,7 @@ describe('getRaw', () => {
         expect(getRaw(row, undefined)).toBeNull();
         expect(getRaw(row, 'not_a_field')).toBeNull();
         expect(getRaw(row, 'empty_field')).toBeNull();
+        expect(getRaw(row, ['orders_count'])).toBeNull();
     });
 });
 
@@ -117,6 +130,22 @@ const message = (
 });
 
 describe('toVizContextState', () => {
+    it('preserves ordered multi-field mappings from the host', () => {
+        expect(
+            toVizContextState(
+                message({
+                    fieldMapping: {
+                        category: 'orders_status',
+                        values: ['orders_total', 'orders_count'],
+                    },
+                }),
+            ).fieldMapping,
+        ).toEqual({
+            category: 'orders_status',
+            values: ['orders_total', 'orders_count'],
+        });
+    });
+
     it('carries every declared option value through, by type', () => {
         expect(
             toVizContextState(
@@ -406,6 +435,21 @@ describe('resolved color helpers', () => {
             ),
         ).toBeUndefined();
     });
+
+    it('does not choose a value color for an ambiguous multi-field binding', () => {
+        expect(
+            resolveValueColor(
+                {
+                    colorPalette: ['#111111'],
+                    seriesColors: {},
+                    valueColors: { orders_status: { completed: '#00ff00' } },
+                },
+                ['orders_status'],
+                'completed',
+                0,
+            ),
+        ).toBeUndefined();
+    });
 });
 
 describe('toVizContextState — underlyingData', () => {
@@ -546,6 +590,24 @@ describe('buildVizUnderlyingData', () => {
         });
     });
 
+    it('forwards the selected field id for a multi-metric slot', async () => {
+        const underlyingData = buildVizUnderlyingData(
+            true,
+            true,
+            supportedTransport,
+        );
+        await underlyingData.open({
+            row,
+            metric: 'values',
+            fieldId: 'orders_count',
+        });
+        expect(supportedTransport.openVizUnderlyingData).toHaveBeenCalledWith({
+            row,
+            metric: 'values',
+            fieldId: 'orders_count',
+        });
+    });
+
     it('get() rejects with an actionable message when the host disabled it', async () => {
         await expect(
             buildVizUnderlyingData(false, true, supportedTransport).get({
@@ -621,6 +683,21 @@ describe('buildVizDrillDown', () => {
             metric: 'value',
         });
         expect(open).toHaveBeenCalledWith({ row, metric: 'value' });
+    });
+
+    it('forwards a selected field id for a multi-metric slot', async () => {
+        const open = vi.fn().mockResolvedValue(undefined);
+        const row = { m: { value: { raw: 1, formatted: '1' } } };
+        await buildVizDrillDown(true, transportWith(open)).open({
+            row,
+            metric: 'values',
+            fieldId: 'orders_count',
+        });
+        expect(open).toHaveBeenCalledWith({
+            row,
+            metric: 'values',
+            fieldId: 'orders_count',
+        });
     });
 
     it('open() rejects with clear messages when disabled or unsupported', async () => {

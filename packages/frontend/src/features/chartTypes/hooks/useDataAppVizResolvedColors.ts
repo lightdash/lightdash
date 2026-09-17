@@ -1,9 +1,11 @@
 import {
     CartesianSeriesType,
     FeatureFlags,
+    getDataAppVizFieldIds,
     isDimension,
     type DataAppVizContext,
     type EChartsSeries,
+    type DataAppVizFieldMapping,
     type ItemsMap,
     type ReadyQueryResultsPage,
     type ResultRow,
@@ -20,7 +22,7 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 type Args = {
     itemsMap: ItemsMap;
     rows: ResultRow[];
-    fieldMapping: Record<string, string>;
+    fieldMapping: DataAppVizFieldMapping;
     pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     colorPalette: string[];
 };
@@ -96,7 +98,11 @@ export const useDataAppVizResolvedColors = ({
         );
 
         const valueColors = Object.fromEntries(
-            [...new Set(Object.values(fieldMapping))].flatMap((fieldId) => {
+            [
+                ...new Set(
+                    Object.values(fieldMapping).flatMap(getDataAppVizFieldIds),
+                ),
+            ].flatMap((fieldId) => {
                 const item = itemsMap[fieldId];
                 if (!item || !isDimension(item)) return [];
 

@@ -1639,9 +1639,15 @@ export function validateCustomChartTypeChartConfig(
     }
 
     const unboundRequiredSlots = vizSchema.fields
-        .filter(
-            (field) => field.required && !chartConfig.fieldMapping[field.name],
-        )
+        .filter((field) => {
+            const binding = chartConfig.fieldMapping[field.name];
+            return (
+                field.required &&
+                (binding === undefined ||
+                    binding === '' ||
+                    (Array.isArray(binding) && binding.length === 0))
+            );
+        })
         .map((field) => field.name);
     if (unboundRequiredSlots.length > 0) {
         errors.push(
@@ -1657,13 +1663,20 @@ export function validateCustomChartTypeChartConfig(
         ...selectedFields.tableCalculations,
     ];
     const selected = new Set(selectedFieldIds);
-    const unknownFieldIds = Object.entries(chartConfig.fieldMapping).filter(
-        ([, fieldId]) => !selected.has(fieldId),
+    const bindings = Object.entries(chartConfig.fieldMapping).flatMap(
+        ([slot, value]) =>
+            (Array.isArray(value) ? value : [value]).map((fieldId) => ({
+                slot,
+                fieldId,
+            })),
+    );
+    const unknownFieldIds = bindings.filter(
+        ({ fieldId }) => !selected.has(fieldId),
     );
     if (unknownFieldIds.length > 0) {
         errors.push(
             `fieldMapping references field ids that are not selected in queryConfig: ${unknownFieldIds
-                .map(([slot, fieldId]) => `${slot} → ${fieldId}`)
+                .map(({ slot, fieldId }) => `${slot} → ${fieldId}`)
                 .join(
                     ', ',
                 )}. Fields selected in this query: ${selectedFieldIds.join(
@@ -1674,51 +1687,82 @@ export function validateCustomChartTypeChartConfig(
 
     const dimensionSet = new Set(selectedFields.dimensions);
     const metricSet = new Set(selectedFields.metrics);
-    Object.entries(chartConfig.fieldMapping).forEach(([slot, fieldId]) => {
+    Object.entries(chartConfig.fieldMapping).forEach(([slot, value]) => {
         const slotDeclaration = vizSchema.fields.find(
             (field) => field.name === slot,
         );
-        // Unknown slots and unselected field ids are already reported above.
-        if (!slotDeclaration || !selected.has(fieldId)) return;
+        // Unknown slots are already reported above.
+        if (!slotDeclaration) return;
 
-        let boundKind: 'dimension' | 'metric' | 'table calculation';
-        if (dimensionSet.has(fieldId)) {
-            boundKind = 'dimension';
-        } else if (metricSet.has(fieldId)) {
-            boundKind = 'metric';
-        } else {
-            boundKind = 'table calculation';
-        }
-        switch (slotDeclaration.type) {
-            case 'dimension':
-            case 'series':
-                if (boundKind !== 'dimension') {
-                    errors.push(
-                        `Slot "${slot}" (${slotDeclaration.type}) only accepts dimensions, but "${fieldId}" is a ${boundKind}. Dimensions selected in this query: ${selectedFields.dimensions.join(
-                            ', ',
-                        )}.`,
-                    );
-                }
-                break;
-            case 'metric':
-                if (boundKind === 'dimension') {
-                    errors.push(
-                        `Slot "${slot}" (metric) only accepts metrics or table calculations, but "${fieldId}" is a dimension. Metrics and table calculations selected in this query: ${[
-                            ...selectedFields.metrics,
-                            ...selectedFields.tableCalculations,
-                        ].join(', ')}.`,
-                    );
-                }
-                break;
-            case 'column':
-                // Accepts any result column.
-                break;
-            default:
-                assertUnreachable(
-                    slotDeclaration.type,
-                    `Unknown slot type: ${slotDeclaration.type}`,
+        if (slotDeclaration.multiple) {
+            if (!Array.isArray(value)) {
+                errors.push(
+                    `Slot "${slot}" accepts multiple fields and must be bound to an array.`,
                 );
+                return;
+            }
+
+            const duplicateFieldIds = value.filter(
+                (fieldId, index) => value.indexOf(fieldId) !== index,
+            );
+            if (duplicateFieldIds.length > 0) {
+                errors.push(
+                    `Slot "${slot}" cannot contain duplicate field ids: ${[
+                        ...new Set(duplicateFieldIds),
+                    ].join(', ')}.`,
+                );
+            }
+        } else if (Array.isArray(value)) {
+            errors.push(
+                `Slot "${slot}" accepts one field and must not be bound to an array.`,
+            );
+            return;
         }
+
+        const fieldIds = Array.isArray(value) ? value : [value];
+        fieldIds.forEach((fieldId) => {
+            // Unselected field ids are already reported above.
+            if (!selected.has(fieldId)) return;
+
+            let boundKind: 'dimension' | 'metric' | 'table calculation';
+            if (dimensionSet.has(fieldId)) {
+                boundKind = 'dimension';
+            } else if (metricSet.has(fieldId)) {
+                boundKind = 'metric';
+            } else {
+                boundKind = 'table calculation';
+            }
+            switch (slotDeclaration.type) {
+                case 'dimension':
+                case 'series':
+                    if (boundKind !== 'dimension') {
+                        errors.push(
+                            `Slot "${slot}" (${slotDeclaration.type}) only accepts dimensions, but "${fieldId}" is a ${boundKind}. Dimensions selected in this query: ${selectedFields.dimensions.join(
+                                ', ',
+                            )}.`,
+                        );
+                    }
+                    break;
+                case 'metric':
+                    if (boundKind === 'dimension') {
+                        errors.push(
+                            `Slot "${slot}" (metric) only accepts metrics or table calculations, but "${fieldId}" is a dimension. Metrics and table calculations selected in this query: ${[
+                                ...selectedFields.metrics,
+                                ...selectedFields.tableCalculations,
+                            ].join(', ')}.`,
+                        );
+                    }
+                    break;
+                case 'column':
+                    // Accepts any result column.
+                    break;
+                default:
+                    assertUnreachable(
+                        slotDeclaration.type,
+                        `Unknown slot type: ${slotDeclaration.type}`,
+                    );
+            }
+        });
     });
 
     if (chartConfig.options) {

@@ -22,6 +22,7 @@ import {
     type SavedChart,
     type SavedChartDAO,
 } from '../types/savedCharts';
+import { getDataAppVizFieldIds } from '../ee/apps/dataAppVizFieldMapping';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     getColumnAxisType,
@@ -450,7 +451,9 @@ export function deriveDataAppVizPivotConfiguration(
         return undefined;
     }
 
-    const mappedFieldIds = new Set(Object.values(fieldMapping));
+    const mappedFieldIds = new Set(
+        Object.values(fieldMapping).flatMap(getDataAppVizFieldIds),
+    );
     const groupByColumns = pivotConfig.columns
         .filter(
             (fieldId) =>

@@ -40,9 +40,11 @@ const {
 } = context;
 ```
 
-- `fieldMapping` — `Record<string, string>`: the field name you declared → the query field
-  id it is bound to. Read cells with `getFormatted(row, fieldId)` (display text) and
-  `getRaw(row, fieldId)` (raw value).
+- `fieldMapping` — `Record<string, string | string[]>`: each declared field name maps to
+  one query field id, or an ordered array of ids when its declaration has `multiple: true`.
+  Read each id with `getFormatted(row, fieldId)` (display text) and `getRaw(row, fieldId)`
+  (raw value). Narrow scalar bindings with `typeof binding === 'string'` and multiple
+  bindings with `Array.isArray(binding)` before reading cells.
 - `rows` — the host-fetched result rows, keyed by query field id.
 - `options` — `Record<string, boolean | number | string>`: the current value of each config
   option you declared (the viewer's choice, else your declared `default`).
@@ -208,6 +210,11 @@ underlyingData.open({ row: datum.sourceRow, metric: 'value' }).catch(() => {});
 action menu. It never renders an underlying-data dialog, table, loading state, error
 state, or download control inside the iframe.
 
+For a multiple-metric input, also pass `fieldId`, the member of that input's binding
+whose mark was clicked: `underlyingData.open({ row: datum.sourceRow, metric: 'values',
+fieldId })`. Use the same `fieldId` with `drillDown.open`. A mark combining several
+metrics cannot identify one underlying metric and gets no data-point action.
+
 ### Drill into a data point
 
 When `drillDown.enabled` is true, the same data-point action menu also offers
@@ -262,7 +269,7 @@ a dead control the viewer can move with no effect.
 
 ### `fields`
 
-One entry per data column the component reads:
+One entry per input the component reads:
 
 - `name` — the key read from `fieldMapping`. Unique, no spaces.
 - `label` — human label shown in the mapping UI.
@@ -270,12 +277,49 @@ One entry per data column the component reads:
   `series` (a dimension used to split or colour the chart), or `column` (any result
   column, whether metric or dimension).
 - `required` — `false` only when the chart still renders with this field unmapped.
+- `multiple` — optional boolean, default `false`. Set `true` when this input accepts an
+  ordered selection of fields of its declared type. Its mapping is a `string[]`, including
+  when only one field is selected. A required input needs at least one selection; an empty
+  array means the viewer cleared it. Render a placeholder until required selections exist.
 - `description` — optional reusable mapping help, maximum 160 characters. Use one
   or two short, plain sentences explaining the field's role in the chart. Keep it agnostic
   to any business, explore, or query; do not imply fixed categories or values.
 
 Do not generate field examples. Viewers supply their own values; describe the field's
 role and data shape without prescribing categories from a particular business.
+
+### Ordered multiple-field inputs
+
+Use one multiple input for a variable number of measures or grouping columns instead of
+declaring a fixed number of numbered slots:
+
+```json
+{
+  "fields": [
+    { "name": "groups", "label": "Grouping fields", "type": "dimension", "required": true, "multiple": true },
+    { "name": "values", "label": "Measures", "type": "metric", "required": true, "multiple": true }
+  ],
+  "configOptions": [],
+  "colorPalette": null
+}
+```
+
+```tsx
+const { fieldMapping, rows } = useVizContext();
+const groups = Array.isArray(fieldMapping.groups) ? fieldMapping.groups : [];
+const values = Array.isArray(fieldMapping.values) ? fieldMapping.values : [];
+const data = rows.map((row) => ({
+  label: groups.map((id) => getFormatted(row, id)).join(' / '),
+  values: values.map((id) => ({ id, value: getRaw(row, id) })),
+}));
+```
+
+Array order is the viewer's display order: preserve it when building axes, columns,
+legends and series. For pivoted metrics, iterate the selected ids first and then match
+`pivotDetails.valuesColumns` by `referenceField`. The flag also works for `series` and
+`column` inputs. Existing single inputs continue receiving strings; leave their declarations
+unchanged when adding a separate multiple input. Keep field names stable across compatible
+upgrades so saved selections can be reconciled.
 
 ### `inputGuidance`
 

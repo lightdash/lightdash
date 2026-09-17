@@ -59,7 +59,7 @@ const selectedFields = {
 };
 
 const buildChartConfig = (
-    fieldMapping: Record<string, string>,
+    fieldMapping: ToolRunQueryCustomChartTypeConfig['fieldMapping'],
     options: ToolRunQueryCustomChartTypeConfig['options'] = null,
 ): ToolRunQueryCustomChartTypeConfig => ({
     customChartTypeSlug: 'cohort-waterfall',
@@ -70,6 +70,13 @@ const buildChartConfig = (
 const validMapping = {
     x: 'orders_order_date_month',
     y: 'orders_revenue',
+};
+
+const multiVizSchema: DataAppVizSchema = {
+    ...vizSchema,
+    fields: vizSchema.fields.map((field) =>
+        field.name === 'y' ? { ...field, multiple: true } : field,
+    ),
 };
 
 describe('validateCustomChartTypeChartConfig', () => {
@@ -169,6 +176,145 @@ describe('validateCustomChartTypeChartConfig', () => {
     });
 
     describe('slot pool matching', () => {
+        it('accepts ordered metric and table calculation bindings for a multiple slot', () => {
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    buildChartConfig({
+                        x: 'orders_order_date_month',
+                        y: ['orders_revenue', 'revenue_running_total'],
+                    }),
+                    multiVizSchema,
+                    selectedFields,
+                ),
+            ).not.toThrow();
+        });
+
+        it('rejects scalar bindings for a multiple slot', () => {
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    buildChartConfig(validMapping),
+                    multiVizSchema,
+                    selectedFields,
+                ),
+            ).toThrow(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'Slot "y" accepts multiple fields and must be bound to an array.',
+                    ),
+                }),
+            );
+        });
+
+        it('rejects array bindings for a single slot', () => {
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    buildChartConfig({
+                        x: ['orders_order_date_month'],
+                        y: 'orders_revenue',
+                    }),
+                    vizSchema,
+                    selectedFields,
+                ),
+            ).toThrow(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'Slot "x" accepts one field and must not be bound to an array.',
+                    ),
+                }),
+            );
+        });
+
+        it('rejects duplicate bindings for a multiple slot', () => {
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    buildChartConfig({
+                        x: 'orders_order_date_month',
+                        y: ['orders_revenue', 'orders_revenue'],
+                    }),
+                    multiVizSchema,
+                    selectedFields,
+                ),
+            ).toThrow(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'Slot "y" cannot contain duplicate field ids: orders_revenue.',
+                    ),
+                }),
+            );
+        });
+
+        it('accepts an empty optional multiple slot but rejects an empty required one', () => {
+            const optionalMultiVizSchema: DataAppVizSchema = {
+                ...multiVizSchema,
+                fields: multiVizSchema.fields.map((field) =>
+                    field.name === 'y' ? { ...field, required: false } : field,
+                ),
+            };
+            const config = buildChartConfig({
+                x: 'orders_order_date_month',
+                y: [],
+            });
+
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    config,
+                    optionalMultiVizSchema,
+                    selectedFields,
+                ),
+            ).not.toThrow();
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    config,
+                    multiVizSchema,
+                    selectedFields,
+                ),
+            ).toThrow(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'Required field slots not bound in fieldMapping: y.',
+                    ),
+                }),
+            );
+        });
+
+        it('validates every field in a multiple slot against its declared pool', () => {
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    buildChartConfig({
+                        x: 'orders_order_date_month',
+                        y: ['orders_revenue', 'orders_status'],
+                    }),
+                    multiVizSchema,
+                    selectedFields,
+                ),
+            ).toThrow(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'Slot "y" (metric) only accepts metrics or table calculations, but "orders_status" is a dimension.',
+                    ),
+                }),
+            );
+        });
+
+        it('rejects every unselected field in a multiple slot', () => {
+            expect(() =>
+                validateCustomChartTypeChartConfig(
+                    buildChartConfig({
+                        x: 'orders_order_date_month',
+                        y: ['orders_revenue', 'customers_count'],
+                    }),
+                    multiVizSchema,
+                    selectedFields,
+                ),
+            ).toThrow(
+                expect.objectContaining({
+                    message: expect.stringContaining(
+                        'fieldMapping references field ids that are not selected in queryConfig: y → customers_count.',
+                    ),
+                }),
+            );
+        });
+
         it('accepts a metric slot bound to a table calculation', () => {
             expect(() =>
                 validateCustomChartTypeChartConfig(

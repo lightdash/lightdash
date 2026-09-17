@@ -1,4 +1,5 @@
 import { type DataAppVizOptionValue } from '../ee/apps/dataAppVizConfigOptions';
+import { type DataAppVizFieldMapping } from '../ee/apps/dataAppVizFieldMapping';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type ViewStatistics } from './analytics';
 import { type DateZoom } from './api/paginatedQuery';
@@ -792,8 +793,8 @@ export type CustomVis = {
     spec?: Record<string, unknown>;
 };
 
-/** Maps a data app viz's field name → the host query field id bound to it. */
-export type DataAppVizFieldMapping = Record<string, string>;
+/** Maps a data app viz's field name → the host query field id(s) bound to it. */
+export type { DataAppVizFieldMapping } from '../ee/apps/dataAppVizFieldMapping';
 
 /** Maps a declared config option's name → the value the user chose for it. */
 export type DataAppVizOptionValues = Record<string, DataAppVizOptionValue>;

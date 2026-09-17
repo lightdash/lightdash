@@ -1271,8 +1271,22 @@
             "type": "object"
         },
         "DataAppVizFieldMapping": {
-            "$ref": "#/$defs/Record_string.string_",
-            "description": "Maps a data app viz's field name → the host query field id bound to it."
+            "$ref": "#/$defs/Record_string.DataAppVizFieldMappingValue_",
+            "description": "Maps a data app viz's field name to its bound query field ids."
+        },
+        "DataAppVizFieldMappingValue": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                }
+            ],
+            "description": "A viz field can bind one query column or an ordered collection of columns."
         },
         "DataAppVizOptionValue": {
             "anyOf": [
@@ -2699,6 +2713,9 @@
                 "valueLabel": {
                     "enum": ["hidden", "inside", "outside"],
                     "type": "string"
+                },
+                "valueLabelColor": {
+                    "type": "string"
                 }
             },
             "type": "object"
@@ -2879,11 +2896,11 @@
                 }
             },
             "required": [
+                "metrics",
+                "limit",
                 "exploreName",
                 "dimensions",
-                "metrics",
                 "sorts",
-                "limit",
                 "tableCalculations"
             ],
             "type": "object"
@@ -2952,6 +2969,10 @@
                 "valueLabel": {
                     "$ref": "#/$defs/PieChartValueLabel",
                     "description": "Position of value labels on slices"
+                },
+                "valueLabelColor": {
+                    "description": "Custom color for value labels",
+                    "type": "string"
                 }
             },
             "type": "object"
@@ -3050,6 +3071,14 @@
         "Record_string.ColumnProperties_": {
             "additionalProperties": {
                 "$ref": "#/$defs/ColumnProperties"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
+        "Record_string.DataAppVizFieldMappingValue_": {
+            "additionalProperties": {
+                "$ref": "#/$defs/DataAppVizFieldMappingValue"
             },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
@@ -3301,6 +3330,10 @@
                 "label": {
                     "description": "Data label configuration",
                     "properties": {
+                        "color": {
+                            "description": "Custom data label color (hex code)",
+                            "type": "string"
+                        },
                         "position": {
                             "description": "Position of data labels",
                             "enum": [

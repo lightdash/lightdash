@@ -174,6 +174,32 @@ describe('autoMapDataAppVizFields', () => {
         });
     });
 
+    it('reserves one column for every required slot before filling a multiple slot', () => {
+        const mapping = autoMapDataAppVizFields(
+            [
+                { ...field('values', 'metric'), multiple: true },
+                field('target', 'metric'),
+            ],
+            itemsMap(metric('first'), metric('second'), metric('third')),
+        );
+
+        expect(mapping).toEqual({
+            values: ['orders_first', 'orders_third'],
+            target: 'orders_second',
+        });
+    });
+
+    it('fills remaining compatible columns for an optional multiple slot', () => {
+        expect(
+            autoMapDataAppVizFields(
+                [{ ...field('values', 'metric', false), multiple: true }],
+                itemsMap(metric('first'), metric('second'), metric('third')),
+            ),
+        ).toEqual({
+            values: ['orders_first', 'orders_second', 'orders_third'],
+        });
+    });
+
     it('skips hidden columns', () => {
         const mapping = autoMapDataAppVizFields(
             [field('category', 'dimension'), field('value', 'metric')],
@@ -299,6 +325,59 @@ describe('reconcileDataAppVizFieldMapping', () => {
             breakdown: 'orders_status',
             detail: 'orders_method',
         });
+    });
+
+    it('keeps a multiple binding ordered, unique, and unexpanded on reconcile', () => {
+        const mapping = reconcileDataAppVizFieldMapping(
+            [{ ...field('values', 'metric'), multiple: true }],
+            itemsMap(metric('first'), metric('second'), metric('third')),
+            {
+                values: [
+                    'orders_second',
+                    'orders_missing',
+                    'orders_first',
+                    'orders_second',
+                ],
+            },
+        );
+
+        expect(mapping).toEqual({
+            values: ['orders_second', 'orders_first'],
+        });
+    });
+
+    it('preserves an explicit empty multiple binding through reconciliation', () => {
+        const mapping = reconcileDataAppVizFieldMapping(
+            [{ ...field('values', 'metric'), multiple: true }],
+            itemsMap(metric('first')),
+            { values: [] },
+        );
+
+        expect(mapping).toEqual({ values: [] });
+        expect(
+            getUnboundRequiredDataAppVizFields(
+                [{ ...field('values', 'metric'), multiple: true }],
+                mapping,
+            ),
+        ).toHaveLength(1);
+    });
+
+    it('converts a legacy scalar to a multiple binding and a multiple binding to its first scalar', () => {
+        const items = itemsMap(metric('first'), metric('second'));
+        expect(
+            reconcileDataAppVizFieldMapping(
+                [{ ...field('values', 'metric'), multiple: true }],
+                items,
+                { values: 'orders_second' },
+            ),
+        ).toEqual({ values: ['orders_second'] });
+        expect(
+            reconcileDataAppVizFieldMapping(
+                [field('value', 'metric')],
+                items,
+                { value: ['orders_second', 'orders_first'] },
+            ),
+        ).toEqual({ value: 'orders_second' });
     });
 
     it('matches a fresh auto-map when nothing is persisted and all slots are required', () => {

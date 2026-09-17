@@ -72,4 +72,32 @@ describe('resolveVizDrillDownConfig', () => {
             ),
         ).toThrow('"category" is not a metric on this chart.');
     });
+
+    it('requires a selected member for a multi-metric slot', () => {
+        const multiMapping = {
+            ...fieldMapping,
+            value: ['orders_revenue', 'orders_status'],
+        };
+        expect(() =>
+            resolveVizDrillDownConfig(
+                { row, metric: 'value' },
+                { fieldMapping: multiMapping, itemsMap },
+            ),
+        ).toThrow('"value" has multiple fields; choose a bound field id.');
+        expect(
+            resolveVizDrillDownConfig(
+                { row, metric: 'value', fieldId: 'orders_revenue' },
+                { fieldMapping: multiMapping, itemsMap },
+            ).item,
+        ).toBe(metricItem);
+    });
+
+    it('rejects an explicit field id outside a scalar binding', () => {
+        expect(() =>
+            resolveVizDrillDownConfig(
+                { row, metric: 'value', fieldId: 'orders_status' },
+                { fieldMapping, itemsMap },
+            ),
+        ).toThrow('"orders_status" is not bound to "value" on this chart.');
+    });
 });
