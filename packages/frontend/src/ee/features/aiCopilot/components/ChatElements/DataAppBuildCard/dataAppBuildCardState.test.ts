@@ -52,6 +52,7 @@ const app = (
     hasMore: false,
     latestReadyVersion: null,
     icon: null,
+    verification: null,
 });
 
 const loaded = (versions: ApiAppVersionSummary[], name?: string) =>

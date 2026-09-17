@@ -380,6 +380,7 @@ export class UserFavoritesModel {
                     row.latest_ready_version_number ?? null,
                 pinnedListUuid: row.pinned_list_uuid ?? null,
                 pinnedListOrder: row.pinned_list_order ?? null,
+                verification: null,
             },
         }));
     }

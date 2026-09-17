@@ -39,9 +39,15 @@ export type VerifiedDashboardListItem = VerifiedContentListItemBase & {
     slug: string;
 };
 
+export type VerifiedDataAppListItem = VerifiedContentListItemBase & {
+    contentType: ContentType.DATA_APP;
+    slug: string;
+};
+
 export type VerifiedContentListItem =
     | VerifiedChartListItem
-    | VerifiedDashboardListItem;
+    | VerifiedDashboardListItem
+    | VerifiedDataAppListItem;
 
 export type ApiContentVerificationResponse = {
     status: 'ok';

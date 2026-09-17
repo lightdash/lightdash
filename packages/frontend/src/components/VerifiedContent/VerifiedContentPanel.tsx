@@ -1,4 +1,8 @@
-import { ContentType, type VerifiedContentListItem } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ContentType,
+    type VerifiedContentListItem,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -12,6 +16,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
+    IconAppWindow,
     IconCircleX,
     IconDots,
     IconLayoutDashboard,
@@ -21,6 +26,7 @@ import { Link } from 'react-router';
 import {
     useUnverifyChartMutation,
     useUnverifyDashboardMutation,
+    useUnverifyDataAppMutation,
 } from '../../hooks/useContentVerification';
 import { useVerifiedContentList } from '../../hooks/useVerifiedContentList';
 import {
@@ -39,6 +45,34 @@ type Props = {
     projectUuid: string;
 };
 
+const getItemPresentation = (
+    projectUuid: string,
+    item: VerifiedContentListItem,
+) => {
+    switch (item.contentType) {
+        case ContentType.CHART:
+            return {
+                href: `/projects/${projectUuid}/saved/${item.slug}`,
+                typeLabel: 'Chart',
+                typeIcon: getChartIcon(item.chartKind),
+            };
+        case ContentType.DASHBOARD:
+            return {
+                href: `/projects/${projectUuid}/dashboards/${item.slug}`,
+                typeLabel: 'Dashboard',
+                typeIcon: IconLayoutDashboard,
+            };
+        case ContentType.DATA_APP:
+            return {
+                href: `/projects/${projectUuid}/apps/${item.contentUuid}/view`,
+                typeLabel: 'Data app',
+                typeIcon: IconAppWindow,
+            };
+        default:
+            return assertUnreachable(item, 'Unknown verified content type');
+    }
+};
+
 const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
     const theme = useMantineTheme();
     const { data: verifiedContent, isLoading } =
@@ -54,6 +88,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
 
     const { mutate: unverifyChart } = useUnverifyChartMutation();
     const { mutate: unverifyDashboard } = useUnverifyDashboardMutation();
+    const { mutate: unverifyDataApp } = useUnverifyDataAppMutation();
 
     const handleUnverify = useCallback(
         (item: VerifiedContentListItem) => {
@@ -67,12 +102,24 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
         if (!itemToUnverify) return;
         if (itemToUnverify.contentType === ContentType.CHART) {
             unverifyChart(itemToUnverify.contentUuid);
-        } else {
+        } else if (itemToUnverify.contentType === ContentType.DASHBOARD) {
             unverifyDashboard(itemToUnverify.contentUuid);
+        } else {
+            unverifyDataApp({
+                projectUuid,
+                appUuid: itemToUnverify.contentUuid,
+            });
         }
         closeUnverifyModal();
         setItemToUnverify(null);
-    }, [itemToUnverify, closeUnverifyModal, unverifyChart, unverifyDashboard]);
+    }, [
+        itemToUnverify,
+        closeUnverifyModal,
+        unverifyChart,
+        unverifyDashboard,
+        unverifyDataApp,
+        projectUuid,
+    ]);
 
     const items = useMemo(() => verifiedContent ?? [], [verifiedContent]);
 
@@ -86,14 +133,10 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 minSize: 160,
                 Cell: ({ row }) => {
                     const item = row.original;
-                    const isChart = item.contentType === ContentType.CHART;
-                    const href = isChart
-                        ? `/projects/${projectUuid}/saved/${item.slug}`
-                        : `/projects/${projectUuid}/dashboards/${item.slug}`;
-                    const typeLabel = isChart ? 'Chart' : 'Dashboard';
-                    const typeIcon = isChart
-                        ? getChartIcon(item.chartKind)
-                        : IconLayoutDashboard;
+                    const { href, typeLabel, typeIcon } = getItemPresentation(
+                        projectUuid,
+                        item,
+                    );
 
                     return (
                         <Group
@@ -267,7 +310,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
             <SettingsEmptyState
                 icon={IconCircleX}
                 title="No verified content"
-                description="Charts and dashboards that are verified will appear here."
+                description="Charts, dashboards, and data apps that are verified will appear here."
             />
         );
     }

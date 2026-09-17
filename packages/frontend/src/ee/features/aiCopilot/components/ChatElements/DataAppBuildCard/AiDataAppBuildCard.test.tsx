@@ -113,6 +113,7 @@ const app = (
     latestReadyVersion:
         versions.find((v) => v.status === 'ready')?.version ?? null,
     icon: null,
+    verification: null,
 });
 
 const pending: ToolGenerateDataAppOutput['metadata'] = {

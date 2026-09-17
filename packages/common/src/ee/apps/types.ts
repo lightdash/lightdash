@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { type ReadyQueryResultsPage } from '../../types/api';
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
+import { type ContentVerificationInfo } from '../../types/contentVerification';
 import {
     type DashboardConfig,
     type DashboardTab,
@@ -534,6 +535,7 @@ export type ApiGetAppResponse = ApiSuccess<{
     // Curated Tabler icon name of a custom chart type; null for other apps
     // and for chart types with no icon chosen.
     icon: ChartTypeIcon | null;
+    verification: ContentVerificationInfo | null;
 }>;
 
 export type ApiUpdateAppRequest = {

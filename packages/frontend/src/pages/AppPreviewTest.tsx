@@ -27,7 +27,7 @@ import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewToken
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppInspector } from '../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
-import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
+import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { useProjectUuid } from '../hooks/useProjectUuid';
@@ -61,15 +61,17 @@ export default function AppPreviewTest() {
     const appCreatedByUserUuid = firstPage?.createdByUserUuid ?? null;
     const appSlug = firstPage?.slug ?? null;
     const appViews = firstPage?.views ?? null;
+    const appVerification = firstPage?.verification ?? null;
     // Latest build activity stands in for "last modified" — apps have no
     // updated-at of their own.
     const newestVersion = firstPage?.versions[0];
     const appLastModified = newestVersion
         ? (newestVersion.statusUpdatedAt ?? newestVersion.createdAt)
         : null;
-    const canEditApp = useCanEditDataApp(projectUuid, {
+    const canEditApp = useCanEditVerifiedDataApp(projectUuid, {
         spaceUuid: appSpaceUuid,
         createdByUserUuid: appCreatedByUserUuid,
+        verification: appVerification,
     });
 
     const version = explicitVersion ?? latestReadyVersion;
@@ -332,6 +334,7 @@ export default function AppPreviewTest() {
                         lastModified: appLastModified,
                         views: appViews,
                         slug: appSlug,
+                        verification: appVerification,
                     }}
                     rightSection={
                         <AppHeaderActions
@@ -393,6 +396,7 @@ export default function AppPreviewTest() {
                             appDescription={appDescription}
                             appSpaceUuid={appSpaceUuid}
                             appCreatedByUserUuid={appCreatedByUserUuid}
+                            verification={appVerification}
                             latestVersionNumber={latestReadyVersion ?? null}
                             latestVersionStatus={
                                 latestReadyVersion ? 'ready' : null

@@ -8,6 +8,7 @@ import {
     AppsTableName,
     AppVersionsTableName,
 } from '../../../database/entities/apps';
+import { ContentVerificationTableName } from '../../../database/entities/contentVerification';
 import { OrganizationTableName } from '../../../database/entities/organizations';
 import { PinnedAppTableName } from '../../../database/entities/pinnedList';
 import { ProjectTableName } from '../../../database/entities/projects';
@@ -120,6 +121,25 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     `${PinnedAppTableName}.app_uuid`,
                     `${AppsTableName}.app_id`,
                 )
+                .leftJoin(
+                    ContentVerificationTableName,
+                    function verificationJoin() {
+                        this.on(
+                            `${ContentVerificationTableName}.content_uuid`,
+                            '=',
+                            `${AppsTableName}.app_id`,
+                        ).andOn(
+                            `${ContentVerificationTableName}.content_type`,
+                            '=',
+                            knex.raw('?', [ContentType.DATA_APP]),
+                        );
+                    },
+                )
+                .leftJoin(
+                    `${UserTableName} as verified_by_user`,
+                    `verified_by_user.user_uuid`,
+                    `${ContentVerificationTableName}.verified_by_user_uuid`,
+                )
                 .select<SummaryContentRow[]>([
                     knex.raw(`'${ContentType.DATA_APP}' as content_type`),
                     knex.raw(
@@ -167,10 +187,10 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     knex.raw(
                         `(SELECT last_name FROM users WHERE user_uuid = ${AppsTableName}.deleted_by_user_uuid) as deleted_by_user_last_name`,
                     ),
-                    knex.raw(`null::timestamp as verified_at`),
-                    knex.raw(`null::uuid as verified_by_user_uuid`),
-                    knex.raw(`null as verified_by_user_first_name`),
-                    knex.raw(`null as verified_by_user_last_name`),
+                    `${ContentVerificationTableName}.verified_at as verified_at`,
+                    `verified_by_user.user_uuid as verified_by_user_uuid`,
+                    `verified_by_user.first_name as verified_by_user_first_name`,
+                    `verified_by_user.last_name as verified_by_user_last_name`,
                     knex.raw(`null::uuid as owner_user_uuid`),
                     knex.raw(`null as owner_user_first_name`),
                     knex.raw(`null as owner_user_last_name`),
@@ -335,7 +355,20 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                 views: value.views,
                 firstViewedAt: value.first_viewed_at,
                 lastViewedAt: value.last_viewed_at,
-                verification: null,
+                verification:
+                    value.verified_at !== null &&
+                    value.verified_by_user_uuid !== null &&
+                    value.verified_by_user_first_name !== null &&
+                    value.verified_by_user_last_name !== null
+                        ? {
+                              verifiedBy: {
+                                  userUuid: value.verified_by_user_uuid,
+                                  firstName: value.verified_by_user_first_name,
+                                  lastName: value.verified_by_user_last_name,
+                              },
+                              verifiedAt: value.verified_at,
+                          }
+                        : null,
                 latestVersionNumber:
                     (value.metadata.latestVersionNumber as number | null) ??
                     null,

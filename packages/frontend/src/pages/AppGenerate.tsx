@@ -115,6 +115,7 @@ import {
     useBuildNotification,
 } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
+import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useCaptureThumbnail } from '../features/apps/hooks/useCaptureThumbnail';
 import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
 import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
@@ -724,6 +725,14 @@ const AppGenerate: FC = () => {
     const appPersistedTemplate = appData?.pages?.[0]?.template ?? null;
     const appSlug = appData?.pages?.[0]?.slug ?? null;
     const appViews = appData?.pages?.[0]?.views ?? null;
+    const appVerification = appData?.pages?.[0]?.verification ?? null;
+    const canEditVerifiedApp = useCanEditVerifiedDataApp(projectUuid, {
+        spaceUuid: appSpaceUuid,
+        createdByUserUuid: appCreatedByUserUuid,
+        verification: appVerification,
+    });
+    // The backend refuses iterations on a verified app the user cannot edit.
+    const isVerifiedLocked = appVerification !== null && !canEditVerifiedApp;
     // Latest build activity stands in for "last modified" — apps have no
     // updated-at of their own.
     const appNewestVersion = appData?.pages?.[0]?.versions[0];
@@ -2571,12 +2580,18 @@ const AppGenerate: FC = () => {
                                     <PromptComposer
                                         ref={promptEditorRef}
                                         size={compact ? 'sm' : 'md'}
-                                        placeholder="Describe the app you want to build..."
+                                        placeholder={
+                                            isVerifiedLocked
+                                                ? 'This app is verified. Ask an admin to unverify it before editing.'
+                                                : 'Describe the app you want to build...'
+                                        }
                                         autoFocus
                                         // Editable while the agent works so the next prompt
                                         // can be drafted; disabled only during the
                                         // client-side submit, where clear() would wipe text.
-                                        disabled={isSubmitting}
+                                        disabled={
+                                            isSubmitting || isVerifiedLocked
+                                        }
                                         submitDisabled={isLoading}
                                         onEmptyChange={setIsPromptEmpty}
                                         onSubmit={() => void handleSubmit()}
@@ -3050,6 +3065,7 @@ const AppGenerate: FC = () => {
                                         lastModified: appLastModified,
                                         views: appViews,
                                         slug: appSlug,
+                                        verification: appVerification,
                                     }}
                                     rightSection={
                                         <AppHeaderActions
@@ -3072,6 +3088,7 @@ const AppGenerate: FC = () => {
                                             appCreatedByUserUuid={
                                                 appCreatedByUserUuid
                                             }
+                                            verification={appVerification}
                                             latestVersionNumber={
                                                 latestReadyVersion?.version ??
                                                 null

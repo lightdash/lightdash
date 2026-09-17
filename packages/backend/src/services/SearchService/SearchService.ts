@@ -148,7 +148,6 @@ export class SearchService extends BaseService {
                     ...opts,
                 }),
             ),
-            // Data Apps have no verification state, so verifiedOnly does not apply.
             this.appGenerateService
                 ? this.appGenerateService
                       .dataAppsEnabledFor(user)
@@ -158,7 +157,10 @@ export class SearchService extends BaseService {
                                     projectUuid,
                                     query,
                                     undefined,
-                                    { fullTextSearchOperator: 'OR' },
+                                    {
+                                        fullTextSearchOperator: 'OR',
+                                        verifiedOnly,
+                                    },
                                 )
                               : [],
                       )

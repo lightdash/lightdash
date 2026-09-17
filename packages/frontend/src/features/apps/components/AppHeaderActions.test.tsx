@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultAbility } from '../../../providers/Ability/constants';
 import { renderWithProviders } from '../../../testing/testUtils';
-import { useCanEditDataApp } from '../hooks/useCanEditDataApp';
+import { useCanEditVerifiedDataApp } from '../hooks/useCanEditDataApp';
 import AppHeaderActions from './AppHeaderActions';
 
 vi.mock('react-router', () => ({
@@ -12,6 +12,7 @@ vi.mock('react-router', () => ({
 }));
 vi.mock('../hooks/useCanEditDataApp', () => ({
     useCanEditDataApp: vi.fn(),
+    useCanEditVerifiedDataApp: vi.fn(),
 }));
 vi.mock('../hooks/useCanCreateDataApp', () => ({
     useCanCreateDataApp: vi.fn(() => false),
@@ -41,7 +42,7 @@ vi.mock('../../sync/components', () => ({
     AppSyncModal: () => null,
 }));
 
-const mockedCanEdit = vi.mocked(useCanEditDataApp);
+const mockedCanEdit = vi.mocked(useCanEditVerifiedDataApp);
 
 // Matches AppProviderMock's default user fixture (mockUserResponse) —
 // hardcoded rather than imported to avoid pulling in a __mocks__ file.
@@ -102,6 +103,7 @@ const baseProps = {
     appDescription: null,
     appSpaceUuid: null,
     appCreatedByUserUuid: null,
+    verification: null,
     latestVersionNumber: 1,
     latestVersionStatus: 'ready' as const,
     onRefresh: vi.fn(),

@@ -272,6 +272,11 @@ function buildService(overrides: {
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
         chartRegistryClient: fullChartRegistryClient as never,
+        contentVerificationModel: {
+            getByContent: async () => null,
+            verify: async () => undefined,
+            unverify: async () => undefined,
+        } as never,
         sandboxManager: null,
         appRuntimeS3: null,
     });

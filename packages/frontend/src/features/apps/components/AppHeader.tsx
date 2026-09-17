@@ -2,9 +2,10 @@ import {
     ContentType,
     getAppDisplayName,
     type AppVersionStatus,
+    type ContentVerificationInfo,
 } from '@lightdash/common';
-import { ActionIcon, Group, Popover, Title } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { ActionIcon, Group, Popover, Title, Tooltip } from '@mantine/core';
+import { IconCircleCheckFilled, IconInfoCircle } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { FavoriteActionIcon } from '../../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -28,6 +29,7 @@ type AppHeaderApp = {
     lastModified: Date | null;
     views: number | null;
     slug: string | null;
+    verification: ContentVerificationInfo | null;
 };
 
 type Props = {
@@ -118,6 +120,17 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                         />
                     </Popover.Dropdown>
                 </Popover>
+
+                {app.verification && (
+                    <Tooltip
+                        label={`Verified by ${app.verification.verifiedBy.firstName} ${app.verification.verifiedBy.lastName}`}
+                    >
+                        <IconCircleCheckFilled
+                            size={16}
+                            color="var(--mantine-color-green-6)"
+                        />
+                    </Tooltip>
+                )}
 
                 <FavoriteActionIcon
                     size="md"

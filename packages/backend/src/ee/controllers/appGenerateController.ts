@@ -9,6 +9,8 @@ import {
     type ApiCancelAppVersionResponse,
     type ApiClarifyAppRequest,
     type ApiClarifyAppResponse,
+    type ApiContentVerificationDeleteResponse,
+    type ApiContentVerificationResponse,
     type ApiCreateAppSchedulerResponse,
     type ApiDataAppActivityResponse,
     type ApiDataAppVizDeleteImpactResponse,
@@ -829,6 +831,65 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * Verify a data app
+     * @summary Verify data app
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/verification')
+    @OperationId('verifyDataApp')
+    async verifyDataApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: UUID,
+    ): Promise<ApiContentVerificationResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAppGenerateService().verifyDataApp(
+                toSessionUser(req.account),
+                projectUuid,
+                appUuid,
+            ),
+        };
+    }
+
+    /**
+     * Remove verification from a data app
+     * @summary Unverify data app
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{appUuid}/verification')
+    @OperationId('unverifyDataApp')
+    async unverifyDataApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: UUID,
+    ): Promise<ApiContentVerificationDeleteResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.getAppGenerateService().unverifyDataApp(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

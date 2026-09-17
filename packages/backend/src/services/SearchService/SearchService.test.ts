@@ -82,7 +82,7 @@ describe('SearchService.findContent', () => {
             projectUuid,
             'forecast revenue',
             undefined,
-            { fullTextSearchOperator: 'OR' },
+            { fullTextSearchOperator: 'OR', verifiedOnly: true },
         );
         expect(searchModel.searchDashboards).toHaveBeenCalledWith(
             projectUuid,

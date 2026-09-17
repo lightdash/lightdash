@@ -171,6 +171,11 @@ const buildService = (role: SpaceMemberRole) => {
         sandboxManager: null,
         appRuntimeS3: null,
         chartRegistryClient: {} as never,
+        contentVerificationModel: {
+            getByContent: async () => null,
+            verify: async () => undefined,
+            unverify: async () => undefined,
+        } as never,
     });
     return { appModel, service, spacePermissionService, userModel };
 };

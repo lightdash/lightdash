@@ -180,6 +180,7 @@ const appMeta = (overrides: Partial<AppMeta> = {}): AppMeta =>
         latestReadyVersion: 1,
         registrySlug: null,
         icon: null,
+        verification: null,
         ...overrides,
     }) as AppMeta;
 

@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     ChartKind,
     ResourceViewItemType,
+    type ContentVerificationInfo,
     type ResourceViewItem,
 } from '@lightdash/common';
 import {
@@ -13,6 +14,7 @@ import {
 } from '@mantine/core';
 import {
     IconAppWindow,
+    IconCircleCheckFilled,
     IconFolder,
     IconFileText,
     IconLayoutDashboard,
@@ -169,5 +171,34 @@ export const ResourceIndicator: FC<
         >
             {children}
         </Indicator>
+    );
+};
+
+/** The resource icon, wrapped in a verified badge when the content is verified. */
+export const VerifiedResourceIcon: FC<{
+    item: ResourceViewItem;
+    verification: ContentVerificationInfo | null;
+}> = ({ item, verification }) => {
+    if (!verification) return <ResourceIcon item={item} />;
+    return (
+        <ResourceIndicator
+            iconProps={{ icon: IconCircleCheckFilled, color: 'green.6' }}
+            tooltipProps={{
+                maw: 300,
+                withinPortal: true,
+                multiline: true,
+                offset: -2,
+                position: 'bottom',
+            }}
+            tooltipLabel={
+                <>
+                    Verified by {verification.verifiedBy.firstName}{' '}
+                    {verification.verifiedBy.lastName} on{' '}
+                    {new Date(verification.verifiedAt).toLocaleDateString()}
+                </>
+            }
+        >
+            <ResourceIcon item={item} />
+        </ResourceIndicator>
     );
 };
