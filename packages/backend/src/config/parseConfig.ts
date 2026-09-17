@@ -1723,6 +1723,7 @@ export type LightdashConfig = {
         pollInterval: number;
         jobTimeout: number;
         screenshotTimeout?: number;
+        shutdownTimeout: number;
         tasks: Array<SchedulerTaskName>;
         quiesce: {
             pollInterval: number;
@@ -2499,6 +2500,9 @@ export type PostmarkConfig = {
 };
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
+// Must stay below the orchestrator's termination grace period (helm: 90s)
+// so the fail_job fallback runs before SIGKILL.
+const DEFAULT_SCHEDULER_SHUTDOWN_TIMEOUT = 1000 * 60; // 1 minute
 
 // The official chart type registry (lightdash/lightdash-library, GitHub Pages).
 const DEFAULT_CHART_REGISTRY_URL: string | null =
@@ -3589,6 +3593,10 @@ export const parseConfig = (): LightdashConfig => {
             screenshotTimeout: process.env.SCHEDULER_SCREENSHOT_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
+            shutdownTimeout:
+                getIntegerFromEnvironmentVariable(
+                    'SCHEDULER_SHUTDOWN_TIMEOUT',
+                ) ?? DEFAULT_SCHEDULER_SHUTDOWN_TIMEOUT,
             tasks: parseAndSanitizeSchedulerTasks(),
             quiesce: {
                 pollInterval:

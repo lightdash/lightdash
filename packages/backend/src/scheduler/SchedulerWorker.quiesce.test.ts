@@ -31,6 +31,7 @@ const makeConfig = (): LightdashConfig =>
             concurrency: 3,
             pollInterval: 1_000,
             jobTimeout: 60_000,
+            shutdownTimeout: 1_000,
             quiesce: {
                 pollInterval: 10,
                 gracePeriod: 100,

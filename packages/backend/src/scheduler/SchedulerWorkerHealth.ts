@@ -126,6 +126,10 @@ export class SchedulerWorkerHealth {
     // probe reports unhealthy until the process is replaced. Returns true only
     // on the first call so callers can gate side effects; the LISTEN retry loop
     // re-raises the same error every ~100ms and must not re-trigger them.
+    isPoolDead(): boolean {
+        return this.poolDeadAt !== null;
+    }
+
     markPoolDead(reason: string): boolean {
         if (this.poolDeadAt !== null) {
             return false;

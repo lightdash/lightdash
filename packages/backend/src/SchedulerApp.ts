@@ -55,9 +55,10 @@ const FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS = 15 * 60 * 1000;
 // Delay between the pool-dead latch firing and the fallback process.exit(1).
 // The PRIMARY restart path is the liveness probe: the latch flips
 // /api/v1/health to 503 immediately, the orchestrator SIGTERMs the pod, and
-// terminus runs worker.stop() so graphile fail_job-releases any in-flight
-// jobs for immediate retry (relevant when a single worker died while
-// siblings still process — the latch also fires there). The hard exit only
+// terminus runs worker.stop(), which skips the drain on a dead pool and
+// graphile fail_job-releases any in-flight jobs for immediate retry
+// (relevant when a single worker died while siblings still process — the
+// latch also fires there). The hard exit only
 // covers deployments with no liveness probe. It must stay comfortably above
 // the helm chart's scheduler liveness window (~305s: failureThreshold 20 x
 // periodSeconds 15) so the probe path, which shuts down cleanly, always wins
