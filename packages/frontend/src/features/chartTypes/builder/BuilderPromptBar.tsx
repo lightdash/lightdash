@@ -4,7 +4,6 @@ import {
     Anchor,
     Box,
     Button,
-    Checkbox,
     Pill,
     Stack,
     Group,
@@ -46,6 +45,7 @@ import {
 import AppVersionNarration from '../../apps/components/AppVersionNarration';
 import { ElementPickerButton } from '../../apps/components/ElementPickerButton';
 import { ElementRefPill } from '../../apps/components/ElementRefPill';
+import { SampleDataButton } from '../../apps/components/SampleDataButton';
 import { type ClarificationRound } from '../../apps/hooks/useClarificationRound';
 import { type DataAppModelSelection } from '../../apps/hooks/useDataAppModelSelection';
 import { type UseElementPickerResult } from '../../apps/hooks/useElementPicker';
@@ -738,7 +738,11 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     onSubmit={handleSubmit}
                     onPaste={handlePaste}
                     toolbarLeft={
-                        <Group gap="xs" wrap="nowrap" miw={0}>
+                        <Group
+                            gap="calc(var(--mantine-spacing-xs) / 2)"
+                            wrap="nowrap"
+                            miw={0}
+                        >
                             <ChartTypeComposerActions
                                 panel={composerPanel}
                                 onPanelChange={setComposerPanel}
@@ -759,6 +763,47 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     hasVersions ? composerAppUuid : null
                                 }
                             />
+                            {elementPicker?.available && (
+                                <ElementPickerButton
+                                    enabled={elementPicker.enabled}
+                                    onToggle={elementPicker.toggle}
+                                    disabled={isComposerLocked}
+                                />
+                            )}
+                            {onCaptureScreenshot && (
+                                <Tooltip label="Attach screenshot of current render">
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        radius="xl"
+                                        aria-label="Attach screenshot"
+                                        onClick={() =>
+                                            void handleCaptureScreenshot()
+                                        }
+                                        disabled={
+                                            isComposerLocked ||
+                                            isCapturingScreenshot
+                                        }
+                                        loading={isCapturingScreenshot}
+                                    >
+                                        <MantineIcon
+                                            icon={IconCamera}
+                                            size={16}
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                            {sampleDataEnabled && (
+                                <SampleDataButton
+                                    enabled={includeSampleData}
+                                    onToggle={() =>
+                                        setIncludeSampleData(
+                                            (enabled) => !enabled,
+                                        )
+                                    }
+                                    disabled={isComposerLocked}
+                                />
+                            )}
                             <Box
                                 className={classes.contextTray}
                                 role="group"
@@ -937,47 +982,6 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 visibleModels={modelSelection.visibleModels}
                                 codingAgent={modelSelection.codingAgent}
                             />
-                            {elementPicker?.available && (
-                                <ElementPickerButton
-                                    enabled={elementPicker.enabled}
-                                    onToggle={elementPicker.toggle}
-                                    disabled={isComposerLocked}
-                                />
-                            )}
-                            {onCaptureScreenshot && (
-                                <Tooltip label="Attach screenshot of current render">
-                                    <ActionIcon
-                                        variant="subtle"
-                                        aria-label="Attach screenshot"
-                                        onClick={() =>
-                                            void handleCaptureScreenshot()
-                                        }
-                                        disabled={
-                                            isComposerLocked ||
-                                            isCapturingScreenshot
-                                        }
-                                        loading={isCapturingScreenshot}
-                                    >
-                                        <MantineIcon
-                                            icon={IconCamera}
-                                            size={16}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                            {sampleDataEnabled && (
-                                <Checkbox
-                                    size="xs"
-                                    label="Include sample data"
-                                    checked={includeSampleData}
-                                    onChange={(event) =>
-                                        setIncludeSampleData(
-                                            event.currentTarget.checked,
-                                        )
-                                    }
-                                    disabled={isComposerLocked}
-                                />
-                            )}
                             {isBuilding && isEmpty ? (
                                 <ComposerSubmitButton
                                     icon={IconPlayerStop}

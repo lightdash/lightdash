@@ -349,9 +349,16 @@ describe('BuilderPromptBar', () => {
             'sampleRows',
         );
 
-        await userEvent.click(
-            screen.getByRole('checkbox', { name: 'Include sample data' }),
-        );
+        const sampleDataButton = screen.getByRole('button', {
+            name: 'Include sample data',
+        });
+        expect(sampleDataButton).toHaveAttribute('aria-pressed', 'false');
+        await userEvent.click(sampleDataButton);
+        expect(sampleDataButton).toHaveAttribute('aria-pressed', 'true');
+        await userEvent.keyboard(' ');
+        expect(sampleDataButton).toHaveAttribute('aria-pressed', 'false');
+        await userEvent.keyboard(' ');
+        expect(sampleDataButton).toHaveAttribute('aria-pressed', 'true');
         await userEvent.type(
             screen.getByPlaceholderText('Ask for a change…'),
             'Second',
@@ -361,8 +368,8 @@ describe('BuilderPromptBar', () => {
             sampleRows.slice(0, 10),
         );
         expect(
-            screen.getByRole('checkbox', { name: 'Include sample data' }),
-        ).not.toBeChecked();
+            screen.getByRole('button', { name: 'Include sample data' }),
+        ).toHaveAttribute('aria-pressed', 'false');
 
         await userEvent.type(
             screen.getByPlaceholderText('Ask for a change…'),
@@ -390,7 +397,7 @@ describe('BuilderPromptBar', () => {
 
         await waitFor(() =>
             expect(
-                screen.queryByRole('checkbox', {
+                screen.queryByRole('button', {
                     name: 'Include sample data',
                 }),
             ).not.toBeInTheDocument(),
@@ -991,7 +998,7 @@ describe('BuilderPromptBar', () => {
         );
 
         await userEvent.click(
-            screen.getByRole('checkbox', { name: 'Include sample data' }),
+            screen.getByRole('button', { name: 'Include sample data' }),
         );
         await userEvent.type(
             screen.getByPlaceholderText('Ask for another change…'),

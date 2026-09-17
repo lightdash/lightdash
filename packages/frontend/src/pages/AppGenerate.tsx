@@ -18,7 +18,6 @@ import {
     Badge,
     Box,
     Button,
-    Checkbox,
     Divider,
     Group,
     Image,
@@ -107,6 +106,7 @@ import { ElementRefPill } from '../features/apps/components/ElementRefPill';
 import LoadingDots from '../features/apps/components/LoadingDots';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
 import { RestoreAppVersionModal } from '../features/apps/components/RestoreAppVersionModal';
+import { SampleDataButton } from '../features/apps/components/SampleDataButton';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -2565,31 +2565,6 @@ const AppGenerate: FC = () => {
 
                         {!isViewingOlderVersion && (
                             <Box className={classes.chatInputArea}>
-                                {showVizSampleConsent && (
-                                    <Checkbox
-                                        size="xs"
-                                        pb="xs"
-                                        label="Include sample data from current test results"
-                                        checked={includeTestVizSampleData}
-                                        onChange={(event) =>
-                                            setSampleDataConsent(
-                                                event.currentTarget.checked &&
-                                                    testVizContext
-                                                    ? {
-                                                          context:
-                                                              testVizContext,
-                                                          appUuid:
-                                                              activeAppUuid ??
-                                                              null,
-                                                          version:
-                                                              previewApp?.version ??
-                                                              null,
-                                                      }
-                                                    : null,
-                                            )
-                                        }
-                                    />
-                                )}
                                 {/* No `accept` — any text-based file is
                                     allowed regardless of extension; validation
                                     happens in handleFileAttach. */}
@@ -2959,6 +2934,31 @@ const AppGenerate: FC = () => {
                                                         }
                                                         onToggle={
                                                             elementPicker.toggle
+                                                        }
+                                                    />
+                                                )}
+                                                {showVizSampleConsent && (
+                                                    <SampleDataButton
+                                                        enabled={
+                                                            includeTestVizSampleData
+                                                        }
+                                                        disabled={isSubmitting}
+                                                        onToggle={() =>
+                                                            setSampleDataConsent(
+                                                                !includeTestVizSampleData &&
+                                                                    testVizContext
+                                                                    ? {
+                                                                          context:
+                                                                              testVizContext,
+                                                                          appUuid:
+                                                                              activeAppUuid ??
+                                                                              null,
+                                                                          version:
+                                                                              previewApp?.version ??
+                                                                              null,
+                                                                      }
+                                                                    : null,
+                                                            )
                                                         }
                                                     />
                                                 )}
