@@ -1,3 +1,11 @@
+## [2.245.1](https://github.com/lightdash/lightdash/compare/2.245.0...2.245.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* **data-apps:** abort timed-out investigations ([#29343](https://github.com/lightdash/lightdash/issues/29343)) ([9e54d56](https://github.com/lightdash/lightdash/commit/9e54d5695ecd03624cd44235fb3b4b188165b0f9))
+* **data-apps:** assess each analysis source on its own and drop largest-share findings ([#29366](https://github.com/lightdash/lightdash/issues/29366)) ([a281d77](https://github.com/lightdash/lightdash/commit/a281d778868234b1f61749533f4e65ba3960c6fc))
+
 # [2.245.0](https://github.com/lightdash/lightdash/compare/2.244.0...2.245.0) (2026-09-17)
 
 
