@@ -165,14 +165,15 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
             },
             {
                 id: 'actions',
-                header: 'Actions',
+                header: '',
                 enableSorting: false,
-                size: 72,
-                minSize: 56,
+                size: 56,
+                minSize: 48,
                 Cell: ({ row }) => (
                     <Menu position="bottom-end">
                         <Menu.Target>
                             <ActionIcon
+                                aria-label="Open actions"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                 }}
