@@ -252,7 +252,11 @@ const VisualizationCard: FC<Props> = memo((props) => {
     );
 
     const apiErrorDetail = useMemo(() => {
-        const queryError = query.error?.error ?? queryResults.error?.error;
+        // Once a merge owns the screen, the Explorer's own query is idle and
+        // any error it still holds is stale.
+        const queryError = merge?.replacesQuery
+            ? undefined
+            : (query.error?.error ?? queryResults.error?.error);
 
         if (merge?.runError) return merge.runError.error;
         if (merge?.runErrors.length) {
@@ -281,6 +285,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
         missingRequiredParameters,
         merge?.runError,
         merge?.runErrors,
+        merge?.replacesQuery,
     ]);
 
     const dirtyPivotConfiguration = useDirtyPivotConfiguration();

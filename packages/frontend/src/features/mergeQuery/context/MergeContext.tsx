@@ -509,6 +509,12 @@ export const MergeProvider: FC<
             unpivotedRunError: runState.unpivotedError,
             parameterReferences: runState.parameterReferences,
             mergeResults,
+            replacesQuery:
+                (restored !== null && !restoredRunRefused) ||
+                runState.isRunning ||
+                runState.started !== null ||
+                runState.error !== null ||
+                runState.errors.length > 0,
             focus,
             additionalSources,
             joinParts,
@@ -533,6 +539,7 @@ export const MergeProvider: FC<
             run,
             getDownloadQueryUuid,
             runState.isRunning,
+            runState.started,
             runState.errors,
             runState.error,
             runState.unpivotedErrors,

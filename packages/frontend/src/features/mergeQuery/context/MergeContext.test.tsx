@@ -162,6 +162,53 @@ describe('MergeProvider', () => {
         expect(executeMergeQuery).not.toHaveBeenCalled();
     });
 
+    it('keeps replacing the Explorer query through a re-run and a refusal, until the merge is removed', async () => {
+        executeMergeQuery.mockResolvedValueOnce(startedResult('first'));
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        expect(result.current.replacesQuery).toBe(false);
+
+        act(() => result.current.run(mergeQuery));
+        await waitFor(() =>
+            expect(result.current.mergeResults?.queryUuid).toBe('first'),
+        );
+        expect(result.current.replacesQuery).toBe(true);
+
+        // A re-run clears the results while it waits; the Explorer's own
+        // query must not wake up in the gap, its sorts may name merged fields
+        let resolveRerun: (
+            value: ApiExecuteAsyncMergeQueryResults,
+        ) => void = () => {};
+        executeMergeQuery.mockReturnValueOnce(
+            new Promise<ApiExecuteAsyncMergeQueryResults>((resolve) => {
+                resolveRerun = resolve;
+            }),
+        );
+        act(() => result.current.run(mergeQuery));
+        expect(result.current.mergeResults).toBeNull();
+        expect(result.current.replacesQuery).toBe(true);
+
+        await act(async () => {
+            resolveRerun({
+                outcome: 'refused',
+                errors: [
+                    {
+                        kind: MergeQueryErrorKind.FAN_OUT,
+                        sourceId: 'b',
+                        fieldIds: [],
+                        message: 'Fan-out',
+                    },
+                ],
+                parameterReferences: [],
+                fieldOrigins: {},
+            });
+        });
+        await waitFor(() => expect(result.current.runErrors).toHaveLength(1));
+        expect(result.current.replacesQuery).toBe(true);
+
+        act(() => result.current.removeSource('b'));
+        expect(result.current.replacesQuery).toBe(false);
+    });
+
     it('publishes join type changes immediately', () => {
         const { result } = renderHook(() => useMerge(), { wrapper });
 
