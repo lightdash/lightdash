@@ -201,6 +201,52 @@ describe('MergeJoinBar', () => {
         );
     });
 
+    it('says when a source contributes no values to a complete result', () => {
+        state.merge.mergeResults = {
+            results: {
+                rows: [
+                    {
+                        merge_join_key_0: {
+                            value: { raw: 'c1', formatted: 'c1' },
+                        },
+                        a_orders_total: { value: { raw: 10, formatted: '10' } },
+                        b_customers_count: {
+                            value: { raw: null, formatted: '' },
+                        },
+                    },
+                ],
+                hasFetchedAllRows: true,
+                error: null,
+            },
+            fieldOrigins: {
+                merge_join_key_0: {
+                    kind: 'joinKey',
+                    fieldIdBySourceId: {
+                        a: 'orders_customer_id',
+                        b: 'customers_id',
+                    },
+                },
+                a_orders_total: {
+                    kind: 'source',
+                    sourceId: 'a',
+                    sourceFieldId: 'orders_total',
+                },
+                b_customers_count: {
+                    kind: 'source',
+                    sourceId: 'b',
+                    sourceFieldId: 'customers_count',
+                },
+            },
+        } as never;
+        renderWithProviders(<MergeJoinBar />);
+        expect(
+            screen.getByText(
+                "Customers's columns are blank on every row: its query returned no rows matching Orders on join fields.",
+            ),
+        ).toBeInTheDocument();
+        state.merge.mergeResults = undefined;
+    });
+
     it('shows AND between clauses and keeps remove actions visible', async () => {
         const user = userEvent.setup();
         state.setup.effectiveParts = [

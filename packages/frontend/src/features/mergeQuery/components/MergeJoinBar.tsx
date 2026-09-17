@@ -15,7 +15,7 @@ import {
     IconPlus,
     IconX,
 } from '@tabler/icons-react';
-import { useId, useState, type FC, type ReactNode } from 'react';
+import { useId, useMemo, useState, type FC, type ReactNode } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -28,6 +28,7 @@ import {
 import { EMPTY_MERGE, PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
+import { getMergeSourcesWithoutValues } from '../utils/getMergeSourcesWithoutValues';
 import styles from './MergeJoinBar.module.css';
 import { getJoinClauseLabel } from './mergeJoinLabels';
 
@@ -208,6 +209,20 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
         !readOnly &&
         !!additionalSource?.exploreName &&
         (guided || (editingOverride ?? isIncomplete));
+
+    // A side that contributed nothing reads as a mistake unless the card
+    // says so; judged only once every row is on screen.
+    const sourcesWithoutValues = useMemo(
+        () =>
+            mergeResults
+                ? getMergeSourcesWithoutValues({
+                      rows: mergeResults.results.rows,
+                      fieldOrigins: mergeResults.fieldOrigins,
+                      complete: mergeResults.results.hasFetchedAllRows,
+                  })
+                : [],
+        [mergeResults],
+    );
 
     if (!mergeContext || !tableName || mergeFlag?.enabled !== true) return null;
     if (!isMerging) return null;
@@ -563,6 +578,20 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                     {error.message}
                 </Note>
             ))}
+
+            {sourcesWithoutValues.map((sourceId) => {
+                const emptyLabel =
+                    sourceId === PRIMARY_SOURCE_ID ? thisQuery : otherQuery;
+                const otherLabel =
+                    sourceId === PRIMARY_SOURCE_ID ? otherQuery : thisQuery;
+                return (
+                    <Note key={`empty-${sourceId}`} tone="muted">
+                        {emptyLabel}'s columns are blank on every row: its query
+                        returned no rows matching {otherLabel} on{' '}
+                        {joinFieldLabel}.
+                    </Note>
+                );
+            })}
 
             {!isIncomplete &&
                 fanOut.map(({ sourceId, fields }) => (
