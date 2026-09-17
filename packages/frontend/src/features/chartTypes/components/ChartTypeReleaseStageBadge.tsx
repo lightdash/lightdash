@@ -15,7 +15,7 @@ const ChartTypeReleaseStageBadge: FC<{
         );
     }
     return (
-        <Badge size="xs" variant="light">
+        <Badge size="xs" variant="light" color="orange">
             Pre-release
         </Badge>
     );
