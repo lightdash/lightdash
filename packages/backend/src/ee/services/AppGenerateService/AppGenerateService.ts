@@ -307,8 +307,11 @@ import {
 } from './codexCodeEnv';
 import { CodexStreamProcessor } from './CodexStreamProcessor';
 import {
+    codingAgentRetryStart,
     codingAgentSessionFlags,
     decideCodingAgentSessionStart,
+    isCodingAgentSessionLostFailure,
+    type CodingAgentSessionHooks,
     type CodingAgentSessionStart,
 } from './codingAgentSession';
 import {
@@ -3887,6 +3890,9 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
         sessionStart: CodingAgentSessionStart,
+        // Null for follow-up turns of the same version (build fixes), whose
+        // session the generating turn already recorded.
+        sessionHooks: CodingAgentSessionHooks | null,
         claudeCodeEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
         claudeEffort: DataAppClaudeEffort,
@@ -3927,17 +3933,12 @@ export class AppGenerateService extends BaseService {
 
         const effortFlag = `--effort ${claudeEffort} `;
 
-        // `sessionStart` (see codingAgentSession.ts) says whether the thread's
-        // transcript on disk is continued or a new session is started.
-        // On retry we promote to --continue if the failed attempt
-        // produced *any* stream event — that means a session exists on
-        // disk and we want to resume rather than throw away the work
-        // Claude already did. If no event ever arrived (CLI died on
-        // startup) we keep the original flags, since --continue would
-        // just fail with "no session to resume".
+        // `session` says how the thread's agent session starts (see
+        // codingAgentSession.ts); a lost resumed session is replaced once.
         const runAttempt = async (
             attempt: number,
-            forceContinue: boolean,
+            session: CodingAgentSessionStart,
+            lostSessionId: string | null,
         ): Promise<CodingAgentGenerationResult> => {
             // Bail before spawning claude when the version is no longer in
             // progress (typically cancelled). This gates the retry and
@@ -3954,13 +3955,12 @@ export class AppGenerateService extends BaseService {
                 );
             }
             const attemptStartedAfterMs = AppGenerateService.elapsed(start);
-            const sessionFlags = codingAgentSessionFlags(
-                forceContinue ? { kind: 'continue' } : sessionStart,
-            );
+            const sessionFlags = codingAgentSessionFlags(session);
             const processor = new ClaudeStreamProcessor();
             let responseText: string | null = null;
             let structuredOutput: unknown = null;
             let sessionEstablished = false;
+            let learnedSessionId: string | null = null;
 
             const result = await sandbox.commands
                 .run(
@@ -3978,6 +3978,25 @@ export class AppGenerateService extends BaseService {
                             for (const event of processor.feedChunk(chunk)) {
                                 sessionEstablished = true;
                                 switch (event.kind) {
+                                    case 'session_started':
+                                        // Only turns without a stored id learn one.
+                                        if (
+                                            session.kind !== 'resume' &&
+                                            learnedSessionId === null
+                                        ) {
+                                            learnedSessionId = event.sessionId;
+                                            sessionHooks
+                                                ?.onSessionStarted(
+                                                    event.sessionId,
+                                                    lostSessionId,
+                                                )
+                                                .catch((error: unknown) => {
+                                                    this.logger.warn(
+                                                        `App ${appUuid}: failed to record coding agent session: ${getErrorMessage(error)}`,
+                                                    );
+                                                });
+                                        }
+                                        break;
                                     case 'thinking_started':
                                         this.logger.info(
                                             `App ${appUuid}: claude turn #${event.turn}: thinking`,
@@ -4114,6 +4133,19 @@ export class AppGenerateService extends BaseService {
                 4000,
             );
 
+            // Stored session gone from this sandbox: start a new one once and
+            // let the thread replace its id.
+            if (
+                session.kind === 'resume' &&
+                isCodingAgentSessionLostFailure(session, result)
+            ) {
+                this.logger.warn(
+                    `App ${appUuid}: coding agent session ${session.sessionId} not found in sandbox, starting a new session`,
+                );
+                sessionHooks?.onSessionLost(session.sessionId);
+                return runAttempt(attempt, { kind: 'new' }, session.sessionId);
+            }
+
             const classification = classifyClaudeCliFailure(
                 result.stderr,
                 result.stdout,
@@ -4164,10 +4196,18 @@ export class AppGenerateService extends BaseService {
                     AppGenerateService.GENERATION_RETRY_DELAY_MS,
                 );
             });
-            return runAttempt(attempt + 1, forceContinue || sessionEstablished);
+            return runAttempt(
+                attempt + 1,
+                codingAgentRetryStart({
+                    start: session,
+                    learnedSessionId,
+                    sawStreamEvent: sessionEstablished,
+                }),
+                lostSessionId,
+            );
         };
 
-        return runAttempt(1, false);
+        return runAttempt(1, sessionStart, null);
     }
 
     /**
@@ -4384,6 +4424,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
         sessionStart: CodingAgentSessionStart,
+        sessionHooks: CodingAgentSessionHooks | null,
         codingAgentEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
         reasoningEffort: DataAppClaudeEffort,
@@ -4406,6 +4447,7 @@ export class AppGenerateService extends BaseService {
             appUuid,
             version,
             sessionStart,
+            sessionHooks,
             codingAgentEnv,
             claudeModel,
             reasoningEffort,
@@ -4714,6 +4756,7 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 version,
                 { kind: 'continue' }, // keep thread context from generation
+                null,
                 codingAgentEnv,
                 claudeModel,
                 claudeEffort,
@@ -4952,12 +4995,18 @@ export class AppGenerateService extends BaseService {
         return updated;
     }
 
-    /** Session rule input for the thread `version` belongs to. */
-    private async resolveCodingAgentSessionStart(
-        appUuid: string,
-        version: number,
+    /**
+     * Session rule for the thread `version` belongs to, plus the hooks that
+     * store the session id the turn learns and report a lost one.
+     */
+    private async resolveCodingAgentSession(
+        payload: AppGeneratePipelineJobPayload,
         wasResumed: boolean,
-    ): Promise<CodingAgentSessionStart> {
+    ): Promise<{
+        sessionStart: CodingAgentSessionStart;
+        sessionHooks: CodingAgentSessionHooks;
+    }> {
+        const { appUuid, version } = payload;
         const built = await this.appModel.getVersion(appUuid, version);
         if (!built) {
             throw new NotFoundError(
@@ -4967,15 +5016,48 @@ export class AppGenerateService extends BaseService {
         const thread = await this.appModel.findThreadByUuid(
             built.app_thread_uuid,
         );
-        return decideCodingAgentSessionStart({
+        if (!thread) {
+            throw new NotFoundError(
+                `App thread not found: ${built.app_thread_uuid}`,
+            );
+        }
+        const sessionStart = decideCodingAgentSessionStart({
             sandboxWasResumed: wasResumed,
             threadHasVersionThatReachedAgent:
                 await this.appModel.threadHasVersionThatReachedCodingAgent(
                     built.app_thread_uuid,
                     version,
                 ),
-            codingAgentSessionId: thread?.coding_agent_session_id ?? null,
+            codingAgentSessionId: thread.coding_agent_session_id,
         });
+        const sessionHooks: CodingAgentSessionHooks = {
+            onSessionStarted: async (sessionId, replacing) => {
+                const stored =
+                    await this.appModel.setThreadCodingAgentSessionId(
+                        thread.app_thread_uuid,
+                        { replacing, sessionId },
+                    );
+                if (stored) {
+                    this.logger.info(
+                        `App ${appUuid}: thread ${thread.thread_number} now addresses coding agent session ${sessionId}${replacing ? ` (replacing lost ${replacing})` : ''}`,
+                    );
+                }
+            },
+            onSessionLost: (previousSessionId) => {
+                this.analytics.track({
+                    event: 'data_app.thread.session_lost',
+                    userId: payload.userUuid,
+                    properties: {
+                        organizationId: payload.organizationUuid,
+                        projectId: payload.projectUuid,
+                        appUuid,
+                        threadNumber: thread.thread_number,
+                        previousSessionId,
+                    },
+                });
+            },
+        };
+        return { sessionStart, sessionHooks };
     }
 
     /**
@@ -5520,13 +5602,9 @@ export class AppGenerateService extends BaseService {
                 : {}),
         });
 
-        // Whether this version's thread continues the agent transcript on
-        // disk or starts a new session; also gates the cancelled-prompt notice.
-        const sessionStart = await this.resolveCodingAgentSessionStart(
-            appUuid,
-            version,
-            wasResumed,
-        );
+        // How the thread's agent session starts; also gates the cancelled-prompt notice.
+        const { sessionStart, sessionHooks } =
+            await this.resolveCodingAgentSession(payload, wasResumed);
 
         // --- Stage: catalog ---
         if (shouldRun('catalog')) {
@@ -5540,11 +5618,12 @@ export class AppGenerateService extends BaseService {
                 if (!advanced) {
                     return;
                 }
-                // A continued Claude session may still end with a prompt the
-                // user cancelled mid-run — disavow it so Claude doesn't treat
-                // it as outstanding work. New sessions need no notice.
+                // A resumed or continued Claude session may still end with a
+                // prompt the user cancelled mid-run — disavow it so Claude
+                // doesn't treat it as outstanding work. New sessions need no
+                // notice.
                 const previousPromptCancelled =
-                    sessionStart.kind === 'continue' &&
+                    sessionStart.kind !== 'new' &&
                     (await this.appModel.hasCancelledVersionSinceLastReady(
                         appUuid,
                         version,
@@ -5620,15 +5699,17 @@ export class AppGenerateService extends BaseService {
                 if (!advanced) {
                     return;
                 }
-                // On retry (currentStatus === 'generating') this version's
-                // own session is on disk, so always continue it.
+                // On retry this version's own session is on disk: resume by
+                // id when the thread recorded one, otherwise continue.
                 const generation = await this.runCodingAgentGeneration(
                     sandbox,
                     appUuid,
                     version,
-                    currentStatus === 'generating'
+                    currentStatus === 'generating' &&
+                        sessionStart.kind === 'new'
                         ? { kind: 'continue' }
                         : sessionStart,
+                    sessionHooks,
                     codingAgentEnv,
                     claudeModel,
                     claudeEffort,
@@ -7542,7 +7623,7 @@ export class AppGenerateService extends BaseService {
                 });
                 if (
                     this.dataAppCodingAgent === 'claude' &&
-                    sessionStart.kind === 'continue'
+                    sessionStart.kind !== 'new'
                 ) {
                     await this.notifyClaudeOfRestore(
                         sandbox,

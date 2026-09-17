@@ -296,6 +296,78 @@ describe('AppModel threads PostgreSQL integration', () => {
         });
     });
 
+    describe('setThreadCodingAgentSessionId', () => {
+        it('stores the first session id a thread learns and keeps it on later turns', async () => {
+            const { thread } = await createApp();
+            expect(thread.coding_agent_session_id).toBeNull();
+
+            expect(
+                await model.setThreadCodingAgentSessionId(
+                    thread.app_thread_uuid,
+                    { replacing: null, sessionId: 'session-1' },
+                ),
+            ).toBe(true);
+            // A later turn that still believed the slot was empty cannot clobber it.
+            expect(
+                await model.setThreadCodingAgentSessionId(
+                    thread.app_thread_uuid,
+                    { replacing: null, sessionId: 'session-2' },
+                ),
+            ).toBe(false);
+
+            const stored = await model.findThreadByUuid(thread.app_thread_uuid);
+            expect(stored?.coding_agent_session_id).toBe('session-1');
+        });
+
+        it('replaces a lost session only when the stored id is the one that was lost', async () => {
+            const { thread } = await createApp();
+            await model.setThreadCodingAgentSessionId(thread.app_thread_uuid, {
+                replacing: null,
+                sessionId: 'session-1',
+            });
+
+            expect(
+                await model.setThreadCodingAgentSessionId(
+                    thread.app_thread_uuid,
+                    { replacing: 'session-0', sessionId: 'session-3' },
+                ),
+            ).toBe(false);
+            expect(
+                await model.setThreadCodingAgentSessionId(
+                    thread.app_thread_uuid,
+                    { replacing: 'session-1', sessionId: 'session-2' },
+                ),
+            ).toBe(true);
+
+            const stored = await model.findThreadByUuid(thread.app_thread_uuid);
+            expect(stored?.coding_agent_session_id).toBe('session-2');
+        });
+
+        it('leaves other threads of the app untouched', async () => {
+            const { app, thread: first } = await createApp();
+            const second = await model.createThread({
+                appUuid: app.app_id,
+                origin: 'builder',
+                aiThreadUuid: null,
+                createdByUserUuid: userUuid,
+            });
+
+            await model.setThreadCodingAgentSessionId(second.app_thread_uuid, {
+                replacing: null,
+                sessionId: 'session-2',
+            });
+
+            expect(
+                (await model.findThreadByUuid(first.app_thread_uuid))
+                    ?.coding_agent_session_id,
+            ).toBeNull();
+            expect(
+                (await model.findThreadByUuid(second.app_thread_uuid))
+                    ?.coding_agent_session_id,
+            ).toBe('session-2');
+        });
+    });
+
     it('reads a version with no thread back under thread 1', async () => {
         const { app, thread } = await createApp();
         await transaction(AppVersionsTableName).insert({
