@@ -1,4 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
+import { Button } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
@@ -72,5 +73,28 @@ describe('AutopilotNavButton', () => {
         );
 
         expect(screen.getByRole('dialog')).toHaveTextContent('Autopilot setup');
+    });
+
+    it('keeps the setup button as the last element in a button group', () => {
+        const queryClient = new QueryClient();
+        render(
+            <QueryClientProvider client={queryClient}>
+                <MantineBaseProvider env="test">
+                    <MemoryRouter>
+                        <Button.Group>
+                            <Button>Browse</Button>
+                            <AutopilotNavButton projectUuid={projectUuid} />
+                        </Button.Group>
+                    </MemoryRouter>
+                </MantineBaseProvider>
+            </QueryClientProvider>,
+        );
+
+        const button = screen.getByRole('button', {
+            name: 'Set up Autopilot',
+        });
+
+        expect(button.parentElement).toHaveAttribute('role', 'group');
+        expect(button.parentElement?.lastElementChild).toBe(button);
     });
 });

@@ -7,7 +7,7 @@ import MantineBaseProvider from '../../providers/MantineBaseProvider';
  * JS-resolved component colors (e.g. filled Button text) match the page.
  */
 const AppColorSchemeScope: FC<PropsWithChildren> = ({ children }) => (
-    <MantineBaseProvider withCssVariables={false}>
+    <MantineBaseProvider withCssVariables={false} withGlobalClasses={false}>
         {children}
     </MantineBaseProvider>
 );

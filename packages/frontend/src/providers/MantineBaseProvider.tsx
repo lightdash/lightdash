@@ -20,6 +20,9 @@ type Props = {
      * only need to fix the JS theme context (e.g. escaping the navbar's
      * forced-dark scheme) while the page-level variables stay authoritative. */
     withCssVariables?: boolean;
+    /** Skip emitting global responsive utility classes when an outer provider
+     * already owns them. */
+    withGlobalClasses?: boolean;
 };
 
 const MantineBaseProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -30,6 +33,7 @@ const MantineBaseProvider: FC<React.PropsWithChildren<Props>> = ({
     getRootElement,
     env,
     withCssVariables = true,
+    withGlobalClasses = true,
 }) => {
     // Nested mounts (e.g. escaping the navbar's forced-dark subtree) resolve
     // the ambient app scheme from context; standalone mounts default to light.
@@ -58,6 +62,7 @@ const MantineBaseProvider: FC<React.PropsWithChildren<Props>> = ({
             getRootElement={getRootElement}
             env={env}
             withCssVariables={withCssVariables}
+            withGlobalClasses={withGlobalClasses}
         >
             <CodeHighlightProvider>{children}</CodeHighlightProvider>
         </MantineProviderBase>
