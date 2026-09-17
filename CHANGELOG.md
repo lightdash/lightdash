@@ -1,3 +1,10 @@
+# [2.254.0](https://github.com/lightdash/lightdash/compare/2.253.2...2.254.0) (2026-09-17)
+
+
+### Features
+
+* show field descriptions in dashboard filter popovers ([#29451](https://github.com/lightdash/lightdash/issues/29451)) ([141e2b2](https://github.com/lightdash/lightdash/commit/141e2b2b987cc30db0f485c26e1f34621cf0864e))
+
 ## [2.253.2](https://github.com/lightdash/lightdash/compare/2.253.1...2.253.2) (2026-09-17)
 
 
