@@ -382,6 +382,24 @@ describe('mergeWarehouseCredentials', () => {
             }).requireUserCredentials,
         ).toBe(true);
     });
+
+    test('inherits connection listing fields from the parent', () => {
+        const merged = mergeWarehouseCredentials(
+            {
+                ...athenaBase,
+                listAllDatabases: true,
+                additionalDatabases: ['finance', 'operations'],
+            },
+            {
+                ...athenaBase,
+                listAllDatabases: undefined,
+                additionalDatabases: undefined,
+            },
+        );
+
+        expect(merged.listAllDatabases).toBe(true);
+        expect(merged.additionalDatabases).toEqual(['finance', 'operations']);
+    });
 });
 
 describe('latest dbt version', () => {

@@ -118,6 +118,7 @@ import {
     getUnaccountedDimensions,
     GroupType,
     hasConnectionChanges,
+    hasConnectionListingFields,
     hasIntersection,
     hasWarehouseCredentials,
     isAdditionalMetric,
@@ -227,6 +228,8 @@ import {
     SshTunnelError,
     SummaryExplore,
     SupportedDbtAdapter,
+    supportsDatabaseListing,
+    supportsOptionalUserCredentials,
     TablesConfiguration,
     TableSelectionType,
     TooManyRequestsError,
@@ -251,6 +254,7 @@ import {
     WarehouseConnectionError,
     WarehouseConnectionTestResults,
     WarehouseCredentials,
+    WarehouseDatabaseListingNotSupportedError,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
@@ -3090,6 +3094,9 @@ export class ProjectService extends BaseService {
             newProjectData.warehouseConnection,
             internalProvisioning,
         );
+        ProjectService.assertDatabaseListingSupported(
+            newProjectData.warehouseConnection,
+        );
 
         const createProject: CreateProjectOptionalCredentials =
             hasWarehouseCredentials(newProjectData)
@@ -3381,6 +3388,7 @@ export class ProjectService extends BaseService {
         ProjectService.assertPersistableSnowflakeAuthentication(
             data.warehouseConnection,
         );
+        ProjectService.assertDatabaseListingSupported(data.warehouseConnection);
 
         this.assertCanUseOrganizationWarehouseCredentials(
             user,
@@ -3902,6 +3910,20 @@ export class ProjectService extends BaseService {
         }
     }
 
+    private static assertDatabaseListingSupported(
+        credentials: CreateWarehouseCredentialsWithOptionalSecrets | undefined,
+    ): void {
+        if (
+            credentials &&
+            hasConnectionListingFields(credentials) &&
+            !supportsDatabaseListing(credentials.type)
+        ) {
+            throw new WarehouseDatabaseListingNotSupportedError(
+                credentials.type,
+            );
+        }
+    }
+
     /*
     Interactive Snowflake authentication types need a browser on every
     connect, so they cannot be used from headless backend/scheduler runs.
@@ -4012,6 +4034,7 @@ export class ProjectService extends BaseService {
         ProjectService.assertEmbeddedCredentialsAreInternal(
             data.warehouseConnection,
         );
+        ProjectService.assertDatabaseListingSupported(data.warehouseConnection);
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         if (savedProject.provisioningSource === 'analytics')
@@ -4170,6 +4193,7 @@ export class ProjectService extends BaseService {
         ProjectService.assertEmbeddedCredentialsAreInternal(
             data.warehouseConnection,
         );
+        ProjectService.assertDatabaseListingSupported(data.warehouseConnection);
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         if (savedProject.provisioningSource === 'analytics')
@@ -4709,6 +4733,7 @@ export class ProjectService extends BaseService {
                   savedProject.warehouseConnection,
               )
             : warehouseConnection;
+        ProjectService.assertDatabaseListingSupported(merged);
         if (isMissingBigqueryKeyfile(merged)) {
             return buildConnectionTestResults([
                 {
@@ -11693,13 +11718,15 @@ export class ProjectService extends BaseService {
                 `Missing warehouse connection for project ${projectUuid}`,
             );
         }
+        const warehouseConnection = maybeOverrideWarehouseConnection(
+            project.warehouseConnection,
+            data.warehouseConnectionOverrides ?? {},
+        );
+        ProjectService.assertDatabaseListingSupported(warehouseConnection);
         const previewData: CreateProject = {
             name: data.name,
             type: ProjectType.PREVIEW,
-            warehouseConnection: maybeOverrideWarehouseConnection(
-                project.warehouseConnection,
-                data.warehouseConnectionOverrides ?? {},
-            ),
+            warehouseConnection,
             dbtConnection: maybeOverrideDbtConnection(
                 project.dbtConnection,
                 data.dbtConnectionOverrides ?? {},
@@ -13353,15 +13380,17 @@ export class ProjectService extends BaseService {
         if (previewExists) {
             projectToSetExplores = previewExists.projectUuid;
         } else {
+            const warehouseConnection = maybeOverrideWarehouseConnection(
+                project.warehouseConnection,
+                {
+                    schema: `dbt_cloud_pr_${jobId}_${prId}`,
+                },
+            );
+            ProjectService.assertDatabaseListingSupported(warehouseConnection);
             const previewData: CreateProject = {
                 name: previewName,
                 type: ProjectType.PREVIEW,
-                warehouseConnection: maybeOverrideWarehouseConnection(
-                    project.warehouseConnection,
-                    {
-                        schema: `dbt_cloud_pr_${jobId}_${prId}`,
-                    },
-                ),
+                warehouseConnection,
                 dbtConnection: {
                     type: DbtProjectType.NONE,
                 },

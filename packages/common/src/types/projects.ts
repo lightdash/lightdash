@@ -866,6 +866,11 @@ export const mergeWarehouseCredentials = <T extends CreateWarehouseCredentials>(
         requireUserCredentials:
             baseCredentials.requireUserCredentials ||
             newCredentials.requireUserCredentials,
+        listAllDatabases:
+            baseCredentials.listAllDatabases || newCredentials.listAllDatabases,
+        additionalDatabases:
+            baseCredentials.additionalDatabases ??
+            newCredentials.additionalDatabases,
     };
 
     return merged as T;
