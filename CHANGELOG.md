@@ -1,3 +1,10 @@
+## [2.255.1](https://github.com/lightdash/lightdash/compare/2.255.0...2.255.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* **chart-types:** generate preview samples for column fields ([#29441](https://github.com/lightdash/lightdash/issues/29441)) ([eacbeca](https://github.com/lightdash/lightdash/commit/eacbeca7b74a884c37d364479fd99ca4c5f6ff26))
+
 # [2.255.0](https://github.com/lightdash/lightdash/compare/2.254.2...2.255.0) (2026-09-17)
 
 

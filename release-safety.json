@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.255.0",
-  "previousVersion": "2.254.2",
-  "releaseDate": "2026-09-17T15:09:28.132Z",
+  "version": "2.255.1",
+  "previousVersion": "2.255.0",
+  "releaseDate": "2026-09-17T15:56:11.259Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,17 +11,29 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": false,
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
       "checked": true,
-      "breaking": false,
-      "changes": [],
-      "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "breaking": true,
+      "changes": [
+        "POST /api/v1/projects/{projectUuid}/documents — removed `subschema #1, subschema #2` from the `content/cells/items/` request property `anyOf` list",
+        "POST /api/v1/projects/{projectUuid}/documents — removed the enum value `3.00` of the request property `schemaVersion`",
+        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/cells/{cellId}/query — for the `path` request parameter `cellId`, the `type/format` was changed from `string` to `number/double`",
+        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions — added the new required request property `content`",
+        "GET /api/v2/projects/{projectUuid}/query/history — removed the required property `results/data/items/requestParameters/allOf[subschema #2]/documentSource/cellId` from the response with the `200` status"
+      ],
+      "breakingCount": 5,
+      "advisories": [
+        "POST /api/v1/projects/{projectUuid}/documents — added the new `1.00` enum value to the `results/allOf[subschema #2]/version/schemaVersion` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/documents/{documentUuid} — added the new `1.00` enum value to the `results/allOf[subschema #2]/version/schemaVersion` response property for the response status `200`",
+        "PATCH /api/v1/projects/{projectUuid}/documents/{documentUuid} — added the new `1.00` enum value to the `results/allOf[subschema #2]/version/schemaVersion` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions — removed the request property `operations`",
+        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions — added the new `1.00` enum value to the `results/allOf[subschema #2]/version/schemaVersion` response property for the response status `200`"
+      ],
+      "advisoryCount": 5
     },
     "mcp": {
       "checked": true,
@@ -41,5 +53,11 @@
     "minPreviousVersion": "1.111.0",
     "requiredStops": []
   },
-  "declaredBreaks": []
+  "declaredBreaks": [
+    {
+      "id": "documents-id-free-cell-contract",
+      "reason": "The unshipped documents-flag API now uses schema version 1 with ID-free ordered cells. Experimental clients must replace ID-based cell edits with complete content plus baseVersionUuid and query charts by zero-based cellIndex plus versionUuid. Earlier experimental Document payloads and persisted versions are not supported; no compatibility migration is provided.",
+      "requiredStop": false
+    }
+  ]
 }

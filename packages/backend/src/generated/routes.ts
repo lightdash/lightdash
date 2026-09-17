@@ -58216,7 +58216,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DocumentCellV3: {
+    DocumentCell: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
@@ -58239,7 +58239,6 @@ const models: TsoaRoute.Models = {
                             enums: ['markdown'],
                             required: true,
                         },
-                        id: { dataType: 'string', required: true },
                     },
                 },
                 {
@@ -58254,7 +58253,6 @@ const models: TsoaRoute.Models = {
                             enums: ['chart'],
                             required: true,
                         },
-                        id: { dataType: 'string', required: true },
                     },
                 },
             ],
@@ -58262,14 +58260,14 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DocumentContentV3: {
+    DocumentContent: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 cells: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'DocumentCellV3' },
+                    array: { dataType: 'refAlias', ref: 'DocumentCell' },
                     required: true,
                 },
             },
@@ -58291,8 +58289,8 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                content: { ref: 'DocumentContentV3', required: true },
-                schemaVersion: { dataType: 'enum', enums: [3], required: true },
+                content: { ref: 'DocumentContent', required: true },
+                schemaVersion: { dataType: 'enum', enums: [1], required: true },
                 versionNumber: { dataType: 'double', required: true },
                 versionUuid: { dataType: 'string', required: true },
             },
@@ -58339,8 +58337,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                content: { ref: 'DocumentContentV3', required: true },
-                schemaVersion: { dataType: 'enum', enums: [3], required: true },
+                content: { ref: 'DocumentContent', required: true },
+                schemaVersion: { dataType: 'enum', enums: [1], required: true },
                 spaceUuid: { dataType: 'string', required: true },
                 description: { dataType: 'string', required: true },
                 slug: { dataType: 'string' },
@@ -58363,93 +58361,12 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DocumentCellOperation: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        cell: { ref: 'DocumentCellV3', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['append'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        cell: { ref: 'DocumentCellV3', required: true },
-                        targetCellId: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'enum', enums: ['insert_before'] },
-                                { dataType: 'enum', enums: ['insert_after'] },
-                            ],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        cell: { ref: 'DocumentCellV3', required: true },
-                        cellId: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['replace'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        cellId: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['remove'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        targetCellId: { dataType: 'string', required: true },
-                        cellId: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'enum', enums: ['move_before'] },
-                                { dataType: 'enum', enums: ['move_after'] },
-                            ],
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UpdateDocumentContentRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                operations: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'DocumentCellOperation',
-                    },
-                    required: true,
-                },
+                content: { ref: 'DocumentContent', required: true },
                 baseVersionUuid: { dataType: 'string', required: true },
             },
             validators: {},
@@ -60019,7 +59936,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                cellId: { dataType: 'string', required: true },
+                cellIndex: { dataType: 'double', required: true },
                 versionUuid: { dataType: 'string', required: true },
                 documentUuid: { dataType: 'string', required: true },
             },
@@ -62050,7 +61967,7 @@ const models: TsoaRoute.Models = {
         enums: ['document'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DocumentContent: {
+    DocumentContentItem: {
         dataType: 'refObject',
         properties: {
             contentType: { ref: 'ContentType.DOCUMENT', required: true },
@@ -62460,7 +62377,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'ChartContent' },
                 { ref: 'DashboardContent' },
                 { ref: 'SpaceContent' },
-                { ref: 'DocumentContent' },
+                { ref: 'DocumentContentItem' },
                 { ref: 'DataAppContent' },
             ],
             validators: {},
@@ -118402,11 +118319,11 @@ export function RegisterRoutes(app: Router) {
             required: true,
             ref: 'UUID',
         },
-        cellId: {
+        cellIndex: {
             in: 'path',
-            name: 'cellId',
+            name: 'cellIndex',
             required: true,
-            dataType: 'string',
+            dataType: 'double',
         },
         body: {
             in: 'body',
@@ -118416,7 +118333,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.post(
-        '/api/v1/projects/:projectUuid/documents/:documentUuid/cells/:cellId/query',
+        '/api/v1/projects/:projectUuid/documents/:documentUuid/cells/:cellIndex/query',
         ...fetchMiddlewares<RequestHandler>(DocumentController),
         ...fetchMiddlewares<RequestHandler>(
             DocumentController.prototype.executeCellQuery,

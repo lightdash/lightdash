@@ -58219,7 +58219,7 @@
                     }
                 ]
             },
-            "DocumentCellV3": {
+            "DocumentCell": {
                 "anyOf": [
                     {
                         "properties": {
@@ -58236,12 +58236,9 @@
                                 "type": "string",
                                 "enum": ["markdown"],
                                 "nullable": false
-                            },
-                            "id": {
-                                "type": "string"
                             }
                         },
-                        "required": ["content", "type", "id"],
+                        "required": ["content", "type"],
                         "type": "object"
                     },
                     {
@@ -58253,21 +58250,18 @@
                                 "type": "string",
                                 "enum": ["chart"],
                                 "nullable": false
-                            },
-                            "id": {
-                                "type": "string"
                             }
                         },
-                        "required": ["content", "type", "id"],
+                        "required": ["content", "type"],
                         "type": "object"
                     }
                 ]
             },
-            "DocumentContentV3": {
+            "DocumentContent": {
                 "properties": {
                     "cells": {
                         "items": {
-                            "$ref": "#/components/schemas/DocumentCellV3"
+                            "$ref": "#/components/schemas/DocumentCell"
                         },
                         "type": "array"
                     }
@@ -58286,11 +58280,11 @@
                         "nullable": true
                     },
                     "content": {
-                        "$ref": "#/components/schemas/DocumentContentV3"
+                        "$ref": "#/components/schemas/DocumentContent"
                     },
                     "schemaVersion": {
                         "type": "number",
-                        "enum": [3],
+                        "enum": [1],
                         "nullable": false
                     },
                     "versionNumber": {
@@ -58347,11 +58341,11 @@
             "CreateDocumentRequest": {
                 "properties": {
                     "content": {
-                        "$ref": "#/components/schemas/DocumentContentV3"
+                        "$ref": "#/components/schemas/DocumentContent"
                     },
                     "schemaVersion": {
                         "type": "number",
-                        "enum": [3],
+                        "enum": [1],
                         "nullable": false
                     },
                     "spaceUuid": {
@@ -58390,100 +58384,16 @@
                 },
                 "type": "object"
             },
-            "DocumentCellOperation": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "cell": {
-                                "$ref": "#/components/schemas/DocumentCellV3"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["append"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["cell", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "cell": {
-                                "$ref": "#/components/schemas/DocumentCellV3"
-                            },
-                            "targetCellId": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["insert_before", "insert_after"]
-                            }
-                        },
-                        "required": ["cell", "targetCellId", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "cell": {
-                                "$ref": "#/components/schemas/DocumentCellV3"
-                            },
-                            "cellId": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["replace"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["cell", "cellId", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "cellId": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["remove"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["cellId", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "targetCellId": {
-                                "type": "string"
-                            },
-                            "cellId": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["move_before", "move_after"]
-                            }
-                        },
-                        "required": ["targetCellId", "cellId", "type"],
-                        "type": "object"
-                    }
-                ]
-            },
             "UpdateDocumentContentRequest": {
                 "properties": {
-                    "operations": {
-                        "items": {
-                            "$ref": "#/components/schemas/DocumentCellOperation"
-                        },
-                        "type": "array"
+                    "content": {
+                        "$ref": "#/components/schemas/DocumentContent"
                     },
                     "baseVersionUuid": {
                         "type": "string"
                     }
                 },
-                "required": ["operations", "baseVersionUuid"],
+                "required": ["content", "baseVersionUuid"],
                 "type": "object"
             },
             "DocumentList": {
@@ -60172,8 +60082,9 @@
             },
             "DocumentQueryReference": {
                 "properties": {
-                    "cellId": {
-                        "type": "string"
+                    "cellIndex": {
+                        "type": "number",
+                        "format": "double"
                     },
                     "versionUuid": {
                         "type": "string"
@@ -60182,7 +60093,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["cellId", "versionUuid", "documentUuid"],
+                "required": ["cellIndex", "versionUuid", "documentUuid"],
                 "type": "object"
             },
             "ExecuteAsyncQueryRequestParams": {
@@ -62122,7 +62033,7 @@
                 "enum": ["document"],
                 "type": "string"
             },
-            "DocumentContent": {
+            "DocumentContentItem": {
                 "properties": {
                     "contentType": {
                         "$ref": "#/components/schemas/ContentType.DOCUMENT"
@@ -62606,7 +62517,7 @@
                         "$ref": "#/components/schemas/SpaceContent"
                     },
                     {
-                        "$ref": "#/components/schemas/DocumentContent"
+                        "$ref": "#/components/schemas/DocumentContentItem"
                     },
                     {
                         "$ref": "#/components/schemas/DataAppContent"
@@ -63549,7 +63460,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.255.0",
+        "version": "2.255.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -99604,7 +99515,7 @@
                 }
             }
         },
-        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/cells/{cellId}/query": {
+        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/cells/{cellIndex}/query": {
             "post": {
                 "operationId": "ExecuteDocumentCellQuery",
                 "responses": {
@@ -99650,10 +99561,11 @@
                     },
                     {
                         "in": "path",
-                        "name": "cellId",
+                        "name": "cellIndex",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "format": "double",
+                            "type": "number"
                         }
                     }
                 ],
