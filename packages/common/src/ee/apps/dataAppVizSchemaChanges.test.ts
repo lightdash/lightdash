@@ -46,6 +46,24 @@ describe('diffDataAppVizSchema', () => {
         expect(summarizeDataAppVizSchemaChanges(changes)).toEqual([]);
     });
 
+    it('keeps existing bindings when only field help changes', () => {
+        const changes = diffDataAppVizSchema(base, {
+            ...base,
+            fields: base.fields.map((field) =>
+                field.name === 'category'
+                    ? {
+                          ...field,
+                          description: 'Category for each row',
+                          examples: ['New', 'Returning'],
+                      }
+                    : field,
+            ),
+            inputGuidance: 'One row per category.',
+        });
+
+        expect(hasDataAppVizSchemaChanges(changes)).toBe(false);
+    });
+
     it('tracks added, removed and retyped fields by name', () => {
         const changes = diffDataAppVizSchema(base, {
             ...base,

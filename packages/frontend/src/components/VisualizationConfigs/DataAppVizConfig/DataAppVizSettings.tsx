@@ -9,13 +9,16 @@ import {
     type Item,
     type ItemsMap,
 } from '@lightdash/common';
-import { Stack, Text } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { Group, Stack, Text } from '@mantine/core';
+import { useId, useMemo, type FC } from 'react';
 import { poolKeyForSlot } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
 import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
 import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
+import DataAppVizFieldGuidance, {
+    DataAppVizFieldHelp,
+} from './DataAppVizFieldGuidance';
 
 type Props = {
     itemsMap: ItemsMap;
@@ -38,6 +41,7 @@ const DataAppVizSettings: FC<Props> = ({
     fieldMapping,
     onFieldChange,
 }) => {
+    const guidanceIdPrefix = useId();
     const { addableItems, addFieldToQuery, isFieldPending } =
         useAddFieldsToQuery();
 
@@ -73,6 +77,9 @@ const DataAppVizSettings: FC<Props> = ({
             )}
 
             {fields.map((field) => {
+                const guidanceId = field.description?.trim()
+                    ? `${guidanceIdPrefix}-${field.name}`
+                    : undefined;
                 const items = fieldItems(field);
                 const addItems = addPools[poolKeyForSlot(field)];
                 const selectedId = fieldMapping[field.name];
@@ -83,9 +90,18 @@ const DataAppVizSettings: FC<Props> = ({
                 return (
                     <Config key={field.name}>
                         <Config.Section>
-                            <Config.Heading>{field.label}</Config.Heading>
+                            <Group gap="xxs">
+                                <Config.Heading>{field.label}</Config.Heading>
+                                <DataAppVizFieldHelp field={field} />
+                            </Group>
+                            <DataAppVizFieldGuidance
+                                field={field}
+                                id={guidanceId}
+                            />
                             <FieldSelect
                                 size="xs"
+                                aria-label={field.label}
+                                aria-describedby={guidanceId}
                                 // A disabled, empty select says nothing on its
                                 // own; the placeholder names what the chart is
                                 // missing, as the cartesian layout does.

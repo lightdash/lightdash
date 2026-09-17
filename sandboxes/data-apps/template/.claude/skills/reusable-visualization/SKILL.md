@@ -251,7 +251,8 @@ highlighted:
 ## The declaration
 
 Alongside the component you emit one structured declaration — as **structured output, not a
-file**. It has three parts: `fields`, `configOptions` and `colorPalette`. Lightdash builds
+file**. It has four parts: `fields`, `configOptions`, `colorPalette` and optional
+`inputGuidance`. Lightdash builds
 the field-mapping UI and the chart config panel from it, so the component is unusable
 without it.
 
@@ -265,9 +266,26 @@ One entry per data column the component reads:
 
 - `name` — the key read from `fieldMapping`. Unique, no spaces.
 - `label` — human label shown in the mapping UI.
-- `type` — `dimension` (a category/grouping column), `metric` (a numeric measure), or
-  `series` (a dimension used to split or colour the chart).
+- `type` — `dimension` (a category/grouping column), `metric` (a numeric measure),
+  `series` (a dimension used to split or colour the chart), or `column` (any result
+  column, whether metric or dimension).
 - `required` — `false` only when the chart still renders with this field unmapped.
+- `description` — optional reusable mapping help, maximum 160 characters. Use one
+  or two short, plain sentences explaining the field's role in the chart. Keep it agnostic
+  to any business, explore, or query; do not imply fixed categories or values.
+
+Do not generate field examples. Viewers supply their own values; describe the field's
+role and data shape without prescribing categories from a particular business.
+
+### `inputGuidance`
+
+Optional reusable help shown above the mappings, maximum 200 characters. Use at most two
+short, plain sentences. State what each row represents, any ordering the visualization relies
+on, and how to change a query that has a different shape.
+For a funnel, say that each row contains one stage label and its count in stage order; separate
+stage metrics or boolean flags need reshaping into stage/count rows, or a differently authored
+chart. This explains how the same viz can be reused with other queries; it does not make the
+component infer semantics or transform host data.
 
 ### `configOptions`
 
@@ -362,11 +380,12 @@ function Chart() {
 The declaration that component emits is exactly:
 
 ```
-fields: [{ "name": "category", "label": "Category", "type": "dimension", "required": true },
-         { "name": "value", "label": "Value", "type": "metric", "required": true }]
+fields: [{ "name": "category", "label": "Category", "type": "dimension", "required": true, "description": "The label for each chart row." },
+         { "name": "value", "label": "Value", "type": "metric", "required": true, "description": "The numeric value for that row." }]
 configOptions: [{ "name": "showLabels", "label": "Show value labels", "group": "Labels", "type": "boolean", "default": true },
                 { "name": "maxBars", "label": "Max bars", "type": "number", "default": 10, "min": 1, "max": 50 }]
 colorPalette: {}
+inputGuidance: "Use one row per category in display order. Reshape queries with separate category columns into category/value rows before mapping."
 ```
 
 ## Final pass, before you finish
@@ -391,6 +410,11 @@ chart.
 Then check both directions: every key you read from `options` is declared, and every option
 you declared is read somewhere. `colorPalette` is declared when you use either resolved-
 colour helper or colour from `colorPalette` — it is never read from `options`.
+
+Before returning the declaration, add a `description` to each slot whose role
+could be ambiguous to a viewer, and add `inputGuidance` whenever row shape or ordering
+matters. Keep that help reusable across queries: describe the chart contract rather than a
+specific dataset.
 
 Finally, if any mark maps to exactly one source row, the data-point action
 menu is wired: each interactive datum carries `sourceRow`, the underlying-data

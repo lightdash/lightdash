@@ -1,7 +1,11 @@
 import { getItemId, type DataAppVizSchema } from '@lightdash/common';
 import { Group, Select, Stack, Text } from '@mantine/core';
-import { type FC } from 'react';
+import { useId, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
+import DataAppVizFieldGuidance, {
+    DataAppVizFieldHelp,
+} from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldGuidance';
+import DataAppVizInputGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizInputGuidance';
 import { type DataAppVizTestContextState } from '../hooks/useDataAppVizTestContext';
 import DataAppVizFieldTypeBadge from './DataAppVizFieldTypeBadge';
 
@@ -13,6 +17,7 @@ type Props = {
 /** Explore picker + one field select per declared slot, feeding the test
  *  context's mapping. */
 const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
+    const guidanceIdPrefix = useId();
     const {
         exploreName,
         exploreOptions,
@@ -37,6 +42,9 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
 
             <Stack gap="xs">
                 {schema.fields.map((field) => {
+                    const guidanceId = field.description?.trim()
+                        ? `${guidanceIdPrefix}-${field.name}`
+                        : undefined;
                     const items =
                         field.type === 'metric' ? metrics : dimensions;
                     const selectedId = fieldMapping[field.name];
@@ -50,10 +58,17 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                                     {field.label}
                                 </Text>
                                 <DataAppVizFieldTypeBadge type={field.type} />
+                                <DataAppVizFieldHelp field={field} />
                             </Group>
+                            <DataAppVizFieldGuidance
+                                field={field}
+                                id={guidanceId}
+                            />
                             {exploreName && (
                                 <FieldSelect
                                     size="xs"
+                                    aria-label={field.label}
+                                    aria-describedby={guidanceId}
                                     placeholder={`Select ${field.label.toLowerCase()}`}
                                     disabled={items.length === 0}
                                     item={selectedItem}
@@ -74,6 +89,7 @@ const DataAppVizTestInputs: FC<Props> = ({ schema, state }) => {
                     );
                 })}
             </Stack>
+            <DataAppVizInputGuidance guidance={schema.inputGuidance} />
         </Stack>
     );
 };
