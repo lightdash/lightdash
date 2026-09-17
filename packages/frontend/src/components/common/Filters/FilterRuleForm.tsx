@@ -12,7 +12,7 @@ import {
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Select, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Flex, Menu, Select, Tooltip } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
@@ -150,9 +150,9 @@ const FilterRuleForm: FC<Props> = memo(
         }
 
         return (
-            <Group
+            <Flex
                 className={classes.rule}
-                wrap="wrap"
+                wrap={{ base: 'wrap', sm: 'nowrap' }}
                 align="start"
                 gap="xs"
                 data-testid="FilterRuleForm/filter-rule"
@@ -292,7 +292,7 @@ const FilterRuleForm: FC<Props> = memo(
                             </Menu.Dropdown>
                         </Menu>
                     ))}
-            </Group>
+            </Flex>
         );
     },
 );

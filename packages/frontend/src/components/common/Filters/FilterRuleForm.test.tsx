@@ -72,6 +72,26 @@ describe('FilterRuleForm', () => {
         delete (Element.prototype as Partial<Element>).scrollIntoView;
     });
 
+    it('only wraps filter controls below the desktop breakpoint', () => {
+        renderFilterRuleForm(visibleDimension);
+
+        const rule = screen.getByTestId('FilterRuleForm/filter-rule');
+        const responsiveStyles = Array.from(
+            document.querySelectorAll<HTMLStyleElement>(
+                'style[data-mantine-styles="inline"]',
+            ),
+        ).find((style) =>
+            Array.from(rule.classList).some((className) =>
+                style.textContent?.includes(`.${className}`),
+            ),
+        )?.textContent;
+
+        expect(responsiveStyles).toMatch(/flex-wrap:wrap/);
+        expect(responsiveStyles).toMatch(
+            /@media\(min-width: 48em\).*flex-wrap:nowrap/s,
+        );
+    });
+
     it('locks a hidden field and explains why in a tooltip', async () => {
         const user = userEvent.setup();
         renderFilterRuleForm(hiddenDimension);
