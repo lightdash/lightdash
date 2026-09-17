@@ -1,3 +1,10 @@
+## [2.256.3](https://github.com/lightdash/lightdash/compare/2.256.2...2.256.3) (2026-09-17)
+
+
+### Bug Fixes
+
+* **explorer:** keep Configure visible on the selected chart type ([#29488](https://github.com/lightdash/lightdash/issues/29488)) ([ce89eb7](https://github.com/lightdash/lightdash/commit/ce89eb7b653827e3966621329da01c0096e91288))
+
 ## [2.256.2](https://github.com/lightdash/lightdash/compare/2.256.1...2.256.2) (2026-09-17)
 
 
