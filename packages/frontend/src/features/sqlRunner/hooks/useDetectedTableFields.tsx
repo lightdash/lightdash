@@ -1,9 +1,9 @@
+import { type WarehouseTablesCatalog } from '@lightdash/common';
 import { useMemo } from 'react';
 import {
     useMultipleTableFields,
     type TableReference,
 } from './useMultipleTableFields';
-import { type TablesBySchema } from './useTables';
 
 type ParsedTableReference = {
     database?: string;
@@ -105,12 +105,12 @@ export const useDetectedTableFields = ({
     sql,
     quoteChar,
     projectUuid,
-    transformedData,
+    catalog,
 }: {
     sql: string;
     quoteChar: string;
     projectUuid: string;
-    transformedData?: { database: string; tablesBySchema: TablesBySchema };
+    catalog: WarehouseTablesCatalog;
 }) => {
     // Parse SQL to detect table references
     const detectedTables = useMemo(() => {
@@ -120,51 +120,52 @@ export const useDetectedTableFields = ({
 
     // Filter and prepare table references for React Query
     const tableReferences = useMemo((): TableReference[] => {
-        if (!transformedData || !projectUuid || detectedTables.length === 0) {
+        if (!projectUuid || detectedTables.length === 0) {
             return [];
         }
 
         return detectedTables.reduce<TableReference[]>((acc, tableRef) => {
-            // Only include tables that exist in our catalog
+            // Only include tables that exist in one of the loaded catalogs
             if (!isValidTableReference(tableRef)) {
                 return acc;
             }
 
-            const matchesCurrentDatabase =
-                tableRef.database?.toLowerCase() ===
-                transformedData.database.toLowerCase();
-
-            // Find the matching schema (case-insensitive) - do this once
-            const matchingSchema = transformedData.tablesBySchema?.find(
-                (s) =>
-                    s.schema.toString().toLowerCase() ===
-                    tableRef.schema?.toLowerCase(),
+            const matchingDatabase = Object.keys(catalog).find(
+                (database) =>
+                    database.toLowerCase() === tableRef.database.toLowerCase(),
             );
-
-            if (!matchingSchema || !matchesCurrentDatabase) {
+            if (matchingDatabase === undefined) {
                 return acc;
             }
 
-            // Check if table exists in the matching schema (case-insensitive)
-            const actualTableName = Object.keys(matchingSchema.tables).find(
+            const schemas = catalog[matchingDatabase];
+            const matchingSchema = Object.keys(schemas).find(
+                (schema) =>
+                    schema.toLowerCase() === tableRef.schema.toLowerCase(),
+            );
+            if (matchingSchema === undefined) {
+                return acc;
+            }
+
+            const actualTableName = Object.keys(schemas[matchingSchema]).find(
                 (tableName) =>
                     tableName.toLowerCase() === tableRef.table.toLowerCase(),
             );
-
-            if (!actualTableName) {
+            if (actualTableName === undefined) {
                 return acc;
             }
 
             // Add the validated and transformed table reference
             acc.push({
                 projectUuid,
-                tableName: actualTableName, // Use actual table name from catalog
-                schema: matchingSchema.schema.toString(), // Use actual schema name from catalog
+                tableName: actualTableName,
+                schema: matchingSchema,
+                database: matchingDatabase,
             });
 
             return acc;
         }, []);
-    }, [detectedTables, transformedData, projectUuid]);
+    }, [detectedTables, catalog, projectUuid]);
 
     // Use the new multi-table fields hook
     const result = useMultipleTableFields(tableReferences);

@@ -14,7 +14,10 @@ import { useForm } from '@mantine/form';
 import { IconLock } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { useCallback, useMemo, type FC } from 'react';
-import { useTables } from '../../features/sqlRunner/hooks/useTables';
+import {
+    useDatabases,
+    useTables,
+} from '../../features/sqlRunner/hooks/useTables';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useAgentSqlScope,
@@ -170,12 +173,18 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
         useAgentSqlScope(projectUuid);
     // The catalog is the source of truth for what exists, so admins pick real
     // schemas rather than typing names that silently match nothing.
+    const { data: listing, isInitialLoading: isLoadingDatabases } =
+        useDatabases({ projectUuid });
+    const defaultDatabase = listing?.databases.find(
+        (database) => database.isDefault,
+    );
     const { data: catalog, isInitialLoading: isLoadingCatalog } = useTables({
         projectUuid,
+        database: defaultDatabase?.name,
     });
     const mutation = useProjectUpdateAgentSqlScope(projectUuid);
 
-    const isLoading = isLoadingScope || isLoadingCatalog;
+    const isLoading = isLoadingScope || isLoadingDatabases || isLoadingCatalog;
 
     const initialValues = useMemo<AgentDataScopeFormValues>(
         () => ({
@@ -188,8 +197,13 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
     );
 
     const { schemaOptions, catalogOptions } = useMemo(() => {
-        const databases = Object.keys(catalog ?? {});
+        // Every listed database counts, not only the one whose tables loaded
+        const databases = new Set(Object.keys(catalog ?? {}));
         const schemaNames = new Set<string>();
+        (listing?.databases ?? []).forEach((database) => {
+            databases.add(database.database);
+            if (database.schema !== null) schemaNames.add(database.schema);
+        });
         Object.values(catalog ?? {}).forEach((db) => {
             Object.keys(db).forEach((schema) => schemaNames.add(schema));
         });
@@ -207,7 +221,7 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
                 ...initialValues.deniedCatalogs,
             ]),
         };
-    }, [catalog, initialValues]);
+    }, [catalog, listing, initialValues]);
 
     const handleSubmit = useCallback(
         async (values: AgentDataScopeFormValues) => {

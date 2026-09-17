@@ -1,4 +1,9 @@
-import { WarehouseTypes, type ParameterValue } from '@lightdash/common';
+import {
+    WarehouseTypes,
+    type ParameterValue,
+    type WarehouseListedDatabase,
+    type WarehouseTablesCatalog,
+} from '@lightdash/common';
 import type { EditorProps, Monaco } from '@monaco-editor/react';
 import {
     bigqueryLanguageDefinition,
@@ -8,7 +13,11 @@ import type { languages } from 'monaco-editor';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
 import type { SqlEditorPreferences } from '../hooks/useSqlEditorPreferences';
 import type { WarehouseTableFieldWithContext } from '../hooks/useTableFields';
-import type { TablesBySchema } from '../hooks/useTables';
+
+export type SqlCompletionEntry = {
+    value: string;
+    kind: 'table' | 'database' | 'schema';
+};
 
 export const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
     cursorBlinking: 'smooth',
@@ -168,7 +177,7 @@ export const registerCustomCompletionProvider = (
     monaco: Monaco,
     language: string,
     quoteChar: string,
-    tables: string[],
+    tables: SqlCompletionEntry[],
     fields?: WarehouseTableFieldWithContext[],
     settings?: SqlEditorPreferences,
     availableParameters?: Record<
@@ -374,10 +383,12 @@ export const registerCustomCompletionProvider = (
                 suggestions.push(...fieldMap.values());
             }
 
-            // Add table suggestions (lower priority)
-            const tableSuggestions = tables.map((table) => {
-                const parts = table.split('.');
+            // Add table, database and schema suggestions (lower priority)
+            const tableSuggestions = tables.flatMap(({ value, kind }) => {
+                const parts = value.split('.');
                 const typedParts = textUntilPosition.split('.');
+                // A name with fewer parts than the user has typed would insert nothing
+                if (parts.length < typedParts.length) return [];
                 const insertParts = parts.slice(typedParts.length - 1);
 
                 // Check if the last typed part is already quoted
@@ -395,14 +406,27 @@ export const registerCustomCompletionProvider = (
                     );
                 }
 
-                return {
-                    label: table,
-                    kind: monaco.languages.CompletionItemKind.Class,
-                    insertText,
-                    range,
-                    sortText: `1${table}`, // Lower priority with '1' prefix
-                    detail: 'Table',
-                };
+                const detail =
+                    kind === 'table'
+                        ? 'Table'
+                        : kind === 'database'
+                          ? 'Database'
+                          : 'Schema';
+
+                return [
+                    {
+                        label: value,
+                        kind:
+                            kind === 'table'
+                                ? monaco.languages.CompletionItemKind.Class
+                                : monaco.languages.CompletionItemKind.Module,
+                        insertText,
+                        range,
+                        // Lower priority than fields; tables before locations
+                        sortText: `${kind === 'table' ? 1 : 2}${value}`,
+                        detail,
+                    },
+                ];
             });
             suggestions.push(...tableSuggestions);
 
@@ -414,53 +438,61 @@ export const registerCustomCompletionProvider = (
 
 export const generateTableCompletions = (
     quoteChar: string,
-    data: { database: string; tablesBySchema: TablesBySchema },
+    catalog: WarehouseTablesCatalog,
+    listedDatabases: WarehouseListedDatabase[],
     settings?: SqlEditorPreferences,
-) => {
-    if (!data) return;
-
-    const database = data.database;
-
-    // Helper function to format table names based on settings
-    const formatTableName = (
-        db: string,
-        schema: string,
-        table: string,
-    ): string => {
-        let formattedDb = db;
-        let formattedSchema = schema;
-        let formattedTable = table;
-
-        if (!settings) {
-            return `${quoteChar}${formattedDb}${quoteChar}.${quoteChar}${formattedSchema}${quoteChar}.${quoteChar}${formattedTable}${quoteChar}`;
-        }
-
-        // Apply case preference (only lowercase or uppercase)
-        if (settings.casePreference === 'lowercase') {
-            formattedDb = formattedDb.toLowerCase();
-            formattedSchema = formattedSchema.toLowerCase();
-            formattedTable = formattedTable.toLowerCase();
-        } else if (settings.casePreference === 'uppercase') {
-            formattedDb = formattedDb.toUpperCase();
-            formattedSchema = formattedSchema.toUpperCase();
-            formattedTable = formattedTable.toUpperCase();
-        }
-
-        // Apply quote preference (only always or never)
-        if (settings.quotePreference === 'always') {
-            return `${quoteChar}${formattedDb}${quoteChar}.${quoteChar}${formattedSchema}${quoteChar}.${quoteChar}${formattedTable}${quoteChar}`;
-        }
-
-        return `${formattedDb}.${formattedSchema}.${formattedTable}`;
+): SqlCompletionEntry[] => {
+    const applyCase = (part: string): string => {
+        if (settings?.casePreference === 'lowercase') return part.toLowerCase();
+        if (settings?.casePreference === 'uppercase') return part.toUpperCase();
+        return part;
     };
 
-    const tablesList = data.tablesBySchema
-        ?.map((s) =>
-            Object.keys(s.tables).map((t) =>
-                formatTableName(database, s.schema.toString(), t),
-            ),
-        )
-        .flat();
+    const formatName = (parts: string[]): string => {
+        const cased = parts.map(applyCase);
+        if (!settings || settings.quotePreference === 'always') {
+            return cased
+                .map((part) => `${quoteChar}${part}${quoteChar}`)
+                .join('.');
+        }
+        return cased.join('.');
+    };
 
-    return tablesList;
+    const entries: SqlCompletionEntry[] = [];
+
+    Object.entries(catalog).forEach(([database, schemas]) => {
+        Object.entries(schemas).forEach(([schema, tables]) => {
+            Object.keys(tables).forEach((table) => {
+                entries.push({
+                    // ClickHouse has no database level, so its catalog key is empty
+                    value: database
+                        ? formatName([database, schema, table])
+                        : formatName([schema, table]),
+                    kind: 'table',
+                });
+            });
+        });
+    });
+
+    listedDatabases.forEach((listed) => {
+        if (listed.database) {
+            entries.push({
+                value: formatName([listed.database]),
+                kind: 'database',
+            });
+        }
+        if (listed.schema !== null) {
+            entries.push({
+                value: formatName([listed.schema]),
+                kind: 'schema',
+            });
+        }
+    });
+
+    const seen = new Set<string>();
+    return entries.filter((entry) => {
+        if (seen.has(entry.value)) return false;
+        seen.add(entry.value);
+        return true;
+    });
 };
