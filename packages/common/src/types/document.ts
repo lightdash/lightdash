@@ -113,20 +113,39 @@ export type UpdateDocumentMetadataRequest = {
     description?: string;
 };
 
+export type DocumentCellAppendOperation = {
+    type: 'append';
+    cell: DocumentCellV3;
+};
+
+export type DocumentCellInsertOperation = {
+    type: 'insert_before' | 'insert_after';
+    targetCellId: string;
+    cell: DocumentCellV3;
+};
+
+export type DocumentCellReplaceOperation = {
+    type: 'replace';
+    cellId: string;
+    cell: DocumentCellV3;
+};
+
+export type DocumentCellRemoveOperation = { type: 'remove'; cellId: string };
+
+export type DocumentCellMoveOperation = {
+    type: 'move_before' | 'move_after';
+    cellId: string;
+    targetCellId: string;
+};
+
+// Named members, so the API compatibility check diffs a change inside a
+// cell property by property instead of reading it as a removed subschema.
 export type DocumentCellOperation =
-    | { type: 'append'; cell: DocumentCellV3 }
-    | {
-          type: 'insert_before' | 'insert_after';
-          targetCellId: string;
-          cell: DocumentCellV3;
-      }
-    | { type: 'replace'; cellId: string; cell: DocumentCellV3 }
-    | { type: 'remove'; cellId: string }
-    | {
-          type: 'move_before' | 'move_after';
-          cellId: string;
-          targetCellId: string;
-      };
+    | DocumentCellAppendOperation
+    | DocumentCellInsertOperation
+    | DocumentCellReplaceOperation
+    | DocumentCellRemoveOperation
+    | DocumentCellMoveOperation;
 
 export type UpdateDocumentContentRequest = {
     baseVersionUuid: string;
