@@ -270,7 +270,10 @@ import { getValidatedDashboardSorts } from './dashboardSorts';
 import { DuckdbQueryRefusal } from './DuckdbQueryRefusal';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnderlyingDataAvailableTables } from './getUnderlyingDataAvailableTables';
-import { getUnpivotedColumns } from './getUnpivotedColumns';
+import {
+    getColumnsFromItemsMap,
+    getUnpivotedColumns,
+} from './getUnpivotedColumns';
 import {
     applyDashboardFiltersToMergeQuery,
     applyFilterOverridesToMergeQuery,
@@ -7727,10 +7730,17 @@ export class AsyncQueryService extends ProjectService {
                     queryHistory.resultsFileName,
                 );
                 const resultFileUri = `s3://${bucket}/${key}`;
-                const select = getJsonlReferenceSelect(
-                    resultFileUri,
-                    queryHistory.columns,
-                );
+                // A result with no rows recorded no columns, because they
+                // come from the first batch the warehouse sends. Its fields
+                // still say what the file's columns are; without them the
+                // read infers none from the empty file and the join cannot
+                // bind the key.
+                const columns =
+                    Object.keys(queryHistory.columns ?? {}).length === 0 &&
+                    queryHistory.totalRowCount === 0
+                        ? getColumnsFromItemsMap(queryHistory.fields)
+                        : queryHistory.columns;
+                const select = getJsonlReferenceSelect(resultFileUri, columns);
 
                 return {
                     referenceCte: `${quoteDuckdbIdentifier(tableName)} AS (${select})`,

@@ -6,7 +6,10 @@ import {
     type ItemsMap,
     type Metric,
 } from '@lightdash/common';
-import { getUnpivotedColumns } from './getUnpivotedColumns';
+import {
+    getColumnsFromItemsMap,
+    getUnpivotedColumns,
+} from './getUnpivotedColumns';
 
 const statusDimension: Dimension = {
     fieldType: FieldType.DIMENSION,
@@ -140,5 +143,25 @@ describe('getUnpivotedColumns', () => {
         expect(getUnpivotedColumns(existing, warehouseFields, itemsMap)).toBe(
             existing,
         );
+    });
+});
+
+describe('getColumnsFromItemsMap', () => {
+    test('types every field of the query from the item itself', () => {
+        expect(getColumnsFromItemsMap(itemsMap)).toEqual({
+            orders_status: {
+                reference: 'orders_status',
+                type: DimensionType.STRING,
+                label: 'Orders Status',
+                provenance: { fieldId: 'orders_status' },
+            },
+            orders_revenue: {
+                reference: 'orders_revenue',
+                type: DimensionType.NUMBER,
+                label: 'Orders Revenue',
+                format: '#,##0.###',
+                provenance: { fieldId: 'orders_revenue' },
+            },
+        });
     });
 });
