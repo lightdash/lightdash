@@ -226,7 +226,24 @@ describe('RoadmapService', () => {
             expiresAt: new Date(Date.now() + 600_000).toISOString(),
         };
         fetchMock.mockResolvedValue(
-            new Response(JSON.stringify({ status: 'ok', results })),
+            new Response(
+                JSON.stringify({
+                    status: 'ok',
+                    extraMetadata: 'ignored',
+                    results: {
+                        ...results,
+                        extraMetadata: 'ignored',
+                        projects: results.projects.map((group) => ({
+                            ...group,
+                            extraMetadata: 'ignored',
+                            project: {
+                                ...group.project,
+                                extraMetadata: 'ignored',
+                            },
+                        })),
+                    },
+                }),
+            ),
         );
         const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
         expect(
@@ -310,7 +327,6 @@ describe('RoadmapService', () => {
                     expiresAt: new Date(Date.now() - 1).toISOString(),
                 },
             },
-            { status: 'ok', results: { ...results, customerName: 'private' } },
             roadmapServiceResponse,
         ];
         invalidPayloads.forEach((payload) =>
@@ -410,7 +426,18 @@ describe('RoadmapService', () => {
                 },
                 expiresAt: new Date(Date.now() + 600_000).toISOString(),
             };
-            fetchMock.mockResolvedValue(new Response(JSON.stringify(response)));
+            fetchMock.mockResolvedValue(
+                new Response(
+                    JSON.stringify({
+                        ...response,
+                        extraMetadata: 'ignored',
+                        results: response.results.map((item) => ({
+                            ...item,
+                            extraMetadata: 'ignored',
+                        })),
+                    }),
+                ),
+            );
             const result = await buildService().getRoadmap(account, {
                 projectId,
                 page: 2,
@@ -465,7 +492,7 @@ describe('RoadmapService', () => {
         },
     );
 
-    it('rejects filtered responses with missing or expired freshness metadata and private fields', async () => {
+    it('rejects filtered responses with missing or expired freshness metadata and invalid shapes', async () => {
         const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
         const fresh = {
             ...roadmapServiceResponse,
@@ -474,7 +501,6 @@ describe('RoadmapService', () => {
         const responses = [
             roadmapServiceResponse,
             { ...fresh, expiresAt: new Date().toISOString() },
-            { ...fresh, customerName: 'private' },
             {
                 status: 'ok',
                 results: { requests: [], expiresAt: fresh.expiresAt },

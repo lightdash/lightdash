@@ -7,3 +7,5 @@ Users with the organization-level `manage:Roadmap` permission can request to fol
 After a successful submission, the frontend confirms receipt and refreshes the roadmap. Following state comes from server reads, and following a project does not grant access to additional tickets.
 
 Slack thread links appear on cards, table rows, and in item details when supplied by Control Center. Project links belong to direct project requests; ticket links remain on their tickets. Responses without `slackThreadUrls` default to an empty array for compatibility.
+
+Roadmap response schemas accept and discard additional properties, including nested fields, so additive Control Center changes do not break reads. Known fields are still validated, and request/query schemas remain strict.
