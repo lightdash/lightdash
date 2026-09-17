@@ -919,6 +919,13 @@ export type CreateProject = Omit<
     tableConfiguration?: CreateProjectTableConfiguration;
     copyContent?: boolean;
     expiresInHours?: number;
+    dbtSourceUuid?: string;
+    warehouseConnectionName?: string;
+};
+
+export type DeployTarget = {
+    database: string;
+    region?: string;
 };
 
 export type CreateProjectOptionalCredentials = Omit<

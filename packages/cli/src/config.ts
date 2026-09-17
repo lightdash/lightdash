@@ -18,6 +18,7 @@ export type Config = {
         serverUrl?: string;
         project?: string;
         projectName?: string;
+        source?: string;
         /**
          * This is an API token that is used to authenticate with the Lightdash API.
          * It could be a personal access token or a service account token.
@@ -123,6 +124,11 @@ export const getConfig = async (): Promise<Config> => {
                 process.env.LIGHTDASH_PROJECT !== rawConfig.context?.project
                     ? undefined
                     : rawConfig.context?.projectName,
+            source:
+                process.env.LIGHTDASH_PROJECT &&
+                process.env.LIGHTDASH_PROJECT !== rawConfig.context?.project
+                    ? undefined
+                    : rawConfig.context?.source,
             serverUrl:
                 process.env.LIGHTDASH_URL || rawConfig.context?.serverUrl,
             proxyAuthorization:
@@ -140,6 +146,10 @@ export const setProject = async (projectUuid: string, projectName: string) => {
             ...(config.context || {}),
             project: projectUuid,
             projectName,
+            source:
+                config.context?.project === projectUuid
+                    ? config.context.source
+                    : undefined,
         },
     });
 };
@@ -152,6 +162,18 @@ export const unsetProject = async () => {
             ...(config.context || {}),
             project: undefined,
             projectName: undefined,
+            source: undefined,
+        },
+    });
+};
+
+export const setSource = async (source: string) => {
+    const config = await getRawConfig();
+    await setConfig({
+        ...config,
+        context: {
+            ...(config.context || {}),
+            source,
         },
     });
 };

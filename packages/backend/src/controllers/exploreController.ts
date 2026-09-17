@@ -11,6 +11,7 @@ import {
     MetricQuery,
     type ApiFormulaValidationResults,
     type ApiPreAggregateCheckResponse,
+    type DeployTarget,
     type ParametersValuesMap,
     type PivotConfiguration,
 } from '@lightdash/common';
@@ -59,18 +60,27 @@ export class ExploreController extends BaseController {
         @Request() req: express.Request,
         @Body() body: AnyType[], // tsoa doesn't seem to work with explores from CLI
         @Query() complete?: boolean,
+        @Query() sourceUuid?: string,
+        @Query() targetDatabase?: string,
+        @Query() targetRegion?: string,
     ): Promise<ApiSetExploresResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
-        const results = await this.services
-            .getProjectService()
-            .setExplores(
-                toSessionUser(req.account),
-                projectUuid,
-                body,
-                req.header(LightdashCliVersionHeader),
-                complete,
-            );
+        const results = await this.services.getProjectService().setExplores(
+            toSessionUser(req.account),
+            projectUuid,
+            body,
+            req.header(LightdashCliVersionHeader),
+            complete,
+            undefined,
+            sourceUuid,
+            targetDatabase
+                ? ({
+                      database: targetDatabase,
+                      region: targetRegion,
+                  } satisfies DeployTarget)
+                : undefined,
+        );
 
         return {
             status: 'ok',

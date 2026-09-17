@@ -2,6 +2,7 @@ import {
     CreateProjectOptionalCredentials,
     CreateProjectTableConfiguration,
     DbtProjectType,
+    deriveConnectionName,
     getLatestSupportDbtVersion,
     HealthState,
     ProjectType,
@@ -137,6 +138,7 @@ type CreateProjectOptions = {
     assumeYes?: boolean;
     expiresIn?: number;
     disableTimestampConversion?: boolean;
+    dbtSourceUuid?: string;
 };
 
 const isSnowflakeSsoEnabled = async (): Promise<boolean> => {
@@ -409,6 +411,10 @@ export const createProject = async (
         tableConfiguration: options.tableConfiguration,
         copyContent: options.copyContent,
         organizationWarehouseCredentialsUuid,
+        dbtSourceUuid: options.dbtSourceUuid,
+        warehouseConnectionName: credentials
+            ? deriveConnectionName(credentials)?.trim()
+            : undefined,
         ...(options.expiresIn !== undefined
             ? { expiresInHours: options.expiresIn }
             : {}),

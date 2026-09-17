@@ -26,7 +26,8 @@ import {
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { getProject } from './dbt/refresh';
-import { deploy } from './deploy';
+import { deploy, getDeployTarget } from './deploy';
+import { resolveProjectSource } from './sourceSelection';
 import {
     getDisableTimestampConversionFromProject,
     getProjectDisableTimestampConversion,
@@ -59,11 +60,13 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     partialCompilation?: boolean;
     combine?: boolean;
     combineManifestProjectUuid?: string;
+    source?: string;
 };
 
 type StopPreviewHandlerOptions = {
     name: string;
     verbose: boolean;
+    source?: string;
 };
 
 const deletePreviewProject = async (
@@ -283,6 +286,10 @@ export const previewHandler = async (
         );
     }
 
+    const upstreamSource = upstreamProjectValid
+        ? await resolveProjectSource(config.context!.project!, options.source)
+        : undefined;
+
     try {
         const results = await createProject({
             ...options,
@@ -297,6 +304,7 @@ export const previewHandler = async (
             expiresIn: options.expiresIn
                 ? parseInt(options.expiresIn, 10)
                 : undefined,
+            dbtSourceUuid: upstreamSource?.projectDbtSourceUuid,
         });
 
         project = results?.project;
@@ -345,11 +353,21 @@ export const previewHandler = async (
         },
     });
     try {
+        const previewSource = await resolveProjectSource(
+            project.projectUuid,
+            upstreamSource?.name ?? options.source,
+        );
+        const deployTarget = await getDeployTarget(
+            options,
+            projectTypeConfig.type,
+        );
         const { explores, isProjectComplete } = await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
             complete: isProjectComplete,
+            sourceUuid: previewSource.projectDbtSourceUuid,
+            deployTarget,
         });
 
         await setPreviewProject(project.projectUuid, name);
@@ -424,6 +442,8 @@ export const previewHandler = async (
                             ...options,
                             projectUuid: project.projectUuid,
                             complete: compileResult.isProjectComplete,
+                            sourceUuid: previewSource.projectDbtSourceUuid,
+                            deployTarget,
                         });
                     }
 
@@ -548,6 +568,10 @@ export const startPreviewHandler = async (
     const projectName = options.name;
     const config = await getConfig();
     options.combineManifestProjectUuid = config.context?.project;
+    const upstreamSource = config.context?.project
+        ? await resolveProjectSource(config.context.project, options.source)
+        : undefined;
+    const deployTarget = await getDeployTarget(options, projectTypeConfig.type);
 
     // Log current source project info if copying content
     if (!options.skipCopyContent && config.context?.project) {
@@ -560,6 +584,10 @@ export const startPreviewHandler = async (
 
     const previewProject = await getPreviewProject(projectName);
     if (previewProject) {
+        const previewSource = await resolveProjectSource(
+            previewProject.projectUuid,
+            upstreamSource?.name ?? options.source,
+        );
         console.error(
             `\n${styles.success('Updating preview project:')} ${styles.bold(projectName)}\n`,
         );
@@ -597,6 +625,8 @@ export const startPreviewHandler = async (
             ...options,
             projectUuid: previewProject.projectUuid,
             complete: isProjectComplete,
+            sourceUuid: previewSource.projectDbtSourceUuid,
+            deployTarget,
         });
         const url = await projectUrl(previewProject);
         console.error(`Project updated on ${url}`);
@@ -642,6 +672,7 @@ export const startPreviewHandler = async (
             expiresIn: options.expiresIn
                 ? parseInt(options.expiresIn, 10)
                 : undefined,
+            dbtSourceUuid: upstreamSource?.projectDbtSourceUuid,
         });
 
         const project = results?.project;
@@ -686,10 +717,16 @@ export const startPreviewHandler = async (
         }
 
         const { explores, isProjectComplete } = await compileProject(options);
+        const previewSource = await resolveProjectSource(
+            project.projectUuid,
+            upstreamSource?.name ?? options.source,
+        );
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
             complete: isProjectComplete,
+            sourceUuid: previewSource.projectDbtSourceUuid,
+            deployTarget,
         });
         const url = await projectUrl(project);
 
@@ -727,10 +764,14 @@ export const stopPreviewHandler = async (
 
     const projectName = options.name;
 
-    await unsetPreviewProject();
-
     const previewProject = await getPreviewProject(projectName);
     if (previewProject) {
+        const config = await getConfig();
+        await resolveProjectSource(
+            previewProject.projectUuid,
+            options.source ?? config.context?.source,
+        );
+        await unsetPreviewProject();
         await LightdashAnalytics.track({
             event: 'stop_preview.delete',
             properties: {

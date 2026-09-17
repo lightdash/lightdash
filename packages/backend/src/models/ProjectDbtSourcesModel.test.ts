@@ -164,6 +164,28 @@ describe('ProjectDbtSourcesModel', () => {
         expect(insert.sql).toMatch(/on conflict .* do nothing/i);
         // No warehouse location on the primary; it follows the connection.
         expect(insert.bindings).toEqual(expect.arrayContaining([null]));
+    it('binds copied sources to the preview connection identities', async () => {
+        tracker.on.select(ProjectDbtSourcesTableName).responseOnce(sources);
+        tracker.on.insert(ProjectDbtSourcesTableName).responseOnce([]);
+
+        await model.copySources(
+            upstreamProjectUuid,
+            previewProjectUuid,
+            new Map([
+                [sources[0].connection_uuid, 'preview-finance-connection'],
+                [sources[1].connection_uuid, 'preview-marketing-connection'],
+            ]),
+        );
+
+        expect(tracker.history.insert[0].bindings).toContain(
+            'preview-finance-connection',
+        );
+        expect(tracker.history.insert[0].bindings).toContain(
+            'preview-marketing-connection',
+        );
+        expect(tracker.history.insert[0].bindings).not.toContain(
+            sources[0].connection_uuid,
+        );
     });
 
     it('checks that a live connection belongs to the project', async () => {
