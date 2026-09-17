@@ -10452,7 +10452,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "List all verified charts and dashboards in the required projectUuid. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.",
+      "description": "List all verified charts, dashboards, and data apps in the required projectUuid. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Each item includes contentType (chart, dashboard, or data_app), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {

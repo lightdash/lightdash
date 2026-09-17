@@ -148,9 +148,6 @@ export class SearchService extends BaseService {
                     ...opts,
                 }),
             ),
-            // Data app search does not join verification yet, so verifiedOnly
-            // does not filter apps. Verified apps are listed via content
-            // verification instead.
             this.appGenerateService
                 ? this.appGenerateService
                       .dataAppsEnabledFor(user)
@@ -160,7 +157,10 @@ export class SearchService extends BaseService {
                                     projectUuid,
                                     query,
                                     undefined,
-                                    { fullTextSearchOperator: 'OR' },
+                                    {
+                                        fullTextSearchOperator: 'OR',
+                                        verifiedOnly,
+                                    },
                                 )
                               : [],
                       )

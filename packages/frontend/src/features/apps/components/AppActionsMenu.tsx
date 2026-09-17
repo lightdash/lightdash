@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    canMutateVerifiedContent,
     DirectAccessResourceType,
     getAppDisplayName,
     isApiError,
@@ -42,6 +41,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import AppDeleteModal from '../../../components/common/modal/AppDeleteModal';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import useToaster from '../../../hooks/toaster/useToaster';
+import {
+    useUnverifyDataAppMutation,
+    useVerifyDataAppMutation,
+} from '../../../hooks/useContentVerification';
 import { useProject } from '../../../hooks/useProject';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -56,12 +59,8 @@ import {
     useAppThumbnailDelete,
     useAppThumbnailUrl,
 } from '../hooks/useAppThumbnail';
-import {
-    useUnverifyDataAppMutation,
-    useVerifyDataAppMutation,
-} from '../../../hooks/useContentVerification';
 import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
-import { useCanEditDataApp } from '../hooks/useCanEditDataApp';
+import { useCanEditVerifiedDataApp } from '../hooks/useCanEditDataApp';
 import { useDuplicateApp } from '../hooks/useDuplicateApp';
 import { type SdkUpgradeOffer } from '../hooks/useSdkUpgradeStatus';
 import AppUpgradeModal from './AppUpgradeModal';
@@ -179,20 +178,11 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     const navigate = useNavigate();
 
     const { user, health } = useApp();
-    const canEdit = useCanEditDataApp(projectUuid, {
+    const canEditVerified = useCanEditVerifiedDataApp(projectUuid, {
         spaceUuid: appSpaceUuid,
         createdByUserUuid: appCreatedByUserUuid,
-    });
-    const canMutateVerified = canMutateVerifiedContent(
-        user.data?.ability ?? { can: () => false },
-        {
-            organizationUuid: user.data?.organizationUuid ?? '',
-            projectUuid,
-        },
         verification,
-        user.data?.userUuid,
-    );
-    const canEditVerified = canEdit && canMutateVerified;
+    });
     const isAppVerified = verification !== null;
     const userCanManageVerification =
         user.data?.ability.can(
@@ -243,7 +233,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     const thumbnailQuery = useAppThumbnailUrl(
         projectUuid,
         appUuid,
-        menuOpened && canEdit && captureThumbnail !== null,
+        menuOpened && canEditVerified && captureThumbnail !== null,
     );
     const hasThumbnail = !thumbnailQuery.isError && !!thumbnailQuery.data;
     const { mutateAsync: deleteThumbnail, isLoading: isDeletingThumbnail } =
@@ -308,7 +298,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     }, [duplicateMutate, navigate, onDuplicated, projectUuid, appUuid]);
 
     const upgradeAvailable =
-        canEdit &&
+        canEditVerified &&
         upgrade !== null &&
         (upgrade.status === 'stale' || upgrade.status === 'legacy');
 
@@ -438,9 +428,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                 }
                             }}
                         >
-                            {isAppVerified
-                                ? 'Remove verification'
-                                : 'Verify'}
+                            {isAppVerified ? 'Remove verification' : 'Verify'}
                         </Menu.Item>
                     )}
                     {canEditVerified && upgrade && (

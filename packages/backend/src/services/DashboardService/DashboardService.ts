@@ -3,7 +3,6 @@ import {
     AbilityAction,
     assertRegisteredAccount,
     BulkActionable,
-    canMutateVerifiedContent,
     computeContentDraftStaleness,
     ContentAsCodeType,
     ContentType,
@@ -121,6 +120,10 @@ import {
     SpacePermissionService,
 } from '../SpaceService/SpacePermissionService';
 import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
+import {
+    assertCanMutateVerifiedContent,
+    getVerificationAfterUpdate,
+} from '../verifiedContentGuards';
 
 type DashboardServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -2363,32 +2366,20 @@ export class DashboardService
         organizationUuid: string;
         preserveVerification?: boolean;
     }): Promise<ContentVerificationInfo | null> {
-        const verification = await this.contentVerificationModel.getByContent(
-            ContentType.DASHBOARD,
-            dashboardUuid,
-        );
-        if (!verification || preserveVerification === false) return null;
-
-        const auditedAbility = this.createAuditedAbility(user);
-        const canManageVerification = auditedAbility.can(
-            'manage',
-            subject('ContentVerification', {
-                organizationUuid,
+        return getVerificationAfterUpdate(
+            {
+                contentVerificationModel: this.contentVerificationModel,
+                ability: this.createAuditedAbility(user),
+                user,
+            },
+            {
+                contentType: ContentType.DASHBOARD,
+                contentUuid: dashboardUuid,
                 projectUuid,
-                metadata: { dashboardUuid },
-            }),
+                organizationUuid,
+                preserveVerification,
+            },
         );
-        const isVerifier = verification.verifiedBy.userUuid === user.userUuid;
-
-        if (canManageVerification || isVerifier) return verification;
-
-        if (preserveVerification === true) {
-            throw new ForbiddenError(
-                'Only admins or the verifier can preserve dashboard verification',
-            );
-        }
-
-        return null;
     }
 
     /**
@@ -2594,22 +2585,19 @@ export class DashboardService
         projectUuid: string;
         organizationUuid: string;
     }): Promise<void> {
-        const verification = await this.contentVerificationModel.getByContent(
-            ContentType.DASHBOARD,
-            dashboardUuid,
+        await assertCanMutateVerifiedContent(
+            {
+                contentVerificationModel: this.contentVerificationModel,
+                ability: this.createAuditedAbility(user),
+                user,
+            },
+            {
+                contentType: ContentType.DASHBOARD,
+                contentUuid: dashboardUuid,
+                projectUuid,
+                organizationUuid,
+            },
         );
-        if (
-            !canMutateVerifiedContent(
-                this.createAuditedAbility(user),
-                { organizationUuid, projectUuid },
-                verification,
-                user.userUuid,
-            )
-        ) {
-            throw new ForbiddenError(
-                'This dashboard is verified. You need permission to edit verified content, or ask an admin to unverify it first.',
-            );
-        }
     }
 
     async togglePinning(

@@ -3,6 +3,7 @@ import {
     ContentType,
     ForbiddenError,
     OrganizationMemberRole,
+    ParameterError,
     ProjectType,
     type SessionUser,
 } from '@lightdash/common'; // pragma: allowlist secret
@@ -47,6 +48,10 @@ const app = {
     created_by_user_uuid: USER_UUID,
     template: null,
     registry_slug: null,
+};
+
+type StoredApp = Omit<typeof app, 'space_uuid'> & {
+    space_uuid: string | null;
 };
 
 const verificationInfo = {
@@ -108,11 +113,12 @@ const buildService = (
         unverify: ReturnType<typeof vi.fn>;
         getByContent: ReturnType<typeof vi.fn>;
     },
+    storedApp: StoredApp = app,
 ) => {
     const analytics = { track: vi.fn() };
     const appModel = {
-        getApp: vi.fn(async () => app),
-        updateApp: vi.fn(async () => app),
+        getApp: vi.fn(async () => storedApp),
+        updateApp: vi.fn(async () => storedApp),
     };
     const service = new AppGenerateService({
         lightdashConfig: { appRuntime: {} } as never, // pragma: allowlist secret
@@ -208,6 +214,23 @@ describe('AppGenerateService content verification', () => {
         await expect(
             service.verifyDataApp(editorUser, PROJECT_UUID, APP_UUID),
         ).rejects.toThrow(ForbiddenError);
+        expect(contentVerificationModel.verify).not.toHaveBeenCalled();
+    });
+
+    it('rejects verify for a personal app that is not in a space', async () => {
+        const contentVerificationModel = {
+            verify: vi.fn(async () => undefined),
+            unverify: vi.fn(async () => undefined),
+            getByContent: vi.fn(async () => null),
+        };
+        const { service } = buildService(contentVerificationModel, {
+            ...app,
+            space_uuid: null,
+        });
+
+        await expect(
+            service.verifyDataApp(adminUser, PROJECT_UUID, APP_UUID),
+        ).rejects.toThrow(ParameterError);
         expect(contentVerificationModel.verify).not.toHaveBeenCalled();
     });
 

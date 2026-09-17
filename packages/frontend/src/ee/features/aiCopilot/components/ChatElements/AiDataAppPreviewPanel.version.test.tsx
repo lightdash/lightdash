@@ -61,6 +61,7 @@ vi.mock('../../../../../hooks/useProject', () => ({
 
 vi.mock('../../../../../features/apps/hooks/useCanEditDataApp', () => ({
     useCanEditDataApp: () => mocks.canManageApp,
+    useCanEditVerifiedDataApp: () => mocks.canManageApp,
     useCanEditDataAppChecker: () => () => mocks.canManageApp,
 }));
 

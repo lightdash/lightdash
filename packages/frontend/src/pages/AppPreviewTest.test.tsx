@@ -87,6 +87,7 @@ vi.mock('../providers/Fullscreen/useNativeFullscreenToggle', () => ({
 
 vi.mock('../features/apps/hooks/useCanEditDataApp', () => ({
     useCanEditDataApp: () => false,
+    useCanEditVerifiedDataApp: () => false,
 }));
 
 vi.mock('../features/apps/hooks/useAppBuildPoller', () => ({

@@ -39,7 +39,7 @@ import { RestoreAppVersionModal } from '../../../../../features/apps/components/
 import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppInspector } from '../../../../../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../../../../../features/apps/hooks/useAppPreviewToken';
-import { useCanEditDataApp } from '../../../../../features/apps/hooks/useCanEditDataApp';
+import { useCanEditVerifiedDataApp } from '../../../../../features/apps/hooks/useCanEditDataApp';
 import { useCaptureThumbnail } from '../../../../../features/apps/hooks/useCaptureThumbnail';
 import { useElementPicker } from '../../../../../features/apps/hooks/useElementPicker';
 import { useGetApp } from '../../../../../features/apps/hooks/useGetApp';
@@ -312,9 +312,10 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         );
 
     // Same gate as Edit on the standalone view page.
-    const canManageApp = useCanEditDataApp(projectUuid, {
+    const canManageApp = useCanEditVerifiedDataApp(projectUuid, {
         spaceUuid: app?.spaceUuid ?? null,
         createdByUserUuid: app?.createdByUserUuid ?? null,
+        verification: app?.verification ?? null,
     });
     // Versions come newest first; the backend refuses restores mid-build.
     const latestVersionStatus = app?.versions[0]?.status;

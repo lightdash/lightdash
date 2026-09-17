@@ -17,7 +17,6 @@ import {
     APP_VERSION_CANCELLED_BY_USER,
     assertEmbeddedAuth,
     assertUnreachable,
-    canMutateVerifiedContent,
     ChartType,
     chartTypeIconSchema,
     checkThemeLimits,
@@ -194,6 +193,10 @@ import type { ProjectService } from '../../../services/ProjectService/ProjectSer
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import {
+    assertCanMutateVerifiedContent,
+    getVerificationAfterUpdate,
+} from '../../../services/verifiedContentGuards';
 import {
     getOtelTraceHeaders,
     runWithOtelSpanContext,
@@ -917,22 +920,19 @@ export class AppGenerateService extends BaseService {
         projectUuid: string;
         organizationUuid: string;
     }): Promise<void> {
-        const verification = await this.contentVerificationModel.getByContent(
-            ContentType.DATA_APP,
-            appUuid,
+        await assertCanMutateVerifiedContent(
+            {
+                contentVerificationModel: this.contentVerificationModel,
+                ability: this.createAuditedAbility(user),
+                user,
+            },
+            {
+                contentType: ContentType.DATA_APP,
+                contentUuid: appUuid,
+                projectUuid,
+                organizationUuid,
+            },
         );
-        if (
-            !canMutateVerifiedContent(
-                this.createAuditedAbility(user),
-                { organizationUuid, projectUuid },
-                verification,
-                user.userUuid,
-            )
-        ) {
-            throw new ForbiddenError(
-                'This data app is verified. You need permission to edit verified content, or ask an admin to unverify it first.',
-            );
-        }
     }
 
     private async getVerificationAfterAppUpdate({
@@ -940,32 +940,28 @@ export class AppGenerateService extends BaseService {
         appUuid,
         projectUuid,
         organizationUuid,
+        preserveVerification,
     }: {
         user: SessionUser;
         appUuid: string;
         projectUuid: string;
         organizationUuid: string;
+        preserveVerification?: boolean;
     }): Promise<ContentVerificationInfo | null> {
-        const verification = await this.contentVerificationModel.getByContent(
-            ContentType.DATA_APP,
-            appUuid,
-        );
-        if (!verification) return null;
-
-        const auditedAbility = this.createAuditedAbility(user);
-        const canManageVerification = auditedAbility.can(
-            'manage',
-            subject('ContentVerification', {
-                organizationUuid,
+        return getVerificationAfterUpdate(
+            {
+                contentVerificationModel: this.contentVerificationModel,
+                ability: this.createAuditedAbility(user),
+                user,
+            },
+            {
+                contentType: ContentType.DATA_APP,
+                contentUuid: appUuid,
                 projectUuid,
-                metadata: { appUuid },
-            }),
+                organizationUuid,
+                preserveVerification,
+            },
         );
-        const isVerifier = verification.verifiedBy.userUuid === user.userUuid;
-
-        if (canManageVerification || isVerifier) return verification;
-
-        return null;
     }
 
     private async unverifyAppIfNotPreserved({
@@ -1019,6 +1015,11 @@ export class AppGenerateService extends BaseService {
             )
         ) {
             throw new ForbiddenError('Only admins can verify data apps');
+        }
+        if (app.space_uuid === null) {
+            throw new ParameterError(
+                'Move this data app to a space before verifying it',
+            );
         }
 
         await this.contentVerificationModel.verify(
@@ -6851,13 +6852,6 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        await this.unverifyAppIfNotPreserved({
-            user,
-            appUuid,
-            projectUuid,
-            organizationUuid,
-        });
-
         const newVersion = (latestVersion?.version ?? 0) + 1;
         const claudeEffort = resolveClaudeEffort(newVersion, app.template);
         this.logger.info(
@@ -6954,6 +6948,13 @@ export class AppGenerateService extends BaseService {
             resources,
             carriedDependencies,
         );
+
+        await this.unverifyAppIfNotPreserved({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
 
         if (isThemeChange) {
             await this.appModel.updateDesignUuid(
@@ -7230,13 +7231,6 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        await this.unverifyAppIfNotPreserved({
-            user,
-            appUuid,
-            projectUuid,
-            organizationUuid,
-        });
-
         const newVersion = (latestVersion?.version ?? 0) + 1;
         this.logger.info(
             `App ${appUuid}: upgrade started (version=${newVersion}, reportedSdkVersion=${
@@ -7264,6 +7258,13 @@ export class AppGenerateService extends BaseService {
                 ? (latestReady.viz_schema ?? undefined)
                 : undefined,
         );
+
+        await this.unverifyAppIfNotPreserved({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
 
         this.analytics.track({
             event: 'data_app.upgrade_requested',
@@ -7376,13 +7377,6 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        await this.unverifyAppIfNotPreserved({
-            user,
-            appUuid,
-            projectUuid,
-            organizationUuid,
-        });
-
         const newVersion = (latestVersion?.version ?? 0) + 1;
         const { client: s3Client, bucket } = this.getS3Client();
 
@@ -7471,6 +7465,13 @@ export class AppGenerateService extends BaseService {
             source.viz_schema ?? undefined,
             { registryVersion: source.registry_version ?? undefined },
         );
+        await this.unverifyAppIfNotPreserved({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
+
         await this.persistVersionDataReferences(
             appUuid,
             newVersion,
@@ -10329,6 +10330,14 @@ export class AppGenerateService extends BaseService {
             { tx },
         );
 
+        // Personal apps are only visible to their creator, so the badge cannot follow.
+        if (targetSpaceUuid === null) {
+            await this.contentVerificationModel.unverify(
+                ContentType.DATA_APP,
+                appUuid,
+            );
+        }
+
         if (trackEvent) {
             this.analytics.track({
                 event: 'data_app.moved',
@@ -12270,6 +12279,12 @@ export class AppGenerateService extends BaseService {
                 existingApp,
                 'You do not have access to update this app',
             );
+            await this.assertCanMutateVerifiedApp({
+                user,
+                appUuid: existingApp.app_id,
+                projectUuid,
+                organizationUuid: existingApp.organization_uuid,
+            });
             const latestVersion = await this.appModel.getLatestVersion(
                 existingApp.app_id,
             );
@@ -12363,6 +12378,12 @@ export class AppGenerateService extends BaseService {
                 existingApp,
                 'You do not have access to update this app',
             );
+            await this.assertCanMutateVerifiedApp({
+                user,
+                appUuid: existingApp.app_id,
+                projectUuid,
+                organizationUuid: existingApp.organization_uuid,
+            });
             await this.updateAppMetadataIfChanged(
                 existingApp,
                 code.manifest,
@@ -12427,6 +12448,12 @@ export class AppGenerateService extends BaseService {
                     ? manifestVizSchema
                     : undefined,
             );
+            await this.unverifyAppIfNotPreserved({
+                user,
+                appUuid: existingApp.app_id,
+                projectUuid,
+                organizationUuid: existingApp.organization_uuid,
+            });
         } else {
             await this.assertDataAppAbility(
                 user,

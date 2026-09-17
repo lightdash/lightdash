@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    ContentType,
     ForbiddenError,
     type SessionUser,
     type VerifiedContentListItem,
@@ -60,30 +59,14 @@ export class ContentVerificationService extends BaseService {
         const items =
             await this.contentVerificationModel.getAllForProject(projectUuid);
 
-        const spaceUuids = [
-            ...new Set(
-                items
-                    .map((item) => item.spaceUuid)
-                    .filter((spaceUuid): spaceUuid is string => !!spaceUuid),
-            ),
-        ];
-
         const accessibleSpaceUuids = new Set(
             await this.spacePermissionService.getAccessibleSpaceUuids(
                 'view',
                 user,
-                spaceUuids,
+                [...new Set(items.map((item) => item.spaceUuid))],
             ),
         );
 
-        return items.filter((item) => {
-            if (item.spaceUuid === null) {
-                return (
-                    item.contentType === ContentType.DATA_APP &&
-                    item.createdByUserUuid === user.userUuid
-                );
-            }
-            return accessibleSpaceUuids.has(item.spaceUuid);
-        });
+        return items.filter((item) => accessibleSpaceUuids.has(item.spaceUuid));
     }
 }

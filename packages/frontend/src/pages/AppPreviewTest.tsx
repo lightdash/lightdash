@@ -27,7 +27,7 @@ import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewToken
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppInspector } from '../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
-import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
+import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { useProjectUuid } from '../hooks/useProjectUuid';
@@ -68,9 +68,10 @@ export default function AppPreviewTest() {
     const appLastModified = newestVersion
         ? (newestVersion.statusUpdatedAt ?? newestVersion.createdAt)
         : null;
-    const canEditApp = useCanEditDataApp(projectUuid, {
+    const canEditApp = useCanEditVerifiedDataApp(projectUuid, {
         spaceUuid: appSpaceUuid,
         createdByUserUuid: appCreatedByUserUuid,
+        verification: appVerification,
     });
 
     const version = explicitVersion ?? latestReadyVersion;

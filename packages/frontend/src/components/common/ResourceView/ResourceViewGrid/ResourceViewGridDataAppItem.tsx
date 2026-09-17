@@ -4,11 +4,11 @@ import {
 } from '@lightdash/common';
 import { Box, Flex, Group, Paper, Text, Tooltip } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
-import { IconCircleCheckFilled, IconEye } from '@tabler/icons-react';
+import { IconEye } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import AppThumbnailHoverCard from '../../../../features/apps/components/AppThumbnailHoverCard';
 import MantineIcon from '../../MantineIcon';
-import { ResourceIcon, ResourceIndicator } from '../../ResourceIcon';
+import { VerifiedResourceIcon } from '../../ResourceIcon';
 import { ResourceInfoPopupContent } from '../../ResourceInfoPopup/ResourceInfoPopup';
 import ResourceViewActionMenu, {
     type ResourceViewActionMenuCommonProps,
@@ -80,42 +80,10 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
                         className={classes.gridCardTopSection}
                     >
                         {dragIcon}
-                        {item.data.verification ? (
-                            <ResourceIndicator
-                                iconProps={{
-                                    icon: IconCircleCheckFilled,
-                                    color: 'green.6',
-                                }}
-                                tooltipProps={{
-                                    maw: 300,
-                                    withinPortal: true,
-                                    multiline: true,
-                                    offset: -2,
-                                    position: 'bottom',
-                                }}
-                                tooltipLabel={
-                                    <>
-                                        Verified by{' '}
-                                        {
-                                            item.data.verification.verifiedBy
-                                                .firstName
-                                        }{' '}
-                                        {
-                                            item.data.verification.verifiedBy
-                                                .lastName
-                                        }{' '}
-                                        on{' '}
-                                        {new Date(
-                                            item.data.verification.verifiedAt,
-                                        ).toLocaleDateString()}
-                                    </>
-                                }
-                            >
-                                <ResourceIcon item={item} />
-                            </ResourceIndicator>
-                        ) : (
-                            <ResourceIcon item={item} />
-                        )}
+                        <VerifiedResourceIcon
+                            item={item}
+                            verification={item.data.verification}
+                        />
 
                         <Tooltip
                             label={item.data.description}

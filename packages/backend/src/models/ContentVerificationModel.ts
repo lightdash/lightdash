@@ -5,10 +5,7 @@ import {
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import {
-    AppsTableName,
-    AppVersionsTableName,
-} from '../database/entities/apps';
+import { AppsTableName, AppVersionsTableName } from '../database/entities/apps';
 import {
     ContentVerificationTableName,
     type CreateDbContentVerification,
@@ -294,7 +291,7 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.content_uuid`,
                 `${AppsTableName}.app_id`,
             )
-            .leftJoin(
+            .innerJoin(
                 SpaceTableName,
                 `${AppsTableName}.space_uuid`,
                 `${SpaceTableName}.space_uuid`,
@@ -319,7 +316,6 @@ export class ContentVerificationModel {
                 `${AppsTableName}.slug`,
                 `${AppsTableName}.description`,
                 `${AppsTableName}.views_count`,
-                `${AppsTableName}.created_by_user_uuid`,
                 this.database(AppVersionsTableName)
                     .select('created_at')
                     .whereRaw(
@@ -337,23 +333,9 @@ export class ContentVerificationModel {
             );
 
         const dataApps: VerifiedContentListItem[] = dataAppRows.map((row) => ({
-            uuid: row.content_verification_uuid,
-            contentUuid: row.content_uuid,
-            name: row.name,
-            description: row.description ?? null,
-            spaceUuid: row.space_uuid ?? null,
-            spaceName: row.space_name ?? null,
-            views: row.views_count,
-            lastUpdatedAt: row.last_updated_at,
-            verifiedBy: {
-                userUuid: row.user_uuid,
-                firstName: row.first_name,
-                lastName: row.last_name,
-            },
-            verifiedAt: row.verified_at,
+            ...toBaseItem(row),
             contentType: ContentType.DATA_APP,
             slug: row.slug,
-            createdByUserUuid: row.created_by_user_uuid,
         }));
 
         return [...charts, ...dashboards, ...dataApps];

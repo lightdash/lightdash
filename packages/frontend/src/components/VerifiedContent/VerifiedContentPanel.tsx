@@ -1,4 +1,8 @@
-import { ContentType, type VerifiedContentListItem } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ContentType,
+    type VerifiedContentListItem,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -39,6 +43,34 @@ import classes from './VerifiedContentPanel.module.css';
 
 type Props = {
     projectUuid: string;
+};
+
+const getItemPresentation = (
+    projectUuid: string,
+    item: VerifiedContentListItem,
+) => {
+    switch (item.contentType) {
+        case ContentType.CHART:
+            return {
+                href: `/projects/${projectUuid}/saved/${item.slug}`,
+                typeLabel: 'Chart',
+                typeIcon: getChartIcon(item.chartKind),
+            };
+        case ContentType.DASHBOARD:
+            return {
+                href: `/projects/${projectUuid}/dashboards/${item.slug}`,
+                typeLabel: 'Dashboard',
+                typeIcon: IconLayoutDashboard,
+            };
+        case ContentType.DATA_APP:
+            return {
+                href: `/projects/${projectUuid}/apps/${item.contentUuid}/view`,
+                typeLabel: 'Data app',
+                typeIcon: IconAppWindow,
+            };
+        default:
+            return assertUnreachable(item, 'Unknown verified content type');
+    }
 };
 
 const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
@@ -101,23 +133,10 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 minSize: 160,
                 Cell: ({ row }) => {
                     const item = row.original;
-                    const isChart = item.contentType === ContentType.CHART;
-                    const isDataApp = item.contentType === ContentType.DATA_APP;
-                    const href = isChart
-                        ? `/projects/${projectUuid}/saved/${item.slug}`
-                        : isDataApp
-                          ? `/projects/${projectUuid}/apps/${item.contentUuid}/view`
-                          : `/projects/${projectUuid}/dashboards/${item.slug}`;
-                    const typeLabel = isChart
-                        ? 'Chart'
-                        : isDataApp
-                          ? 'Data app'
-                          : 'Dashboard';
-                    const typeIcon = isChart
-                        ? getChartIcon(item.chartKind)
-                        : isDataApp
-                          ? IconAppWindow
-                          : IconLayoutDashboard;
+                    const { href, typeLabel, typeIcon } = getItemPresentation(
+                        projectUuid,
+                        item,
+                    );
 
                     return (
                         <Group
@@ -158,7 +177,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 minSize: 80,
                 Cell: ({ row }) => (
                     <TruncatedText maxWidth="100%" c="ldGray.7">
-                        {row.original.spaceName ?? 'My apps'}
+                        {row.original.spaceName}
                     </TruncatedText>
                 ),
             },
