@@ -1,3 +1,10 @@
+## [2.245.2](https://github.com/lightdash/lightdash/compare/2.245.1...2.245.2) (2026-09-17)
+
+
+### Bug Fixes
+
+* **frontend:** refine dark mode metric styling ([#29395](https://github.com/lightdash/lightdash/issues/29395)) ([7c0f8fb](https://github.com/lightdash/lightdash/commit/7c0f8fbc0520c467621fb21e63dd2265ad071e78))
+
 ## [2.245.1](https://github.com/lightdash/lightdash/compare/2.245.0...2.245.1) (2026-09-17)
 
 
