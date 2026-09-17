@@ -527,6 +527,8 @@ type GenerateAgentExecutionOptions =
           onWarehouseQuery?: () => void | Promise<void>;
           /** Restricts the run to these registered tool names. */
           toolAllowlist?: ReadonlySet<string>;
+          /** Aborts model calls and tools mid-run (worker timeouts). */
+          abortSignal?: AbortSignal;
       }
     | {
           mode: 'deep_research';
@@ -11960,7 +11962,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 dependencies,
                 mcpToolSetup,
                 abortSignal:
-                    responseExecution.mode === 'deep_research'
+                    responseExecution.mode === 'deep_research' ||
+                    responseExecution.mode === 'standard'
                         ? responseExecution.abortSignal
                         : undefined,
             });

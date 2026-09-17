@@ -479,6 +479,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 payload,
                 helpers,
             ) => {
+                // The timeout must stop the agent, not just report it.
+                const abort = new AbortController();
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         EE_SCHEDULER_TASKS.DATA_APP_INVESTIGATE,
@@ -490,12 +492,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                                 payload,
                                 helpers.job.id,
                                 helpers.job.run_at,
+                                abort.signal,
                             );
                         },
                     ),
                     helpers.job,
                     DATA_APP_INVESTIGATE_TIMEOUT_MS,
                     async (job, e) => {
+                        abort.abort();
                         await this.schedulerService.logSchedulerJob({
                             task: EE_SCHEDULER_TASKS.DATA_APP_INVESTIGATE,
                             jobId: job.id,

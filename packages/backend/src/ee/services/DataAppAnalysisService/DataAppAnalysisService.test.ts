@@ -10,6 +10,7 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
+import { sessionUser } from '../../../services/UserService.mock';
 import { assertCanViewApp } from '../AppGenerateService/appAuthz';
 import {
     DataAppAnalysisService,
@@ -456,6 +457,53 @@ describe('DataAppAnalysisService.investigate', () => {
         (service.aiAgentService as Record<string, unknown>).getAgent = getAgent;
         return { service: base.service, find, dataAppInvestigate, getAgent };
     }
+
+    it('persists nothing and logs nothing once the run is aborted', async () => {
+        const { service } = buildInvestigateService();
+        const abort = new AbortController();
+        const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+        const create = vi.fn();
+        const deps = service as unknown as Record<string, unknown>;
+        deps.userModel = {
+            findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(sessionUser),
+        };
+        deps.schedulerService = { logSchedulerJob };
+        (deps.dataAppAnalysisModel as Record<string, unknown>).create = create;
+        Object.assign(deps.aiAgentService as Record<string, unknown>, {
+            createAgentThread: vi.fn().mockResolvedValue({ uuid: 'thread-1' }),
+            generateAgentThreadResponse: vi.fn(
+                async (
+                    _user: unknown,
+                    { execution }: { execution: { abortSignal?: AbortSignal } },
+                ) => {
+                    // The worker timed out while the model was still running.
+                    abort.abort();
+                    expect(execution.abortSignal?.aborted).toBe(true);
+                    return 'late explanation';
+                },
+            ),
+        });
+
+        await service.runInvestigation(
+            {
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+                userUuid: 'user-1',
+                appUuid: 'app-1',
+                analysisId: 'analysis-1',
+                anomalyId: 'anom-1',
+                agentUuid: 'agent-1',
+            },
+            'job-1',
+            new Date('2026-09-15T10:00:00Z'),
+            abort.signal,
+        );
+
+        expect(create).not.toHaveBeenCalled();
+        expect(logSchedulerJob.mock.calls.map(([log]) => log.status)).toEqual([
+            'started',
+        ]);
+    });
 
     it('queues a job for a known anomaly with an accessible agent', async () => {
         const { service, dataAppInvestigate } = buildInvestigateService();
