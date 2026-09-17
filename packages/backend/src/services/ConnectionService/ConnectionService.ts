@@ -1,10 +1,20 @@
 import { subject } from '@casl/ability';
 import {
+    assertRegisteredAccount,
     ConflictError,
     FeatureFlags,
+    fillOmittedSecrets,
     ForbiddenError,
+    ParameterError,
     type Account,
+    type ApiCreateConnectionRequest,
+    type ApiUpdateConnectionRequest,
     type Connection,
+    type ConnectionCapabilities,
+    type ConnectionWithCredentials,
+    type CreateWarehouseCredentials,
+    type RegisteredAccount,
+    type WarehouseConnectionTestResults,
     type WarehouseTypes,
 } from '@lightdash/common';
 import { DatabaseError } from 'pg';
@@ -13,7 +23,7 @@ import {
     type ConnectionBoundContent,
     type ConnectionWriteInput,
 } from '../../models/ConnectionModel/ConnectionModel';
-import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
@@ -23,9 +33,20 @@ type ConnectionServiceArguments = {
     featureFlagService: FeatureFlagService;
     licenseService: LicenseService;
     projectModel: ProjectModel;
+    testWarehouseConnection: (
+        account: RegisteredAccount,
+        projectUuid: string,
+        warehouseConnection: CreateWarehouseCredentials,
+    ) => Promise<WarehouseConnectionTestResults>;
 };
 
 const CONNECTION_NAME_INDEX = 'warehouse_credentials_project_name_unique';
+const ENTITLEMENT_REASON =
+    'This project can hold one connection. A second connection needs the Enterprise multi-connection add-on.';
+const ROLLOUT_REASON =
+    'A second connection is not enabled for this organisation yet.';
+const CONTRACT_REASON =
+    'A second connection needs the connections upgrade to finish on this instance.';
 
 const isConnectionNameConflict = (error: unknown): boolean =>
     error instanceof DatabaseError &&
@@ -63,12 +84,15 @@ export class ConnectionService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly testWarehouseConnection: ConnectionServiceArguments['testWarehouseConnection'];
+
     constructor(args: ConnectionServiceArguments) {
         super({ serviceName: 'ConnectionService' });
         this.connectionModel = args.connectionModel;
         this.featureFlagService = args.featureFlagService;
         this.licenseService = args.licenseService;
         this.projectModel = args.projectModel;
+        this.testWarehouseConnection = args.testWarehouseConnection;
     }
 
     private async assertCanManageProject(
@@ -140,19 +164,224 @@ export class ConnectionService extends BaseService {
         }
     }
 
+    private async getAdditionalConnectionBlockReason(
+        organizationUuid: string,
+        connectionModel: ConnectionModel = this.connectionModel,
+    ): Promise<string | undefined> {
+        if (!this.licenseService.canHoldMultipleConnections(organizationUuid)) {
+            return ENTITLEMENT_REASON;
+        }
+        const { enabled } = await this.featureFlagService.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.MultiConnectionProjects,
+        });
+        if (!enabled) {
+            return ROLLOUT_REASON;
+        }
+        if (!(await connectionModel.contractApplied())) {
+            return CONTRACT_REASON;
+        }
+        return undefined;
+    }
+
+    private async assertWarehouseConnectionWorks(
+        account: Account,
+        projectUuid: string,
+        warehouseConnection: CreateWarehouseCredentials,
+    ): Promise<void> {
+        assertRegisteredAccount(account);
+        const result = await this.testWarehouseConnection(
+            account,
+            projectUuid,
+            warehouseConnection,
+        );
+        if (!result.ok) {
+            const reason = result.hops.find(
+                (hop) => hop.status === 'failed',
+            )?.message;
+            throw new ParameterError(
+                reason
+                    ? `Warehouse connection test failed: ${reason}`
+                    : 'Warehouse connection test failed.',
+            );
+        }
+    }
+
+    private async resolveCreateInput(
+        projectUuid: string,
+        input: ApiCreateConnectionRequest,
+    ): Promise<ConnectionWriteInput> {
+        const hasProjectCredentials = input.warehouseConnection !== undefined;
+        const hasOrganizationCredentials =
+            input.organizationWarehouseCredentialsUuid !== undefined;
+        if (hasProjectCredentials === hasOrganizationCredentials) {
+            throw new ParameterError(
+                'Provide either project warehouse credentials or an organization warehouse credential.',
+            );
+        }
+        if (input.organizationWarehouseCredentialsUuid) {
+            const warehouseConnection =
+                await this.connectionModel.getOrganizationCredentialsForProject(
+                    projectUuid,
+                    input.organizationWarehouseCredentialsUuid,
+                );
+            return {
+                name: input.name,
+                organizationWarehouseCredentialsUuid:
+                    input.organizationWarehouseCredentialsUuid,
+                warehouseConnection: {
+                    ...warehouseConnection,
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                },
+            };
+        }
+        return {
+            name: input.name,
+            warehouseConnection: input.warehouseConnection!,
+        };
+    }
+
+    private async resolveUpdateInput(
+        projectUuid: string,
+        connectionUuid: string,
+        input: ApiUpdateConnectionRequest,
+    ): Promise<ConnectionWriteInput> {
+        if (
+            input.warehouseConnection &&
+            typeof input.organizationWarehouseCredentialsUuid === 'string'
+        ) {
+            throw new ParameterError(
+                'Provide either project warehouse credentials or an organization warehouse credential.',
+            );
+        }
+        const connection = await this.connectionModel.getByUuid(
+            projectUuid,
+            connectionUuid,
+        );
+        const savedCredentials = await this.connectionModel.getCredentials(
+            projectUuid,
+            connectionUuid,
+        );
+        let warehouseConnection: CreateWarehouseCredentials;
+        let { organizationWarehouseCredentialsUuid } = connection;
+        if (typeof input.organizationWarehouseCredentialsUuid === 'string') {
+            warehouseConnection =
+                await this.connectionModel.getOrganizationCredentialsForProject(
+                    projectUuid,
+                    input.organizationWarehouseCredentialsUuid,
+                );
+            organizationWarehouseCredentialsUuid =
+                input.organizationWarehouseCredentialsUuid;
+        } else if (input.warehouseConnection) {
+            warehouseConnection = fillOmittedSecrets(
+                connection.organizationWarehouseCredentialsUuid === null
+                    ? ProjectModel.mergeMissingWarehouseSecrets(
+                          input.warehouseConnection,
+                          savedCredentials,
+                      )
+                    : input.warehouseConnection,
+            );
+            organizationWarehouseCredentialsUuid = null;
+        } else {
+            if (input.organizationWarehouseCredentialsUuid === null) {
+                throw new ParameterError(
+                    'Project warehouse credentials are required when detaching an organization warehouse credential.',
+                );
+            }
+            warehouseConnection = savedCredentials;
+        }
+        return {
+            organizationWarehouseCredentialsUuid,
+            warehouseConnection: {
+                ...warehouseConnection,
+                listAllDatabases:
+                    input.listAllDatabases ?? connection.listAllDatabases,
+                additionalDatabases:
+                    input.additionalDatabases ?? connection.additionalDatabases,
+            },
+        };
+    }
+
     async list(account: Account, projectUuid: string): Promise<Connection[]> {
         await this.assertCanManageProject(account, projectUuid);
         return this.connectionModel.listByProject(projectUuid);
     }
 
+    async listWithCapabilities(
+        account: Account,
+        projectUuid: string,
+    ): Promise<{
+        connections: Connection[];
+        capabilities: ConnectionCapabilities;
+    }> {
+        const organizationUuid = await this.assertCanManageProject(
+            account,
+            projectUuid,
+        );
+        const connections =
+            await this.connectionModel.listByProject(projectUuid);
+        const reason =
+            connections.length === 0
+                ? undefined
+                : await this.getAdditionalConnectionBlockReason(
+                      organizationUuid,
+                  );
+        return {
+            connections,
+            capabilities: {
+                canAddConnection: reason === undefined,
+                ...(reason ? { reason } : undefined),
+            },
+        };
+    }
+
+    async get(
+        account: Account,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ConnectionWithCredentials> {
+        await this.assertCanManageProject(account, projectUuid);
+        const [connection, warehouseConnection] = await Promise.all([
+            this.connectionModel.getByUuid(projectUuid, connectionUuid),
+            this.connectionModel.getCredentials(projectUuid, connectionUuid),
+        ]);
+        return {
+            ...connection,
+            warehouseConnection:
+                ProjectModel.getNonSensitiveWarehouseCredentials(
+                    warehouseConnection,
+                ),
+        };
+    }
+
     async create(
         account: Account,
         projectUuid: string,
-        input: ConnectionWriteInput,
+        request: ApiCreateConnectionRequest,
     ): Promise<Connection> {
         const organizationUuid = await this.assertCanManageProject(
             account,
             projectUuid,
+        );
+        const existingConnections =
+            await this.connectionModel.listByProject(projectUuid);
+        if (existingConnections.length > 0) {
+            const reason =
+                await this.getAdditionalConnectionBlockReason(organizationUuid);
+            if (reason) {
+                throw new ForbiddenError(reason);
+            }
+        }
+        const input = await this.resolveCreateInput(projectUuid, request);
+        ConnectionService.assertWarehouseTypeMatches(
+            existingConnections,
+            input.warehouseConnection.type,
+        );
+        await this.assertWarehouseConnectionWorks(
+            account,
+            projectUuid,
+            input.warehouseConnection,
         );
         try {
             return await this.connectionModel.transaction(
@@ -165,28 +394,13 @@ export class ConnectionService extends BaseService {
                         input.warehouseConnection.type,
                     );
                     if (connections.length > 0) {
-                        if (
-                            !this.licenseService.canHoldMultipleConnections(
+                        const reason =
+                            await this.getAdditionalConnectionBlockReason(
                                 organizationUuid,
-                            )
-                        ) {
-                            throw new ForbiddenError(
-                                'This project can hold one connection. A second connection needs the Enterprise multi-connection add-on.',
+                                transactionModel,
                             );
-                        }
-                        const { enabled } = await this.featureFlagService.get({
-                            user: { organizationUuid },
-                            featureFlagId: FeatureFlags.MultiConnectionProjects,
-                        });
-                        if (!enabled) {
-                            throw new ForbiddenError(
-                                'A second connection is not enabled for this organisation yet.',
-                            );
-                        }
-                        if (!(await transactionModel.contractApplied())) {
-                            throw new ForbiddenError(
-                                'A second connection needs the connections upgrade to finish on this instance.',
-                            );
+                        if (reason) {
+                            throw new ForbiddenError(reason);
                         }
                     }
                     const created = await transactionModel.create(
@@ -209,9 +423,24 @@ export class ConnectionService extends BaseService {
         account: Account,
         projectUuid: string,
         connectionUuid: string,
-        input: ConnectionWriteInput,
+        request: ApiUpdateConnectionRequest,
     ): Promise<Connection> {
         await this.assertCanManageProject(account, projectUuid);
+        const input = await this.resolveUpdateInput(
+            projectUuid,
+            connectionUuid,
+            request,
+        );
+        ConnectionService.assertWarehouseTypeMatches(
+            await this.connectionModel.listByProject(projectUuid),
+            input.warehouseConnection.type,
+            connectionUuid,
+        );
+        await this.assertWarehouseConnectionWorks(
+            account,
+            projectUuid,
+            input.warehouseConnection,
+        );
         try {
             return await this.connectionModel.transaction(
                 async (transactionModel) => {
@@ -272,6 +501,13 @@ export class ConnectionService extends BaseService {
         await this.connectionModel.transaction(async (transactionModel) => {
             await transactionModel.lockProject(projectUuid);
             await transactionModel.getByUuid(projectUuid, connectionUuid);
+            const connections =
+                await transactionModel.listByProject(projectUuid);
+            if (connections.length <= 1) {
+                throw new ConflictError(
+                    'The last connection in a project cannot be deleted.',
+                );
+            }
             const boundContent =
                 await transactionModel.hasBoundContent(connectionUuid);
             ConnectionService.assertConnectionIsUnbound(boundContent);
