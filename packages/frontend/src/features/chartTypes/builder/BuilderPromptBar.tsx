@@ -216,8 +216,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             useState(false);
         const queryClient = useQueryClient();
         const { health } = useApp();
-        const sampleDataEnabled =
-            health.data?.dataApps.sampleDataEnabled !== false;
+        const canIncludeSampleData =
+            health.data?.dataApps.sampleDataEnabled !== false &&
+            Boolean(buildContext?.sampleRows?.length);
         const { showToastError } = useToaster();
         const [composerPanel, setComposerPanel] = useState<ComposerPanel>(null);
         const { data: linkedConnections = [] } = useAppExternalConnections(
@@ -304,7 +305,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             const description = composerRef.current?.getText().trim() ?? '';
             if (!description || !canSubmit) return;
             const editing = editingPrompt.current;
-            const sendSampleData = sampleDataEnabled && includeSampleData;
+            const sendSampleData = canIncludeSampleData && includeSampleData;
             const context = normalizeVizBuildContext(
                 buildContext,
                 sendSampleData,
@@ -396,7 +397,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const refreshQueuedRequest = useCallback(
             (request: VizBuildRequest): VizBuildRequest => {
                 const sendSampleData =
-                    sampleDataEnabled && request.includeSampleData === true;
+                    canIncludeSampleData && request.includeSampleData === true;
                 const latestContext = buildContext
                     ? {
                           ...buildContext,
@@ -412,7 +413,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     ),
                 };
             },
-            [buildContext, sampleDataEnabled],
+            [buildContext, canIncludeSampleData],
         );
 
         // Backend completion is the event that advances this session-local
@@ -790,7 +791,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     </ActionIcon>
                                 </Tooltip>
                             )}
-                            {sampleDataEnabled && (
+                            {canIncludeSampleData && (
                                 <SampleDataButton
                                     enabled={includeSampleData}
                                     onToggle={() =>
