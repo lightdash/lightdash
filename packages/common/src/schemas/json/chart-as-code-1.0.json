@@ -1253,7 +1253,7 @@
                             "type": "string"
                         },
                         "dataAppVizVersion": {
-                            "description": "The version of the project chart type this saved chart renders.",
+                            "description": "The version of the custom chart type this saved chart renders.",
                             "format": "int32",
                             "minimum": 1,
                             "type": "integer"

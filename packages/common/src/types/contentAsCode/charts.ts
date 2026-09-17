@@ -38,7 +38,7 @@ export type DataAppVizChartAsCode = Omit<
     dataAppVizSlug?: string;
     dataAppVizUuid?: string;
     /**
-     * The version of the project chart type this saved chart renders.
+     * The version of the custom chart type this saved chart renders.
      * @isInt
      * @minimum 1
      */
