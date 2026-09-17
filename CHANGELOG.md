@@ -1,3 +1,16 @@
+# [2.255.0](https://github.com/lightdash/lightdash/compare/2.254.2...2.255.0) (2026-09-17)
+
+
+### Bug Fixes
+
+* **ai-agent:** threads started from a data-app investigation stay read-only ([#29440](https://github.com/lightdash/lightdash/issues/29440)) ([3282b58](https://github.com/lightdash/lightdash/commit/3282b5818f8c6cf5ff158fd110aebdc6724a1d30))
+* **embedding:** honor configured iframe domains on embed routes ([#29412](https://github.com/lightdash/lightdash/issues/29412)) ([0eb9fa8](https://github.com/lightdash/lightdash/commit/0eb9fa882baa9427e2d52b9405ccb1cad17a0142))
+
+
+### Features
+
+* **autopilot:** run heartbeats on the AI SDK by default ([#29129](https://github.com/lightdash/lightdash/issues/29129)) ([c7f36fd](https://github.com/lightdash/lightdash/commit/c7f36fdcd2706bed416fb26c88519e202e88b9b0))
+
 ## [2.254.2](https://github.com/lightdash/lightdash/compare/2.254.1...2.254.2) (2026-09-17)
 
 
