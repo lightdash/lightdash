@@ -119,6 +119,12 @@ type GoogleSheetValidationOptions = {
     validateGoogleSheet: boolean;
 };
 
+export type SchedulerProjectContext = {
+    projectUuid: string;
+    organizationUuid: string;
+    spaceUuid: string | null;
+};
+
 export class SchedulerService extends BaseService {
     lightdashConfig: LightdashConfig;
 
@@ -191,11 +197,7 @@ export class SchedulerService extends BaseService {
 
     public async getSchedulerProjectContext(
         scheduler: Scheduler | CreateSchedulerAndTargets | SendNowScheduler,
-    ): Promise<{
-        projectUuid: string;
-        organizationUuid: string;
-        spaceUuid: string | null;
-    }> {
+    ): Promise<SchedulerProjectContext> {
         if (isChartScheduler(scheduler)) {
             const { projectUuid, organizationUuid, spaceUuid } =
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
@@ -918,8 +920,16 @@ export class SchedulerService extends BaseService {
 
         const scheduler =
             await this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
+        return this.getSchedulerDefaultTimezoneForScheduler(scheduler);
+    }
+
+    async getSchedulerDefaultTimezoneForScheduler(
+        scheduler: SchedulerAndTargets,
+        projectContext?: SchedulerProjectContext,
+    ) {
         const { projectUuid } =
-            await this.getSchedulerProjectContext(scheduler);
+            projectContext ??
+            (await this.getSchedulerProjectContext(scheduler));
         const project = await this.projectModel.get(projectUuid);
         return project.schedulerTimezone;
     }
