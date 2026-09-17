@@ -117,14 +117,8 @@ export const createAppPreviewRouter = (
     config: AppRuntimeConfig,
     lightdashSecrets: LightdashSecrets,
     /**
-     * Frame-ancestor allowlist applied to every preview iframe. Matches the
-     * `/embed/*` policy (`'self' https://*`) plus the explicit domains in
-     * `LIGHTDASH_IFRAME_EMBEDDING_DOMAINS` — see App.ts. Both session and
-     * embed-minted tokens use the same list; the broader allowlist costs
-     * little since the iframe is sandboxed (`allow-scripts allow-modals`)
-     * with an opaque origin — any fetch it makes is uncredentialed, so
-     * authenticated backend traffic still only flows through the
-     * parent-mediated postMessage bridge.
+     * Same frame-ancestor allowlist as `/embed/*`, applied to both
+     * session- and embed-minted preview tokens.
      */
     frameAncestors: string[],
     onPreviewView?: (payload: PreviewTokenPayload) => void,
