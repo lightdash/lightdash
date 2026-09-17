@@ -18710,6 +18710,91 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppPromptResult: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                text: { dataType: 'string', required: true },
+                focus: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Record_string.string_' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                prompt: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppPromptAnswer: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DataAppPromptResult' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        generatedAt: { dataType: 'datetime', required: true },
+                        sources: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'DataAppAnalysisSource',
+                            },
+                            required: true,
+                        },
+                        appVersion: { dataType: 'double', required: true },
+                        appUuid: { dataType: 'string', required: true },
+                        promptId: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_DataAppPromptAnswer_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'DataAppPromptAnswer', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiDataAppPromptResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_DataAppPromptAnswer_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppPromptRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                focus: { ref: 'Record_string.string_' },
+                sources: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DataAppAnalysisSource',
+                    },
+                    required: true,
+                },
+                prompt: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ApiSuccess__jobId-string__': {
         dataType: 'refAlias',
         type: {
@@ -18817,6 +18902,22 @@ const models: TsoaRoute.Models = {
                             },
                         },
                         { ref: 'DataAppInvestigation' },
+                    ],
+                },
+                {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                operation: {
+                                    dataType: 'enum',
+                                    enums: ['prompt'],
+                                    required: true,
+                                },
+                            },
+                        },
+                        { ref: 'DataAppPromptAnswer' },
                     ],
                 },
             ],
@@ -74835,6 +74936,79 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'detect',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDataAppAnalysisController_prompt: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        appUuid: {
+            in: 'path',
+            name: 'appUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'DataAppPromptRequest',
+        },
+    };
+    app.post(
+        '/api/v2/projects/:projectUuid/apps/:appUuid/analysis/prompt',
+        ...fetchMiddlewares<RequestHandler>(DataAppAnalysisController),
+        ...fetchMiddlewares<RequestHandler>(
+            DataAppAnalysisController.prototype.prompt,
+        ),
+
+        async function DataAppAnalysisController_prompt(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDataAppAnalysisController_prompt,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DataAppAnalysisController>(
+                        DataAppAnalysisController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'prompt',
                     controller,
                     response,
                     next,

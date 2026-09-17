@@ -19955,6 +19955,101 @@
                 "required": ["sources"],
                 "type": "object"
             },
+            "DataAppPromptResult": {
+                "properties": {
+                    "text": {
+                        "type": "string"
+                    },
+                    "focus": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["text", "focus", "prompt"],
+                "type": "object"
+            },
+            "DataAppPromptAnswer": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DataAppPromptResult"
+                    },
+                    {
+                        "properties": {
+                            "generatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "sources": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DataAppAnalysisSource"
+                                },
+                                "type": "array"
+                            },
+                            "appVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "promptId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "generatedAt",
+                            "sources",
+                            "appVersion",
+                            "appUuid",
+                            "promptId"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_DataAppPromptAnswer_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DataAppPromptAnswer"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppPromptResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppPromptAnswer_"
+            },
+            "DataAppPromptRequest": {
+                "properties": {
+                    "focus": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppAnalysisSource"
+                        },
+                        "type": "array"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sources", "prompt"],
+                "type": "object",
+                "description": "A free-form question an app asks about the viewer's own query results.\n`focus` narrows the question to one row (field id → value as shown)."
+            },
             "ApiSuccess__jobId-string__": {
                 "properties": {
                     "results": {
@@ -20094,6 +20189,24 @@
                             },
                             {
                                 "$ref": "#/components/schemas/DataAppInvestigation"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "operation": {
+                                        "type": "string",
+                                        "enum": ["prompt"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["operation"],
+                                "type": "object"
+                            },
+                            {
+                                "$ref": "#/components/schemas/DataAppPromptAnswer"
                             }
                         ]
                     }
@@ -63289,7 +63402,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.244.0",
+        "version": "2.245.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,15 @@
+# [2.245.0](https://github.com/lightdash/lightdash/compare/2.244.0...2.245.0) (2026-09-17)
+
+
+### Bug Fixes
+
+* **frontend:** align dark mode surfaces ([#29389](https://github.com/lightdash/lightdash/issues/29389)) ([c919f8b](https://github.com/lightdash/lightdash/commit/c919f8bb070cd6de905ed149098ea75461119454))
+
+
+### Features
+
+* **data-apps:** add useAiPrompt runtime prompt hook to the query SDK ([#29332](https://github.com/lightdash/lightdash/issues/29332)) ([af517ba](https://github.com/lightdash/lightdash/commit/af517bab5849d935ababd669dffef8e476ee9d86))
+
 # [2.244.0](https://github.com/lightdash/lightdash/compare/2.243.5...2.244.0) (2026-09-17)
 
 
