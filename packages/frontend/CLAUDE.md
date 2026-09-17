@@ -1,11 +1,3 @@
-## Format
-
-After any frontend edit, run oxfmt on `src` before committing. Do not skip this or rely on the pre-commit hook:
-
-```bash
-pnpm -F frontend fix-format
-```
-
 ## 🎨 Frontend Style Guide
 
 **CRITICAL**: Before working on any frontend component, read
