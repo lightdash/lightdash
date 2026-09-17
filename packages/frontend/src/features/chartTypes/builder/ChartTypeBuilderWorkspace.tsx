@@ -83,6 +83,16 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
     });
     const [isResizingHistory, setIsResizingHistory] = useState(false);
     const showHistory = hasHistory && isHistoryOpen && dataAppVizUuid !== null;
+    const latestReadySchema =
+        history.versions.find(
+            (version) => version.version === history.latestReadyVersion,
+        )?.resources?.vizSchema ??
+        (viewedVersion === null && !workspace.isFetchingSchema
+            ? workspace.dataAppViz?.schema
+            : undefined);
+    const buildContext =
+        currentBuildContext ??
+        (latestReadySchema ? { schema: latestReadySchema } : {});
 
     return (
         <Box
@@ -155,7 +165,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                     modelSelection={modelSelection}
                                     clarification={clarification}
                                     buildContext={{
-                                        ...(currentBuildContext ?? {}),
+                                        ...buildContext,
                                         ...(sampleRows.length > 0
                                             ? { sampleRows }
                                             : {}),
