@@ -14,6 +14,7 @@ import { type SavedChartModel } from '../../models/SavedChartModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import { type CoderService } from '../CoderService/CoderService';
+import { createAnalyticsExplores } from '../ProjectService/analyticsProject/createAnalyticsExplores';
 import { ProjectService } from '../ProjectService/ProjectService';
 
 type Dependencies = {
@@ -22,7 +23,9 @@ type Dependencies = {
     savedChartModel: Pick<SavedChartModel, 'get'>;
     projectModel: Pick<
         ProjectModel,
-        'getAllByOrganizationUuid' | 'runInAnalyticsProvisioningLock'
+        | 'getAllByOrganizationUuid'
+        | 'runInAnalyticsProvisioningLock'
+        | 'saveExploresToCache'
     >;
     projectService: Pick<
         ProjectService,
@@ -117,6 +120,13 @@ export class AnalyticsProjectService extends BaseService {
                         }
                     }
                 }
+                // Refresh backend-owned models before uploading charts that may
+                // reference newly shipped explores, dimensions or metrics.
+                await this.dependencies.projectModel.saveExploresToCache(
+                    project.projectUuid,
+                    createAnalyticsExplores(),
+                    true,
+                );
                 for (const { dashboard, charts } of analyticsContentAsCode) {
                     const options = {
                         spaceNames: { [dashboard.spaceSlug]: dashboard.name },
