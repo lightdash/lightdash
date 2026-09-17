@@ -34,6 +34,8 @@ const errorMessage = (e: unknown): string =>
     (e as ApiError)?.error?.message ??
     (e instanceof Error ? e.message : 'Something went wrong');
 
+const LOOKUP_QUIET_MS = 400;
+
 type ScopedState = {
     scope: string;
     state: DataAppAnalysisState;
@@ -158,29 +160,34 @@ export const useDataAppAnalysis = ({
         !inFlight &&
         current.lookedUpSignature !== signature &&
         (state.status === 'idle' || (state.status === 'ready' && stale));
+    // Queries settle one by one on open; wait for a quiet view so a single
+    // lookup covers the final set.
     useEffect(() => {
-        if (!shouldLookUp) return;
+        if (!shouldLookUp) return undefined;
         const run = runRef.current;
-        patch(scope, (prev) => ({ ...prev, lookedUpSignature: signature }));
-        lookupDataAppAnalysis({ projectUuid, appUuid, sources })
-            .then((found) => {
-                if (!found || run !== runRef.current) return;
-                patch(scope, (prev) => ({
-                    ...prev,
-                    analysedSignature: signature,
-                    state: {
-                        status: 'ready',
-                        analysis: found.analysis,
-                        stale: false,
-                    },
-                    investigations: investigationsByAnomaly(
-                        found.investigations,
-                    ),
-                }));
-            })
-            .catch(() => {
-                // A failed lookup is not an error state; Analyse still works.
-            });
+        const timer = setTimeout(() => {
+            patch(scope, (prev) => ({ ...prev, lookedUpSignature: signature }));
+            lookupDataAppAnalysis({ projectUuid, appUuid, sources })
+                .then((found) => {
+                    if (!found || run !== runRef.current) return;
+                    patch(scope, (prev) => ({
+                        ...prev,
+                        analysedSignature: signature,
+                        state: {
+                            status: 'ready',
+                            analysis: found.analysis,
+                            stale: false,
+                        },
+                        investigations: investigationsByAnomaly(
+                            found.investigations,
+                        ),
+                    }));
+                })
+                .catch(() => {
+                    // A failed lookup is not an error state; Analyse works.
+                });
+        }, LOOKUP_QUIET_MS);
+        return () => clearTimeout(timer);
     }, [shouldLookUp, scope, signature, sources, projectUuid, appUuid, patch]);
 
     const investigate = useCallback(

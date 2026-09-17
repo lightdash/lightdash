@@ -54,12 +54,62 @@ const render = () =>
         { initialProps: { appUuid: 'app-a' } },
     );
 
+const settle = () =>
+    act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+    });
+
 describe('useDataAppAnalysis', () => {
     beforeEach(() => {
+        vi.clearAllMocks();
+        vi.useFakeTimers();
         vi.mocked(detectDataAppAnomalies).mockImplementation(
             async ({ appUuid }) => analysis(appUuid),
         );
         vi.mocked(lookupDataAppAnalysis).mockResolvedValue(null);
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('looks up once after the view goes quiet', async () => {
+        const { rerender } = renderHook(
+            ({ queries }: { queries: QueryEvent[] }) =>
+                useDataAppAnalysis({
+                    projectUuid: 'proj-1',
+                    appUuid: 'app-a',
+                    queries,
+                    mountedQueryUuids: null,
+                }),
+            { initialProps: { queries: [readyQuery] } },
+        );
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(100);
+        });
+        rerender({
+            queries: [
+                readyQuery,
+                {
+                    ...readyQuery,
+                    id: 'req-2',
+                    queryUuid: 'q-2',
+                    rawMetricQuery: {
+                        exploreName: 'payments',
+                        metrics: ['payments_total'],
+                    },
+                },
+            ],
+        });
+        await settle();
+        expect(lookupDataAppAnalysis).toHaveBeenCalledTimes(1);
+        expect(lookupDataAppAnalysis).toHaveBeenCalledWith(
+            expect.objectContaining({
+                sources: [
+                    { queryUuid: 'q-1', label: 'Orders' },
+                    { queryUuid: 'q-2', label: 'Orders' },
+                ],
+            }),
+        );
     });
 
     it('opens with a stored analysis and its investigations when one exists', async () => {
@@ -92,7 +142,7 @@ describe('useDataAppAnalysis', () => {
             ],
         });
         const { result } = render();
-        await act(async () => {});
+        await settle();
         expect(result.current.state.status).toBe('ready');
         expect(result.current.investigations['anom-1']?.status).toBe('ready');
         expect(detectDataAppAnomalies).not.toHaveBeenCalled();
@@ -109,7 +159,7 @@ describe('useDataAppAnalysis', () => {
 
     it('stays idle on a lookup miss and does not force the first run', async () => {
         const { result } = render();
-        await act(async () => {});
+        await settle();
         expect(result.current.state.status).toBe('idle');
         await act(async () => {
             await result.current.analyse();
