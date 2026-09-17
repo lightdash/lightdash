@@ -58,10 +58,10 @@ saved chart-as-code mappings store the arrays directly.
 
 Captured in the explorer with live seeded query results:
 
-- [Two dimensions and three metrics](screenshots/01-configured.png).
-- [Reordered inputs and matching rendered columns](screenshots/02-reordered.png).
-- [Saved, reopened chart after a compatible version upgrade](screenshots/03-reopened-after-upgrade.png).
-- [Existing single-field chart and scalar controls](screenshots/04-single-field-compatibility.png).
+- [Two dimensions and three metrics](screenshots/01-configured.jpg).
+- [Reordered inputs and matching rendered columns](screenshots/02-reordered.jpg).
+- [Saved, reopened chart after a compatible version upgrade](screenshots/03-reopened-after-upgrade.jpg).
+- [Existing single-field chart and scalar controls](screenshots/04-single-field-compatibility.jpg).
 
 The upgrade verification retained `groups: [order_source, status]` and
 `values: [unique_order_count, average_order_size, total_order_amount]` (all with
