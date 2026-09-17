@@ -197,6 +197,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     scheduler: {
         concurrency: 0,
+        dailyJobGenerationConcurrency: 20,
         enabled: false,
         pollInterval: 1000,
         jobTimeout: 0,

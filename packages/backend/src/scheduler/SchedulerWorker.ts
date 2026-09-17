@@ -5,6 +5,8 @@ import {
     isSchedulerTaskName,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
+    sleep,
+    type SchedulerAndTargets,
     type SchedulerTaskName,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -18,13 +20,16 @@ import {
     type WorkerPool,
 } from 'graphile-worker';
 import moment from 'moment';
+import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
+import pLimit from 'p-limit';
 import type { PoolClient } from 'pg';
 import { UsageEventsCompactor } from '../analytics/eventStream/UsageEventsCompactor';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
+import type { SchedulerProjectContext } from '../services/SchedulerService/SchedulerService';
 import { MigrationLeaseProbe } from './MigrationLeaseProbe';
 import { SchedulerClient } from './SchedulerClient';
 import {
@@ -46,6 +51,51 @@ export type SchedulerWorkerArguments = SchedulerTaskArguments & {
     resolveOrganizationName?: OrganizationNameResolver;
     // When omitted, worker tasks that report metrics simply skip reporting.
     prometheusMetrics?: PrometheusMetrics;
+    dailyJobRetryBackoffMs?: readonly [number, number];
+};
+
+const DEFAULT_DAILY_JOB_RETRY_BACKOFF_MS = [2_000, 5_000] as const;
+
+const getErrorProperty = (
+    error: unknown,
+    property: 'cause' | 'code' | 'name',
+): unknown => {
+    if (typeof error !== 'object' || error === null) {
+        return undefined;
+    }
+    return Reflect.get(error, property);
+};
+
+const isTransientKnexConnectionError = (error: unknown): boolean => {
+    const name = getErrorProperty(error, 'name');
+    if (name === 'KnexTimeoutError') {
+        return true;
+    }
+
+    const code = getErrorProperty(error, 'code');
+    if (
+        typeof code === 'string' &&
+        (code.startsWith('08') ||
+            ['57P01', '57P02', '57P03', '53300'].includes(code) ||
+            ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EPIPE'].includes(code))
+    ) {
+        return true;
+    }
+
+    const message = getErrorMessage(error).toLowerCase();
+    if (
+        [
+            'knex: timeout acquiring a connection',
+            'unable to acquire a connection',
+            'connection terminated unexpectedly',
+            'pool is destroyed',
+        ].some((fragment) => message.includes(fragment))
+    ) {
+        return true;
+    }
+
+    const cause = getErrorProperty(error, 'cause');
+    return cause !== undefined && isTransientKnexConnectionError(cause);
 };
 
 const workerLogger = new GraphileLogger(
@@ -121,6 +171,8 @@ export class SchedulerWorker extends SchedulerTask {
 
     private runnerStopPromise: Promise<void> | null = null;
 
+    private readonly dailyJobRetryBackoffMs: readonly [number, number];
+
     constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
         super(schedulerWorkerArgs);
         this.enabledTasks = this.lightdashConfig.scheduler.tasks;
@@ -128,6 +180,120 @@ export class SchedulerWorker extends SchedulerTask {
         this.resolveOrganizationName =
             schedulerWorkerArgs.resolveOrganizationName;
         this.prometheusMetrics = schedulerWorkerArgs.prometheusMetrics ?? null;
+        this.dailyJobRetryBackoffMs =
+            schedulerWorkerArgs.dailyJobRetryBackoffMs ??
+            DEFAULT_DAILY_JOB_RETRY_BACKOFF_MS;
+    }
+
+    private async generateDailyJobsForScheduler(
+        scheduler: SchedulerAndTargets,
+        currentDateStartOfDay: Date,
+        attempt = 0,
+        cachedProjectContext?: SchedulerProjectContext,
+        cachedDefaultTimezone?: string,
+    ): Promise<string> {
+        let projectContext = cachedProjectContext;
+        let defaultTimezone = cachedDefaultTimezone;
+
+        try {
+            projectContext ??=
+                await this.schedulerService.getSchedulerProjectContext(
+                    scheduler,
+                );
+            defaultTimezone ??=
+                await this.schedulerService.getSchedulerDefaultTimezoneForScheduler(
+                    scheduler,
+                    projectContext,
+                );
+
+            await this.schedulerClient.generateDailyJobsForScheduler(
+                scheduler,
+                {
+                    organizationUuid: projectContext.organizationUuid,
+                    projectUuid: projectContext.projectUuid,
+                    userUuid: scheduler.createdBy,
+                },
+                defaultTimezone,
+                currentDateStartOfDay,
+            );
+            return scheduler.schedulerUuid;
+        } catch (error) {
+            const retryDelay = this.dailyJobRetryBackoffMs[attempt];
+            if (
+                retryDelay !== undefined &&
+                isTransientKnexConnectionError(error)
+            ) {
+                await sleep(retryDelay);
+                return this.generateDailyJobsForScheduler(
+                    scheduler,
+                    currentDateStartOfDay,
+                    attempt + 1,
+                    projectContext,
+                    defaultTimezone,
+                );
+            }
+
+            await this.logDailyJobGenerationFailure(
+                scheduler,
+                currentDateStartOfDay,
+                error,
+                projectContext,
+            );
+
+            throw new GenerateDailySchedulerJobError(
+                `Failed to generate daily jobs for scheduler ${scheduler.schedulerUuid} with: ${error}`,
+                scheduler.schedulerUuid,
+                error,
+            );
+        }
+    }
+
+    private async logDailyJobGenerationFailure(
+        scheduler: SchedulerAndTargets,
+        scheduledTime: Date,
+        error: unknown,
+        projectContext: SchedulerProjectContext | undefined,
+        jobId = randomUUID(),
+        attempt = 0,
+    ): Promise<void> {
+        try {
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
+                status: SchedulerJobStatus.ERROR,
+                schedulerUuid: scheduler.schedulerUuid,
+                scheduledTime,
+                jobId,
+                jobGroup: jobId,
+                details: {
+                    error: getErrorMessage(error),
+                    createdByUserUuid: scheduler.createdBy,
+                    ...(projectContext && {
+                        projectUuid: projectContext.projectUuid,
+                        organizationUuid: projectContext.organizationUuid,
+                    }),
+                },
+            });
+        } catch (logError) {
+            const retryDelay = this.dailyJobRetryBackoffMs[attempt];
+            if (
+                retryDelay !== undefined &&
+                isTransientKnexConnectionError(logError)
+            ) {
+                await sleep(retryDelay);
+                return this.logDailyJobGenerationFailure(
+                    scheduler,
+                    scheduledTime,
+                    error,
+                    projectContext,
+                    jobId,
+                    attempt + 1,
+                );
+            }
+            Logger.error(
+                `Failed to log daily job generation error for scheduler ${scheduler.schedulerUuid}`,
+                logError,
+            );
+        }
     }
 
     async run() {
@@ -488,36 +654,23 @@ export class SchedulerWorker extends SchedulerTask {
                 const schedulers =
                     await this.schedulerService.getAllSchedulers();
 
-                const promises = schedulers.map(async (scheduler) => {
-                    try {
-                        const defaultTimezone =
-                            await this.schedulerService.getSchedulerDefaultTimezone(
-                                scheduler.schedulerUuid,
-                            );
-                        const { organizationUuid, projectUuid } =
-                            await this.schedulerService.getSchedulerProjectContext(
-                                scheduler,
-                            );
-
-                        await this.schedulerClient.generateDailyJobsForScheduler(
+                const limit = pLimit(
+                    Math.max(
+                        1,
+                        Math.floor(
+                            this.lightdashConfig.scheduler
+                                .dailyJobGenerationConcurrency,
+                        ),
+                    ),
+                );
+                const promises = schedulers.map((scheduler) =>
+                    limit(() =>
+                        this.generateDailyJobsForScheduler(
                             scheduler,
-                            {
-                                organizationUuid,
-                                projectUuid,
-                                userUuid: scheduler.createdBy,
-                            },
-                            defaultTimezone,
                             currentDateStartOfDay,
-                        );
-                        return scheduler.schedulerUuid;
-                    } catch (error) {
-                        throw new GenerateDailySchedulerJobError(
-                            `Failed to generate daily jobs for scheduler ${scheduler.schedulerUuid} with: ${error}`,
-                            scheduler.schedulerUuid,
-                            error,
-                        );
-                    }
-                });
+                        ),
+                    ),
+                );
 
                 const results = await Promise.allSettled(promises);
 
@@ -529,8 +682,13 @@ export class SchedulerWorker extends SchedulerTask {
                     (result) => result.status === 'rejected',
                 );
 
+                const failedSchedulerUuids = results.flatMap((result, index) =>
+                    result.status === 'rejected'
+                        ? [schedulers[index].schedulerUuid]
+                        : [],
+                );
                 Logger.info(
-                    `Completed generating daily jobs: ${successful.length} successful, ${failed.length} failed out of ${schedulers.length} total schedulers`,
+                    `Completed generating daily jobs: ${successful.length} successful, ${failed.length} failed out of ${schedulers.length} total schedulers. Failed scheduler UUIDs (${failedSchedulerUuids.length}): ${failedSchedulerUuids.join(', ') || 'none'}`,
                 );
 
                 // Log individual failures

@@ -20,6 +20,8 @@ import {
     DashboardVersionsTableName,
     DashboardViewsTableName,
 } from '../../database/entities/dashboards';
+import { OrganizationTableName } from '../../database/entities/organizations';
+import { ProjectTableName } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { projectUuid } from '../ProjectModel/ProjectModel.mock';
@@ -70,6 +72,50 @@ describe('DashboardModel', () => {
     });
     afterEach(() => {
         tracker.reset();
+    });
+
+    test('should get dashboard summary by uuid', async () => {
+        const dashboardUuid = 'dashboard-uuid';
+        const summary = {
+            projectUuid: 'project-uuid',
+            organizationUuid: 'organization-uuid',
+            spaceUuid: 'space-uuid',
+        };
+
+        tracker.on
+            .select(
+                ({ sql, bindings }: RawQuery) =>
+                    sql.includes(DashboardsTableName) &&
+                    bindings[0] === dashboardUuid,
+            )
+            .response([summary]);
+
+        await expect(model.getSummaryByUuid(dashboardUuid)).resolves.toEqual(
+            summary,
+        );
+        expect(tracker.history.select).toHaveLength(1);
+        expect(tracker.history.select[0].sql).toContain(SpaceTableName);
+        expect(tracker.history.select[0].sql).toContain(ProjectTableName);
+        expect(tracker.history.select[0].sql).toContain(OrganizationTableName);
+        expect(tracker.history.select[0].sql).not.toContain(
+            DashboardVersionsTableName,
+        );
+    });
+
+    test('should throw when dashboard summary is not found', async () => {
+        const dashboardUuid = 'dashboard-uuid';
+
+        tracker.on
+            .select(
+                ({ sql, bindings }: RawQuery) =>
+                    sql.includes(DashboardsTableName) &&
+                    bindings[0] === dashboardUuid,
+            )
+            .response([]);
+
+        await expect(
+            model.getSummaryByUuid(dashboardUuid),
+        ).rejects.toThrowError(NotFoundError);
     });
 
     test('should get dashboard by uuid', async () => {
