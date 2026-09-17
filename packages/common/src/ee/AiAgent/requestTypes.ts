@@ -153,6 +153,8 @@ export type AiPrompt = {
     agentUuid: string | null;
     promptUuid: string;
     threadUuid: string;
+    /** Where the thread started; a data-app thread stays read-only for life. */
+    threadCreatedFrom: AiThreadCreatedFrom;
     createdByUserUuid: string;
     prompt: string;
     createdAt: Date;
