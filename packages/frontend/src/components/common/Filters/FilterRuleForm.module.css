@@ -1,14 +1,10 @@
-.rule {
-    min-width: 0;
-    max-width: 100%;
-}
-
-.rule > * {
-    min-width: 0;
-    max-width: 100%;
-}
-
 @media (width < $mantine-breakpoint-sm) {
+    .rule,
+    .rule > * {
+        min-width: 0;
+        max-width: 100%;
+    }
+
     .field {
         flex-basis: 100%;
     }

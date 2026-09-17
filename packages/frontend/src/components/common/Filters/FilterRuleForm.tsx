@@ -12,7 +12,15 @@ import {
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Select, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Group,
+    Menu,
+    Select,
+    Tooltip,
+    useMatches,
+} from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
@@ -48,6 +56,7 @@ const FilterRuleForm: FC<Props> = memo(
     }) => {
         const { popoverProps, baseTable } = useFiltersContext();
         const getUiString = useUiStrings();
+        const wrap = useMatches({ base: 'wrap', sm: 'nowrap' } as const);
         const activeField = useMemo(() => {
             return fields.find(
                 (field) => getItemId(field) === filterRule.target.fieldId,
@@ -152,7 +161,7 @@ const FilterRuleForm: FC<Props> = memo(
         return (
             <Group
                 className={classes.rule}
-                wrap="wrap"
+                wrap={wrap}
                 align="start"
                 gap="xs"
                 data-testid="FilterRuleForm/filter-rule"
