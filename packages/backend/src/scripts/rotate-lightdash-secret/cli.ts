@@ -1,3 +1,4 @@
+import { assertUnreachable } from '@lightdash/common';
 import { CIPHERTEXT_REGISTRY } from './registry';
 import {
     runSecretRotation,
@@ -101,6 +102,40 @@ export async function runRotationCli(
             `  ${result.table}: total=${result.total} active=${result.active} fallback=[${result.fallback.join(', ')}] legacySha256=${result.legacySha256} unknown=${result.unknown}`,
         );
     });
+
+    log('\nLive pre-aggregate execution scopes:');
+    const executionScopes = report.preAggregateExecutionScopes;
+    if (!executionScopes.tablePresent) {
+        log('  pre_aggregate_materializations absent');
+    } else if (!executionScopes.columnPresent) {
+        log('  execution_scope_key_id column absent');
+    } else {
+        log(
+            `  scanned=${executionScopes.scanned} active=${executionScopes.active} fallback=[${executionScopes.fallback.join(', ')}] unknown=${executionScopes.unknown}`,
+        );
+        executionScopes.blockingMaterializations.forEach((materialization) => {
+            const { keySource } = materialization;
+            let keyDescription: string;
+            switch (keySource.type) {
+                case 'fallback':
+                    keyDescription = `fallback[${keySource.fallbackIndex}]`;
+                    break;
+                case 'unknown':
+                    keyDescription = 'unknown secret';
+                    break;
+                default:
+                    assertUnreachable(keySource, 'Unknown execution-scope key');
+            }
+            log(
+                `    ${keyDescription}: pre_aggregate_materialization_uuid=${materialization.materializationUuid} pre_aggregate_definition_uuid=${materialization.definitionUuid} status=${materialization.status}`,
+            );
+        });
+        if (executionScopes.blockingMaterializationsTruncated) {
+            log(
+                '  Showing the first 100 blocking materializations; refresh these definitions and drain or cancel old attempts, then rerun to list remaining blockers.',
+            );
+        }
+    }
 
     if (report.blockers.length > 0) {
         log('\nOld-secret removal blockers:');

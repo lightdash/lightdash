@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     getErrorMessage,
     getPreAggregateExploreName,
-    isExploreError,
     ItemsMap,
     MetricQuery,
     MissingConfigError,
@@ -23,12 +22,16 @@ import {
     type DuckdbS3SessionConfig,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
-import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY } from '../../../services/AsyncQueryService/ComposeEngineClient';
 import { type PreAggregationRoute } from '../../../services/AsyncQueryService/types';
+import {
+    exploreHasFilteredAttribute,
+    getFilteredExplore,
+} from '../../../services/UserAttributesService/UserAttributeUtils';
 import { traceSpan } from '../../../tracing/tracing';
 import { wrapSentryTransaction } from '../../../utils';
 import {
@@ -38,11 +41,15 @@ import {
 import { getDuckdbRuntimeConfig } from '../../../utils/duckdb/getDuckdbRuntimeConfig';
 import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
+import { hashPreAggregateCompatibility } from '../PreAggregateMaterializationService/preAggregatePreparation';
 
 type PreAggregationDuckDbClientArgs = {
     lightdashConfig: LightdashConfig;
-    preAggregateModel: Pick<PreAggregateModel, 'getActiveMaterialization'>;
-    projectModel: Pick<ProjectModel, 'getExploreFromCache'>;
+    preAggregateModel: Pick<PreAggregateModel, 'getServingSnapshot'>;
+    preAggregateResultsStorageClient: Pick<
+        S3ResultsFileStorageClient,
+        'getFileSize'
+    >;
     prometheusMetrics?: PrometheusMetrics;
     sharedResourceLimits?: DuckdbResourceLimits;
     createDuckdbWarehouseClient?: (args: {
@@ -88,10 +95,13 @@ export class PreAggregationDuckDbClient {
 
     private readonly preAggregateModel: Pick<
         PreAggregateModel,
-        'getActiveMaterialization'
+        'getServingSnapshot'
     >;
 
-    private readonly projectModel: Pick<ProjectModel, 'getExploreFromCache'>;
+    private readonly preAggregateResultsStorageClient: Pick<
+        S3ResultsFileStorageClient,
+        'getFileSize'
+    >;
 
     private readonly sharedResourceLimits?: DuckdbResourceLimits;
 
@@ -110,7 +120,8 @@ export class PreAggregationDuckDbClient {
     constructor(args: PreAggregationDuckDbClientArgs) {
         this.lightdashConfig = args.lightdashConfig;
         this.preAggregateModel = args.preAggregateModel;
-        this.projectModel = args.projectModel;
+        this.preAggregateResultsStorageClient =
+            args.preAggregateResultsStorageClient;
         this.prometheusMetrics = args.prometheusMetrics;
         this.sharedResourceLimits = args.sharedResourceLimits;
         this.createDuckdbWarehouseClient =
@@ -262,23 +273,79 @@ export class PreAggregationDuckDbClient {
             args.preAggregationRoute.preAggregateName,
         );
 
-        const activeMaterialization = await traceSpan(
-            {
-                op: 'db.query',
-                name: 'preagg.getActiveMaterialization',
-                attributes: {
-                    'lightdash.projectUuid': args.projectUuid,
-                    'lightdash.preAggExploreName': preAggExploreName,
-                },
-            },
-            () =>
-                this.preAggregateModel.getActiveMaterialization(
-                    args.projectUuid,
-                    preAggExploreName,
-                ),
+        const snapshot = await this.preAggregateModel.getServingSnapshot(
+            args.projectUuid,
+            preAggExploreName,
         );
+        const activeMaterialization = snapshot?.activeMaterialization;
+        const check = args.preAggregationRoute.compatibilityCheck;
+        if (
+            check &&
+            (check.status === 'unavailable' ||
+                !snapshot ||
+                snapshot.definition.publicationVersion !==
+                    check.publicationVersion ||
+                snapshot.definition.compatibilityHash !==
+                    check.compatibilityHash ||
+                (!check.compatibilityHash &&
+                    activeMaterialization?.pinnedContextHash !==
+                        check.pinnedContextHash))
+        ) {
+            return {
+                resolved: false,
+                reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
+            };
+        }
+        const routeSnapshot = args.preAggregationRoute.routingSnapshot;
+        if (snapshot && routeSnapshot) {
+            const routedExplore =
+                routeSnapshot.exploreName === snapshot.sourceExplore.name
+                    ? snapshot.sourceExplore
+                    : snapshot.preAggExplore;
+            const accessibleExplore = exploreHasFilteredAttribute(routedExplore)
+                ? getFilteredExplore(
+                      routedExplore,
+                      args.userAccessControls.userAttributes,
+                  )
+                : routedExplore;
+            if (
+                routedExplore.name !== routeSnapshot.exploreName ||
+                hashPreAggregateCompatibility(accessibleExplore) !==
+                    routeSnapshot.fingerprint
+            ) {
+                return {
+                    resolved: false,
+                    reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
+                };
+            }
+        }
 
-        if (!activeMaterialization || !activeMaterialization.queryUuid) {
+        if (!activeMaterialization) {
+            return {
+                resolved: false,
+                reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
+            };
+        }
+
+        let materializationAvailable = false;
+        try {
+            const uri = new URL(activeMaterialization.materializationUri);
+            if (
+                uri.protocol === 's3:' &&
+                uri.hostname === preAggregateS3Config.bucket
+            ) {
+                const key = decodeURIComponent(uri.pathname.slice(1));
+                materializationAvailable =
+                    (await this.preAggregateResultsStorageClient.getFileSize(
+                        key,
+                        activeMaterialization.format,
+                    )) !== null;
+            }
+        } catch {
+            // A durable registry entry can outlive its object. Missing or
+            // unreadable storage follows the ordinary managed-route fallback.
+        }
+        if (!materializationAvailable) {
             return {
                 resolved: false,
                 reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
@@ -313,26 +380,12 @@ export class PreAggregationDuckDbClient {
             activeMaterialization.columns,
         );
 
-        const preAggExplore = await traceSpan(
-            {
-                op: 'cache.read',
-                name: 'preagg.getExploreFromCache',
-                attributes: {
-                    'lightdash.projectUuid': args.projectUuid,
-                    'lightdash.preAggExploreName': preAggExploreName,
-                },
-            },
-            () =>
-                this.projectModel.getExploreFromCache(
-                    args.projectUuid,
-                    preAggExploreName,
-                ),
-        );
-
-        if (isExploreError(preAggExplore)) {
-            throw new Error(
-                `Pre-aggregate explore ${preAggExploreName} is not queryable`,
-            );
+        const preAggExplore = snapshot?.preAggExplore;
+        if (!preAggExplore) {
+            return {
+                resolved: false,
+                reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
+            };
         }
 
         const patchedPreAggExplore = {

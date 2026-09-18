@@ -218,6 +218,9 @@ export default class PrometheusMetrics {
         null;
 
     // Pre-aggregate metrics
+    public preAggregateRefreshDecisionCounter: prometheus.Counter<string> | null =
+        null;
+
     public preAggregateMatchCounter: prometheus.Counter<string> | null = null;
 
     public preAggregateMaterializationCounter: prometheus.Counter<string> | null =
@@ -877,6 +880,13 @@ export default class PrometheusMetrics {
                 );
                 this.aiAgentMemoryEligiblePartitionsCounter?.inc(0);
 
+                this.preAggregateRefreshDecisionCounter =
+                    new prometheus.Counter({
+                        name: 'lightdash_pre_aggregate_refresh_decision_total',
+                        help: 'Pre-aggregate refresh decisions, separate from executed materializations',
+                        labelNames: ['reason', 'trigger'],
+                        ...rest,
+                    });
                 // Initialize pre-aggregate metrics
                 this.preAggregateMatchCounter = new prometheus.Counter({
                     name: 'lightdash_pre_aggregate_match_total',
