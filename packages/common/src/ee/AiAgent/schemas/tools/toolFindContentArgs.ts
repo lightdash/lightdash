@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 type FindContentDashboardDetailsToolName =
@@ -76,11 +79,184 @@ export const toolFindContentArgsSchema = createToolSchema()
 
 export const toolFindContentArgsSchemaTransformed = toolFindContentArgsSchema;
 
-export const toolFindContentOutputSchema = z.object({
-    result: z.string(),
+const findContentSpaceMetadataSchema = z.object({
+    uuid: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    breadcrumb: z
+        .string()
+        .describe('Space path from the root, space names joined by " / ".'),
+});
+
+const findContentVerificationSchema = z
+    .object({
+        verifiedBy: z
+            .string()
+            .describe('Full name of the admin who verified the content.'),
+        verifiedAt: z.string().describe('ISO 8601 verification timestamp.'),
+    })
+    .nullable()
+    .describe('Admin verification, or null when the content is unverified.');
+
+const findContentUserNameSchema = z
+    .string()
+    .nullable()
+    .describe('Full name of the user, or null when unknown.');
+
+const findContentTimestampSchema = z
+    .string()
+    .nullable()
+    .describe('ISO 8601 timestamp, or null when unknown.');
+
+const findContentDescriptionSchema = z
+    .string()
+    .nullable()
+    .describe('Description truncated to the tool limit, or null when empty.');
+
+export const findContentDocumentItemSchema = z.object({
+    contentType: z.literal('document'),
+    uuid: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    href: z.string(),
+    description: findContentDescriptionSchema,
+});
+
+export const findContentSpaceItemSchema = z.object({
+    contentType: z.literal('space'),
+    uuid: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    searchRank: z.number(),
+    chartCount: z.number().int(),
+    dashboardCount: z.number().int(),
+    childSpaceCount: z.number().int(),
+    appCount: z.number().int(),
+    directAccess: z
+        .boolean()
+        .describe('Whether the user has direct access to this space.'),
+    space: findContentSpaceMetadataSchema,
+});
+
+export const findContentDataAppItemSchema = z.object({
+    contentType: z.literal('data_app'),
+    uuid: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    searchRank: z.number(),
+    spaceUuid: z
+        .string()
+        .nullable()
+        .describe('Null for personal apps that live outside any space.'),
+    viewsCount: z.number().int(),
+    href: z.string().describe('Canonical viewer URL of the Data App.'),
+    space: findContentSpaceMetadataSchema.nullable(),
+    description: findContentDescriptionSchema,
+    createdBy: findContentUserNameSchema,
+});
+
+const findContentDashboardChartPreviewSchema = z.object({
+    uuid: z.string(),
+    name: z.string(),
+    chartType: z.string(),
+    description: findContentDescriptionSchema,
+    verification: findContentVerificationSchema,
+});
+
+export const findContentDashboardItemSchema = z.object({
+    contentType: z.literal('dashboard'),
+    uuid: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    searchRank: z.number(),
+    spaceUuid: z.string(),
+    viewsCount: z.number().int(),
+    href: z.string().describe('Canonical URL of the dashboard.'),
+    space: findContentSpaceMetadataSchema,
+    description: findContentDescriptionSchema,
+    verification: findContentVerificationSchema,
+    firstViewedAt: findContentTimestampSchema,
+    lastModified: findContentTimestampSchema,
+    createdBy: findContentUserNameSchema,
+    lastUpdatedBy: findContentUserNameSchema,
+    charts: z.object({
+        count: z
+            .number()
+            .int()
+            .describe('Total number of charts on the dashboard.'),
+        preview: z
+            .array(findContentDashboardChartPreviewSchema)
+            .describe(
+                'First few charts, verified first; use readContent for the full list.',
+            ),
+    }),
+    validationErrorCount: z
+        .number()
+        .int()
+        .describe(
+            'Number of validation errors; dashboards with errors are deprioritized.',
+        ),
+});
+
+export const findContentChartItemSchema = z.object({
+    contentType: z.literal('chart'),
+    uuid: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    searchRank: z.number(),
+    chartType: z.string(),
+    chartSource: z
+        .enum(['saved', 'sql'])
+        .describe('"saved" for explore charts, "sql" for SQL Runner charts.'),
+    spaceUuid: z.string(),
+    viewsCount: z.number().int(),
+    href: z.string().describe('Canonical URL of the chart.'),
+    space: findContentSpaceMetadataSchema,
+    description: findContentDescriptionSchema,
+    verification: findContentVerificationSchema,
+    firstViewedAt: findContentTimestampSchema,
+    lastModified: findContentTimestampSchema,
+    createdBy: findContentUserNameSchema,
+    lastUpdatedBy: findContentUserNameSchema,
+});
+
+const findContentItemSchema = z.discriminatedUnion('contentType', [
+    findContentDocumentItemSchema,
+    findContentSpaceItemSchema,
+    findContentDataAppItemSchema,
+    findContentDashboardItemSchema,
+    findContentChartItemSchema,
+]);
+
+const findContentSearchResultSchema = z.object({
+    searchQuery: z.string(),
+    verifiedOnly: z.boolean(),
+    count: z.number().int().describe('Number of matches for this query.'),
+    note: z
+        .string()
+        .nullable()
+        .describe(
+            'Guidance when a verifiedOnly search matched nothing; null otherwise.',
+        ),
+    content: z
+        .array(findContentItemSchema)
+        .describe('Matches for this query, verified content first.'),
+});
+
+export const toolFindContentStructuredContentSchema = z.object({
+    searchResults: z
+        .array(findContentSearchResultSchema)
+        .describe('One entry per search query, in the order given.'),
+});
+
+export const toolFindContentOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema,
+    structuredContent: toolFindContentStructuredContentSchema,
 });
 
 export type ToolFindContentArgs = z.infer<typeof toolFindContentArgsSchema>;
 export type ToolFindContentArgsTransformed = ToolFindContentArgs;
+export type ToolFindContentStructuredContent = z.infer<
+    typeof toolFindContentStructuredContentSchema
+>;
 export type ToolFindContentOutput = z.infer<typeof toolFindContentOutputSchema>;
