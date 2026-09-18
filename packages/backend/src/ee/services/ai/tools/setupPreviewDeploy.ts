@@ -1,22 +1,36 @@
-import { setupPreviewDeployToolDefinition } from '@lightdash/common';
+import {
+    setupPreviewDeployToolDefinition,
+    type ToolSetupPreviewDeployStructuredContent,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type { SetupPreviewDeployFn } from '../types/aiAgentDependencies';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     setupPreviewDeploy: SetupPreviewDeployFn;
 };
+
+type SetupPreviewDeployResult =
+    | ExecuteStructuredToolResult<
+          ToolSetupPreviewDeployStructuredContent,
+          { status: 'success'; prUrl: string }
+      >
+    | ExecuteToolErrorResult;
 
 const toolDefinition = setupPreviewDeployToolDefinition.for('agent');
 
 export const getSetupPreviewDeploy = ({ setupPreviewDeploy }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async () => {
+        execute: async (): Promise<SetupPreviewDeployResult> => {
             try {
-                const { prUrl, projectName, repository, secrets } =
-                    await setupPreviewDeploy();
+                const setup = await setupPreviewDeploy();
+                const { prUrl, projectName, repository, secrets } = setup;
 
                 // Render concrete secret values server-side. Values we know
                 // (LIGHTDASH_URL, LIGHTDASH_PROJECT) are pre-filled; the agent
@@ -35,20 +49,16 @@ export const getSetupPreviewDeploy = ({ setupPreviewDeploy }: Dependencies) =>
                 return {
                     result,
                     metadata: {
-                        status: 'success' as const,
+                        status: 'success',
                         prUrl,
                     },
+                    structuredContent: setup,
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(
-                        error,
-                        'Error setting up preview deploys. No pull request was opened.',
-                    ),
-                    metadata: {
-                        status: 'error' as const,
-                    },
-                };
+                return toolErrorOutput(
+                    error,
+                    'Error setting up preview deploys. No pull request was opened.',
+                );
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
