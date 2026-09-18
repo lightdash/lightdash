@@ -851,6 +851,160 @@ describe('ProjectModel', () => {
         expect(invalidate).not.toHaveBeenCalled();
     });
 
+    test('stores listing fields in columns and omits them from ciphertext', async () => {
+        const encrypt = vi
+            .spyOn(encryptionUtilMock, 'encrypt')
+            .mockReturnValue(Buffer.from('encrypted'));
+        tracker.on
+            .insert(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
+
+        await (
+            model as unknown as {
+                upsertWarehouseConnection: (
+                    trx: typeof database,
+                    projectId: number,
+                    data: CreateWarehouseCredentials,
+                ) => Promise<void>;
+            }
+        ).upsertWarehouseConnection(database, 7, {
+            type: WarehouseTypes.ATHENA,
+            region: 'eu-west-1',
+            database: 'AwsDataCatalog',
+            schema: 'analytics',
+            s3StagingDir: 's3://query-results',
+            accessKeyId: 'key',
+            secretAccessKey: 'secret',
+            listAllDatabases: false,
+            additionalDatabases: [' sales ', '', 'finance', 'sales'],
+        });
+
+        const encrypted = JSON.parse(encrypt.mock.calls[0][0] as string);
+        expect(encrypted).not.toHaveProperty('listAllDatabases');
+        expect(encrypted).not.toHaveProperty('additionalDatabases');
+        expect(tracker.history.insert[0].sql).toContain('"list_all_databases"');
+        expect(tracker.history.insert[0].sql).toContain(
+            '"additional_databases"',
+        );
+        expect(tracker.history.insert[0].bindings).toEqual(
+            expect.arrayContaining([false, ['sales', 'finance']]),
+        );
+    });
+
+    test('keeps dormant ciphertext when attaching an organization connection', async () => {
+        tracker.on
+            .insert(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
+
+        await (
+            model as unknown as {
+                upsertWarehouseConnection: (
+                    trx: typeof database,
+                    projectId: number,
+                    data: CreateWarehouseCredentials,
+                    organizationWarehouseCredentialsUuid?: string,
+                ) => Promise<void>;
+            }
+        ).upsertWarehouseConnection(
+            database,
+            7,
+            {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                user: 'user',
+                password: 'password',
+                database: 'database',
+                warehouse: 'warehouse',
+                schema: 'schema',
+            },
+            'organization-credential-uuid',
+        );
+
+        const updateClause =
+            tracker.history.insert[0].sql.split('do update set')[1];
+        expect(updateClause).not.toContain('encrypted_credentials');
+        expect(tracker.history.insert[0].bindings).toContain(
+            'organization-credential-uuid',
+        );
+    });
+
+    test('merges row listing fields into organization credentials', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([
+                {
+                    encrypted_credentials: null,
+                    organization_warehouse_credentials_uuid:
+                        'organization-credential-uuid',
+                    organization_uuid: 'organization-uuid',
+                    list_all_databases: true,
+                    additional_databases: ['finance'],
+                },
+            ]);
+        vi.spyOn(
+            model as unknown as {
+                getOrganizationWarehouseCredentials: () => Promise<CreateWarehouseCredentials>;
+            },
+            'getOrganizationWarehouseCredentials',
+        ).mockResolvedValue({
+            type: WarehouseTypes.ATHENA,
+            region: 'eu-west-1',
+            database: 'AwsDataCatalog',
+            schema: 'analytics',
+            s3StagingDir: 's3://query-results',
+        });
+
+        await expect(
+            model.getWarehouseCredentialsForProject(projectUuid),
+        ).resolves.toMatchObject({
+            listAllDatabases: true,
+            additionalDatabases: ['finance'],
+        });
+    });
+
+    test('skips superseded warehouse credential rows', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
+
+        await expect(
+            model.getWarehouseCredentialsForProject(projectUuid),
+        ).rejects.toBeInstanceOf(NotFoundError);
+        expect(tracker.history.select[0].sql).toContain(
+            '"warehouse_credentials"."superseded_at" is null',
+        );
+    });
+
+    test('rotates a refresh token by warehouse credential row id', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([
+                {
+                    warehouse_credentials_id: 42,
+                    encrypted_credentials: Buffer.from(
+                        JSON.stringify({
+                            type: WarehouseTypes.SNOWFLAKE,
+                            refreshToken: 'old-token',
+                        }),
+                    ),
+                },
+            ]);
+        tracker.on
+            .update(({ sql }) => sql.includes('warehouse_credentials'))
+            .response(1);
+
+        await expect(
+            model.rotateRefreshToken(projectUuid, 'old-token', 'new-token'),
+        ).resolves.toBe(true);
+        expect(tracker.history.select[0].sql).toContain(
+            '"warehouse_credentials"."superseded_at" is null',
+        );
+        expect(tracker.history.update[0].sql).toContain(
+            '"warehouse_credentials_id" =',
+        );
+        expect(tracker.history.update[0].bindings).toContain(42);
+    });
+
     test('checks project membership without requiring an email row', async () => {
         tracker.on
             .select(({ sql }) => sql.includes(ProjectMembershipsTableName))
