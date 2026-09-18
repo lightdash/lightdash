@@ -3706,10 +3706,254 @@ Output:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "description": "How to read the two result sections below.",
+                  "type": "string",
+                },
+                "searchQuery": {
+                  "description": "The search terms that were run.",
+                  "type": "string",
+                },
+                "searchResults": {
+                  "additionalProperties": false,
+                  "description": "Explores whose name, label, description or aiHints matched the query.",
+                  "properties": {
+                    "count": {
+                      "type": "number",
+                    },
+                    "note": {
+                      "description": "Guidance for the next step given how many explores matched.",
+                      "type": "string",
+                    },
+                    "results": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "aiHints": {
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          "description": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "description": "Explore description, possibly truncated.",
+                          },
+                          "joinedTables": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "count": {
+                                "type": "number",
+                              },
+                              "note": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "null",
+                                  },
+                                ],
+                              },
+                              "tables": {
+                                "description": "Tables whose fields are available when querying this explore.",
+                                "items": {
+                                  "type": "string",
+                                },
+                                "type": "array",
+                              },
+                            },
+                            "required": [
+                              "count",
+                              "note",
+                              "tables",
+                            ],
+                            "type": "object",
+                          },
+                          "label": {
+                            "type": "string",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "requiredFilters": {
+                            "description": "Filters that must be set when querying this explore, with their default values.",
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "fieldId": {
+                                  "type": "string",
+                                },
+                                "fieldRef": {
+                                  "type": "string",
+                                },
+                                "operator": {
+                                  "type": "string",
+                                },
+                                "required": {
+                                  "type": "boolean",
+                                },
+                                "settings": {},
+                                "tableName": {
+                                  "type": "string",
+                                },
+                                "values": {
+                                  "items": {},
+                                  "type": "array",
+                                },
+                              },
+                              "required": [
+                                "fieldId",
+                                "fieldRef",
+                                "tableName",
+                                "operator",
+                                "required",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                          "searchRank": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "description": "Full-text search rank; higher is better.",
+                          },
+                        },
+                        "required": [
+                          "name",
+                          "label",
+                          "searchRank",
+                          "description",
+                          "aiHints",
+                          "joinedTables",
+                          "requiredFilters",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "count",
+                    "note",
+                    "results",
+                  ],
+                  "type": "object",
+                },
+                "topMatchingFields": {
+                  "additionalProperties": false,
+                  "description": "Individual fields whose name, label or description matched, across all explores.",
+                  "properties": {
+                    "count": {
+                      "type": "number",
+                    },
+                    "fields": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "exploreName": {
+                            "description": "The explore this field belongs to.",
+                            "type": "string",
+                          },
+                          "fieldType": {
+                            "type": "string",
+                          },
+                          "label": {
+                            "type": "string",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "searchRank": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "usageInCharts": {
+                            "description": "How many saved charts use this field.",
+                            "type": "number",
+                          },
+                          "usageInVerifiedCharts": {
+                            "description": "How many verified saved charts use this field.",
+                            "type": "number",
+                          },
+                        },
+                        "required": [
+                          "name",
+                          "label",
+                          "exploreName",
+                          "fieldType",
+                          "searchRank",
+                          "usageInCharts",
+                          "usageInVerifiedCharts",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "note": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "count",
+                    "note",
+                    "fields",
+                  ],
+                  "type": "object",
+                },
+              },
+              "required": [
+                "searchQuery",
+                "description",
+                "searchResults",
+                "topMatchingFields",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },

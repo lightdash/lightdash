@@ -1,11 +1,14 @@
-import { findExploresToolDefinition } from '@lightdash/common';
+import {
+    findExploresToolDefinition,
+    type ToolFindExploresStructuredContent,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     FindExploresFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { truncate } from '../utils/truncation';
 import { formatToolJsonOutput } from './toolOutputFormat';
 
@@ -26,7 +29,7 @@ export const buildFindExploresStructuredContent = ({
 }: Awaited<ReturnType<FindExploresFn>> & {
     searchQuery: string;
     toolDescriptionMaxChars: number;
-}) => {
+}): ToolFindExploresStructuredContent => {
     const exploreCount = exploreSearchResults?.length ?? 0;
     const fieldCount = topMatchingFields?.length ?? 0;
 
@@ -153,14 +156,10 @@ export const getFindExplores = ({
                             ),
                         },
                     },
+                    structuredContent,
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(error, `Error listing explores.`),
-                    metadata: {
-                        status: 'error',
-                    },
-                };
+                return toolErrorOutput(error, `Error listing explores.`);
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
