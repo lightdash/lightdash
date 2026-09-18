@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_FIND_EXPLORES_DESCRIPTION = ({
@@ -112,53 +115,88 @@ export const findExploresRelevantVerifiedAnswerSchema = z.object({
     similarity: z.number(),
 });
 
-export const findExploresResultSchema = z.object({
-    searchQuery: z.string(),
-    description: z.string(),
-    searchResults: z.object({
-        count: z.number(),
-        note: z.string(),
-        results: z.array(
-            z.object({
-                name: z.string(),
-                label: z.string(),
-                searchRank: z.number().nullable(),
-                description: z.string().nullable(),
-                aiHints: z.array(z.string()),
-                joinedTables: z.object({
-                    count: z.number(),
-                    note: z.string().nullable(),
-                    tables: z.array(z.string()),
+export const toolFindExploresStructuredContentSchema = z.object({
+    searchQuery: z.string().describe('The search terms that were run.'),
+    description: z
+        .string()
+        .describe('How to read the two result sections below.'),
+    searchResults: z
+        .object({
+            count: z.number(),
+            note: z
+                .string()
+                .describe(
+                    'Guidance for the next step given how many explores matched.',
+                ),
+            results: z.array(
+                z.object({
+                    name: z.string(),
+                    label: z.string(),
+                    searchRank: z
+                        .number()
+                        .nullable()
+                        .describe('Full-text search rank; higher is better.'),
+                    description: z
+                        .string()
+                        .nullable()
+                        .describe('Explore description, possibly truncated.'),
+                    aiHints: z.array(z.string()),
+                    joinedTables: z.object({
+                        count: z.number(),
+                        note: z.string().nullable(),
+                        tables: z
+                            .array(z.string())
+                            .describe(
+                                'Tables whose fields are available when querying this explore.',
+                            ),
+                    }),
+                    requiredFilters: z
+                        .array(findExploresRequiredFilterSchema)
+                        .describe(
+                            'Filters that must be set when querying this explore, with their default values.',
+                        ),
                 }),
-                requiredFilters: z.array(findExploresRequiredFilterSchema),
-            }),
+            ),
+        })
+        .describe(
+            'Explores whose name, label, description or aiHints matched the query.',
         ),
-    }),
-    topMatchingFields: z.object({
-        count: z.number(),
-        note: z.string(),
-        fields: z.array(
-            z.object({
-                name: z.string(),
-                label: z.string(),
-                exploreName: z.string(),
-                fieldType: z.string(),
-                searchRank: z.number().nullable(),
-                usageInCharts: z.number(),
-                usageInVerifiedCharts: z.number(),
-            }),
+    topMatchingFields: z
+        .object({
+            count: z.number(),
+            note: z.string(),
+            fields: z.array(
+                z.object({
+                    name: z.string(),
+                    label: z.string(),
+                    exploreName: z
+                        .string()
+                        .describe('The explore this field belongs to.'),
+                    fieldType: z.string(),
+                    searchRank: z.number().nullable(),
+                    usageInCharts: z
+                        .number()
+                        .describe('How many saved charts use this field.'),
+                    usageInVerifiedCharts: z
+                        .number()
+                        .describe(
+                            'How many verified saved charts use this field.',
+                        ),
+                }),
+            ),
+        })
+        .describe(
+            'Individual fields whose name, label or description matched, across all explores.',
         ),
-    }),
-    relevantVerifiedAnswers: z
-        .array(findExploresRelevantVerifiedAnswerSchema)
-        .optional(),
 });
 
-export const toolFindExploresOutputSchema = z.object({
-    result: z.string(),
+export const findExploresResultSchema = toolFindExploresStructuredContentSchema;
+
+export const toolFindExploresOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema.extend({
         ranking: findExploresRankingMetadataSchema.optional(),
     }),
+    structuredContent: toolFindExploresStructuredContentSchema,
 });
 
 export type ToolFindExploresArgsV1 = z.infer<
@@ -175,7 +213,10 @@ export type ToolFindExploresArgsTransformed = ToolFindExploresArgs;
 export type FindExploresRequiredFilter = z.infer<
     typeof findExploresRequiredFilterSchema
 >;
-export type FindExploresResult = z.infer<typeof findExploresResultSchema>;
+export type ToolFindExploresStructuredContent = z.infer<
+    typeof toolFindExploresStructuredContentSchema
+>;
+export type FindExploresResult = ToolFindExploresStructuredContent;
 export type ToolFindExploresOutput = z.infer<
     typeof toolFindExploresOutputSchema
 >;
