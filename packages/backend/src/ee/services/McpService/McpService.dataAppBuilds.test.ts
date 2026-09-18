@@ -128,32 +128,38 @@ const versionRow = (
     },
 });
 
-/** Registers the tools and returns the stubbed runtime fn so calls can be asserted. */
+/** Registers the tools against a stubbed tools runtime. */
+const createServerWithRuntime = async (
+    runtimeFns: Record<string, unknown>,
+    featureAvailability: Parameters<typeof makeMcpServerOptions>[0] = {},
+) => {
+    const mcpService = makeMcpService(() => runtimeFns);
+    mockRegisteredMcpTools.clear();
+    await mcpService.createServer(makeMcpServerOptions(featureAvailability));
+};
+
 const createServerWithBuildStatus = async (
     source: ReturnType<typeof versionRow>,
     featureAvailability: Parameters<typeof makeMcpServerOptions>[0] = {},
 ) => {
     const getDataAppBuildStatus = vi.fn().mockResolvedValue(source);
-    const mcpService = makeMcpService(() => ({ getDataAppBuildStatus }));
-    mockRegisteredMcpTools.clear();
-    await mcpService.createServer(
-        makeMcpServerOptions({
-            dataAppBuildsEnabled: true,
-            ...featureAvailability,
-        }),
+    await createServerWithRuntime(
+        { getDataAppBuildStatus },
+        featureAvailability,
     );
     return { getDataAppBuildStatus };
 };
 
-const callBuildStatus = (args: Record<string, unknown>) => {
-    const callback = mockRegisteredMcpTools.get(
-        McpToolName.GET_DATA_APP_BUILD_STATUS,
-    );
+const callTool = (name: McpToolName, args: Record<string, unknown>) => {
+    const callback = mockRegisteredMcpTools.get(name);
     if (!callback) {
-        throw new Error('get_data_app_build_status was not registered');
+        throw new Error(`${name} was not registered`);
     }
     return callback({ projectUuid, ...args }, makeExtra());
 };
+
+const callBuildStatus = (args: Record<string, unknown>) =>
+    callTool(McpToolName.GET_DATA_APP_BUILD_STATUS, args);
 
 describe('McpService get_data_app_build_status', () => {
     describe('registration', () => {
@@ -277,17 +283,13 @@ describe('McpService get_data_app_build_status', () => {
         });
 
         it('returns a tool error when the app is not found', async () => {
-            const mcpService = makeMcpService(() => ({
+            await createServerWithRuntime({
                 getDataAppBuildStatus: vi
                     .fn()
                     .mockRejectedValue(
                         new Error('Data app "missing" was not found'),
                     ),
-            }));
-            mockRegisteredMcpTools.clear();
-            await mcpService.createServer(
-                makeMcpServerOptions({ dataAppBuildsEnabled: true }),
-            );
+            });
 
             const result = await callBuildStatus({ appSlug: 'missing' });
 
@@ -299,5 +301,143 @@ describe('McpService get_data_app_build_status', () => {
                 },
             ]);
         });
+    });
+});
+
+describe('McpService generate_data_app', () => {
+    const generateArgs = {
+        name: 'Quarterly review',
+        prompt: 'Build a quarterly revenue review',
+    };
+
+    it('registers the tool when the caller may create data apps', async () => {
+        await createServerWithRuntime({ generateDataApp: vi.fn() });
+
+        expect(mockRegisteredMcpTools.has(McpToolName.GENERATE_DATA_APP)).toBe(
+            true,
+        );
+    });
+
+    it('omits the tool when data app builds are unavailable', async () => {
+        await createServerWithRuntime(
+            { generateDataApp: vi.fn() },
+            { dataAppBuildsEnabled: false },
+        );
+
+        expect(mockRegisteredMcpTools.has(McpToolName.GENERATE_DATA_APP)).toBe(
+            false,
+        );
+    });
+
+    it('returns the slug and version the runtime produced, without the uuid', async () => {
+        await createServerWithRuntime({
+            generateDataApp: vi.fn().mockResolvedValue({
+                appUuid,
+                slug: 'quarterly-review-2',
+                version: 1,
+            }),
+        });
+
+        const result = await callTool(
+            McpToolName.GENERATE_DATA_APP,
+            generateArgs,
+        );
+
+        expect(result.structuredContent).toEqual({
+            slug: 'quarterly-review-2',
+            version: 1,
+        });
+    });
+
+    it('starts the build with no agent tool-call reference', async () => {
+        const generateDataApp = vi.fn().mockResolvedValue({
+            appUuid,
+            slug: 'quarterly-review',
+            version: 1,
+        });
+        await createServerWithRuntime({ generateDataApp });
+
+        await callTool(McpToolName.GENERATE_DATA_APP, {
+            ...generateArgs,
+            themeSlug: 'brand',
+        });
+
+        expect(generateDataApp).toHaveBeenCalledWith({
+            name: 'Quarterly review',
+            prompt: 'Build a quarterly revenue review',
+            template: null,
+            dashboardSlug: null,
+            chartSlugs: null,
+            themeSlug: 'brand',
+            toolCallId: null,
+        });
+    });
+
+    it('fails with the valid theme slugs when the theme is unknown', async () => {
+        await createServerWithRuntime({
+            generateDataApp: vi
+                .fn()
+                .mockRejectedValue(
+                    new Error(
+                        'Theme "neon" was not found. Valid theme slugs: brand, dark',
+                    ),
+                ),
+        });
+
+        const result = await callTool(McpToolName.GENERATE_DATA_APP, {
+            ...generateArgs,
+            themeSlug: 'neon',
+        });
+
+        expect(result.isError).toBe(true);
+        expect(result.content).toEqual([
+            {
+                type: 'text',
+                text: 'Error starting the data app build. No app was created: Theme "neon" was not found. Valid theme slugs: brand, dark',
+            },
+        ]);
+    });
+});
+
+describe('McpService list_data_app_themes', () => {
+    const themes = [
+        {
+            slug: 'brand',
+            name: 'Brand',
+            isDefault: true,
+            description: 'Company colours',
+        },
+        { slug: 'dark', name: 'Dark', isDefault: false, description: null },
+    ];
+
+    it('omits the tool when data app builds are unavailable', async () => {
+        await createServerWithRuntime(
+            { listDataAppThemes: vi.fn() },
+            { dataAppBuildsEnabled: false },
+        );
+
+        expect(
+            mockRegisteredMcpTools.has(McpToolName.LIST_DATA_APP_THEMES),
+        ).toBe(false);
+    });
+
+    it('passes the themes the runtime listed through', async () => {
+        await createServerWithRuntime({
+            listDataAppThemes: vi.fn().mockResolvedValue(themes),
+        });
+
+        const result = await callTool(McpToolName.LIST_DATA_APP_THEMES, {});
+
+        expect(result.structuredContent).toEqual({ themes });
+    });
+
+    it('reports an organization with no themes', async () => {
+        await createServerWithRuntime({
+            listDataAppThemes: vi.fn().mockResolvedValue([]),
+        });
+
+        const result = await callTool(McpToolName.LIST_DATA_APP_THEMES, {});
+
+        expect(result.structuredContent).toEqual({ themes: [] });
     });
 });

@@ -38,6 +38,51 @@ export const TOOL_GENERATE_DATA_APP_DESCRIPTION = [
     'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn.',
 ].join(' ');
 
+/** Placement every MCP-started build shares; stated on each start tool. */
+export const MCP_DATA_APP_PLACEMENT_GUIDANCE = [
+    "- The app is created as the calling user's personal app: at the project root, in no space, visible only to them until they move it.",
+    '- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.',
+].join('\n');
+
+export const MCP_TOOL_GENERATE_DATA_APP_DESCRIPTION = `Tool: generate_data_app
+
+Purpose:
+Start building a new data app: an interactive application generated from a brief on top of a Lightdash project's semantic layer. Each build produces one version of the app. Charts, dashboards, and other saved content have their own tools.
+
+Important:
+- You name the app. The name fixes both the app's name and its slug at creation, and neither changes afterwards. A name already taken in the project gets a numeric suffix on the slug, so identify the app by the slug this call returns, never one you derived from the name.
+- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the returned slug every 15 seconds until its status is "ready", "error", or "cancelled". Call this tool once per request.
+${MCP_DATA_APP_PLACEMENT_GUIDANCE}
+- An unknown themeSlug fails before the build starts and lists the valid slugs. Call list_data_app_themes when the user names a theme, brand, or look.
+
+Response shape (MCP CallToolResult):
+- content: [{ type: "text", text: "<confirmation that the build started>" }]
+- structuredContent: {
+    slug:    string, // the app's permanent slug; pass it to get_data_app_build_status
+    version: number  // the version of the app this build produces
+  }
+
+Errors: an unknown themeSlug, dashboardSlug, or chartSlug returns an error and starts no build.
+`;
+
+/** What a started build reports at the MCP surface; the app uuid stays internal. */
+export const mcpDataAppBuildStartedOutputSchema = z.object({
+    slug: z
+        .string()
+        .describe(
+            "The app's permanent slug. Poll get_data_app_build_status with it.",
+        ),
+    version: z
+        .number()
+        .int()
+        .positive()
+        .describe('The version of the app this build produces.'),
+});
+
+export type McpDataAppBuildStarted = z.infer<
+    typeof mcpDataAppBuildStartedOutputSchema
+>;
+
 export const toolGenerateDataAppArgsSchema = z.object({
     name: z
         .string()

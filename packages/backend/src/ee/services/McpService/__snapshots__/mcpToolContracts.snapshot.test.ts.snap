@@ -11057,6 +11057,251 @@ Response shape (MCP CallToolResult):
       "agentName": null,
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+      },
+      "description": "Tool: generate_data_app
+
+Purpose:
+Start building a new data app: an interactive application generated from a brief on top of a Lightdash project's semantic layer. Each build produces one version of the app. Charts, dashboards, and other saved content have their own tools.
+
+Important:
+- You name the app. The name fixes both the app's name and its slug at creation, and neither changes afterwards. A name already taken in the project gets a numeric suffix on the slug, so identify the app by the slug this call returns, never one you derived from the name.
+- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the returned slug every 15 seconds until its status is "ready", "error", or "cancelled". Call this tool once per request.
+- The app is created as the calling user's personal app: at the project root, in no space, visible only to them until they move it.
+- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.
+- An unknown themeSlug fails before the build starts and lists the valid slugs. Call list_data_app_themes when the user names a theme, brand, or look.
+
+Response shape (MCP CallToolResult):
+- content: [{ type: "text", text: "<confirmation that the build started>" }]
+- structuredContent: {
+    slug:    string, // the app's permanent slug; pass it to get_data_app_build_status
+    version: number  // the version of the app this build produces
+  }
+
+Errors: an unknown themeSlug, dashboardSlug, or chartSlug returns an error and starts no build.
+",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "chartSlugs": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "default": null,
+            "description": "Saved charts (slugs from findContent) whose queries the app is built on; the charts themselves stay unchanged. Omit when not building on saved charts.",
+          },
+          "dashboardSlug": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "default": null,
+            "description": "Generate from an existing dashboard: its slug (from findContent). The app starts from the dashboard's layout and charts; the dashboard itself stays unchanged. Omit when not generating from a dashboard.",
+          },
+          "name": {
+            "description": "Display name for the app: a headline-short title, in title case, naming what the app shows ("Revenue Overview"). The app's slug is derived from it at creation, so treat the name as final — it is not renamed later.",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "prompt": {
+            "description": "A self-contained brief for the coding agent that builds the app: what the app shows, for whom, and how it behaves. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results: when this thread has already settled the analysis, carry it over — for each visualization, its title, a one-line description, and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\` — as queries, never pasted numbers, which would be hardcoded into the app.",
+            "type": "string",
+          },
+          "template": {
+            "anyOf": [
+              {
+                "enum": [
+                  "dashboard",
+                  "slideshow",
+                  "pdf",
+                  "custom",
+                ],
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "default": null,
+            "description": "Starter template the builder would use: "dashboard" for a dashboard-style app, "slideshow" for a slide show, "pdf" for a PDF report, "custom" for anything else. Omit when the user did not ask for one.",
+          },
+          "themeSlug": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "default": null,
+            "description": "Organization theme to build the app with: its slug, from the attached context ("Theme: <name> (slug: <slug>)"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build.",
+          },
+        },
+        "required": [
+          "name",
+          "prompt",
+          "projectUuid",
+        ],
+        "type": "object",
+      },
+      "name": "generate_data_app",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "slug": {
+            "description": "The app's permanent slug. Poll get_data_app_build_status with it.",
+            "type": "string",
+          },
+          "version": {
+            "description": "The version of the app this build produces.",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer",
+          },
+        },
+        "required": [
+          "slug",
+          "version",
+        ],
+        "type": "object",
+      },
+      "title": "Generate data app",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
+      "description": "Tool: list_data_app_themes
+
+Purpose:
+List the organization's data app themes. A theme is a bundle of styling a data app can be built with; each has a slug you pass as themeSlug to generate_data_app.
+
+Important:
+- Call it when the user names a theme, brand, or look for a data app, then match the request to a theme and pass its slug.
+- Skip it when the user says nothing about the look: the organization default theme applies.
+- An organization may have no themes at all, in which case omit themeSlug.
+
+Parameters: none.
+
+Response shape (MCP CallToolResult):
+- content: [{ type: "text", text: "<the themes, one per line>" }]
+- structuredContent: {
+    themes: [{
+      slug:        string,        // pass as themeSlug to generate_data_app
+      name:        string,
+      isDefault:   boolean,       // applied when themeSlug is omitted
+      description: string | null
+    }]
+  }
+",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "agentUuid": {
+            "description": "Optional AI agent UUID for this operation. Omit it to use the full project scope.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "projectUuid": {
+            "description": "Project UUID for this operation.",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+        },
+        "required": [
+          "projectUuid",
+        ],
+        "type": "object",
+      },
+      "name": "list_data_app_themes",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "themes": {
+            "description": "The organization's themes; empty when it has none.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "What it looks like.",
+                },
+                "isDefault": {
+                  "description": "Whether this theme applies when themeSlug is omitted.",
+                  "type": "boolean",
+                },
+                "name": {
+                  "description": "The theme's display name.",
+                  "type": "string",
+                },
+                "slug": {
+                  "description": "Pass as themeSlug to generate_data_app.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "slug",
+                "name",
+                "isDefault",
+                "description",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "themes",
+        ],
+        "type": "object",
+      },
+      "title": "List data app themes",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
@@ -11880,6 +12125,8 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "create_content",
   "create_scheduled_delivery",
   "list_content",
+  "generate_data_app",
+  "list_data_app_themes",
   "get_lightdash_version",
   "list_explores",
   "list_skills",

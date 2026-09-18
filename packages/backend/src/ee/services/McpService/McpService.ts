@@ -25,6 +25,7 @@ import {
     FeatureFlags,
     findContentToolDefinition,
     ForbiddenError,
+    generateDataAppToolDefinition,
     generateHashesToolDefinition,
     getAiWritebackStatusToolDefinition,
     getAiWritebackTaskStatusMessage,
@@ -47,6 +48,7 @@ import {
     ItemsMap,
     listAgentsToolDefinition,
     listContentToolDefinition,
+    listDataAppThemesToolDefinition,
     listExploresToolDefinition,
     listSkillsToolDefinition,
     listVerifiedContentToolDefinition,
@@ -223,6 +225,8 @@ export enum McpToolName {
     LIST_VERIFIED_CONTENT = 'list_verified_content',
     RUN_AI_WRITEBACK = 'run_ai_writeback',
     GET_AI_WRITEBACK_STATUS = 'get_ai_writeback_status',
+    GENERATE_DATA_APP = 'generate_data_app',
+    LIST_DATA_APP_THEMES = 'list_data_app_themes',
     GET_DATA_APP_BUILD_STATUS = 'get_data_app_build_status',
     LIST_SKILLS = 'list_skills',
     READ_SKILL = 'read_skill',
@@ -290,6 +294,12 @@ const mcpGetAiWritebackStatusTool = withProjectUuidInput(
 );
 const mcpGetDataAppBuildStatusTool = withProjectScopeInput(
     getDataAppBuildStatusToolDefinition.for('mcp'),
+);
+const mcpGenerateDataAppTool = withProjectScopeInput(
+    generateDataAppToolDefinition.for('mcp'),
+);
+const mcpListDataAppThemesTool = withProjectScopeInput(
+    listDataAppThemesToolDefinition.for('mcp'),
 );
 const mcpGetLightdashVersionTool = getLightdashVersionToolDefinition.for('mcp');
 const mcpGenerateHashesTool = generateHashesToolDefinition.for('mcp');
@@ -1506,6 +1516,145 @@ export class McpService extends BaseService {
 
     /** Data app build tools; gated together so tools/list stays stable. */
     private registerDataAppBuildTools(): void {
+        this.registerGenerateDataAppTool();
+        this.registerListDataAppThemesTool();
+        this.registerGetDataAppBuildStatusTool();
+    }
+
+    /**
+     * Shared shape of a data app build tool: resolve the project, run against
+     * the tools runtime, and surface a failure as a tool error rather than a
+     * protocol error. `run` returns what the caller sees.
+     */
+    private async callDataAppBuildTool<
+        TStructuredContent extends Record<string, unknown>,
+    >(
+        extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+        args: { projectUuid: string; agentUuid?: string },
+        errorPrefix: string,
+        run: (
+            toolsRuntime: McpAiAgentToolsRuntime,
+            projectUuid: string,
+        ) => Promise<{
+            summary: string;
+            structuredContent: TStructuredContent;
+        }>,
+    ) {
+        const ctx = getMcpContext(extra);
+        const projectUuid = await this.resolveToolProjectUuid(
+            ctx,
+            args.projectUuid,
+        );
+        try {
+            const toolsRuntime = await this.getToolsRuntime(
+                ctx,
+                projectUuid,
+                args.agentUuid,
+            );
+            const { summary, structuredContent } = await run(
+                toolsRuntime,
+                projectUuid,
+            );
+            return await this.buildScopedResponse(
+                ctx,
+                summary,
+                structuredContent,
+                projectUuid,
+                args.agentUuid,
+            );
+        } catch (e) {
+            const errorMessage = getErrorMessage(e);
+            this.logger.error(`[McpService] ${errorPrefix}: ${errorMessage}`);
+            return {
+                content: [
+                    {
+                        type: 'text' as const,
+                        text: `${errorPrefix}: ${errorMessage}`,
+                    },
+                ],
+                isError: true,
+            };
+        }
+    }
+
+    private registerGenerateDataAppTool(): void {
+        this.registerTrackedTool(
+            mcpGenerateDataAppTool.name,
+            {
+                title: mcpGenerateDataAppTool.title,
+                description: mcpGenerateDataAppTool.description,
+                inputSchema: mcpGenerateDataAppTool.inputSchema.shape,
+                outputSchema: mcpGenerateDataAppTool.outputSchema.shape,
+                annotations: mcpGenerateDataAppTool.annotations,
+            },
+            async (args, extra) =>
+                this.callDataAppBuildTool(
+                    extra,
+                    args,
+                    'Error starting the data app build. No app was created',
+                    async (toolsRuntime) => {
+                        const { slug, version } =
+                            await toolsRuntime.generateDataApp({
+                                name: args.name,
+                                prompt: args.prompt,
+                                template: args.template ?? null,
+                                dashboardSlug: args.dashboardSlug ?? null,
+                                chartSlugs: args.chartSlugs ?? null,
+                                themeSlug: args.themeSlug ?? null,
+                                toolCallId: null,
+                            });
+                        return {
+                            summary: `Started building the data app "${args.name}" as slug "${slug}", version ${version}. Poll get_data_app_build_status with that slug every 15 seconds until it reports a terminal status.`,
+                            structuredContent: { slug, version },
+                        };
+                    },
+                ),
+        );
+    }
+
+    private registerListDataAppThemesTool(): void {
+        this.registerTrackedTool(
+            mcpListDataAppThemesTool.name,
+            {
+                title: mcpListDataAppThemesTool.title,
+                description: mcpListDataAppThemesTool.description,
+                inputSchema: mcpListDataAppThemesTool.inputSchema.shape,
+                outputSchema: mcpListDataAppThemesTool.outputSchema.shape,
+                annotations: mcpListDataAppThemesTool.annotations,
+            },
+            async (args, extra) =>
+                this.callDataAppBuildTool(
+                    extra,
+                    args,
+                    'Error listing data app themes',
+                    async (toolsRuntime) => {
+                        const themes = await toolsRuntime.listDataAppThemes();
+                        return {
+                            summary:
+                                themes.length === 0
+                                    ? 'The organization has no data app themes. Omit themeSlug when starting a build.'
+                                    : themes
+                                          .map(
+                                              (theme) =>
+                                                  `${theme.slug}: ${theme.name}${
+                                                      theme.isDefault
+                                                          ? ' (organization default)'
+                                                          : ''
+                                                  }${
+                                                      theme.description
+                                                          ? ` — ${theme.description}`
+                                                          : ''
+                                                  }`,
+                                          )
+                                          .join('\n'),
+                            structuredContent: { themes },
+                        };
+                    },
+                ),
+        );
+    }
+
+    private registerGetDataAppBuildStatusTool(): void {
         this.registerTrackedTool(
             mcpGetDataAppBuildStatusTool.name,
             {
@@ -1515,69 +1664,41 @@ export class McpService extends BaseService {
                 outputSchema: mcpGetDataAppBuildStatusTool.outputSchema.shape,
                 annotations: mcpGetDataAppBuildStatusTool.annotations,
             },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
-                const projectUuid = await this.resolveToolProjectUuid(
-                    ctx,
-                    args.projectUuid,
-                );
-
-                try {
-                    const toolsRuntime = await this.getToolsRuntime(
-                        ctx,
-                        projectUuid,
-                        args.agentUuid,
-                    );
-                    const { app, version } =
-                        await toolsRuntime.getDataAppBuildStatus({
-                            appSlug: args.appSlug,
-                            version: args.version,
+            async (args, extra) =>
+                this.callDataAppBuildTool(
+                    extra,
+                    args,
+                    'Error getting data app build status',
+                    async (toolsRuntime, projectUuid) => {
+                        const { app, version } =
+                            await toolsRuntime.getDataAppBuildStatus({
+                                appSlug: args.appSlug,
+                                version: args.version,
+                            });
+                        const response = getDataAppBuildStatusResponse({
+                            siteUrl: this.lightdashConfig.siteUrl,
+                            projectUuid,
+                            appUuid: app.uuid,
+                            name: app.name,
+                            slug: app.slug,
+                            version: version.version,
+                            status: version.status,
+                            error: version.error,
+                            statusMessage: version.statusMessage,
                         });
-
-                    const response = getDataAppBuildStatusResponse({
-                        siteUrl: this.lightdashConfig.siteUrl,
-                        projectUuid,
-                        appUuid: app.uuid,
-                        name: app.name,
-                        slug: app.slug,
-                        version: version.version,
-                        status: version.status,
-                        error: version.error,
-                        statusMessage: version.statusMessage,
-                    });
-
-                    const summary =
-                        response.status === 'ready'
-                            ? `${response.statusMessage} Open it at ${response.href}`
-                            : `${response.statusMessage}${
-                                  response.errorMessage
-                                      ? ` ${response.errorMessage}`
-                                      : ''
-                              }`;
-
-                    return await this.buildScopedResponse(
-                        ctx,
-                        summary,
-                        response,
-                        projectUuid,
-                        args.agentUuid,
-                    );
-                } catch (e) {
-                    const errorMessage = getErrorMessage(e);
-                    this.logger.error(
-                        `[McpService] Error in get_data_app_build_status tool: ${errorMessage}`,
-                    );
-                    return {
-                        content: [
-                            {
-                                type: 'text' as const,
-                                text: `Error getting data app build status: ${errorMessage}`,
-                            },
-                        ],
-                        isError: true,
-                    };
-                }
-            },
+                        return {
+                            summary:
+                                response.status === 'ready'
+                                    ? `${response.statusMessage} Open it at ${response.href}`
+                                    : `${response.statusMessage}${
+                                          response.errorMessage
+                                              ? ` ${response.errorMessage}`
+                                              : ''
+                                      }`,
+                            structuredContent: response,
+                        };
+                    },
+                ),
         );
     }
 
