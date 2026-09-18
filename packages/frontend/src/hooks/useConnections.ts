@@ -1,4 +1,5 @@
 import {
+    CONNECTION_NAME_CONFLICT_MESSAGE,
     type ApiCreateConnectionRequest,
     type ApiError,
     type ApiUpdateConnectionRequest,
@@ -9,6 +10,16 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
+
+/**
+ * The name conflict belongs on the Name field, not in a toast: the modal can
+ * be scrolled past the field when the create is refused.
+ */
+const isNameConflict = (error: ApiError['error']) =>
+    error.name === 'ConflictError' &&
+    error.message === CONNECTION_NAME_CONFLICT_MESSAGE;
+
+export type NameConflictHandler = (message: string) => void;
 
 export type ProjectConnections = {
     connections: Connection[];
@@ -124,7 +135,10 @@ const useConnectionInvalidation = (projectUuid: string) => {
 
 export const useCreateConnection = (
     projectUuid: string,
-    options?: { onSuccess?: (connection: Connection) => void },
+    options?: {
+        onSuccess?: (connection: Connection) => void;
+        onNameConflict?: NameConflictHandler;
+    },
 ) => {
     const invalidate = useConnectionInvalidation(projectUuid);
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -138,6 +152,10 @@ export const useCreateConnection = (
                 showToastSuccess({ title: 'Connection added' });
             },
             onError: ({ error }) => {
+                if (options?.onNameConflict && isNameConflict(error)) {
+                    options.onNameConflict(error.message);
+                    return;
+                }
                 showToastApiError({
                     title: 'Failed to add connection',
                     apiError: error,
@@ -179,7 +197,10 @@ export const useUpdateConnection = (
 
 export const useRenameConnection = (
     projectUuid: string,
-    options?: { onSuccess?: (connection: Connection) => void },
+    options?: {
+        onSuccess?: (connection: Connection) => void;
+        onNameConflict?: NameConflictHandler;
+    },
 ) => {
     const invalidate = useConnectionInvalidation(projectUuid);
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -198,6 +219,10 @@ export const useRenameConnection = (
                 showToastSuccess({ title: 'Connection renamed' });
             },
             onError: ({ error }) => {
+                if (options?.onNameConflict && isNameConflict(error)) {
+                    options.onNameConflict(error.message);
+                    return;
+                }
                 showToastApiError({
                     title: 'Failed to rename connection',
                     apiError: error,

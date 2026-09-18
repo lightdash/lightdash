@@ -226,6 +226,7 @@ export {
     maybeOverrideWarehouseConnection,
     mergeWarehouseCredentials,
     normalizeWarehouseCredentials,
+    CONNECTION_NAME_CONFLICT_MESSAGE,
     ProjectType,
     RedshiftAuthenticationType,
     resolveDbtVersion,
