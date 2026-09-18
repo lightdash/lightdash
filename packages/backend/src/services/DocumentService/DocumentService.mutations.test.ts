@@ -8,6 +8,7 @@ import {
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
+    parseDocumentContent,
     SpaceMemberRole,
     type CreateDocumentRequest,
     type Document,
@@ -77,6 +78,36 @@ const merge: DocumentCell = {
         },
     },
 };
+
+describe('Document as-code chart round-trip', () => {
+    test.each([semantic, merge])(
+        'preserves durable $content.source charts',
+        async (cell) => {
+            const content = { cells: [markdown, cell] };
+            const service = new DocumentService({
+                spaceModel: {
+                    find: vi.fn().mockResolvedValue([{ path: 'reports' }]),
+                },
+            } as unknown as ConstructorParameters<typeof DocumentService>[0]);
+            vi.spyOn(service, 'getByIdOrSlug').mockResolvedValue({
+                name: 'Report',
+                slug: 'report',
+                description: 'Description',
+                spaceUuid,
+                version: { schemaVersion: 1, content },
+            } as Document);
+            const result = await service.getAsCode(
+                {} as RegisteredAccount,
+                projectUuid,
+                'report',
+            );
+            expect(result.content).toEqual(content);
+            expect(
+                parseDocumentContent(result.schemaVersion, result.content),
+            ).toEqual(content);
+        },
+    );
+});
 
 const document: Document = {
     documentUuid,

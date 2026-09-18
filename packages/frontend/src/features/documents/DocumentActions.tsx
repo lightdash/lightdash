@@ -4,7 +4,7 @@ import {
     type Document,
 } from '@lightdash/common';
 import { ActionIcon, Button, Group, Menu, Tooltip } from '@mantine/core';
-import { IconDots, IconTrash } from '@tabler/icons-react';
+import { IconCode, IconDots, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
@@ -14,11 +14,13 @@ import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import DirectAccessModal from '../directAccess/components/DirectAccessModal';
 import { useCanManageDirectAccess } from '../directAccess/hooks/useCanManageDirectAccess';
 import { useDirectAccessAvailability } from '../directAccess/hooks/useDirectAccess';
+import DocumentAsCodeModal from './DocumentAsCodeModal';
 import { useCanDeleteDocument } from './useCanDeleteDocument';
 
 const DocumentActions = ({ document }: { document: Document }) => {
     const [isShareOpen, setShareOpen] = useState(false);
     const [isDeleteOpen, setDeleteOpen] = useState(false);
+    const [isCodeOpen, setCodeOpen] = useState(false);
     const navigate = useNavigate();
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const canDelete = useCanDeleteDocument(document);
@@ -56,41 +58,50 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     )}
                 </>
             )}
-            {canDelete && (
-                <>
-                    <Menu>
-                        <Menu.Target>
-                            <Tooltip label="Document actions">
-                                <ActionIcon aria-label="Document actions">
-                                    <MantineIcon icon={IconDots} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Item
-                                color="red"
-                                leftSection={<MantineIcon icon={IconTrash} />}
-                                onClick={() => setDeleteOpen(true)}
-                            >
-                                Delete
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
-                    {isDeleteOpen && (
-                        <DocumentDeleteModal
-                            opened
-                            projectUuid={document.projectUuid}
-                            uuid={document.documentUuid}
-                            name={document.name}
-                            onClose={() => setDeleteOpen(false)}
-                            onConfirm={() =>
-                                navigate(
-                                    `/projects/${projectUrlIdentifier}/documents`,
-                                )
-                            }
-                        />
+            <Menu>
+                <Menu.Target>
+                    <Tooltip label="Document actions">
+                        <ActionIcon aria-label="Document actions">
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconCode} />}
+                        onClick={() => setCodeOpen(true)}
+                    >
+                        View as code
+                    </Menu.Item>
+                    {canDelete && (
+                        <Menu.Item
+                            color="red"
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            onClick={() => setDeleteOpen(true)}
+                        >
+                            Delete
+                        </Menu.Item>
                     )}
-                </>
+                </Menu.Dropdown>
+            </Menu>
+            {canDelete && isDeleteOpen && (
+                <DocumentDeleteModal
+                    opened
+                    projectUuid={document.projectUuid}
+                    uuid={document.documentUuid}
+                    name={document.name}
+                    onClose={() => setDeleteOpen(false)}
+                    onConfirm={() =>
+                        navigate(`/projects/${projectUrlIdentifier}/documents`)
+                    }
+                />
+            )}
+            {isCodeOpen && (
+                <DocumentAsCodeModal
+                    document={document}
+                    opened
+                    onClose={() => setCodeOpen(false)}
+                />
             )}
         </Group>
     );

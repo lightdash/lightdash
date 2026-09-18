@@ -6,11 +6,13 @@ import {
     DOCUMENT_SCHEMA_VERSION,
     FeatureFlags,
     ForbiddenError,
+    getContentAsCodePathFromLtreePath,
     NotFoundError,
     ParameterError,
     parseDocumentContent,
     type CreateDocumentRequest,
     type Document,
+    type DocumentAsCode,
     type DocumentContent,
     type DocumentList,
     type MetricQuery,
@@ -31,6 +33,7 @@ import type {
 } from '../../models/DocumentModel';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import type { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
 import { normalizeFilterIds } from '../CoderService/filterIds';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
@@ -43,6 +46,7 @@ type DocumentServiceArguments = {
     directAccessService: DirectAccessService;
     featureFlagModel: FeatureFlagModel;
     projectModel: ProjectModel;
+    spaceModel: SpaceModel;
     spacePermissionService: SpacePermissionService;
     projectService: ProjectService;
 };
@@ -695,6 +699,33 @@ export class DocumentService extends BaseService {
         return isUuid(documentUuidOrSlug)
             ? this.get(account, projectUuid, documentUuidOrSlug)
             : this.getBySlug(account, projectUuid, documentUuidOrSlug);
+    }
+
+    async getAsCode(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        documentUuidOrSlug: UuidOrSlug,
+    ): Promise<DocumentAsCode> {
+        const document = await this.getByIdOrSlug(
+            account,
+            projectUuid,
+            documentUuidOrSlug,
+        );
+        const [space] = await this.dependencies.spaceModel.find({
+            projectUuid,
+            spaceUuids: [document.spaceUuid],
+        });
+        if (!space) {
+            throw new NotFoundError('Document not found');
+        }
+        return {
+            name: document.name,
+            slug: document.slug,
+            description: document.description,
+            spaceSlug: getContentAsCodePathFromLtreePath(space.path),
+            schemaVersion: document.version.schemaVersion,
+            content: document.version.content,
+        };
     }
 
     async getBySlug(
