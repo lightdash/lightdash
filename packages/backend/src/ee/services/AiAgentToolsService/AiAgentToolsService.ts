@@ -1773,10 +1773,15 @@ export class AiAgentToolsService extends BaseService {
                 withTheme: themeSlug !== null,
             },
             async () => {
-                const { promptUuid } = context;
+                const { promptUuid, threadUuid } = context;
                 if (!promptUuid) {
                     throw new UnexpectedServerError(
                         'generateDataApp requires a prompt',
+                    );
+                }
+                if (!threadUuid) {
+                    throw new UnexpectedServerError(
+                        'generateDataApp requires a thread',
                     );
                 }
                 const designUuid =
@@ -1819,6 +1824,10 @@ export class AiAgentToolsService extends BaseService {
                     {
                         creationExperience: 'ai_agent',
                         aiAgentToolCall: { promptUuid, toolCallId },
+                        thread: {
+                            origin: 'ai_thread',
+                            aiThreadUuid: threadUuid,
+                        },
                         ...(designUuid === undefined
                             ? {}
                             : { designUuidInput: designUuid }),
