@@ -1,3 +1,10 @@
+# [2.269.0](https://github.com/lightdash/lightdash/compare/2.268.0...2.269.0) (2026-09-18)
+
+
+### Features
+
+* **documents:** favorite documents across existing favorites views ([#29536](https://github.com/lightdash/lightdash/issues/29536)) ([108617b](https://github.com/lightdash/lightdash/commit/108617b31bd65854016ec8044eb9cca1d40ed0b2))
+
 # [2.268.0](https://github.com/lightdash/lightdash/compare/2.267.0...2.268.0) (2026-09-18)
 
 
