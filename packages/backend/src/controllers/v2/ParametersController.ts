@@ -89,9 +89,11 @@ export class ParametersController extends BaseController {
         @Request() req: express.Request,
         @Query() names?: string[],
     ): Promise<ApiSuccess<ApiGetProjectParametersResults>> {
+        // Not assertRegisteredAccount: this endpoint also serves embed (JWT)
+        // dashboards. Project-scoped authorization happens in the service.
         const parameters = await this.services
             .getProjectParametersService()
-            .findProjectParameters(projectUuid, names);
+            .findProjectParameters(req.account!, projectUuid, names);
 
         const results: ApiGetProjectParametersResults =
             parameters.reduce<ApiGetProjectParametersResults>(

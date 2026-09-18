@@ -859,6 +859,7 @@ export class ServiceRepository
                 new PreAggregateMaterializationService({
                     lightdashConfig: this.context.lightdashConfig,
                     preAggregateModel: this.models.getPreAggregateModel(),
+                    projectModel: this.models.getProjectModel(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     asyncQueryService: this.getAsyncQueryService(),
                     analytics: this.context.lightdashAnalytics,
