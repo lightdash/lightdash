@@ -1,4 +1,7 @@
+import { toolExploreRepoOutputSchema } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import type { ToolExecutionOptions } from 'ai';
+import type { Mock } from 'vitest';
 import Logger from '../../../../logging/logger';
 import { ShellError } from '../repoFs/bashShell';
 import { getExploreRepo } from './exploreRepo';
@@ -14,36 +17,41 @@ vi.mock('../../../../logging/logger', () => ({
     default: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-const captureException = Sentry.captureException as import('vitest').Mock;
+const captureException = vi.mocked(Sentry.captureException);
+const loggerError = vi.mocked(Logger.error);
 
-type ExecuteResult = { result: string; metadata: { status: string } };
+const options: ToolExecutionOptions = { toolCallId: 'call', messages: [] };
 
-const execute = async (
-    exploreRepo: import('vitest').Mock,
-): Promise<ExecuteResult> => {
+const execute = async (exploreRepo: Mock) => {
     const exploreRepoTool = getExploreRepo({ exploreRepo });
-    // `tool()` always defines execute for our definition, and it resolves to an
-    // object (not a stream); the casts keep TS happy without changing behaviour.
-    const result = await exploreRepoTool.execute!(
+    if (!exploreRepoTool.execute) {
+        throw new Error('Missing executor');
+    }
+    const output = await exploreRepoTool.execute(
         { command: 'ls models', target: null },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        {} as any,
+        options,
     );
-    return result as ExecuteResult;
+    expect(toolExploreRepoOutputSchema.safeParse(output).success).toBe(true);
+    return toolExploreRepoOutputSchema.parse(output);
 };
 
-describe('exploreRepo tool error handling', () => {
+describe('exploreRepo tool', () => {
     beforeEach(() => {
         captureException.mockClear();
-        (Logger.error as import('vitest').Mock).mockClear();
+        loggerError.mockClear();
     });
 
-    it('returns a successful result unchanged', async () => {
+    it('returns the command output as both text and structured content', async () => {
         const exploreRepo = vi.fn().mockResolvedValue('models/orders.sql');
-        const result = await execute(exploreRepo);
-        expect(result).toEqual({
+        const output = await execute(exploreRepo);
+        expect(output).toEqual({
             result: 'models/orders.sql',
             metadata: { status: 'success' },
+            structuredContent: { output: 'models/orders.sql' },
+        });
+        expect(exploreRepo).toHaveBeenCalledWith({
+            command: 'ls models',
+            target: null,
         });
         expect(captureException).not.toHaveBeenCalled();
     });
@@ -51,21 +59,23 @@ describe('exploreRepo tool error handling', () => {
     it('does not page Sentry for an expected ShellError, but logs it', async () => {
         const error = new ShellError('ls: unsupported flag -name');
         const exploreRepo = vi.fn().mockRejectedValue(error);
-        const result = await execute(exploreRepo);
+        const output = await execute(exploreRepo);
 
-        expect(result.metadata).toEqual({ status: 'error' });
-        expect(result.result).toContain('ls: unsupported flag -name');
+        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.result).toContain('ls: unsupported flag -name');
+        expect(output.structuredContent).toEqual({ error: output.result });
         expect(captureException).not.toHaveBeenCalled();
-        expect(Logger.error).toHaveBeenCalled();
+        expect(loggerError).toHaveBeenCalled();
     });
 
     it('captures an unexpected error (e.g. GitHub access failure) to Sentry', async () => {
         const error = new Error('GitHub API 403');
         const exploreRepo = vi.fn().mockRejectedValue(error);
-        const result = await execute(exploreRepo);
+        const output = await execute(exploreRepo);
 
-        expect(result.metadata).toEqual({ status: 'error' });
+        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.structuredContent).toEqual({ error: output.result });
         expect(captureException).toHaveBeenCalledWith(error);
-        expect(Logger.error).toHaveBeenCalled();
+        expect(loggerError).toHaveBeenCalled();
     });
 });
