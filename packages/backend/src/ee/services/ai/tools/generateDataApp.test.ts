@@ -1,4 +1,7 @@
-import { NotFoundError } from '@lightdash/common';
+import {
+    NotFoundError,
+    toolGenerateDataAppOutputSchema,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { getGenerateDataApp } from './generateDataApp';
 
@@ -13,22 +16,17 @@ vi.mock('../../../../logging/logger', () => ({
     default: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-const captureException = Sentry.captureException as import('vitest').Mock;
+const captureException = vi.mocked(Sentry.captureException);
 
 type GenerateDataAppTool = ReturnType<typeof getGenerateDataApp>;
-type GenerateDataAppOutput = {
-    result: string;
-    metadata: {
-        status: string;
-        appUuid?: string;
-        version?: number;
-        name?: string;
-        message?: string;
-    };
-};
 
-const executeGenerateDataApp = (tool: GenerateDataAppTool) =>
-    tool.execute!(
+// Runs the real execute() and asserts its output parses with the tool's
+// output schema on every path before handing it back typed.
+const executeGenerateDataApp = async (tool: GenerateDataAppTool) => {
+    if (!tool.execute) {
+        throw new Error('generateDataApp tool has no execute');
+    }
+    const output = await tool.execute(
         {
             name: 'Revenue Overview',
             prompt: 'Build a revenue app',
@@ -38,7 +36,14 @@ const executeGenerateDataApp = (tool: GenerateDataAppTool) =>
             themeSlug: null,
         },
         { messages: [], toolCallId: 'tool-call-1', context: {} },
-    ) as Promise<GenerateDataAppOutput>;
+    );
+    const parsed = toolGenerateDataAppOutputSchema.safeParse(output);
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) {
+        throw parsed.error;
+    }
+    return parsed.data;
+};
 
 describe('getGenerateDataApp', () => {
     beforeEach(() => {
@@ -63,11 +68,20 @@ describe('getGenerateDataApp', () => {
             themeSlug: null,
             toolCallId: 'tool-call-1',
         });
-        expect(output.metadata).toEqual({
-            status: 'pending',
-            appUuid: 'app-1',
-            version: 1,
-            name: 'Revenue Overview',
+        expect(output).toEqual({
+            result: 'Started the data app build. Tell the user it has started and will take a few minutes, then end your turn.',
+            metadata: {
+                status: 'pending',
+                appUuid: 'app-1',
+                version: 1,
+                name: 'Revenue Overview',
+            },
+            structuredContent: {
+                status: 'pending',
+                appUuid: 'app-1',
+                version: 1,
+                name: 'Revenue Overview',
+            },
         });
     });
 
@@ -86,6 +100,7 @@ describe('getGenerateDataApp', () => {
             reason: 'failed',
             message: 'Data apps are not enabled',
         });
+        expect(output.structuredContent).toEqual({ error: output.result });
     });
 
     it('reports an unknown slug as an error naming it, without paging Sentry', async () => {
@@ -106,6 +121,7 @@ describe('getGenerateDataApp', () => {
             message: 'Chart "no-such-chart" was not found',
         });
         expect(output.result).toContain('No app was created');
+        expect(output.structuredContent).toEqual({ error: output.result });
         expect(captureException).not.toHaveBeenCalled();
     });
 });
