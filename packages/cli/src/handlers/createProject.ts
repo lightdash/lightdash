@@ -409,6 +409,7 @@ export const createProject = async (
         dbtVersion: dbtVersionOption,
         tableConfiguration: options.tableConfiguration,
         copyContent: options.copyContent,
+        asyncCopyContent: true,
         organizationWarehouseCredentialsUuid,
         ...(options.expiresIn !== undefined
             ? { expiresInHours: options.expiresIn }
