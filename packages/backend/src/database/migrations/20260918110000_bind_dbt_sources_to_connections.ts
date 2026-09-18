@@ -8,40 +8,35 @@ export const classification = {
 } as const;
 
 const BATCH_SIZE = 10000;
-const SOURCE_CONNECTION_INDEX = 'project_dbt_sources_connection_uuid_idx';
 const SOURCE_CONNECTION_CHECK = 'project_dbt_sources_connection_uuid_not_null';
 
 const report = (message: string) => process.stdout.write(`${message}\n`);
 
-const createIndex = async (
-    knex: Knex,
-    connection: unknown,
-    name: string,
-    table: string,
-    column: string,
-) => {
+const runDdl = async (knex: Knex, connection: unknown, sql: string) =>
+    knex.raw(sql).connection(connection);
+
+const createSourceConnectionIndex = async (knex: Knex, connection: unknown) => {
     const invalid = await knex
         .raw<{ rowCount: number }>(
             `SELECT 1
              FROM pg_class
              JOIN pg_index ON pg_index.indexrelid = pg_class.oid
-             WHERE pg_class.relname = ?
-               AND pg_index.indrelid = ?::regclass
+             WHERE pg_class.relname = 'project_dbt_sources_connection_uuid_idx'
+               AND pg_index.indrelid = 'project_dbt_sources'::regclass
                AND NOT pg_index.indisvalid`,
-            [name, table],
         )
         .connection(connection);
     if ((invalid.rowCount ?? 0) > 0) {
         await knex
-            .raw(`DROP INDEX CONCURRENTLY IF EXISTS ??`, [name])
+            .raw(
+                'DROP INDEX CONCURRENTLY IF EXISTS project_dbt_sources_connection_uuid_idx',
+            )
             .connection(connection);
     }
     await knex
-        .raw(`CREATE INDEX CONCURRENTLY IF NOT EXISTS ?? ON ?? (??)`, [
-            name,
-            table,
-            column,
-        ])
+        .raw(
+            'CREATE INDEX CONCURRENTLY IF NOT EXISTS project_dbt_sources_connection_uuid_idx ON project_dbt_sources (connection_uuid)',
+        )
         .connection(connection);
 };
 
@@ -162,6 +157,38 @@ const materializePrimarySources = async (
     }
 };
 
+const backfillNamespacePrefixes = async (
+    knex: Knex,
+    connection: unknown,
+    total = 0,
+): Promise<void> => {
+    const result = await knex
+        .raw<{ rowCount: number }>(
+            `WITH batch AS (
+                SELECT project_dbt_source_uuid
+                FROM project_dbt_sources
+                WHERE NOT is_primary
+                  AND namespace_prefix = ''
+                  AND namespace_prefix IS DISTINCT FROM name
+                ORDER BY project_dbt_source_uuid
+                LIMIT ?
+            )
+            UPDATE project_dbt_sources sources
+            SET namespace_prefix = sources.name
+            FROM batch
+            WHERE sources.project_dbt_source_uuid = batch.project_dbt_source_uuid
+              AND sources.namespace_prefix = ''
+              AND sources.namespace_prefix IS DISTINCT FROM sources.name`,
+            [BATCH_SIZE],
+        )
+        .connection(connection);
+    const updated = result.rowCount ?? 0;
+    if (updated > 0) {
+        report(`Backfilled ${total + updated} dbt source namespace prefixes`);
+        await backfillNamespacePrefixes(knex, connection, total + updated);
+    }
+};
+
 export async function up(knex: Knex): Promise<void> {
     const connection = await knex.client.acquireConnection();
     try {
@@ -185,13 +212,7 @@ export async function up(knex: Knex): Promise<void> {
             .connection(connection);
 
         await backfillSourceConnections(knex, connection);
-        await knex
-            .raw(
-                `UPDATE project_dbt_sources
-                 SET namespace_prefix = name
-                 WHERE NOT is_primary AND namespace_prefix = ''`,
-            )
-            .connection(connection);
+        await backfillNamespacePrefixes(knex, connection);
         await materializePrimarySources(knex, connection);
 
         await knex
@@ -214,24 +235,18 @@ export async function up(knex: Knex): Promise<void> {
                 `ALTER TABLE project_dbt_sources VALIDATE CONSTRAINT ${SOURCE_CONNECTION_CHECK}`,
             )
             .connection(connection);
-        await knex
-            .raw(
-                'ALTER TABLE project_dbt_sources ALTER COLUMN connection_uuid SET NOT NULL',
-            )
-            .connection(connection);
+        await runDdl(
+            knex,
+            connection,
+            'ALTER TABLE project_dbt_sources ALTER COLUMN connection_uuid SET NOT NULL',
+        );
         await knex
             .raw(
                 `ALTER TABLE project_dbt_sources DROP CONSTRAINT IF EXISTS ${SOURCE_CONNECTION_CHECK}`,
             )
             .connection(connection);
 
-        await createIndex(
-            knex,
-            connection,
-            SOURCE_CONNECTION_INDEX,
-            'project_dbt_sources',
-            'connection_uuid',
-        );
+        await createSourceConnectionIndex(knex, connection);
     } finally {
         try {
             await knex.raw('RESET lock_timeout').connection(connection);
@@ -248,9 +263,9 @@ export async function down(knex: Knex): Promise<void> {
         await knex.raw('SET statement_timeout = 0').connection(connection);
         await knex.raw("SET lock_timeout = '5s'").connection(connection);
         await knex
-            .raw(`DROP INDEX CONCURRENTLY IF EXISTS ??`, [
-                SOURCE_CONNECTION_INDEX,
-            ])
+            .raw(
+                'DROP INDEX CONCURRENTLY IF EXISTS project_dbt_sources_connection_uuid_idx',
+            )
             .connection(connection);
         await knex
             .raw(
