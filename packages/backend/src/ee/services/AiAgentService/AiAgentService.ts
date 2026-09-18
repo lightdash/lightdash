@@ -151,6 +151,7 @@ import {
     type AiWebAppThreadCreatedFrom,
     type AppGeneratePipelineJobPayload,
     type DataAppVizChart,
+    type EmbedUrl,
     type ItemsMap,
     type MetricQuery,
     type PivotConfiguration,
@@ -158,6 +159,7 @@ import {
     type SuggestionValidationCatalog,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
+    type UuidOrSlug,
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -217,6 +219,7 @@ import {
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
+import { encodeLightdashJwt } from '../../../auth/lightdashJwt';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import {
     getInstallationToken,
@@ -291,6 +294,7 @@ import {
     type AiDeepResearchRunContextRow,
 } from '../../models/AiDeepResearchRunModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
+import { type EmbedModel } from '../../models/EmbedModel';
 import { ExternalSourceModel } from '../../models/ExternalSourceModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import {
@@ -642,6 +646,7 @@ type AiAgentServiceDependencies = {
     projectModel: ProjectModel;
     coderService: CoderService;
     dashboardService: DashboardService;
+    embedModel: EmbedModel;
     savedChartService: SavedChartService;
     contentService: ContentService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
@@ -986,6 +991,8 @@ export class AiAgentService extends BaseService {
     private readonly coderService: CoderService;
 
     private readonly dashboardService: DashboardService;
+
+    private readonly embedModel: EmbedModel;
 
     private readonly savedChartService: SavedChartService;
 
@@ -1426,6 +1433,7 @@ export class AiAgentService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.coderService = dependencies.coderService;
         this.dashboardService = dependencies.dashboardService;
+        this.embedModel = dependencies.embedModel;
         this.savedChartService = dependencies.savedChartService;
         this.contentService = dependencies.contentService;
         this.prometheusMetrics = dependencies.prometheusMetrics;
@@ -2020,6 +2028,93 @@ export class AiAgentService extends BaseService {
                 agent.uuid === tokenAgentUuid &&
                 hasAiAgentAccessToSpace(agent, spaceUuid),
         );
+    }
+
+    async getEmbedSavedContent(
+        account: AnonymousAccount,
+        projectUuid: string,
+        agentUuid: string,
+        contentType: 'chart' | 'dashboard',
+        contentUuidOrSlug: UuidOrSlug,
+    ) {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        const resource =
+            contentType === 'chart'
+                ? await this.savedChartService.get(
+                      contentUuidOrSlug,
+                      fromSession(user),
+                      { projectUuid },
+                  )
+                : await this.dashboardService.getByIdOrSlug(
+                      user,
+                      contentUuidOrSlug,
+                      { projectUuid },
+                  );
+        if (
+            resource.projectUuid !== projectUuid ||
+            resource.spaceUuid !== runtimeOptions.embedSpaceUuid
+        ) {
+            throw new ForbiddenError(
+                'Saved content is outside the embedded space',
+            );
+        }
+
+        return resource;
+    }
+
+    async getEmbedSavedContentUrl(
+        account: AnonymousAccount,
+        projectUuid: string,
+        agentUuid: string,
+        contentType: 'chart' | 'dashboard',
+        contentUuidOrSlug: UuidOrSlug,
+    ): Promise<EmbedUrl> {
+        const resource = await this.getEmbedSavedContent(
+            account,
+            projectUuid,
+            agentUuid,
+            contentType,
+            contentUuidOrSlug,
+        );
+        const {
+            exp,
+            userAttributes,
+            user: externalUser,
+        } = account.authentication.data;
+        const now = Math.floor(Date.now() / 1000);
+        if (!exp || !Number.isFinite(exp) || exp <= now) {
+            throw new ForbiddenError('Your embed token has expired.');
+        }
+        const { encodedSecret } = await this.embedModel.get(projectUuid);
+        // Keep source authorization separate from the content viewer's grants.
+        const token = encodeLightdashJwt(
+            {
+                aiAgentSavedContent: {
+                    agentUuid,
+                    writeActions: account.authentication.data.writeActions!,
+                },
+                content:
+                    contentType === 'chart'
+                        ? { type: 'chart', contentId: resource.uuid }
+                        : { type: 'dashboard', dashboardUuid: resource.uuid },
+                userAttributes,
+                user: externalUser,
+                iat: now,
+            },
+            encodedSecret,
+            `${exp - now}s`,
+        );
+        const path =
+            contentType === 'chart'
+                ? `/embed/${projectUuid}/chart/${resource.uuid}`
+                : `/embed/${projectUuid}`;
+        return {
+            url: new URL(`${path}#${token}`, this.lightdashConfig.siteUrl).href,
+        };
     }
 
     async getEmbedAgentDetails(

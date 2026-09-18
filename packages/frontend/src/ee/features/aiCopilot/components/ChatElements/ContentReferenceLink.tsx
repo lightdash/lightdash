@@ -23,6 +23,7 @@ import { type AnchorHTMLAttributes, type ReactNode } from 'react';
 import { Link, type LinkProps } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
+import { useEmbedSavedContentLink } from '../../hooks/useEmbedSavedContentLink';
 import styles from './ContentLink.module.css';
 
 type ContentReferenceKind =
@@ -178,6 +179,9 @@ export const ContentReferenceLink = ({
     ...props
 }: Props) => {
     const { color, fill, icon } = getIconMeta({ chartKind, kind });
+    const embedHref = useEmbedSavedContentLink(
+        typeof to === 'string' ? to : undefined,
+    );
 
     const content = (
         <>
@@ -213,6 +217,21 @@ export const ContentReferenceLink = ({
         td: 'none',
         classNames: { root: styles.contentLink },
     };
+
+    if (embedHref) {
+        return (
+            <Anchor
+                {...anchorProps}
+                href={embedHref}
+                target="_blank"
+                rel="noreferrer"
+                onClick={undefined}
+                data-content-link="true"
+            >
+                {content}
+            </Anchor>
+        );
+    }
 
     // With no destination, render a plain span — no link semantics, no pointer,
     // no hover — so the chip reads as a static reference, not a clickable link.

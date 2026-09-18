@@ -21,6 +21,9 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import { useSavedQuery } from '../../../../../hooks/useSavedQuery';
+import useEmbed from '../../../../providers/Embed/useEmbed';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
+import { useEmbedSavedContentLink } from '../../hooks/useEmbedSavedContentLink';
 import {
     clearPreview,
     type SavedChartPreviewData,
@@ -51,7 +54,7 @@ const VerifiedBadge: FC<{ verification: ContentVerificationInfo }> = ({
     );
 };
 
-export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
+const SavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
     const authoringEnabled = useContentAuthoringEnabled();
     const dispatch = useAiAgentStoreDispatch();
 
@@ -172,5 +175,42 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
                 </Box>
             </div>
         </div>
+    );
+};
+
+export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
+    const href = useEmbedSavedContentLink(
+        `/projects/${savedChartPreview.projectUuid}/saved/${savedChartPreview.savedChartUuid}`,
+    );
+    const { content } = useEmbed();
+    const dispatch = useAiAgentStoreDispatch();
+    const getUiString = useUiStrings();
+    if (content?.type !== 'aiAgent')
+        return <SavedChartPreviewPanel savedChartPreview={savedChartPreview} />;
+    return (
+        <Box className={artifactStyles.floatingPanel}>
+            <Stack h="100%" gap={0}>
+                <Group justify="flex-end" p="xs">
+                    <ActionIcon
+                        size="sm"
+                        onClick={() => dispatch(clearPreview())}
+                        aria-label={getUiString('page.closeDetails')}
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                </Group>
+                {href ? (
+                    <Box
+                        component="iframe"
+                        src={href}
+                        title={getUiString('aiAgent.savedContent.previewTitle')}
+                        referrerPolicy="no-referrer"
+                        className={artifactStyles.embeddedContent}
+                    />
+                ) : (
+                    <Loader />
+                )}
+            </Stack>
+        </Box>
     );
 };

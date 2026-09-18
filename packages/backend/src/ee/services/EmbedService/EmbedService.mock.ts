@@ -110,6 +110,7 @@ const embedModelMock = {
 export const EmbedServiceArgumentsMock: ConstructorParameters<
     typeof EmbedService
 >[0] = {
+    getAiAgentService: vi.fn(),
     lightdashConfig: lightdashConfigMock,
     analytics: {} as LightdashAnalytics,
     encryptionUtil: {} as EncryptionUtil,

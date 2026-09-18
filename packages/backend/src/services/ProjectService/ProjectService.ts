@@ -9919,6 +9919,7 @@ export class ProjectService extends BaseService {
                         subject('Project', {
                             organizationUuid: project.organizationUuid,
                             projectUuid,
+                            exploreNames,
                             metadata: { exploreNames },
                         }),
                     ) &&

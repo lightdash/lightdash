@@ -581,6 +581,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
+                    getAiAgentService: () =>
+                        repository.getAiAgentService<AiAgentService>(),
                     analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
                     encryptionUtil: new EncryptionUtil({
@@ -681,6 +683,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 prometheusMetrics,
             }) =>
                 new AiAgentService({
+                    embedModel: models.getEmbedModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     userModel: models.getUserModel(),

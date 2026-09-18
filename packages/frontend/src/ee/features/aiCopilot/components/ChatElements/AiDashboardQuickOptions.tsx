@@ -14,6 +14,8 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
+import { useEmbedSavedContentLink } from '../../hooks/useEmbedSavedContentLink';
 import { AiDashboardSaveModal } from './AiDashboardSaveModal';
 
 type Props = {
@@ -30,6 +32,9 @@ export const AiDashboardQuickOptions: FC<Props> = ({
     dashboardConfig,
 }) => {
     const authoringEnabled = useContentAuthoringEnabled();
+    const getUiString = useUiStrings();
+    const dashboardUrl = `/projects/${projectUuid}/dashboards/${artifactData.savedDashboardUuid}`;
+    const embedHref = useEmbedSavedContentLink(dashboardUrl);
     const [isModalOpen, setIsModalOpen] = useState(false);
     // The save modal only lists spaces the user can write to, so without one
     // the option opens an empty space picker.
@@ -72,13 +77,14 @@ export const AiDashboardQuickOptions: FC<Props> = ({
                     {artifactData.savedDashboardUuid ? (
                         <Menu.Item
                             component={Link}
-                            to={`/projects/${projectUuid}/dashboards/${artifactData.savedDashboardUuid}`}
+                            to={embedHref ?? dashboardUrl}
+                            rel="noreferrer"
                             target="_blank"
                             leftSection={
                                 <MantineIcon icon={IconTableShortcut} />
                             }
                         >
-                            View saved dashboard
+                            {getUiString('aiAgent.savedContent.viewDashboard')}
                         </Menu.Item>
                     ) : (
                         canSaveDashboard && (

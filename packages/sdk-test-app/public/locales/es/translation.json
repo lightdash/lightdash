@@ -100,6 +100,11 @@
         }
     },
     "uiOverrides": {
+        "aiAgent.savedContent.openError": "No se puede abrir el contenido guardado",
+        "aiAgent.savedContent.previewTitle": "Vista previa del contenido guardado",
+        "aiAgent.savedContent.viewChart": "Ver gráfico guardado",
+        "aiAgent.savedContent.viewDashboard": "Ver panel guardado",
+
         "parameters.is": "es",
         "parameters.clear": "Borrar parámetro",
         "tileMenu.exploreFromHere": "Explorar desde aquí",

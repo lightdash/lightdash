@@ -109,11 +109,13 @@ const chartAbilities: EmbeddedAbilityBuilder = ({
         projectUuid: embed.projectUuid,
     });
 
-    can('view', 'Explore', {
-        organizationUuid: organization.organizationUuid,
-        projectUuid: embed.projectUuid,
-        exploreNames: { $all: content.explores },
-    });
+    if (!embedUser.aiAgentSavedContent) {
+        can('view', 'Explore', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: embed.projectUuid,
+            exploreNames: { $all: content.explores },
+        });
+    }
 
     can('view', 'Project', {
         organizationUuid: organization.organizationUuid,

@@ -111,6 +111,16 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: '/embed/:projectUuid/ai-agents/:agentUuid/saved-content/:contentType/:contentUuidOrSlug',
+                lazy: async () => {
+                    const EmbedAiAgentSavedContent = await loadLazyRouteDefault(
+                        './pages/EmbedAiAgentSavedContent',
+                        () => import('./pages/EmbedAiAgentSavedContent'),
+                    );
+                    return { Component: EmbedAiAgentSavedContent };
+                },
+            },
+            {
                 path: '/embed/:projectUuid/ai-agents/not-authorized',
                 lazy: async () => {
                     const AiAgentsNotAuthorizedPage =

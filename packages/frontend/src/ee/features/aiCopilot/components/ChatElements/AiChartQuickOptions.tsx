@@ -47,10 +47,12 @@ import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { getOpenInExploreUrl } from '../../../../../utils/getOpenInExploreUrl';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAddChartToDashboard } from '../../hooks/useAddChartToDashboard';
 import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
+import { useEmbedSavedContentLink } from '../../hooks/useEmbedSavedContentLink';
 import { useSavePromptQuery } from '../../hooks/useProjectAiAgents';
 import {
     requestDashboardRefresh,
@@ -110,6 +112,9 @@ export const AiChartQuickOptions = ({
     const { user } = useApp();
     const ability = useAbilityContext();
     const { content, writeActions, embedToken } = useEmbed();
+    const getUiString = useUiStrings();
+    const savedChartUrl = `/projects/${projectUuid}/saved/${message.savedQueryUuid}`;
+    const savedChartEmbedHref = useEmbedSavedContentLink(savedChartUrl);
     const isEmbed = isEmbedAiAgentRoute();
     const location = useLocation();
     const navigate = useNavigate();
@@ -498,7 +503,7 @@ export const AiChartQuickOptions = ({
     if (!metricQuery) return null;
 
     const canVerify = !!artifactData && canManageAgent;
-    const hasSavedChartAction = !!message.savedQueryUuid && !isEmbed;
+    const hasSavedChartAction = !!message.savedQueryUuid;
     const hasSaveActions =
         !message.savedQueryUuid && (!merge || !!canonicalMerge);
     const canExploreFromEmbed =
@@ -570,32 +575,31 @@ export const AiChartQuickOptions = ({
                             </Menu.Item>
                         )}
                         {message.savedQueryUuid ? (
-                            !isEmbed && (
-                                <>
+                            <>
+                                <Menu.Item
+                                    component={Link}
+                                    to={savedChartEmbedHref ?? savedChartUrl}
+                                    rel="noreferrer"
+                                    target="_blank"
+                                    leftSection={
+                                        <MantineIcon icon={IconTableShortcut} />
+                                    }
+                                >
+                                    {getUiString(
+                                        'aiAgent.savedContent.viewChart',
+                                    )}
+                                </Menu.Item>
+                                {!isEmbed && canCreateScheduledDeliveries && (
                                     <Menu.Item
-                                        component={Link}
-                                        to={`/projects/${projectUuid}/saved/${message.savedQueryUuid}`}
-                                        target="_blank"
+                                        onClick={openSchedule}
                                         leftSection={
-                                            <MantineIcon
-                                                icon={IconTableShortcut}
-                                            />
+                                            <MantineIcon icon={IconSend} />
                                         }
                                     >
-                                        View saved chart
+                                        Schedule delivery
                                     </Menu.Item>
-                                    {canCreateScheduledDeliveries && (
-                                        <Menu.Item
-                                            onClick={openSchedule}
-                                            leftSection={
-                                                <MantineIcon icon={IconSend} />
-                                            }
-                                        >
-                                            Schedule delivery
-                                        </Menu.Item>
-                                    )}
-                                </>
-                            )
+                                )}
+                            </>
                         ) : hasSaveActions ? (
                             <>
                                 {quickSaveDashboard && (

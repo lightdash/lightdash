@@ -999,7 +999,11 @@ describe('EmbedService', () => {
     describe('searchFilterValues', () => {
         const buildChartEmbedAccount = (authorizedExplores: string[]) =>
             ({
-                authentication: { type: 'jwt', source: 'embed-token' },
+                authentication: {
+                    type: 'jwt',
+                    source: 'embed-token',
+                    data: { content: { type: 'chart', contentId: 'chart-1' } },
+                },
                 access: {
                     content: {
                         type: 'chart',
@@ -1481,6 +1485,11 @@ describe('EmbedService', () => {
                     _runEmbedQuery: runEmbedQuery,
                 });
                 const account = {
+                    authentication: {
+                        type: 'jwt',
+                        source: 'embed-token',
+                        data: { content: { type: 'dashboard', dashboardUuid } },
+                    },
                     access: {
                         content: { dashboardUuid },
                         parameters: { enabled: isInteractivityEnabled },

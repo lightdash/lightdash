@@ -77,7 +77,9 @@ import {
     assertRegisteredAccount,
     KnexPaginateArgs,
     ParameterError,
+    type EmbedUrl,
     type UUID,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -120,6 +122,37 @@ const parseSuggestionContext = (context: string | undefined) => {
 @Route('/api/v1/projects/{projectUuid}/aiAgents')
 @Response<ApiErrorPayload>('default', 'Error')
 export class AiAgentController extends BaseController {
+    /**
+     * Open saved content allowed by the embedded agent's space and write actor.
+     * @summary Open embedded content
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post(
+        '/{agentUuid}/saved-content/{contentType}/{contentUuidOrSlug}/embed-url',
+    )
+    @OperationId('getAiAgentSavedContentEmbedUrl')
+    async getSavedContentEmbedUrl(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() contentType: 'chart' | 'dashboard',
+        @Path() contentUuidOrSlug: UuidOrSlug,
+    ): Promise<{ status: 'ok'; results: EmbedUrl }> {
+        assertEmbeddedAuth(req.account);
+        this.setHeader('Cache-Control', 'no-store');
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getEmbedSavedContentUrl(
+                req.account,
+                projectUuid,
+                agentUuid,
+                contentType,
+                contentUuidOrSlug,
+            ),
+        };
+    }
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')

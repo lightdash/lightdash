@@ -141,6 +141,16 @@ export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
         },
     );
 
+export const AiAgentSavedContentSchema = z.object({
+    agentUuid: z.string().uuid(),
+    writeActions: EmbedWriteActionsSchema,
+});
+
+export type AiAgentSavedContent = {
+    agentUuid: string;
+    writeActions: EmbedWriteActions;
+};
+
 export const EmbedJwtSchema = z
     .object({
         userAttributes: z.record(z.string(), z.unknown()).optional(),
@@ -199,6 +209,7 @@ export const EmbedJwtSchema = z
             }),
         ]),
         writeActions: EmbedWriteActionsSchema.optional(),
+        aiAgentSavedContent: AiAgentSavedContentSchema.optional(),
         iat: z.number().optional(),
         exp: z.number(),
     })
@@ -296,6 +307,8 @@ export type EmbedJwtContentApiAccess = {
 };
 
 export type CreateEmbedJwt = {
+    /** Read-only handoff; its agent/actor access is revalidated on every request. */
+    aiAgentSavedContent?: AiAgentSavedContent;
     content:
         | EmbedJwtContentDashboardUuid
         | EmbedJwtContentDashboardSlug

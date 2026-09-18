@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
+    AiAgentSavedContentSchema,
     AndFilterGroup,
     AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
@@ -50,6 +51,7 @@ import {
     isDashboardContent,
     isDashboardSlugContent,
     isDashboardSqlChartTile,
+    isDashboardUuidContent,
     isExploreError,
     isFilterableDimension,
     isFilterInteractivityEnabled,
@@ -110,6 +112,7 @@ import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
 import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
+import { type AiAgentService } from '../AiAgentService/AiAgentService';
 import { getBundleServableChecker } from '../AppGenerateService/appBundleStorage';
 import {
     assertDataAppVizPreviewVersionAllowed,
@@ -122,6 +125,7 @@ const escapeEmbedJwtUserAttributeValue = (value: string): string =>
     value.replaceAll("'", "''");
 
 type Dependencies = {
+    getAiAgentService: () => AiAgentService;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     encryptionUtil: EncryptionUtil;
@@ -179,10 +183,13 @@ export class EmbedService extends BaseService {
 
     private readonly permissionsService: PermissionsService;
 
+    private readonly getAiAgentService: () => AiAgentService;
+
     constructor(dependencies: Dependencies) {
         super();
         this.asyncQueryService = dependencies.asyncQueryService;
         this.permissionsService = dependencies.permissionsService;
+        this.getAiAgentService = dependencies.getAiAgentService;
         this.analytics = dependencies.analytics;
         this.embedModel = dependencies.embedModel;
         this.appModel = dependencies.appModel;
@@ -585,7 +592,7 @@ export class EmbedService extends BaseService {
         const { data: decodedToken, source: embedToken } =
             account.authentication;
         const { dashboardUuids, allowAllDashboards, user } =
-            await this.embedModel.get(projectUuid);
+            await this.getContentEmbedding(account, projectUuid);
         const { dashboardUuid } = account.access.content;
 
         if (decodedToken.content.type !== 'dashboard') {
@@ -760,7 +767,7 @@ export class EmbedService extends BaseService {
         }
 
         const { dashboardUuids, allowAllDashboards } =
-            await this.embedModel.get(projectUuid);
+            await this.getContentEmbedding(account, projectUuid);
 
         if (!isFilterInteractivityEnabled(account.access.filtering)) {
             // If dashboard filters interactivity is not enabled, we return an empty list
@@ -1295,7 +1302,7 @@ export class EmbedService extends BaseService {
 
         const [{ dashboardUuids, allowAllDashboards, user }, dashboard] =
             await Promise.all([
-                this.embedModel.get(projectUuid),
+                this.getContentEmbedding(account, projectUuid),
                 this.dashboardModel.getByIdOrSlug(dashboardUuid, {
                     projectUuid,
                 }),
@@ -1568,7 +1575,7 @@ export class EmbedService extends BaseService {
         checkPermissions: boolean = true,
     ) {
         const { dashboardUuids, allowAllDashboards, user } =
-            await this.embedModel.get(projectUuid);
+            await this.getContentEmbedding(account, projectUuid);
 
         const { dashboardUuid } = account.access.content;
 
@@ -2411,7 +2418,7 @@ export class EmbedService extends BaseService {
         parameters?: ParametersValuesMap;
     }): Promise<FieldValueSearchResult> {
         const { dashboardUuids, allowAllDashboards, user } =
-            await this.embedModel.get(projectUuid);
+            await this.getContentEmbedding(account, projectUuid);
         const { dashboardUuid } = account.access.content;
         let dashboard: DashboardDAO | undefined;
         let resolvedTableName: string;
@@ -2630,6 +2637,21 @@ export class EmbedService extends BaseService {
         };
     }
 
+    private async getContentEmbedding(
+        account: AnonymousAccount,
+        projectUuid: string,
+    ) {
+        const embed = await this.embedModel.get(projectUuid);
+        if (!account.authentication.data.aiAgentSavedContent) return embed;
+        return {
+            ...embed,
+            chartUuids: account.embed.chartUuids,
+            dashboardUuids: account.embed.dashboardUuids,
+            allowAllCharts: false,
+            allowAllDashboards: false,
+        };
+    }
+
     async getEmbeddingByProjectId(projectUuid: string) {
         return this.embedModel.get(projectUuid);
     }
@@ -2644,6 +2666,37 @@ export class EmbedService extends BaseService {
                     encodedJwt,
                     embed.encodedSecret,
                 );
+                const source = decodedToken.aiAgentSavedContent;
+                if (source) {
+                    const parsed = AiAgentSavedContentSchema.safeParse(source);
+                    if (
+                        !parsed.success ||
+                        decodedToken.writeActions ||
+                        !decodedToken.exp ||
+                        !Number.isFinite(decodedToken.exp)
+                    ) {
+                        throw new ForbiddenError(
+                            'Invalid AI agent saved-content token',
+                        );
+                    }
+                    // Handoffs never inherit interactivity or write grants.
+                    if (isChartContent(decodedToken.content)) {
+                        decodedToken.content = {
+                            type: 'chart',
+                            contentId: decodedToken.content.contentId,
+                        };
+                    } else if (isDashboardUuidContent(decodedToken.content)) {
+                        decodedToken.content = {
+                            type: 'dashboard',
+                            dashboardUuid: decodedToken.content.dashboardUuid,
+                            canExportPagePdf: false,
+                        };
+                    } else {
+                        throw new ForbiddenError(
+                            'Invalid AI agent saved-content type',
+                        );
+                    }
+                }
                 const userAttributesPromise = this.getEmbedUserAttributes(
                     embed.organization.organizationUuid,
                     decodedToken,
@@ -2708,10 +2761,74 @@ export class EmbedService extends BaseService {
                     }
                 }
 
+                let authorizedEmbed = embed;
+                if (source) {
+                    const sourceToken: CreateEmbedJwt = {
+                        content: {
+                            type: 'aiAgent',
+                            agentUuid: source.agentUuid,
+                        },
+                        writeActions: source.writeActions,
+                        user: decodedToken.user,
+                        userAttributes: decodedToken.userAttributes,
+                        exp: decodedToken.exp,
+                    };
+                    const sourceContent = await this.getContentUuidFromJwt(
+                        sourceToken,
+                        projectUuid,
+                    );
+                    const actor = await this.getEmbedWriteUser(
+                        sourceToken,
+                        embed.organization.organizationUuid,
+                    );
+                    const actorContext = await this.getEmbedWriteContext(
+                        sourceToken,
+                        actor,
+                        projectUuid,
+                        sourceContent,
+                    );
+                    const sourceAccount = fromJwt({
+                        decodedToken: sourceToken,
+                        source: encodedJwt,
+                        embed,
+                        content: sourceContent,
+                        userAttributes,
+                        embedWriteUser: actor,
+                        embedWriteContext: actorContext,
+                    });
+                    if (
+                        content.type !== 'chart' &&
+                        content.type !== 'dashboard'
+                    ) {
+                        throw new ForbiddenError(
+                            'Invalid AI agent saved-content type',
+                        );
+                    }
+                    const resource =
+                        await this.getAiAgentService().getEmbedSavedContent(
+                            sourceAccount,
+                            projectUuid,
+                            source.agentUuid,
+                            content.type,
+                            content.type === 'chart'
+                                ? content.chartUuids[0]
+                                : content.dashboardUuid!,
+                        );
+                    authorizedEmbed = {
+                        ...embed,
+                        chartUuids:
+                            content.type === 'chart' ? [resource.uuid] : [],
+                        dashboardUuids:
+                            content.type === 'dashboard' ? [resource.uuid] : [],
+                        allowAllCharts: false,
+                        allowAllDashboards: false,
+                    };
+                }
+
                 return fromJwt({
                     decodedToken,
                     source: encodedJwt,
-                    embed,
+                    embed: authorizedEmbed,
                     content,
                     userAttributes,
                     embedWriteUser,

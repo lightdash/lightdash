@@ -12,6 +12,10 @@
 // See packages/frontend/src/components/common/Filters/CLAUDE.md for the full
 // mandate on adding strings to embed-reachable surfaces.
 export const DEFAULT_UI_STRINGS = {
+    'aiAgent.savedContent.openError': 'Unable to open saved content',
+    'aiAgent.savedContent.previewTitle': 'Saved content preview',
+    'aiAgent.savedContent.viewChart': 'View saved chart',
+    'aiAgent.savedContent.viewDashboard': 'View saved dashboard',
     'page.closeSidebar': 'Close sidebar',
     'page.closeDetails': 'Close details',
     'filters.closeFacet': 'Close {filter} filter',
