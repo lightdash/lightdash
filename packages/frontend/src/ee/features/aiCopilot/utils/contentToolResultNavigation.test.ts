@@ -20,6 +20,12 @@ const dashboardEditResult = {
             warnings: [],
             versionUuids: { before: null, after: null },
         },
+        structuredContent: {
+            type: 'dashboard',
+            href: '/projects/project-uuid/dashboards/jaffle-dashboard',
+            content: {},
+            warnings: [],
+        },
     },
 } as AiAgentToolResult;
 

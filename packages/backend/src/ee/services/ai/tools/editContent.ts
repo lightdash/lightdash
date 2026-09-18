@@ -4,18 +4,21 @@ import {
     mcpEditContentToolDefinition,
     ParameterError,
     toolEditContentArgsSchema,
+    type ToolEditContentStructuredContent,
 } from '@lightdash/common';
 import { tool, type FlexibleSchema } from 'ai';
 import { z } from 'zod';
 import type { EditContentFn } from '../types/aiAgentDependencies';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     editContent: EditContentFn;
     documentsEnabled?: boolean;
 };
+
+type EditedContent = Awaited<ReturnType<EditContentFn>>;
 
 const toolDefinition = editContentToolDefinition.for('agent');
 
@@ -38,6 +41,26 @@ const contentResult = ({
         2,
     )}${warningText}`;
 };
+
+const toStructuredContent = (
+    result: EditedContent,
+    warnings: string[],
+): ToolEditContentStructuredContent =>
+    result.type === 'document'
+        ? {
+              type: result.type,
+              href: result.href,
+              uuid: result.uuid,
+              versionUuid: result.versionUuid,
+              content: result.content,
+              warnings,
+          }
+        : {
+              type: result.type,
+              href: result.href,
+              content: result.content,
+              warnings,
+          };
 
 export const getEditContent = ({
     editContent,
@@ -107,17 +130,13 @@ export const getEditContent = ({
                         warnings,
                     }),
                     metadata,
+                    structuredContent: toStructuredContent(result, warnings),
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(
-                        error,
-                        `Error editing ${type} "${slug}". Changes were not applied.`,
-                    ),
-                    metadata: {
-                        status: 'error' as const,
-                    },
-                };
+                return toolErrorOutput(
+                    error,
+                    `Error editing ${type} "${slug}". Changes were not applied.`,
+                );
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),

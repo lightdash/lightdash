@@ -2405,10 +2405,115 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": false,
+                      "description": "The dashboard or chart as code after the edit",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical Lightdash link to the edited content",
+                      "type": "string",
+                    },
+                    "type": {
+                      "enum": [
+                        "dashboard",
+                        "chart",
+                      ],
+                      "type": "string",
+                    },
+                    "warnings": {
+                      "description": "Validation warnings about the persisted content; empty when there are none",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "href",
+                    "content",
+                    "warnings",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": false,
+                      "description": "The Document as code after the edit",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical Lightdash link to the edited content",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "document",
+                      "type": "string",
+                    },
+                    "uuid": {
+                      "description": "UUID of the edited Document",
+                      "type": "string",
+                    },
+                    "versionUuid": {
+                      "description": "Version UUID after the edit; required as baseVersionUuid for the next content edit",
+                      "type": "string",
+                    },
+                    "warnings": {
+                      "description": "Validation warnings about the persisted content; empty when there are none",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "href",
+                    "uuid",
+                    "versionUuid",
+                    "content",
+                    "warnings",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
