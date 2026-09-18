@@ -1,3 +1,10 @@
+## [2.263.2](https://github.com/lightdash/lightdash/compare/2.263.1...2.263.2) (2026-09-18)
+
+
+### Bug Fixes
+
+* **learn:** point 'Rate the answer' tour step at issues docs after agent-memory page removal ([#29523](https://github.com/lightdash/lightdash/issues/29523)) ([94ebc00](https://github.com/lightdash/lightdash/commit/94ebc00b0b5b9c8feb77862f6f82fe916837afc0))
+
 ## [2.263.1](https://github.com/lightdash/lightdash/compare/2.263.0...2.263.1) (2026-09-18)
 
 
