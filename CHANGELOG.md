@@ -1,3 +1,10 @@
+## [2.259.2](https://github.com/lightdash/lightdash/compare/2.259.1...2.259.2) (2026-09-18)
+
+
+### Bug Fixes
+
+* preserve disabled tracking context for minimal screenshot routes ([#29476](https://github.com/lightdash/lightdash/issues/29476)) ([746cbf8](https://github.com/lightdash/lightdash/commit/746cbf8bc3d0d662d8fbb77f1414791795838e74))
+
 ## [2.259.1](https://github.com/lightdash/lightdash/compare/2.259.0...2.259.1) (2026-09-18)
 
 
