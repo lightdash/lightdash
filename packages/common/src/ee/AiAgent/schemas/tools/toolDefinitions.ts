@@ -31,6 +31,7 @@ import {
     type toolRunQueryExpressionArgsSchemaV2FormulaOnly,
 } from '../filterExpressions';
 import { MCP_FILTER_EXPRESSION_SKILL_INSTRUCTION } from '../filterExpressions/mcpGuidance';
+import { structuredToolOutputSchema } from '../outputMetadata';
 import {
     mcpCreateContentArgsSchema,
     mcpEditContentArgsSchema,
@@ -1357,10 +1358,67 @@ export const readPinnedThreadToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolReadPinnedThreadOutputSchema },
 });
 
-const submitResearchReportOutputSchema = z.object({
-    result: z.string(),
-    metadata: z.object({ status: z.enum(['success', 'error']) }),
+const researchToolOutputMetadataSchema = z.object({
+    status: z.enum(['success', 'error']),
 });
+
+const researchSubmissionReceiptSchema = z.object({
+    submitted: z
+        .literal(true)
+        .describe('The submission was accepted; nothing else is returned.'),
+});
+
+export const toolSubmitResearchReportStructuredContentSchema =
+    researchSubmissionReceiptSchema;
+
+export type ToolSubmitResearchReportStructuredContent = z.infer<
+    typeof toolSubmitResearchReportStructuredContentSchema
+>;
+
+export const toolSubmitResearchReportOutputSchema = structuredToolOutputSchema({
+    metadata: researchToolOutputMetadataSchema,
+    structuredContent: toolSubmitResearchReportStructuredContentSchema,
+});
+
+export type ToolSubmitResearchReportOutput = z.infer<
+    typeof toolSubmitResearchReportOutputSchema
+>;
+
+export const toolDelegateResearchTaskStructuredContentSchema =
+    aiDeepResearchWorkerFindingsInputSchema.extend({
+        taskId: z
+            .string()
+            .describe('Ordinal id of the delegated task, e.g. `task-1`'),
+    });
+
+export type ToolDelegateResearchTaskStructuredContent = z.infer<
+    typeof toolDelegateResearchTaskStructuredContentSchema
+>;
+
+export const toolDelegateResearchTaskOutputSchema = structuredToolOutputSchema({
+    metadata: researchToolOutputMetadataSchema,
+    structuredContent: toolDelegateResearchTaskStructuredContentSchema,
+});
+
+export type ToolDelegateResearchTaskOutput = z.infer<
+    typeof toolDelegateResearchTaskOutputSchema
+>;
+
+export const toolSubmitWorkerFindingsStructuredContentSchema =
+    researchSubmissionReceiptSchema;
+
+export type ToolSubmitWorkerFindingsStructuredContent = z.infer<
+    typeof toolSubmitWorkerFindingsStructuredContentSchema
+>;
+
+export const toolSubmitWorkerFindingsOutputSchema = structuredToolOutputSchema({
+    metadata: researchToolOutputMetadataSchema,
+    structuredContent: toolSubmitWorkerFindingsStructuredContentSchema,
+});
+
+export type ToolSubmitWorkerFindingsOutput = z.infer<
+    typeof toolSubmitWorkerFindingsOutputSchema
+>;
 
 export const AI_DEEP_RESEARCH_REPORT_TOOL_NAME = 'submitResearchReport';
 
@@ -1368,7 +1426,7 @@ export const submitResearchReportToolDefinition: ToolDefinitionWithoutMcpOutput<
     typeof AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     typeof aiDeepResearchReportInputSchema,
     typeof aiDeepResearchReportInputSchema,
-    typeof submitResearchReportOutputSchema
+    typeof toolSubmitResearchReportOutputSchema
 > = defineTool({
     name: AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     title: 'Submit research report',
@@ -1377,7 +1435,7 @@ export const submitResearchReportToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: aiDeepResearchReportInputSchema,
     agent: {
-        outputSchema: submitResearchReportOutputSchema,
+        outputSchema: toolSubmitResearchReportOutputSchema,
     },
 });
 
@@ -1387,7 +1445,7 @@ export const delegateResearchTaskToolDefinition: ToolDefinitionWithoutMcpOutput<
     typeof AI_DEEP_RESEARCH_DELEGATE_TOOL_NAME,
     typeof aiDeepResearchWorkerTaskInputSchema,
     typeof aiDeepResearchWorkerTaskInputSchema,
-    typeof submitResearchReportOutputSchema
+    typeof toolDelegateResearchTaskOutputSchema
 > = defineTool({
     name: AI_DEEP_RESEARCH_DELEGATE_TOOL_NAME,
     title: 'Delegate a research task',
@@ -1395,7 +1453,7 @@ export const delegateResearchTaskToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: aiDeepResearchWorkerTaskInputSchema,
     agent: {
-        outputSchema: submitResearchReportOutputSchema,
+        outputSchema: toolDelegateResearchTaskOutputSchema,
     },
 });
 
@@ -1406,7 +1464,7 @@ export const submitWorkerFindingsToolDefinition: ToolDefinitionWithoutMcpOutput<
     typeof AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
     typeof aiDeepResearchWorkerFindingsInputSchema,
     typeof aiDeepResearchWorkerFindingsInputSchema,
-    typeof submitResearchReportOutputSchema
+    typeof toolSubmitWorkerFindingsOutputSchema
 > = defineTool({
     name: AI_DEEP_RESEARCH_WORKER_FINDINGS_TOOL_NAME,
     title: 'Submit worker findings',
@@ -1415,7 +1473,7 @@ export const submitWorkerFindingsToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: aiDeepResearchWorkerFindingsInputSchema,
     agent: {
-        outputSchema: submitResearchReportOutputSchema,
+        outputSchema: toolSubmitWorkerFindingsOutputSchema,
     },
 });
 
