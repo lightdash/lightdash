@@ -210,6 +210,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userModel: models.getUserModel(),
                     oauthModel: models.getOauthModel(),
                     lightdashConfig: context.lightdashConfig,
+                    getMobileSetupService: () =>
+                        repository.getMobileSetupService(),
                     getManagedSignInService: () =>
                         repository.getManagedSignInService(),
                     onGrantRevoked: ({ userId, clientId }) =>
