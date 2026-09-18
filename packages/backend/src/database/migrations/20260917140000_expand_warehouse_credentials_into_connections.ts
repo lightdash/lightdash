@@ -89,37 +89,24 @@ const dropInvalidIndex = async (
     }
 };
 
-const addNotNull = async (
+/**
+ * One ALTER TABLE for a set of actions. Every separate ALTER takes its own
+ * ACCESS EXCLUSIVE lock, and each one can queue behind an in-flight read and
+ * hold up every reader that arrives behind it. Grouping the actions leaves one
+ * lock acquisition instead of one per action.
+ */
+const alterTable = async (
     knex: Knex,
     connection: DatabaseConnection,
-    column: string,
-    checkName: string,
+    message: string,
+    actions: string[],
 ): Promise<void> => {
-    if (!(await constraintExists(knex, connection, checkName))) {
-        await runDdl(
-            knex,
-            connection,
-            `Adding ${checkName}`,
-            `ALTER TABLE ${TABLE} ADD CONSTRAINT ${checkName} CHECK (${column} IS NOT NULL) NOT VALID`,
-        );
-    }
+    if (actions.length === 0) return;
     await runDdl(
         knex,
         connection,
-        `Validating ${checkName}`,
-        `ALTER TABLE ${TABLE} VALIDATE CONSTRAINT ${checkName}`,
-    );
-    await runDdl(
-        knex,
-        connection,
-        `Setting ${column} not null`,
-        `ALTER TABLE ${TABLE} ALTER COLUMN ${column} SET NOT NULL`,
-    );
-    await runDdl(
-        knex,
-        connection,
-        `Dropping ${checkName}`,
-        `ALTER TABLE ${TABLE} DROP CONSTRAINT IF EXISTS ${checkName}`,
+        message,
+        `ALTER TABLE ${TABLE} ${actions.join(', ')}`,
     );
 };
 
@@ -300,68 +287,35 @@ export async function up(knex: Knex): Promise<void> {
     const connection = await knex.client.acquireConnection();
     try {
         await knex.raw('SET statement_timeout = 0').connection(connection);
-        await runDdl(
-            knex,
-            connection,
-            'Adding warehouse_credentials_uuid',
-            `ALTER TABLE ${TABLE} ADD COLUMN IF NOT EXISTS warehouse_credentials_uuid uuid`,
-        );
-        await runDdl(
-            knex,
-            connection,
-            'Setting warehouse_credentials_uuid default',
-            `ALTER TABLE ${TABLE} ALTER COLUMN warehouse_credentials_uuid SET DEFAULT uuid_generate_v4()`,
-        );
-        await runDdl(
-            knex,
-            connection,
-            'Adding connection name',
-            `ALTER TABLE ${TABLE} ADD COLUMN IF NOT EXISTS name text`,
-        );
-        await runDdl(
-            knex,
-            connection,
-            'Adding organization credential pointer',
-            `ALTER TABLE ${TABLE} ADD COLUMN IF NOT EXISTS organization_warehouse_credentials_uuid uuid NULL`,
-        );
-        await runDdl(
-            knex,
-            connection,
-            'Adding list_all_databases',
-            `ALTER TABLE ${TABLE} ADD COLUMN IF NOT EXISTS list_all_databases boolean NOT NULL DEFAULT false`,
-        );
-        await runDdl(
-            knex,
-            connection,
-            'Adding additional_databases',
-            `ALTER TABLE ${TABLE} ADD COLUMN IF NOT EXISTS additional_databases text[] NOT NULL DEFAULT '{}'::text[]`,
-        );
-        await runDdl(
-            knex,
-            connection,
-            'Adding superseded_at',
-            `ALTER TABLE ${TABLE} ADD COLUMN IF NOT EXISTS superseded_at timestamp NULL`,
-        );
-        await runDdl(
-            knex,
-            connection,
-            'Allowing organization connections without ciphertext',
-            `ALTER TABLE ${TABLE} ALTER COLUMN encrypted_credentials DROP NOT NULL`,
-        );
 
+        // uuid_generate_v4() is volatile, so the column is added without a
+        // default and the default is set afterwards: adding it in one step
+        // would rewrite the table.
+        const columnActions = [
+            'ADD COLUMN IF NOT EXISTS warehouse_credentials_uuid uuid',
+            'ALTER COLUMN warehouse_credentials_uuid SET DEFAULT uuid_generate_v4()',
+            'ADD COLUMN IF NOT EXISTS name text',
+            'ADD COLUMN IF NOT EXISTS organization_warehouse_credentials_uuid uuid NULL',
+            'ADD COLUMN IF NOT EXISTS list_all_databases boolean NOT NULL DEFAULT false',
+            "ADD COLUMN IF NOT EXISTS additional_databases text[] NOT NULL DEFAULT '{}'::text[]",
+            'ADD COLUMN IF NOT EXISTS superseded_at timestamp NULL',
+            'ALTER COLUMN encrypted_credentials DROP NOT NULL',
+        ];
         if (!(await constraintExists(knex, connection, ORG_FOREIGN_KEY))) {
-            await runDdl(
-                knex,
-                connection,
-                `Adding ${ORG_FOREIGN_KEY}`,
-                `ALTER TABLE ${TABLE}
-                 ADD CONSTRAINT ${ORG_FOREIGN_KEY}
+            columnActions.push(
+                `ADD CONSTRAINT ${ORG_FOREIGN_KEY}
                  FOREIGN KEY (organization_warehouse_credentials_uuid)
                  REFERENCES organization_warehouse_credentials (organization_warehouse_credentials_uuid)
                  ON DELETE RESTRICT
                  NOT VALID`,
             );
         }
+        await alterTable(
+            knex,
+            connection,
+            'Adding connection columns',
+            columnActions,
+        );
 
         await backfillUuids(knex, connection);
         await backfillNames(knex, connection);
@@ -371,27 +325,19 @@ export async function up(knex: Knex): Promise<void> {
         await backfillUuids(knex, connection);
         await backfillNames(knex, connection);
 
-        await runDdl(
-            knex,
-            connection,
-            'Setting connection name default',
-            `ALTER TABLE ${TABLE} ALTER COLUMN name SET DEFAULT 'Connection'`,
-        );
-        await addNotNull(
-            knex,
-            connection,
-            'warehouse_credentials_uuid',
-            UUID_NOT_NULL_CHECK,
-        );
-        await addNotNull(knex, connection, 'name', NAME_NOT_NULL_CHECK);
-
-        await runDdl(
-            knex,
-            connection,
-            `Validating ${ORG_FOREIGN_KEY}`,
-            `ALTER TABLE ${TABLE} VALIDATE CONSTRAINT ${ORG_FOREIGN_KEY}`,
-        );
-
+        // Every row carries a uuid and a name now. Prove it with NOT VALID
+        // checks so SET NOT NULL can skip its own scan.
+        const checkActions = ["ALTER COLUMN name SET DEFAULT 'Connection'"];
+        if (!(await constraintExists(knex, connection, UUID_NOT_NULL_CHECK))) {
+            checkActions.push(
+                `ADD CONSTRAINT ${UUID_NOT_NULL_CHECK} CHECK (warehouse_credentials_uuid IS NOT NULL) NOT VALID`,
+            );
+        }
+        if (!(await constraintExists(knex, connection, NAME_NOT_NULL_CHECK))) {
+            checkActions.push(
+                `ADD CONSTRAINT ${NAME_NOT_NULL_CHECK} CHECK (name IS NOT NULL) NOT VALID`,
+            );
+        }
         if (
             !(await constraintExists(
                 knex,
@@ -399,22 +345,47 @@ export async function up(knex: Knex): Promise<void> {
                 CREDENTIALS_OR_ORG_CHECK,
             ))
         ) {
-            await runDdl(
-                knex,
-                connection,
-                `Adding ${CREDENTIALS_OR_ORG_CHECK}`,
-                `ALTER TABLE ${TABLE}
-                 ADD CONSTRAINT ${CREDENTIALS_OR_ORG_CHECK}
+            checkActions.push(
+                `ADD CONSTRAINT ${CREDENTIALS_OR_ORG_CHECK}
                  CHECK (encrypted_credentials IS NOT NULL OR organization_warehouse_credentials_uuid IS NOT NULL)
                  NOT VALID`,
             );
         }
-        await runDdl(
+        await alterTable(
             knex,
             connection,
-            `Validating ${CREDENTIALS_OR_ORG_CHECK}`,
-            `ALTER TABLE ${TABLE} VALIDATE CONSTRAINT ${CREDENTIALS_OR_ORG_CHECK}`,
+            'Adding connection constraints',
+            checkActions,
         );
+
+        // VALIDATE takes SHARE UPDATE EXCLUSIVE, so readers are not held up.
+        await alterTable(
+            knex,
+            connection,
+            'Validating connection constraints',
+            [
+                `VALIDATE CONSTRAINT ${UUID_NOT_NULL_CHECK}`,
+                `VALIDATE CONSTRAINT ${NAME_NOT_NULL_CHECK}`,
+                `VALIDATE CONSTRAINT ${ORG_FOREIGN_KEY}`,
+                `VALIDATE CONSTRAINT ${CREDENTIALS_OR_ORG_CHECK}`,
+            ],
+        );
+
+        await alterTable(
+            knex,
+            connection,
+            'Setting connection columns not null',
+            [
+                'ALTER COLUMN warehouse_credentials_uuid SET NOT NULL',
+                'ALTER COLUMN name SET NOT NULL',
+            ],
+        );
+
+        // The validated checks did their job; the column constraints keep it.
+        await alterTable(knex, connection, 'Dropping the not null checks', [
+            `DROP CONSTRAINT IF EXISTS ${UUID_NOT_NULL_CHECK}`,
+            `DROP CONSTRAINT IF EXISTS ${NAME_NOT_NULL_CHECK}`,
+        ]);
 
         await createConcurrentIndex(
             knex,
@@ -458,18 +429,35 @@ export async function down(knex: Knex): Promise<void> {
         }
 
         await knex.raw('SET statement_timeout = 0').connection(connection);
-        await runDdl(
+        const ENCRYPTED_NOT_NULL_CHECK =
+            'warehouse_credentials_encrypted_credentials_not_null';
+        const restoreActions = [
+            `DROP CONSTRAINT IF EXISTS ${CREDENTIALS_OR_ORG_CHECK}`,
+        ];
+        if (
+            !(await constraintExists(
+                knex,
+                connection,
+                ENCRYPTED_NOT_NULL_CHECK,
+            ))
+        ) {
+            restoreActions.push(
+                `ADD CONSTRAINT ${ENCRYPTED_NOT_NULL_CHECK} CHECK (encrypted_credentials IS NOT NULL) NOT VALID`,
+            );
+        }
+        await alterTable(
             knex,
             connection,
-            `Dropping ${CREDENTIALS_OR_ORG_CHECK}`,
-            `ALTER TABLE ${TABLE} DROP CONSTRAINT IF EXISTS ${CREDENTIALS_OR_ORG_CHECK}`,
+            'Restoring the ciphertext constraint',
+            restoreActions,
         );
-        await addNotNull(
-            knex,
-            connection,
-            'encrypted_credentials',
-            'warehouse_credentials_encrypted_credentials_not_null',
-        );
+        await alterTable(knex, connection, 'Validating the ciphertext check', [
+            `VALIDATE CONSTRAINT ${ENCRYPTED_NOT_NULL_CHECK}`,
+        ]);
+        await alterTable(knex, connection, 'Restoring ciphertext not null', [
+            'ALTER COLUMN encrypted_credentials SET NOT NULL',
+            `DROP CONSTRAINT IF EXISTS ${ENCRYPTED_NOT_NULL_CHECK}`,
+        ]);
         await runDdl(
             knex,
             connection,
