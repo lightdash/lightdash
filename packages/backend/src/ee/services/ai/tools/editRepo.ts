@@ -3,6 +3,7 @@ import {
     ForbiddenError,
     InsufficientGitPermissionsError,
     PullRequestProvider,
+    type ToolEditRepoOutput,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { DeniedPathError } from '../../AiWritebackService/deniedPaths';
@@ -13,7 +14,7 @@ import {
 } from '../../AiWritebackService/errors';
 import type { EditRepoFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     editRepo: EditRepoFn;
@@ -69,7 +70,7 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
         execute: async (
             { repoTarget, prompt, prUrl: pastedPrUrl, startNewPullRequest },
             { toolCallId },
-        ) => {
+        ): Promise<ToolEditRepoOutput> => {
             try {
                 const {
                     prUrl,
@@ -89,13 +90,21 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                 });
 
                 const target = `repository ${repository}`;
-                const prVerb = prAction === 'updated' ? 'Updated' : 'Opened';
-                const result = prUrl
+                // A PR with no recorded action is reported as opened.
+                const pullRequestAction = prUrl ? (prAction ?? 'opened') : null;
+                const prVerb =
+                    pullRequestAction === 'updated' ? 'Updated' : 'Opened';
+                const result = pullRequestAction
                     ? `${prVerb} a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which repository it targeted.\n\nAgent summary:\n${output}`
                     : `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${output}`;
 
                 return {
                     result,
+                    structuredContent: {
+                        repository,
+                        pullRequestAction,
+                        agentSummary: output,
+                    },
                     // These fields are already `T | null` on AiWritebackRunResult
                     // (never undefined), so they're passed through as-is — no
                     // `?? null` coalescing needed (L8).
@@ -116,6 +125,7 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                 if (error instanceof WritebackThreadPrClosedError) {
                     return {
                         result: error.message,
+                        structuredContent: { error: error.message },
                         metadata: {
                             status: 'error' as const,
                             errorCode: 'pull_request_not_open' as const,
@@ -126,6 +136,7 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                 if (error instanceof RepoTooLargeError) {
                     return {
                         result: error.message,
+                        structuredContent: { error: error.message },
                         metadata: {
                             status: 'error' as const,
                             errorCode: 'repo_too_large' as const,
@@ -135,8 +146,10 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                 // A commit touching a CI/workflow or secret path was rejected
                 // host-side — terminal, do not retry. Relay the reason verbatim.
                 if (error instanceof DeniedPathError) {
+                    const result = `${error.message} Do not retry this — tell the user the agent will not edit CI/workflow or secret files. If they need that change, they must make it themselves.`;
                     return {
-                        result: `${error.message} Do not retry this — tell the user the agent will not edit CI/workflow or secret files. If they need that change, they must make it themselves.`,
+                        result,
+                        structuredContent: { error: result },
                         metadata: {
                             status: 'error' as const,
                             errorCode: 'denied_path' as const,
@@ -153,12 +166,14 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                         error.provider === PullRequestProvider.GITLAB
                             ? ('gitlab_not_installed' as const)
                             : ('github_not_installed' as const);
+                    const result = `The change could not be made: ${error.message} Tell the user they need to connect the ${
+                        error.provider === PullRequestProvider.GITLAB
+                            ? 'GitLab'
+                            : 'GitHub'
+                    } app for their organization.`;
                     return {
-                        result: `The change could not be made: ${error.message} Tell the user they need to connect the ${
-                            error.provider === PullRequestProvider.GITLAB
-                                ? 'GitLab'
-                                : 'GitHub'
-                        } app for their organization.`,
+                        result,
+                        structuredContent: { error: result },
                         metadata: {
                             status: 'error' as const,
                             errorCode,
@@ -168,8 +183,10 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                 // Forbidden write target: relay why (the user/installation can't
                 // write the repo, or it's denylisted) without a retry suffix.
                 if (error instanceof ForbiddenError) {
+                    const result = `The change could not be made: you don't have write access to ${repoTarget} through this project's Git connection, or the repository can't be edited. ${error.message}`;
                     return {
-                        result: `The change could not be made: you don't have write access to ${repoTarget} through this project's Git connection, or the repository can't be edited. ${error.message}`,
+                        result,
+                        structuredContent: { error: result },
                         metadata: {
                             status: 'error' as const,
                             errorCode: 'repo_write_forbidden' as const,
@@ -178,7 +195,7 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                     };
                 }
                 return {
-                    result: toolErrorHandler(
+                    ...toolErrorOutput(
                         error,
                         'Error running the coding agent. No pull request was opened.',
                     ),
