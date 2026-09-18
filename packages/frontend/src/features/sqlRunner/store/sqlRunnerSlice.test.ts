@@ -7,6 +7,7 @@ import {
     setWarehouseConnectionType,
     sqlRunnerSlice,
     switchActiveConnection,
+    toggleActiveTable,
 } from './sqlRunnerSlice';
 import { runSqlQuery } from './thunks';
 
@@ -152,6 +153,27 @@ describe('sqlRunnerSlice switching the active connection', () => {
         expect(switched.fileUrl).toBeUndefined();
         expect(switched.resultConnectionUuid).toBeUndefined();
         expect(switched.resultsTableConfig).toBeUndefined();
+    });
+
+    it('clears the selected table, which belongs to the old catalog', () => {
+        const withTable = reducer(
+            reducer(undefined, setConnectionUuid('connection-1')),
+            toggleActiveTable({
+                table: 'orders',
+                schema: 'jaffle',
+                database: 'raw',
+            }),
+        );
+        expect(withTable.activeTable).toBe('orders');
+
+        const switched = reducer(
+            withTable,
+            switchActiveConnection('connection-2'),
+        );
+
+        expect(switched.activeTable).toBeUndefined();
+        expect(switched.activeSchema).toBeUndefined();
+        expect(switched.activeDatabase).toBeUndefined();
     });
 
     it('leaves results alone when the switch selects the active connection', () => {

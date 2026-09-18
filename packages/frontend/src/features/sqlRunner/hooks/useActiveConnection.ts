@@ -12,6 +12,12 @@ import { writeLastUsedConnection } from '../utils/activeConnection';
 export type ActiveConnection = {
     connections: Connection[];
     hasSeveralConnections: boolean;
+    /**
+     * The catalog endpoints refuse a project with several connections unless
+     * the request names one, so nothing may query until a connection is
+     * settled. A project with one connection is settled from the start.
+     */
+    isConnectionSettled: boolean;
     activeConnectionUuid: string | undefined;
     activeConnection: Connection | undefined;
     connectionNameFor: (
@@ -74,6 +80,8 @@ export const useActiveConnection = (): ActiveConnection => {
     return {
         connections,
         hasSeveralConnections: connections.length > 1,
+        isConnectionSettled:
+            activeConnectionUuid !== undefined || connections.length === 1,
         activeConnectionUuid,
         activeConnection,
         connectionNameFor,

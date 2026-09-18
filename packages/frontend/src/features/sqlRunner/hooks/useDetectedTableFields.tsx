@@ -107,12 +107,14 @@ export const useDetectedTableFields = ({
     projectUuid,
     connectionUuid,
     catalog,
+    isConnectionSettled = true,
 }: {
     sql: string;
     quoteChar: string;
     projectUuid: string;
     connectionUuid?: string;
     catalog: WarehouseTablesCatalog;
+    isConnectionSettled?: boolean;
 }) => {
     // Parse SQL to detect table references
     const detectedTables = useMemo(() => {
@@ -171,7 +173,7 @@ export const useDetectedTableFields = ({
     }, [detectedTables, catalog, connectionUuid, projectUuid]);
 
     // Use the new multi-table fields hook
-    const result = useMultipleTableFields(tableReferences);
+    const result = useMultipleTableFields(tableReferences, isConnectionSettled);
 
     return {
         ...result,

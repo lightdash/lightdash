@@ -16,7 +16,10 @@ export type TableReference = {
     database: string;
 };
 
-export const useMultipleTableFields = (tableReferences: TableReference[]) => {
+export const useMultipleTableFields = (
+    tableReferences: TableReference[],
+    isConnectionSettled: boolean = true,
+) => {
     // Create queries for each unique table reference
     const queries = useMemo(() => {
         // Deduplicate table references based on projectUuid + connectionUuid + database + schema + tableName
@@ -44,7 +47,9 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
                     database: ref.database,
                 }),
             retry: false,
-            enabled: !!(ref.projectUuid && ref.tableName && ref.schema),
+            enabled:
+                isConnectionSettled &&
+                !!(ref.projectUuid && ref.tableName && ref.schema),
             staleTime: 5 * 60 * 1000, // 5 minutes - keep data fresh but allow caching
             meta: {
                 tableName: ref.tableName,
@@ -54,7 +59,7 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
                 connectionUuid: ref.connectionUuid,
             },
         }));
-    }, [tableReferences]);
+    }, [tableReferences, isConnectionSettled]);
 
     const results = useQueries({
         queries,

@@ -216,6 +216,10 @@ export const sqlRunnerSlice = createSlice({
             state.editorHighlightError = undefined;
             state.successfulSqlQueries = withHistory(undefined);
             state.hasUnrunChanges = false;
+            // The selected table belongs to the catalog being left behind
+            state.activeTable = undefined;
+            state.activeSchema = undefined;
+            state.activeDatabase = undefined;
         },
         updateParameterValue: (
             state,

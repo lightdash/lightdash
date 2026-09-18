@@ -39,8 +39,11 @@ export const useWarehouseTree = ({
     warehouseConnectionType: string | undefined;
     isRowExpandedByOverride: (rowId: string) => boolean | undefined;
 }): WarehouseTree => {
-    const { connections: projectConnections, activeConnectionUuid } =
-        useActiveConnection();
+    const {
+        connections: projectConnections,
+        activeConnectionUuid,
+        isConnectionSettled,
+    } = useActiveConnection();
 
     // Projects with no connection row yet still list through the project alone
     const treeSources = useMemo(
@@ -93,6 +96,7 @@ export const useWarehouseTree = ({
         projectUuid,
         connections: treeSources,
         enabledConnectionIds,
+        isConnectionSettled,
     });
 
     const connections = useMemo<TreeConnection[]>(
@@ -162,6 +166,7 @@ export const useWarehouseTree = ({
         projectUuid,
         units,
         enabledUnitIds,
+        isConnectionSettled,
     });
 
     const getUnitState = useCallback(
