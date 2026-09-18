@@ -106,6 +106,29 @@ describe('ProjectModel', () => {
         lightdashConfig: lightdashConfigMock,
         encryptionUtil: encryptionUtilMock,
     });
+    const [projectConnection] = expectedProject.connections;
+    const mockProjectConnection = () => {
+        const { connectionModel } = model as unknown as {
+            connectionModel: {
+                listByProject: ReturnType<typeof vi.fn>;
+                resolveSole: ReturnType<typeof vi.fn>;
+                getCredentials: ReturnType<typeof vi.fn>;
+            };
+        };
+        vi.spyOn(connectionModel, 'listByProject').mockResolvedValue([
+            projectConnection,
+        ]);
+        vi.spyOn(connectionModel, 'resolveSole').mockResolvedValue(
+            projectConnection,
+        );
+        vi.spyOn(connectionModel, 'getCredentials').mockResolvedValue({
+            ...(JSON.parse(
+                projectMock.encrypted_credentials.toString(),
+            ) as CreateWarehouseCredentials),
+            listAllDatabases: false,
+            additionalDatabases: [],
+        });
+    };
     let tracker: Tracker;
     beforeAll(() => {
         tracker = getTracker();
@@ -115,6 +138,7 @@ describe('ProjectModel', () => {
         vi.restoreAllMocks();
     });
     test('should get project with no sensitive properties', async () => {
+        mockProjectConnection();
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
             .response([projectMock]);
@@ -800,6 +824,12 @@ describe('ProjectModel', () => {
         const invalidate = vi
             .spyOn(MotherduckInstanceCache, 'invalidateByConnectionString')
             .mockImplementation(() => undefined);
+        vi.spyOn(
+            model as unknown as {
+                upsertWarehouseConnection: () => Promise<void>;
+            },
+            'upsertWarehouseConnection',
+        ).mockResolvedValue();
         tracker.on
             .update(({ sql }) => sql.includes('projects'))
             .response([{ project_id: 1 }]);
@@ -827,6 +857,14 @@ describe('ProjectModel', () => {
         const invalidate = vi
             .spyOn(MotherduckInstanceCache, 'invalidateByConnectionString')
             .mockImplementation(() => undefined);
+        const upsert = vi
+            .spyOn(
+                model as unknown as {
+                    upsertWarehouseConnection: () => Promise<void>;
+                },
+                'upsertWarehouseConnection',
+            )
+            .mockResolvedValue();
         tracker.on
             .update(({ sql }) => sql.includes('projects'))
             .response([{ project_id: 1 }]);
@@ -843,139 +881,81 @@ describe('ProjectModel', () => {
             } as CreateWarehouseCredentials,
         });
 
-        expect(
-            tracker.history.insert.some(({ sql }) =>
-                sql.includes('warehouse_credentials'),
-            ),
-        ).toBe(true);
+        expect(upsert).toHaveBeenCalled();
         expect(invalidate).not.toHaveBeenCalled();
     });
 
-    test('stores listing fields in columns and omits them from ciphertext', async () => {
-        const encrypt = vi
-            .spyOn(encryptionUtilMock, 'encrypt')
-            .mockReturnValue(Buffer.from('encrypted'));
-        tracker.on
-            .insert(({ sql }) => sql.includes('warehouse_credentials'))
-            .response([]);
-
-        await (
-            model as unknown as {
-                upsertWarehouseConnection: (
-                    trx: typeof database,
-                    projectId: number,
-                    data: CreateWarehouseCredentials,
-                ) => Promise<void>;
-            }
-        ).upsertWarehouseConnection(database, 7, {
-            type: WarehouseTypes.ATHENA,
-            region: 'eu-west-1',
-            database: 'AwsDataCatalog',
-            schema: 'analytics',
-            s3StagingDir: 's3://query-results',
-            accessKeyId: 'key',
-            secretAccessKey: 'secret',
+    test('updates the sole connection by uuid', async () => {
+        const soleConnection = {
+            connectionUuid: 'connection-uuid',
+            name: 'Athena',
+            warehouseType: WarehouseTypes.ATHENA,
+            organizationWarehouseCredentialsUuid: null,
             listAllDatabases: false,
-            additionalDatabases: [' sales ', '', 'finance', 'sales'],
-        });
-
-        const encrypted = JSON.parse(encrypt.mock.calls[0][0] as string);
-        expect(encrypted).not.toHaveProperty('listAllDatabases');
-        expect(encrypted).not.toHaveProperty('additionalDatabases');
-        expect(tracker.history.insert[0].sql).toContain('"list_all_databases"');
-        expect(tracker.history.insert[0].sql).toContain(
-            '"additional_databases"',
-        );
-        expect(tracker.history.insert[0].bindings).toEqual(
-            expect.arrayContaining([false, ['sales', 'finance']]),
-        );
-    });
-
-    test('keeps dormant ciphertext when attaching an organization connection', async () => {
-        tracker.on
-            .insert(({ sql }) => sql.includes('warehouse_credentials'))
-            .response([]);
-
-        await (
-            model as unknown as {
-                upsertWarehouseConnection: (
-                    trx: typeof database,
-                    projectId: number,
-                    data: CreateWarehouseCredentials,
-                    organizationWarehouseCredentialsUuid?: string,
-                ) => Promise<void>;
-            }
-        ).upsertWarehouseConnection(
-            database,
-            7,
-            {
-                type: WarehouseTypes.SNOWFLAKE,
-                account: 'account',
-                user: 'user',
-                password: 'password',
-                database: 'database',
-                warehouse: 'warehouse',
-                schema: 'schema',
-            },
-            'organization-credential-uuid',
-        );
-
-        const updateClause =
-            tracker.history.insert[0].sql.split('do update set')[1];
-        expect(updateClause).not.toContain('encrypted_credentials');
-        expect(tracker.history.insert[0].bindings).toContain(
-            'organization-credential-uuid',
-        );
-    });
-
-    test('merges row listing fields into organization credentials', async () => {
-        tracker.on
-            .select(({ sql }) => sql.includes('warehouse_credentials'))
-            .response([
-                {
-                    encrypted_credentials: null,
-                    organization_warehouse_credentials_uuid:
-                        'organization-credential-uuid',
-                    organization_uuid: 'organization-uuid',
-                    list_all_databases: true,
-                    additional_databases: ['finance'],
-                },
-            ]);
+            additionalDatabases: [],
+            createdAt: new Date(),
+        };
+        const modelWithConnectionModel = model as unknown as {
+            connectionModel: {
+                listByProject: ReturnType<typeof vi.fn>;
+                resolveSole: ReturnType<typeof vi.fn>;
+                update: ReturnType<typeof vi.fn>;
+            };
+        };
+        const { connectionModel } = modelWithConnectionModel;
         vi.spyOn(
             model as unknown as {
-                getOrganizationWarehouseCredentials: () => Promise<CreateWarehouseCredentials>;
+                createConnectionModel: () => typeof connectionModel;
             },
-            'getOrganizationWarehouseCredentials',
-        ).mockResolvedValue({
+            'createConnectionModel',
+        ).mockReturnValue(connectionModel);
+        vi.spyOn(connectionModel, 'listByProject').mockResolvedValue([
+            soleConnection,
+        ]);
+        vi.spyOn(connectionModel, 'resolveSole').mockResolvedValue(
+            soleConnection,
+        );
+        const update = vi
+            .spyOn(connectionModel, 'update')
+            .mockResolvedValue(soleConnection);
+        const warehouseConnection: CreateWarehouseCredentials = {
             type: WarehouseTypes.ATHENA,
             region: 'eu-west-1',
             database: 'AwsDataCatalog',
             schema: 'analytics',
             s3StagingDir: 's3://query-results',
-        });
+        };
 
-        await expect(
-            model.getWarehouseCredentialsForProject(projectUuid),
-        ).resolves.toMatchObject({
-            listAllDatabases: true,
-            additionalDatabases: ['finance'],
-        });
-    });
+        await (
+            model as unknown as {
+                upsertWarehouseConnection: (
+                    trx: typeof database,
+                    targetProjectUuid: string,
+                    data: CreateWarehouseCredentials,
+                ) => Promise<void>;
+            }
+        ).upsertWarehouseConnection(database, projectUuid, warehouseConnection);
 
-    test('skips superseded warehouse credential rows', async () => {
-        tracker.on
-            .select(({ sql }) => sql.includes('warehouse_credentials'))
-            .response([]);
-
-        await expect(
-            model.getWarehouseCredentialsForProject(projectUuid),
-        ).rejects.toBeInstanceOf(NotFoundError);
-        expect(tracker.history.select[0].sql).toContain(
-            '"warehouse_credentials"."superseded_at" is null',
+        expect(update).toHaveBeenCalledWith(
+            projectUuid,
+            soleConnection.connectionUuid,
+            {
+                warehouseConnection,
+                organizationWarehouseCredentialsUuid: undefined,
+            },
         );
     });
 
     test('rotates a refresh token by warehouse credential row id', async () => {
+        vi.spyOn(model, 'getConnectionForProject').mockResolvedValue({
+            connectionUuid: 'connection-uuid',
+            name: 'Snowflake',
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+            organizationWarehouseCredentialsUuid: null,
+            listAllDatabases: false,
+            additionalDatabases: [],
+            createdAt: new Date(),
+        });
         tracker.on
             .select(({ sql }) => sql.includes('warehouse_credentials'))
             .response([
@@ -2521,6 +2501,7 @@ describe('ProjectModel', () => {
 
     describe('removing sensitive credentials from API', () => {
         test('should remove sensitive credentials like token and refreshToken', async () => {
+            mockProjectConnection();
             tracker.on
                 .select(queryMatcher(ProjectTableName, [projectUuid]))
                 .response([projectMock]);

@@ -70,6 +70,7 @@ export type SavedSqlTable = Knex.CompositeTableType<
 export type DbSavedSqlVersion = {
     saved_sql_version_uuid: string;
     saved_sql_uuid: string;
+    connection_uuid: string | null;
     created_at: Date;
     sql: string;
     limit: number;
@@ -88,8 +89,11 @@ export type InsertSavedSqlVersion = Pick<
     | 'created_by_user_uuid'
 >;
 
+type InsertSavedSqlVersionWithConnection = InsertSavedSqlVersion &
+    Partial<Pick<DbSavedSqlVersion, 'connection_uuid'>>;
+
 export type SavedSqlVersionsTable = Knex.CompositeTableType<
     DbSavedSqlVersion,
-    InsertSavedSqlVersion,
-    never
+    InsertSavedSqlVersionWithConnection,
+    Partial<Pick<DbSavedSqlVersion, 'connection_uuid'>>
 >;

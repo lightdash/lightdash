@@ -2,6 +2,7 @@
 import {
     AnyType,
     DbtProjectType,
+    MultipleConnectionsError,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
@@ -368,6 +369,32 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
     });
 
     describe('project configuration update scenarios', () => {
+        test('refuses a singular project update when the project has several connections', async () => {
+            service = createMockService({
+                organizationModel: {
+                    getOrgUuids: vi.fn().mockResolvedValue([mockOrgUuid]),
+                },
+                projectModel: {
+                    getDefaultProjectUuids: vi
+                        .fn()
+                        .mockResolvedValue([mockProjectUuid]),
+                    getWithSensitiveFields: vi
+                        .fn()
+                        .mockRejectedValue(new MultipleConnectionsError()),
+                },
+                updateSetup: {
+                    project: {
+                        dbtVersion: SupportedDbtVersions.V1_5,
+                    },
+                },
+            });
+
+            await expect(
+                service.updateInstanceConfiguration(),
+            ).rejects.toBeInstanceOf(MultipleConnectionsError);
+            expect(service['projectModel'].update).not.toHaveBeenCalled();
+        });
+
         test('should update dbt personal access token only', async () => {
             service = createMockService({
                 organizationModel: {

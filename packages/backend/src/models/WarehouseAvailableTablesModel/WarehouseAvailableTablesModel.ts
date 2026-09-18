@@ -1,5 +1,6 @@
 import {
     isWarehouseTableType,
+    MultipleConnectionsError,
     NotFoundError,
     WarehouseCatalog,
     WarehouseTables,
@@ -33,6 +34,33 @@ export class WarehouseAvailableTablesModel {
 
     constructor(database: Knex) {
         this.database = database;
+    }
+
+    private async resolveProjectWarehouseCredentialsId(
+        projectUuid: string,
+        connectionUuid?: string,
+    ): Promise<number> {
+        const query = this.database('warehouse_credentials')
+            .join(
+                'projects',
+                'projects.project_id',
+                'warehouse_credentials.project_id',
+            )
+            .where('project_uuid', projectUuid)
+            .whereNull('warehouse_credentials.superseded_at')
+            .select('warehouse_credentials_id')
+            .limit(2);
+        if (connectionUuid) {
+            void query.where('warehouse_credentials_uuid', connectionUuid);
+        }
+        const rows = await query;
+        if (rows.length === 0) {
+            throw new NotFoundError('Warehouse credentials not found');
+        }
+        if (!connectionUuid && rows.length > 1) {
+            throw new MultipleConnectionsError();
+        }
+        return rows[0].warehouse_credentials_id;
     }
 
     static toWarehouseCatalog(
@@ -88,20 +116,15 @@ export class WarehouseAvailableTablesModel {
     async getTablesForProjectWarehouseCredentials(
         projectUuid: string,
         scope?: ListedDatabaseCacheScope,
+        connectionUuid?: string,
     ) {
-        const query = this.database('projects')
-            .join(
-                'warehouse_credentials',
-                'projects.project_id',
-                'warehouse_credentials.project_id',
-            )
-            .join(
-                WarehouseAvailableTablesTableName,
-                'warehouse_credentials.warehouse_credentials_id',
-                `${WarehouseAvailableTablesTableName}.project_warehouse_credentials_id`,
-            )
-            .where('project_uuid', projectUuid)
-            .whereNull('warehouse_credentials.superseded_at')
+        const warehouseCredentialsId =
+            await this.resolveProjectWarehouseCredentialsId(
+                projectUuid,
+                connectionUuid,
+            );
+        const query = this.database(WarehouseAvailableTablesTableName)
+            .where('project_warehouse_credentials_id', warehouseCredentialsId)
             .select([
                 'database',
                 'schema',
@@ -120,30 +143,19 @@ export class WarehouseAvailableTablesModel {
         projectUuid: string,
         tables: WarehouseTables,
         scope?: ListedDatabaseCacheScope,
+        connectionUuid?: string,
     ) {
-        const warehouseCredentialsId = await this.database(
-            'warehouse_credentials',
-        )
-            .join(
-                'projects',
-                'projects.project_id',
-                'warehouse_credentials.project_id',
-            )
-            .where('project_uuid', projectUuid)
-            .whereNull('warehouse_credentials.superseded_at')
-            .select('warehouse_credentials_id')
-            .first();
-
-        if (!warehouseCredentialsId) {
-            throw new NotFoundError('Warehouse credentials not found');
-        }
+        const warehouseCredentialsId =
+            await this.resolveProjectWarehouseCredentialsId(
+                projectUuid,
+                connectionUuid,
+            );
         const rows = tables.map(
             ({ database, schema, table, partitionColumn, tableType }) => ({
                 database,
                 schema,
                 table,
-                project_warehouse_credentials_id:
-                    warehouseCredentialsId.warehouse_credentials_id,
+                project_warehouse_credentials_id: warehouseCredentialsId,
                 user_warehouse_credentials_uuid: null,
                 listed_database: scope?.listedDatabase ?? null,
                 partition_column: partitionColumn || null,
@@ -154,7 +166,7 @@ export class WarehouseAvailableTablesModel {
         await this.database.transaction(async (trx) => {
             const deleteQuery = trx(WarehouseAvailableTablesTableName).where(
                 'project_warehouse_credentials_id',
-                warehouseCredentialsId.warehouse_credentials_id,
+                warehouseCredentialsId,
             );
             if (scope && !scope.clearAll) {
                 applyListedDatabaseScope(deleteQuery, scope);

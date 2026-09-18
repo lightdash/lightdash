@@ -31,6 +31,7 @@ import {
     MergeQueryErrorKind,
     MetricType,
     MissingWarehouseCredentialsError,
+    MultipleConnectionsError,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
@@ -227,6 +228,15 @@ const projectModel = {
     get: vi.fn(async () => projectWithSensitiveFields),
     getAllByOrganizationUuid: vi.fn<ProjectModel['getAllByOrganizationUuid']>(),
     getSummary: vi.fn(async () => projectSummary),
+    getConnectionForProject: vi.fn(async () => ({
+        connectionUuid: 'connection-uuid',
+        name: 'BigQuery',
+        warehouseType: WarehouseTypes.BIGQUERY,
+        organizationWarehouseCredentialsUuid: null,
+        listAllDatabases: false,
+        additionalDatabases: [],
+        createdAt: new Date('2026-09-17T12:00:00Z'),
+    })),
     getDbtSourceIdentity: vi.fn(async () => ({
         dbtSourceUuid: 'primary-source-uuid',
         dbtSourceName: 'dbt_project',
@@ -2511,13 +2521,15 @@ describe('ProjectService', () => {
         test('rejects listing fields for an unsupported warehouse', () => {
             expect(() =>
                 assertDatabaseListingSupported({
-                    type: WarehouseTypes.POSTGRES,
-                    host: 'localhost',
-                    user: 'postgres',
-                    password: 'password',
-                    port: 5432,
-                    dbname: 'analytics',
-                    schema: 'public',
+                    type: WarehouseTypes.BIGQUERY,
+                    project: 'project',
+                    dataset: 'dataset',
+                    keyfileContents: {},
+                    timeoutSeconds: undefined,
+                    priority: undefined,
+                    retries: undefined,
+                    location: undefined,
+                    maximumBytesBilled: undefined,
                     listAllDatabases: true,
                 }),
             ).toThrowError(WarehouseDatabaseListingNotSupportedError);
@@ -2526,16 +2538,41 @@ describe('ProjectService', () => {
         test('allows an unsupported warehouse when listing fields are unset', () => {
             expect(() =>
                 assertDatabaseListingSupported({
-                    type: WarehouseTypes.POSTGRES,
-                    host: 'localhost',
-                    user: 'postgres',
-                    password: 'password',
-                    port: 5432,
-                    dbname: 'analytics',
-                    schema: 'public',
+                    type: WarehouseTypes.BIGQUERY,
+                    project: 'project',
+                    dataset: 'dataset',
+                    keyfileContents: {},
+                    timeoutSeconds: undefined,
+                    priority: undefined,
+                    retries: undefined,
+                    location: undefined,
+                    maximumBytesBilled: undefined,
                 }),
             ).not.toThrow();
         });
+    });
+
+    test('refuses a singular CLI connection update when the project has several connections', async () => {
+        jobModel.create.mockClear();
+        projectModel.getWithSensitiveFields.mockRejectedValueOnce(
+            new MultipleConnectionsError(),
+        );
+
+        await expect(
+            service.updateAndScheduleAsyncWork(
+                projectUuid,
+                developerAccount,
+                {
+                    name: projectWithSensitiveFields.name,
+                    dbtConnection: projectWithSensitiveFields.dbtConnection,
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    warehouseConnection:
+                        projectWithSensitiveFields.warehouseConnection,
+                } as UpdateProject,
+                RequestMethod.CLI,
+            ),
+        ).rejects.toBeInstanceOf(MultipleConnectionsError);
+        expect(jobModel.create).not.toHaveBeenCalled();
     });
 
     describe('public analytics connection configuration', () => {
