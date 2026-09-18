@@ -12500,6 +12500,18 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        // The scope is no longer offered to projects that do not already have
+        // one: existing scopes stay editable, but a project with none cannot
+        // acquire one here. Clearing an existing scope is allowed and is
+        // one-way.
+        const existingScope =
+            await this.projectModel.getAgentSqlScope(projectUuid);
+        if (existingScope === null) {
+            throw new ForbiddenError(
+                'Agent data scope is not available for this project',
+            );
+        }
+
         if (agentSqlScope) {
             const blank = [
                 ...agentSqlScope.schemas,

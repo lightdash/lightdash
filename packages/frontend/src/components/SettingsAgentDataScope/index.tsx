@@ -271,7 +271,9 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
                 >
                     <Text fz="xs">
                         Leave every field empty to let AI agents query the
-                        entire warehouse connection.
+                        entire warehouse connection. This removes the scope for
+                        good: this page is only available to projects that
+                        already have one.
                     </Text>
                     <Text fz="xs" mt="xs">
                         Use exclusions to block known schemas or catalogs. Use
@@ -288,7 +290,14 @@ const SettingsAgentDataScope: FC<SettingsAgentDataScopeProps> = ({
                     </Text>
                 </Callout>
 
-                {!isLoading && (
+                {!isLoading && !scope && (
+                    <Text size="xs" c="dimmed">
+                        This project has no agent data scope. AI agents can
+                        query the entire warehouse connection.
+                    </Text>
+                )}
+
+                {!isLoading && scope && (
                     // Remounting when the saved scope changes resets the form to
                     // it — the React-recommended way to reset state on new data,
                     // rather than syncing state in an effect.

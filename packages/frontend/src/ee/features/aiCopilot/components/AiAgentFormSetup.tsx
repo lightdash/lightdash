@@ -56,6 +56,7 @@ import { getModelKey } from '../../../../components/common/ModelSelector/utils';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useOrganizationGroups } from '../../../../hooks/useOrganizationGroups';
+import { useProject } from '../../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
 import { UserAccessMultiSelect } from '../../../components/UserAccessMultiSelect';
@@ -203,6 +204,11 @@ export const AiAgentFormSetup = ({
     );
 
     const { mutateAsync: deleteAgent } = useDeleteAiAgentMutation(projectUuid!);
+
+    // The agent data scope page only edits a scope a project already has, so
+    // the link is hidden for projects without one.
+    const { data: project } = useProject(projectUuid);
+    const hasAgentSqlScope = !!project?.agentSqlScope;
 
     const { user } = useApp();
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -851,16 +857,23 @@ export const AiAgentFormSetup = ({
                                     description={
                                         <>
                                             On by default in new chats; users
-                                            can switch it off per conversation.{' '}
-                                            <Anchor
-                                                component={Link}
-                                                to={`/generalSettings/projectManagement/${projectUuid}/agentDataScope`}
-                                                size="xs"
-                                                className={classes.switchLink}
-                                            >
-                                                Configure which schemas and
-                                                tables it can query
-                                            </Anchor>
+                                            can switch it off per conversation.
+                                            {hasAgentSqlScope ? (
+                                                <>
+                                                    {' '}
+                                                    <Anchor
+                                                        component={Link}
+                                                        to={`/generalSettings/projectManagement/${projectUuid}/agentDataScope`}
+                                                        size="xs"
+                                                        className={
+                                                            classes.switchLink
+                                                        }
+                                                    >
+                                                        Configure which schemas
+                                                        and tables it can query
+                                                    </Anchor>
+                                                </>
+                                            ) : null}
                                         </>
                                     }
                                     {...form.getInputProps('enableSqlMode', {
