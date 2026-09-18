@@ -58654,6 +58654,63 @@
             "ApiDocumentListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DocumentList_"
             },
+            "Pick_DocumentSummary.name-or-slug-or-description_": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "required": ["description", "name", "slug"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DocumentAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_DocumentSummary.name-or-slug-or-description_"
+                    },
+                    {
+                        "properties": {
+                            "content": {
+                                "$ref": "#/components/schemas/DocumentContent"
+                            },
+                            "schemaVersion": {
+                                "type": "number",
+                                "enum": [1],
+                                "nullable": false
+                            },
+                            "spaceSlug": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["content", "schemaVersion", "spaceSlug"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_DocumentAsCode_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DocumentAsCode"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDocumentAsCodeResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DocumentAsCode_"
+            },
             "KnexPaginatedData_ValidationResponse-Array_": {
                 "properties": {
                     "pagination": {
@@ -63684,7 +63741,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.266.0",
+        "version": "2.267.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -100066,6 +100123,53 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}/as-code": {
+            "get": {
+                "operationId": "GetDocumentAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentAsCodeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/projects/{projectUuid}/validate": {

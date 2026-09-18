@@ -1,3 +1,10 @@
+# [2.267.0](https://github.com/lightdash/lightdash/compare/2.266.0...2.267.0) (2026-09-18)
+
+
+### Features
+
+* **documents:** view and download documents as code ([#29534](https://github.com/lightdash/lightdash/issues/29534)) ([52c1579](https://github.com/lightdash/lightdash/commit/52c15797c2f921223ed77b245e32f30a12d2b2ec))
+
 # [2.266.0](https://github.com/lightdash/lightdash/compare/2.265.0...2.266.0) (2026-09-18)
 
 
