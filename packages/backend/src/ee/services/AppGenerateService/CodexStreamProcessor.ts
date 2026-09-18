@@ -164,6 +164,8 @@ export class CodexStreamProcessor {
                 outputTokens: asFiniteNumber(usage.output_tokens),
                 cacheReadInputTokens: cachedInputTokens,
                 cacheCreationInputTokens: 0,
+                cacheCreation1hInputTokens: 0,
+                cacheCreation5mInputTokens: 0,
                 numTurns: 1,
                 durationApiMs: 0,
                 costUsd: 0,

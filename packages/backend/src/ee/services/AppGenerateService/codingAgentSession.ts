@@ -123,3 +123,117 @@ export const codingAgentRetryStart = (args: {
     }
     return args.start;
 };
+
+/**
+ * Estimated context per internal turn at or above which summarizing the
+ * session pays for itself. A constant, not configuration: savings are almost
+ * flat across thresholds, so this is chosen for how few builds it touches
+ * (~6.5%) rather than for money.
+ */
+export const CODING_AGENT_COMPACTION_TOKEN_THRESHOLD = 200_000;
+
+/**
+ * How long after a thread's previous version finished its prompt cache is
+ * assumed cold. On a cold cache the whole transcript is re-read anyway, so
+ * summarizing it costs only the summary.
+ */
+export const CODING_AGENT_COLD_CACHE_MS = 60 * 60 * 1000;
+
+/** What the trigger decision for a coding agent turn is made from. */
+export type CodingAgentCompactionInput = {
+    start: CodingAgentSessionStart;
+    // Since the thread's previous version reached a terminal status; null when
+    // there is no previous version or it carries no timestamp.
+    msSincePreviousVersion: number | null;
+    // Total input tokens per internal turn on that previous version; null when
+    // its usage was never recorded.
+    contextTokensPerTurn: number | null;
+    thresholdTokens: number;
+};
+
+/**
+ * Whether a turn should summarize its own history before it runs. Only a turn
+ * that resumes a stored session has a transcript worth summarizing; a cold
+ * cache makes the summary nearly free, and the size floor keeps us from
+ * spending one to save nothing.
+ */
+export const shouldCompactCodingAgentSession = ({
+    start,
+    msSincePreviousVersion,
+    contextTokensPerTurn,
+    thresholdTokens,
+}: CodingAgentCompactionInput): boolean =>
+    start.kind === 'resume' &&
+    msSincePreviousVersion !== null &&
+    msSincePreviousVersion > CODING_AGENT_COLD_CACHE_MS &&
+    contextTokensPerTurn !== null &&
+    contextTokensPerTurn >= thresholdTokens;
+
+/**
+ * Context the model read per internal turn on a previous version: everything
+ * that entered the context window (uncached, cache reads, cache writes) over
+ * the turns that read it. Null when the version's usage was never recorded or
+ * it ran no turns — an unknown estimate must not trigger compaction.
+ */
+export const codingAgentContextTokensPerTurn = (
+    usage: {
+        inputTokens: number;
+        cacheReadInputTokens: number;
+        cacheCreationInputTokens: number;
+        numTurns: number;
+    } | null,
+): number | null => {
+    if (usage === null || usage.numTurns <= 0) return null;
+    const totalInputTokens =
+        usage.inputTokens +
+        usage.cacheReadInputTokens +
+        usage.cacheCreationInputTokens;
+    return totalInputTokens / usage.numTurns;
+};
+
+/** What the CLI reported about a `/compact` run. */
+export type CodingAgentCompactionOutcome =
+    | { result: 'success' }
+    | { result: 'failed'; error: string | null };
+
+// Compaction verdict from one CLI status line; null when the line is not one.
+const parseCodingAgentCompactionStatus = (
+    line: string,
+): CodingAgentCompactionOutcome | null => {
+    let event: Record<string, unknown>;
+    try {
+        event = JSON.parse(line);
+    } catch {
+        return null;
+    }
+    if (event === null || typeof event !== 'object') return null;
+    if (event.type !== 'system' || event.subtype !== 'status') return null;
+    if (event.compact_result === 'success') return { result: 'success' };
+    if (event.compact_result === 'failed') {
+        return {
+            result: 'failed',
+            // `compact_error` is only emitted on some CLI builds.
+            error:
+                typeof event.compact_error === 'string'
+                    ? event.compact_error
+                    : null,
+        };
+    }
+    return null;
+};
+
+/**
+ * Outcome from the CLI's compaction status event
+ * (`{"type":"system","subtype":"status","compact_result":"success"|"failed"}`).
+ * Null when the stream carried no such event — the run never got as far as
+ * compacting, which the caller treats the same as a failure.
+ */
+export const findCodingAgentCompactionOutcome = (
+    stdout: string,
+): CodingAgentCompactionOutcome | null => {
+    for (const line of stdout.split('\n')) {
+        const outcome = parseCodingAgentCompactionStatus(line);
+        if (outcome !== null) return outcome;
+    }
+    return null;
+};

@@ -905,6 +905,47 @@ export class AppModel {
         return cancelled !== undefined;
     }
 
+    /**
+     * The newest version before `beforeVersion` in the same thread that has
+     * already finished, with when it finished and what it spent. Drives the
+     * compaction trigger: the gap says whether the coding agent's prompt cache
+     * has gone cold, the usage says how much context a turn re-reads.
+     *
+     * Scoped to the thread, never the app: clearing context starts a fresh
+     * agent session, and the new thread must not inherit the old one's gap or
+     * size. Thread 1 also covers rows written before threads existed.
+     */
+    async findPreviousFinishedVersionInThread(
+        appThreadUuid: string,
+        beforeVersion: number,
+    ): Promise<{
+        version: number;
+        statusUpdatedAt: Date | null;
+        generationUsage: DataAppGenerationUsage | null;
+    } | null> {
+        const thread = await this.findThreadByUuid(appThreadUuid);
+        if (!thread) return null;
+        const row = await this.database(AppVersionsTableName)
+            .where('app_id', thread.app_id)
+            .andWhere((q) => {
+                void q.where('app_thread_uuid', appThreadUuid);
+                if (thread.thread_number === 1) {
+                    void q.orWhereNull('app_thread_uuid');
+                }
+            })
+            .whereIn('status', [...APP_VERSION_TERMINAL_STATUSES])
+            .andWhere('version', '<', beforeVersion)
+            .orderBy('version', 'desc')
+            .select('version', 'status_updated_at', 'generation_usage')
+            .first();
+        if (!row) return null;
+        return {
+            version: row.version,
+            statusUpdatedAt: row.status_updated_at,
+            generationUsage: row.generation_usage,
+        };
+    }
+
     // Whether a version other than `excludeVersion` ran the agent in this thread.
     // Thread 1 predates narration, so any other version counts there.
     async threadHasVersionThatReachedCodingAgent(
