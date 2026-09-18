@@ -534,6 +534,7 @@ const getMockedProjectService = (
             | 'featureFlagModel'
             | 'projectDbtSourcesModel'
             | 'warehouseAvailableTablesModel'
+            | 'userWarehouseCredentialsModel'
         >
     > = {},
 ) =>
@@ -563,9 +564,11 @@ const getMockedProjectService = (
         s3CacheClient: {} as S3CacheClient,
         analyticsModel: {} as AnalyticsModel,
         dashboardModel: dashboardModel as unknown as DashboardModel,
-        userWarehouseCredentialsModel: {
-            findForProjectWithSecrets: vi.fn(async () => undefined),
-        } as unknown as UserWarehouseCredentialsModel,
+        userWarehouseCredentialsModel:
+            overrides.userWarehouseCredentialsModel ??
+            ({
+                findForProjectWithSecrets: vi.fn(async () => undefined),
+            } as unknown as UserWarehouseCredentialsModel),
         warehouseAvailableTablesModel:
             overrides.warehouseAvailableTablesModel ??
             ({} as WarehouseAvailableTablesModel),
@@ -4367,6 +4370,80 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('getProjectCredentialsPreference', () => {
+        const findForProject = vi.fn<
+            UserWarehouseCredentialsModel['findForProject']
+        >(async () => undefined);
+        const preferenceService = getMockedProjectService(lightdashConfigMock, {
+            userWarehouseCredentialsModel: {
+                findForProject,
+            } as unknown as UserWarehouseCredentialsModel,
+        });
+
+        afterEach(() => {
+            projectModel.resolveConnection.mockReset();
+            projectModel.resolveConnection.mockImplementation(
+                async (_projectUuid, connectionUuid) => ({
+                    ...runtimeConnection,
+                    connectionUuid:
+                        connectionUuid ?? runtimeConnection.connectionUuid,
+                }),
+            );
+        });
+
+        test('returns no preference when several connections have no selector', async () => {
+            projectModel.resolveConnection.mockRejectedValueOnce(
+                new MultipleConnectionsError(),
+            );
+
+            await expect(
+                preferenceService.getProjectCredentialsPreference(
+                    user,
+                    projectUuid,
+                ),
+            ).resolves.toBeUndefined();
+            expect(findForProject).not.toHaveBeenCalled();
+            expect(
+                projectModel.getWarehouseCredentialsForProject,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects an invalid explicit selector', async () => {
+            projectModel.resolveConnection.mockRejectedValueOnce(
+                new NotFoundError('Connection not found'),
+            );
+
+            await expect(
+                preferenceService.getProjectCredentialsPreference(
+                    user,
+                    projectUuid,
+                    'foreign-connection',
+                ),
+            ).rejects.toBeInstanceOf(NotFoundError);
+            expect(findForProject).not.toHaveBeenCalled();
+        });
+
+        test('reads a selected connection preference without loading warehouse secrets', async () => {
+            await expect(
+                preferenceService.getProjectCredentialsPreference(
+                    user,
+                    projectUuid,
+                    'selected-connection',
+                ),
+            ).resolves.toBeUndefined();
+
+            expect(findForProject).toHaveBeenCalledExactlyOnceWith(
+                projectUuid,
+                user.userUuid,
+                runtimeConnection.warehouseType,
+                'selected-connection',
+            );
+            expect(
+                projectModel.getWarehouseCredentialsForProject,
+            ).not.toHaveBeenCalled();
+        });
+    });
+
     describe('user warehouse credentials override', () => {
         test('requires personal credentials for every connection when the project requires them', async () => {
             const scopedService = getMockedProjectService(lightdashConfigMock);
@@ -4391,25 +4468,6 @@ describe('ProjectService', () => {
                     requireUserCredentials: true,
                 });
 
-            vi.mocked(projectModel.getConnectionForProject)
-                .mockResolvedValueOnce({
-                    connectionUuid: 'required-connection',
-                    name: 'Required',
-                    warehouseType: WarehouseTypes.POSTGRES,
-                    organizationWarehouseCredentialsUuid: null,
-                    listAllDatabases: false,
-                    additionalDatabases: [],
-                    createdAt: new Date(),
-                })
-                .mockResolvedValueOnce({
-                    connectionUuid: 'shared-connection',
-                    name: 'Shared',
-                    warehouseType: WarehouseTypes.POSTGRES,
-                    organizationWarehouseCredentialsUuid: null,
-                    listAllDatabases: false,
-                    additionalDatabases: [],
-                    createdAt: new Date(),
-                });
             vi.mocked(projectModel.getWarehouseCredentialsForProject)
                 .mockResolvedValueOnce({
                     type: WarehouseTypes.POSTGRES,
@@ -5847,6 +5905,37 @@ describe('ProjectService', () => {
     });
 
     describe('getAllExploresSummary', () => {
+        test('loads the project payload and explores with two live connections', async () => {
+            const connections: Connection[] = [
+                runtimeConnection,
+                {
+                    ...runtimeConnection,
+                    connectionUuid: 'other-connection',
+                    name: 'Other warehouse',
+                },
+            ];
+            projectModel.get.mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                connections,
+                warehouseConnection: undefined,
+            });
+
+            const project = await service.getProject(projectUuid, account);
+            const explores = await service.getAllExploresSummary(
+                account,
+                projectUuid,
+                true,
+            );
+
+            expect(project.connections).toEqual(connections);
+            expect(project.warehouseConnection).toBeUndefined();
+            expect(explores).toEqual(expectedAllExploreSummary);
+            expect(projectModel.resolveConnection).not.toHaveBeenCalled();
+            expect(
+                projectModel.getWarehouseCredentialsForProject,
+            ).not.toHaveBeenCalled();
+        });
+
         test('should get all explores summary without filtering', async () => {
             projectModel.getSummary.mockClear();
             const result = await service.getAllExploresSummary(
