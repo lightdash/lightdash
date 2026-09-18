@@ -19,6 +19,7 @@ import {
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { type MergeFocus } from '../context/context';
 import { useMergeSafe } from '../context/useMerge';
+import { useMergeSourceNames } from './useMergeSourceNames';
 
 type ApplyMergeQuickFilterArgs = {
     filtersBySourceId: Record<string, Filters>;
@@ -94,6 +95,7 @@ export const applyMergeQuickFilter = ({
 
 export const useMergeQuickFilter = () => {
     const merge = useMergeSafe();
+    const { handleByName } = useMergeSourceNames();
     const dispatch = useExplorerDispatch();
     const store = useExplorerStore();
 
@@ -115,6 +117,25 @@ export const useMergeQuickFilter = () => {
             if (!merge?.mergeResults) return;
             const origin = merge.mergeResults.fieldOrigins[getItemId(field)];
             if (!origin) return;
+            // Results name sources as they ran; the editor holds them by handle
+            const toHandle = (sourceId: string) =>
+                handleByName[sourceId] ?? sourceId;
+            const editorOrigin: MergeFieldOrigin =
+                origin.kind === 'source'
+                    ? { ...origin, sourceId: toHandle(origin.sourceId) }
+                    : origin.kind === 'joinKey'
+                      ? {
+                            ...origin,
+                            fieldIdBySourceId: Object.fromEntries(
+                                Object.entries(origin.fieldIdBySourceId).map(
+                                    ([sourceId, fieldId]) => [
+                                        toHandle(sourceId),
+                                        fieldId,
+                                    ],
+                                ),
+                            ),
+                        }
+                      : origin;
 
             const primaryFiltersBefore = selectFilters(store.getState());
             const filtersBySourceId = Object.fromEntries([
@@ -127,7 +148,7 @@ export const useMergeQuickFilter = () => {
             const result = applyMergeQuickFilter({
                 filtersBySourceId,
                 field,
-                origin,
+                origin: editorOrigin,
                 value,
                 timezone,
                 operator,
@@ -156,7 +177,7 @@ export const useMergeQuickFilter = () => {
             }
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
-        [dispatch, merge, store],
+        [dispatch, handleByName, merge, store],
     );
 
     return { addFilter, canFilter };

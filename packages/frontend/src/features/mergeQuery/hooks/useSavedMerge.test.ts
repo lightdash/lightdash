@@ -1,6 +1,6 @@
 import { MergeJoinType, type MergeQuery } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { toSavedMerge } from './useSavedMerge';
+import { toSavedPipeline } from './useSavedMerge';
 
 const metricQuery = (exploreName: string) => ({
     exploreName,
@@ -12,87 +12,67 @@ const metricQuery = (exploreName: string) => ({
     tableCalculations: [],
 });
 
-describe('toSavedMerge', () => {
-    it('persists the exact effective join used by the runtime', () => {
+describe('toSavedPipeline', () => {
+    it('persists the exact effective join used by the runtime, the chart query by reference', () => {
         const mergeQuery: MergeQuery = {
             sources: [
-                { id: 'a', metricQuery: metricQuery('orders') },
-                { id: 'b', metricQuery: metricQuery('payments') },
+                { id: 'orders', metricQuery: metricQuery('orders') },
+                { id: 'payments', metricQuery: metricQuery('payments') },
             ],
             joinKey: [
                 {
-                    name: 'k0',
+                    name: 'orders_suggested_date',
                     fieldIdBySourceId: {
-                        a: 'orders_suggested_date',
-                        b: 'payments_suggested_date',
+                        orders: 'orders_suggested_date',
+                        payments: 'payments_suggested_date',
                     },
                 },
                 {
-                    name: 'k1',
+                    name: 'orders_status',
                     fieldIdBySourceId: {
-                        a: 'orders_status',
-                        b: 'payments_status',
+                        orders: 'orders_status',
+                        payments: 'payments_status',
                     },
                 },
             ],
             joinType: MergeJoinType.INNER,
             tableCalculations: [],
+            sorts: [{ fieldId: 'payments_payments_total', descending: true }],
             limit: 500,
         };
 
-        expect(toSavedMerge(mergeQuery)).toEqual({
-            primarySourceId: 'a',
-            sources: [
-                { id: 'a', kind: 'chart' },
-                {
-                    id: 'b',
-                    kind: 'query',
-                    metricQuery: metricQuery('payments'),
+        expect(toSavedPipeline(mergeQuery, 'orders')).toEqual({
+            queries: {
+                payments: {
+                    explore: 'payments',
+                    dimensions: ['payments_date'],
+                    metrics: ['payments_total'],
                 },
-            ],
-            joinKey: [
-                {
-                    name: 'k0',
-                    fieldIdBySourceId: {
-                        a: 'orders_suggested_date',
-                        b: 'payments_suggested_date',
-                    },
-                },
-                {
-                    name: 'k1',
-                    fieldIdBySourceId: {
-                        a: 'orders_status',
-                        b: 'payments_status',
-                    },
-                },
-            ],
-            joinType: MergeJoinType.INNER,
-            tableCalculations: [],
+            },
+            join: MergeJoinType.INNER,
+            keys: {
+                orders_suggested_date: ['payments.payments_suggested_date'],
+                orders_status: ['payments.payments_status'],
+            },
+            sort: [{ by: 'payments.payments_total', direction: 'desc' }],
+            limit: 500,
         });
     });
 
-    it('persists additional sources without changing the schema', () => {
+    it('keeps the names a saved chart fixed and the repeat flag per query', () => {
         const mergeQuery: MergeQuery = {
             sources: [
                 { id: 'a', metricQuery: metricQuery('orders') },
                 {
-                    id: 'payments',
+                    id: 'b',
                     metricQuery: metricQuery('payments'),
                     repeatValues: true,
-                },
-                {
-                    id: 'subscriptions',
-                    metricQuery: metricQuery('subscriptions'),
                 },
             ],
             joinKey: [
                 {
-                    name: 'date',
-                    fieldIdBySourceId: {
-                        a: 'orders_date',
-                        payments: 'payments_date',
-                        subscriptions: 'subscriptions_date',
-                    },
+                    name: 'join_key_0',
+                    fieldIdBySourceId: { a: 'orders_date', b: 'payments_date' },
                 },
             ],
             joinType: MergeJoinType.FULL,
@@ -100,23 +80,20 @@ describe('toSavedMerge', () => {
             limit: 500,
         };
 
-        expect(toSavedMerge(mergeQuery)).toMatchObject({
-            primarySourceId: 'a',
-            sources: [
-                { id: 'a', kind: 'chart' },
-                { id: 'payments', kind: 'query' },
-                { id: 'subscriptions', kind: 'query' },
-            ],
-            repeatValuesSourceIds: ['payments'],
-            joinKey: [
-                {
-                    fieldIdBySourceId: {
-                        a: 'orders_date',
-                        payments: 'payments_date',
-                        subscriptions: 'subscriptions_date',
-                    },
+        expect(toSavedPipeline(mergeQuery, 'a')).toEqual({
+            chartAs: 'a',
+            queries: {
+                b: {
+                    explore: 'payments',
+                    dimensions: ['payments_date'],
+                    metrics: ['payments_total'],
+                    repeat: true,
                 },
-            ],
+            },
+            join: MergeJoinType.FULL,
+            keys: { orders_date: ['b.payments_date'] },
+            keyNames: { orders_date: 'join_key_0' },
+            limit: 500,
         });
     });
 });

@@ -41,7 +41,7 @@ import {
     NotFoundError,
     Organization,
     ParameterError,
-    parseSavedMergeQuery,
+    parseStoredPipeline,
     Project,
     ResolvedProjectColorPalette,
     SAVED_MERGE_QUERY_SCHEMA_VERSION,
@@ -56,6 +56,7 @@ import {
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
+    upgradeSavedMergeQuery,
     type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -329,6 +330,7 @@ const createSavedChartVersion = async (
         parameters,
         updatedByUser,
         merge,
+        pipeline,
     }: CreateSavedChartVersion,
 ): Promise<void> => {
     await db.transaction(async (trx) => {
@@ -366,12 +368,31 @@ const createSavedChartVersion = async (
             })
             .returning('*');
         // Chart versions are immutable, so this is an insert per version and
-        // never an update. Only versions that actually merge get a row.
-        if (merge) {
+        // never an update. Only versions that actually merge get a row. A
+        // request may still send the schema v2 merge; the row is a pipeline.
+        const storedPipeline =
+            pipeline ??
+            (merge
+                ? upgradeSavedMergeQuery(merge, {
+                      exploreName: tableName,
+                      dimensions,
+                      metrics,
+                      filters,
+                      sorts,
+                      limit,
+                      tableCalculations,
+                      additionalMetrics,
+                      customDimensions,
+                      metricOverrides,
+                      dimensionOverrides,
+                      timezone,
+                  })
+                : null);
+        if (storedPipeline) {
             await trx('saved_queries_version_merges').insert({
                 saved_queries_version_id: version.saved_queries_version_id,
                 schema_version: SAVED_MERGE_QUERY_SCHEMA_VERSION,
-                merge: JSON.stringify(merge),
+                merge: JSON.stringify(storedPipeline),
             });
         }
 
@@ -599,6 +620,7 @@ export const createSavedChart = async (
         slug,
         forceSlug,
         merge,
+        pipeline,
     }: CreateSavedChart & {
         updatedByUser: UpdatedByUser;
         slug: string;
@@ -728,6 +750,7 @@ export const createSavedChart = async (
                         parameters,
                         updatedByUser,
                         merge,
+                        pipeline,
                     },
                 );
                 return newSavedChart.saved_query_uuid;
@@ -2450,13 +2473,25 @@ export class SavedChartModel {
                     mergeQuery,
                 ]);
 
+                const metricQuery = SavedChartModel.buildMetricQuery(
+                    savedQuery,
+                    {
+                        fields,
+                        sorts,
+                        tableCalculations,
+                        additionalMetricsRows,
+                        customBinDimensionsRows,
+                        customSqlDimensionsRows,
+                    },
+                );
                 // An unknown future shape leaves the chart working without its
                 // merge rather than failing the whole chart.
-                const merge = mergeRow
-                    ? parseSavedMergeQuery(
-                          mergeRow.schema_version,
-                          mergeRow.merge,
-                      )
+                const pipeline = mergeRow
+                    ? parseStoredPipeline({
+                          schemaVersion: mergeRow.schema_version,
+                          value: mergeRow.merge,
+                          chartMetricQuery: metricQuery,
+                      })
                     : null;
 
                 const columnOrder: string[] = [
@@ -2484,21 +2519,14 @@ export class SavedChartModel {
                     name: savedQuery.name,
                     description: savedQuery.description,
                     tableName: savedQuery.explore_name,
-                    merge,
+                    pipeline,
                     updatedAt: savedQuery.created_at,
                     updatedByUser: {
                         userUuid: savedQuery.user_uuid,
                         firstName: savedQuery.first_name,
                         lastName: savedQuery.last_name,
                     },
-                    metricQuery: SavedChartModel.buildMetricQuery(savedQuery, {
-                        fields,
-                        sorts,
-                        tableCalculations,
-                        additionalMetricsRows,
-                        customBinDimensionsRows,
-                        customSqlDimensionsRows,
-                    }),
+                    metricQuery,
                     parameters: savedQuery.parameters || undefined,
                     chartConfig,
                     tableConfig: {
@@ -2685,30 +2713,32 @@ export class SavedChartModel {
         return charts.map((chart) => {
             const versionId = chart.saved_queries_version_id;
             const mergeRow = mergeByVersion.get(versionId)?.[0];
+            const metricQuery = SavedChartModel.buildMetricQuery(chart, {
+                fields: fieldsByVersion.get(versionId) ?? [],
+                sorts: sortsByVersion.get(versionId) ?? [],
+                tableCalculations:
+                    tableCalculationsByVersion.get(versionId) ?? [],
+                additionalMetricsRows:
+                    additionalMetricsByVersion.get(versionId) ?? [],
+                customBinDimensionsRows:
+                    customBinDimensionsByVersion.get(versionId) ?? [],
+                customSqlDimensionsRows:
+                    customSqlDimensionsByVersion.get(versionId) ?? [],
+            });
             return {
                 uuid: chart.saved_query_uuid,
                 name: chart.name,
                 spaceUuid: chart.space_uuid,
-                metricQuery: SavedChartModel.buildMetricQuery(chart, {
-                    fields: fieldsByVersion.get(versionId) ?? [],
-                    sorts: sortsByVersion.get(versionId) ?? [],
-                    tableCalculations:
-                        tableCalculationsByVersion.get(versionId) ?? [],
-                    additionalMetricsRows:
-                        additionalMetricsByVersion.get(versionId) ?? [],
-                    customBinDimensionsRows:
-                        customBinDimensionsByVersion.get(versionId) ?? [],
-                    customSqlDimensionsRows:
-                        customSqlDimensionsByVersion.get(versionId) ?? [],
-                }),
+                metricQuery,
                 parameters: chart.parameters || undefined,
                 // An unknown future shape leaves the chart working without its
                 // merge rather than failing the whole chart.
-                merge: mergeRow
-                    ? parseSavedMergeQuery(
-                          mergeRow.schema_version,
-                          mergeRow.merge,
-                      )
+                pipeline: mergeRow
+                    ? parseStoredPipeline({
+                          schemaVersion: mergeRow.schema_version,
+                          value: mergeRow.merge,
+                          chartMetricQuery: metricQuery,
+                      })
                     : null,
             };
         });

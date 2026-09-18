@@ -30,7 +30,6 @@ import {
     DEFAULT_ADDITIONAL_SOURCE_ID,
     EMPTY_MERGE,
     emptyMergeSource,
-    JOIN_KEY,
     PRIMARY_SOURCE_ID,
 } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
@@ -39,6 +38,7 @@ import {
     type JoinFieldCandidate,
     type RankedJoinFieldCandidates,
 } from '../utils/rankJoinFieldCandidates';
+import { useMergeSourceNames } from './useMergeSourceNames';
 
 /**
  * Everything derived from the selected sources and their relationship:
@@ -68,6 +68,11 @@ export const useMergeSetup = () => {
     const additionalSource =
         additionalSources[0] ?? emptyMergeSource(DEFAULT_ADDITIONAL_SOURCE_ID);
     const additionalSourceId = additionalSource.id;
+    // The editor addresses sources by handle; the merge runs them by name
+    const sourceNames = useMergeSourceNames();
+    const primaryRuntimeId = sourceNames.nameByHandle[PRIMARY_SOURCE_ID];
+    const additionalRuntimeId =
+        sourceNames.nameByHandle[additionalSourceId] ?? additionalSourceId;
 
     const { data: primaryExplore } = useExplore(tableName, {
         refetchOnMount: false,
@@ -258,8 +263,10 @@ export const useMergeSetup = () => {
         return joinParts.map((part, index) => {
             const chosenPrimary = part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
             const chosenAdditional = part.fieldIdBySourceId[additionalSourceId];
+            const savedName = part.name ? { name: part.name } : {};
             if (index > 0) {
                 return {
+                    ...savedName,
                     fieldIdBySourceId: {
                         [PRIMARY_SOURCE_ID]: chosenPrimary ?? null,
                         [additionalSourceId]: chosenAdditional ?? null,
@@ -279,6 +286,7 @@ export const useMergeSetup = () => {
                 additionalSource.dimensions[0] ??
                 null;
             return {
+                ...savedName,
                 fieldIdBySourceId: {
                     [PRIMARY_SOURCE_ID]: primary,
                     [additionalSourceId]: additional,
@@ -316,8 +324,10 @@ export const useMergeSetup = () => {
         () =>
             getUnaccountedDimensions(
                 { id: PRIMARY_SOURCE_ID, metricQuery },
-                completeParts.map((part, index) => ({
-                    name: `${JOIN_KEY}_${index}`,
+                completeParts.map((part) => ({
+                    name:
+                        part.name ??
+                        (part.fieldIdBySourceId[PRIMARY_SOURCE_ID] as string),
                     fieldIdBySourceId: {
                         [PRIMARY_SOURCE_ID]: part.fieldIdBySourceId[
                             PRIMARY_SOURCE_ID
@@ -334,8 +344,10 @@ export const useMergeSetup = () => {
                     id: additionalSourceId,
                     metricQuery: additionalMetricQuery,
                 },
-                completeParts.map((part, index) => ({
-                    name: `${JOIN_KEY}_${index}`,
+                completeParts.map((part) => ({
+                    name:
+                        part.name ??
+                        (part.fieldIdBySourceId[PRIMARY_SOURCE_ID] as string),
                     fieldIdBySourceId: {
                         [additionalSourceId]: part.fieldIdBySourceId[
                             additionalSourceId
@@ -514,32 +526,36 @@ export const useMergeSetup = () => {
         if (!additionalSource.exploreName || completeParts.length === 0)
             return null;
 
-        const joinKey = completeParts.map((part, index) => ({
-            name: `${JOIN_KEY}_${index}`,
+        // A key column is named after the chart's field, unless the saved
+        // chart fixed another name
+        const joinKey = completeParts.map((part) => ({
+            name:
+                part.name ??
+                (part.fieldIdBySourceId[PRIMARY_SOURCE_ID] as string),
             fieldIdBySourceId: {
-                [PRIMARY_SOURCE_ID]: part.fieldIdBySourceId[
+                [primaryRuntimeId]: part.fieldIdBySourceId[
                     PRIMARY_SOURCE_ID
                 ] as string,
-                [additionalSourceId]: part.fieldIdBySourceId[
+                [additionalRuntimeId]: part.fieldIdBySourceId[
                     additionalSourceId
                 ] as string,
             },
         }));
 
-        const repeat = (sourceId: string) =>
-            repeatValuesSourceIds.includes(sourceId)
+        const repeat = (handle: string) =>
+            repeatValuesSourceIds.includes(handle)
                 ? { repeatValues: true }
                 : {};
         return {
             sources: [
                 {
                     ...repeat(PRIMARY_SOURCE_ID),
-                    id: PRIMARY_SOURCE_ID,
+                    id: primaryRuntimeId,
                     metricQuery,
                 },
                 {
                     ...repeat(additionalSourceId),
-                    id: additionalSourceId,
+                    id: additionalRuntimeId,
                     metricQuery: additionalMetricQuery,
                 },
             ],
@@ -550,7 +566,7 @@ export const useMergeSetup = () => {
             // sorts its own result by the merged field it maps to
             sorts: toMergedSorts({
                 sorts: metricQuery.sorts,
-                primarySourceId: PRIMARY_SOURCE_ID,
+                primarySourceId: primaryRuntimeId,
                 primaryMetricQuery: metricQuery,
                 joinKey,
             }),
@@ -559,6 +575,8 @@ export const useMergeSetup = () => {
     }, [
         additionalSource.exploreName,
         additionalSourceId,
+        primaryRuntimeId,
+        additionalRuntimeId,
         completeParts,
         metricQuery,
         additionalMetricQuery,
@@ -591,12 +609,17 @@ export const useMergeSetup = () => {
                     : [],
             );
         return {
-            [PRIMARY_SOURCE_ID]: Object.fromEntries(collect(primaryItemMap)),
-            [additionalSourceId]: Object.fromEntries(
+            [primaryRuntimeId]: Object.fromEntries(collect(primaryItemMap)),
+            [additionalRuntimeId]: Object.fromEntries(
                 collect(additionalItemMap),
             ),
         };
-    }, [primaryItemMap, additionalItemMap, additionalSourceId]);
+    }, [
+        primaryItemMap,
+        additionalItemMap,
+        primaryRuntimeId,
+        additionalRuntimeId,
+    ]);
 
     const joinKeyErrors = useMemo(
         () =>
@@ -688,5 +711,6 @@ export const useMergeSetup = () => {
         canRun,
         handleRun,
         mergeQuery,
+        sourceNames,
     };
 };

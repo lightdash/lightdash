@@ -81,6 +81,7 @@ export type ChartAsCode = Omit<
         | 'metricQuery'
         | 'chartConfig'
         | 'pivotConfig'
+        | 'pipeline'
         | 'merge'
         | 'slug'
         | 'parameters'

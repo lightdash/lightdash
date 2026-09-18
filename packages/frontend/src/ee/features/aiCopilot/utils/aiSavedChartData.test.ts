@@ -216,7 +216,12 @@ describe('buildAiSavedChartData', () => {
                 columnOrder: ['a_total'],
             });
             expect(result?.pivotConfig).toEqual({ columns: ['a_total'] });
-            expect(result?.merge?.primarySourceId).toBe(PRIMARY_SOURCE_ID);
+            // This fixture runs its sources under the editor handles, so the
+            // pipeline fixes them as names
+            expect(result?.pipeline?.chartAs).toBe(PRIMARY_SOURCE_ID);
+            expect(Object.keys(result?.pipeline?.queries ?? {})).toEqual([
+                DEFAULT_ADDITIONAL_SOURCE_ID,
+            ]);
         });
 
         it('returns undefined for a merge that could not be canonicalized', () => {

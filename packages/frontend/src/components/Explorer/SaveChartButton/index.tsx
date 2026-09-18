@@ -75,12 +75,12 @@ const SaveChartButton: FC<{
     // Merge state lives outside the explorer store, so it is attached at save
     // time rather than arriving with the chart version — and its changes are
     // tracked here too, or editing only the merge would leave Save inert.
-    const { merge, isValid: isMergeValid } = useSavedMerge();
+    const { pipeline, isValid: isMergeValid } = useSavedMerge();
     const hasMergeChanges = useMemo(() => {
-        const saved = savedChart?.merge ?? null;
-        if (merge === null || saved === null) return merge !== saved;
-        return !deepEqual(merge, saved);
-    }, [merge, savedChart?.merge]);
+        const saved = savedChart?.pipeline ?? null;
+        if (pipeline === null || saved === null) return pipeline !== saved;
+        return !deepEqual(pipeline, saved);
+    }, [pipeline, savedChart?.pipeline]);
 
     // Read isValidQuery from Redux
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
@@ -151,7 +151,7 @@ const SaveChartButton: FC<{
                     uuid: savedChart.uuid,
                     payload: {
                         ...unsavedChartVersionForSave,
-                        merge,
+                        pipeline,
                         ...verificationUpdate,
                     },
                 },
@@ -348,7 +348,7 @@ const SaveChartButton: FC<{
             {unsavedChartVersionForSave && (
                 <ChartCreateModal
                     opened={isQueryModalOpen}
-                    savedData={{ ...unsavedChartVersionForSave, merge }}
+                    savedData={{ ...unsavedChartVersionForSave, pipeline }}
                     colorPaletteUuid={stagedColorPaletteUuid}
                     onClose={() => {
                         setIsQueryModalOpen(false);

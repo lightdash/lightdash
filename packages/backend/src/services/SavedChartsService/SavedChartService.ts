@@ -1074,6 +1074,7 @@ export class SavedChartService
                     pivotConfig: chartVersion.pivotConfig,
                     parameters: chartVersion.parameters,
                     merge: chartVersion.merge,
+                    pipeline: chartVersion.pipeline,
                     verified: verificationAfterUpdate !== null,
                 },
                 verificationAfterUpdate,
