@@ -104,6 +104,7 @@ import AppHistoryDrawer from '../features/apps/components/AppHistoryDrawer';
 import AppPreview from '../features/apps/components/AppPreview';
 import AppVersionNarration from '../features/apps/components/AppVersionNarration';
 import ClarificationQuestionList from '../features/apps/components/ClarificationQuestionList';
+import ClearAgentContextAction from '../features/apps/components/ClearAgentContextAction';
 import ConnectionChip from '../features/apps/components/ConnectionChip';
 import { ElementPickerButton } from '../features/apps/components/ElementPickerButton';
 import { ElementRefPill } from '../features/apps/components/ElementRefPill';
@@ -111,6 +112,7 @@ import LoadingDots from '../features/apps/components/LoadingDots';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
 import { RestoreAppVersionModal } from '../features/apps/components/RestoreAppVersionModal';
 import { SampleDataButton } from '../features/apps/components/SampleDataButton';
+import ThreadDivider from '../features/apps/components/ThreadDivider';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -159,7 +161,7 @@ import {
 } from '../features/apps/utils/elementRefs';
 import { getHistoryLiveBuild } from '../features/apps/utils/historyLiveBuild';
 import { getVersionNarration } from '../features/apps/utils/versionNarration';
-import { versionsToChatMessages } from '../features/apps/utils/versionsToChatMessages';
+import { versionsToThreadChat } from '../features/apps/utils/versionsToChatMessages';
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTestPanel';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
@@ -840,17 +842,23 @@ const AppGenerate: FC = () => {
         }
     }, [serverVersionCount]);
 
-    // Convert fetched versions into chat messages (oldest first)
-    const historyMessages = useMemo<ChatMessage[]>(
+    // The chat shows the newest thread only; earlier threads live in History.
+    const currentThreadNumber =
+        appData?.pages?.[0]?.currentThread.number ?? null;
+    const {
+        messages: historyMessages,
+        divider: threadDivider,
+        isThreadComplete,
+    } = useMemo(
         () =>
-            versionsToChatMessages(allVersions, {
+            versionsToThreadChat(allVersions, currentThreadNumber, {
                 charts: sentChartsByPrompt.current,
                 connections: sentConnectionsByPrompt.current,
                 imagePreviewUrls: sentImagesByPrompt.current,
                 files: sentFilesByPrompt.current,
                 dashboardName: sentDashboardByPrompt.current,
             }),
-        [allVersions],
+        [allVersions, currentThreadNumber],
     );
 
     // Lookup table: version number → full version summary. Used to retrieve
@@ -1944,25 +1952,28 @@ const AppGenerate: FC = () => {
                             data-tour-label="Every prompt makes a new version"
                             data-tour-docs="data-apps.mdx#iterating-on-your-app:1-2"
                         >
-                            {hasUnloadedEarlierVersions && (
-                                <Group
-                                    gap="xs"
-                                    justify="center"
-                                    p="xs"
-                                    onClick={loadEarlierMessages}
-                                    className={classes.loadEarlierRow}
-                                >
-                                    {isFetchingNextPage ? (
-                                        <Loader size="xs" />
-                                    ) : null}
-                                    <Text size="xs" c="dimmed">
-                                        {isFetchingNextPage
-                                            ? 'Loading earlier messages...'
-                                            : 'Load earlier messages'}
-                                    </Text>
-                                </Group>
-                            )}
-                            {messages.length === 0 && !isLoading ? (
+                            {hasUnloadedEarlierVersions &&
+                                !isThreadComplete && (
+                                    <Group
+                                        gap="xs"
+                                        justify="center"
+                                        p="xs"
+                                        onClick={loadEarlierMessages}
+                                        className={classes.loadEarlierRow}
+                                    >
+                                        {isFetchingNextPage ? (
+                                            <Loader size="xs" />
+                                        ) : null}
+                                        <Text size="xs" c="dimmed">
+                                            {isFetchingNextPage
+                                                ? 'Loading earlier messages...'
+                                                : 'Load earlier messages'}
+                                        </Text>
+                                    </Group>
+                                )}
+                            {messages.length === 0 &&
+                            threadDivider === null &&
+                            !isLoading ? (
                                 <Box className={classes.emptyChat}>
                                     {!newAppLanding && (
                                         <Text
@@ -1986,6 +1997,13 @@ const AppGenerate: FC = () => {
                                                 : ''
                                         }`}
                                     >
+                                        {threadDivider && (
+                                            <ThreadDivider
+                                                fromVersion={
+                                                    threadDivider.fromVersion
+                                                }
+                                            />
+                                        )}
                                         {messages.map((msg, i) =>
                                             msg.role === 'user' ? (
                                                 <Box
@@ -3067,6 +3085,15 @@ const AppGenerate: FC = () => {
                                         }
                                         toolbarRight={
                                             <Group gap="xs">
+                                                {activeAppUuid && (
+                                                    <ClearAgentContextAction
+                                                        projectUuid={
+                                                            projectUuid
+                                                        }
+                                                        appUuid={activeAppUuid}
+                                                        disabled={isLoading}
+                                                    />
+                                                )}
                                                 <ModelPicker
                                                     value={selectedModel}
                                                     onChange={handleModelChange}
@@ -3269,10 +3296,7 @@ const AppGenerate: FC = () => {
                                     hasEarlier={hasUnloadedEarlierVersions}
                                     isFetchingEarlier={isFetchingNextPage}
                                     fetchEarlier={loadEarlierMessages}
-                                    currentThreadNumber={
-                                        appData?.pages?.[0]?.currentThread
-                                            .number ?? null
-                                    }
+                                    currentThreadNumber={currentThreadNumber}
                                 />
                             )}
                             {restoreTargetVersion !== null && activeAppUuid && (
