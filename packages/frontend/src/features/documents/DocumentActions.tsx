@@ -4,7 +4,7 @@ import {
     type Document,
 } from '@lightdash/common';
 import { ActionIcon, Button, Group, Menu, Tooltip } from '@mantine/core';
-import { IconCode, IconDots, IconTrash } from '@tabler/icons-react';
+import { IconCode, IconCopy, IconDots, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
@@ -15,12 +15,16 @@ import DirectAccessModal from '../directAccess/components/DirectAccessModal';
 import { useCanManageDirectAccess } from '../directAccess/hooks/useCanManageDirectAccess';
 import { useDirectAccessAvailability } from '../directAccess/hooks/useDirectAccess';
 import DocumentAsCodeModal from './DocumentAsCodeModal';
+import DocumentDuplicateModal from './DocumentDuplicateModal';
 import { useCanDeleteDocument } from './useCanDeleteDocument';
+import { useDocumentCreationSpaces } from './useDocumentCreationSpaces';
 
 const DocumentActions = ({ document }: { document: Document }) => {
     const [isShareOpen, setShareOpen] = useState(false);
     const [isDeleteOpen, setDeleteOpen] = useState(false);
     const [isCodeOpen, setCodeOpen] = useState(false);
+    const [isDuplicateOpen, setDuplicateOpen] = useState(false);
+    const { writableSpaces } = useDocumentCreationSpaces(document.projectUuid);
     const navigate = useNavigate();
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const canDelete = useCanDeleteDocument(document);
@@ -67,6 +71,14 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     </Tooltip>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    {writableSpaces.length > 0 && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconCopy} />}
+                            onClick={() => setDuplicateOpen(true)}
+                        >
+                            Duplicate
+                        </Menu.Item>
+                    )}
                     <Menu.Item
                         leftSection={<MantineIcon icon={IconCode} />}
                         onClick={() => setCodeOpen(true)}
@@ -101,6 +113,17 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     document={document}
                     opened
                     onClose={() => setCodeOpen(false)}
+                />
+            )}
+            {isDuplicateOpen && (
+                <DocumentDuplicateModal
+                    projectUuid={document.projectUuid}
+                    documentUuid={document.documentUuid}
+                    name={document.name}
+                    description={document.description}
+                    spaceUuid={document.spaceUuid}
+                    opened
+                    onClose={() => setDuplicateOpen(false)}
                 />
             )}
         </Group>

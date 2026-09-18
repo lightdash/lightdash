@@ -32,6 +32,33 @@ describe('Document read boundary', () => {
     );
 });
 
+describe('Document duplicate boundary', () => {
+    test('forwards the source identifier and destination to the authorized service', async () => {
+        const duplicate = vi
+            .fn()
+            .mockResolvedValue({ documentUuid: 'new-document' });
+        const controller = new DocumentController({
+            getDocumentService: () => ({ duplicate }),
+        } as unknown as ConstructorParameters<typeof DocumentController>[0]);
+        const request = {
+            account: { user: { type: 'registered' } },
+        } as unknown as express.Request;
+        const body = { name: 'Copy', spaceUuid: 'destination' };
+        await expect(
+            controller.duplicate(request, 'project', 'weekly-review', body),
+        ).resolves.toEqual({
+            status: 'ok',
+            results: { documentUuid: 'new-document' },
+        });
+        expect(duplicate).toHaveBeenCalledWith(
+            request.account,
+            'project',
+            'weekly-review',
+            body,
+        );
+    });
+});
+
 describe('Document chart query boundary', () => {
     const setup = (body: Record<string, unknown>) => {
         const executeAsyncDocumentCellQuery = vi.fn().mockResolvedValue({

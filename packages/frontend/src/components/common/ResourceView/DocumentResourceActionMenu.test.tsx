@@ -23,6 +23,19 @@ const mocks = vi.hoisted(() => ({
     available: true,
     spaceRole: 'editor' as string | undefined,
     modal: vi.fn(),
+    canDuplicate: false,
+    duplicateModal: vi.fn(),
+}));
+vi.mock('../../../features/documents/useDocumentCreationSpaces', () => ({
+    useDocumentCreationSpaces: () => ({
+        writableSpaces: mocks.canDuplicate ? [{ uuid: 'destination' }] : [],
+    }),
+}));
+vi.mock('../../../features/documents/DocumentDuplicateModal', () => ({
+    default: (props: unknown) => {
+        mocks.duplicateModal(props);
+        return <div>Duplicate document form</div>;
+    },
 }));
 const ability = new Ability<PossibleAbilities>([
     {
@@ -129,6 +142,8 @@ describe('Document resource actions', () => {
         mocks.available = true;
         mocks.spaceRole = 'editor';
         mocks.modal.mockReset();
+        mocks.canDuplicate = false;
+        mocks.duplicateModal.mockReset();
     });
     const renderMenu = (roles: SpaceMemberRole[] = [], allowDelete = true) => {
         const onAction = vi.fn();
@@ -166,6 +181,21 @@ describe('Document resource actions', () => {
                 screen.queryByRole('menuitem', { name }),
             ).not.toBeInTheDocument();
         }
+    });
+    it('offers duplication to a reader who can create in another space', () => {
+        mocks.spaceRole = 'viewer';
+        mocks.canDuplicate = true;
+        renderMenu([SpaceMemberRole.VIEWER]);
+        expect(
+            screen.queryByRole('menuitem', { name: 'Move' }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Duplicate' }));
+        expect(mocks.duplicateModal).toHaveBeenCalledWith(
+            expect.objectContaining({
+                documentUuid: 'document',
+                projectUuid: 'project',
+            }),
+        );
     });
     it('offers delete with inherited editor access', () => {
         const onAction = renderMenu();

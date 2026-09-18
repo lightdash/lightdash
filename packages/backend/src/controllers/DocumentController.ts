@@ -7,6 +7,7 @@ import {
     type ApiDocumentResponse,
     type ApiErrorPayload,
     type CreateDocumentRequest,
+    type DuplicateDocumentRequest,
     type ExecuteDocumentCellQueryRequest,
     type UpdateDocumentContentRequest,
     type UpdateDocumentMetadataRequest,
@@ -89,6 +90,28 @@ export class DocumentController extends BaseController {
             results: await this.services
                 .getDocumentService()
                 .create(req.account, projectUuid, body),
+        };
+    }
+
+    @Post('{documentUuidOrSlug}/duplicate')
+    @OperationId('DuplicateDocument')
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    async duplicate(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() documentUuidOrSlug: UuidOrSlug,
+        @Body() body: DuplicateDocumentRequest,
+    ): Promise<ApiDocumentResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDocumentService()
+                .duplicate(req.account, projectUuid, documentUuidOrSlug, body),
         };
     }
 

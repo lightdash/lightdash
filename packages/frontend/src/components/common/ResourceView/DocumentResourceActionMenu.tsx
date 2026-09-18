@@ -7,6 +7,7 @@ import {
 import { ActionIcon, Menu, Tooltip } from '@mantine/core';
 import {
     IconDots,
+    IconCopy,
     IconFolderSymlink,
     IconUsers,
     IconTrash,
@@ -17,7 +18,9 @@ import {
     useCanManageDirectAccess,
     useDirectAccessAvailability,
 } from '../../../features/directAccess';
+import DocumentDuplicateModal from '../../../features/documents/DocumentDuplicateModal';
 import { useCanDeleteDocument } from '../../../features/documents/useCanDeleteDocument';
+import { useDocumentCreationSpaces } from '../../../features/documents/useDocumentCreationSpaces';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
@@ -45,6 +48,9 @@ const DocumentResourceActionMenu = ({
     const availability = useDirectAccessAvailability();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
     const [isShareOpen, setIsShareOpen] = useState(false);
+    const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
+    const { writableSpaces } = useDocumentCreationSpaces(projectUuid);
+    const canDuplicate = writableSpaces.length > 0;
     const canManageAccess = useCanManageDirectAccess({
         projectUuid,
         spaceUuid,
@@ -70,7 +76,7 @@ const DocumentResourceActionMenu = ({
     if (
         flag.isError ||
         !flag.data?.enabled ||
-        (!canMove && !canShare && !canDelete)
+        (!canMove && !canShare && !canDelete && !canDuplicate)
     ) {
         return null;
     }
@@ -81,7 +87,7 @@ const DocumentResourceActionMenu = ({
                 opened={isOpen}
                 onOpen={onOpen}
                 onClose={onClose}
-                returnFocus={!isShareOpen}
+                returnFocus={!isShareOpen && !isDuplicateOpen}
             >
                 <Menu.Target>
                     <Tooltip label="Document actions">
@@ -94,6 +100,14 @@ const DocumentResourceActionMenu = ({
                     </Tooltip>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    {canDuplicate && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconCopy} />}
+                            onClick={() => setIsDuplicateOpen(true)}
+                        >
+                            Duplicate
+                        </Menu.Item>
+                    )}
                     {canMove && (
                         <Menu.Item
                             leftSection={
@@ -143,6 +157,17 @@ const DocumentResourceActionMenu = ({
                         resourceUuid: item.data.uuid,
                         name: item.data.name,
                     }}
+                />
+            )}
+            {isDuplicateOpen && (
+                <DocumentDuplicateModal
+                    projectUuid={projectUuid}
+                    documentUuid={item.data.uuid}
+                    name={item.data.name}
+                    description={item.data.description ?? ''}
+                    spaceUuid={spaceUuid}
+                    opened
+                    onClose={() => setIsDuplicateOpen(false)}
                 />
             )}
         </>

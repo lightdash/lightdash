@@ -163,6 +163,7 @@ const makeAccount = (role = OrganizationMemberRole.EDITOR): RegisteredAccount =>
 const setup = () => {
     const documentModel = {
         get: vi.fn().mockResolvedValue(document),
+        getBySlug: vi.fn().mockResolvedValue(document),
         create: vi.fn().mockResolvedValue(document),
         updateMetadata: vi.fn().mockResolvedValue(document),
         updateContent: vi.fn().mockResolvedValue(document),
@@ -208,7 +209,13 @@ const setup = () => {
     };
 };
 
-const mutations = ['create', 'metadata', 'content', 'replacement'] as const;
+const mutations = [
+    'create',
+    'metadata',
+    'content',
+    'replacement',
+    'duplicate',
+] as const;
 const mutate = (
     service: DocumentService,
     mutation: (typeof mutations)[number],
@@ -217,6 +224,11 @@ const mutate = (
     switch (mutation) {
         case 'create':
             return service.create(account, projectUuid, createInput);
+        case 'duplicate':
+            return service.duplicate(account, projectUuid, document.slug, {
+                name: 'Copy of Review',
+                spaceUuid,
+            });
         case 'metadata':
             return service.updateMetadata(account, projectUuid, documentUuid, {
                 name: 'Updated',
@@ -241,6 +253,124 @@ const mutate = (
 };
 
 describe('DocumentService mutations', () => {
+    test.each([semantic, merge])(
+        'duplicates current $content.source content without identity, grants or history',
+        async (cell) => {
+            const { service, documentModel, projectService } = setup();
+            const source = {
+                ...document,
+                description: 'Source description',
+                directAccessRoles: [SpaceMemberRole.ADMIN],
+                version: {
+                    ...document.version,
+                    versionNumber: 5,
+                    content: { cells: [markdown, cell] },
+                },
+            };
+            documentModel.getBySlug.mockResolvedValue(source);
+            const input = {
+                name: 'Copy of Review',
+                spaceUuid: 'destination-space',
+            };
+            await service.duplicate(
+                makeAccount(),
+                projectUuid,
+                source.slug,
+                input,
+            );
+            expect(documentModel.create).toHaveBeenCalledWith({
+                ...input,
+                projectUuid,
+                createdByUserUuid: userUuid,
+                description: source.description,
+                schemaVersion: 1,
+                content: source.version.content,
+            });
+            expect(source.version.versionNumber).toBe(5);
+            expect(source.version.content).toEqual({ cells: [markdown, cell] });
+            expect(documentModel.updateMetadata).not.toHaveBeenCalled();
+            expect(documentModel.updateContent).not.toHaveBeenCalled();
+            expect(projectService.compileQuery).toHaveBeenCalled();
+        },
+    );
+
+    test('duplicate may override description with an empty value', async () => {
+        const { service, documentModel } = setup();
+        documentModel.getBySlug.mockResolvedValue({
+            ...document,
+            description: 'Original',
+        });
+        await service.duplicate(makeAccount(), projectUuid, document.slug, {
+            name: 'Copy',
+            spaceUuid,
+            description: '',
+        });
+        expect(documentModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({ description: '' }),
+        );
+    });
+
+    test('duplicate rejects a source the caller cannot view', async () => {
+        const { service, documentModel, spacePermissionService, context } =
+            setup();
+        spacePermissionService.resolveAccess.mockResolvedValueOnce({
+            ...context,
+            inheritsFromOrgOrProject: false,
+            access: [],
+        });
+        await expect(mutate(service, 'duplicate')).rejects.toThrow(
+            NotFoundError,
+        );
+        expect(documentModel.create).not.toHaveBeenCalled();
+    });
+
+    test.each(['private', 'foreign-project', 'foreign-organization'])(
+        'duplicate rejects %s destination before writing',
+        async (destination) => {
+            const { service, documentModel, spacePermissionService, context } =
+                setup();
+            spacePermissionService.resolveAccess
+                .mockResolvedValueOnce(context)
+                .mockResolvedValueOnce({
+                    ...context,
+                    projectUuid:
+                        destination === 'foreign-project'
+                            ? destination
+                            : projectUuid,
+                    organizationUuid:
+                        destination === 'foreign-organization'
+                            ? destination
+                            : organizationUuid,
+                    inheritsFromOrgOrProject: false,
+                    access: [],
+                });
+            await expect(mutate(service, 'duplicate')).rejects.toThrow(
+                destination === 'private' ? ForbiddenError : NotFoundError,
+            );
+            expect(documentModel.create).not.toHaveBeenCalled();
+        },
+    );
+
+    test('direct source viewer can duplicate into a Space where they can create', async () => {
+        const { service, documentModel, spacePermissionService, context } =
+            setup();
+        spacePermissionService.resolveAccess.mockResolvedValueOnce({
+            ...context,
+            inheritsFromOrgOrProject: false,
+            access: [
+                {
+                    userUuid,
+                    role: SpaceMemberRole.VIEWER,
+                    grantedVia: 'document',
+                },
+            ],
+        } as never);
+        await expect(mutate(service, 'duplicate')).resolves.toMatchObject(
+            document,
+        );
+        expect(documentModel.create).toHaveBeenCalled();
+    });
+
     test.each(['metadata', 'content'] as const)(
         '%s edits recheck caller Space scope against the current Document',
         async (mutation) => {
