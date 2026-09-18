@@ -45,7 +45,7 @@ describe('RedshiftWarehouseClient', () => {
         expect(runQuery.mock.calls[1][3]).toBeUndefined();
     });
 
-    it('lists tables and views from svv_tables scoped to the database', async () => {
+    it('lists granted tables and views from svv_all_tables scoped to the database', async () => {
         const warehouse = new RedshiftWarehouseClient(credentials);
         const runQuery = vi
             .spyOn(warehouse, 'runQuery')
@@ -53,16 +53,28 @@ describe('RedshiftWarehouseClient', () => {
             .mockResolvedValueOnce({
                 rows: [
                     {
-                        table_catalog: 'warehouse',
-                        table_schema: 'public',
+                        database_name: 'warehouse',
+                        schema_name: 'public',
+                        table_name: 'orders',
+                        table_type: 'TABLE',
+                    },
+                    {
+                        database_name: 'warehouse',
+                        schema_name: 'public',
                         table_name: 'orders_lbv',
                         table_type: 'VIEW',
                     },
                     {
-                        table_catalog: 'warehouse',
-                        table_schema: 'spectrum',
+                        database_name: 'warehouse',
+                        schema_name: 'spectrum',
                         table_name: 'sales',
                         table_type: 'EXTERNAL TABLE',
+                    },
+                    {
+                        database_name: 'warehouse',
+                        schema_name: 'shared',
+                        table_name: 'customers',
+                        table_type: 'SHARED TABLE',
                     },
                 ],
                 fields: {},
@@ -71,10 +83,17 @@ describe('RedshiftWarehouseClient', () => {
         const tables = await warehouse.getAllTables();
 
         const [query, , , values] = runQuery.mock.calls[1];
-        expect(query).toContain('FROM svv_tables');
-        expect(query).toContain('table_catalog = $1');
+        expect(query).toContain('FROM svv_all_tables');
+        expect(query).toContain('database_name = $1');
+        expect(query).not.toContain('FROM svv_tables');
         expect(values).toEqual(['warehouse']);
         expect(tables).toEqual([
+            {
+                database: 'warehouse',
+                schema: 'public',
+                table: 'orders',
+                tableType: 'table',
+            },
             {
                 database: 'warehouse',
                 schema: 'public',
@@ -86,6 +105,12 @@ describe('RedshiftWarehouseClient', () => {
                 schema: 'spectrum',
                 table: 'sales',
                 tableType: 'external',
+            },
+            {
+                database: 'warehouse',
+                schema: 'shared',
+                table: 'customers',
+                tableType: 'table',
             },
         ]);
     });
@@ -115,7 +140,9 @@ describe('RedshiftWarehouseClient', () => {
         );
 
         const [query, , , values] = runQuery.mock.calls[1];
-        expect(query).toContain('FROM svv_columns');
+        expect(query).toContain('FROM svv_columns c');
+        expect(query).toContain('JOIN svv_all_tables');
+        expect(query).not.toContain('EXISTS');
         expect(values).toEqual(['orders_lbv', 'public', 'warehouse']);
         expect(fields).toEqual({
             warehouse: {
@@ -142,9 +169,27 @@ describe('RedshiftWarehouseClient', () => {
         expect(runQuery.mock.calls[1][0]).toContain(
             'FROM information_schema.tables',
         );
-        expect(runQuery.mock.calls[1][0]).not.toContain('svv_tables');
+        expect(runQuery.mock.calls[1][0]).not.toContain('svv_');
         expect(runQuery.mock.calls[2][0]).toContain(
             'FROM information_schema.columns',
+        );
+        expect(runQuery.mock.calls[2][0]).not.toContain('svv_');
+    });
+
+    it('keeps the grant-filtered table source', async () => {
+        const warehouse = new RedshiftWarehouseClient(credentials);
+        const runQuery = vi
+            .spyOn(warehouse, 'runQuery')
+            .mockResolvedValueOnce(redshiftVersion)
+            .mockResolvedValueOnce({ rows: [], fields: {} });
+
+        await warehouse.getAllTables();
+
+        const query = runQuery.mock.calls[1][0];
+        expect(query).not.toContain('svv_tables');
+        expect(query).not.toContain('FROM information_schema');
+        expect(query).toContain(
+            "schema_name NOT IN ('information_schema', 'pg_catalog', 'pg_internal')",
         );
     });
 });
