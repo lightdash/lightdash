@@ -2,6 +2,25 @@
 
 General development guidance for this repository lives in `CLAUDE.md` (architecture, package layout, lint/test/build/migration commands, code style). Read it first. Per-area notes also live in nested `AGENTS.md` files under `packages/`.
 
+## Coding-agent convergence
+
+Keep long sessions bounded instead of repeatedly growing or replaying context:
+
+- After two investigation tool-call groups, and after each failed test or
+  validation attempt, write a compact state checkpoint for yourself: accepted
+  behavior, evidence gathered, files in scope, current failure, and the single
+  next step. Use that checkpoint instead of replaying earlier output.
+- Do not repeat an unchanged search, test, validation, or other operation more
+  than once. A further attempt requires new evidence or a source/configuration
+  change; otherwise stop and re-plan from the latest checkpoint.
+- When the runtime provides packaged-skill activation, activate a skill before
+  reading its resources and retain the exact canonical resource paths it
+  advertises, including their full packaged-skill prefixes. Never guess a short
+  path. After any resource lookup failure, return to the retained advertised
+  path and retry it at most once; do not search for the packaged file. If no
+  advertised path exists, continue without the optional resource or report the
+  blocker.
+
 ## Cursor Cloud specific instructions
 
 Lightdash is a pnpm/Turbo monorepo (backend API, Vite frontend, `common`/`warehouses`/`formula` build-dep packages) that runs on Postgres + MinIO + a headless browser, all started via Docker.
