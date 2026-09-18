@@ -76,19 +76,22 @@ import { ContentLayoutControl } from './ContentLayoutControl';
 import { PageGrid, PageGridItem } from './PageGrid';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
-// Only charts and dashboards can be favorited — spaces and data apps have no
-// favorite toggle, so the star is hidden for them.
 const toFavoriteType = (
     content: SummaryContent,
-): ResourceViewItemType.CHART | ResourceViewItemType.DASHBOARD | null => {
+):
+    | ResourceViewItemType.CHART
+    | ResourceViewItemType.DASHBOARD
+    | ResourceViewItemType.DOCUMENT
+    | null => {
     switch (content.contentType) {
         case ContentType.CHART:
             return ResourceViewItemType.CHART;
         case ContentType.DASHBOARD:
             return ResourceViewItemType.DASHBOARD;
+        case ContentType.DOCUMENT:
+            return ResourceViewItemType.DOCUMENT;
         case ContentType.SPACE:
         case ContentType.DATA_APP:
-        case ContentType.DOCUMENT:
             return null;
         default:
             return assertUnreachable(content, 'Unknown collection content');

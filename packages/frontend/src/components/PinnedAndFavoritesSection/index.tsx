@@ -19,6 +19,7 @@ const GRID_GROUPS = [
     [ResourceViewItemType.SPACE],
     [ResourceViewItemType.DASHBOARD, ResourceViewItemType.CHART],
     [ResourceViewItemType.DATA_APP],
+    [ResourceViewItemType.DOCUMENT],
 ];
 
 const TYPE_SORT_ORDER: Record<string, number> = {
@@ -26,6 +27,7 @@ const TYPE_SORT_ORDER: Record<string, number> = {
     [ResourceViewItemType.DASHBOARD]: 1,
     [ResourceViewItemType.CHART]: 2,
     [ResourceViewItemType.DATA_APP]: 3,
+    [ResourceViewItemType.DOCUMENT]: 4,
 };
 
 const sortByType = (a: ResourceViewItem, b: ResourceViewItem): number =>
@@ -75,7 +77,7 @@ const PinnedAndFavoritesSection: FC<Props> = ({
                         name: 'My favorites',
                         icon: <MantineIcon icon={IconStar} size="sm" />,
                         infoTooltipText:
-                            'Your personally favorited spaces, dashboards, charts, and data apps.',
+                            'Your personally favorited spaces, dashboards, charts, data apps, and documents.',
                         hasReorder: false,
                         sort: sortByType,
                         filter: (item) =>

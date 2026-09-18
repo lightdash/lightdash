@@ -14,6 +14,19 @@ const mocks = vi.hoisted(() => ({
     codeModal: vi.fn(),
     canDuplicate: false,
     duplicateModal: vi.fn(),
+    isFavorite: false,
+    toggleFavorite: vi.fn(),
+}));
+vi.mock('../../hooks/favorites/useFavorites', () => ({
+    useFavorites: () => ({
+        data: mocks.isFavorite ? [{ data: { uuid: 'document' } }] : [],
+    }),
+}));
+vi.mock('../../hooks/favorites/useFavoriteMutation', () => ({
+    useFavoriteMutation: () => ({
+        mutate: mocks.toggleFavorite,
+        isLoading: false,
+    }),
 }));
 vi.mock('./useDocumentCreationSpaces', () => ({
     useDocumentCreationSpaces: () => ({
@@ -101,6 +114,8 @@ describe('Document actions', () => {
         mocks.codeModal.mockReset();
         mocks.canDuplicate = false;
         mocks.duplicateModal.mockReset();
+        mocks.isFavorite = false;
+        mocks.toggleFavorite.mockReset();
     });
     const renderActions = () =>
         render(
@@ -203,6 +218,32 @@ describe('Document actions', () => {
                 projectUuid: document.projectUuid,
             }),
         );
+    });
+
+    it('lets a read-only reader favorite and reflects refreshed favorite state', () => {
+        mocks.canManage = false;
+        const view = renderActions();
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Add Weekly report to favorites',
+            }),
+        );
+        expect(mocks.toggleFavorite).toHaveBeenCalledWith({
+            contentType: 'document',
+            contentUuid: 'document',
+        });
+        mocks.isFavorite = true;
+        view.rerender(
+            <MantineProvider>
+                <DocumentActions document={document} />
+            </MantineProvider>,
+        );
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Remove Weekly report from favorites',
+            }),
+        );
+        expect(mocks.toggleFavorite).toHaveBeenCalledTimes(2);
     });
 
     it.each([
