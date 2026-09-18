@@ -482,6 +482,7 @@ export const findCustomChartTypesToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolFindCustomChartTypesOutputSchema },
 });
 
+/** @deprecated Legacy agent tool kept for historical tool calls. */
 export const findFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
     'findFields',
     typeof toolFindFieldsArgsSchema,
