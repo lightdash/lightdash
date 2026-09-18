@@ -1,3 +1,10 @@
+# [2.265.0](https://github.com/lightdash/lightdash/compare/2.264.0...2.265.0) (2026-09-18)
+
+
+### Features
+
+* **settings:** fade settings nav scroll edges ([#29520](https://github.com/lightdash/lightdash/issues/29520)) ([1bba0be](https://github.com/lightdash/lightdash/commit/1bba0bed65efc9053ebc1f413b2b5faf96fd4715))
+
 # [2.264.0](https://github.com/lightdash/lightdash/compare/2.263.2...2.264.0) (2026-09-18)
 
 

@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.264.0",
-  "previousVersion": "2.263.2",
-  "releaseDate": "2026-09-18T14:03:34.030Z",
+  "version": "2.265.0",
+  "previousVersion": "2.264.0",
+  "releaseDate": "2026-09-18T15:06:44.979Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20260917142630_add_data_app_continue_in_ask_ai_enabled_to_ai_org_settings.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_organization_settings"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
