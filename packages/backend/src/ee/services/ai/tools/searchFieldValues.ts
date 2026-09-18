@@ -5,6 +5,7 @@ import {
     toolSearchFieldValuesExpressionArgsSchema,
     type ToolSearchFieldValuesArgs,
     type ToolSearchFieldValuesExpressionArgs,
+    type ToolSearchFieldValuesStructuredContent,
 } from '@lightdash/common';
 import { tool, type Schema } from 'ai';
 import type {
@@ -16,8 +17,12 @@ import {
     resolveSearchFieldValuesFilterExpression,
 } from '../utils/filterExpressions';
 import { serializeData } from '../utils/serializeData';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     searchFieldValues: SearchFieldValuesFn;
@@ -28,6 +33,19 @@ type Dependencies = {
 type SearchFieldValuesToolInput =
     | ToolSearchFieldValuesArgs
     | ToolSearchFieldValuesExpressionArgs;
+
+type SearchFieldValuesExecuteResult =
+    | ExecuteStructuredToolResult<ToolSearchFieldValuesStructuredContent>
+    | ExecuteToolErrorResult;
+
+// The search returns either bare values or values with a note; the text keeps
+// that raw shape while the structured form is normalised.
+const toStructuredContent = (
+    results: Awaited<ReturnType<SearchFieldValuesFn>>,
+): ToolSearchFieldValuesStructuredContent =>
+    Array.isArray(results)
+        ? { results, note: null }
+        : { results: results.results, note: results.note };
 
 export const getSearchFieldValues = ({
     searchFieldValues,
@@ -43,7 +61,7 @@ export const getSearchFieldValues = ({
     return tool({
         ...toolView,
         inputSchema,
-        execute: async (toolArgs) => {
+        execute: async (toolArgs): Promise<SearchFieldValuesExecuteResult> => {
             try {
                 let args: Parameters<SearchFieldValuesFn>[0];
                 if (enableFilterExpressions) {
@@ -64,11 +82,13 @@ export const getSearchFieldValues = ({
                                 explore,
                             });
                         if (!resolution.success) {
+                            const result = formatFilterExpressionError(
+                                resolution.error,
+                            );
                             return {
-                                result: formatFilterExpressionError(
-                                    resolution.error,
-                                ),
-                                metadata: { status: 'error' as const },
+                                result,
+                                metadata: { status: 'error' },
+                                structuredContent: { error: result },
                             };
                         }
                         filters = resolution.data;
@@ -89,20 +109,11 @@ export const getSearchFieldValues = ({
 
                 return {
                     result: serializeData(results, 'json'),
-                    metadata: {
-                        status: 'success' as const,
-                    },
+                    metadata: { status: 'success' },
+                    structuredContent: toStructuredContent(results),
                 };
             } catch (e) {
-                return {
-                    result: toolErrorHandler(
-                        e,
-                        'Error searching field values.',
-                    ),
-                    metadata: {
-                        status: 'error' as const,
-                    },
-                };
+                return toolErrorOutput(e, 'Error searching field values.');
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),

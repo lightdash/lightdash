@@ -7,7 +7,10 @@ import { getFieldIdSchema } from '../fieldId';
 import { filterExpressionInputSchema } from '../filterExpressions/expressionSchemas';
 import { MCP_FILTER_EXPRESSION_SKILL_INSTRUCTION } from '../filterExpressions/mcpGuidance';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 const boundedQueryInstructionByRuntime = {
@@ -100,9 +103,23 @@ export const toolSearchFieldValuesArgsSchemaTransformed =
         query: data.query ?? '',
     }));
 
-export const toolSearchFieldValuesOutputSchema = z.object({
-    result: z.string(),
+export const toolSearchFieldValuesStructuredContentSchema = z.object({
+    results: z
+        .array(z.union([z.string(), z.number(), z.boolean()]))
+        .describe(
+            'Unique field values matching the query, at most 100. Empty when nothing matched.',
+        ),
+    note: z
+        .string()
+        .nullable()
+        .describe(
+            'Guidance about the returned values, e.g. that they come from curated field metadata or that value suggestions are disabled for the field. Null when there is none.',
+        ),
+});
+
+export const toolSearchFieldValuesOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema,
+    structuredContent: toolSearchFieldValuesStructuredContentSchema,
 });
 
 export type ToolSearchFieldValuesArgs = z.infer<
@@ -116,4 +133,7 @@ export type ToolSearchFieldValuesExpressionArgs = z.infer<
 >;
 export type ToolSearchFieldValuesOutput = z.infer<
     typeof toolSearchFieldValuesOutputSchema
+>;
+export type ToolSearchFieldValuesStructuredContent = z.infer<
+    typeof toolSearchFieldValuesStructuredContentSchema
 >;
