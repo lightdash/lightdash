@@ -1,11 +1,15 @@
-import { searchSemanticLayerToolDefinition } from '@lightdash/common';
+import {
+    searchSemanticLayerToolDefinition,
+    type ToolSearchSemanticLayerOutput,
+    type ToolSearchSemanticLayerStructuredContent,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     SearchSemanticLayerFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { truncate } from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
 
@@ -22,13 +26,37 @@ const DEFAULT_PAGE_SIZE = 200;
 
 const toolDefinition = searchSemanticLayerToolDefinition.for('agent');
 
-const generateResponse = ({
+const buildStructuredContent = ({
     fields,
     pagination,
     toolDescriptionMaxChars,
 }: Awaited<ReturnType<SearchSemanticLayerFn>> & {
     toolDescriptionMaxChars: number;
-}) => (
+}): ToolSearchSemanticLayerStructuredContent => ({
+    pagination: pagination
+        ? {
+              page: pagination.page,
+              pageSize: pagination.pageSize,
+              totalPageCount: pagination.totalPageCount,
+              totalResults: pagination.totalResults,
+          }
+        : null,
+    fields: fields.map((field) => ({
+        name: field.name,
+        label: field.label,
+        exploreName: field.tableName,
+        fieldType: field.fieldType,
+        usageInCharts: field.chartUsage ?? 0,
+        description: field.description
+            ? truncate(field.description, toolDescriptionMaxChars)
+            : null,
+    })),
+});
+
+const generateResponse = ({
+    fields,
+    pagination,
+}: ToolSearchSemanticLayerStructuredContent) => (
     <semanticLayerFields
         page={pagination?.page}
         pageSize={pagination?.pageSize}
@@ -48,14 +76,12 @@ const generateResponse = ({
             <field
                 name={field.name}
                 label={field.label}
-                exploreName={field.tableName}
+                exploreName={field.exploreName}
                 fieldType={field.fieldType}
-                usageInCharts={field.chartUsage ?? 0}
+                usageInCharts={field.usageInCharts}
             >
-                {field.description && (
-                    <description>
-                        {truncate(field.description, toolDescriptionMaxChars)}
-                    </description>
+                {field.description !== null && (
+                    <description>{field.description}</description>
                 )}
             </field>
         ))}
@@ -70,7 +96,7 @@ export const getSearchSemanticLayer = ({
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (args) => {
+        execute: async (args): Promise<ToolSearchSemanticLayerOutput> => {
             try {
                 const hasQuery = !!args.searchQuery?.trim();
                 await updateProgress(
@@ -92,12 +118,14 @@ export const getSearchSemanticLayer = ({
                     pageSize,
                 });
 
+                const structuredContent = buildStructuredContent({
+                    fields,
+                    pagination,
+                    toolDescriptionMaxChars,
+                });
+
                 return {
-                    result: generateResponse({
-                        fields,
-                        pagination,
-                        toolDescriptionMaxChars,
-                    }).toString(),
+                    result: generateResponse(structuredContent).toString(),
                     metadata: {
                         status: 'success',
                         ranking: {
@@ -113,17 +141,13 @@ export const getSearchSemanticLayer = ({
                             })),
                         },
                     },
+                    structuredContent,
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(
-                        error,
-                        `Error searching the semantic layer.`,
-                    ),
-                    metadata: {
-                        status: 'error',
-                    },
-                };
+                return toolErrorOutput(
+                    error,
+                    `Error searching the semantic layer.`,
+                );
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
