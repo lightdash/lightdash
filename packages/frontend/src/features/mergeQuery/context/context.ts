@@ -107,6 +107,8 @@ export type MergeContextValue = {
     additionalSources: MergeEditorSource[];
     joinParts: MergeJoinPart[];
     joinType: MergeJoinType;
+    /** Sources that repeat their values across the others' extra dimensions. */
+    repeatValuesSourceIds: string[];
     addSource: (sourceId: string, initialFocus?: MergeFocus) => void;
     removeSource: (sourceId: string) => void;
     setFocus: (focus: MergeFocus) => void;
@@ -124,6 +126,7 @@ export type MergeContextValue = {
     addJoinPart: () => void;
     removeJoinPart: (index: number) => void;
     setJoinType: (joinType: MergeJoinType) => void;
+    setRepeatValues: (sourceId: string, repeatValues: boolean) => void;
     setSourceFilters: (sourceId: string, filters: Filters) => void;
 };
 

@@ -46,6 +46,7 @@ describe('restoreSavedMerge', () => {
                 ],
                 joinType: MergeJoinType.FULL,
                 tableCalculations: [],
+                repeatValuesSourceIds: ['subscriptions'],
             }),
         ).toMatchObject({
             additionalSources: [
@@ -65,6 +66,7 @@ describe('restoreSavedMerge', () => {
                 },
             ],
             joinType: MergeJoinType.FULL,
+            repeatValuesSourceIds: ['subscriptions'],
         });
     });
 });

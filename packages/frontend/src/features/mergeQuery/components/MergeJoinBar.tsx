@@ -167,10 +167,12 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
         readOnly,
         additionalSources,
         joinType,
+        repeatValuesSourceIds,
         setJoinField,
         addJoinPart,
         removeJoinPart,
         setJoinType,
+        setRepeatValues,
     } = mergeContext ?? EMPTY_MERGE;
     const additionalSource = additionalSources[0];
     const additionalSourceId = additionalSource?.id;
@@ -560,19 +562,86 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
             })}
 
             {!isIncomplete &&
-                fanOut.map(({ sourceId, fields }) => (
-                    <Note key={sourceId} tone="warn">
-                        {sourceId === PRIMARY_SOURCE_ID
+                fanOut.map(({ sourceId, fields }) => {
+                    const splitLabel =
+                        sourceId === PRIMARY_SOURCE_ID
                             ? primaryExploreLabel
-                            : additionalExploreLabel}{' '}
-                        is split by {fields.map(labelFor).join(' and ')}, which
-                        the other query does not have. Merging would repeat the
-                        other query's rows once per value. Remove{' '}
-                        {fields.length === 1 ? 'it' : 'them'}, or select{' '}
-                        {fields.length === 1 ? 'it' : 'them'} on both queries
-                        and join on {fields.length === 1 ? 'it' : 'them'}.
-                    </Note>
-                ))}
+                            : additionalExploreLabel;
+                    const otherSourceId =
+                        sourceId === PRIMARY_SOURCE_ID
+                            ? additionalSourceId
+                            : PRIMARY_SOURCE_ID;
+                    const otherLabel =
+                        sourceId === PRIMARY_SOURCE_ID
+                            ? additionalExploreLabel
+                            : primaryExploreLabel;
+                    return (
+                        <Note key={sourceId} tone="warn">
+                            {splitLabel} is split by{' '}
+                            {fields.map(labelFor).join(' and ')}, which{' '}
+                            {otherLabel} does not have. Merging would repeat{' '}
+                            {otherLabel}'s rows once per value. Remove{' '}
+                            {fields.length === 1 ? 'it' : 'them'}, select{' '}
+                            {fields.length === 1 ? 'it' : 'them'} on both
+                            queries and join on{' '}
+                            {fields.length === 1 ? 'it' : 'them'}, or{' '}
+                            {!readOnly && (
+                                <Anchor
+                                    component="button"
+                                    type="button"
+                                    size="xs"
+                                    fw={600}
+                                    onClick={() =>
+                                        setRepeatValues(otherSourceId, true)
+                                    }
+                                >
+                                    repeat {otherLabel}'s values on every{' '}
+                                    {splitLabel} row
+                                </Anchor>
+                            )}
+                            .
+                        </Note>
+                    );
+                })}
+
+            {/* Repeating is a lookup the user asked for; saying so keeps a
+                repeated metric from reading as a per-row measurement. */}
+            {repeatValuesSourceIds
+                .filter(
+                    (sourceId) =>
+                        sourceId === PRIMARY_SOURCE_ID ||
+                        sourceId === additionalSourceId,
+                )
+                .map((sourceId) => {
+                    const repeatingLabel =
+                        sourceId === PRIMARY_SOURCE_ID
+                            ? primaryExploreLabel
+                            : additionalExploreLabel;
+                    const otherLabel =
+                        sourceId === PRIMARY_SOURCE_ID
+                            ? additionalExploreLabel
+                            : primaryExploreLabel;
+                    return (
+                        <Note key={`repeat-${sourceId}`} tone="muted">
+                            {repeatingLabel}'s values repeat on every{' '}
+                            {otherLabel} row with the same {joinFieldLabel}. Its
+                            columns have no totals here.{' '}
+                            {!readOnly && (
+                                <Anchor
+                                    component="button"
+                                    type="button"
+                                    size="xs"
+                                    fw={600}
+                                    onClick={() =>
+                                        setRepeatValues(sourceId, false)
+                                    }
+                                >
+                                    Stop repeating
+                                </Anchor>
+                            )}
+                        </Note>
+                    );
+                })}
 
             {(runErrors ?? []).map((error) => (
                 <Note key={`${error.kind}-${error.sourceId ?? ''}`} tone="warn">

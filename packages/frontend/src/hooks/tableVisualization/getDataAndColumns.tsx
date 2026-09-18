@@ -46,6 +46,8 @@ type Args = {
     totalsError?: unknown;
     /** Totals over a merged result exist only for some metric types. */
     isMergedResult?: boolean;
+    /** Merged columns a repeating source contributes; never totalled. */
+    repeatedFieldIds?: string[];
     groupedSubtotals?: Record<string, Record<string, number>[]>;
     subtotalsLoading?: boolean;
     subtotalsError?: unknown;
@@ -196,6 +198,7 @@ const getDataAndColumns = ({
     totalsLoading,
     totalsError,
     isMergedResult,
+    repeatedFieldIds = [],
     groupedSubtotals,
     subtotalsLoading,
     subtotalsError,
@@ -278,12 +281,16 @@ const getDataAndColumns = ({
                             isMergedResult &&
                             item !== undefined &&
                             canHaveWarehouseTotal(item) &&
-                            getMergeTotalAggregation(item) === null
+                            getMergeTotalAggregation(
+                                item,
+                                repeatedFieldIds.includes(itemId),
+                            ) === null
                         ) {
                             return (
                                 <TotalNotComputableCell
                                     reason={getMergeTotalUnavailableReason(
                                         item,
+                                        repeatedFieldIds.includes(itemId),
                                     )}
                                 />
                             );

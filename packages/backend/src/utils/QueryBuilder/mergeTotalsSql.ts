@@ -20,9 +20,15 @@ const quote = (identifier: string) => `"${identifier.replaceAll('"', '""')}"`;
 export const buildMergeTotalsSql = (
     fieldIds: string[],
     itemsMap: ItemsMap,
+    /** Columns a repeating source contributes; never exact over the rows. */
+    repeatedFieldIds: string[] = [],
 ): MergeTotalsStatement | null => {
+    const repeated = new Set(repeatedFieldIds);
     const totalled = fieldIds.flatMap((fieldId) => {
-        const aggregation = getMergeTotalAggregation(itemsMap[fieldId]);
+        const aggregation = getMergeTotalAggregation(
+            itemsMap[fieldId],
+            repeated.has(fieldId),
+        );
         return aggregation === null ? [] : [{ fieldId, aggregation }];
     });
     if (totalled.length === 0) return null;
