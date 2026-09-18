@@ -120,6 +120,7 @@ export const sensitiveCredentialsFieldNames = [
     'accessKeyId',
     'secretAccessKey',
     'sessionToken',
+    'assumeRoleExternalId',
 ] as const;
 export type SensitiveCredentialsFieldNames =
     (typeof sensitiveCredentialsFieldNames)[number];
@@ -798,7 +799,6 @@ export const mergeWarehouseCredentials = <T extends CreateWarehouseCredentials>(
         ...sensitiveCredentialsFieldNames,
         'authenticationType',
         'assumeRoleArn',
-        'assumeRoleExternalId',
     ];
     const filteredBaseCredentials = Object.fromEntries(
         Object.entries(baseCredentials).filter(
