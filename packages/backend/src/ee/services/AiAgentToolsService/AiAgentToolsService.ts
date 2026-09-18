@@ -164,6 +164,7 @@ import type {
 } from '../AppGenerateService/AppGenerateService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import type { SchedulerAiAugmentationService } from '../SchedulerAiAugmentationService/SchedulerAiAugmentationService';
+import { assertAgentConnectionIsUnambiguous } from './agentConnectionScope';
 import type {
     DataAppRead,
     DataAppReadDataReferences,
@@ -3069,6 +3070,11 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
+                await assertAgentConnectionIsUnambiguous(
+                    this.projectModel,
+                    context.projectUuid,
+                );
+
                 await context.onWarehouseQuery?.();
                 const { queryUuid } =
                     await this.asyncQueryService.executeAsyncSqlQuery({
@@ -3429,6 +3435,10 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.listWarehouseTables`,
             { projectUuid: context.projectUuid },
             async () => {
+                await assertAgentConnectionIsUnambiguous(
+                    this.projectModel,
+                    context.projectUuid,
+                );
                 const catalog = await this.projectService.getWarehouseTables(
                     context.user,
                     context.projectUuid,
@@ -3451,6 +3461,10 @@ export class AiAgentToolsService extends BaseService {
                 database: database ?? null,
             },
             async () => {
+                await assertAgentConnectionIsUnambiguous(
+                    this.projectModel,
+                    context.projectUuid,
+                );
                 let resolvedSchema = schema?.trim() || null;
                 let resolvedDatabase = database?.trim() || null;
                 if (!resolvedSchema || resolvedDatabase === null) {

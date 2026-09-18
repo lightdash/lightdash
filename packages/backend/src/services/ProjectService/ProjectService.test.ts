@@ -362,6 +362,8 @@ const projectModel = {
     createWithOptionalCredentials: vi.fn(
         async () => 'created-preview-project-uuid',
     ),
+    create: vi.fn(async () => 'created-project-uuid'),
+    createProjectAccess: vi.fn(async () => undefined),
     update: vi.fn<ProjectModel['update']>(async () => undefined),
     delete: vi.fn(async () => undefined),
     getResultsCacheSettings: vi.fn<ProjectModel['getResultsCacheSettings']>(

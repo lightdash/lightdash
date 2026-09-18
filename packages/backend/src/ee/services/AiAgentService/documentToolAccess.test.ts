@@ -91,6 +91,11 @@ describe('Document runtime access', () => {
                         organizationUuid: 'organization',
                         dbtConnection: { type: 'dbt' },
                     }),
+                    getConnectionNamesByUuid: vi
+                        .fn()
+                        .mockResolvedValue(
+                            new Map([['connection-uuid', 'postgres']]),
+                        ),
                 },
                 aiAgentDocumentModel: {
                     findAllContextForAgent: vi.fn().mockResolvedValue([]),
