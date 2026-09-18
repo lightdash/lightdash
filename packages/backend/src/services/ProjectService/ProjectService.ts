@@ -3137,6 +3137,37 @@ export class ProjectService extends BaseService {
         };
     }
 
+    /**
+     * A project compiles through its primary dbt source. The binding migration
+     * materialised one for every project that existed when it ran; a project
+     * created afterwards needs one here, or it compiles nothing.
+     *
+     * A project with no dbt connection or no connection of its own cannot carry
+     * one, which is the same set the migration skipped.
+     */
+    private async materialisePrimaryDbtSource(
+        projectUuid: string,
+        project: CreateProjectOptionalCredentials,
+    ): Promise<void> {
+        if (!project.dbtConnection) return;
+        // A project with no connection, or with more than one, cannot say which
+        // one the primary source belongs to. That is the set the migration
+        // skipped too.
+        const connectionUuid =
+            await this.projectDbtSourcesModel.findSoleConnectionUuid(
+                projectUuid,
+            );
+        if (connectionUuid === null) return;
+        const { dbtSourceUuid, dbtSourceName } =
+            await this.projectModel.getDbtSourceIdentity(projectUuid);
+        await this.projectDbtSourcesModel.createPrimarySource(projectUuid, {
+            projectDbtSourceUuid: dbtSourceUuid,
+            connectionUuid,
+            name: dbtSourceName,
+            dbtConnection: project.dbtConnection,
+        });
+    }
+
     async createWithoutCompile(
         user: SessionUser,
         data: CreateProjectOptionalCredentials,
@@ -3264,6 +3295,8 @@ export class ProjectService extends BaseService {
                 createProject.upstreamProjectUuid,
                 projectUuid,
             );
+        } else {
+            await this.materialisePrimaryDbtSource(projectUuid, createProject);
         }
 
         const onboardingFlow = await this.getOnboardingFlow(user);

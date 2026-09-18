@@ -499,6 +499,8 @@ const getMockedProjectService = (
             overrides.projectDbtSourcesModel ??
             ({
                 copySources: vi.fn(async () => undefined),
+                createPrimarySource: vi.fn(async () => undefined),
+                findSoleConnectionUuid: vi.fn(async () => null),
             } as unknown as ProjectDbtSourcesModel),
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
@@ -2374,6 +2376,147 @@ describe('ProjectService', () => {
         );
         createWithoutCompileSpy.mockRestore();
         scheduleCompileProjectSpy.mockRestore();
+    });
+
+    test.each([RequestMethod.WEB_APP, RequestMethod.CLI])(
+        'materialises a primary dbt source when creating a project through %s',
+        async (requestMethod) => {
+            const createdProjectUuid = 'created-project-uuid';
+            const dbtConnection = {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'installation_id',
+                repository: 'lightdash/models',
+                branch: 'main',
+                project_sub_path: '/',
+                installation_id: 'installation-id',
+            } as const;
+            const createPrimarySource = vi.fn(async () => undefined);
+            const copySources = vi.fn(async () => undefined);
+            const createService = getMockedProjectService(lightdashConfigMock, {
+                projectDbtSourcesModel: {
+                    createPrimarySource,
+                    copySources,
+                    findSoleConnectionUuid: vi.fn(
+                        async () => 'connection-uuid',
+                    ),
+                } as unknown as ProjectDbtSourcesModel,
+            });
+            const creationUser: SessionUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Test organization',
+                organizationCreatedAt: new Date(),
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'create' },
+                ]),
+            };
+            const validateSpy = vi
+                .spyOn(
+                    createService as unknown as {
+                        validateProjectCreationPermissions: () => Promise<true>;
+                    },
+                    'validateProjectCreationPermissions',
+                )
+                .mockResolvedValue(true);
+            const expirationSpy = vi
+                .spyOn(createService, 'getPreviewExpiresAt')
+                .mockResolvedValue(null);
+            projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+                createdProjectUuid,
+            );
+
+            try {
+                await createService.createWithoutCompile(
+                    creationUser,
+                    {
+                        name: 'A new project',
+                        type: ProjectType.DEFAULT,
+                        dbtConnection,
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    },
+                    requestMethod,
+                );
+
+                // One primary source, on the connection the project was made
+                // with, carrying the project's own dbt source identity.
+                expect(createPrimarySource).toHaveBeenCalledTimes(1);
+                expect(createPrimarySource).toHaveBeenCalledWith(
+                    createdProjectUuid,
+                    {
+                        projectDbtSourceUuid: 'primary-source-uuid',
+                        connectionUuid: 'connection-uuid',
+                        name: 'dbt_project',
+                        dbtConnection,
+                    },
+                );
+                expect(copySources).not.toHaveBeenCalled();
+            } finally {
+                validateSpy.mockRestore();
+                expirationSpy.mockRestore();
+            }
+        },
+    );
+
+    test('leaves the primary source alone when the project has several connections', async () => {
+        const createdProjectUuid = 'created-project-uuid';
+        const dbtConnection = {
+            type: DbtProjectType.GITHUB,
+            authorization_method: 'installation_id',
+            repository: 'lightdash/models',
+            branch: 'main',
+            project_sub_path: '/',
+            installation_id: 'installation-id',
+        } as const;
+        const createPrimarySource = vi.fn(async () => undefined);
+        const createService = getMockedProjectService(lightdashConfigMock, {
+            projectDbtSourcesModel: {
+                createPrimarySource,
+                copySources: vi.fn(async () => undefined),
+                // Several live connections: no single answer, so no source
+                findSoleConnectionUuid: vi.fn(async () => null),
+            } as unknown as ProjectDbtSourcesModel,
+        });
+        const creationUser: SessionUser = {
+            ...user,
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Test organization',
+            organizationCreatedAt: new Date(),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'create' },
+            ]),
+        };
+        const validateSpy = vi
+            .spyOn(
+                createService as unknown as {
+                    validateProjectCreationPermissions: () => Promise<true>;
+                },
+                'validateProjectCreationPermissions',
+            )
+            .mockResolvedValue(true);
+        const expirationSpy = vi
+            .spyOn(createService, 'getPreviewExpiresAt')
+            .mockResolvedValue(null);
+        projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+            createdProjectUuid,
+        );
+
+        try {
+            await createService.createWithoutCompile(
+                creationUser,
+                {
+                    name: 'A new project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection,
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                },
+                RequestMethod.WEB_APP,
+            );
+
+            expect(createPrimarySource).not.toHaveBeenCalled();
+        } finally {
+            validateSpy.mockRestore();
+            expirationSpy.mockRestore();
+        }
     });
 
     test.each([RequestMethod.WEB_APP, RequestMethod.CLI])(
