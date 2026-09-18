@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
+    CODING_AGENT_COMPACTION_NARRATION,
+    codingAgentContextTokensPerTurn,
     codingAgentRetryStart,
     codingAgentSessionFlags,
     decideCodingAgentSessionStart,
+    findCodingAgentCompactionOutcome,
     findCodingAgentSessionId,
     isCodingAgentSessionLostFailure,
     parseCodingAgentSessionInit,
+    shouldCompactCodingAgentSession,
+    versionCompactedCodingAgentSession,
     versionReachedCodingAgent,
+    type CodingAgentCompactionInput,
     type CodingAgentSessionStart,
     type CodingAgentThreadState,
 } from './codingAgentSession';
@@ -285,5 +291,177 @@ describe('codingAgentRetryStart', () => {
                 sawStreamEvent: true,
             }),
         ).toEqual({ kind: 'continue' });
+    });
+});
+
+describe('shouldCompactCodingAgentSession', () => {
+    const RESUME: CodingAgentSessionStart = {
+        kind: 'resume',
+        sessionId: 'session-1',
+    };
+    const HOUR_MS = 60 * 60 * 1000;
+    const decide = (over: Partial<CodingAgentCompactionInput>) =>
+        shouldCompactCodingAgentSession({
+            start: RESUME,
+            msSincePreviousVersion: HOUR_MS + 1,
+            contextTokensPerTurn: 250_000,
+            thresholdTokens: 200_000,
+            ...over,
+        });
+
+    it('compacts a big session picked up after a long break', () => {
+        expect(decide({})).toBe(true);
+    });
+
+    it('does not compact between rapid follow-up prompts', () => {
+        expect(decide({ msSincePreviousVersion: 5 * 60 * 1000 })).toBe(false);
+    });
+
+    it('does not compact a small session however long the break', () => {
+        expect(
+            decide({
+                msSincePreviousVersion: 30 * HOUR_MS,
+                contextTokensPerTurn: 40_000,
+            }),
+        ).toBe(false);
+    });
+
+    it('treats exactly one hour as still warm', () => {
+        expect(decide({ msSincePreviousVersion: HOUR_MS })).toBe(false);
+    });
+
+    it('treats exactly the threshold as big enough', () => {
+        expect(decide({ contextTokensPerTurn: 200_000 })).toBe(true);
+        expect(decide({ contextTokensPerTurn: 199_999 })).toBe(false);
+    });
+
+    it('does not compact when the previous version recorded no usage', () => {
+        expect(decide({ contextTokensPerTurn: null })).toBe(false);
+    });
+
+    it('does not compact when there is no previous version to measure from', () => {
+        expect(decide({ msSincePreviousVersion: null })).toBe(false);
+    });
+
+    it.each<[string, CodingAgentSessionStart]>([
+        ['a new session', { kind: 'new' }],
+        ['a continued session', { kind: 'continue' }],
+    ])('does not compact %s', (_name, start) => {
+        expect(decide({ start })).toBe(false);
+    });
+});
+
+describe('codingAgentContextTokensPerTurn', () => {
+    it('counts everything that entered the context window, per turn', () => {
+        expect(
+            codingAgentContextTokensPerTurn({
+                inputTokens: 1_000,
+                cacheReadInputTokens: 300_000,
+                cacheCreationInputTokens: 99_000,
+                numTurns: 4,
+            }),
+        ).toBe(100_000);
+    });
+
+    it('is unknown when the version recorded no usage', () => {
+        expect(codingAgentContextTokensPerTurn(null)).toBeNull();
+    });
+
+    it('is unknown when the version ran no turns', () => {
+        expect(
+            codingAgentContextTokensPerTurn({
+                inputTokens: 10,
+                cacheReadInputTokens: 0,
+                cacheCreationInputTokens: 0,
+                numTurns: 0,
+            }),
+        ).toBeNull();
+    });
+});
+
+describe('findCodingAgentCompactionOutcome', () => {
+    const statusLine = (fields: Record<string, unknown>) =>
+        JSON.stringify({
+            type: 'system',
+            subtype: 'status',
+            session_id: 'session-1',
+            ...fields,
+        });
+
+    it('reads a successful compaction', () => {
+        const stdout = [
+            statusLine({ status: 'compacting' }),
+            statusLine({ status: null, compact_result: 'success' }),
+        ].join('\n');
+        expect(findCodingAgentCompactionOutcome(stdout)).toEqual({
+            result: 'success',
+        });
+    });
+
+    it('reads a failure with the reason the CLI gave', () => {
+        const stdout = [
+            statusLine({ status: 'compacting' }),
+            statusLine({
+                status: null,
+                compact_result: 'failed',
+                compact_error: 'Not enough messages to compact.',
+            }),
+        ].join('\n');
+        expect(findCodingAgentCompactionOutcome(stdout)).toEqual({
+            result: 'failed',
+            error: 'Not enough messages to compact.',
+        });
+    });
+
+    it('reads a failure that came with no reason', () => {
+        expect(
+            findCodingAgentCompactionOutcome(
+                statusLine({ status: null, compact_result: 'failed' }),
+            ),
+        ).toEqual({ result: 'failed', error: null });
+    });
+
+    it('is unknown when the run never reported a verdict', () => {
+        const stdout = [
+            '',
+            'not json',
+            JSON.stringify({ type: 'system', subtype: 'init' }),
+            statusLine({ status: 'compacting' }),
+        ].join('\n');
+        expect(findCodingAgentCompactionOutcome(stdout)).toBeNull();
+    });
+});
+
+describe('versionCompactedCodingAgentSession', () => {
+    const entry = (kind: string, message: string) => ({
+        kind,
+        message,
+        timestamp: '2026-09-18T00:00:00.000Z',
+    });
+
+    it('recognises a version an earlier attempt already summarized', () => {
+        expect(
+            versionCompactedCodingAgentSession([
+                entry('stage', 'Loading your data models'),
+                entry('stage', CODING_AGENT_COMPACTION_NARRATION),
+                entry('thinking', 'Reading the chart code'),
+            ]),
+        ).toBe(true);
+    });
+
+    it('does not mistake the agent quoting the narration for the stage', () => {
+        expect(
+            versionCompactedCodingAgentSession([
+                entry('thinking', CODING_AGENT_COMPACTION_NARRATION),
+            ]),
+        ).toBe(false);
+    });
+
+    it('is false for a version that never compacted', () => {
+        expect(
+            versionCompactedCodingAgentSession([
+                entry('stage', 'Loading your data models'),
+            ]),
+        ).toBe(false);
     });
 });

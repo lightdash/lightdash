@@ -55,6 +55,7 @@ import {
     type DataAppClaudeModel,
     type DataAppCodingAgent,
     type DataAppCodingAgentModel,
+    type DataAppCompactionResult,
     type DataAppCreationExperience,
     type DataAppTemplate,
     type FunnelChartDataInput,
@@ -1844,6 +1845,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         resumeMs?: number;
         restoreMs?: number;
         catalogMs?: number;
+        compactMs?: number;
         generateMs?: number;
         buildMs?: number;
         metadataMs?: number;
@@ -1860,6 +1862,8 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         outputTokens: number;
         cacheReadInputTokens: number;
         cacheCreationInputTokens: number;
+        cacheCreation1hInputTokens: number;
+        cacheCreation5mInputTokens: number;
         numTurns: number;
         durationApiMs: number;
         totalCostUsd: number | null;
@@ -1873,6 +1877,11 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         catalogDimensionCount: number;
         catalogMetricCount: number;
         catalogYamlBytes: number;
+        compactionAttempted: boolean;
+        compactionResult: DataAppCompactionResult | null;
+        // What the compaction threshold was compared against; null when the
+        // trigger was never evaluated or the previous version recorded no usage.
+        contextTokensPerTurn: number | null;
         distBytes: number;
         sourceBytes: number;
         creationExperience: DataAppCreationExperience | null;
@@ -1913,6 +1922,7 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         resumeMs?: number;
         restoreMs?: number;
         catalogMs?: number;
+        compactMs?: number;
         generateMs?: number;
         buildMs?: number;
         metadataMs?: number;

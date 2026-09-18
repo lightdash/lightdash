@@ -8,6 +8,7 @@ import {
     assertUnreachable,
     ProjectType,
     type AppGeneratePipelineJobPayload,
+    type AppVersionStatusHistoryEntry,
     type SessionUser,
 } from '@lightdash/common';
 import { Readable } from 'node:stream';
@@ -61,6 +62,7 @@ type VersionRow = {
     app_thread_uuid: string;
     prompt: string;
     status: 'ready' | 'pending' | 'sandbox';
+    status_history: AppVersionStatusHistoryEntry[];
     created_at: Date;
     error: null;
     resources: null;
@@ -135,6 +137,7 @@ async function buildScenario() {
                     app_thread_uuid: `${PREVIEW_APP_UUID}-thread-1`,
                     prompt: 'Fix currency formatting',
                     status: 'ready',
+                    status_history: [],
                     created_at: new Date(),
                     error: null,
                     resources: null,
@@ -154,6 +157,7 @@ async function buildScenario() {
                     app_thread_uuid: `${PRODUCTION_APP_UUID}-thread-1`,
                     prompt: 'Old prompt',
                     status: 'ready',
+                    status_history: [],
                     created_at: new Date(),
                     error: null,
                     resources: null,
@@ -238,6 +242,7 @@ async function buildScenario() {
                 app_thread_uuid: `${appUuid}-thread-1`,
                 prompt: input.prompt,
                 status,
+                status_history: [],
                 created_at: new Date(),
                 error: null,
                 resources: null,
