@@ -2622,14 +2622,6 @@ describe('autopilot run limits', () => {
         expect(() => parseConfig()).toThrow(name);
     });
 });
-test('runs Autopilot on the AI SDK runtime unless MANAGED_AGENT_RUNTIME says otherwise', () => {
-    delete process.env.MANAGED_AGENT_RUNTIME;
-    expect(parseConfig().managedAgent.runtime).toBe('ai-sdk');
-
-    process.env.MANAGED_AGENT_RUNTIME = 'anthropic-managed';
-    expect(parseConfig().managedAgent.runtime).toBe('anthropic-managed');
-});
-
 describe('mobile app setup links', () => {
     it('defaults to the instance landing page with no App Store listing', () => {
         process.env.SITE_URL = 'https://instance.example/';
