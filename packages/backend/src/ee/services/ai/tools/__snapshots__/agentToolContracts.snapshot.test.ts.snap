@@ -5547,235 +5547,276 @@ Parameters:
     "name": "editDbtProject",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "oneOf": [
-            {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "aiWritebackRunUuid": {
+                          "type": "string",
+                        },
+                        "status": {
+                          "const": "pending",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "aiWritebackRunUuid",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "additions": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "commitSha": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "dbtSourceOptions": {
+                          "anyOf": [
+                            {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "branch": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                  "isPrimary": {
+                                    "type": "boolean",
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                  },
+                                  "projectDbtSourceUuid": {
+                                    "type": "string",
+                                  },
+                                  "projectSubPath": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                  "repository": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                },
+                                "required": [
+                                  "projectDbtSourceUuid",
+                                  "name",
+                                  "isPrimary",
+                                  "repository",
+                                  "branch",
+                                  "projectSubPath",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "deletions": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "needsDbtSourceSelection": {
+                          "anyOf": [
+                            {
+                              "type": "boolean",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "prAction": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "opened",
+                                "updated",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "prUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "previewUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "status": {
+                          "const": "success",
+                          "type": "string",
+                        },
+                        "steps": {
+                          "anyOf": [
+                            {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "enum": [
+                                      "read",
+                                      "edit",
+                                      "search",
+                                      "compile",
+                                      "stage",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "kind",
+                                  "label",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "prUrl",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "errorCode": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "github_not_installed",
+                                "gitlab_not_installed",
+                                "bitbucket_token_missing",
+                                "unsupported_source_control",
+                                "pull_request_not_open",
+                                "git_write_permission",
+                                "unknown",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "status": {
+                          "const": "error",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                      ],
+                      "type": "object",
+                    },
+                  ],
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "pending",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
               "additionalProperties": false,
               "properties": {
-                "aiWritebackRunUuid": {
-                  "type": "string",
-                },
                 "status": {
                   "const": "pending",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "status",
-                "aiWritebackRunUuid",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "additions": {
-                  "anyOf": [
-                    {
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "commitSha": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "dbtSourceOptions": {
-                  "anyOf": [
-                    {
-                      "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "branch": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                              },
-                              {
-                                "type": "null",
-                              },
-                            ],
-                          },
-                          "isPrimary": {
-                            "type": "boolean",
-                          },
-                          "name": {
-                            "type": "string",
-                          },
-                          "projectDbtSourceUuid": {
-                            "type": "string",
-                          },
-                          "projectSubPath": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                              },
-                              {
-                                "type": "null",
-                              },
-                            ],
-                          },
-                          "repository": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                              },
-                              {
-                                "type": "null",
-                              },
-                            ],
-                          },
-                        },
-                        "required": [
-                          "projectDbtSourceUuid",
-                          "name",
-                          "isPrimary",
-                          "repository",
-                          "branch",
-                          "projectSubPath",
-                        ],
-                        "type": "object",
-                      },
-                      "type": "array",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "deletions": {
-                  "anyOf": [
-                    {
-                      "type": "number",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "needsDbtSourceSelection": {
-                  "anyOf": [
-                    {
-                      "type": "boolean",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "prAction": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "opened",
-                        "updated",
-                      ],
-                      "type": "string",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "prUrl": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "previewUrl": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "status": {
-                  "const": "success",
-                  "type": "string",
-                },
-                "steps": {
-                  "anyOf": [
-                    {
-                      "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "kind": {
-                            "enum": [
-                              "read",
-                              "edit",
-                              "search",
-                              "compile",
-                              "stage",
-                            ],
-                            "type": "string",
-                          },
-                          "label": {
-                            "type": "string",
-                          },
-                        },
-                        "required": [
-                          "kind",
-                          "label",
-                        ],
-                        "type": "object",
-                      },
-                      "type": "array",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-              },
-              "required": [
-                "status",
-                "prUrl",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "errorCode": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "github_not_installed",
-                        "gitlab_not_installed",
-                        "bitbucket_token_missing",
-                        "unsupported_source_control",
-                        "pull_request_not_open",
-                        "git_write_permission",
-                        "unknown",
-                      ],
-                      "type": "string",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
-                "status": {
-                  "const": "error",
+                  "description": "The change has started in the background; the pull request is opened later and this tool must not be called again to check on it.",
                   "type": "string",
                 },
               },
@@ -5784,17 +5825,298 @@ Parameters:
               ],
               "type": "object",
             },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
           ],
+          "type": "object",
         },
-        "result": {
-          "type": "string",
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "aiWritebackRunUuid": {
+                          "type": "string",
+                        },
+                        "status": {
+                          "const": "pending",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "aiWritebackRunUuid",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "additions": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "commitSha": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "dbtSourceOptions": {
+                          "anyOf": [
+                            {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "branch": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                  "isPrimary": {
+                                    "type": "boolean",
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                  },
+                                  "projectDbtSourceUuid": {
+                                    "type": "string",
+                                  },
+                                  "projectSubPath": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                  "repository": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                },
+                                "required": [
+                                  "projectDbtSourceUuid",
+                                  "name",
+                                  "isPrimary",
+                                  "repository",
+                                  "branch",
+                                  "projectSubPath",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "deletions": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "needsDbtSourceSelection": {
+                          "anyOf": [
+                            {
+                              "type": "boolean",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "prAction": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "opened",
+                                "updated",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "prUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "previewUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "status": {
+                          "const": "success",
+                          "type": "string",
+                        },
+                        "steps": {
+                          "anyOf": [
+                            {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "kind": {
+                                    "enum": [
+                                      "read",
+                                      "edit",
+                                      "search",
+                                      "compile",
+                                      "stage",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                  },
+                                },
+                                "required": [
+                                  "kind",
+                                  "label",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "prUrl",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "errorCode": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "github_not_installed",
+                                "gitlab_not_installed",
+                                "bitbucket_token_missing",
+                                "unsupported_source_control",
+                                "pull_request_not_open",
+                                "git_write_permission",
+                                "unknown",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "status": {
+                          "const": "error",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                      ],
+                      "type": "object",
+                    },
+                  ],
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
         },
-      },
-      "required": [
-        "result",
-        "metadata",
       ],
-      "type": "object",
     },
   },
   {

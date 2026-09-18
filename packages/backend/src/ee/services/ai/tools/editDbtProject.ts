@@ -1,12 +1,31 @@
-import { editDbtProjectToolDefinition } from '@lightdash/common';
+import {
+    editDbtProjectToolDefinition,
+    type ToolEditDbtProjectOutput,
+    type ToolEditDbtProjectStructuredContent,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type { EditDbtProjectFn } from '../types/aiAgentDependencies';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     editDbtProject: EditDbtProjectFn;
 };
+
+type EditDbtProjectMetadata = ToolEditDbtProjectOutput['metadata'];
+
+type PendingResult = ExecuteStructuredToolResult<
+    ToolEditDbtProjectStructuredContent,
+    Extract<EditDbtProjectMetadata, { status: 'pending' }>
+>;
+
+type ErrorResult = ExecuteToolErrorResult<
+    Extract<EditDbtProjectMetadata, { status: 'error' }>
+>;
 
 const toolDefinition = editDbtProjectToolDefinition.for('agent');
 
@@ -16,7 +35,7 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
         execute: async (
             { prompt, prUrl: pastedPrUrl, startNewPullRequest },
             { toolCallId },
-        ) => {
+        ): Promise<PendingResult | ErrorResult> => {
             try {
                 const { aiWritebackRunUuid } = await editDbtProject({
                     prompt,
@@ -28,20 +47,19 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
                 return {
                     result: 'Started the change. Give a brief one-line acknowledgement.',
                     metadata: {
-                        status: 'pending' as const,
+                        status: 'pending',
                         aiWritebackRunUuid,
                     },
+                    structuredContent: { status: 'pending' },
                 };
             } catch (error) {
+                const errorOutput = toolErrorOutput(
+                    error,
+                    'Error starting AI writeback. No pull request was opened.',
+                );
                 return {
-                    result: toolErrorHandler(
-                        error,
-                        'Error starting AI writeback. No pull request was opened.',
-                    ),
-                    metadata: {
-                        status: 'error' as const,
-                        errorCode: 'unknown' as const,
-                    },
+                    ...errorOutput,
+                    metadata: { ...errorOutput.metadata, errorCode: 'unknown' },
                 };
             }
         },
