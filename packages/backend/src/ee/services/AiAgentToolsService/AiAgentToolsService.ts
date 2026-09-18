@@ -49,6 +49,7 @@ import {
     type ChartAsCode,
     type CustomChartType,
     type DashboardAsCode,
+    type DataAppCreationExperience,
     type DataAppVizSchema,
     type Document,
     type FieldValueSearchResult,
@@ -287,13 +288,7 @@ export type AiAgentToolsRuntime = {
 
 export type McpAiAgentToolsRuntime = Omit<
     AiAgentToolsRuntime,
-    | 'getExplore'
-    | 'findExplores'
-    | 'findFields'
-    | 'updateUserName'
-    | 'generateDataApp'
-    | 'iterateDataApp'
-    | 'listDataAppThemes'
+    'getExplore' | 'findExplores' | 'findFields' | 'updateUserName'
 > & {
     getDataAppBuildStatus: GetDataAppBuildStatusFn;
     createDocumentContent: (content: unknown) => Promise<DocumentContentResult>;
@@ -647,13 +642,10 @@ export class AiAgentToolsService extends BaseService {
     createRuntime(
         context: AiAgentToolsRuntimeContext,
     ): AiAgentToolsRuntime | McpAiAgentToolsRuntime {
-        const runtime: Omit<
-            AiAgentToolsRuntime,
-            | 'updateUserName'
-            | 'generateDataApp'
-            | 'iterateDataApp'
-            | 'listDataAppThemes'
-        > = {
+        const runtime: Omit<AiAgentToolsRuntime, 'updateUserName'> = {
+            generateDataApp: (args) => this.generateDataApp(context, args),
+            iterateDataApp: (args) => this.iterateDataApp(context, args),
+            listDataAppThemes: () => this.listDataAppThemes(context),
             listExplores: () => this.listExplores(context),
             getProjectParameterDefinitions: () =>
                 this.getProjectParameterDefinitions(context),
@@ -722,21 +714,11 @@ export class AiAgentToolsService extends BaseService {
             : {
                   ...runtime,
                   updateUserName: (args) => this.updateUserName(context, args),
-                  generateDataApp: (args) =>
-                      this.generateDataApp(context, args),
-                  iterateDataApp: (args) => this.iterateDataApp(context, args),
-                  listDataAppThemes: () => this.listDataAppThemes(context),
               };
     }
 
     private withMcpRuntimeResults(
-        runtime: Omit<
-            AiAgentToolsRuntime,
-            | 'updateUserName'
-            | 'generateDataApp'
-            | 'iterateDataApp'
-            | 'listDataAppThemes'
-        >,
+        runtime: Omit<AiAgentToolsRuntime, 'updateUserName'>,
         context: AiAgentToolsRuntimeContext,
     ): McpAiAgentToolsRuntime {
         return {
@@ -1760,6 +1742,52 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
+    /**
+     * Who started this build. An MCP build carries no agent tool-call
+     * reference, so nothing is patched onto a thread; the caller polls instead.
+     */
+    private static getDataAppBuildAttribution(
+        context: AiAgentToolsRuntimeContext,
+        toolCallId: string | null,
+        toolName: 'generateDataApp' | 'iterateDataApp',
+    ): {
+        creationExperience: DataAppCreationExperience;
+        aiAgentToolCall?: { promptUuid: string; toolCallId: string };
+    } {
+        if (context.source === 'mcp') {
+            return { creationExperience: 'mcp' };
+        }
+        const { promptUuid } = context;
+        if (!promptUuid) {
+            throw new UnexpectedServerError(`${toolName} requires a prompt`);
+        }
+        if (toolCallId === null) {
+            throw new UnexpectedServerError(
+                `${toolName} requires a tool call id`,
+            );
+        }
+        return {
+            creationExperience: 'ai_agent',
+            aiAgentToolCall: { promptUuid, toolCallId },
+        };
+    }
+
+    /** Ask AI thread recorded on a new app; an MCP app keeps the default builder thread. */
+    private static getDataAppBuildThread(context: AiAgentToolsRuntimeContext): {
+        thread?: { origin: 'ai_thread'; aiThreadUuid: string };
+    } {
+        if (context.source === 'mcp') {
+            return {};
+        }
+        const { threadUuid } = context;
+        if (!threadUuid) {
+            throw new UnexpectedServerError(
+                'generateDataApp requires a thread',
+            );
+        }
+        return { thread: { origin: 'ai_thread', aiThreadUuid: threadUuid } };
+    }
+
     private generateDataApp(
         context: AiAgentToolsRuntimeContext,
         {
@@ -1781,17 +1809,12 @@ export class AiAgentToolsService extends BaseService {
                 withTheme: themeSlug !== null,
             },
             async () => {
-                const { promptUuid, threadUuid } = context;
-                if (!promptUuid) {
-                    throw new UnexpectedServerError(
-                        'generateDataApp requires a prompt',
+                const attribution =
+                    AiAgentToolsService.getDataAppBuildAttribution(
+                        context,
+                        toolCallId,
+                        'generateDataApp',
                     );
-                }
-                if (!threadUuid) {
-                    throw new UnexpectedServerError(
-                        'generateDataApp requires a thread',
-                    );
-                }
                 const designUuid =
                     themeSlug === null
                         ? undefined
@@ -1831,12 +1854,8 @@ export class AiAgentToolsService extends BaseService {
                     undefined,
                     {
                         name,
-                        creationExperience: 'ai_agent',
-                        aiAgentToolCall: { promptUuid, toolCallId },
-                        thread: {
-                            origin: 'ai_thread',
-                            aiThreadUuid: threadUuid,
-                        },
+                        ...attribution,
+                        ...AiAgentToolsService.getDataAppBuildThread(context),
                         ...(designUuid === undefined
                             ? {}
                             : { designUuidInput: designUuid }),
@@ -1865,12 +1884,12 @@ export class AiAgentToolsService extends BaseService {
                 withTheme: themeSlug !== null,
             },
             async () => {
-                const { promptUuid } = context;
-                if (!promptUuid) {
-                    throw new UnexpectedServerError(
-                        'iterateDataApp requires a prompt',
+                const attribution =
+                    AiAgentToolsService.getDataAppBuildAttribution(
+                        context,
+                        toolCallId,
+                        'iterateDataApp',
                     );
-                }
                 const designUuid =
                     themeSlug === null
                         ? undefined
@@ -1920,8 +1939,7 @@ export class AiAgentToolsService extends BaseService {
                     dashboard,
                     undefined,
                     {
-                        creationExperience: 'ai_agent',
-                        aiAgentToolCall: { promptUuid, toolCallId },
+                        ...attribution,
                         // The brief is a real change request, so the restyle
                         // rides along with it instead of replacing it.
                         ...(designUuid === undefined

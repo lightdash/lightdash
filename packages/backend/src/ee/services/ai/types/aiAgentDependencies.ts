@@ -705,8 +705,9 @@ export type GenerateDataAppFn = (args: {
     dashboardSlug: string | null;
     chartSlugs: string[] | null;
     themeSlug: string | null;
-    toolCallId: string;
-}) => Promise<{ appUuid: string; version: number }>;
+    /** Agent tool call the build outcome is patched onto; null over MCP. */
+    toolCallId: string | null;
+}) => Promise<{ appUuid: string; slug: string; version: number }>;
 
 export type DataAppThemeSummary = {
     slug: string;
@@ -726,8 +727,9 @@ export type IterateDataAppFn = (args: {
     dashboardSlug: string | null;
     chartSlugs: string[] | null;
     themeSlug: string | null;
-    toolCallId: string;
-}) => Promise<{ appUuid: string; version: number }>;
+    /** Agent tool call the build outcome is patched onto; null over MCP. */
+    toolCallId: string | null;
+}) => Promise<{ appUuid: string; slug: string; version: number }>;
 
 // Reports on a build an external agent started; MCP-only, since the AI agent
 // gets its outcome patched onto the tool result instead of polling.
