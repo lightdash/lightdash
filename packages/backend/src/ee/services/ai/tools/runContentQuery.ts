@@ -1,10 +1,14 @@
 import {
+    getItemLabelWithoutTableName,
     getValidAiQueryLimit,
     runContentQueryToolDefinition,
     type AiMetricQueryWithFilters,
     type ChartAsCode,
     type Filters,
+    type ItemsMap,
+    type MetricQuery,
     type ParametersValuesMap,
+    type ToolRunContentQueryStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
@@ -18,8 +22,12 @@ import type {
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
 import { getContextTruncationNote } from '../utils/queryResultSummary';
 import { serializeData } from '../utils/serializeData';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { buildSavedChartHeader } from './runSavedChart';
 
 type Dependencies = {
@@ -33,7 +41,75 @@ type Dependencies = {
     enableDataAccess: boolean;
 };
 
+type RunContentQueryResult =
+    | ExecuteStructuredToolResult<ToolRunContentQueryStructuredContent>
+    | ExecuteToolErrorResult;
+
+type RowsOutcome = Extract<
+    ToolRunContentQueryStructuredContent,
+    { outcome: 'rows' }
+>;
+
 const toolDefinition = runContentQueryToolDefinition.for('agent');
+
+const describeSavedChartStructure = (
+    chartUuid: string,
+    name: string,
+    metricQuery: MetricQuery,
+) => ({
+    chartUuid,
+    name,
+    exploreName: metricQuery.exploreName,
+    dimensions: metricQuery.dimensions,
+    metrics: metricQuery.metrics,
+});
+
+// Mirrors the full-spec header rendered by buildSavedChartHeader.
+const describeSavedChartSpec = (
+    chartUuid: string,
+    name: string,
+    metricQuery: MetricQuery,
+): RowsOutcome['chart'] => ({
+    ...describeSavedChartStructure(chartUuid, name, metricQuery),
+    filters: metricQuery.filters,
+    sorts: metricQuery.sorts.map(({ fieldId, descending }) => ({
+        fieldId,
+        descending,
+    })),
+    limit: metricQuery.limit,
+    tableCalculations: (metricQuery.tableCalculations ?? []).map(
+        (calculation) => calculation.name,
+    ),
+    customMetrics: (metricQuery.additionalMetrics ?? []).map(
+        (metric) => `${metric.table}_${metric.name}`,
+    ),
+    customDimensions: (metricQuery.customDimensions ?? []).map(
+        (dimension) => dimension.id,
+    ),
+});
+
+// The rows the model sees, and the columns as the CSV header labels them.
+const buildShownTable = (
+    queryResults: { rows: Record<string, unknown>[]; fields: ItemsMap },
+    maxContextRows: number,
+): Omit<RowsOutcome, 'outcome' | 'chart'> => {
+    const fieldIds = queryResults.rows[0]
+        ? Object.keys(queryResults.rows[0])
+        : [];
+    const rows = queryResults.rows.slice(0, maxContextRows);
+    return {
+        rowCount: queryResults.rows.length,
+        shownRowCount: rows.length,
+        columns: fieldIds.map((fieldId) => {
+            const item = queryResults.fields[fieldId];
+            return {
+                fieldId,
+                label: item ? getItemLabelWithoutTableName(item) : fieldId,
+            };
+        }),
+        rows,
+    };
+};
 
 export const getRunContentQuery = ({
     updateProgress,
@@ -47,7 +123,7 @@ export const getRunContentQuery = ({
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async ({ source }) => {
+        execute: async ({ source }): Promise<RunContentQueryResult> => {
             try {
                 await updateProgress('Running content query...');
 
@@ -68,7 +144,15 @@ export const getRunContentQuery = ({
                                     includeFullSpec: false,
                                 },
                             )}Data access is disabled for this agent. Reason about the chart from its structure above; do not assume specific row values.`,
-                            metadata: { status: 'success' as const },
+                            metadata: { status: 'success' },
+                            structuredContent: {
+                                outcome: 'dataAccessDisabled',
+                                chart: describeSavedChartStructure(
+                                    uuid,
+                                    name,
+                                    metricQuery,
+                                ),
+                            },
                         };
                     }
 
@@ -84,14 +168,16 @@ export const getRunContentQuery = ({
                     if (queryResults.rows.length === 0) {
                         return {
                             result: NO_RESULTS_RETRY_PROMPT,
-                            metadata: { status: 'success' as const },
+                            metadata: { status: 'success' },
+                            structuredContent: { outcome: 'noResults' },
                         };
                     }
 
-                    const csv = convertQueryResultsToCsv(
-                        queryResults,
-                        maxContextRows,
-                    );
+                    const table = buildShownTable(queryResults, maxContextRows);
+                    const csv = convertQueryResultsToCsv({
+                        rows: table.rows,
+                        fields: queryResults.fields,
+                    });
                     return {
                         result: `${buildSavedChartHeader(
                             uuid,
@@ -101,10 +187,19 @@ export const getRunContentQuery = ({
                                 includeFullSpec: true,
                             },
                         )}${getContextTruncationNote({
-                            rowCount: queryResults.rows.length,
+                            rowCount: table.rowCount,
                             maxContextRows,
                         })}${serializeData(csv, 'csv')}`,
-                        metadata: { status: 'success' as const },
+                        metadata: { status: 'success' },
+                        structuredContent: {
+                            outcome: 'rows',
+                            chart: describeSavedChartSpec(
+                                uuid,
+                                name,
+                                metricQuery,
+                            ),
+                            ...table,
+                        },
                     };
                 }
 
@@ -148,7 +243,11 @@ export const getRunContentQuery = ({
                 if (!enableDataAccess) {
                     return {
                         result: 'Data access is disabled for this agent. The metric query shape is valid, but row values cannot be returned.',
-                        metadata: { status: 'success' as const },
+                        metadata: { status: 'success' },
+                        structuredContent: {
+                            outcome: 'dataAccessDisabled',
+                            chart: null,
+                        },
                     };
                 }
 
@@ -163,28 +262,32 @@ export const getRunContentQuery = ({
                 if (queryResults.rows.length === 0) {
                     return {
                         result: NO_RESULTS_RETRY_PROMPT,
-                        metadata: { status: 'success' as const },
+                        metadata: { status: 'success' },
+                        structuredContent: { outcome: 'noResults' },
                     };
                 }
 
+                const table = buildShownTable(queryResults, maxContextRows);
                 return {
                     result: `${getContextTruncationNote({
-                        rowCount: queryResults.rows.length,
+                        rowCount: table.rowCount,
                         maxContextRows,
                     })}${serializeData(
-                        convertQueryResultsToCsv(queryResults, maxContextRows),
+                        convertQueryResultsToCsv({
+                            rows: table.rows,
+                            fields: queryResults.fields,
+                        }),
                         'csv',
                     )}`,
-                    metadata: { status: 'success' as const },
+                    metadata: { status: 'success' },
+                    structuredContent: {
+                        outcome: 'rows',
+                        chart: null,
+                        ...table,
+                    },
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(
-                        error,
-                        'Error running content query.',
-                    ),
-                    metadata: { status: 'error' as const },
-                };
+                return toolErrorOutput(error, 'Error running content query.');
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
