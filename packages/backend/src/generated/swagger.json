@@ -31751,6 +31751,9 @@
                         "type": "string",
                         "enum": ["interactive", "batch"]
                     },
+                    "allowUserCredentials": {
+                        "type": "boolean"
+                    },
                     "retries": {
                         "type": "number",
                         "format": "double"
@@ -32777,6 +32780,9 @@
                     "retries": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "allowUserCredentials": {
+                        "type": "boolean"
                     },
                     "requireUserCredentials": {
                         "type": "boolean"
@@ -63572,7 +63578,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.259.0",
+        "version": "2.259.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

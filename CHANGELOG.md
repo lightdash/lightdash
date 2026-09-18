@@ -1,3 +1,10 @@
+## [2.259.1](https://github.com/lightdash/lightdash/compare/2.259.0...2.259.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* make optional BigQuery personal credentials opt-in ([#29498](https://github.com/lightdash/lightdash/issues/29498)) ([491a0e7](https://github.com/lightdash/lightdash/commit/491a0e70d1bf8f07a4d6f03dd8bce8c390bbce50))
+
 # [2.259.0](https://github.com/lightdash/lightdash/compare/2.258.0...2.259.0) (2026-09-17)
 
 

@@ -31533,6 +31533,13 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    allowUserCredentials: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     retries: {
                         dataType: 'union',
                         subSchemas: [
@@ -32693,6 +32700,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                allowUserCredentials: { dataType: 'boolean' },
                 requireUserCredentials: { dataType: 'boolean' },
                 keyfileContents: {
                     dataType: 'nestedObjectLiteral',
