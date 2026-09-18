@@ -31,7 +31,9 @@ type CreateDbProjectDbtSource = Pick<
     | 'dbt_connection'
     | 'warehouse_database'
     | 'warehouse_schema'
->;
+> &
+    // The primary source is inserted with the project's own dbt source uuid
+    Partial<Pick<DbProjectDbtSource, 'project_dbt_source_uuid'>>;
 
 type UpdateDbProjectDbtSource = Partial<
     Pick<
