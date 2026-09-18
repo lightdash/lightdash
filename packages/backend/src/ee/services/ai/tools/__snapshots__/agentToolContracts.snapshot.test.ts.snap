@@ -9226,10 +9226,86 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "prUrl": {
+                  "description": "URL of the opened pull request. The user already sees it as a "View pull request" button, so do not repeat it in the reply.",
+                  "type": "string",
+                },
+                "projectName": {
+                  "description": "Lightdash project the preview deploys are based on.",
+                  "type": "string",
+                },
+                "repository": {
+                  "description": "GitHub repository (owner/name) the pull request was opened against.",
+                  "type": "string",
+                },
+                "secrets": {
+                  "description": "GitHub Actions secrets the user must add to the repository before the workflow can run.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "description": {
+                        "description": "What the secret is used for.",
+                        "type": "string",
+                      },
+                      "name": {
+                        "description": "GitHub Actions secret name.",
+                        "type": "string",
+                      },
+                      "value": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "Pre-filled value to present to the user verbatim; null when the user must provide it themselves.",
+                      },
+                    },
+                    "required": [
+                      "name",
+                      "value",
+                      "description",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "prUrl",
+                "projectName",
+                "repository",
+                "secrets",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
