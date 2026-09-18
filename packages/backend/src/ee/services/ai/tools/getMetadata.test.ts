@@ -5,9 +5,11 @@ import {
     MetricType,
     SupportedDbtAdapter,
     TimeFrames,
+    toolGetMetadataOutputSchema,
     type Explore,
     type ModelRequiredFilterRule,
 } from '@lightdash/common';
+import type { ToolExecutionOptions } from 'ai';
 import { executeGetMetadata, getGetMetadata } from './getMetadata';
 
 // A description that enumerates valid filter values, longer than the old 240
@@ -63,25 +65,29 @@ const makeExplore = (overrides: {
     },
 });
 
-type ExecuteResult = { result: string; metadata: { status: string } };
+const toolCallOptions: ToolExecutionOptions = {
+    toolCallId: 'test',
+    messages: [],
+};
 
-const execute = async (
-    explore: Explore,
-    requests: Parameters<
-        NonNullable<ReturnType<typeof getGetMetadata>['execute']>
-    >[0]['requests'],
-): Promise<ExecuteResult> => {
+// Runs the real tool and checks every path against the tool's output schema.
+const executeWith = async (
+    availableExplores: Explore[],
+    requests: Parameters<typeof executeGetMetadata>[0]['requests'],
+) => {
     const tool = getGetMetadata({
-        availableExplores: [explore],
+        availableExplores,
         projectParameterDefinitions: {},
     });
-    const result = await tool.execute!(
-        { requests },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        {} as any,
-    );
-    return result as ExecuteResult;
+    if (!tool.execute) throw new Error('getMetadata tool has no execute');
+    const output = await tool.execute({ requests }, toolCallOptions);
+    return toolGetMetadataOutputSchema.parse(output);
 };
+
+const execute = (
+    explore: Explore,
+    requests: Parameters<typeof executeGetMetadata>[0]['requests'],
+) => executeWith([explore], requests);
 
 describe('getMetadata description truncation', () => {
     it('returns a long field description in full (above the old 240 cap)', async () => {
@@ -244,24 +250,17 @@ describe('getMetadata explore field listing', () => {
             },
         };
 
-        const tool = getGetMetadata({
-            availableExplores: [billing, sales],
-            projectParameterDefinitions: {},
-        });
-        const result = (await tool.execute!(
-            {
-                requests: [
-                    {
-                        type: 'field',
-                        fields: [
-                            { exploreId: 'billing', fieldId: 'orders_status' },
-                        ],
-                    },
-                ],
-            },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            {} as any,
-        )) as ExecuteResult;
+        const result = await executeWith(
+            [billing, sales],
+            [
+                {
+                    type: 'field',
+                    fields: [
+                        { exploreId: 'billing', fieldId: 'orders_status' },
+                    ],
+                },
+            ],
+        );
 
         expect(result.result).toContain(
             'Field "orders_status" not found in explore "billing"',
@@ -490,5 +489,108 @@ describe('getMetadata parameters', () => {
             status: 'found',
             requiredParameters: ['orders.metric'],
         });
+    });
+});
+
+describe('getMetadata structured output', () => {
+    it('returns structuredContent that carries the facts rendered in the text', async () => {
+        const explore = makeExplore({ fieldDescription: 'Order status' });
+        const output = await execute(explore, [
+            { type: 'explore', exploreIds: ['sales', 'missing'] },
+            {
+                type: 'field',
+                fields: [
+                    { exploreId: 'sales', fieldId: 'orders_status' },
+                    { exploreId: 'sales', fieldId: 'orders_nope' },
+                ],
+            },
+        ]);
+
+        expect(toolGetMetadataOutputSchema.safeParse(output).success).toBe(
+            true,
+        );
+        expect(output.metadata).toEqual({ status: 'success' });
+        expect(output.structuredContent).toEqual({
+            explores: [
+                {
+                    exploreId: 'sales',
+                    status: 'found',
+                    label: 'Sales',
+                    description: null,
+                    hint: null,
+                    baseTable: 'orders',
+                    joinedTables: [],
+                    requiredFilters: [],
+                    parameters: [],
+                    baseDimensions: { count: 1, fieldIds: ['orders_status'] },
+                    baseMetrics: { count: 0, fieldIds: [] },
+                },
+                {
+                    exploreId: 'missing',
+                    status: 'not_found',
+                    error: 'Explore "missing" not found or not available to this agent.',
+                },
+            ],
+            fields: [
+                {
+                    exploreId: 'sales',
+                    fieldId: 'orders_status',
+                    status: 'found',
+                    kind: 'dimension',
+                    fieldType: 'string',
+                    label: 'Status',
+                    filterType: 'string',
+                    isFromJoinedTable: false,
+                    joinedTableName: null,
+                    caseSensitiveFilters: true,
+                    defaultTimeDimension: null,
+                    defaultTimeDimensionGranularity: null,
+                    requiredParameters: [],
+                    description: 'Order status',
+                    hint: null,
+                },
+                {
+                    exploreId: 'sales',
+                    fieldId: 'orders_nope',
+                    status: 'not_found',
+                    error: 'Field "orders_nope" not found in explore "sales".',
+                },
+            ],
+        });
+
+        // The text and the structured content are one computation rendered twice.
+        expect(output.result).toContain('Explore: sales (Sales)');
+        expect(output.result).toContain('base dimensions (1): orders_status');
+        expect(output.result).toContain(
+            'Explore "missing" not found or not available to this agent.',
+        );
+        expect(output.result).toContain(
+            'sales/orders_status  [dimension string]',
+        );
+        expect(output.result).toContain('description: Order status');
+        expect(output.result).toContain(
+            'Field "orders_nope" not found in explore "sales".',
+        );
+    });
+
+    it('returns { error } as structuredContent when execution throws', async () => {
+        const explore = makeExplore({});
+        Object.defineProperty(explore, 'joinedTables', {
+            get: () => {
+                throw new Error('explore cache corrupted');
+            },
+        });
+
+        const output = await execute(explore, [
+            { type: 'explore', exploreIds: ['sales'] },
+        ]);
+
+        expect(toolGetMetadataOutputSchema.safeParse(output).success).toBe(
+            true,
+        );
+        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.result).toContain('Error getting metadata');
+        expect(output.result).toContain('explore cache corrupted');
+        expect(output.structuredContent).toEqual({ error: output.result });
     });
 });

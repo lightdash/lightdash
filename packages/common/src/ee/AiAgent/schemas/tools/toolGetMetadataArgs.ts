@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import { toolNameFor } from './discoveryToolNames';
 import { findExploresRequiredFilterSchema } from './toolFindExploresArgs';
 
@@ -158,10 +161,19 @@ export const getMetadataResultSchema = z.object({
     ),
 });
 
-export const toolGetMetadataOutputSchema = z.object({
-    result: z.string(),
+// Same shape MCP surfaces as structuredContent, so agent and MCP callers read one contract.
+export const toolGetMetadataStructuredContentSchema =
+    getMetadataResultSchema.describe(
+        'One entry per requested explore and per requested field, in request order; a `not_found` entry carries the same error text shown in `result`.',
+    );
+
+export const toolGetMetadataOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema,
+    structuredContent: toolGetMetadataStructuredContentSchema,
 });
 
 export type GetMetadataResult = z.infer<typeof getMetadataResultSchema>;
+export type ToolGetMetadataStructuredContent = z.infer<
+    typeof toolGetMetadataStructuredContentSchema
+>;
 export type ToolGetMetadataOutput = z.infer<typeof toolGetMetadataOutputSchema>;

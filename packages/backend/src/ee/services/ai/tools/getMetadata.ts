@@ -17,7 +17,7 @@ import {
 import { tool } from 'ai';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
 import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { truncate } from '../utils/truncation';
 import {
     getDefaultTimeDimensionFieldIds,
@@ -448,16 +448,9 @@ export const getGetMetadata = (dependencies: Dependencies) =>
         ...toolDefinition,
         execute: async (args) => {
             try {
-                const result = executeGetMetadata(args, dependencies);
-                return {
-                    result: result.result,
-                    metadata: result.metadata,
-                };
+                return executeGetMetadata(args, dependencies);
             } catch (error) {
-                return {
-                    result: toolErrorHandler(error, 'Error getting metadata'),
-                    metadata: { status: 'error' as const },
-                };
+                return toolErrorOutput(error, 'Error getting metadata');
             }
         },
     });
