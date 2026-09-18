@@ -27,11 +27,13 @@ import WarehouseSchemaInput from './WarehouseSchemaInput';
 interface DbtSettingsFormProps {
     disabled: boolean;
     defaultType?: DbtProjectType;
+    showWarehouseFields?: boolean;
 }
 
 const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     disabled,
     defaultType,
+    showWarehouseFields = true,
 }) => {
     const form = useFormContext();
     const { isDbtSource, projectUuid } = useProjectFormContext();
@@ -170,44 +172,42 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
 
                 {type !== DbtProjectType.NONE && !isNative && (
                     <>
-                        <FormSection name="target">
-                            <Stack mt="xs">
-                                <TextInput
-                                    name="dbt.target"
-                                    {...form.getInputProps('dbt.target')}
-                                    label="Target name"
-                                    description={
-                                        <p>
-                                            The name Lightdash gives the dbt
-                                            target it compiles with. Set it to
-                                            match the target your dbt code
-                                            branches on. It does not change
-                                            which database or schema your models
-                                            are read from.
-                                        </p>
-                                    }
-                                    disabled={disabled}
-                                    placeholder="prod"
-                                />
-                                {/* A source shares the project's warehouse but
-                                not necessarily the same location inside it, so
-                                it sets its own here. Hidden on the project form
-                                when org warehouse credentials provide it. */}
-                                {isDbtSource && projectUuid ? (
-                                    <WarehouseLocationInputs
-                                        projectUuid={projectUuid}
-                                    />
-                                ) : null}
-                                {isDbtSource ||
-                                form.values
-                                    .organizationWarehouseCredentialsUuid ? null : (
-                                    <WarehouseSchemaInput
-                                        warehouseType={warehouseType}
+                        {showWarehouseFields && (
+                            <FormSection name="target">
+                                <Stack mt="xs">
+                                    <TextInput
+                                        name="dbt.target"
+                                        {...form.getInputProps('dbt.target')}
+                                        label="Target name"
+                                        description={
+                                            <p>
+                                                The name Lightdash gives the dbt
+                                                target it compiles with. Set it
+                                                to match the target your dbt
+                                                code branches on. It does not
+                                                change which database or schema
+                                                your models are read from.
+                                            </p>
+                                        }
                                         disabled={disabled}
+                                        placeholder="prod"
                                     />
-                                )}
-                            </Stack>
-                        </FormSection>
+                                    {isDbtSource && projectUuid ? (
+                                        <WarehouseLocationInputs
+                                            projectUuid={projectUuid}
+                                        />
+                                    ) : null}
+                                    {isDbtSource ||
+                                    form.values
+                                        .organizationWarehouseCredentialsUuid ? null : (
+                                        <WarehouseSchemaInput
+                                            warehouseType={warehouseType}
+                                            disabled={disabled}
+                                        />
+                                    )}
+                                </Stack>
+                            </FormSection>
+                        )}
                         <FormSection
                             name="Advanced"
                             isOpen={isAdvancedSettingsOpen}
