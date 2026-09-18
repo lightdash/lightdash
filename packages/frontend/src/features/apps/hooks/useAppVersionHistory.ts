@@ -19,6 +19,8 @@ export type AppVersionHistory = {
      * loaded page window. Null when nothing has ever built successfully.
      */
     latestReadyVersion: number | null;
+    /** The app's current thread; null before the app has loaded. */
+    currentThreadNumber: number | null;
     /**
      * True once version 1 is loaded. Versions are 1-indexed and contiguous, so
      * holding it means `oldest` really is the origin rather than the oldest
@@ -88,6 +90,7 @@ export const useAppVersionHistory = (
         // ready version can be older than the page window, and a limit=1 poll
         // carries it correctly because it is resolved outside pagination.
         latestReadyVersion: data?.pages?.[0]?.latestReadyVersion ?? null,
+        currentThreadNumber: data?.pages?.[0]?.currentThread.number ?? null,
         hasOrigin,
         hasEarlier: hasNextPage === true && !hasOrigin,
         isLoading: appUuid !== null && isLoading,

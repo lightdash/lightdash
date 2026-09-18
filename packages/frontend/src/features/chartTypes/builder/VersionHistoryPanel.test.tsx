@@ -34,6 +34,7 @@ const defaultProps = {
     hasEarlier: false,
     isFetchingEarlier: false,
     fetchEarlier: vi.fn(),
+    currentThreadNumber: null,
 };
 
 const twoVersions = [

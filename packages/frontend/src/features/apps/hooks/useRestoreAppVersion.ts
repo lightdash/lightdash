@@ -28,8 +28,8 @@ const restoreAppVersion = ({
         body: undefined,
     });
 
-/** The app gained a ready version; its viz contract may have changed too. */
-export const invalidateAppAfterRestore = (
+/** The app or its versions changed server-side; the viz contract may have too. */
+export const invalidateAppQueries = (
     queryClient: QueryClient,
     projectUuid: string,
     appUuid: string,
@@ -52,7 +52,7 @@ export const useRestoreAppVersion = () => {
     >({
         mutationFn: restoreAppVersion,
         onSuccess: (_data, { projectUuid, appUuid }) => {
-            void invalidateAppAfterRestore(queryClient, projectUuid, appUuid);
+            void invalidateAppQueries(queryClient, projectUuid, appUuid);
         },
     });
 };

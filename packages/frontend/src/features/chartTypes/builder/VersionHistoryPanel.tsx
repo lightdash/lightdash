@@ -27,6 +27,7 @@ type Props = {
     hasEarlier: boolean;
     isFetchingEarlier: boolean;
     fetchEarlier: () => void;
+    currentThreadNumber: number | null;
 };
 
 const VersionChanges: FC<{
@@ -85,6 +86,7 @@ const VersionHistoryPanel: FC<Props> = ({
     hasEarlier,
     isFetchingEarlier,
     fetchEarlier,
+    currentThreadNumber,
 }) => {
     const [restoreTarget, setRestoreTarget] = useState<number | null>(null);
 
@@ -117,9 +119,9 @@ const VersionHistoryPanel: FC<Props> = ({
                 hasEarlier={hasEarlier}
                 isFetchingEarlier={isFetchingEarlier}
                 fetchEarlier={fetchEarlier}
+                currentThreadNumber={currentThreadNumber}
                 emptyPromptLabel="Uploaded from source"
                 olderVersionTime="absolute"
-                currentThreadNumber={null}
                 renderEntryExtras={(version) => {
                     const changes = schemaChanges.get(version.version);
                     return changes ? (

@@ -38,5 +38,4 @@ const ClearAgentContextButton: FC<Props> = ({ disabled, onClick }) => (
     </Tooltip>
 );
 
-// ts-unused-exports:disable-next-line
 export default ClearAgentContextButton;
