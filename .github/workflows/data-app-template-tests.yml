@@ -1,0 +1,37 @@
+name: Data app template tests
+
+on:
+  pull_request:
+    paths:
+      - 'sandboxes/data-apps/**'
+      - '.github/workflows/data-app-template-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  interactions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Read Node version
+        id: node-version
+        run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+        with:
+          runtime: node@${{ steps.node-version.outputs.version }}
+          cache: true
+          cache-dependency-path: sandboxes/data-apps/pnpm-lock.yaml
+          install: false
+      - name: Install Socket Firewall
+        run: npm install -g sfw@2.0.6
+      - name: Install test dependencies
+        working-directory: sandboxes/data-apps
+        run: sfw pnpm install --frozen-lockfile
+      - name: Test template interactions
+        working-directory: sandboxes/data-apps
+        run: pnpm run test:unit
