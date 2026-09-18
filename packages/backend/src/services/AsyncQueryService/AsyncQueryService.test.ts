@@ -7845,6 +7845,33 @@ describe('runDuckdbQuery', () => {
         ...overrides,
     });
 
+    // A results file name may contain '--'; the limit's comment stripper
+    // must never see the reference CTEs that name it
+    it('discover mode limits the user statement before wrapping it in the reference CTEs', async () => {
+        const { streamQuery, warehouseClient } = probingClient({
+            one: { type: DimensionType.NUMBER },
+        });
+        const { run } = buildService();
+        const referenceCte = `"r" AS (SELECT 1 AS one FROM read_json('s3://results/abc---def.jsonl'))`;
+
+        await run(
+            baseArgs({
+                sql: 'SELECT one FROM r -- probe',
+                references: { kind: 'bound', referenceCtes: [referenceCte] },
+                engine: { kind: 'client', warehouseClient },
+            }),
+        );
+
+        expect(streamQuery.mock.calls[0][0]).toBe(
+            [
+                `WITH ${referenceCte}`,
+                'SELECT * FROM (',
+                'SELECT one FROM r LIMIT 1',
+                ') AS lightdash_user_query',
+            ].join('\n'),
+        );
+    });
+
     it('discover mode probes the SQL with one row and executes with the columns it found', async () => {
         const { streamQuery, warehouseClient } = probingClient({
             one: { type: DimensionType.NUMBER },

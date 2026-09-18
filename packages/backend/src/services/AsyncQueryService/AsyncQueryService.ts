@@ -3511,12 +3511,8 @@ export class AsyncQueryService extends ProjectService {
                 queryTags.query_context ===
                     QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION;
 
-            const fileName = QueryHistoryModel.createUniqueResultsFileName(
-                cacheKey,
-                {
-                    sqlSafe: isParquetMaterialization,
-                },
-            );
+            const fileName =
+                QueryHistoryModel.createUniqueResultsFileName(cacheKey);
             const resultsStorageClient = this.getResultsStorageClientForContext(
                 queryTags.query_context,
             );
@@ -8755,12 +8751,9 @@ export class AsyncQueryService extends ProjectService {
                     return;
                 }
             }
-            const resolvedSql = AsyncQueryService.wrapSqlWithReferenceCtes(
-                sql,
-                bound.referenceCtes,
-            );
             const execution = await this.resolveDuckdbQueryColumns({
-                resolvedSql,
+                sql,
+                referenceCtes: bound.referenceCtes,
                 columns,
                 warehouseClient,
                 queryTags,
@@ -9008,12 +9001,14 @@ export class AsyncQueryService extends ProjectService {
      * and pivot as they are.
      */
     private async resolveDuckdbQueryColumns({
-        resolvedSql,
+        sql,
+        referenceCtes,
         columns,
         warehouseClient,
         queryTags,
     }: {
-        resolvedSql: string;
+        sql: string;
+        referenceCtes: string[];
         columns: DuckdbQueryColumns;
         warehouseClient: WarehouseClient;
         queryTags: RunQueryTags;
@@ -9021,7 +9016,10 @@ export class AsyncQueryService extends ProjectService {
         switch (columns.mode) {
             case 'supplied':
                 return {
-                    query: resolvedSql,
+                    query: AsyncQueryService.wrapSqlWithReferenceCtes(
+                        sql,
+                        referenceCtes,
+                    ),
                     fieldsMap: columns.fieldsMap,
                     usedParameters: columns.usedParameters,
                     originalColumns: columns.originalColumns,
@@ -9029,7 +9027,8 @@ export class AsyncQueryService extends ProjectService {
                 };
             case 'discover':
                 return this.discoverDuckdbQueryColumns({
-                    resolvedSql,
+                    sql,
+                    referenceCtes,
                     limit: columns.limit,
                     parameters: columns.parameters,
                     warehouseClient,
@@ -9044,13 +9043,15 @@ export class AsyncQueryService extends ProjectService {
     }
 
     private async discoverDuckdbQueryColumns({
-        resolvedSql,
+        sql,
+        referenceCtes,
         limit,
         parameters,
         warehouseClient,
         queryTags,
     }: {
-        resolvedSql: string;
+        sql: string;
+        referenceCtes: string[];
         limit: number | undefined;
         parameters: ParametersValuesMap;
         warehouseClient: WarehouseClient;
@@ -9060,7 +9061,7 @@ export class AsyncQueryService extends ProjectService {
         // parameters resolve first and a missing value refuses here
         const { replacedSql: sqlWithParameters, missingReferences } =
             safeReplaceParametersWithSqlBuilder(
-                resolvedSql,
+                sql,
                 parameters,
                 warehouseClient,
             );
@@ -9072,10 +9073,13 @@ export class AsyncQueryService extends ProjectService {
             );
         }
         const columns: { name: string; type: DimensionType }[] = [];
-        const columnDiscoverySql = applyLimitToSqlQuery({
-            sqlQuery: sqlWithParameters,
-            limit: 1,
-        });
+        // The limit is applied to the user's statement alone: the reference
+        // CTEs name result files, and the limit strips what reads as a
+        // comment even inside a string literal
+        const columnDiscoverySql = AsyncQueryService.wrapSqlWithReferenceCtes(
+            applyLimitToSqlQuery({ sqlQuery: sqlWithParameters, limit: 1 }),
+            referenceCtes,
+        );
         try {
             await warehouseClient.streamQuery(
                 columnDiscoverySql,
@@ -9097,8 +9101,11 @@ export class AsyncQueryService extends ProjectService {
             throw new WarehouseQueryError(getErrorMessage(e));
         }
 
+        // The composer sanitizes the statement it is given the way the SQL
+        // runner does, so it sees the user's statement alone; the reference
+        // CTEs wrap what it composes
         const composer = new SqlQueryComposer({
-            userSql: resolvedSql,
+            userSql: sql,
             columns,
             warehouseClient,
             pivotConfiguration: undefined,
@@ -9122,9 +9129,12 @@ export class AsyncQueryService extends ProjectService {
         }, {} as ResultColumns);
 
         return {
-            query: composer.getSql({
-                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
-            }),
+            query: AsyncQueryService.wrapSqlWithReferenceCtes(
+                composer.getSql({
+                    columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+                }),
+                referenceCtes,
+            ),
             fieldsMap: composer.getFields(),
             usedParameters: composer.getUsedParameters(),
             originalColumns,
