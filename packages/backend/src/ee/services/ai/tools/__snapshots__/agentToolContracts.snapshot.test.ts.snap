@@ -6585,10 +6585,56 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "content": {
+                  "description": "Full text content of the document.",
+                  "type": "string",
+                },
+                "mimeType": {
+                  "description": "MIME type of the uploaded file the document came from.",
+                  "type": "string",
+                },
+                "name": {
+                  "description": "Name of the knowledge document.",
+                  "type": "string",
+                },
+                "uuid": {
+                  "description": "Uuid of the knowledge document that was read.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "uuid",
+                "name",
+                "mimeType",
+                "content",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
