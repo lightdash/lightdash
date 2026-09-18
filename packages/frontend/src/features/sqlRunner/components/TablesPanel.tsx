@@ -4,6 +4,7 @@ import { IconGripHorizontal } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../components/common/ResizableSplitter';
+import { isProtoMultiConnectionEnabled, ProtoTables } from '../prototype';
 import { useAppSelector } from '../store/hooks';
 import styles from './ResizeHandle.module.css';
 import { TableFields } from './TableFields';
@@ -76,7 +77,11 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
                             flexDirection: 'column',
                         }}
                     >
-                        <Tables />
+                        {isProtoMultiConnectionEnabled ? (
+                            <ProtoTables />
+                        ) : (
+                            <Tables />
+                        )}
                     </ResizableSplitter.Pane>
 
                     {activeTable && (

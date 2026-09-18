@@ -15,6 +15,10 @@ import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlRunnerShareUrl } from '../features/sqlRunner/hooks/useSqlRunnerShareUrl';
+import {
+    isProtoMultiConnectionEnabled,
+    ProtoConnectionProvider,
+} from '../features/sqlRunner/prototype';
 import { store } from '../features/sqlRunner/store';
 import {
     useAppDispatch,
@@ -190,10 +194,19 @@ const SqlRunnerNewPage = ({
 }) => {
     return (
         <Provider store={store}>
-            <SqlRunner
-                isEditMode={isEditMode}
-                virtualViewState={virtualViewState}
-            />
+            {isProtoMultiConnectionEnabled ? (
+                <ProtoConnectionProvider>
+                    <SqlRunner
+                        isEditMode={isEditMode}
+                        virtualViewState={virtualViewState}
+                    />
+                </ProtoConnectionProvider>
+            ) : (
+                <SqlRunner
+                    isEditMode={isEditMode}
+                    virtualViewState={virtualViewState}
+                />
+            )}
         </Provider>
     );
 };
