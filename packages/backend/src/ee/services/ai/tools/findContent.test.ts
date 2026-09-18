@@ -1,6 +1,7 @@
 import {
     ChartKind,
     toolFindContentOutputSchema,
+    toolGetDashboardChartsOutputSchema,
     type ContentVerificationInfo,
     type DashboardSearchResult,
     type ToolFindContentOutput,
@@ -841,6 +842,111 @@ describe('getGetDashboardCharts', () => {
 
         const chartMatches = output.result.match(/<chart /g);
         expect(chartMatches).toHaveLength(3);
+
+        expect(
+            toolGetDashboardChartsOutputSchema.safeParse(output).success,
+        ).toBe(true);
+        expect(output.structuredContent).toEqual({
+            dashboardUuid: 'dash-uuid-1',
+            dashboardName: 'Sales Dashboard',
+            page: 1,
+            pageSize: 20,
+            totalPageCount: 2,
+            totalResults: 40,
+            charts: [
+                {
+                    uuid: 'chart-uuid-0',
+                    name: 'Chart 0',
+                    description: 'Description for chart 0',
+                    chartType: ChartKind.VERTICAL_BAR,
+                    viewsCount: 0,
+                    verification: null,
+                },
+                {
+                    uuid: 'chart-uuid-1',
+                    name: 'Chart 1',
+                    description: null,
+                    chartType: ChartKind.VERTICAL_BAR,
+                    viewsCount: 10,
+                    verification: null,
+                },
+                {
+                    uuid: 'chart-uuid-2',
+                    name: 'Chart 2',
+                    description: 'Description for chart 2',
+                    chartType: ChartKind.VERTICAL_BAR,
+                    viewsCount: 20,
+                    verification: null,
+                },
+            ],
+        });
+    });
+
+    it('renders an empty page with structured content when the dashboard has no charts', async () => {
+        const mockGetDashboardCharts = vi.fn().mockResolvedValue({
+            dashboardName: 'Empty Dashboard',
+            charts: [],
+            pagination: {
+                page: 1,
+                pageSize: 20,
+                totalResults: 0,
+                totalPageCount: 0,
+            },
+        });
+
+        const tool = getGetDashboardCharts({
+            getDashboardCharts: mockGetDashboardCharts,
+            siteUrl: '',
+            pageSize: 20,
+        });
+
+        const output = await executeGetDashboardCharts(tool, {
+            dashboardUuid: 'dash-uuid-1',
+            page: 1,
+        });
+
+        expect(output.metadata.status).toBe('success');
+        expect(output.result).toContain('totalResults="0"');
+        expect(output.result).not.toContain('<chart ');
+        expect(
+            toolGetDashboardChartsOutputSchema.safeParse(output).success,
+        ).toBe(true);
+        expect(output.structuredContent).toEqual({
+            dashboardUuid: 'dash-uuid-1',
+            dashboardName: 'Empty Dashboard',
+            page: 1,
+            pageSize: 20,
+            totalPageCount: 0,
+            totalResults: 0,
+            charts: [],
+        });
+    });
+
+    it('returns an error envelope with structured content when fetching charts fails', async () => {
+        const mockGetDashboardCharts = vi
+            .fn()
+            .mockRejectedValue(new Error('Dashboard not found'));
+
+        const tool = getGetDashboardCharts({
+            getDashboardCharts: mockGetDashboardCharts,
+            siteUrl: '',
+            pageSize: 20,
+        });
+
+        const output = await executeGetDashboardCharts(tool, {
+            dashboardUuid: 'missing-dash',
+            page: 1,
+        });
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain(
+            'Error getting charts for dashboard: missing-dash',
+        );
+        expect(output.result).toContain('Dashboard not found');
+        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(
+            toolGetDashboardChartsOutputSchema.safeParse(output).success,
+        ).toBe(true);
     });
 
     it('defaults page to 1 when not provided', async () => {
@@ -906,5 +1012,27 @@ describe('getGetDashboardCharts', () => {
         const unverifiedAIdx = output.result.indexOf('unverified-a');
         expect(verifiedIdx).toBeLessThan(unverifiedAIdx);
         expect(output.result).toMatch(/<verified[^>]*by="Dana Lin"/);
+
+        expect(
+            toolGetDashboardChartsOutputSchema.safeParse(output).success,
+        ).toBe(true);
+        expect(
+            'charts' in output.structuredContent
+                ? output.structuredContent.charts.map((chart) => ({
+                      uuid: chart.uuid,
+                      verification: chart.verification,
+                  }))
+                : output.structuredContent,
+        ).toEqual([
+            {
+                uuid: 'verified-b',
+                verification: {
+                    verifiedBy: 'Dana Lin',
+                    verifiedAt: '2026-04-01T00:00:00.000Z',
+                },
+            },
+            { uuid: 'unverified-a', verification: null },
+            { uuid: 'unverified-c', verification: null },
+        ]);
     });
 });
