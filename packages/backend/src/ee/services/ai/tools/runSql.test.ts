@@ -1,11 +1,11 @@
-import { type AiWebAppPrompt, type SlackPrompt } from '@lightdash/common';
+import {
+    toolRunSqlOutputSchema,
+    type AiWebAppPrompt,
+    type SlackPrompt,
+} from '@lightdash/common';
 import { getRunSql } from './runSql';
 
 type RunSqlTool = ReturnType<typeof getRunSql>;
-type RunSqlOutput = {
-    result: string;
-    metadata?: { status: string };
-};
 type MakeToolOptions = {
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
@@ -16,21 +16,25 @@ type MakeToolOptions = {
     slackLinksOnly?: boolean;
 };
 
-const executeRunSql = (
+// execute() is typed as value-or-stream; runSql never streams, so every path
+// is narrowed (and asserted) through the tool's own output schema.
+const executeRunSql = async (
     tool: RunSqlTool,
     toolCallId: string = 'tool-call-1',
     sql: string = 'select 1 as answer',
 ) =>
-    tool.execute!(
-        {
-            sql,
-            limit: 500,
-        },
-        {
-            messages: [],
-            toolCallId,
-        },
-    ) as Promise<RunSqlOutput>;
+    toolRunSqlOutputSchema.parse(
+        await tool.execute!(
+            {
+                sql,
+                limit: 500,
+            },
+            {
+                messages: [],
+                toolCallId,
+            },
+        ),
+    );
 
 const makePrompt = (): AiWebAppPrompt => ({
     organizationUuid: 'org-uuid',
@@ -238,6 +242,12 @@ describe('getRunSql', () => {
         expect(secondOutput.result).toContain(
             'Do not call runSql again in this response',
         );
+        expect(firstOutput.structuredContent).toEqual({
+            error: firstOutput.result,
+        });
+        expect(secondOutput.structuredContent).toEqual({
+            error: secondOutput.result,
+        });
         expect(dependencies.waitForSqlApproval).toHaveBeenCalledTimes(1);
         expect(dependencies.waitForSqlApproval).toHaveBeenCalledWith(
             'tool-call-1',
@@ -254,6 +264,12 @@ describe('getRunSql', () => {
         expect(output.result).toContain('1 rows. Columns: answer.');
         expect(output.result).toContain('```csv');
         expect(output.result).toContain('answer');
+        expect(output.structuredContent).toEqual({
+            rowCount: 1,
+            columns: ['answer'],
+            rows: [{ answer: 1 }],
+            truncated: false,
+        });
     });
 
     it('returns only a summary when data access is disabled', async () => {
@@ -267,24 +283,118 @@ describe('getRunSql', () => {
         expect(output.metadata?.status).toBe('success');
         expect(output.result).toBe('1 rows. Columns: answer.');
         expect(output.result).not.toContain('```csv');
+        expect(output.structuredContent).toEqual({
+            rowCount: 1,
+            columns: ['answer'],
+            rows: null,
+            truncated: false,
+        });
+    });
+
+    it('mirrors a truncated preview in the structured content', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runSqlJob.mockResolvedValueOnce({
+            queryUuid: 'query-uuid',
+            rows: Array.from({ length: 60 }, (_, index) => ({
+                answer: index,
+                extra: 'not selected',
+            })),
+            columns: ['answer'],
+            rowCount: 60,
+        });
+
+        const output = await executeRunSql(tool);
+
+        expect(output.result).toContain('60 rows. Columns: answer.');
+        expect(output.result).toContain('(Showing first 50 of 60 rows.)');
+        expect(output.structuredContent).toEqual({
+            rowCount: 60,
+            columns: ['answer'],
+            rows: Array.from({ length: 50 }, (_, index) => ({
+                answer: index,
+            })),
+            truncated: true,
+        });
+    });
+
+    it('reports an empty result in the structured content', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runSqlJob.mockResolvedValueOnce({
+            queryUuid: 'query-uuid',
+            rows: [],
+            columns: ['answer'],
+            rowCount: 0,
+        });
+
+        const output = await executeRunSql(tool);
+
+        expect(output.result).toBe('Query returned 0 rows. Columns: answer');
+        expect(output.structuredContent).toEqual({
+            rowCount: 0,
+            columns: ['answer'],
+            rows: [],
+            truncated: false,
+        });
+    });
+
+    it('mirrors a query execution error in the structured content', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runSqlJob.mockRejectedValueOnce(
+            new Error('relation "missing" does not exist'),
+        );
+
+        const output = await executeRunSql(tool);
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain('relation "missing" does not exist');
+        expect(output.structuredContent).toEqual({ error: output.result });
+    });
+
+    it('mirrors a rejected approval in the structured content', async () => {
+        const waitForSqlApproval = vi.fn().mockResolvedValue('rejected');
+        const { tool } = makeTool({ waitForSqlApproval });
+
+        const output = await executeRunSql(tool);
+
+        expect(output.metadata?.status).toBe('rejected');
+        expect(output.structuredContent).toEqual({ error: output.result });
+    });
+
+    it('returns output that parses with the tool output schema on success', async () => {
+        const { tool } = makeTool({ autoApproveSql: true });
+
+        const raw = await tool.execute!(
+            { sql: 'select 1 as answer', limit: 500 },
+            { messages: [], toolCallId: 'tool-call-1' },
+        );
+
+        expect(toolRunSqlOutputSchema.safeParse(raw).success).toBe(true);
+    });
+
+    it('returns output that parses with the tool output schema on error', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runSqlJob.mockRejectedValueOnce(new Error('boom'));
+
+        const raw = await tool.execute!(
+            { sql: 'select 1 as answer', limit: 500 },
+            { messages: [], toolCallId: 'tool-call-1' },
+        );
+
+        expect(toolRunSqlOutputSchema.safeParse(raw).success).toBe(true);
     });
 
     it('rejects nested SQL execution functions before approval', async () => {
         const { tool, dependencies } = makeTool();
 
-        const output = (await tool.execute!(
-            {
-                sql: "SELECT * FROM query('INSTALL shellfs')",
-                limit: 500,
-            },
-            {
-                messages: [],
-                toolCallId: 'tool-call-1',
-            },
-        )) as RunSqlOutput;
+        const output = await executeRunSql(
+            tool,
+            'tool-call-1',
+            "SELECT * FROM query('INSTALL shellfs')",
+        );
 
         expect(output.metadata?.status).toBe('error');
         expect(output.result).toContain('forbidden functions');
+        expect(output.structuredContent).toEqual({ error: output.result });
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
         expect(dependencies.runSqlJob).not.toHaveBeenCalled();
     });
@@ -301,10 +411,7 @@ describe('getRunSql', () => {
             });
             return {
                 dependencies,
-                output: tool.execute!(
-                    { sql, limit: 500 },
-                    { messages: [], toolCallId },
-                ) as Promise<RunSqlOutput>,
+                output: executeRunSql(tool, toolCallId, sql),
             };
         };
 
@@ -374,6 +481,7 @@ describe('getRunSql agent SQL scope', () => {
         expect(dependencies.runSqlJob).not.toHaveBeenCalled();
         expect(output.metadata?.status).toBe('error');
         expect(output.result).toContain('jaffle_old');
+        expect(output.structuredContent).toEqual({ error: output.result });
     });
 
     it('refuses before asking the user to approve, so a blocked query costs no approval click', async () => {

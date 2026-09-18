@@ -22055,10 +22055,76 @@ Do not invent SQL Runner links.",
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "columns": {
+                  "description": "Ordered list of column names matching the keys in each row of \`rows\`.",
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+                "rowCount": {
+                  "description": "Total number of rows returned. May be less than the requested limit.",
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+                "rows": {
+                  "anyOf": [
+                    {
+                      "description": "Result rows. Each row is an object keyed by column name. Values come from the warehouse as JSON-serializable primitives (numbers, strings, booleans, ISO date strings, or null).",
+                      "items": {
+                        "additionalProperties": false,
+                        "propertyNames": {
+                          "type": "string",
+                        },
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Preview rows shown to the model (first 50 at most). Null when data access is disabled and no row values are exposed.",
+                },
+                "truncated": {
+                  "description": "True when \`rows\` holds only the first rows of a larger result; \`rowCount\` is the full count.",
+                  "type": "boolean",
+                },
+              },
+              "required": [
+                "rowCount",
+                "columns",
+                "rows",
+                "truncated",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
