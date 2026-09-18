@@ -1,17 +1,22 @@
 import { SupportedDbtAdapter } from './dbt';
 import { DimensionType } from './field';
 import {
+    buildMergeQueryFromPipeline,
     buildMergeQueryFromSaved,
+    buildSavedPipeline,
     getMergeCompiledSqlText,
     getUnaccountedDimensions,
     getWarehouseDefaultNullsFirst,
     MergeJoinType,
     MergeQueryErrorKind,
     parseSavedMergeQuery,
+    parseSavedPipeline,
+    parseStoredPipeline,
     placeMergeSortNulls,
     resolveMergeSorts,
-    SAVED_MERGE_QUERY_SCHEMA_VERSION,
+    SAVED_MERGE_QUERY_SCHEMA_VERSION_V2,
     toMergedSorts,
+    upgradeSavedMergeQuery,
     validateMergeQuery,
     type MergeQuery,
     type MergeQuerySource,
@@ -520,119 +525,248 @@ describe('getUnaccountedDimensions', () => {
     });
 });
 
-describe('saved merge query schemas', () => {
-    it('round-trips every source and key in a version 2 payload', () => {
-        const saved = {
-            primarySourceId: 'payments',
+describe('saved merge schemas', () => {
+    const chart: MetricQuery = {
+        ...metricQuery('orders', ['orders_order_date_month'], ['orders_total']),
+        sorts: [{ fieldId: 'orders_order_date_month', descending: true }],
+    };
+    const paymentsQuery = metricQuery(
+        'payments',
+        ['orders_order_date_month'],
+        ['payments_unique'],
+    );
+    const savedV2: SavedMergeQuery = {
+        primarySourceId: 'a',
+        sources: [
+            { id: 'a', kind: 'chart' },
+            { id: 'b', kind: 'query', metricQuery: paymentsQuery },
+        ],
+        joinKey: [
+            {
+                name: 'join_key_0',
+                fieldIdBySourceId: {
+                    a: 'orders_order_date_month',
+                    b: 'orders_order_date_month',
+                },
+            },
+        ],
+        joinType: MergeJoinType.LEFT,
+        tableCalculations: [],
+        repeatValuesSourceIds: ['b'],
+    };
+
+    // A v2 row keeps the ids it had, so no chart config moves: the chart is
+    // still `a`, the other query `b`, the key column `merge_join_key_0`.
+    it('rewrites a version 2 merge to a pipeline that keeps its ids', () => {
+        const pipeline = upgradeSavedMergeQuery(savedV2, chart);
+
+        expect(pipeline).toEqual({
+            chartAs: 'a',
+            queries: {
+                b: {
+                    explore: 'payments',
+                    dimensions: ['orders_order_date_month'],
+                    metrics: ['payments_unique'],
+                    repeat: true,
+                },
+            },
+            join: MergeJoinType.LEFT,
+            keys: { orders_order_date_month: ['b.orders_order_date_month'] },
+            keyNames: { orders_order_date_month: 'join_key_0' },
+            sort: [{ by: 'orders_order_date_month', direction: 'desc' }],
+            limit: 500,
+        });
+        expect(
+            parseStoredPipeline({
+                schemaVersion: SAVED_MERGE_QUERY_SCHEMA_VERSION_V2,
+                value: savedV2,
+                chartMetricQuery: chart,
+            }),
+        ).toEqual(pipeline);
+        // The runnable merge is the one the v2 shape produced
+        expect(buildMergeQueryFromPipeline(chart, pipeline!)).toEqual(
+            buildMergeQueryFromSaved(chart, savedV2),
+        );
+    });
+
+    it('has no pipeline form for a version 2 merge whose primary was not the chart', () => {
+        expect(
+            upgradeSavedMergeQuery({ ...savedV2, primarySourceId: 'b' }, chart),
+        ).toBeNull();
+    });
+
+    // A chart saved today goes by its explore's name, and so does each
+    // other query, so the file and the merged column ids read the same.
+    it('saves a runnable merge as a pipeline in the names it runs under', () => {
+        const runnable: MergeQuery = {
             sources: [
-                { id: 'orders', kind: 'chart' as const },
+                { id: 'orders', metricQuery: chart },
                 {
                     id: 'payments',
-                    kind: 'query' as const,
-                    metricQuery: metricQuery(
-                        'payments',
-                        ['payments_month'],
-                        ['payments_total'],
-                    ),
-                },
-                {
-                    id: 'subscriptions',
-                    kind: 'query' as const,
-                    metricQuery: metricQuery(
-                        'subscriptions',
-                        ['subscriptions_month'],
-                        ['subscriptions_mrr'],
-                    ),
+                    metricQuery: { ...paymentsQuery, timezone: 'UTC' },
                 },
             ],
             joinKey: [
                 {
-                    name: 'month',
+                    name: 'orders_order_date_month',
                     fieldIdBySourceId: {
-                        orders: 'orders_month',
-                        payments: 'payments_month',
-                        subscriptions: 'subscriptions_month',
+                        orders: 'orders_order_date_month',
+                        payments: 'orders_order_date_month',
                     },
                 },
             ],
-            joinType: MergeJoinType.LEFT,
-            tableCalculations: [],
+            joinType: MergeJoinType.FULL,
+            tableCalculations: [
+                { name: 'ratio', displayName: 'Ratio', sql: '1' },
+            ],
+            sorts: [
+                { fieldId: 'payments_payments_unique', descending: true },
+                { fieldId: 'merge_orders_order_date_month', descending: false },
+                { fieldId: 'orders_orders_total', descending: false },
+                { fieldId: 'ratio', descending: true },
+            ],
+            limit: 250,
         };
+        const pipeline = buildSavedPipeline({
+            mergeQuery: runnable,
+            chartSourceId: 'orders',
+        });
 
-        const parsed = parseSavedMergeQuery(
-            SAVED_MERGE_QUERY_SCHEMA_VERSION,
-            saved,
-        );
-        expect(parsed).toEqual(saved);
+        expect(pipeline).toEqual({
+            queries: {
+                payments: {
+                    explore: 'payments',
+                    dimensions: ['orders_order_date_month'],
+                    metrics: ['payments_unique'],
+                    timezone: 'UTC',
+                },
+            },
+            join: MergeJoinType.FULL,
+            keys: {
+                orders_order_date_month: ['payments.orders_order_date_month'],
+            },
+            sort: [
+                { by: 'payments.payments_unique', direction: 'desc' },
+                { by: 'orders_order_date_month', direction: 'asc' },
+                { by: 'orders_total', direction: 'asc' },
+                { by: 'ratio', direction: 'desc' },
+            ],
+            limit: 250,
+            tableCalculations: [
+                { name: 'ratio', displayName: 'Ratio', sql: '1' },
+            ],
+        });
         expect(
-            buildMergeQueryFromSaved(
-                metricQuery('orders', ['orders_month'], ['orders_total']),
-                parsed!,
-            ).sources.map(({ id }) => id),
-        ).toEqual(['payments', 'orders', 'subscriptions']);
-    });
-
-    it("carries a source's repeat-values opt-in through save and restore", () => {
-        const saved: SavedMergeQuery = {
-            primarySourceId: 'orders',
+            parseSavedPipeline(JSON.parse(JSON.stringify(pipeline))),
+        ).toEqual(pipeline);
+        expect(buildMergeQueryFromPipeline(chart, pipeline)).toEqual({
+            ...runnable,
             sources: [
-                { id: 'orders', kind: 'chart' },
+                runnable.sources[0],
                 {
                     id: 'payments',
-                    kind: 'query',
-                    metricQuery: metricQuery(
-                        'payments',
-                        ['payments_month'],
-                        ['payments_total'],
-                    ),
-                },
-            ],
-            joinKey: [
-                {
-                    name: 'month',
-                    fieldIdBySourceId: {
-                        orders: 'orders_month',
-                        payments: 'payments_month',
+                    metricQuery: {
+                        ...paymentsQuery,
+                        timezone: 'UTC',
+                        limit: 250,
                     },
                 },
             ],
-            joinType: MergeJoinType.LEFT,
-            tableCalculations: [],
-            repeatValuesSourceIds: ['payments'],
-        };
-
-        const parsed = parseSavedMergeQuery(
-            SAVED_MERGE_QUERY_SCHEMA_VERSION,
-            saved,
-        );
-        expect(parsed).toEqual(saved);
-        expect(
-            buildMergeQueryFromSaved(
-                metricQuery(
-                    'orders',
-                    ['orders_month', 'orders_status'],
-                    ['orders_total'],
-                ),
-                parsed!,
-            ).sources,
-        ).toEqual([
-            expect.objectContaining({ id: 'orders' }),
-            expect.objectContaining({ id: 'payments', repeatValues: true }),
-        ]);
-        expect(
-            'repeatValues' in
-                buildMergeQueryFromSaved(
-                    metricQuery('orders', ['orders_month'], ['orders_total']),
-                    parsed!,
-                ).sources[0],
-        ).toBe(false);
+        });
     });
 
-    it('rejects unknown schemas and incomplete source mappings', () => {
-        expect(parseSavedMergeQuery(1, {})).toBeNull();
-        expect(parseSavedMergeQuery(99, {})).toBeNull();
+    it('refuses to save a merge over an existing result or without the chart query', () => {
+        expect(() =>
+            buildSavedPipeline({
+                mergeQuery: {
+                    sources: [
+                        { id: 'orders', metricQuery: chart },
+                        { id: 'b', queryUuid: 'result-uuid' },
+                    ],
+                    joinKey: [],
+                    joinType: MergeJoinType.FULL,
+                    tableCalculations: [],
+                    limit: 500,
+                },
+                chartSourceId: 'orders',
+            }),
+        ).toThrow('cannot be saved');
+        expect(() =>
+            buildSavedPipeline({
+                mergeQuery: {
+                    sources: [{ id: 'b', metricQuery: chart }],
+                    joinKey: [],
+                    joinType: MergeJoinType.FULL,
+                    tableCalculations: [],
+                    limit: 500,
+                },
+                chartSourceId: 'orders',
+            }),
+        ).toThrow('requires the chart query');
+    });
+
+    it('rejects a pipeline that does not hold together', () => {
+        const valid = upgradeSavedMergeQuery(savedV2, chart)!;
+        expect(parseSavedPipeline(null)).toBeNull();
+        expect(parseSavedPipeline({ ...valid, queries: {} })).toBeNull();
+        // A query name is a merged table name
         expect(
-            parseSavedMergeQuery(SAVED_MERGE_QUERY_SCHEMA_VERSION, {
+            parseSavedPipeline({
+                ...valid,
+                queries: { merge: valid.queries.b },
+            }),
+        ).toBeNull();
+        expect(
+            parseSavedPipeline({
+                ...valid,
+                queries: { 'pay.ments': valid.queries.b },
+            }),
+        ).toBeNull();
+        // Every key reaches every query, once
+        expect(parseSavedPipeline({ ...valid, keys: {} })).toBeNull();
+        expect(
+            parseSavedPipeline({
+                ...valid,
+                keys: { orders_order_date_month: [] },
+            }),
+        ).toBeNull();
+        expect(
+            parseSavedPipeline({
+                ...valid,
+                keys: {
+                    orders_order_date_month: ['ghost.orders_order_date_month'],
+                },
+            }),
+        ).toBeNull();
+        // No join type fallback, no sort without a direction
+        expect(parseSavedPipeline({ ...valid, join: 'cross' })).toBeNull();
+        expect(
+            parseSavedPipeline({ ...valid, sort: [{ by: 'orders_total' }] }),
+        ).toBeNull();
+        expect(parseSavedPipeline(valid)).toEqual(valid);
+    });
+
+    it('leaves a chart without its merge on an unknown schema version', () => {
+        expect(
+            parseStoredPipeline({
+                schemaVersion: 1,
+                value: savedV2,
+                chartMetricQuery: chart,
+            }),
+        ).toBeNull();
+        expect(
+            parseStoredPipeline({
+                schemaVersion: 99,
+                value: upgradeSavedMergeQuery(savedV2, chart),
+                chartMetricQuery: chart,
+            }),
+        ).toBeNull();
+    });
+
+    it('rejects a version 2 merge with incomplete source mappings', () => {
+        expect(parseSavedMergeQuery(savedV2)).toEqual(savedV2);
+        expect(
+            parseSavedMergeQuery({
                 primarySourceId: 'orders',
                 sources: [
                     { id: 'orders', kind: 'chart' },
@@ -742,43 +876,6 @@ describe('merge sorts', () => {
             ),
         ).toEqual([{ fieldId: 'a_orders_total', descending: true }]);
         expect(resolveMergeSorts(undefined, ['a_orders_total'])).toEqual([]);
-    });
-
-    it('carries a saved chart sort onto the rebuilt merge', () => {
-        const saved: SavedMergeQuery = {
-            primarySourceId: 'orders',
-            sources: [
-                { id: 'orders', kind: 'chart' },
-                {
-                    id: 'payments',
-                    kind: 'query',
-                    metricQuery: metricQuery(
-                        'payments',
-                        ['payments_month'],
-                        ['payments_count'],
-                    ),
-                },
-            ],
-            joinKey: [
-                {
-                    name: 'month',
-                    fieldIdBySourceId: {
-                        orders: 'orders_month',
-                        payments: 'payments_month',
-                    },
-                },
-            ],
-            joinType: MergeJoinType.LEFT,
-            tableCalculations: [],
-        };
-        const chart = {
-            ...metricQuery('orders', ['orders_month'], ['orders_total']),
-            sorts: [{ fieldId: 'orders_total', descending: true }],
-        };
-
-        expect(buildMergeQueryFromSaved(chart, saved).sorts).toEqual([
-            { fieldId: 'orders_orders_total', descending: true },
-        ]);
     });
 });
 

@@ -1,9 +1,18 @@
 import { subject } from '@casl/ability';
 import {
+    type ApiChartAndResults,
+    type ApiError,
     CartesianSeriesType,
     ChartType,
     createDashboardFilterRuleFromField,
+    type CreateSavedChartVersion,
+    type Dashboard,
+    type DashboardChartTile as IDashboardChartTile,
+    type DashboardFilterRule,
     DashboardTileTypes,
+    type EChartsSeries,
+    type Field,
+    type FilterDashboardToRule,
     getChartKind,
     getConditionalFormattingsFromChartConfig,
     getCustomLabelsFromTableConfig,
@@ -13,6 +22,7 @@ import {
     getItemId,
     getItemMap,
     getPivotConfig,
+    getPipelineQueryExploreNames,
     getShowColumnTotalsFromChartConfig,
     getVisibleFields,
     isCartesianChartConfig,
@@ -20,18 +30,9 @@ import {
     isDashboardChartTileType,
     isFilterableField,
     isTableChartConfig,
-    type ApiChartAndResults,
-    type ApiError,
-    type CreateSavedChartVersion,
-    type Dashboard,
-    type QueryExecutionContext,
-    type DashboardFilterRule,
-    type EChartsSeries,
-    type Field,
-    type FilterDashboardToRule,
-    type DashboardChartTile as IDashboardChartTile,
     type ItemsMap,
     type PivotReference,
+    type QueryExecutionContext,
     type ResultValue,
     type SavedChart,
     type Series,
@@ -669,11 +670,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             chart,
             explore,
         } = dashboardChartReadyQuery;
-        const savedMerge = chart.merge ?? null;
+        const savedPipeline = chart.pipeline ?? null;
         // A merged tile's filters echo per source; the other source's explore
         // is needed to label them.
-        const additionalExploreName = savedMerge?.sources.flatMap((source) =>
-            source.kind === 'query' ? [source.metricQuery.exploreName] : [],
+        const additionalExploreName = (
+            savedPipeline ? getPipelineQueryExploreNames(savedPipeline) : []
         )[0];
         const { data: additionalExplore } = useExplore(additionalExploreName, {
             refetchOnMount: false,
@@ -1085,13 +1086,15 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     chartFilters: chart.metricQuery.filters,
                     appliedDashboardFilters,
                     appliedDashboardFiltersBySourceId,
-                    merge: savedMerge,
+                    pipeline: savedPipeline,
+                    chartExploreName: chart.metricQuery.exploreName,
                     explore,
                 }),
             [
                 appliedDashboardFilters,
                 appliedDashboardFiltersBySourceId,
-                savedMerge,
+                savedPipeline,
+                chart.metricQuery.exploreName,
                 chart.metricQuery.filters,
                 explore,
             ],
@@ -1116,9 +1119,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         const { pathname: chartPathname, search: chartSearch } = useMemo(
             () =>
                 getExploreFromHereUrl(
-                    savedMerge ? chart : chartWithDashboardFilters,
+                    savedPipeline ? chart : chartWithDashboardFilters,
                 ),
-            [savedMerge, chart, chartWithDashboardFilters],
+            [savedPipeline, chart, chartWithDashboardFilters],
         );
 
         const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);

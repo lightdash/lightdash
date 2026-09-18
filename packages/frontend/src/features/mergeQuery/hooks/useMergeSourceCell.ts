@@ -19,6 +19,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { convertDateFilters } from '../../../utils/dateFilter';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
+import { useMergeSourceNames } from './useMergeSourceNames';
 
 export const getMergeSourceFieldValues = (
     fieldOrigins: MergeFieldOrigins,
@@ -73,6 +74,7 @@ type PreparedMergeSourceCell = Omit<ResolvedMergeSourceCell, 'source'> & {
 export const useMergeSourceCell = () => {
     const projectUuid = useProjectUuid();
     const merge = useMergeSafe();
+    const { handleByName } = useMergeSourceNames();
     const {
         tableName,
         metricQuery: primaryMetricQuery,
@@ -159,9 +161,11 @@ export const useMergeSourceCell = () => {
             const origin = mergeResults.fieldOrigins[getItemId(mergedItem)];
             if (origin?.kind !== 'source') return null;
 
+            // Results name sources as they ran; the editor holds them by handle
+            const handle = handleByName[origin.sourceId] ?? origin.sourceId;
             const sourceItem =
-                itemMapBySourceId[origin.sourceId]?.[origin.sourceFieldId];
-            const sourceMetricQuery = metricQueryBySourceId[origin.sourceId];
+                itemMapBySourceId[handle]?.[origin.sourceFieldId];
+            const sourceMetricQuery = metricQueryBySourceId[handle];
             if (!sourceItem || !sourceMetricQuery) return null;
 
             return {
@@ -177,7 +181,7 @@ export const useMergeSourceCell = () => {
                 },
             };
         },
-        [itemMapBySourceId, merge, metricQueryBySourceId],
+        [handleByName, itemMapBySourceId, merge, metricQueryBySourceId],
     );
 
     const prepareUnderlyingData = useCallback(

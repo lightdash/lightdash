@@ -12,6 +12,7 @@ export type ChartDraftOverlay = Partial<
         | 'pivotConfig'
         | 'parameters'
         | 'merge'
+        | 'pipeline'
         | 'spaceUuid'
     >
 > & { verified?: boolean };
@@ -36,6 +37,7 @@ export const assertChartDraftOverlay: (
         pivotConfig: isRecord,
         parameters: isRecord,
         merge: (value) => value === null || isRecord(value),
+        pipeline: (value) => value === null || isRecord(value),
         spaceUuid: (value) => typeof value === 'string',
         verified: (value) => typeof value === 'boolean',
     };
@@ -80,6 +82,7 @@ export const mergeDraftIntoChart = <T extends SavedChartDAO>(
             parameters: draft.parameters,
         }),
         ...(draft.merge !== undefined && { merge: draft.merge }),
+        ...(draft.pipeline !== undefined && { pipeline: draft.pipeline }),
         ...(draft.spaceUuid !== undefined && {
             spaceUuid: draft.spaceUuid,
         }),

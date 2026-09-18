@@ -322,12 +322,11 @@ describe('existing artifact chart export', () => {
             }),
             { region: 'Europe' },
         );
-        expect(result.merge).toMatchObject({
-            primarySourceId: 'a',
-            joinType: MergeJoinType.FULL,
+        expect(result.pipeline).toMatchObject({
+            join: MergeJoinType.FULL,
         });
         expect(result.metricQuery.exploreName).toBe(validExplore.name);
-        expect(result.tableConfig?.columnOrder).toEqual(['merge_join_key_0']);
+        expect(result.tableConfig?.columnOrder).toEqual(['merge_a_dim1']);
         args.compileMerge.mockResolvedValue({
             errors: [{ message: 'Invalid join' }],
             typedColumns: null,

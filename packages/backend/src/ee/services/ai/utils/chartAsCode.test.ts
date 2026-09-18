@@ -1,5 +1,5 @@
 import {
-    buildMergeQueryFromSaved,
+    buildMergeQueryFromPipeline,
     ChartType,
     FilterOperator,
     getFields,
@@ -192,36 +192,37 @@ describe('deterministic chart-as-code', () => {
             spaceSlug: 'sales',
         });
         expect(content.metricQuery).toEqual(metricQuery);
+        const primaryName = metricQuery.exploreName;
+        const additionalName = `${primaryName}_2`;
         expect(content.tableConfig?.columnOrder).toEqual([
-            'merge_join_key_0',
-            'a_a_met1',
-            'b_a_met1',
+            'merge_a_dim1',
+            `${primaryName}_a_met1`,
+            `${additionalName}_a_met1`,
         ]);
-        expect(content.merge).toMatchObject({
-            primarySourceId: 'a',
-            joinKey: [
-                {
-                    name: 'join_key_0',
-                    fieldIdBySourceId: { a: 'a_dim1', b: 'a_dim1' },
-                },
-            ],
+        expect(content.merge).toBeUndefined();
+        expect(content.pipeline).toMatchObject({
+            join: MergeJoinType.FULL,
+            keys: { a_dim1: [`${additionalName}.a_dim1`] },
         });
-        if (!content.merge) throw new Error('Expected merge');
-        const reconstructed = buildMergeQueryFromSaved(
+        if (!content.pipeline) throw new Error('Expected pipeline');
+        const reconstructed = buildMergeQueryFromPipeline(
             metricQuery,
-            content.merge,
+            content.pipeline,
         );
         expect(reconstructed.sources).toEqual([
-            { id: 'a', metricQuery },
-            { id: 'b', metricQuery: { ...metricQuery, limit: 37 } },
+            { id: primaryName, metricQuery },
+            {
+                id: additionalName,
+                metricQuery: { ...metricQuery, sorts: [], limit: 50 },
+            },
         ]);
         expect(reconstructed.joinType).toBe(mergeQuery.joinType);
         expect(yaml).not.toContain('synthetic_merge');
         expect(load(yaml)).toEqual(parse(yaml));
-        expect(content.merge?.sources[1]).toMatchObject({
-            kind: 'query',
-            metricQuery: { ...metricQuery, limit: 37 },
+        expect(content.pipeline.queries[additionalName]).toMatchObject({
+            explore: metricQuery.exploreName,
         });
+        expect(content.pipeline.limit).toBe(50);
         expect(() =>
             prepareChartAsCode({ ...source(), queryTool: mergeTool }),
         ).toThrow('executed source queries');

@@ -8,7 +8,7 @@ import { type ContentDraftStaleness } from './contentAsCode/draftRebase';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type CompactOrAlias, type FieldId } from './field';
 import { type KnexPaginatedData } from './knex-paginate';
-import { type SavedMergeQuery } from './mergeQuery';
+import { type SavedMergeQuery, type SavedPipeline } from './mergeQuery';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 import { type ResolvedProjectColorPalette } from './organization';
 import { type ParametersValuesMap } from './parameters';
@@ -951,8 +951,15 @@ export type SavedChart = {
         rows?: string[];
     };
     /**
-     * Second query this chart's query is merged with, when it has one. Absent
-     * on the overwhelming majority of charts.
+     * The pipeline this chart's query is merged through, when it has one:
+     * the chart's own query by reference, every other query, and the merge.
+     * Absent on the overwhelming majority of charts.
+     */
+    pipeline?: SavedPipeline | null;
+    /**
+     * The merge in its schema v2 shape. Accepted on requests and rewritten to
+     * a pipeline on save; responses carry `pipeline` instead.
+     * @deprecated send `pipeline`
      */
     merge?: SavedMergeQuery | null;
     /** Visualization configuration for the chart */
@@ -1030,6 +1037,7 @@ type CreateChartBase = Pick<
     | 'chartConfig'
     | 'tableConfig'
     | 'parameters'
+    | 'pipeline'
     | 'merge'
 >;
 

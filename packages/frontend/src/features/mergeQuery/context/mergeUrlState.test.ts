@@ -8,6 +8,7 @@ import {
 
 const state: MergeUrlState = {
     focus: { kind: 'source', sourceId: 'subscriptions' },
+    primarySourceName: null,
     additionalSources: [
         {
             id: 'subscriptions',
@@ -100,6 +101,7 @@ describe('merge url state', () => {
 
         expect(parsed).toEqual({
             focus: { kind: 'source', sourceId: 'b' },
+            primarySourceName: null,
             additionalSources: [
                 {
                     id: 'b',
@@ -133,6 +135,7 @@ describe('merge url state', () => {
     it('falls back to safe defaults for an empty legacy shape', () => {
         expect(parseMergeState('{}')).toEqual({
             focus: { kind: 'source', sourceId: 'a' },
+            primarySourceName: null,
             additionalSources: [
                 {
                     id: 'b',
