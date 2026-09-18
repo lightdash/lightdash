@@ -7,6 +7,7 @@ import {
     fillOmittedSecrets,
     ForbiddenError,
     ParameterError,
+    supportsMultipleConnections,
     type Account,
     type ApiCreateConnectionRequest,
     type ApiUpdateConnectionRequest,
@@ -48,6 +49,8 @@ const ROLLOUT_REASON =
     'A second connection is not enabled for this organisation yet.';
 const CONTRACT_REASON =
     'A second connection needs the connections upgrade to finish on this instance.';
+const WAREHOUSE_TYPE_REASON =
+    'Several connections are supported for Postgres and Athena projects only.';
 
 const isConnectionNameConflict = (error: unknown): boolean =>
     error instanceof DatabaseError &&
@@ -165,8 +168,14 @@ export class ConnectionService extends BaseService {
 
     private async getAdditionalConnectionBlockReason(
         organizationUuid: string,
+        warehouseType: WarehouseTypes,
         connectionModel: ConnectionModel = this.connectionModel,
     ): Promise<string | undefined> {
+        // The scope limit comes first: no licence or rollout makes a project
+        // of another warehouse type eligible.
+        if (!supportsMultipleConnections(warehouseType)) {
+            return WAREHOUSE_TYPE_REASON;
+        }
         if (!this.licenseService.canHoldMultipleConnections(organizationUuid)) {
             return ENTITLEMENT_REASON;
         }
@@ -320,11 +329,13 @@ export class ConnectionService extends BaseService {
         );
         const connections =
             await this.connectionModel.listByProject(projectUuid);
+        const [firstConnection] = connections;
         const reason =
-            connections.length === 0
+            firstConnection === undefined
                 ? undefined
                 : await this.getAdditionalConnectionBlockReason(
                       organizationUuid,
+                      firstConnection.warehouseType,
                   );
         return {
             connections,
@@ -365,9 +376,12 @@ export class ConnectionService extends BaseService {
         );
         const existingConnections =
             await this.connectionModel.listByProject(projectUuid);
-        if (existingConnections.length > 0) {
-            const reason =
-                await this.getAdditionalConnectionBlockReason(organizationUuid);
+        const [firstExistingConnection] = existingConnections;
+        if (firstExistingConnection !== undefined) {
+            const reason = await this.getAdditionalConnectionBlockReason(
+                organizationUuid,
+                firstExistingConnection.warehouseType,
+            );
             if (reason) {
                 throw new ForbiddenError(reason);
             }
@@ -392,10 +406,12 @@ export class ConnectionService extends BaseService {
                         connections,
                         input.warehouseConnection.type,
                     );
-                    if (connections.length > 0) {
+                    const [firstConnection] = connections;
+                    if (firstConnection !== undefined) {
                         const reason =
                             await this.getAdditionalConnectionBlockReason(
                                 organizationUuid,
+                                firstConnection.warehouseType,
                                 transactionModel,
                             );
                         if (reason) {

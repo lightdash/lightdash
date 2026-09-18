@@ -239,6 +239,70 @@ describe('ConnectionService', () => {
         );
     });
 
+    it('refuses a second connection on an unsupported warehouse type', async () => {
+        connectionModel.listByProject.mockResolvedValue([
+            { ...firstConnection, warehouseType: WarehouseTypes.SNOWFLAKE },
+        ]);
+
+        await expect(
+            getService().create(adminAccount, projectUuid, {
+                ...createInput,
+                warehouseConnection: {
+                    ...warehouseConnection,
+                    type: WarehouseTypes.SNOWFLAKE,
+                } as never,
+            }),
+        ).rejects.toEqual(
+            new ForbiddenError(
+                'Several connections are supported for Postgres and Athena projects only.',
+            ),
+        );
+        // The scope limit is read before the paid and rollout gates
+        expect(
+            licenseService.canHoldMultipleConnections,
+        ).not.toHaveBeenCalled();
+        expect(featureFlagService.get).not.toHaveBeenCalled();
+        expect(testWarehouseConnection).not.toHaveBeenCalled();
+    });
+
+    it('creates a second connection on an Athena project', async () => {
+        const athenaConnection = {
+            ...secondConnection,
+            warehouseType: WarehouseTypes.ATHENA,
+        };
+        connectionModel.listByProject.mockResolvedValue([
+            { ...firstConnection, warehouseType: WarehouseTypes.ATHENA },
+        ]);
+        connectionModel.create.mockResolvedValue(athenaConnection);
+
+        await expect(
+            getService().create(adminAccount, projectUuid, {
+                ...createInput,
+                warehouseConnection: {
+                    type: WarehouseTypes.ATHENA,
+                    region: 'eu-west-1',
+                    database: 'AwsDataCatalog',
+                    schema: 'analytics',
+                    s3StagingDir: 's3://query-results',
+                } as never,
+            }),
+        ).resolves.toEqual(athenaConnection);
+    });
+
+    it('keeps the first connection free of the warehouse type gate', async () => {
+        connectionModel.listByProject.mockResolvedValue([]);
+
+        await expect(
+            getService().create(adminAccount, projectUuid, {
+                ...createInput,
+                warehouseConnection: {
+                    ...warehouseConnection,
+                    type: WarehouseTypes.SNOWFLAKE,
+                } as never,
+            }),
+        ).resolves.toEqual(secondConnection);
+    });
+
     it('refuses a connection with a different warehouse type', async () => {
         await expect(
             getService().create(adminAccount, projectUuid, {
@@ -356,6 +420,33 @@ describe('ConnectionService', () => {
                 canAddConnection: false,
                 reason: 'This project can hold one connection. A second connection needs the Enterprise multi-connection add-on.',
             },
+        });
+    });
+
+    it('names the warehouse type as the reason on an unsupported project', async () => {
+        const snowflakeConnection = {
+            ...firstConnection,
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+        };
+        connectionModel.listByProject.mockResolvedValue([snowflakeConnection]);
+
+        await expect(
+            getService().listWithCapabilities(adminAccount, projectUuid),
+        ).resolves.toEqual({
+            connections: [snowflakeConnection],
+            capabilities: {
+                canAddConnection: false,
+                reason: 'Several connections are supported for Postgres and Athena projects only.',
+            },
+        });
+    });
+
+    it('allows another connection on a Postgres project', async () => {
+        await expect(
+            getService().listWithCapabilities(adminAccount, projectUuid),
+        ).resolves.toEqual({
+            connections: [firstConnection],
+            capabilities: { canAddConnection: true },
         });
     });
 
