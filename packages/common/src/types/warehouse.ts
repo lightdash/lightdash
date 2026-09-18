@@ -343,6 +343,33 @@ export type WarehouseTablesCatalog = {
     };
 };
 
+export const WAREHOUSE_LISTED_DATABASES_LIMIT = 100;
+
+/**
+ * One database a connection can browse, with the location it occupies in
+ * WarehouseTablesCatalog. `name` is the value an admin types in
+ * additionalDatabases. `schema` is set when the listed unit is one schema
+ * key of the catalog map (Athena: the Glue database inside the catalog) and
+ * null when it spans every schema of its database key (Postgres).
+ */
+export type WarehouseListedDatabase = {
+    name: string;
+    database: string;
+    schema: string | null;
+    isDefault: boolean;
+};
+
+export type WarehouseDatabaseListing = {
+    databases: WarehouseListedDatabase[];
+    truncated: boolean;
+    limit: number;
+};
+
+export type ApiWarehouseDatabaseListing = {
+    status: 'ok';
+    results: WarehouseDatabaseListing;
+};
+
 export type WarehouseTables = {
     database: string;
     schema: string;
@@ -504,6 +531,23 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
 
     getAllTables(
         schema?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseTables>;
+
+    /**
+     * Lists the databases the connection can browse: its own plus the ones
+     * its listing fields name, capped at WAREHOUSE_LISTED_DATABASES_LIMIT
+     * with `truncated` set when the cap cuts the list. Throws
+     * WarehouseDatabaseListingNotSupportedError unless the client
+     * implements it.
+     */
+    listDatabases(
+        tags?: Record<string, string>,
+    ): Promise<WarehouseDatabaseListing>;
+
+    /** Lists the tables of one listed database. Same support rule as listDatabases. */
+    getTablesForDatabase(
+        database: WarehouseListedDatabase,
         tags?: Record<string, string>,
     ): Promise<WarehouseTables>;
 

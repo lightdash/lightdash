@@ -76,12 +76,39 @@ export type SshTunnelConfiguration = {
     sshTunnelPrivateKey?: string;
 };
 
+/**
+ * Connection listing fields shared by every warehouse type. They name the
+ * databases the SQL runner sidebar lists beyond the one in the connection
+ * settings. The per-dialect meaning of "database" follows
+ * getWarehouseLocationLabels: a Glue database for Athena. Only warehouse
+ * types in WAREHOUSE_TYPES_WITH_DATABASE_LISTING honour them; every other
+ * client refuses them with WarehouseDatabaseListingNotSupportedError.
+ */
+export type WarehouseConnectionListingFields = {
+    listAllDatabases?: boolean;
+    additionalDatabases?: string[];
+};
+
+export const hasConnectionListingFields = (
+    fields: WarehouseConnectionListingFields,
+): boolean =>
+    fields.listAllDatabases === true ||
+    (fields.additionalDatabases?.length ?? 0) > 0;
+
+export const WAREHOUSE_TYPES_WITH_DATABASE_LISTING: WarehouseTypes[] = [];
+
+export const supportsDatabaseListing = (
+    warehouseType: WarehouseTypes | undefined,
+): boolean =>
+    !!warehouseType &&
+    WAREHOUSE_TYPES_WITH_DATABASE_LISTING.includes(warehouseType);
+
 export enum BigqueryAuthenticationType {
     SSO = 'sso',
     PRIVATE_KEY = 'private_key',
     ADC = 'adc', // Application Default Credentials
 }
-export type CreateBigqueryCredentials = {
+export type CreateBigqueryCredentials = WarehouseConnectionListingFields & {
     type: WarehouseTypes.BIGQUERY;
     project: string;
     dataset: string;
@@ -139,7 +166,7 @@ export enum AthenaAuthenticationType {
     IAM_ROLE = 'iam_role',
 }
 
-export type CreateDatabricksCredentials = {
+export type CreateDatabricksCredentials = WarehouseConnectionListingFields & {
     type: WarehouseTypes.DATABRICKS;
     catalog?: string;
     // this supposed to be a `schema` but changing it will break for existing customers
@@ -175,7 +202,8 @@ export type SslConfiguration = {
     sslrootcert?: string | null; // file content
 };
 
-export type CreatePostgresCredentials = SshTunnelConfiguration &
+export type CreatePostgresCredentials = WarehouseConnectionListingFields &
+    SshTunnelConfiguration &
     SslConfiguration & {
         type: WarehouseTypes.POSTGRES;
         host: string;
@@ -197,7 +225,7 @@ export type PostgresCredentials = Omit<
     CreatePostgresCredentials,
     SensitiveCredentialsFieldNames
 >;
-export type CreateTrinoCredentials = {
+export type CreateTrinoCredentials = WarehouseConnectionListingFields & {
     type: WarehouseTypes.TRINO;
     host: string;
     user: string;
@@ -215,7 +243,7 @@ export type TrinoCredentials = Omit<
     CreateTrinoCredentials,
     SensitiveCredentialsFieldNames
 >;
-export type CreateClickhouseCredentials = {
+export type CreateClickhouseCredentials = WarehouseConnectionListingFields & {
     type: WarehouseTypes.CLICKHOUSE;
     host: string;
     user: string;
@@ -233,7 +261,7 @@ export type ClickhouseCredentials = Omit<
     SensitiveCredentialsFieldNames
 >;
 
-export type CreateAthenaCredentials = {
+export type CreateAthenaCredentials = WarehouseConnectionListingFields & {
     type: WarehouseTypes.ATHENA;
     region: string;
     database: string;
@@ -259,35 +287,37 @@ export type AthenaCredentials = Omit<
     SensitiveCredentialsFieldNames
 >;
 
-export type CreateDuckdbMotherduckCredentials = {
-    type: WarehouseTypes.DUCKDB;
-    connectionType: DuckdbConnectionType.MOTHERDUCK;
-    database: string;
-    schema: string;
-    token: string;
-    threads?: number;
-    requireUserCredentials?: boolean;
-    startOfWeek?: WeekDay | null;
-    dataTimezone?: string;
-};
+export type CreateDuckdbMotherduckCredentials =
+    WarehouseConnectionListingFields & {
+        type: WarehouseTypes.DUCKDB;
+        connectionType: DuckdbConnectionType.MOTHERDUCK;
+        database: string;
+        schema: string;
+        token: string;
+        threads?: number;
+        requireUserCredentials?: boolean;
+        startOfWeek?: WeekDay | null;
+        dataTimezone?: string;
+    };
 export type DuckdbMotherduckCredentials = Omit<
     CreateDuckdbMotherduckCredentials,
     SensitiveCredentialsFieldNames
 >;
 
-export type CreateDuckdbEmbeddedCredentials = {
-    type: WarehouseTypes.DUCKDB;
-    connectionType: DuckdbConnectionType.EMBEDDED;
-    dataset: string;
-    requireUserCredentials?: boolean;
-    dataTimezone?: string;
-    startOfWeek?: number;
-    schema?: string;
-};
+export type CreateDuckdbEmbeddedCredentials =
+    WarehouseConnectionListingFields & {
+        type: WarehouseTypes.DUCKDB;
+        connectionType: DuckdbConnectionType.EMBEDDED;
+        dataset: string;
+        requireUserCredentials?: boolean;
+        dataTimezone?: string;
+        startOfWeek?: number;
+        schema?: string;
+    };
 export type DuckdbEmbeddedCredentials = CreateDuckdbEmbeddedCredentials;
 
 /** An identifier only: storage locations and credentials belong to the backend. */
-export type DuckdbAnalyticsCredentials = {
+export type DuckdbAnalyticsCredentials = WarehouseConnectionListingFields & {
     type: WarehouseTypes.DUCKDB;
     connectionType: DuckdbConnectionType.ANALYTICS;
     database: 'memory';
@@ -401,18 +431,19 @@ export type DucklakeDataPath =
     | DucklakeDataPathAzure
     | DucklakeDataPathLocal;
 
-export type CreateDuckdbDucklakeCredentials = {
-    type: WarehouseTypes.DUCKDB;
-    connectionType: DuckdbConnectionType.DUCKLAKE;
-    catalog: CreateDucklakeCatalog;
-    dataPath: CreateDucklakeDataPath;
-    schema: string;
-    catalogAlias?: string;
-    threads?: number;
-    requireUserCredentials?: boolean;
-    startOfWeek?: WeekDay | null;
-    dataTimezone?: string;
-};
+export type CreateDuckdbDucklakeCredentials =
+    WarehouseConnectionListingFields & {
+        type: WarehouseTypes.DUCKDB;
+        connectionType: DuckdbConnectionType.DUCKLAKE;
+        catalog: CreateDucklakeCatalog;
+        dataPath: CreateDucklakeDataPath;
+        schema: string;
+        catalogAlias?: string;
+        threads?: number;
+        requireUserCredentials?: boolean;
+        startOfWeek?: WeekDay | null;
+        dataTimezone?: string;
+    };
 
 export type DuckdbDucklakeCredentials = Omit<
     CreateDuckdbDucklakeCredentials,
@@ -522,46 +553,47 @@ export enum RedshiftAuthenticationType {
     IAM_BROWSER = 'iam_browser',
 }
 
-export type CreateRedshiftCredentials = SshTunnelConfiguration & {
-    type: WarehouseTypes.REDSHIFT;
-    host: string;
-    user: string;
-    // password is required for password auth and unused (minted by AWS) for
-    // IAM auth. `user` is the login user for password auth and the requested
-    // DB user for provisioned IAM (empty for serverless, which derives it).
-    password?: string;
-    requireUserCredentials?: boolean;
-    port: number;
-    dbname: string;
-    schema: string;
-    threads?: number;
-    keepalivesIdle?: number;
-    sslmode?: string;
-    ra3Node?: boolean;
-    startOfWeek?: WeekDay | null;
-    dataTimezone?: string;
-    timeoutSeconds?: number;
-    // IAM authentication (mint short-lived DB credentials from AWS)
-    authenticationType?: RedshiftAuthenticationType;
-    region?: string;
-    // Provisioned clusters use GetClusterCredentials with a cluster identifier;
-    // serverless workgroups use GetCredentials with a workgroup name.
-    isServerless?: boolean;
-    clusterIdentifier?: string;
-    workgroupName?: string;
-    autoCreate?: boolean;
-    dbGroups?: string[];
-    // AWS identity used to call the credential APIs
-    accessKeyId?: string;
-    secretAccessKey?: string;
-    sessionToken?: string;
-    assumeRoleArn?: string;
-    assumeRoleExternalId?: string;
-    awsSsoStartUrl?: string;
-    awsSsoRegion?: string;
-    awsSsoAccountId?: string;
-    awsSsoRoleName?: string;
-};
+export type CreateRedshiftCredentials = WarehouseConnectionListingFields &
+    SshTunnelConfiguration & {
+        type: WarehouseTypes.REDSHIFT;
+        host: string;
+        user: string;
+        // password is required for password auth and unused (minted by AWS) for
+        // IAM auth. `user` is the login user for password auth and the requested
+        // DB user for provisioned IAM (empty for serverless, which derives it).
+        password?: string;
+        requireUserCredentials?: boolean;
+        port: number;
+        dbname: string;
+        schema: string;
+        threads?: number;
+        keepalivesIdle?: number;
+        sslmode?: string;
+        ra3Node?: boolean;
+        startOfWeek?: WeekDay | null;
+        dataTimezone?: string;
+        timeoutSeconds?: number;
+        // IAM authentication (mint short-lived DB credentials from AWS)
+        authenticationType?: RedshiftAuthenticationType;
+        region?: string;
+        // Provisioned clusters use GetClusterCredentials with a cluster identifier;
+        // serverless workgroups use GetCredentials with a workgroup name.
+        isServerless?: boolean;
+        clusterIdentifier?: string;
+        workgroupName?: string;
+        autoCreate?: boolean;
+        dbGroups?: string[];
+        // AWS identity used to call the credential APIs
+        accessKeyId?: string;
+        secretAccessKey?: string;
+        sessionToken?: string;
+        assumeRoleArn?: string;
+        assumeRoleExternalId?: string;
+        awsSsoStartUrl?: string;
+        awsSsoRegion?: string;
+        awsSsoAccountId?: string;
+        awsSsoRoleName?: string;
+    };
 export type RedshiftCredentials = Omit<
     CreateRedshiftCredentials,
     SensitiveCredentialsFieldNames
@@ -578,7 +610,7 @@ export enum SnowflakeAuthenticationType {
     NONE = 'none',
 }
 
-export type CreateSnowflakeCredentials = {
+export type CreateSnowflakeCredentials = WarehouseConnectionListingFields & {
     type: WarehouseTypes.SNOWFLAKE;
     account: string;
     user: string;
