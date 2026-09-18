@@ -20,6 +20,7 @@ import {
     ExploreType,
     FieldType,
     MetricType,
+    MultipleConnectionsError,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
@@ -946,6 +947,109 @@ describe('ProjectModel', () => {
                 organizationWarehouseCredentialsUuid: undefined,
             },
         );
+    });
+
+    describe('upsertWarehouseConnection live row targeting', () => {
+        const connection = (connectionUuid: string, name: string) => ({
+            connectionUuid,
+            name,
+            warehouseType: WarehouseTypes.POSTGRES,
+            organizationWarehouseCredentialsUuid: null,
+            listAllDatabases: false,
+            additionalDatabases: [],
+            createdAt: new Date(),
+        });
+        const warehouseConnection: CreateWarehouseCredentials = {
+            type: WarehouseTypes.POSTGRES,
+            host: 'localhost',
+            user: 'user',
+            password: 'password',
+            port: 5432,
+            dbname: 'dbname',
+            schema: 'schema',
+        };
+
+        const stubConnectionModel = (
+            liveConnections: ReturnType<typeof connection>[],
+        ) => {
+            const { connectionModel } = model as unknown as {
+                connectionModel: {
+                    listByProject: ReturnType<typeof vi.fn>;
+                    create: ReturnType<typeof vi.fn>;
+                    update: ReturnType<typeof vi.fn>;
+                };
+            };
+            vi.spyOn(
+                model as unknown as {
+                    createConnectionModel: () => typeof connectionModel;
+                },
+                'createConnectionModel',
+            ).mockReturnValue(connectionModel);
+            vi.spyOn(connectionModel, 'listByProject').mockResolvedValue(
+                liveConnections as AnyType,
+            );
+            const create = vi
+                .spyOn(connectionModel, 'create')
+                .mockResolvedValue(liveConnections[0] as AnyType);
+            const update = vi
+                .spyOn(connectionModel, 'update')
+                .mockResolvedValue(liveConnections[0] as AnyType);
+            return { create, update };
+        };
+
+        const upsertWarehouseConnection = () =>
+            (
+                model as unknown as {
+                    upsertWarehouseConnection: (
+                        trx: typeof database,
+                        targetProjectUuid: string,
+                        data: CreateWarehouseCredentials,
+                    ) => Promise<void>;
+                }
+            ).upsertWarehouseConnection(
+                database,
+                projectUuid,
+                warehouseConnection,
+            );
+
+        test('inserts when the project has no live connection', async () => {
+            const { create, update } = stubConnectionModel([]);
+
+            await upsertWarehouseConnection();
+
+            expect(create).toHaveBeenCalledWith(projectUuid, {
+                warehouseConnection,
+                organizationWarehouseCredentialsUuid: undefined,
+            });
+            expect(update).not.toHaveBeenCalled();
+        });
+
+        test('updates the one live connection by its uuid', async () => {
+            const { create, update } = stubConnectionModel([
+                connection('live-uuid', 'postgres'),
+            ]);
+
+            await upsertWarehouseConnection();
+
+            expect(create).not.toHaveBeenCalled();
+            expect(update).toHaveBeenCalledWith(projectUuid, 'live-uuid', {
+                warehouseConnection,
+                organizationWarehouseCredentialsUuid: undefined,
+            });
+        });
+
+        test('refuses to guess between several live connections', async () => {
+            const { create, update } = stubConnectionModel([
+                connection('live-uuid', 'postgres'),
+                connection('other-uuid', 'finance'),
+            ]);
+
+            await expect(upsertWarehouseConnection()).rejects.toThrow(
+                MultipleConnectionsError,
+            );
+            expect(create).not.toHaveBeenCalled();
+            expect(update).not.toHaveBeenCalled();
+        });
     });
 
     test('rotates a refresh token by warehouse credential row id', async () => {
