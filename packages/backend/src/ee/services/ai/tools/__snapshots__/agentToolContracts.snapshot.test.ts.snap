@@ -6535,10 +6535,62 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "agentSummary": {
+                  "description": "The coding agent's own summary of the change it made.",
+                  "type": "string",
+                },
+                "pullRequestAction": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "opened",
+                        "updated",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Whether the run opened a new pull request or updated an existing one; null when it made no file changes, so no pull request was opened.",
+                },
+                "repository": {
+                  "description": "The repository the change targeted, as "owner/repo".",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "repository",
+                "pullRequestAction",
+                "agentSummary",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },

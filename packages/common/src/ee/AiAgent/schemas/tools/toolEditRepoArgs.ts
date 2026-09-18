@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { toolErrorStructuredContentSchema } from '../outputMetadata';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 
 export const TOOL_EDIT_REPO_DESCRIPTION = [
@@ -36,6 +37,27 @@ export const toolEditRepoArgsSchema = z.object({
         ),
 });
 
+export const toolEditRepoStructuredContentSchema = z.object({
+    repository: z
+        .string()
+        .describe('The repository the change targeted, as "owner/repo".'),
+    pullRequestAction: z
+        .enum(['opened', 'updated'])
+        .nullable()
+        .describe(
+            'Whether the run opened a new pull request or updated an existing one; null when it made no file changes, so no pull request was opened.',
+        ),
+    agentSummary: z
+        .string()
+        .describe("The coding agent's own summary of the change it made."),
+});
+
+export type ToolEditRepoStructuredContent = z.infer<
+    typeof toolEditRepoStructuredContentSchema
+>;
+
+// Same envelope as `structuredToolOutputSchema`, spelled out because the
+// metadata here is a discriminated union rather than a plain object.
 export const toolEditRepoOutputSchema = z.object({
     result: z.string(),
     metadata: z.discriminatedUnion('status', [
@@ -102,6 +124,10 @@ export const toolEditRepoOutputSchema = z.object({
             // user precisely why the edit was refused. Nullish for back-compat.
             reason: z.string().nullish(),
         }),
+    ]),
+    structuredContent: z.union([
+        toolEditRepoStructuredContentSchema,
+        toolErrorStructuredContentSchema,
     ]),
 });
 
