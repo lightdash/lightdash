@@ -211,6 +211,7 @@ import {
     toolGrepFieldsOutputSchema,
 } from './toolGrepFieldsArgs';
 import {
+    MCP_TOOL_ITERATE_DATA_APP_DESCRIPTION,
     TOOL_ITERATE_DATA_APP_DESCRIPTION,
     toolIterateDataAppArgsSchema,
     toolIterateDataAppOutputSchema,
@@ -1128,18 +1129,26 @@ export const generateDataAppToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
-export const iterateDataAppToolDefinition: ToolDefinitionWithoutMcpOutput<
+export const iterateDataAppToolDefinition: ToolDefinitionWithMcpOutput<
     'iterateDataApp',
     typeof toolIterateDataAppArgsSchema,
     typeof toolIterateDataAppArgsSchema,
-    typeof toolIterateDataAppOutputSchema
+    typeof toolIterateDataAppOutputSchema,
+    typeof mcpDataAppBuildStartedOutputSchema
 > = defineTool({
     name: 'iterateDataApp',
     title: 'Iterate on data app',
-    description: TOOL_ITERATE_DATA_APP_DESCRIPTION,
-    availability: ['agent'],
+    description: ({ runtime }) =>
+        runtime === 'mcp'
+            ? MCP_TOOL_ITERATE_DATA_APP_DESCRIPTION
+            : TOOL_ITERATE_DATA_APP_DESCRIPTION,
+    availability: ['agent', 'mcp'],
     inputSchema: toolIterateDataAppArgsSchema,
     agent: { outputSchema: toolIterateDataAppOutputSchema },
+    mcp: {
+        annotations: writeAnnotations,
+        structuredContentSchema: mcpDataAppBuildStartedOutputSchema,
+    },
 });
 
 export const listDataAppThemesToolDefinition: ToolDefinitionWithMcpOutput<

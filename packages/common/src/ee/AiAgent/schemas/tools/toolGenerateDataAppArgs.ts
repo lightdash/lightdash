@@ -38,10 +38,14 @@ export const TOOL_GENERATE_DATA_APP_DESCRIPTION = [
     'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn.',
 ].join(' ');
 
+/** Why a scoped session loses sight of a personal app; shared by every MCP build tool. */
+export const MCP_DATA_APP_AGENT_SCOPE_GUIDANCE =
+    '- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.';
+
 /** Placement every MCP-started build shares; stated on each start tool. */
 export const MCP_DATA_APP_PLACEMENT_GUIDANCE = [
     "- The app is created as the calling user's personal app: at the project root, in no space, visible only to them until they move it.",
-    '- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.',
+    MCP_DATA_APP_AGENT_SCOPE_GUIDANCE,
 ].join('\n');
 
 export const MCP_TOOL_GENERATE_DATA_APP_DESCRIPTION = `Tool: generate_data_app
