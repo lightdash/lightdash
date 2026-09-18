@@ -2,9 +2,12 @@ import {
     buildAgentRunSqlDescription,
     createToolRunSqlArgsSchema,
     isSlackPrompt,
+    RUN_SQL_PREVIEW_ROW_LIMIT,
     runSqlToolDefinition,
     type AiSqlChartArtifactConfig,
     type AnyType,
+    type ToolRunSqlOutput,
+    type ToolRunSqlStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
@@ -27,7 +30,7 @@ import {
     formatSqlScopeError,
     type SqlScope,
 } from '../utils/sqlScope';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { renderBlocks, type SectionState } from './slackSqlAggregate';
 
 type Dependencies = {
@@ -68,8 +71,29 @@ const FORBIDDEN_STATEMENTS =
 const FORBIDDEN_FUNCTIONS = /\b(query|query_table)\s*\(/i;
 const INFORMATION_SCHEMA = /\binformation_schema\b/i;
 
-const PREVIEW_ROW_LIMIT = 50;
 const SLACK_INLINE_ROW_LIMIT = 10;
+
+type SqlRow = Record<string, AnyType>;
+
+const pickColumns = (rows: SqlRow[], columns: string[]): SqlRow[] =>
+    rows.map((row) =>
+        columns.reduce<SqlRow>((acc, col) => {
+            acc[col] = row[col];
+            return acc;
+        }, {}),
+    );
+
+const toCsv = (rows: SqlRow[], columns: string[]) =>
+    stringify(pickColumns(rows, columns), { header: true, columns });
+
+const nonSuccessOutput = (
+    result: string,
+    status: 'error' | 'rejected' | 'timeout',
+) => ({
+    result,
+    metadata: { status },
+    structuredContent: { error: result },
+});
 
 export const validateSelectOnly = (sql: string) => {
     const stripped = stripCommentsAndStrings(sql);
@@ -162,9 +186,7 @@ export const getRunSql = ({
             // ask again" flipped the thread to auto-approve) by the decision
             // already being recorded.
             let isResumeExecution = isNativeApprovalPath;
-            const persistResumeResult = async <
-                T extends { result: string; metadata: AnyType },
-            >(
+            const persistResumeResult = async <T extends ToolRunSqlOutput>(
                 output: T,
             ): Promise<T> => {
                 if (isResumeExecution) {
@@ -184,29 +206,32 @@ export const getRunSql = ({
             };
 
             if (sqlApprovalTimedOut) {
-                return persistResumeResult({
-                    result: 'A previous SQL approval timed out in this response. Do not call runSql again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
-                    metadata: { status: 'timeout' },
-                });
+                return persistResumeResult(
+                    nonSuccessOutput(
+                        'A previous SQL approval timed out in this response. Do not call runSql again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
+                        'timeout',
+                    ),
+                );
             }
 
             // Pre-section errors (bad SQL shape) — no Slack message exists
             // yet, just return the error to the agent.
             const scopeViolations = findSqlScopeViolations(sql, sqlScope);
             if (scopeViolations.length > 0 && sqlScope) {
-                return persistResumeResult({
-                    result: formatSqlScopeError(scopeViolations, sqlScope),
-                    metadata: { status: 'error' },
-                });
+                return persistResumeResult(
+                    nonSuccessOutput(
+                        formatSqlScopeError(scopeViolations, sqlScope),
+                        'error',
+                    ),
+                );
             }
 
             try {
                 validateSelectOnly(sql);
             } catch (e) {
-                return persistResumeResult({
-                    result: toolErrorHandler(e, 'Error running SQL query.'),
-                    metadata: { status: 'error' },
-                });
+                return persistResumeResult(
+                    toolErrorOutput(e, 'Error running SQL query.'),
+                );
             }
 
             // Render a runSql state INTO the bot's existing progress message
@@ -260,18 +285,22 @@ export const getRunSql = ({
                         : await waitForSqlApproval(toolCallId);
                 if (decision === 'rejected') {
                     await renderState({ kind: 'rejected', sql });
-                    return await persistResumeResult({
-                        result: 'User rejected this SQL execution. Do not retry the same query; ask the user what they would like instead.',
-                        metadata: { status: 'rejected' },
-                    });
+                    return await persistResumeResult(
+                        nonSuccessOutput(
+                            'User rejected this SQL execution. Do not retry the same query; ask the user what they would like instead.',
+                            'rejected',
+                        ),
+                    );
                 }
                 if (decision === 'timeout') {
                     sqlApprovalTimedOut = true;
                     await renderState({ kind: 'timeout', sql });
-                    return await persistResumeResult({
-                        result: 'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
-                        metadata: { status: 'timeout' },
-                    });
+                    return await persistResumeResult(
+                        nonSuccessOutput(
+                            'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
+                            'timeout',
+                        ),
+                    );
                 }
 
                 if (isSlack) {
@@ -316,6 +345,12 @@ export const getRunSql = ({
                         inlineCsv: '',
                         truncated: false,
                     });
+                    const emptyContent: ToolRunSqlStructuredContent = {
+                        rowCount: 0,
+                        columns,
+                        rows: [],
+                        truncated: false,
+                    };
                     return await persistResumeResult({
                         result: `Query returned 0 rows.${
                             columns.length > 0
@@ -323,22 +358,14 @@ export const getRunSql = ({
                                 : ''
                         }${enableDataAccess && reviewQuery ? ` ${await reviewQuery({ kind: 'sql', sql, limit: effectiveLimit }, { emptyResult: true, review })}` : ''}`,
                         metadata: { status: 'success', rowCount: 0 },
+                        structuredContent: emptyContent,
                     });
                 }
 
                 if (isSlack) {
-                    const inlineRows = rows.slice(0, SLACK_INLINE_ROW_LIMIT);
-                    const inlineCsv = stringify(
-                        inlineRows.map((row) =>
-                            columns.reduce<Record<string, AnyType>>(
-                                (acc, col) => {
-                                    acc[col] = row[col];
-                                    return acc;
-                                },
-                                {},
-                            ),
-                        ),
-                        { header: true, columns },
+                    const inlineCsv = toCsv(
+                        rows.slice(0, SLACK_INLINE_ROW_LIMIT),
+                        columns,
                     );
 
                     await renderState({
@@ -355,27 +382,37 @@ export const getRunSql = ({
                 )}.`;
 
                 if (!enableDataAccess) {
+                    const summaryContent: ToolRunSqlStructuredContent = {
+                        rowCount,
+                        columns,
+                        rows: null,
+                        truncated: false,
+                    };
                     return await persistResumeResult({
                         result: resultSummary,
                         metadata: { status: 'success', rowCount },
+                        structuredContent: summaryContent,
                     });
                 }
 
-                const previewRows = rows.slice(0, PREVIEW_ROW_LIMIT);
-                const previewCsv = stringify(
-                    previewRows.map((row) =>
-                        columns.reduce<Record<string, AnyType>>((acc, col) => {
-                            acc[col] = row[col];
-                            return acc;
-                        }, {}),
-                    ),
-                    { header: true, columns },
+                const previewRows = pickColumns(
+                    rows.slice(0, RUN_SQL_PREVIEW_ROW_LIMIT),
+                    columns,
                 );
+                const previewContent: ToolRunSqlStructuredContent = {
+                    rowCount,
+                    columns,
+                    rows: previewRows,
+                    truncated: rowCount > RUN_SQL_PREVIEW_ROW_LIMIT,
+                };
+                const previewCsv = stringify(previewRows, {
+                    header: true,
+                    columns,
+                });
 
-                const truncatedNote =
-                    rowCount > PREVIEW_ROW_LIMIT
-                        ? `\n(Showing first ${PREVIEW_ROW_LIMIT} of ${rowCount} rows.)`
-                        : '';
+                const truncatedNote = previewContent.truncated
+                    ? `\n(Showing first ${RUN_SQL_PREVIEW_ROW_LIMIT} of ${rowCount} rows.)`
+                    : '';
 
                 return await persistResumeResult({
                     result: `${resultSummary}${truncatedNote}\n${serializeData(
@@ -383,6 +420,7 @@ export const getRunSql = ({
                         'csv',
                     )}${review}`,
                     metadata: { status: 'success', rowCount },
+                    structuredContent: previewContent,
                 });
             } catch (e) {
                 // Post-section errors (runSqlJob threw, Slack call failed,
@@ -393,10 +431,9 @@ export const getRunSql = ({
                 await renderState({ kind: 'error', sql, message }).catch(() => {
                     /* don't shadow the original error if rendering fails */
                 });
-                return persistResumeResult({
-                    result: toolErrorHandler(e, 'Error running SQL query.'),
-                    metadata: { status: 'error' },
-                });
+                return persistResumeResult(
+                    toolErrorOutput(e, 'Error running SQL query.'),
+                );
             }
         },
     });
