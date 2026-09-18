@@ -99,23 +99,30 @@ export const useWarehouseTree = ({
         isConnectionSettled,
     });
 
+    // Every project connection is a row from the first render. A listing that
+    // has not arrived leaves that connection empty and collapsed, it does not
+    // remove the connection level.
     const connections = useMemo<TreeConnection[]>(
         () =>
-            treeSources.flatMap((source) => {
+            treeSources.map((source) => {
                 const listing = listings.get(source.connectionId);
-                if (!listing) return [];
-                return [
-                    {
-                        connectionId: source.connectionId,
-                        connectionName: source.connectionName,
-                        isActive: source.isActive,
-                        databases: listing.databases,
-                        truncated: listing.truncated,
-                        limit: listing.limit,
-                    },
-                ];
+                const error = errorFor(source.connectionId);
+                return {
+                    connectionId: source.connectionId,
+                    connectionName: source.connectionName,
+                    isActive: source.isActive,
+                    databases: listing?.databases ?? [],
+                    listingStatus: listing
+                        ? ('loaded' as const)
+                        : error
+                          ? ('error' as const)
+                          : ('loading' as const),
+                    ...(error ? { listingError: error.error.message } : {}),
+                    truncated: listing?.truncated ?? false,
+                    limit: listing?.limit ?? 0,
+                };
             }),
-        [treeSources, listings],
+        [treeSources, listings, errorFor],
     );
 
     const activeSource = treeSources.find((source) => source.isActive);
@@ -124,7 +131,8 @@ export const useWarehouseTree = ({
         isConnectionLoading(activeSource.connectionId);
     const listingError =
         activeSource !== undefined ? errorFor(activeSource.connectionId) : null;
-    const isSuccess = connections.length > 0;
+    const isSuccess =
+        activeSource !== undefined && listings.has(activeSource.connectionId);
 
     const defaults = useMemo(
         () => defaultExpandedRowIds(connections),

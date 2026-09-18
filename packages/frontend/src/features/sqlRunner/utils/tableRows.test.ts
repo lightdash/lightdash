@@ -76,12 +76,14 @@ const connection = (
         truncated?: boolean;
         limit?: number;
         isActive?: boolean;
+        listingStatus?: TreeConnection['listingStatus'];
     } = {},
 ): TreeConnection => ({
     connectionId: CONNECTION_ID,
     connectionName: 'Warehouse',
     isActive: options.isActive ?? true,
     databases,
+    listingStatus: options.listingStatus ?? 'loaded',
     truncated: options.truncated ?? false,
     limit: options.limit ?? 100,
 });
@@ -512,5 +514,102 @@ describe('buildWarehouseTreeRows with several connections', () => {
         const ids = rows.map((row) => row.id);
         expect(ids).toContain('schema:connection-1/analytics/public');
         expect(ids).toContain('loading:database:connection-2/analytics');
+    });
+});
+
+describe('the connection level on first load', () => {
+    const postgres: TreeConnection = {
+        ...connection(postgresDatabases),
+        connectionId: 'connection-postgres',
+        connectionName: 'postgres',
+        isActive: false,
+        databases: [],
+        listingStatus: 'loading',
+    };
+    const finance: TreeConnection = {
+        ...connection(postgresDatabases),
+        connectionId: 'connection-finance',
+        connectionName: 'finance',
+        isActive: true,
+        listingStatus: 'loaded',
+    };
+
+    // The seeded connection listed first, so only its databases were in hand
+    it('shows a row per connection while only the seeded one has listed', () => {
+        const rows = build({
+            connections: [postgres, finance],
+            expanded: ['connection:connection-finance'],
+        });
+
+        const connectionRows = rows.flatMap((row) =>
+            row.type === 'connection'
+                ? [
+                      {
+                          name: row.connectionName,
+                          isActive: row.isActive,
+                          isExpanded: row.isExpanded,
+                      },
+                  ]
+                : [],
+        );
+        expect(connectionRows).toEqual([
+            { name: 'postgres', isActive: false, isExpanded: false },
+            { name: 'finance', isActive: true, isExpanded: true },
+        ]);
+    });
+
+    it('keeps the databases under their connection, not at the top', () => {
+        const rows = build({
+            connections: [postgres, finance],
+            expanded: ['connection:connection-finance'],
+        });
+
+        const databaseRows = rows.filter((row) => row.type === 'database');
+        expect(databaseRows.length).toBeGreaterThan(0);
+        databaseRows.forEach((row) => {
+            expect(row.depth).toBe(1);
+            if (row.type === 'database') {
+                expect(row.connectionId).toBe('connection-finance');
+            }
+        });
+    });
+
+    it('says a connection is still listing when it opens', () => {
+        const rows = build({
+            connections: [postgres, finance],
+            expanded: [
+                'connection:connection-postgres',
+                'connection:connection-finance',
+            ],
+        });
+
+        expect(rows.map((row) => row.id)).toContain(
+            'loading:connection:connection-postgres',
+        );
+    });
+
+    it('surfaces a connection whose databases failed to list', () => {
+        const rows = build({
+            connections: [
+                {
+                    ...postgres,
+                    listingStatus: 'error',
+                    listingError: 'Access denied',
+                },
+                finance,
+            ],
+            expanded: ['connection:connection-postgres'],
+        });
+
+        const errorRow = rows.find(
+            (row) => row.id === 'error:connection:connection-postgres',
+        );
+        expect(errorRow).toMatchObject({ message: 'Access denied' });
+    });
+
+    it('still hides the connection level for a single connection', () => {
+        const rows = build({ connections: [finance] });
+
+        expect(rows.some((row) => row.type === 'connection')).toBe(false);
     });
 });
