@@ -1,3 +1,10 @@
+# [2.266.0](https://github.com/lightdash/lightdash/compare/2.265.0...2.266.0) (2026-09-18)
+
+
+### Features
+
+* **data-apps:** shipped AI-analysis components and a default build for short prompts ([#29533](https://github.com/lightdash/lightdash/issues/29533)) ([e009857](https://github.com/lightdash/lightdash/commit/e0098573d68a5b53643efeca42d81098546924b0))
+
 # [2.265.0](https://github.com/lightdash/lightdash/compare/2.264.0...2.265.0) (2026-09-18)
 
 
