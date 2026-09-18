@@ -1,8 +1,16 @@
-import { ContentType, listContentToolDefinition } from '@lightdash/common';
+import {
+    ContentType,
+    listContentToolDefinition,
+    type ToolListContentStructuredContent,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type { ListContentFn } from '../types/aiAgentDependencies';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
@@ -11,15 +19,32 @@ type Dependencies = {
 
 const toolDefinition = listContentToolDefinition.for('agent');
 
-const renderContent = (content: Awaited<ReturnType<ListContentFn>>) => (
+const toStructuredContent = (
+    content: Awaited<ReturnType<ListContentFn>>,
+): ToolListContentStructuredContent => ({
+    spaceSlug: content.spaceSlug,
+    pagination: content.pagination ?? {
+        page: 1,
+        pageSize: content.items.length,
+        totalResults: content.items.length,
+        totalPageCount: 1,
+    },
+    items: content.items,
+});
+
+const renderContent = ({
+    spaceSlug,
+    pagination,
+    items,
+}: ToolListContentStructuredContent) => (
     <contentList
-        page={content.pagination?.page ?? 1}
-        pageSize={content.pagination?.pageSize ?? content.items.length}
-        totalResults={content.pagination?.totalResults ?? content.items.length}
-        totalPageCount={content.pagination?.totalPageCount ?? 1}
-        spaceSlug={content.spaceSlug ?? ''}
+        page={pagination.page}
+        pageSize={pagination.pageSize}
+        totalResults={pagination.totalResults}
+        totalPageCount={pagination.totalPageCount}
+        spaceSlug={spaceSlug ?? ''}
     >
-        {content.items.map((item) => {
+        {items.map((item) => {
             if (item.contentType === ContentType.SPACE) {
                 return (
                     <content
@@ -61,26 +86,26 @@ const renderContent = (content: Awaited<ReturnType<ListContentFn>>) => (
 export const getListContent = ({ listContent }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (args) => {
+        execute: async (
+            args,
+        ): Promise<
+            | ExecuteStructuredToolResult<ToolListContentStructuredContent>
+            | ExecuteToolErrorResult
+        > => {
             try {
+                const structuredContent = toStructuredContent(
+                    await listContent({
+                        spaceSlug: args.spaceSlug ?? null,
+                        page: args.page ?? 1,
+                    }),
+                );
                 return {
-                    result: renderContent(
-                        await listContent({
-                            spaceSlug: args.spaceSlug ?? null,
-                            page: args.page ?? 1,
-                        }),
-                    ).toString(),
-                    metadata: {
-                        status: 'success',
-                    },
+                    result: renderContent(structuredContent).toString(),
+                    metadata: { status: 'success' },
+                    structuredContent,
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(error, 'Error listing content'),
-                    metadata: {
-                        status: 'error',
-                    },
-                };
+                return toolErrorOutput(error, 'Error listing content');
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
