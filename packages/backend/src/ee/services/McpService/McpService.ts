@@ -20,6 +20,7 @@ import {
     createMcpCompatibleInputShape,
     createScheduledDeliveryToolDefinition,
     createToolRunSqlArgsSchema,
+    DATA_APP_BUILD_POLL_INTERVAL_MS,
     editContentToolDefinition,
     Explore,
     FeatureFlags,
@@ -1531,7 +1532,7 @@ export class McpService extends BaseService {
     >(
         extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
         args: { projectUuid: string; agentUuid?: string },
-        errorPrefix: string,
+        errorLogContext: string,
         run: (
             toolsRuntime: McpAiAgentToolsRuntime,
             projectUuid: string,
@@ -1564,14 +1565,11 @@ export class McpService extends BaseService {
             );
         } catch (e) {
             const errorMessage = getErrorMessage(e);
-            this.logger.error(`[McpService] ${errorPrefix}: ${errorMessage}`);
+            this.logger.error(
+                `[McpService] ${errorLogContext}: ${errorMessage}`,
+            );
             return {
-                content: [
-                    {
-                        type: 'text' as const,
-                        text: `${errorPrefix}: ${errorMessage}`,
-                    },
-                ],
+                content: [{ type: 'text' as const, text: errorMessage }],
                 isError: true,
             };
         }
@@ -1604,7 +1602,7 @@ export class McpService extends BaseService {
                                 toolCallId: null,
                             });
                         return {
-                            summary: `Started building the data app "${args.name}" as slug "${slug}", version ${version}. Poll get_data_app_build_status with that slug every 15 seconds until it reports a terminal status.`,
+                            summary: `Started building the data app "${args.name}" as slug "${slug}", version ${version}. Poll get_data_app_build_status with that slug every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status.`,
                             structuredContent: { slug, version },
                         };
                     },

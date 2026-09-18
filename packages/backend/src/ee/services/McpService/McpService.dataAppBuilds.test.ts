@@ -135,7 +135,12 @@ const createServerWithRuntime = async (
 ) => {
     const mcpService = makeMcpService(() => runtimeFns);
     mockRegisteredMcpTools.clear();
-    await mcpService.createServer(makeMcpServerOptions(featureAvailability));
+    await mcpService.createServer(
+        makeMcpServerOptions({
+            dataAppBuildsEnabled: true,
+            ...featureAvailability,
+        }),
+    );
 };
 
 const createServerWithBuildStatus = async (
@@ -295,10 +300,7 @@ describe('McpService get_data_app_build_status', () => {
 
             expect(result.isError).toBe(true);
             expect(result.content).toEqual([
-                {
-                    type: 'text',
-                    text: 'Error getting data app build status: Data app "missing" was not found',
-                },
+                { type: 'text', text: 'Data app "missing" was not found' },
             ]);
         });
     });
@@ -393,7 +395,7 @@ describe('McpService generate_data_app', () => {
         expect(result.content).toEqual([
             {
                 type: 'text',
-                text: 'Error starting the data app build. No app was created: Theme "neon" was not found. Valid theme slugs: brand, dark',
+                text: 'Theme "neon" was not found. Valid theme slugs: brand, dark',
             },
         ]);
     });

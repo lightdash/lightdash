@@ -51,7 +51,9 @@ Start building a new data app: an interactive application generated from a brief
 
 Important:
 - You name the app. The name fixes both the app's name and its slug at creation, and neither changes afterwards. A name already taken in the project gets a numeric suffix on the slug, so identify the app by the slug this call returns, never one you derived from the name.
-- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the returned slug every 15 seconds until its status is "ready", "error", or "cancelled". Call this tool once per request.
+- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the returned slug every ${
+    DATA_APP_BUILD_POLL_INTERVAL_MS / 1000
+} seconds until its status is "ready", "error", or "cancelled". Call this tool once per request.
 ${MCP_DATA_APP_PLACEMENT_GUIDANCE}
 - An unknown themeSlug fails before the build starts and lists the valid slugs. Call list_data_app_themes when the user names a theme, brand, or look.
 

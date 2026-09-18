@@ -3202,9 +3202,7 @@ describe('AiAgentToolsService generateDataApp', () => {
             slug: 'revenue-overview',
             version: 1,
         });
-        const [, , , , , , , , , , , opts] =
-            appGenerateService.generateApp.mock.calls[0];
-        expect(opts).toEqual({
+        expect(generateAppOptions(appGenerateService)).toEqual({
             name: 'Revenue Overview',
             creationExperience: 'mcp',
         });

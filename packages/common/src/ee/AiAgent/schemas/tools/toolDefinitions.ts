@@ -1100,6 +1100,12 @@ export const loadMcpToolsToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolLoadMcpToolsOutputSchema },
 });
 
+/** Picks the runtime's wording for a tool that reads differently over MCP. */
+const descriptionByRuntime =
+    (byRuntime: Record<ToolDescriptionContext['runtime'], string>) =>
+    ({ runtime }: ToolDescriptionContext): string =>
+        byRuntime[runtime];
+
 export const generateDataAppToolDefinition: ToolDefinitionWithMcpOutput<
     'generateDataApp',
     typeof toolGenerateDataAppArgsSchema,
@@ -1109,10 +1115,10 @@ export const generateDataAppToolDefinition: ToolDefinitionWithMcpOutput<
 > = defineTool({
     name: 'generateDataApp',
     title: 'Generate data app',
-    description: ({ runtime }) =>
-        runtime === 'mcp'
-            ? MCP_TOOL_GENERATE_DATA_APP_DESCRIPTION
-            : TOOL_GENERATE_DATA_APP_DESCRIPTION,
+    description: descriptionByRuntime({
+        agent: TOOL_GENERATE_DATA_APP_DESCRIPTION,
+        mcp: MCP_TOOL_GENERATE_DATA_APP_DESCRIPTION,
+    }),
     availability: ['agent', 'mcp'],
     inputSchema: toolGenerateDataAppArgsSchema,
     agent: { outputSchema: toolGenerateDataAppOutputSchema },
@@ -1145,10 +1151,10 @@ export const listDataAppThemesToolDefinition: ToolDefinitionWithMcpOutput<
 > = defineTool({
     name: 'listDataAppThemes',
     title: 'List data app themes',
-    description: ({ runtime }) =>
-        runtime === 'mcp'
-            ? MCP_TOOL_LIST_DATA_APP_THEMES_DESCRIPTION
-            : TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
+    description: descriptionByRuntime({
+        agent: TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
+        mcp: MCP_TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
+    }),
     availability: ['agent', 'mcp'],
     inputSchema: toolListDataAppThemesArgsSchema,
     agent: { outputSchema: toolListDataAppThemesOutputSchema },
