@@ -7263,10 +7263,58 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "projects": {
+                  "description": "Projects the current user can access, in the order they were listed; empty when the user has access to none.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "isActive": {
+                        "description": "True for the project the agent is currently working in.",
+                        "type": "boolean",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "name",
+                      "isActive",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "projects",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
