@@ -6,6 +6,7 @@ import {
 import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
 import type { S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import type { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import type { PreAggregateModel } from '../../models/PreAggregateModel';
@@ -29,6 +30,10 @@ describe('PreAggregateMaterializationService', () => {
         getActiveMaterialization: vi.fn(),
     };
 
+    const projectModel = {
+        getSummary: vi.fn(),
+    };
+
     const queryHistoryModel = {
         pollForQueryCompletion: vi.fn(),
     };
@@ -44,6 +49,7 @@ describe('PreAggregateMaterializationService', () => {
     const service = new PreAggregateMaterializationService({
         lightdashConfig: lightdashConfigMock,
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
+        projectModel: projectModel as unknown as ProjectModel,
         queryHistoryModel: queryHistoryModel as unknown as QueryHistoryModel,
         asyncQueryService: asyncQueryService as unknown as AsyncQueryService,
         analytics: analyticsMock,
