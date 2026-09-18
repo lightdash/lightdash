@@ -6,6 +6,11 @@ Two skills in `.claude/skills/` describe how to edit it:
 - `reusable-visualization` — the contract: the `useVizContext()` hook, the field/option declaration, resolved series colours, pivoted results.
 - `developing-chart-types-locally` — the local workflow: the vizSchema lockstep rule, validate/upload/verify loop, and the path to the official registry.
 
+Style all chrome with the **Lightdash Library theme** (`src/lightdash-library.css`,
+contract in `references/lightdash-library-theme.md`): `--ll-*` tokens for axes,
+grids, legends, tooltips, and typography; transparent canvas; series colors from
+the instance palette, never the theme.
+
 The one difference from that skill here: the declaration is not emitted as structured output. It lives in this folder's `lightdash-app.yml` under `vizSchema`, and **must stay in lockstep with the component** — every key `src/App.jsx` reads from `fieldMapping` or `options` is declared there, and everything declared there is read. When you change what the component reads, update `vizSchema` in the same edit.
 
 Edit only `src/`. Root config files are read-only reference — the server rebuilds against a trusted template.

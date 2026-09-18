@@ -201,6 +201,25 @@ export const buildStaticAuthoringFiles = (args: {
                 path.join(authoringDir, 'chart-type', 'viz-fixture.json'),
             ).toString('base64'),
         });
+        // The Lightdash Library theme: chrome tokens matching Lightdash's
+        // built-in charts (canonical copy lives in lightdash/lightdash-library).
+        // The starter imports the css; the guide is the styling contract.
+        files.push({
+            path: 'src/lightdash-library.css',
+            contentBase64: readFileSync(
+                path.join(authoringDir, 'chart-type', 'lightdash-library.css'),
+            ).toString('base64'),
+        });
+        files.push({
+            path: 'references/lightdash-library-theme.md',
+            contentBase64: readFileSync(
+                path.join(
+                    authoringDir,
+                    'chart-type',
+                    'lightdash-library-theme.md',
+                ),
+            ).toString('base64'),
+        });
     }
     if (!isChartType) {
         // skill.md → .claude/skills/lightdash-data-app/SKILL.md
