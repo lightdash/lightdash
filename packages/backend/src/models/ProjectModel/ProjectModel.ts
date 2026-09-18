@@ -1039,10 +1039,27 @@ export class ProjectModel {
                 : {}),
         };
 
+        // A project can hold several connections, so there is no project_id
+        // uniqueness to conflict on. Target the live row explicitly.
+        const liveRows = await trx(WarehouseCredentialTableName)
+            .select<{ warehouse_credentials_id: number }[]>(
+                'warehouse_credentials_id',
+            )
+            .where('project_id', projectId)
+            .whereNull('superseded_at');
+        if (liveRows.length > 1) {
+            throw new MultipleConnectionsError();
+        }
+        if (liveRows.length === 0) {
+            await trx(WarehouseCredentialTableName).insert(connection);
+            return;
+        }
         await trx(WarehouseCredentialTableName)
-            .insert(connection)
-            .onConflict('project_id')
-            .merge(updates);
+            .where(
+                'warehouse_credentials_id',
+                liveRows[0].warehouse_credentials_id,
+            )
+            .update(updates);
     }
 
     async hasAnyProjects(): Promise<boolean> {

@@ -61,6 +61,7 @@ import {
     SpaceTableName,
     SpaceUserAccessTableName,
 } from '../../database/entities/spaces';
+import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import { newExploreCacheReadContext } from '../../logging/exploreCacheReadMetrics';
 import {
@@ -2038,6 +2039,9 @@ describe('ProjectModel', () => {
             .update(({ sql }) => sql.includes('projects'))
             .response([{ project_id: 1 }]);
         tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
+        tracker.on
             .insert(({ sql }) => sql.includes('warehouse_credentials'))
             .response([]);
 
@@ -2064,6 +2068,9 @@ describe('ProjectModel', () => {
         tracker.on
             .update(({ sql }) => sql.includes('projects'))
             .response([{ project_id: 1 }]);
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
         tracker.on
             .insert(({ sql }) => sql.includes('warehouse_credentials'))
             .response([]);
@@ -2121,6 +2128,9 @@ describe('ProjectModel', () => {
             .spyOn(encryptionUtilMock, 'encrypt')
             .mockReturnValue(Buffer.from('encrypted'));
         tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
+        tracker.on
             .insert(({ sql }) => sql.includes('warehouse_credentials'))
             .response([]);
 
@@ -2158,8 +2168,11 @@ describe('ProjectModel', () => {
 
     test('keeps dormant ciphertext when attaching an organization connection', async () => {
         tracker.on
-            .insert(({ sql }) => sql.includes('warehouse_credentials'))
-            .response([]);
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([{ warehouse_credentials_id: 42 }]);
+        tracker.on
+            .update(({ sql }) => sql.includes('warehouse_credentials'))
+            .response(1);
 
         await (
             model as unknown as {
@@ -2185,10 +2198,11 @@ describe('ProjectModel', () => {
             'organization-credential-uuid',
         );
 
-        const updateClause =
-            tracker.history.insert[0].sql.split('do update set')[1];
-        expect(updateClause).not.toContain('encrypted_credentials');
-        expect(tracker.history.insert[0].bindings).toContain(
+        expect(tracker.history.insert).toHaveLength(0);
+        expect(tracker.history.update[0].sql).not.toContain(
+            'encrypted_credentials',
+        );
+        expect(tracker.history.update[0].bindings).toContain(
             'organization-credential-uuid',
         );
     });
@@ -2238,109 +2252,6 @@ describe('ProjectModel', () => {
         expect(tracker.history.select[0].sql).toContain(
             '"warehouse_credentials"."superseded_at" is null',
         );
-    });
-
-    describe('upsertWarehouseConnection live row targeting', () => {
-        const connection = (connectionUuid: string, name: string) => ({
-            connectionUuid,
-            name,
-            warehouseType: WarehouseTypes.POSTGRES,
-            organizationWarehouseCredentialsUuid: null,
-            listAllDatabases: false,
-            additionalDatabases: [],
-            createdAt: new Date(),
-        });
-        const warehouseConnection: CreateWarehouseCredentials = {
-            type: WarehouseTypes.POSTGRES,
-            host: 'localhost',
-            user: 'user',
-            password: 'password',
-            port: 5432,
-            dbname: 'dbname',
-            schema: 'schema',
-        };
-
-        const stubConnectionModel = (
-            liveConnections: ReturnType<typeof connection>[],
-        ) => {
-            const { connectionModel } = model as unknown as {
-                connectionModel: {
-                    listByProject: ReturnType<typeof vi.fn>;
-                    create: ReturnType<typeof vi.fn>;
-                    update: ReturnType<typeof vi.fn>;
-                };
-            };
-            vi.spyOn(
-                model as unknown as {
-                    createConnectionModel: () => typeof connectionModel;
-                },
-                'createConnectionModel',
-            ).mockReturnValue(connectionModel);
-            vi.spyOn(connectionModel, 'listByProject').mockResolvedValue(
-                liveConnections as AnyType,
-            );
-            const create = vi
-                .spyOn(connectionModel, 'create')
-                .mockResolvedValue(liveConnections[0] as AnyType);
-            const update = vi
-                .spyOn(connectionModel, 'update')
-                .mockResolvedValue(liveConnections[0] as AnyType);
-            return { create, update };
-        };
-
-        const upsertWarehouseConnection = () =>
-            (
-                model as unknown as {
-                    upsertWarehouseConnection: (
-                        trx: typeof database,
-                        targetProjectUuid: string,
-                        data: CreateWarehouseCredentials,
-                    ) => Promise<void>;
-                }
-            ).upsertWarehouseConnection(
-                database,
-                projectUuid,
-                warehouseConnection,
-            );
-
-        test('inserts when the project has no live connection', async () => {
-            const { create, update } = stubConnectionModel([]);
-
-            await upsertWarehouseConnection();
-
-            expect(create).toHaveBeenCalledWith(projectUuid, {
-                warehouseConnection,
-                organizationWarehouseCredentialsUuid: undefined,
-            });
-            expect(update).not.toHaveBeenCalled();
-        });
-
-        test('updates the one live connection by its uuid', async () => {
-            const { create, update } = stubConnectionModel([
-                connection('live-uuid', 'postgres'),
-            ]);
-
-            await upsertWarehouseConnection();
-
-            expect(create).not.toHaveBeenCalled();
-            expect(update).toHaveBeenCalledWith(projectUuid, 'live-uuid', {
-                warehouseConnection,
-                organizationWarehouseCredentialsUuid: undefined,
-            });
-        });
-
-        test('refuses to guess between several live connections', async () => {
-            const { create, update } = stubConnectionModel([
-                connection('live-uuid', 'postgres'),
-                connection('other-uuid', 'finance'),
-            ]);
-
-            await expect(upsertWarehouseConnection()).rejects.toThrow(
-                MultipleConnectionsError,
-            );
-            expect(create).not.toHaveBeenCalled();
-            expect(update).not.toHaveBeenCalled();
-        });
     });
 
     test('rotates a refresh token by warehouse credential row id', async () => {
@@ -4482,6 +4393,76 @@ describe('ProjectModel', () => {
                 sql.includes(OrganizationMembershipCustomRolesTableName),
             );
             expect(extrasClear).toBeDefined();
+        });
+    });
+
+    describe('upsertWarehouseConnection', () => {
+        const PROJECT_ID = 7;
+        const LIVE_CREDENTIALS_ID = 42;
+        const upsertWarehouseConnection = (
+            data: CreateWarehouseCredentials = CompletePostgresCredentials,
+        ) =>
+            (
+                model as unknown as {
+                    upsertWarehouseConnection: (
+                        trx: typeof database,
+                        projectId: number,
+                        credentials: CreateWarehouseCredentials,
+                        organizationWarehouseCredentialsUuid?: string,
+                    ) => Promise<void>;
+                }
+            ).upsertWarehouseConnection(database, PROJECT_ID, data);
+
+        const matchWarehouseCredentials = ({ sql }: RawQuery) =>
+            sql.includes(WarehouseCredentialTableName);
+
+        test('inserts when the project has no live connection', async () => {
+            tracker.on.select(matchWarehouseCredentials).response([]);
+            tracker.on.insert(matchWarehouseCredentials).response([]);
+
+            await upsertWarehouseConnection();
+
+            expect(tracker.history.update).toHaveLength(0);
+            expect(tracker.history.insert).toHaveLength(1);
+            expect(tracker.history.insert[0].sql).not.toContain('on conflict');
+            expect(tracker.history.insert[0].bindings).toContain(PROJECT_ID);
+        });
+
+        test('updates the live row by its id', async () => {
+            tracker.on
+                .select(matchWarehouseCredentials)
+                .response([{ warehouse_credentials_id: LIVE_CREDENTIALS_ID }]);
+            tracker.on.update(matchWarehouseCredentials).response(1);
+
+            await upsertWarehouseConnection();
+
+            expect(tracker.history.insert).toHaveLength(0);
+            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.update[0].sql).toContain(
+                'where "warehouse_credentials_id" =',
+            );
+            expect(tracker.history.update[0].bindings).toContain(
+                LIVE_CREDENTIALS_ID,
+            );
+            // The select only considers rows that are still live.
+            expect(tracker.history.select[0].sql).toContain(
+                '"superseded_at" is null',
+            );
+        });
+
+        test('refuses to guess between several live connections', async () => {
+            tracker.on
+                .select(matchWarehouseCredentials)
+                .response([
+                    { warehouse_credentials_id: LIVE_CREDENTIALS_ID },
+                    { warehouse_credentials_id: LIVE_CREDENTIALS_ID + 1 },
+                ]);
+
+            await expect(upsertWarehouseConnection()).rejects.toThrow(
+                MultipleConnectionsError,
+            );
+            expect(tracker.history.insert).toHaveLength(0);
+            expect(tracker.history.update).toHaveLength(0);
         });
     });
 });
