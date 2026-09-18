@@ -271,8 +271,19 @@ async function buildScenario() {
         syncPromotedApp: async () => undefined,
         updateStatusMessage: async () => undefined,
         touchVersionIfInProgress: async () => undefined,
-        findThreadByUuid: async () => null,
+        findThreadByUuid: async (appThreadUuid: string) => ({
+            app_thread_uuid: appThreadUuid,
+            app_id: appThreadUuid.replace(/-thread-1$/, ''),
+            thread_number: 1,
+            origin: 'builder' as const,
+            ai_thread_uuid: null,
+            coding_agent: 'claude' as const,
+            coding_agent_session_id: null,
+            created_at: new Date(),
+            created_by_user_uuid: 'user-1',
+        }),
         threadHasVersionThatReachedCodingAgent: async () => false,
+        setThreadCodingAgentSessionId: async () => true,
     };
     let pipelinePayload: AppGeneratePipelineJobPayload | undefined;
     const sandboxManager = new MockSandboxManager({

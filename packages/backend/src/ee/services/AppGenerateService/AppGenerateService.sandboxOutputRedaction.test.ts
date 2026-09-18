@@ -28,6 +28,7 @@ type PrivateAppGenerateService = {
         appUuid: string,
         version: number,
         sessionStart: { kind: 'new' } | { kind: 'continue' },
+        sessionHooks: null,
         env: Record<string, string>,
         model: 'sonnet',
         effort: 'low',
@@ -130,6 +131,7 @@ describe.each([
                 'app-1',
                 1,
                 { kind: 'new' },
+                null,
                 {
                     [secretKey]: secret,
                     DATA_APP_CODEX_MODEL: 'gpt-5.1-codex-mini',
@@ -177,6 +179,7 @@ describe.each([
             'app-1',
             1,
             { kind: 'new' },
+            null,
             {
                 [secretKey]: secret,
                 DATA_APP_CODEX_MODEL: 'gpt-5.1-codex-mini',

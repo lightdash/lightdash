@@ -354,3 +354,36 @@ describe('addClaudeGenerationAttempt', () => {
         expect(second.timeToFirstTokenMs).toBe(75);
     });
 });
+
+describe('ClaudeStreamProcessor session start', () => {
+    test('surfaces the session id from the init event and from nothing else', () => {
+        const processor = new ClaudeStreamProcessor();
+        const events = processor.feedChunk(
+            line({
+                type: 'system',
+                subtype: 'hook_started',
+                hook_name: 'SessionStart:startup',
+                session_id: 'f228a01a-fef5-4872-a344-1d875e934fcf',
+            }) +
+                line({
+                    type: 'system',
+                    subtype: 'init',
+                    cwd: '/app',
+                    session_id: 'f228a01a-fef5-4872-a344-1d875e934fcf',
+                    tools: ['Read', 'Write'],
+                }) +
+                resultLine({
+                    session_id: 'f228a01a-fef5-4872-a344-1d875e934fcf',
+                }),
+        );
+
+        expect(events.map((event) => event.kind)).toEqual([
+            'session_started',
+            'result',
+        ]);
+        expect(events[0]).toEqual({
+            kind: 'session_started',
+            sessionId: 'f228a01a-fef5-4872-a344-1d875e934fcf',
+        });
+    });
+});

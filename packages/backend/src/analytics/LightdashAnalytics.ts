@@ -1981,6 +1981,18 @@ export type DataAppThreadClearedEvent = BaseTrack & {
     };
 };
 
+export type DataAppThreadSessionLostEvent = BaseTrack & {
+    event: 'data_app.thread.session_lost';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        threadNumber: number;
+        previousSessionId: string;
+    };
+};
+
 export type DataAppDuplicatedEvent = BaseTrack & {
     event: 'data_app.duplicated';
     userId: string;
@@ -2122,6 +2134,7 @@ export type DataAppEvent =
     | DataAppViewedEvent
     | DataAppVersionRestoredEvent
     | DataAppThreadClearedEvent
+    | DataAppThreadSessionLostEvent
     | DataAppDuplicatedEvent
     | DataAppDeletedEvent
     | DataAppPromotedEvent

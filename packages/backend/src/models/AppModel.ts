@@ -328,6 +328,20 @@ export class AppModel {
         return row ?? null;
     }
 
+    // Compare-and-set on the stored id so a stale writer can't clobber a newer one.
+    async setThreadCodingAgentSessionId(
+        appThreadUuid: string,
+        args: { replacing: string | null; sessionId: string },
+    ): Promise<boolean> {
+        const updated = await this.database(AppThreadsTableName)
+            .where({ app_thread_uuid: appThreadUuid })
+            .whereRaw('coding_agent_session_id IS NOT DISTINCT FROM ?', [
+                args.replacing,
+            ])
+            .update({ coding_agent_session_id: args.sessionId });
+        return updated > 0;
+    }
+
     // Joins a version's own thread and the app's thread 1 (`appIdColumn` names the app).
     private static joinVersionThreads(
         query: Knex.QueryBuilder,

@@ -5,6 +5,12 @@ import {
     type ClaudeStreamEvent,
 } from './ClaudeStreamProcessor';
 
+// Codex has no session continuity, so it never reports a session start.
+export type CodexStreamEvent = Exclude<
+    ClaudeStreamEvent,
+    { kind: 'session_started' }
+>;
+
 const asFiniteNumber = (value: unknown): number =>
     typeof value === 'number' && Number.isFinite(value) ? value : 0;
 
@@ -68,18 +74,18 @@ export class CodexStreamProcessor {
         return [...this.turnDurations];
     }
 
-    feedChunk(chunk: string): ClaudeStreamEvent[] {
+    feedChunk(chunk: string): CodexStreamEvent[] {
         this.lineBuffer += chunk;
         const lines = this.lineBuffer.split('\n');
         this.lineBuffer = lines.pop() ?? '';
-        const events: ClaudeStreamEvent[] = [];
+        const events: CodexStreamEvent[] = [];
         for (const line of lines) {
             if (line.trim()) this.consumeLine(line, events);
         }
         return events;
     }
 
-    private consumeLine(line: string, events: ClaudeStreamEvent[]): void {
+    private consumeLine(line: string, events: CodexStreamEvent[]): void {
         let event: Record<string, unknown>;
         try {
             event = JSON.parse(line) as Record<string, unknown>;
