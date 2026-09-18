@@ -150,6 +150,9 @@ export const AiGeneralSettingsPage = () => {
                         dataAppRuntimeAiEnabled={
                             settings.dataAppRuntimeAiEnabled ?? false
                         }
+                        dataAppContinueInAskAiEnabled={
+                            settings.dataAppContinueInAskAiEnabled ?? true
+                        }
                         slackInstallation={slackInstallation}
                         slackAgentsEnabled={slackAgentsEnabled}
                         isTrial={settings.isTrial}
@@ -164,6 +167,11 @@ export const AiGeneralSettingsPage = () => {
                         onUpdateDataAppRuntimeAiEnabled={(checked) =>
                             updateSettings({
                                 dataAppRuntimeAiEnabled: checked,
+                            })
+                        }
+                        onUpdateDataAppContinueInAskAiEnabled={(checked) =>
+                            updateSettings({
+                                dataAppContinueInAskAiEnabled: checked,
                             })
                         }
                         onUpdateSlackAgentsEnabled={handleSlackAgentsToggle}

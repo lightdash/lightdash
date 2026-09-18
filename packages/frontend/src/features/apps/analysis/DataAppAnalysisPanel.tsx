@@ -57,6 +57,7 @@ const AnomalyCard: FC<{
     anomaly: DataAppAnomaly;
     investigation: InvestigationState;
     canInvestigate: boolean;
+    canContinue: boolean;
     highlightable: boolean;
     onHover: (queryUuid: string | null) => void;
     onInvestigate: () => void;
@@ -65,6 +66,7 @@ const AnomalyCard: FC<{
     anomaly,
     investigation,
     canInvestigate,
+    canContinue,
     highlightable,
     onHover,
     onInvestigate,
@@ -120,16 +122,18 @@ const AnomalyCard: FC<{
                             The query budget ran out; this is a partial answer.
                         </Text>
                     )}
-                    <Group justify="flex-end">
-                        <Button
-                            size="xs"
-                            variant="light"
-                            color="indigo"
-                            onClick={onContinue}
-                        >
-                            Continue in Ask AI
-                        </Button>
-                    </Group>
+                    {canContinue && (
+                        <Group justify="flex-end">
+                            <Button
+                                size="xs"
+                                variant="light"
+                                color="indigo"
+                                onClick={onContinue}
+                            >
+                                Continue in Ask AI
+                            </Button>
+                        </Group>
+                    )}
                 </Stack>
             )}
         </Stack>
@@ -167,6 +171,7 @@ const DataAppAnalysisPanel: FC<Props> = ({
         selectAgent,
         investigateAnomaly,
         continueInAskAi,
+        canContinueInAskAi,
     } = controller;
 
     const handleContinue = (anomalyId: string) => {
@@ -332,6 +337,9 @@ const DataAppAnalysisPanel: FC<Props> = ({
                                                                 }
                                                                 highlightable={
                                                                     lineageAvailable
+                                                                }
+                                                                canContinue={
+                                                                    canContinueInAskAi
                                                                 }
                                                                 onHover={
                                                                     onHoverQuery

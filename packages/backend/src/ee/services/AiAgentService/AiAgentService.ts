@@ -148,6 +148,7 @@ import {
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchPhase,
     type AiPromptContextInput,
+    type AiThreadCreatedFrom,
     type AiWebAppThreadCreatedFrom,
     type AppGeneratePipelineJobPayload,
     type DataAppVizChart,
@@ -3917,6 +3918,27 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    /**
+     * Any new user input on a thread that began as a data-app investigation
+     * (a message, a steer) is "continuing" it, so all of them honour the
+     * org setting.
+     */
+    private async assertDataAppThreadContinuable(
+        thread: { createdFrom: AiThreadCreatedFrom },
+        organizationUuid: string,
+    ): Promise<void> {
+        if (thread.createdFrom !== 'data_app') return;
+        if (
+            !(await this.aiOrganizationSettingsService.isDataAppContinueInAskAiEnabled(
+                organizationUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                'Continuing a data-app investigation in Ask AI is turned off for this organization',
+            );
+        }
+    }
+
     async createAgentThreadMessage(
         user: SessionUser,
         agentUuid: string,
@@ -3952,6 +3974,7 @@ export class AiAgentService extends BaseService {
         if (!thread) {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
+        await this.assertDataAppThreadContinuable(thread, organizationUuid);
 
         // Check if user has access to create messages for this agent's thread
         const hasAccess = await this.checkAgentThreadAccess(
@@ -7039,6 +7062,10 @@ export class AiAgentService extends BaseService {
         if (!thread) {
             throw new NotFoundError(`Thread not found: ${threadUuid}`);
         }
+        await this.assertDataAppThreadContinuable(
+            thread,
+            user.organizationUuid,
+        );
 
         const hasAccess = await this.checkAgentThreadAccess(
             user,

@@ -123,6 +123,7 @@ const insights = useInsights(orders);
 // insights.anomalies        the anomalies that refer to this query
 // insights.matches(row)     the anomalies whose dimension values match this row
 // insights.canInvestigate   false when no agent is available
+// insights.canContinue      false when the org keeps viewers at the explanation
 // insights.investigate(id)  start an investigation of one anomaly
 // insights.continueInAskAi(id)  open the investigation's thread in Ask AI
 ```
@@ -239,7 +240,7 @@ const anomaly = insights.matches(row)[0];
 Then render the investigation state wherever the anomaly is shown (a card under the chart, a side sheet):
 
 - `running` — a spinner and "Investigating…". It can take a minute.
-- `ready` — render `explanation` as Markdown (it contains a summary, a "Possible drivers" list with the evidence for each, an "Evidence" list, and a "Confidence: …" line). If `partial` is true, say the query budget ran out. Offer a **Continue in Ask AI** button that calls `insights.continueInAskAi(anomaly.id)`; Lightdash opens the thread.
+- `ready` — render `explanation` as Markdown (it contains a summary, a "Possible drivers" list with the evidence for each, an "Evidence" list, and a "Confidence: …" line). If `partial` is true, say the query budget ran out. When `insights.canContinue` is true, offer a **Continue in Ask AI** button that calls `insights.continueInAskAi(anomaly.id)`; Lightdash opens the thread. When it is false the organisation keeps viewers at the explanation: render no button.
 - `error` — show `error` and offer Investigate again.
 
 Never open a dialog for the investigation yourself; the app renders state, Lightdash owns the run.

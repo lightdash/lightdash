@@ -141,8 +141,11 @@ export const useDataAppAnalysisController = ({
     );
 
     // The launcher only shows threads it knows about, so dock it first.
+    const canContinueInAskAi =
+        availability.status === 'available' && availability.canContinueInAskAi;
     const continueInAskAi = useCallback(
         (anomalyId: string) => {
+            if (!canContinueInAskAi) return;
             const investigation = investigations[anomalyId];
             if (investigation?.status !== 'ready') return;
             const { threadUuid, agentUuid, anomaly } =
@@ -163,7 +166,13 @@ export const useDataAppAnalysisController = ({
                 openPanel({ threadId: threadUuid, agentUuid }),
             );
         },
-        [investigations, launcherDock, openThread, projectUuid],
+        [
+            canContinueInAskAi,
+            investigations,
+            launcherDock,
+            openThread,
+            projectUuid,
+        ],
     );
 
     const handleAction = useCallback(
@@ -198,12 +207,14 @@ export const useDataAppAnalysisController = ({
             generatedAt: null,
             stale: false,
             canInvestigate: selectedAgentUuid !== null,
+            canContinue: false,
             error: null,
             anomalies: [],
         };
         if (availability.status === 'unavailable') {
             return { ...base, status: 'unavailable', canInvestigate: false };
         }
+        const canContinue = availability.canContinueInAskAi;
         switch (state.status) {
             case 'idle':
                 return { ...base, status: 'idle' };
@@ -225,6 +236,7 @@ export const useDataAppAnalysisController = ({
                     ).toISOString(),
                     stale: state.stale,
                     canInvestigate: selectedAgentUuid !== null && !state.stale,
+                    canContinue,
                     anomalies: state.analysis.anomalies.map((anomaly) => ({
                         ...anomaly,
                         investigation: toInvestigation(
@@ -235,7 +247,7 @@ export const useDataAppAnalysisController = ({
             default:
                 return null;
         }
-    }, [availability.status, investigations, selectedAgentUuid, state]);
+    }, [availability, investigations, selectedAgentUuid, state]);
 
     return {
         ...analysis,
@@ -246,6 +258,7 @@ export const useDataAppAnalysisController = ({
         selectAgent,
         investigateAnomaly,
         continueInAskAi,
+        canContinueInAskAi,
         handleAction,
         insightsPayload,
         setMountedQueryUuids,

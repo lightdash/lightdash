@@ -4,7 +4,7 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 
 export type DataAppAnalysisAvailability =
     | { status: 'loading' }
-    | { status: 'available' }
+    | { status: 'available'; canContinueInAskAi: boolean }
     | {
           status: 'unavailable';
           reason: 'not_rolled_out' | 'org_setting_off' | 'copilot_off';
@@ -34,5 +34,9 @@ export const useDataAppAnalysisAvailability =
         if (!aiSettings.dataAppRuntimeAiEnabled) {
             return { status: 'unavailable', reason: 'org_setting_off' };
         }
-        return { status: 'available' };
+        return {
+            status: 'available',
+            canContinueInAskAi:
+                aiSettings.dataAppContinueInAskAiEnabled ?? true,
+        };
     };

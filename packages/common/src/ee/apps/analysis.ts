@@ -160,6 +160,8 @@ export type DataAppInsightsPayload = {
     generatedAt: string | null;
     stale: boolean;
     canInvestigate: boolean;
+    /** False when the org keeps viewers at the explanation. */
+    canContinue: boolean;
     error: string | null;
     anomalies: (DataAppAnomaly & {
         investigation: DataAppInsightInvestigation;
