@@ -30,6 +30,7 @@ import { CatalogService } from './CatalogService/CatalogService';
 import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
+import { ConnectionService } from './ConnectionService/ConnectionService';
 import { ContentAsCodeWritebackService } from './ContentAsCodeWritebackService/ContentAsCodeWritebackService';
 import { ContentService } from './ContentService/ContentService';
 import { ContentVerificationService } from './ContentVerificationService';
@@ -109,6 +110,7 @@ interface ServiceManifest {
     adminNotificationService: AdminNotificationService;
     analyticsService: AnalyticsService;
     commentService: CommentService;
+    connectionService: ConnectionService;
     csvService: CsvService;
     dashboardService: DashboardService;
     directAccessFeatureGate: DirectAccessFeatureGate;
@@ -431,6 +433,19 @@ export class ServiceRepository
                     notificationsModel: this.models.getNotificationsModel(),
                     userModel: this.models.getUserModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                }),
+        );
+    }
+
+    public getConnectionService(): ConnectionService {
+        return this.getService(
+            'connectionService',
+            () =>
+                new ConnectionService({
+                    connectionModel: this.models.getConnectionModel(),
+                    featureFlagService: this.getFeatureFlagService(),
+                    licenseService: this.getLicenseService(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
