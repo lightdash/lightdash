@@ -13,4 +13,19 @@
 .sidebarScroll {
     flex: 1 1 auto;
     min-height: 0;
+    /* Pull into the Stack gap so the top fade zone doesn't add space */
+    margin-top: calc(-1 * var(--mantine-spacing-md));
+}
+
+/* Edge fade: items dissolve as they slide under the top/bottom edges.
+   Padding matches the fade so nothing is faded when scrolled to an edge. */
+.sidebarScrollViewport {
+    padding-block: var(--mantine-spacing-md);
+    mask-image: linear-gradient(
+        to bottom,
+        transparent,
+        black var(--mantine-spacing-md),
+        black calc(100% - var(--mantine-spacing-md)),
+        transparent
+    );
 }

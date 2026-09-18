@@ -1045,7 +1045,10 @@ const Settings: FC = () => {
                         type="scroll"
                         scrollbarSize={8}
                         scrollHideDelay={800}
-                        className={classes.sidebarScroll}
+                        classNames={{
+                            root: classes.sidebarScroll,
+                            viewport: classes.sidebarScrollViewport,
+                        }}
                     >
                         {filteredSections.length > 0 ? (
                             <SettingsNavigation
