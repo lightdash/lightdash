@@ -3140,7 +3140,8 @@ export class ProjectService extends BaseService {
         if (
             newProjectData.type === ProjectType.PREVIEW &&
             data.copyWarehouseConnectionFromUpstreamProject &&
-            data.upstreamProjectUuid
+            data.upstreamProjectUuid &&
+            upstreamProject?.connections.length === 0
         ) {
             newProjectData.warehouseConnection =
                 await this.projectModel.getWarehouseCredentialsForProject(
