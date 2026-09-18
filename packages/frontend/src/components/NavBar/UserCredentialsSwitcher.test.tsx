@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
     preferences: new Map<string, UserWarehouseCredentials | undefined>(),
     preferenceHook: vi.fn(),
     mutate: vi.fn(),
+    createCredentialsModal: vi.fn(),
 }));
 
 vi.mock('../../hooks/useActiveProject', () => ({
@@ -77,7 +78,16 @@ vi.mock('./NavBarPortalContext', () => ({
 
 vi.mock(
     '../UserSettings/MyWarehouseConnectionsPanel/CreateCredentialsModal',
-    () => ({ CreateCredentialsModal: () => null }),
+    () => ({
+        CreateCredentialsModal: (props: {
+            title?: string;
+            warehouseType?: WarehouseTypes;
+            connections?: Connection[];
+        }) => {
+            mocks.createCredentialsModal(props);
+            return null;
+        },
+    }),
 );
 
 import UserCredentialsSwitcher from './UserCredentialsSwitcher';
@@ -85,9 +95,10 @@ import UserCredentialsSwitcher from './UserCredentialsSwitcher';
 const connection = (
     connectionUuid: string,
     warehouseType: WarehouseTypes,
+    name: string = connectionUuid,
 ): Connection => ({
     connectionUuid,
-    name: connectionUuid,
+    name,
     warehouseType,
     organizationWarehouseCredentialsUuid: null,
     listAllDatabases: false,
@@ -160,6 +171,38 @@ const openSwitcher = () =>
         screen.getByRole('button', { name: 'Warehouse credentials' }),
     );
 
+const menuItem = (name: string) => screen.getByRole('menuitem', { name });
+
+const isRenderedBefore = (first: Element, second: Element) =>
+    Boolean(
+        first.compareDocumentPosition(second) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+
+const hasPreferenceTick = (item: HTMLElement) =>
+    item.querySelector('.tabler-icon-check') !== null;
+
+const postgresConnection = connection(
+    'connection-a',
+    WarehouseTypes.POSTGRES,
+    'Postgres connection',
+);
+const snowflakeConnection = connection(
+    'connection-b',
+    WarehouseTypes.SNOWFLAKE,
+    'Snowflake connection',
+);
+const postgresCredentials = credentials(
+    'credentials-a',
+    'Postgres credentials',
+    WarehouseTypes.POSTGRES,
+);
+const snowflakeCredentials = credentials(
+    'credentials-b',
+    'Snowflake credentials',
+    WarehouseTypes.SNOWFLAKE,
+);
+
 describe('UserCredentialsSwitcher', () => {
     beforeEach(() => {
         mocks.activeProject = undefined;
@@ -167,6 +210,7 @@ describe('UserCredentialsSwitcher', () => {
         mocks.preferences.clear();
         mocks.preferenceHook.mockClear();
         mocks.mutate.mockClear();
+        mocks.createCredentialsModal.mockClear();
     });
 
     it('renders when project connection metadata arrives after mount', () => {
@@ -186,6 +230,9 @@ describe('UserCredentialsSwitcher', () => {
         expect(
             screen.getByRole('button', { name: 'Warehouse credentials' }),
         ).toBeVisible();
+
+        openSwitcher();
+
         expect(mocks.preferenceHook).toHaveBeenLastCalledWith(
             'project-uuid',
             'connection-a',
@@ -212,11 +259,7 @@ describe('UserCredentialsSwitcher', () => {
         const view = renderSwitcher();
 
         openSwitcher();
-        expect(
-            screen
-                .getByRole('menuitem', { name: 'Credentials A' })
-                .querySelector('.tabler-icon-check'),
-        ).not.toBeNull();
+        expect(hasPreferenceTick(menuItem('Credentials A'))).toBe(true);
 
         mocks.activeProject = project([connectionB]);
         view.rerender(<UserCredentialsSwitcher />);
@@ -225,12 +268,8 @@ describe('UserCredentialsSwitcher', () => {
             'project-uuid',
             'connection-b',
         );
-        const credentialsBItem = screen.getByRole('menuitem', {
-            name: 'Credentials B',
-        });
-        expect(
-            credentialsBItem.querySelector('.tabler-icon-check'),
-        ).not.toBeNull();
+        const credentialsBItem = menuItem('Credentials B');
+        expect(hasPreferenceTick(credentialsBItem)).toBe(true);
 
         fireEvent.click(credentialsBItem);
         expect(mocks.mutate).toHaveBeenCalledWith({
@@ -240,21 +279,131 @@ describe('UserCredentialsSwitcher', () => {
         });
     });
 
-    it('does not infer the first connection for a multi-connection project', () => {
+    it('renders one section per connection for a multi-connection project', () => {
         mocks.activeProject = project([
-            connection('connection-a', WarehouseTypes.POSTGRES),
-            connection('connection-b', WarehouseTypes.SNOWFLAKE),
+            postgresConnection,
+            snowflakeConnection,
         ]);
+        mocks.credentials = [postgresCredentials, snowflakeCredentials];
 
         renderSwitcher();
 
-        expect(mocks.preferenceHook).toHaveBeenLastCalledWith(
-            'project-uuid',
-            undefined,
-        );
         expect(
-            screen.queryByRole('button', { name: 'Warehouse credentials' }),
-        ).not.toBeInTheDocument();
+            screen.getByRole('button', { name: 'Warehouse credentials' }),
+        ).toBeVisible();
+
+        openSwitcher();
+
+        const postgresLabel = screen.getByText('Postgres connection');
+        const snowflakeLabel = screen.getByText('Snowflake connection');
+        const postgresItem = menuItem('Postgres credentials');
+        const snowflakeItem = menuItem('Snowflake credentials');
+        const createNewItems = screen.getAllByRole('menuitem', {
+            name: 'Create new',
+        });
+
+        expect(createNewItems).toHaveLength(2);
+        expect(isRenderedBefore(postgresLabel, postgresItem)).toBe(true);
+        expect(isRenderedBefore(postgresItem, createNewItems[0])).toBe(true);
+        expect(isRenderedBefore(createNewItems[0], snowflakeLabel)).toBe(true);
+        expect(isRenderedBefore(snowflakeLabel, snowflakeItem)).toBe(true);
+        expect(isRenderedBefore(snowflakeItem, createNewItems[1])).toBe(true);
+    });
+
+    it('scopes preferences and mutations to the connection that owns the section', () => {
+        mocks.activeProject = project([
+            postgresConnection,
+            snowflakeConnection,
+        ]);
+        const otherPostgresCredentials = credentials(
+            'credentials-c',
+            'Other postgres credentials',
+            WarehouseTypes.POSTGRES,
+        );
+        mocks.credentials = [
+            postgresCredentials,
+            otherPostgresCredentials,
+            snowflakeCredentials,
+        ];
+        mocks.preferences.set('connection-a', postgresCredentials);
+        mocks.preferences.set('connection-b', snowflakeCredentials);
+
+        renderSwitcher();
+        openSwitcher();
+
+        expect(mocks.preferenceHook).toHaveBeenCalledWith(
+            'project-uuid',
+            'connection-a',
+        );
+        expect(mocks.preferenceHook).toHaveBeenCalledWith(
+            'project-uuid',
+            'connection-b',
+        );
+
+        expect(hasPreferenceTick(menuItem('Postgres credentials'))).toBe(true);
+        expect(hasPreferenceTick(menuItem('Other postgres credentials'))).toBe(
+            false,
+        );
+        expect(hasPreferenceTick(menuItem('Snowflake credentials'))).toBe(true);
+
+        fireEvent.click(menuItem('Snowflake credentials'));
+        expect(mocks.mutate).toHaveBeenLastCalledWith({
+            projectUuid: 'project-uuid',
+            userWarehouseCredentialsUuid: 'credentials-b',
+            connectionUuid: 'connection-b',
+        });
+
+        openSwitcher();
+        fireEvent.click(menuItem('Other postgres credentials'));
+        expect(mocks.mutate).toHaveBeenLastCalledWith({
+            projectUuid: 'project-uuid',
+            userWarehouseCredentialsUuid: 'credentials-c',
+            connectionUuid: 'connection-a',
+        });
+    });
+
+    it('keys the required credentials modal to the connection without credentials', () => {
+        mocks.activeProject = project([
+            postgresConnection,
+            snowflakeConnection,
+        ]);
+        mocks.credentials = [postgresCredentials];
+
+        renderSwitcher();
+
+        expect(mocks.createCredentialsModal).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                title: 'Login to Snowflake',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                connections: [snowflakeConnection],
+            }),
+        );
+    });
+
+    it('opens the create modal for the connection whose section was used', () => {
+        mocks.activeProject = project([
+            postgresConnection,
+            snowflakeConnection,
+        ]);
+        mocks.credentials = [postgresCredentials, snowflakeCredentials];
+
+        renderSwitcher();
+        openSwitcher();
+
+        expect(mocks.createCredentialsModal).not.toHaveBeenCalled();
+
+        const createNewItems = screen.getAllByRole('menuitem', {
+            name: 'Create new',
+        });
+        fireEvent.click(createNewItems[1]);
+
+        expect(mocks.createCredentialsModal).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                title: undefined,
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                connections: [snowflakeConnection],
+            }),
+        );
     });
 
     it('lists compatible project credentials without a legacy warehouse connection', () => {
@@ -285,5 +434,26 @@ describe('UserCredentialsSwitcher', () => {
         expect(screen.getByText('Credentials A')).toBeVisible();
         expect(screen.getByText('Credentials B')).toBeVisible();
         expect(screen.queryByText('Snowflake credentials')).toBeNull();
+    });
+
+    it('keeps a single connection unlabelled with one create entry', () => {
+        mocks.activeProject = project([
+            connection('connection-a', WarehouseTypes.POSTGRES),
+        ]);
+        mocks.credentials = [
+            credentials(
+                'credentials-a',
+                'Credentials A',
+                WarehouseTypes.POSTGRES,
+            ),
+        ];
+
+        renderSwitcher();
+        openSwitcher();
+
+        expect(screen.queryByText('connection-a')).toBeNull();
+        expect(
+            screen.getAllByRole('menuitem', { name: 'Create new' }),
+        ).toHaveLength(1);
     });
 });
