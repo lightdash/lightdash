@@ -15,6 +15,7 @@ import Editor, {
 import '../../../styles/monaco.css';
 import { useParameters } from '../../../hooks/parameters/useParameters';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
+import { useActiveConnection } from '../hooks/useActiveConnection';
 import { useDetectedTableFields } from '../hooks/useDetectedTableFields';
 import { useSqlEditorPreferences } from '../hooks/useSqlEditorPreferences';
 import { useTableFields } from '../hooks/useTableFields';
@@ -74,8 +75,11 @@ export const SqlEditor: FC<{
     // Fetch all available parameters for the project
     const { data: availableParameters } = useParameters(projectUuid, undefined);
 
+    const { isConnectionSettled } = useActiveConnection();
+
     const { data: listing, isLoading: isTablesDataLoading } = useDatabases({
         projectUuid,
+        isConnectionSettled,
         connectionUuid,
     });
 
@@ -101,6 +105,7 @@ export const SqlEditor: FC<{
         schema: currentSchema,
         database: currentDatabase,
         search: undefined,
+        isConnectionSettled,
     });
 
     // Use React Query to fetch field data for all detected tables in SQL
@@ -110,6 +115,7 @@ export const SqlEditor: FC<{
         projectUuid,
         connectionUuid,
         catalog: loadedCatalog,
+        isConnectionSettled,
     });
 
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);

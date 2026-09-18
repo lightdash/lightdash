@@ -33,9 +33,10 @@ export const writeLastUsedConnection = (
 
 /**
  * A saved chart opens on the connection stored with its version. A new
- * document opens on the last connection used in this project. Either way an
- * unknown connection falls back to the project's first one, so a removed or
- * renamed connection never leaves the runner pointing at nothing.
+ * document opens on the last connection used in this project. A project with
+ * one connection needs no choice at all. With several connections and nothing
+ * to go on, nothing is selected: the runner waits for the picker rather than
+ * guessing the first connection and querying the wrong warehouse.
  */
 export const resolveActiveConnection = ({
     connections,
@@ -57,14 +58,17 @@ export const resolveActiveConnection = ({
             (connection) => connection.connectionUuid === connectionUuid,
         );
 
+    const soleConnection =
+        connections.length === 1 ? firstConnection.connectionUuid : undefined;
+
     if (isSavedChart) {
         return isKnown(savedConnectionUuid)
             ? savedConnectionUuid
-            : firstConnection.connectionUuid;
+            : soleConnection;
     }
     return isKnown(lastUsedConnectionUuid)
         ? lastUsedConnectionUuid
-        : firstConnection.connectionUuid;
+        : soleConnection;
 };
 
 // The editor content a table click may replace: nothing, or a select this

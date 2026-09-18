@@ -57,7 +57,7 @@ describe('resolveActiveConnection', () => {
         ).toBe('connection-1');
     });
 
-    it('ignores a connection the project no longer has', () => {
+    it('waits for the picker rather than guessing the first connection', () => {
         expect(
             resolveActiveConnection({
                 connections,
@@ -65,12 +65,31 @@ describe('resolveActiveConnection', () => {
                 lastUsedConnectionUuid: undefined,
                 isSavedChart: true,
             }),
-        ).toBe('connection-1');
+        ).toBeUndefined();
         expect(
             resolveActiveConnection({
                 connections,
                 savedConnectionUuid: undefined,
                 lastUsedConnectionUuid: 'removed-connection',
+                isSavedChart: false,
+            }),
+        ).toBeUndefined();
+        expect(
+            resolveActiveConnection({
+                connections,
+                savedConnectionUuid: undefined,
+                lastUsedConnectionUuid: undefined,
+                isSavedChart: false,
+            }),
+        ).toBeUndefined();
+    });
+
+    it('needs no choice while the project has one connection', () => {
+        expect(
+            resolveActiveConnection({
+                connections: [connections[0]],
+                savedConnectionUuid: undefined,
+                lastUsedConnectionUuid: undefined,
                 isSavedChart: false,
             }),
         ).toBe('connection-1');

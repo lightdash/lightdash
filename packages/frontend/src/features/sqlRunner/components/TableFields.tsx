@@ -19,6 +19,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { TableFieldIcon } from '../../../components/DataViz/Icons';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
+import { useActiveConnection } from '../hooks/useActiveConnection';
 import {
     useTableFields,
     type WarehouseTableField,
@@ -87,6 +88,8 @@ export const TableFields: FC = () => {
         (state) => state.sqlRunner.activeDatabase,
     );
 
+    const { isConnectionSettled } = useActiveConnection();
+
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
 
@@ -105,6 +108,7 @@ export const TableFields: FC = () => {
         schema: activeSchema,
         database: activeDatabase,
         search: isValidSearch ? debouncedSearch : undefined,
+        isConnectionSettled,
     });
 
     return (

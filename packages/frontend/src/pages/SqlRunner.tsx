@@ -183,16 +183,22 @@ const SqlRunner = ({
         projectUuid,
     ]);
 
-    // Share links replace the whole slice via `setState`, dropping this
-    // project-derived field; re-restore it whenever the store value is missing.
+    // The editor dialect follows the selected connection. A project's first
+    // connection can disagree with the one a saved chart runs on, so it is
+    // only used when the project has no choice to make.
+    const selectedConnection = connections?.find(
+        (connection) => connection.connectionUuid === connectionUuid,
+    );
     const warehouseType =
-        project?.warehouseConnection?.type ??
-        project?.connections[0]?.warehouseType;
+        selectedConnection?.warehouseType ??
+        (connections?.length === 1
+            ? connections[0]?.warehouseType
+            : undefined) ??
+        project?.warehouseConnection?.type;
     useEffect(() => {
-        if (warehouseType && !warehouseConnectionType) {
-            dispatch(setWarehouseConnectionType(warehouseType));
-            dispatch(setQuoteChar(getFieldQuoteChar(warehouseType)));
-        }
+        if (!warehouseType || warehouseType === warehouseConnectionType) return;
+        dispatch(setWarehouseConnectionType(warehouseType));
+        dispatch(setQuoteChar(getFieldQuoteChar(warehouseType)));
     }, [dispatch, warehouseType, warehouseConnectionType]);
 
     if (chartError) {

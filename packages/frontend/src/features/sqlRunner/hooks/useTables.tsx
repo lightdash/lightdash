@@ -21,6 +21,7 @@ export type GetTablesParams = {
     projectUuid: string;
     database: string | undefined;
     connectionUuid?: string;
+    isConnectionSettled?: boolean;
 };
 
 export const databasesQueryKey = (
@@ -75,27 +76,30 @@ const refreshTables = async (projectUuid: string, connectionUuid?: string) =>
 export const useDatabases = ({
     projectUuid,
     connectionUuid,
+    isConnectionSettled = true,
 }: {
     projectUuid: string;
     connectionUuid?: string;
+    isConnectionSettled?: boolean;
 }) =>
     useQuery<WarehouseDatabaseListing, ApiError>({
         queryKey: databasesQueryKey(projectUuid, connectionUuid),
         queryFn: () => fetchDatabases(projectUuid, connectionUuid),
         retry: false,
-        enabled: !!projectUuid,
+        enabled: !!projectUuid && isConnectionSettled,
     });
 
 export const useTables = ({
     projectUuid,
     database,
     connectionUuid,
+    isConnectionSettled = true,
 }: GetTablesParams) =>
     useQuery<WarehouseTablesCatalog, ApiError>({
         queryKey: tablesQueryKey(projectUuid, database ?? '', connectionUuid),
         queryFn: () => fetchTables(projectUuid, database ?? '', connectionUuid),
         retry: false,
-        enabled: !!projectUuid && !!database,
+        enabled: !!projectUuid && !!database && isConnectionSettled,
     });
 
 export const useRefreshTables = ({
@@ -164,10 +168,12 @@ export const useConnectionDatabases = ({
     projectUuid,
     connections,
     enabledConnectionIds,
+    isConnectionSettled,
 }: {
     projectUuid: string;
     connections: { connectionId: string; connectionUuid: string | undefined }[];
     enabledConnectionIds: ReadonlySet<string>;
+    isConnectionSettled: boolean;
 }): ConnectionDatabases => {
     const results = useQueries({
         queries: connections.map((connection) => ({
@@ -177,6 +183,7 @@ export const useConnectionDatabases = ({
             retry: false,
             enabled:
                 !!projectUuid &&
+                isConnectionSettled &&
                 enabledConnectionIds.has(connection.connectionId),
         })),
     });
@@ -219,10 +226,12 @@ export const useTableUnits = ({
     projectUuid,
     units,
     enabledUnitIds,
+    isConnectionSettled,
 }: {
     projectUuid: string;
     units: TableUnit[];
     enabledUnitIds: ReadonlySet<string>;
+    isConnectionSettled: boolean;
 }): TableUnits => {
     const queryClient = useQueryClient();
 
@@ -236,7 +245,10 @@ export const useTableUnits = ({
             queryFn: () =>
                 fetchTables(projectUuid, unit.database, unit.connectionUuid),
             retry: false,
-            enabled: !!projectUuid && enabledUnitIds.has(tableUnitId(unit)),
+            enabled:
+                !!projectUuid &&
+                isConnectionSettled &&
+                enabledUnitIds.has(tableUnitId(unit)),
         })),
     });
 
