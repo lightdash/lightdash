@@ -1,44 +1,17 @@
 import {
-    APP_UPGRADE_PROMPT_LABEL,
     diffDataAppVizSchema,
     hasDataAppVizSchemaChanges,
-    isAppVersionInProgress,
     summarizeDataAppVizSchemaChanges,
     type ApiAppVersionSummary,
     type DataAppVizSchema,
     type DataAppVizSchemaChanges,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Badge,
-    Box,
-    Button,
-    Text,
-    Title,
-    Tooltip,
-    UnstyledButton,
-} from '@mantine/core';
-import {
-    IconChevronRight,
-    IconLayoutSidebarRightCollapse,
-} from '@tabler/icons-react';
-import { format } from 'date-fns';
 import { useState, type FC } from 'react';
-import { LightdashUserAvatar } from '../../../components/Avatar';
-import { AiMarkdown } from '../../../components/common/AiMarkdown';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { useTimeAgo } from '../../../hooks/useTimeAgo';
-import AppVersionNarration from '../../apps/components/AppVersionNarration';
-import { getAppVersionFailureMessage } from '../../apps/getAppVersionFailureMessage';
-import {
-    getVersionNarration,
-    hasVersionNarration,
-} from '../../apps/utils/versionNarration';
-import { getVersionAuthorName } from '../../apps/utils/versionsToChatMessages';
+import AppVersionHistoryPanel from '../../apps/components/AppVersionHistoryPanel';
+import VersionHistoryDisclosure from '../../apps/components/VersionHistoryDisclosure';
 import VizSchemaChangesList from '../components/VizSchemaChangesList';
 import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
 import RestoreVersionModal from './RestoreVersionModal';
-import classes from './VersionHistoryPanel.module.css';
 
 type Props = {
     projectUuid: string;
@@ -56,111 +29,18 @@ type Props = {
     fetchEarlier: () => void;
 };
 
-const RelativeTime: FC<{ at: Date }> = ({ at }) => {
-    const timeAgo = useTimeAgo(at);
-    return (
-        <Text fz="xs" c="dimmed">
-            {timeAgo}
-        </Text>
-    );
-};
-
-const AbsoluteTime: FC<{ at: Date }> = ({ at }) => (
-    <Text fz="xs" c="dimmed">
-        {format(at, 'MMM d, HH:mm')}
-    </Text>
-);
-
-const AuthorLine: FC<{ version: ApiAppVersionSummary }> = ({ version }) => {
-    const name = getVersionAuthorName(version);
-    if (!name) return null;
-    return (
-        <>
-            <LightdashUserAvatar
-                size={18}
-                name={name}
-                userUuid={version.createdByUser?.userUuid}
-            />
-            <Text fz="xs" c="dimmed" truncate="end">
-                {name}
-            </Text>
-        </>
-    );
-};
-
-const VersionBuildDetails: FC<{ version: ApiAppVersionSummary }> = ({
-    version,
-}) => {
-    const [open, setOpen] = useState(false);
-    const narration = getVersionNarration(version.statusHistory);
-
-    if (!hasVersionNarration(narration)) return null;
-
-    return (
-        <Box className={classes.buildDetails}>
-            <UnstyledButton
-                className={classes.buildDetailsToggle}
-                aria-label={`Build details for v${version.version}`}
-                aria-expanded={open}
-                onClick={() => setOpen((current) => !current)}
-            >
-                <MantineIcon
-                    icon={IconChevronRight}
-                    size={12}
-                    className={classes.buildDetailsChevron}
-                    data-open={open || undefined}
-                />
-                <Text fz="xs" fw={600}>
-                    Build details
-                </Text>
-            </UnstyledButton>
-            {open && (
-                <AppVersionNarration
-                    narration={narration}
-                    isLive={false}
-                    className={classes.buildDetailsNarration}
-                />
-            )}
-        </Box>
-    );
-};
-
 const VersionChanges: FC<{
     version: number;
     changes: DataAppVizSchemaChanges;
-}> = ({ version, changes }) => {
-    const [open, setOpen] = useState(false);
-    const summary = summarizeDataAppVizSchemaChanges(changes).join(' · ');
-
-    return (
-        <Box className={classes.changes}>
-            <UnstyledButton
-                className={classes.buildDetailsToggle}
-                aria-label={`What changed in v${version}`}
-                aria-expanded={open}
-                onClick={() => setOpen((current) => !current)}
-            >
-                <MantineIcon
-                    icon={IconChevronRight}
-                    size={12}
-                    className={classes.buildDetailsChevron}
-                    data-open={open || undefined}
-                />
-                <Text fz="xs" fw={600} flex="0 0 auto">
-                    What changed
-                </Text>
-                <Text fz="xs" c="dimmed" truncate="end" ml={2} miw={0}>
-                    {summary}
-                </Text>
-            </UnstyledButton>
-            {open && (
-                <Box pt={6}>
-                    <VizSchemaChangesList changes={changes} compact />
-                </Box>
-            )}
-        </Box>
-    );
-};
+}> = ({ version, changes }) => (
+    <VersionHistoryDisclosure
+        label="What changed"
+        ariaLabel={`What changed in v${version}`}
+        summary={summarizeDataAppVizSchemaChanges(changes).join(' · ')}
+    >
+        <VizSchemaChangesList changes={changes} compact />
+    </VersionHistoryDisclosure>
+);
 
 const schemaOf = (version: ApiAppVersionSummary): DataAppVizSchema | null =>
     version.status === 'ready' ? (version.resources?.vizSchema ?? null) : null;
@@ -190,8 +70,8 @@ const getVersionSchemaChanges = (
 };
 
 /**
- * The version timeline as a side panel, newest first. Clicking a ready entry
- * pins the preview to it; each earlier entry offers to restore it on top.
+ * The chart type builder's side panel: the shared version history plus the
+ * viz schema changes per version and the chart type restore flow.
  */
 const VersionHistoryPanel: FC<Props> = ({
     projectUuid,
@@ -215,194 +95,41 @@ const VersionHistoryPanel: FC<Props> = ({
     const isClaimedInHistory =
         build.claimedVersion !== null &&
         versions.some((v) => v.version === build.claimedVersion);
-    const showLiveEntry = build.isBuilding && !isClaimedInHistory;
-
-    // What the preview is showing, so the highlight follows the chart.
-    const activeVersion = viewedVersion ?? latestReadyVersion;
-
-    const entryFor = (version: ApiAppVersionSummary) => {
-        const isBuilding = isAppVersionInProgress(version.status);
-        const isFailed = !isBuilding && version.status !== 'ready';
-        const isReady = !isBuilding && !isFailed;
-        const isCurrent = version.version === latestReadyVersion;
-        const isActive = version.version === activeVersion;
-        const label = `v${version.version}`;
-        const isUpgrade = version.prompt === APP_UPGRADE_PROMPT_LABEL;
-        const changes = schemaChanges.get(version.version);
-
-        return (
-            <Box
-                key={version.version}
-                className={classes.entry}
-                data-active={isActive}
-            >
-                <UnstyledButton
-                    className={classes.entryMain}
-                    disabled={!isReady}
-                    aria-label={`View ${label}`}
-                    onClick={() => onView(isCurrent ? null : version.version)}
-                >
-                    <Box className={classes.row}>
-                        <Text
-                            className={classes.versionLabel}
-                            span
-                            data-state={
-                                isBuilding
-                                    ? 'building'
-                                    : isFailed
-                                      ? 'failed'
-                                      : isActive
-                                        ? 'active'
-                                        : undefined
-                            }
-                        >
-                            {label}
-                        </Text>
-                        {isCurrent && (
-                            <Badge size="xs" variant="outline" color="blue">
-                                Current
-                            </Badge>
-                        )}
-                        {isActive && !isCurrent && (
-                            <Badge size="xs" variant="outline" color="blue">
-                                Viewing
-                            </Badge>
-                        )}
-                        {isFailed && (
-                            <Badge size="xs" variant="outline" color="red">
-                                Failed
-                            </Badge>
-                        )}
-                        {isBuilding && (
-                            <Badge size="xs" variant="outline" color="blue">
-                                Building…
-                            </Badge>
-                        )}
-                        <Box ml="auto">
-                            {isCurrent ? (
-                                <RelativeTime
-                                    at={new Date(version.createdAt)}
-                                />
-                            ) : (
-                                <AbsoluteTime
-                                    at={new Date(version.createdAt)}
-                                />
-                            )}
-                        </Box>
-                    </Box>
-                    <Text fz="sm" lh={1.45} c="ldGray.8">
-                        {version.prompt || 'Uploaded from source'}
-                    </Text>
-                </UnstyledButton>
-
-                {isFailed && (
-                    <Box className={classes.failure}>
-                        <Text fz="xs" lh={1.4} c="red.7">
-                            {getAppVersionFailureMessage(version)}
-                        </Text>
-                    </Box>
-                )}
-
-                {changes && (
-                    <VersionChanges
-                        version={version.version}
-                        changes={changes}
-                    />
-                )}
-
-                {!isBuilding && <VersionBuildDetails version={version} />}
-
-                {isReady && isUpgrade && version.statusMessage && (
-                    <Box className={classes.upgradeSummary}>
-                        <Text fz="xs" fw={600} c="blue.8" mb={4}>
-                            Upgrade summary
-                        </Text>
-                        <AiMarkdown className={classes.upgradeSummaryMarkdown}>
-                            {version.statusMessage}
-                        </AiMarkdown>
-                    </Box>
-                )}
-
-                <Box className={classes.row}>
-                    <AuthorLine version={version} />
-                    {isReady && !isCurrent && (
-                        <Button
-                            className={classes.restore}
-                            size="compact-xs"
-                            radius="xl"
-                            variant="default"
-                            onClick={() => setRestoreTarget(version.version)}
-                        >
-                            Restore
-                        </Button>
-                    )}
-                </Box>
-            </Box>
-        );
-    };
+    const liveBuild =
+        build.isBuilding && !isClaimedInHistory
+            ? {
+                  claimedVersion: build.claimedVersion,
+                  pendingPrompt: build.pendingPrompt,
+              }
+            : null;
 
     return (
-        <Box
-            className={classes.panel}
-            component="aside"
-            aria-label="Version history"
-        >
-            <Box className={classes.header}>
-                <Title order={3} fz="sm" fw={600}>
-                    Version history
-                </Title>
-                <Tooltip label="Collapse version history">
-                    <ActionIcon
-                        size="sm"
-                        aria-label="Collapse version history"
-                        onClick={onClose}
-                    >
-                        <MantineIcon icon={IconLayoutSidebarRightCollapse} />
-                    </ActionIcon>
-                </Tooltip>
-            </Box>
-
-            <Box className={classes.list}>
-                {showLiveEntry && (
-                    <Box className={classes.entry}>
-                        <Box className={classes.row}>
-                            <Text
-                                className={classes.versionLabel}
-                                span
-                                data-state="building"
-                            >
-                                {build.claimedVersion === null
-                                    ? 'Building…'
-                                    : `v${build.claimedVersion}`}
-                            </Text>
-                            {build.claimedVersion !== null && (
-                                <Badge size="xs" variant="outline" color="blue">
-                                    Building…
-                                </Badge>
-                            )}
-                        </Box>
-                        {build.pendingPrompt && (
-                            <Text fz="sm" lh={1.45} c="ldGray.8">
-                                {build.pendingPrompt}
-                            </Text>
-                        )}
-                    </Box>
-                )}
-                {ordered.map(entryFor)}
-                {hasEarlier && (
-                    <Box className={classes.earlier}>
-                        <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            loading={isFetchingEarlier}
-                            onClick={fetchEarlier}
-                        >
-                            Load earlier versions
-                        </Button>
-                    </Box>
-                )}
-            </Box>
-
+        <>
+            <AppVersionHistoryPanel
+                versions={versions}
+                latestReadyVersion={latestReadyVersion}
+                viewedVersion={viewedVersion}
+                onView={onView}
+                onRestore={setRestoreTarget}
+                onClose={onClose}
+                onBack={null}
+                liveBuild={liveBuild}
+                hasEarlier={hasEarlier}
+                isFetchingEarlier={isFetchingEarlier}
+                fetchEarlier={fetchEarlier}
+                emptyPromptLabel="Uploaded from source"
+                olderVersionTime="absolute"
+                currentThreadNumber={null}
+                renderEntryExtras={(version) => {
+                    const changes = schemaChanges.get(version.version);
+                    return changes ? (
+                        <VersionChanges
+                            version={version.version}
+                            changes={changes}
+                        />
+                    ) : null;
+                }}
+            />
             {restoreTarget !== null && (
                 <RestoreVersionModal
                     projectUuid={projectUuid}
@@ -411,7 +138,7 @@ const VersionHistoryPanel: FC<Props> = ({
                     onClose={() => setRestoreTarget(null)}
                 />
             )}
-        </Box>
+        </>
     );
 };
 

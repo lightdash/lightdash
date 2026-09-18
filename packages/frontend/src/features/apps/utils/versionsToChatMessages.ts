@@ -33,9 +33,7 @@ const NO_FALLBACKS: ChatMessageFallbacks = {
 };
 
 /** Display name of whoever asked for a version; null when unknown. */
-export const getVersionAuthorName = (
-    version: ApiAppVersionSummary,
-): string | null => {
+const getVersionAuthorName = (version: ApiAppVersionSummary): string | null => {
     if (!version.createdByUser) return null;
     return (
         [version.createdByUser.firstName, version.createdByUser.lastName]

@@ -1,0 +1,230 @@
+.panel {
+    /* One accent for the live pill, its dot and the Previewing button. */
+    --history-accent: var(--mantine-color-ldBrandViolet-5);
+    --history-accent-text: var(--mantine-color-ldBrandViolet-7);
+    width: 100%;
+    height: 100%;
+    /* Fills a flex host (the drawer body) as well as a sized one. */
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--ld-color-page);
+    border-left: 1px solid var(--mantine-color-default-border);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    background: var(--mantine-color-body);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    flex-shrink: 0;
+}
+
+.list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    background: var(--ld-color-page);
+}
+
+/* Borderless rows on a rail: a 6px dot on the meta line, a 1px spine down to
+   the next row. ldGray reads as the same shade in both schemes. */
+.timeline {
+    list-style: none;
+    margin: 0;
+    padding: var(--mantine-spacing-md);
+}
+
+.item {
+    display: flex;
+    gap: 12px;
+}
+
+.rail {
+    flex: 0 0 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.node {
+    flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    margin-top: 7px;
+    border-radius: 50%;
+    background: var(--mantine-color-ldGray-3);
+}
+
+.node[data-tone='live'] {
+    background: var(--history-accent);
+}
+
+.node[data-tone='failed'] {
+    background: var(--mantine-color-red-6);
+}
+
+.node[data-tone='building'] {
+    background: var(--mantine-color-body);
+    box-shadow: inset 0 0 0 1px var(--mantine-color-ldGray-5);
+}
+
+.spine {
+    flex: 1;
+    width: 1px;
+    background: var(--mantine-color-ldGray-2);
+}
+
+.item:last-child .spine {
+    display: none;
+}
+
+.itemBody {
+    flex: 1;
+    min-width: 0;
+    padding-bottom: 14px;
+}
+
+.item:last-child .itemBody {
+    padding-bottom: 0;
+}
+
+.threadRule {
+    padding: var(--mantine-spacing-xxs) 0 var(--mantine-spacing-xs);
+}
+
+.entry {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Rows stacked without the rail keep the same rhythm. */
+.entry + .entry {
+    padding-top: 14px;
+}
+
+.meta {
+    min-height: 20px;
+}
+
+.time {
+    white-space: nowrap;
+}
+
+.pill {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: var(--mantine-radius-xs);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    line-height: 1;
+    background: var(--mantine-color-ldGray-1);
+    color: var(--mantine-color-ldGray-7);
+}
+
+.pill[data-help] {
+    cursor: help;
+}
+
+.pill[data-tone='live'] {
+    background: color-mix(in srgb, var(--history-accent) 10%, transparent);
+    color: var(--history-accent-text);
+}
+
+.pill[data-tone='failed'] {
+    background: var(--mantine-color-red-light);
+    color: var(--mantine-color-red-light-color);
+}
+
+/* Revealed on hover or keyboard focus, so no row changes height. The
+   pinned version keeps its Previewing button visible. */
+.actions {
+    margin-left: auto;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+}
+
+.entry:hover .actions,
+.entry:focus-within .actions,
+.actions[data-visible] {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.action {
+    --button-height: 18px;
+    --button-padding-x: 6px;
+    --button-fz: var(--mantine-font-size-xs);
+    --button-radius: var(--mantine-radius-sm);
+    color: var(--mantine-color-ldGray-7);
+
+    &:hover {
+        color: var(--mantine-color-text);
+    }
+
+    &[data-previewing] {
+        background: color-mix(in srgb, var(--history-accent) 12%, transparent);
+        color: var(--history-accent-text);
+    }
+}
+
+.prompt {
+    line-height: var(--mantine-line-height-sm);
+    overflow-wrap: anywhere;
+    font-weight: 400;
+    color: var(--mantine-color-ldGray-8);
+}
+
+/* The live version's prompt is the only 500 in the list. */
+.entry[data-live] .prompt {
+    font-weight: 500;
+    color: var(--mantine-color-text);
+}
+
+.upgradeSummary {
+    padding: var(--mantine-spacing-xs);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-ldGray-0);
+}
+
+.upgradeSummaryMarkdown {
+    --ai-markdown-padding-left: 0;
+    --ai-markdown-font-size: 11px;
+}
+
+.disclosureToggle {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xxs);
+    width: 100%;
+    color: var(--mantine-color-dimmed);
+    text-align: left;
+
+    &:hover {
+        color: var(--mantine-color-text);
+    }
+}
+
+.disclosureChevron {
+    flex-shrink: 0;
+    transition: transform 150ms ease;
+}
+
+.disclosureChevron[data-open='true'] {
+    transform: rotate(90deg);
+}
+
+.disclosureContent {
+    padding-top: var(--mantine-spacing-xs);
+}
