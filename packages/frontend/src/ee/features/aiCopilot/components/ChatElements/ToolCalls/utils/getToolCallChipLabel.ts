@@ -22,6 +22,7 @@ import type {
     ToolSearchFieldValuesArgs,
     ToolSearchSemanticLayerArgs,
 } from '@lightdash/common';
+import { getRunCodeJs, summarizeRunCode } from './runCodeSummary';
 import { type ToolCallSummary } from './types';
 
 type ToolReadContentArgs = {
@@ -204,6 +205,10 @@ export const getToolCallChipLabel = (
                 return `skill: ${args.name}`;
             }
             return args.resourceName ?? null;
+        }
+        case 'runCode': {
+            const js = getRunCodeJs(toolArgs);
+            return js === null ? null : summarizeRunCode(js);
         }
         default:
             return null;

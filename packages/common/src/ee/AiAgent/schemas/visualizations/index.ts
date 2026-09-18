@@ -58,6 +58,7 @@ export const ToolNameSchema = z.enum([
     'delegateResearchTask',
     'submitWorkerFindings',
     'searchTools',
+    'runCode',
 ]);
 
 export type ToolName = z.infer<typeof ToolNameSchema>;
@@ -126,6 +127,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     listDataAppThemes: 'Checking data app themes',
     editProjectContext: 'Editing project context',
     searchTools: 'Finding tools',
+    runCode: 'Running code',
 } satisfies Record<ToolName, string>);
 
 // after-tool-call messages
@@ -187,4 +189,5 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         listDataAppThemes: 'Checked data app themes',
         editProjectContext: 'Edited project context',
         searchTools: 'Found tools',
+        runCode: 'Ran code',
     } satisfies Record<ToolName, string>);
