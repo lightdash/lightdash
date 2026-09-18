@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { toolErrorStructuredContentSchema } from '../outputMetadata';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 import {
     DATA_APP_THEME_SLUG_DESCRIPTION,
@@ -50,12 +51,37 @@ export const toolIterateDataAppArgsSchema = z.object({
         ),
 });
 
+export const toolIterateDataAppStructuredContentSchema = z.object({
+    status: z
+        .literal('pending')
+        .describe(
+            'The build has started and runs in the background; its outcome lands on this result later.',
+        ),
+    appUuid: z.string().describe('UUID of the data app being changed.'),
+    version: z
+        .number()
+        .describe('Version number of the data app that this build creates.'),
+});
+
 // The iterate tool shares the create tool's outcome contract: same pending,
-// success, and error shapes, patched by the same build outcome recording.
-export const toolIterateDataAppOutputSchema = toolGenerateDataAppOutputSchema;
+// success, and error metadata, patched by the same build outcome recording.
+// Built by hand because that metadata is a discriminated union, which
+// structuredToolOutputSchema does not accept.
+export const toolIterateDataAppOutputSchema = z.object({
+    result: z.string(),
+    metadata: toolGenerateDataAppOutputSchema.shape.metadata,
+    structuredContent: z.union([
+        toolIterateDataAppStructuredContentSchema,
+        toolErrorStructuredContentSchema,
+    ]),
+});
 
 export type ToolIterateDataAppArgs = z.infer<
     typeof toolIterateDataAppArgsSchema
+>;
+
+export type ToolIterateDataAppStructuredContent = z.infer<
+    typeof toolIterateDataAppStructuredContentSchema
 >;
 
 export type ToolIterateDataAppOutput = z.infer<
