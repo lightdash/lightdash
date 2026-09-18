@@ -642,11 +642,13 @@ export class SqlRunnerController extends BaseController {
         @Body() body: CreateVirtualViewPayload,
     ): Promise<ApiCreateVirtualView> {
         this.setStatus(200);
-        const { name, label, sql, columns, parameterValues } = body;
+        const { connectionUuid, name, label, sql, columns, parameterValues } =
+            body;
 
         const virtualViewName = await this.services
             .getProjectService()
             .createVirtualView(req.account!, projectUuid, {
+                connectionUuid,
                 name,
                 label,
                 sql,
