@@ -19979,6 +19979,132 @@
             },
             "DataAppDetectRequest": {
                 "properties": {
+                    "force": {
+                        "type": "boolean",
+                        "description": "Run the model even when an analysis of identical rows exists."
+                    },
+                    "instructions": {
+                        "type": "string"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppAnalysisSource"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["sources"],
+                "type": "object"
+            },
+            "DataAppInvestigateResult": {
+                "properties": {
+                    "partial": {
+                        "type": "boolean"
+                    },
+                    "queriesRun": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    },
+                    "anomaly": {
+                        "$ref": "#/components/schemas/DataAppAnomaly"
+                    },
+                    "explanation": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "partial",
+                    "queriesRun",
+                    "threadUuid",
+                    "agentUuid",
+                    "anomaly",
+                    "explanation"
+                ],
+                "type": "object",
+                "description": "An agent's take on one anomaly: possible drivers and the evidence behind\nthem, never a causal claim. `partial` is set when the query budget ran out."
+            },
+            "DataAppInvestigation": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DataAppInvestigateResult"
+                    },
+                    {
+                        "properties": {
+                            "generatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "appVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "analysisId": {
+                                "type": "string"
+                            },
+                            "investigationId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "generatedAt",
+                            "appVersion",
+                            "appUuid",
+                            "analysisId",
+                            "investigationId"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DataAppAnalysisLookup": {
+                "properties": {
+                    "investigations": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppInvestigation"
+                        },
+                        "type": "array"
+                    },
+                    "analysis": {
+                        "$ref": "#/components/schemas/DataAppAnalysis"
+                    }
+                },
+                "required": ["investigations", "analysis"],
+                "type": "object",
+                "description": "A stored analysis of exactly the rows the viewer sees now, with its investigations."
+            },
+            "ApiSuccess_DataAppAnalysisLookup-or-null_": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppAnalysisLookup"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppAnalysisLookupResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppAnalysisLookup-or-null_"
+            },
+            "DataAppLookupRequest": {
+                "properties": {
                     "instructions": {
                         "type": "string"
                     },
@@ -20121,75 +20247,6 @@
                 },
                 "required": ["agentUuid", "anomalyId"],
                 "type": "object"
-            },
-            "DataAppInvestigateResult": {
-                "properties": {
-                    "partial": {
-                        "type": "boolean"
-                    },
-                    "queriesRun": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "threadUuid": {
-                        "type": "string"
-                    },
-                    "agentUuid": {
-                        "type": "string"
-                    },
-                    "anomaly": {
-                        "$ref": "#/components/schemas/DataAppAnomaly"
-                    },
-                    "explanation": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "partial",
-                    "queriesRun",
-                    "threadUuid",
-                    "agentUuid",
-                    "anomaly",
-                    "explanation"
-                ],
-                "type": "object",
-                "description": "An agent's take on one anomaly: possible drivers and the evidence behind\nthem, never a causal claim. `partial` is set when the query budget ran out."
-            },
-            "DataAppInvestigation": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/DataAppInvestigateResult"
-                    },
-                    {
-                        "properties": {
-                            "generatedAt": {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            "appVersion": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "appUuid": {
-                                "type": "string"
-                            },
-                            "analysisId": {
-                                "type": "string"
-                            },
-                            "investigationId": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "generatedAt",
-                            "appVersion",
-                            "appUuid",
-                            "analysisId",
-                            "investigationId"
-                        ],
-                        "type": "object"
-                    }
-                ]
             },
             "DataAppAnalysisRecord": {
                 "anyOf": [
@@ -48924,6 +48981,15 @@
             },
             "MergeCompiledLeg": {
                 "properties": {
+                    "metricQuery": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MetricQuery"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The query the leg runs: the source's query widened by any join key it\ndid not select. Null for a result source, which runs nothing."
+                    },
                     "sql": {
                         "type": "string",
                         "nullable": true
@@ -48932,7 +48998,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["sql", "sourceId"],
+                "required": ["metricQuery", "sql", "sourceId"],
                 "type": "object",
                 "description": "One side of a merge as it runs: the statement its metric query compiles to,\nor null for a result source, whose rows already exist."
             },
@@ -63578,7 +63644,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.260.0",
+        "version": "2.261.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

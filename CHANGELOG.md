@@ -1,3 +1,12 @@
+# [2.261.0](https://github.com/lightdash/lightdash/compare/2.260.0...2.261.0) (2026-09-18)
+
+
+### Features
+
+* **data-apps:** open a view with its stored analysis ([#29427](https://github.com/lightdash/lightdash/issues/29427)) ([a351abb](https://github.com/lightdash/lightdash/commit/a351abb2ad809723685a992686a3fa242c68907f))
+* **data-apps:** reuse stored analyses of identical rows ([#29426](https://github.com/lightdash/lightdash/issues/29426)) ([dc953bf](https://github.com/lightdash/lightdash/commit/dc953bf7121c0277c8e535ec1dc1e63fae9e7c92))
+* **merge-queries:** join on a dimension the source query does not select ([#29399](https://github.com/lightdash/lightdash/issues/29399)) ([c0118ce](https://github.com/lightdash/lightdash/commit/c0118ceca601bf6548244bb462fe6d8a579da07a))
+
 # [2.260.0](https://github.com/lightdash/lightdash/compare/2.259.3...2.260.0) (2026-09-18)
 
 

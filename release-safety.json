@@ -1,14 +1,29 @@
 {
   "schemaVersion": "2",
-  "version": "2.260.0",
-  "previousVersion": "2.259.3",
-  "releaseDate": "2026-09-18T09:51:28.324Z",
+  "version": "2.261.0",
+  "previousVersion": "2.260.0",
+  "releaseDate": "2026-09-18T10:21:53.346Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20260917120304_add_reuse_columns_to_data_app_analyses.ts",
+        "edition": "ee",
+        "tables": [
+          "data_app_analyses",
+          "pg_class",
+          "pg_index"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
