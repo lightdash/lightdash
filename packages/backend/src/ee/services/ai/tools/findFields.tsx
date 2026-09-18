@@ -9,7 +9,7 @@ import {
     getFilterTypeFromItemType,
     getItemId,
     isEmojiIcon,
-    type FindFieldsResult,
+    type ToolFindFieldsStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -19,7 +19,7 @@ import type {
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { truncate } from '../utils/truncation';
 import { formatToolJsonOutput } from './toolOutputFormat';
 
@@ -102,7 +102,7 @@ const buildFindFieldsSearchResult = (
     args: FindFieldsSearchQueryResult,
     toolDescriptionMaxChars: number,
     explore: Explore,
-): FindFieldsResult['searchResults'][number] => {
+): ToolFindFieldsStructuredContent['searchResults'][number] => {
     if (args.status === 'error') {
         return {
             status: 'error',
@@ -132,7 +132,7 @@ export const buildFindFieldsStructuredContent = ({
     fieldSearchQueryResults: FindFieldsSearchQueryResult[];
     toolDescriptionMaxChars: number;
     explore: Explore;
-}) => ({
+}): ToolFindFieldsStructuredContent => ({
     searchResults: fieldSearchQueryResults.map((fieldSearchQueryResult) =>
         buildFindFieldsSearchResult(
             fieldSearchQueryResult,
@@ -180,6 +180,7 @@ export const getFindFields = ({
 
                 return {
                     result: formatToolJsonOutput(structuredContent),
+                    structuredContent,
                     metadata: {
                         status: 'success',
                         ranking: {
@@ -224,17 +225,12 @@ export const getFindFields = ({
                     },
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(
-                        error,
-                        `Error finding fields for search queries: ${args.fieldSearchQueries
-                            .map((q) => q.label)
-                            .join(', ')}`,
-                    ),
-                    metadata: {
-                        status: 'error',
-                    },
-                };
+                return toolErrorOutput(
+                    error,
+                    `Error finding fields for search queries: ${args.fieldSearchQueries
+                        .map((q) => q.label)
+                        .join(', ')}`,
+                );
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),

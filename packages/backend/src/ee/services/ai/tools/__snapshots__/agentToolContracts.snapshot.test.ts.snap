@@ -4152,10 +4152,266 @@ Usage tips:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "searchResults": {
+                  "description": "One entry per requested search query, in request order.",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "fields": {
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "aiHints": {
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                "baseTable": {
+                                  "description": "Table the field belongs to.",
+                                  "type": "string",
+                                },
+                                "caseSensitiveFilters": {
+                                  "anyOf": [
+                                    {
+                                      "type": "boolean",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Whether string filters are case-sensitive; null for non-string fields.",
+                                },
+                                "categories": {
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                "chartUsage": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Number of saved charts using the field.",
+                                },
+                                "description": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                },
+                                "emoji": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                },
+                                "fieldFilterType": {
+                                  "description": "Filter type the field accepts.",
+                                  "type": "string",
+                                },
+                                "fieldId": {
+                                  "description": "Identifier to use in queries and filters (\`<table>_<name>\`).",
+                                  "type": "string",
+                                },
+                                "fieldType": {
+                                  "description": "Value type (e.g. string, number, date, sum).",
+                                  "type": "string",
+                                },
+                                "isFromJoinedTable": {
+                                  "description": "True when the field comes from a joined table.",
+                                  "type": "boolean",
+                                },
+                                "label": {
+                                  "type": "string",
+                                },
+                                "name": {
+                                  "type": "string",
+                                },
+                                "note": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                },
+                                "searchRank": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Relevance score between 0 and 1.",
+                                },
+                                "type": {
+                                  "description": "Whether the field is a "metric" or a "dimension".",
+                                  "type": "string",
+                                },
+                                "usageInVerifiedCharts": {
+                                  "description": "Number of verified charts using the field.",
+                                  "type": "number",
+                                },
+                              },
+                              "required": [
+                                "type",
+                                "baseTable",
+                                "name",
+                                "fieldId",
+                                "fieldType",
+                                "fieldFilterType",
+                                "usageInVerifiedCharts",
+                                "isFromJoinedTable",
+                                "caseSensitiveFilters",
+                                "note",
+                                "label",
+                                "aiHints",
+                                "description",
+                                "categories",
+                                "emoji",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                          "page": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "pageSize": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "searchQuery": {
+                            "description": "The field label that was searched for.",
+                            "type": "string",
+                          },
+                          "status": {
+                            "const": "success",
+                            "type": "string",
+                          },
+                          "totalPageCount": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "totalResults": {
+                            "anyOf": [
+                              {
+                                "type": "number",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                            "description": "Total matches across all pages.",
+                          },
+                        },
+                        "required": [
+                          "status",
+                          "searchQuery",
+                          "page",
+                          "pageSize",
+                          "totalPageCount",
+                          "totalResults",
+                          "fields",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "error": {
+                            "type": "string",
+                          },
+                          "searchQuery": {
+                            "description": "The field label that was searched for.",
+                            "type": "string",
+                          },
+                          "status": {
+                            "const": "error",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "status",
+                          "searchQuery",
+                          "error",
+                        ],
+                        "type": "object",
+                      },
+                    ],
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "searchResults",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
