@@ -11,7 +11,10 @@ import {
 } from '../customMetrics';
 import { getFieldIdSchema } from '../fieldId';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import sortFieldSchema from '../sortField';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
@@ -111,9 +114,34 @@ export const toolRunMetricQueryArgsSchemaTransformed =
         filters: filtersSchemaTransformed.parse(data.filters ?? null),
     }));
 
-export const toolRunMetricQueryOutputSchema = z.object({
-    result: z.string(),
+export const toolRunMetricQueryStructuredContentSchema = z.object({
+    columns: z
+        .array(
+            z.object({
+                fieldId: z.string().describe('Field id keying each row.'),
+                label: z
+                    .string()
+                    .describe('Column header as shown in the CSV result.'),
+            }),
+        )
+        .describe(
+            'Ordered columns of the CSV result. Empty when the query returned no rows.',
+        ),
+    rows: z
+        .array(z.record(z.string(), z.unknown()))
+        .describe(
+            'Result rows keyed by field id, holding the same raw values as the CSV result.',
+        ),
+    rowCount: z
+        .number()
+        .int()
+        .nonnegative()
+        .describe('Number of rows returned; 0 means no results.'),
+});
+
+export const toolRunMetricQueryOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema,
+    structuredContent: toolRunMetricQueryStructuredContentSchema,
 });
 
 export type ToolRunMetricQueryArgs = z.infer<
@@ -124,4 +152,7 @@ export type ToolRunMetricQueryArgsTransformed = z.infer<
 >;
 export type ToolRunMetricQueryOutput = z.infer<
     typeof toolRunMetricQueryOutputSchema
+>;
+export type ToolRunMetricQueryStructuredContent = z.infer<
+    typeof toolRunMetricQueryStructuredContentSchema
 >;

@@ -20,7 +20,7 @@ import { AgentContext } from '../utils/AgentContext';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import {
     validateCustomMetricsDefinition,
     validateFieldEntityType,
@@ -130,6 +130,11 @@ export const getRunMetricQuery = ({
                         metadata: {
                             status: 'success',
                         },
+                        structuredContent: {
+                            columns: [],
+                            rows: [],
+                            rowCount: 0,
+                        },
                     };
                 }
 
@@ -137,15 +142,17 @@ export const getRunMetricQuery = ({
                     ? Object.keys(results.rows[0])
                     : [];
 
-                const csvHeaders = fieldIds.map((fieldId) => {
+                const columns = fieldIds.map((fieldId) => {
                     const item = results.fields[fieldId];
-                    if (!item) {
-                        return fieldId;
-                    }
-                    return getItemLabelWithoutTableName(item);
+                    return {
+                        fieldId,
+                        label: item
+                            ? getItemLabelWithoutTableName(item)
+                            : fieldId,
+                    };
                 });
 
-                const rows = results.rows.map((row) =>
+                const csvRows = results.rows.map((row) =>
                     CsvService.convertRowToCsv(
                         row,
                         results.fields,
@@ -154,24 +161,33 @@ export const getRunMetricQuery = ({
                     ),
                 );
 
-                const csv = stringify(rows, {
+                const csv = stringify(csvRows, {
                     header: true,
-                    columns: csvHeaders,
+                    columns: columns.map((column) => column.label),
                 });
+
+                const rows = csvRows.map((values) =>
+                    Object.fromEntries(
+                        fieldIds.map((fieldId, index) => [
+                            fieldId,
+                            values[index],
+                        ]),
+                    ),
+                );
 
                 return {
                     result: serializeData(csv, 'csv'),
                     metadata: {
                         status: 'success',
                     },
-                };
-            } catch (e) {
-                return {
-                    result: toolErrorHandler(e, 'Error running metric query.'),
-                    metadata: {
-                        status: 'error',
+                    structuredContent: {
+                        columns,
+                        rows,
+                        rowCount: rows.length,
                     },
                 };
+            } catch (e) {
+                return toolErrorOutput(e, 'Error running metric query.');
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
