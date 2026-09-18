@@ -147,10 +147,11 @@ export async function up(knex: Knex): Promise<void> {
     try {
         await knex.raw('SET statement_timeout = 0').connection(connection);
         await knex.raw("SET lock_timeout = '5s'").connection(connection);
-        await knex.schema
-            .alterTable(TABLE, (table) => {
-                table.uuid('connection_uuid').nullable();
-            })
+        await knex
+            .raw(
+                `ALTER TABLE project_user_warehouse_credentials_preference
+                 ADD COLUMN IF NOT EXISTS connection_uuid uuid NULL`,
+            )
             .connection(connection);
 
         if (
