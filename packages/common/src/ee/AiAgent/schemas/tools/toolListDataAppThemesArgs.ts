@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_LIST_DATA_APP_THEMES_DESCRIPTION = [
@@ -10,13 +13,40 @@ export const TOOL_LIST_DATA_APP_THEMES_DESCRIPTION = [
 
 export const toolListDataAppThemesArgsSchema = createToolSchema().build();
 
-export const toolListDataAppThemesOutputSchema = z.object({
-    result: z.string(),
+const dataAppThemeSchema = z.object({
+    slug: z
+        .string()
+        .describe(
+            'Pass as themeSlug to generateDataApp or iterateDataApp to apply this theme.',
+        ),
+    name: z.string(),
+    isDefault: z
+        .boolean()
+        .describe(
+            'Whether this is the organization default theme, applied when no themeSlug is given.',
+        ),
+    description: z.string().nullable(),
+});
+
+export const toolListDataAppThemesStructuredContentSchema = z.object({
+    count: z
+        .number()
+        .int()
+        .describe('Number of themes; 0 means the organization has no themes.'),
+    themes: z.array(dataAppThemeSchema),
+});
+
+export const toolListDataAppThemesOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema,
+    structuredContent: toolListDataAppThemesStructuredContentSchema,
 });
 
 export type ToolListDataAppThemesArgs = z.infer<
     typeof toolListDataAppThemesArgsSchema
+>;
+
+export type ToolListDataAppThemesStructuredContent = z.infer<
+    typeof toolListDataAppThemesStructuredContentSchema
 >;
 
 export type ToolListDataAppThemesOutput = z.infer<

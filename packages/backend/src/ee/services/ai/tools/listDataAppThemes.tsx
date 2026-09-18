@@ -1,10 +1,17 @@
-import { listDataAppThemesToolDefinition } from '@lightdash/common';
+import {
+    listDataAppThemesToolDefinition,
+    type ToolListDataAppThemesStructuredContent,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     DataAppThemeSummary,
     ListDataAppThemesFn,
 } from '../types/aiAgentDependencies';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
@@ -22,31 +29,29 @@ const renderTheme = (theme: DataAppThemeSummary) => (
     </theme>
 );
 
+const renderThemes = (themes: DataAppThemeSummary[]) =>
+    themes.length === 0
+        ? 'The organization has no themes. Omit themeSlug; tell the user no theme is available if they asked for one.'
+        : (
+              <themes count={themes.length}>{themes.map(renderTheme)}</themes>
+          ).toString();
+
 export const getListDataAppThemes = ({ listDataAppThemes }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async () => {
+        execute: async (): Promise<
+            | ExecuteStructuredToolResult<ToolListDataAppThemesStructuredContent>
+            | ExecuteToolErrorResult
+        > => {
             try {
                 const themes = await listDataAppThemes();
-                if (themes.length === 0) {
-                    return {
-                        result: 'The organization has no themes. Omit themeSlug; tell the user no theme is available if they asked for one.',
-                        metadata: { status: 'success' as const },
-                    };
-                }
                 return {
-                    result: (
-                        <themes count={themes.length}>
-                            {themes.map(renderTheme)}
-                        </themes>
-                    ).toString(),
-                    metadata: { status: 'success' as const },
+                    result: renderThemes(themes),
+                    metadata: { status: 'success' },
+                    structuredContent: { count: themes.length, themes },
                 };
             } catch (e) {
-                return {
-                    result: toolErrorHandler(e, 'Error listing themes.'),
-                    metadata: { status: 'error' as const },
-                };
+                return toolErrorOutput(e, 'Error listing themes.');
             }
         },
     });
