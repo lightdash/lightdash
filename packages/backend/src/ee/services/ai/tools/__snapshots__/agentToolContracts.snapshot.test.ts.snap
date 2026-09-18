@@ -6173,10 +6173,45 @@ All branches of an IF must return the same type.",
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "hashes": {
+                  "description": "Base-36 hashes in the same order as the input strings.",
+                  "items": {
+                    "pattern": "^[0-9a-z]{6}$",
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "hashes",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
