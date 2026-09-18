@@ -106,6 +106,53 @@ describe('ProjectDbtSourcesModel', () => {
         expect(encryptionUtil.encrypt).not.toHaveBeenCalled();
     });
 
+    it('creates the primary source on the project dbt source identity', async () => {
+        const primaryRow: DbProjectDbtSource = {
+            ...sources[0],
+            project_dbt_source_uuid: '77777777-7777-4777-8777-777777777777',
+            project_uuid: previewProjectUuid,
+            connection_uuid: '88888888-8888-4888-8888-888888888888',
+            namespace_prefix: '',
+            name: 'dbt_project',
+            is_primary: true,
+            precedence: 0,
+            warehouse_database: null,
+            warehouse_schema: null,
+        };
+        tracker.on
+            .insert(ProjectDbtSourcesTableName)
+            .responseOnce([primaryRow]);
+
+        const created = await model.createPrimarySource(previewProjectUuid, {
+            projectDbtSourceUuid: '77777777-7777-4777-8777-777777777777',
+            connectionUuid: '88888888-8888-4888-8888-888888888888',
+            name: 'dbt_project',
+            dbtConnection: null,
+        });
+
+        expect(created.isPrimary).toBe(true);
+        expect(created.precedence).toBe(0);
+        expect(created.namespacePrefix).toBe('');
+        const [insert] = tracker.history.insert;
+        // The row carries the project's own dbt source uuid, as the binding
+        // migration did for projects that predate it.
+        expect(insert.sql).toMatch(/project_dbt_source_uuid/);
+        expect(insert.bindings).toEqual(
+            expect.arrayContaining([
+                '77777777-7777-4777-8777-777777777777',
+                '88888888-8888-4888-8888-888888888888',
+                'dbt_project',
+                true,
+                0,
+                '',
+            ]),
+        );
+        // A repeated create must not raise: the project keeps the one it has.
+        expect(insert.sql).toMatch(/on conflict .* do nothing/i);
+        // No warehouse location on the primary; it follows the connection.
+        expect(insert.bindings).toEqual(expect.arrayContaining([null]));
+    });
+
     it('checks that a live connection belongs to the project', async () => {
         tracker.on
             .select(WarehouseCredentialTableName)

@@ -172,6 +172,42 @@ export class ProjectDbtSourcesModel {
         return this.convertRow(row);
     }
 
+    /**
+     * The primary source a project compiles through. It carries the project's
+     * own dbt source identity, so the row a project is created with matches the
+     * one the binding migration materialised for projects that predate it.
+     */
+    async createPrimarySource(
+        projectUuid: string,
+        data: {
+            projectDbtSourceUuid: string;
+            connectionUuid: string;
+            name: string;
+            dbtConnection: DbtProjectConfig | null;
+        },
+    ): Promise<ProjectDbtSource> {
+        const [row] = await this.database(ProjectDbtSourcesTableName)
+            .insert({
+                project_dbt_source_uuid: data.projectDbtSourceUuid,
+                project_uuid: projectUuid,
+                connection_uuid: data.connectionUuid,
+                namespace_prefix: '',
+                name: data.name,
+                is_primary: true,
+                precedence: 0,
+                dbt_connection_type: data.dbtConnection?.type ?? null,
+                dbt_connection: this.encryptConnection(data.dbtConnection),
+                warehouse_database: null,
+                warehouse_schema: null,
+            })
+            .onConflict('project_dbt_source_uuid')
+            .ignore()
+            .returning('*');
+        return row === undefined
+            ? this.getSource(data.projectDbtSourceUuid)
+            : this.convertRow(row);
+    }
+
     async createSource(
         projectUuid: string,
         data: CreateProjectDbtSource,
@@ -258,6 +294,32 @@ export class ProjectDbtSourcesModel {
             );
         }
         return this.convertRow(row);
+    }
+
+    /**
+     * The project's one live connection, or null when it has none or several.
+     * A primary source binds to it when the project is created; with no clear
+     * single answer the project is left without one, as the binding migration
+     * left the same set.
+     */
+    async findSoleConnectionUuid(projectUuid: string): Promise<string | null> {
+        const connections = await this.database(
+            `${WarehouseCredentialTableName} as connection`,
+        )
+            .innerJoin(
+                `${ProjectTableName} as project`,
+                'connection.project_id',
+                'project.project_id',
+            )
+            .where('project.project_uuid', projectUuid)
+            .whereNull('connection.superseded_at')
+            .limit(2)
+            .select<{ warehouse_credentials_uuid: string }[]>(
+                'connection.warehouse_credentials_uuid',
+            );
+        return connections.length === 1
+            ? connections[0].warehouse_credentials_uuid
+            : null;
     }
 
     async connectionBelongsToProject(
