@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { aiProjectContextTypedObjectRefSchema } from '../../projectContext';
+import { toolErrorStructuredContentSchema } from '../outputMetadata';
 
 export const TOOL_EDIT_PROJECT_CONTEXT_DESCRIPTION = [
     "Open or update a pull request that changes this project's Lightdash project context — the lightdash.project_context.yml living document of business definitions and routing/context facts the AI agents read before answering.",
@@ -44,9 +45,25 @@ export const toolEditProjectContextArgsSchema = z.object({
         ),
 });
 
-export const toolEditProjectContextOutputSchema = z.object({
-    result: z.string(),
-    metadata: z.discriminatedUnion('status', [
+export const toolEditProjectContextStructuredContentSchema = z.object({
+    prAction: z
+        .enum(['opened', 'updated'])
+        .describe(
+            'Whether a new pull request was opened or the existing one was updated.',
+        ),
+    op: z
+        .enum(['create', 'update'])
+        .describe(
+            'Whether the pull request adds a new project-context entry or updates an existing one.',
+        ),
+    content: z
+        .string()
+        .describe('The entry sentence written to the project context.'),
+});
+
+const toolEditProjectContextOutputMetadataSchema = z.discriminatedUnion(
+    'status',
+    [
         z.object({
             status: z.literal('success'),
             prUrl: z.string().nullable(),
@@ -65,11 +82,26 @@ export const toolEditProjectContextOutputSchema = z.object({
                 ])
                 .nullish(),
         }),
+    ],
+);
+
+// Same envelope as `structuredToolOutputSchema`, composed by hand because the
+// metadata is a discriminated union rather than a plain object.
+export const toolEditProjectContextOutputSchema = z.object({
+    result: z.string(),
+    metadata: toolEditProjectContextOutputMetadataSchema,
+    structuredContent: z.union([
+        toolEditProjectContextStructuredContentSchema,
+        toolErrorStructuredContentSchema,
     ]),
 });
 
 export type ToolEditProjectContextArgs = z.infer<
     typeof toolEditProjectContextArgsSchema
+>;
+
+export type ToolEditProjectContextStructuredContent = z.infer<
+    typeof toolEditProjectContextStructuredContentSchema
 >;
 
 export type ToolEditProjectContextOutput = z.infer<
