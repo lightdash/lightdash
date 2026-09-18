@@ -1,5 +1,5 @@
 import { Box, Center, Loader } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { IconAlertCircle, IconPlugConnected } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
 import { type editor } from 'monaco-editor';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
@@ -75,7 +75,8 @@ export const SqlEditor: FC<{
     // Fetch all available parameters for the project
     const { data: availableParameters } = useParameters(projectUuid, undefined);
 
-    const { isConnectionSettled } = useActiveConnection();
+    const { isConnectionSettled, hasSeveralConnections } =
+        useActiveConnection();
 
     const { data: listing, isLoading: isTablesDataLoading } = useDatabases({
         projectUuid,
@@ -291,6 +292,17 @@ export const SqlEditor: FC<{
         },
         [debouncedSetSql, highlightText, resetHighlightError],
     );
+
+    // A disabled query reports "loading" forever, so the wait for a choice is
+    // its own state rather than a spinner that never resolves.
+    if (hasSeveralConnections && !isConnectionSettled) {
+        return (
+            <SuboptimalState
+                title="Choose a connection to start writing SQL"
+                icon={IconPlugConnected}
+            />
+        );
+    }
 
     if (isTablesDataLoading) {
         return (

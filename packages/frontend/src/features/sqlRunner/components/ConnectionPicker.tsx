@@ -7,6 +7,8 @@ import { useActiveConnection } from '../hooks/useActiveConnection';
 /**
  * Picks the connection the SQL runner sends typed SQL to. Hidden while the
  * project has one connection, which is every project until a second is added.
+ * With several connections it always renders, including before one is chosen:
+ * it is the only way to choose.
  */
 export const ConnectionPicker: FC = () => {
     const {
@@ -25,7 +27,7 @@ export const ConnectionPicker: FC = () => {
         [connections],
     );
 
-    if (!hasSeveralConnections || !activeConnectionUuid) return null;
+    if (!hasSeveralConnections) return null;
 
     return (
         <Group gap="xs" wrap="nowrap">
@@ -36,7 +38,8 @@ export const ConnectionPicker: FC = () => {
                 size="xs"
                 w={220}
                 data={data}
-                value={activeConnectionUuid}
+                value={activeConnectionUuid ?? null}
+                placeholder="Choose a connection"
                 allowDeselect={false}
                 aria-label="Active connection"
                 leftSection={<MantineIcon icon={IconPlugConnected} />}
