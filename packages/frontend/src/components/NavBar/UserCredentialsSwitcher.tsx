@@ -1,11 +1,21 @@
 import {
+    WarehouseTypes,
     allowsOptionalUserCredentials,
+    type ApiError,
     type Connection,
+    type Project,
+    type WarehouseCredentials,
 } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import {
+    useEffect,
+    useMemo,
+    useState,
+    type Dispatch,
+    type SetStateAction,
+} from 'react';
 import { matchRoutes, useLocation } from 'react-router';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
@@ -28,10 +38,136 @@ const routesThatNeedWarehouseCredentials = [
     '/projects/:projectUuid/sqlRunner',
 ];
 
-const getDefaultPreferenceConnectionUuid = (
+const getSoleProjectConnection = (
     connections: Connection[],
-): string | undefined =>
-    connections.length > 1 ? connections[0]?.connectionUuid : undefined;
+): Connection | undefined =>
+    connections.length === 1 ? connections[0] : undefined;
+
+const credentialErrorWarehouseTypes: Partial<Record<string, WarehouseTypes>> = {
+    SnowflakeTokenError: WarehouseTypes.SNOWFLAKE,
+    DatabricksTokenError: WarehouseTypes.DATABRICKS,
+    BigqueryTokenError: WarehouseTypes.BIGQUERY,
+    RedshiftIamTokenError: WarehouseTypes.REDSHIFT,
+};
+
+const shouldOpenCredentialsModal = (
+    errorName: string | undefined,
+    requireUserCredentials: boolean | undefined,
+    activeConnection: Connection | undefined,
+) =>
+    !!requireUserCredentials &&
+    !!activeConnection &&
+    (errorName === 'MissingWarehouseCredentialsError' ||
+        credentialErrorWarehouseTypes[errorName ?? ''] ===
+            activeConnection.warehouseType);
+
+const useCredentialsErrorModal = (
+    queryClient: QueryClient,
+    activeConnection: Connection | undefined,
+    requireUserCredentials: boolean | undefined,
+    setShowCreateModalOnPageLoad: Dispatch<SetStateAction<boolean>>,
+    setIsCreatingCredentials: Dispatch<SetStateAction<boolean>>,
+) => {
+    useEffect(() => {
+        const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+            if (event.type !== 'updated' || !event.query.state.error) return;
+
+            const error = event.query.state.error as Partial<ApiError>;
+            if (
+                shouldOpenCredentialsModal(
+                    error.error?.name,
+                    requireUserCredentials,
+                    activeConnection,
+                )
+            ) {
+                setShowCreateModalOnPageLoad(true);
+                setIsCreatingCredentials(true);
+            }
+        });
+
+        return unsubscribe;
+    }, [
+        queryClient,
+        activeConnection,
+        requireUserCredentials,
+        setShowCreateModalOnPageLoad,
+        setIsCreatingCredentials,
+    ]);
+};
+
+const useRequiredCredentialsModal = (
+    pathname: string,
+    isRouteThatNeedsWarehouseCredentials: boolean,
+    activeConnection: Connection | undefined,
+    requireUserCredentials: boolean | undefined,
+    compatibleCredentialsCount: number | undefined,
+    setShowCreateModalOnPageLoad: Dispatch<SetStateAction<boolean>>,
+    setIsCreatingCredentials: Dispatch<SetStateAction<boolean>>,
+) => {
+    useEffect(() => {
+        setShowCreateModalOnPageLoad(false);
+    }, [pathname, setShowCreateModalOnPageLoad]);
+
+    useEffect(() => {
+        if (
+            isRouteThatNeedsWarehouseCredentials &&
+            !!activeConnection &&
+            requireUserCredentials &&
+            compatibleCredentialsCount === 0
+        ) {
+            setShowCreateModalOnPageLoad(true);
+            setIsCreatingCredentials(true);
+        }
+    }, [
+        pathname,
+        isRouteThatNeedsWarehouseCredentials,
+        activeConnection,
+        requireUserCredentials,
+        compatibleCredentialsCount,
+        setShowCreateModalOnPageLoad,
+        setIsCreatingCredentials,
+    ]);
+};
+
+const shouldShowCredentialsSwitcher = (
+    requireUserCredentials: boolean | undefined,
+    warehouseConnection: WarehouseCredentials | undefined,
+    compatibleCredentialsCount: number | undefined,
+) =>
+    !!requireUserCredentials ||
+    (allowsOptionalUserCredentials(warehouseConnection) &&
+        !!compatibleCredentialsCount);
+
+type CredentialsSwitcherState = {
+    isLoadingCredentials: boolean;
+    isLoadingActiveProject: boolean;
+    isLoadingActiveProjectUuid: boolean;
+    activeProjectUuid: string | undefined;
+    activeProject: Project | undefined;
+    activeConnection: Connection | undefined;
+    isSwitcherVisible: boolean;
+};
+
+type ReadyCredentialsSwitcherState = CredentialsSwitcherState & {
+    activeProjectUuid: string;
+    activeProject: Project;
+    activeConnection: Connection;
+};
+
+const isCredentialsSwitcherReady = (
+    state: CredentialsSwitcherState,
+): state is ReadyCredentialsSwitcherState =>
+    !state.isLoadingCredentials &&
+    !state.isLoadingActiveProject &&
+    !state.isLoadingActiveProjectUuid &&
+    !!state.activeProjectUuid &&
+    !!state.activeProject &&
+    !!state.activeConnection &&
+    state.isSwitcherVisible;
+
+const reloadPageIfNeeded = (shouldReload: boolean) => {
+    if (shouldReload) window.location.reload();
+};
 
 const UserCredentialsSwitcher = () => {
     const menuProps = useNavBarMenuProps();
@@ -54,24 +190,18 @@ const UserCredentialsSwitcher = () => {
         isInitialLoading: isLoadingCredentials,
         data: userWarehouseCredentials,
     } = useProjectUserWarehouseCredentials(activeProjectUuid);
-    const defaultConnectionUuid = activeProject
-        ? getDefaultPreferenceConnectionUuid(activeProject.connections)
+    const activeConnection = activeProject
+        ? getSoleProjectConnection(activeProject.connections)
         : undefined;
-    const warehouseType =
-        activeProject?.warehouseConnection?.type ??
-        activeProject?.connections[0]?.warehouseType;
+    const warehouseType = activeConnection?.warehouseType;
     const { data: preferredCredentials } =
         useProjectUserWarehouseCredentialsPreference(
             activeProjectUuid,
-            defaultConnectionUuid,
+            activeConnection?.connectionUuid,
         );
     const { mutate } = useProjectUserWarehouseCredentialsPreferenceMutation({
-        onSuccess: () => {
-            if (isRouteThatNeedsWarehouseCredentials) {
-                // reload page because we can't invalidate the results mutation
-                window.location.reload();
-            }
-        },
+        onSuccess: () =>
+            reloadPageIfNeeded(isRouteThatNeedsWarehouseCredentials),
     });
 
     const compatibleCredentials = useMemo(() => {
@@ -80,109 +210,48 @@ const UserCredentialsSwitcher = () => {
         );
     }, [userWarehouseCredentials, warehouseType]);
 
-    // Listen for SnowflakeTokenError in query client
-    useEffect(() => {
-        const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
-            if (event.type === 'updated') {
-                const query = event.query;
-
-                if (query.state.error) {
-                    const error = query.state.error as any;
-                    // Re-open the credentials modal whenever a query fails
-                    // because the user has no warehouse credentials
-                    if (
-                        error?.error?.name ===
-                            'MissingWarehouseCredentialsError' &&
-                        activeProject?.requireUserCredentials
-                    ) {
-                        setShowCreateModalOnPageLoad(true);
-                        setIsCreatingCredentials(true);
-                    }
-                    // Check if this is a SnowflakeTokenError and we have a Snowflake project
-                    if (
-                        error?.error?.name === 'SnowflakeTokenError' &&
-                        warehouseType === 'snowflake' &&
-                        activeProject?.requireUserCredentials
-                    ) {
-                        console.info('Triggering reauth modal for Snowflake');
-                        setShowCreateModalOnPageLoad(true);
-                        setIsCreatingCredentials(true);
-                    }
-                    if (
-                        error?.error?.name === 'DatabricksTokenError' &&
-                        warehouseType === 'databricks' &&
-                        activeProject?.requireUserCredentials
-                    ) {
-                        console.info('Triggering reauth modal for Databricks');
-                        setShowCreateModalOnPageLoad(true);
-                        setIsCreatingCredentials(true);
-                    }
-                    if (
-                        error?.error?.name === 'BigqueryTokenError' &&
-                        warehouseType === 'bigquery' &&
-                        activeProject?.requireUserCredentials
-                    ) {
-                        console.info('Triggering reauth modal for BigQuery');
-                        setShowCreateModalOnPageLoad(true);
-                        setIsCreatingCredentials(true);
-                    }
-                    if (
-                        error?.error?.name === 'RedshiftIamTokenError' &&
-                        warehouseType === 'redshift' &&
-                        activeProject?.requireUserCredentials
-                    ) {
-                        console.info('Triggering reauth modal for Redshift');
-                        setShowCreateModalOnPageLoad(true);
-                        setIsCreatingCredentials(true);
-                    }
-                }
-            }
-        });
-
-        return unsubscribe;
-    }, [queryClient, activeProject?.requireUserCredentials, warehouseType]);
-
-    useEffect(() => {
-        // reset state when page changes
-        setShowCreateModalOnPageLoad(false);
-    }, [location.pathname]);
-
-    useEffect(() => {
-        // open create modal on page load if there are no compatible credentials
-        if (
-            isRouteThatNeedsWarehouseCredentials &&
-            !showCreateModalOnPageLoad &&
-            activeProject?.requireUserCredentials &&
-            !!compatibleCredentials &&
-            compatibleCredentials.length === 0
-        ) {
-            setShowCreateModalOnPageLoad(true);
-            setIsCreatingCredentials(true);
-        }
-    }, [
+    useCredentialsErrorModal(
+        queryClient,
+        activeConnection,
+        activeProject?.requireUserCredentials,
+        setShowCreateModalOnPageLoad,
+        setIsCreatingCredentials,
+    );
+    useRequiredCredentialsModal(
+        location.pathname,
         isRouteThatNeedsWarehouseCredentials,
-        showCreateModalOnPageLoad,
+        activeConnection,
+        activeProject?.requireUserCredentials,
+        compatibleCredentials?.length,
+        setShowCreateModalOnPageLoad,
+        setIsCreatingCredentials,
+    );
+
+    const isSwitcherVisible = shouldShowCredentialsSwitcher(
+        activeProject?.requireUserCredentials,
+        activeProject?.warehouseConnection,
+        compatibleCredentials?.length,
+    );
+
+    const switcherState = {
+        isLoadingCredentials,
+        isLoadingActiveProject,
+        isLoadingActiveProjectUuid,
+        activeProjectUuid,
         activeProject,
-        compatibleCredentials,
-    ]);
+        activeConnection,
+        isSwitcherVisible,
+    };
 
-    // Show the switcher when personal credentials are mandatory, or when they
-    // are optional for this warehouse type and the user already has some
-    const isSwitcherVisible =
-        activeProject?.requireUserCredentials ||
-        (allowsOptionalUserCredentials(activeProject?.warehouseConnection) &&
-            !!compatibleCredentials?.length);
-
-    if (
-        isLoadingCredentials ||
-        isLoadingActiveProject ||
-        isLoadingActiveProjectUuid ||
-        !activeProjectUuid ||
-        !activeProject ||
-        !isSwitcherVisible
-    ) {
+    if (!isCredentialsSwitcherReady(switcherState)) {
         return null;
     }
+
+    const {
+        activeProjectUuid: selectedProjectUuid,
+        activeProject: selectedProject,
+        activeConnection: selectedConnection,
+    } = switcherState;
 
     return (
         <>
@@ -218,9 +287,10 @@ const UserCredentialsSwitcher = () => {
                             }
                             onClick={() => {
                                 mutate({
-                                    projectUuid: activeProjectUuid,
+                                    projectUuid: selectedProjectUuid,
                                     userWarehouseCredentialsUuid: item.uuid,
-                                    connectionUuid: defaultConnectionUuid,
+                                    connectionUuid:
+                                        selectedConnection.connectionUuid,
                                 });
                             }}
                         >
@@ -244,9 +314,7 @@ const UserCredentialsSwitcher = () => {
                         opened={isCreatingCredentials}
                         title={
                             showCreateModalOnPageLoad
-                                ? `Login to ${getWarehouseLabel(
-                                      activeProject.warehouseConnection?.type,
-                                  )}`
+                                ? `Login to ${getWarehouseLabel(warehouseType)}`
                                 : undefined
                         }
                         description={
@@ -255,25 +323,24 @@ const UserCredentialsSwitcher = () => {
                                     The admin of your organization "
                                     {user.data?.organizationName}" requires that
                                     you login to{' '}
-                                    {getWarehouseLabel(
-                                        activeProject.warehouseConnection?.type,
-                                    )}{' '}
-                                    to continue.
+                                    {getWarehouseLabel(warehouseType)} to
+                                    continue.
                                 </Text>
                             ) : undefined
                         }
                         nameValue={
                             showCreateModalOnPageLoad ? 'Default' : undefined
                         }
-                        warehouseType={activeProject.warehouseConnection?.type}
-                        projectUuid={activeProjectUuid}
-                        projectName={activeProject.name}
-                        connections={activeProject.connections}
-                        onSuccess={(data, connectionUuid) => {
+                        warehouseType={warehouseType}
+                        projectUuid={selectedProjectUuid}
+                        projectName={selectedProject.name}
+                        connections={[selectedConnection]}
+                        onSuccess={(data) => {
                             mutate({
-                                projectUuid: activeProjectUuid,
+                                projectUuid: selectedProjectUuid,
                                 userWarehouseCredentialsUuid: data.uuid,
-                                connectionUuid,
+                                connectionUuid:
+                                    selectedConnection.connectionUuid,
                             });
                         }}
                         onClose={() => setIsCreatingCredentials(false)}
