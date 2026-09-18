@@ -1,5 +1,6 @@
 import {
     ForbiddenError,
+    type ApiDataAppAnalysisLookupResponse,
     type ApiDataAppAnalysisResponse,
     type ApiDataAppDetectResponse,
     type ApiDataAppInvestigateResponse,
@@ -7,6 +8,7 @@ import {
     type ApiErrorPayload,
     type DataAppDetectRequest,
     type DataAppInvestigateRequest,
+    type DataAppLookupRequest,
     type DataAppPromptRequest,
 } from '@lightdash/common';
 import {
@@ -55,6 +57,35 @@ export class DataAppAnalysisController extends BaseController {
         }
         this.setStatus(200);
         const results = await this.getService().detect(
+            req.account,
+            projectUuid,
+            appUuid,
+            body,
+        );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Find a stored analysis of exactly the rows behind the viewer's current
+     * view, with its investigations. Never runs the model; null when there
+     * is none.
+     * @summary Look up a stored analysis for a data app view
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/lookup')
+    @OperationId('lookupDataAppAnalysis')
+    async lookup(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Body() body: DataAppLookupRequest,
+    ): Promise<ApiDataAppAnalysisLookupResponse> {
+        if (!req.account) {
+            throw new ForbiddenError('Account is required');
+        }
+        this.setStatus(200);
+        const results = await this.getService().lookup(
             req.account,
             projectUuid,
             appUuid,

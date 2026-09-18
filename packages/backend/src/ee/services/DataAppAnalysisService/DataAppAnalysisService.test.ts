@@ -86,11 +86,17 @@ function buildService(
     } = {},
 ) {
     const dataAppAnalysisModel = {
-        create: vi.fn(async (data: unknown) => ({
+        create: vi.fn(async (data: Record<string, unknown>) => ({
             data_app_analysis_uuid: 'analysis-1',
             created_at: new Date('2026-09-15T10:00:00Z'),
-            ...(data as object),
+            app_id: data.appUuid,
+            app_version: data.appVersion,
+            created_by_user_uuid: data.createdByUserUuid,
+            ...data,
         })),
+        findLatestDetectByHash: vi.fn().mockResolvedValue(null),
+        findInvestigations: vi.fn().mockResolvedValue([]),
+        rebindSources: vi.fn().mockResolvedValue(undefined),
     };
     const asyncQueryService = {
         getAsyncQueryHistory: vi.fn().mockResolvedValue({
@@ -287,6 +293,215 @@ describe('DataAppAnalysisService.detect', () => {
         await expect(
             service.detect(buildAccount(), 'proj-1', 'app-1', { sources: [] }),
         ).rejects.toBeInstanceOf(ParameterError);
+    });
+});
+
+describe('DataAppAnalysisService reuse', () => {
+    beforeEach(() => {
+        vi.mocked(assertCanViewApp).mockResolvedValue({
+            directOnly: false,
+        } as never);
+    });
+
+    const account = () => buildAccount({ accountType: 'session' });
+    const storedRow = (overrides: Record<string, unknown> = {}) => ({
+        data_app_analysis_uuid: 'stored-1',
+        operation: 'detect',
+        app_id: 'app-1',
+        app_version: 3,
+        created_by_user_uuid: 'someone-else',
+        sources: [{ queryUuid: 'their-q', label: 'Theirs' }],
+        result: {
+            headline: 'h',
+            summary: 's',
+            anomalies: [
+                {
+                    id: 'anom-1',
+                    severity: 'high',
+                    text: 't',
+                    queryUuid: 'their-q',
+                    fieldId: 'orders_total',
+                    dimensionValues: { orders_status: 'returned' },
+                    expected: null,
+                    actual: '12',
+                },
+            ],
+            limitations: [],
+            dataAsOf: null,
+        },
+        model_id: 'fast-model',
+        content_hash: 'hash',
+        source_hashes: [{ queryUuid: 'their-q', hash: 'section-hash' }],
+        reused_from_analysis_uuid: null,
+        created_at: new Date('2026-09-15T09:00:00Z'),
+        ...overrides,
+    });
+
+    it('hashes the same rows to the same key regardless of label and order', async () => {
+        const { service, dataAppAnalysisModel } = buildService();
+        const sources = [
+            { queryUuid: 'q1', label: 'A' },
+            { queryUuid: 'q2', label: 'B' },
+        ];
+        await service.detect(account(), 'proj-1', 'app-1', {
+            sources,
+            force: true,
+        });
+        await service.detect(account(), 'proj-1', 'app-1', {
+            sources: [
+                { queryUuid: 'q2', label: 'Renamed' },
+                { queryUuid: 'q1', label: null },
+            ],
+            force: true,
+        });
+        const [first, second] = dataAppAnalysisModel.create.mock.calls.map(
+            ([data]) => data as { contentHash: string },
+        );
+        expect(first.contentHash).toBe(second.contentHash);
+    });
+
+    it("serves the viewer's own analysis of identical rows without the model, rebound to the current queries", async () => {
+        const { service, dataAppAnalysisModel, aiService } = buildService();
+        await service.detect(account(), 'proj-1', 'app-1', {
+            ...request,
+            force: true,
+        });
+        const { sourceHashes } = dataAppAnalysisModel.create.mock
+            .calls[0][0] as { sourceHashes: { hash: string }[] };
+        dataAppAnalysisModel.create.mockClear();
+        aiService.detectDataAppAnomalies.mockClear();
+        dataAppAnalysisModel.findLatestDetectByHash.mockImplementation(
+            async ({ userUuid }: { userUuid: string | null }) =>
+                userUuid
+                    ? storedRow({
+                          created_by_user_uuid: userUuid,
+                          source_hashes: [
+                              {
+                                  queryUuid: 'their-q',
+                                  hash: sourceHashes[0].hash,
+                              },
+                          ],
+                      })
+                    : null,
+        );
+        dataAppAnalysisModel.findInvestigations.mockResolvedValue([
+            {
+                data_app_analysis_uuid: 'inv-1',
+                operation: 'investigate',
+                parent_analysis_uuid: 'stored-1',
+                app_id: 'app-1',
+                app_version: 3,
+                created_at: new Date('2026-09-15T09:30:00Z'),
+                result: { explanation: 'because', partial: false },
+            },
+        ]);
+        const found = await service.lookup(
+            account(),
+            'proj-1',
+            'app-1',
+            request,
+        );
+        expect(found?.analysis.analysisId).toBe('stored-1');
+        expect(found?.investigations[0]?.investigationId).toBe('inv-1');
+        // Stored under an earlier run's query uuid; the app has a new one now.
+        expect(found?.analysis.sources).toEqual(request.sources);
+        expect(found?.analysis.anomalies[0].queryUuid).toBe('q1');
+        expect(dataAppAnalysisModel.rebindSources).toHaveBeenCalledWith(
+            'stored-1',
+            expect.objectContaining({ sources: request.sources }),
+        );
+
+        const analysis = await service.detect(
+            account(),
+            'proj-1',
+            'app-1',
+            request,
+        );
+        expect(analysis.analysisId).toBe('stored-1');
+        expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+        expect(dataAppAnalysisModel.create).not.toHaveBeenCalled();
+    });
+
+    it("copies another viewer's analysis onto the viewer's own queries, without their investigations", async () => {
+        const { service, dataAppAnalysisModel, aiService } = buildService();
+        // Learn the real section hash of the mocked rows from a forced run.
+        await service.detect(account(), 'proj-1', 'app-1', {
+            ...request,
+            force: true,
+        });
+        const { sourceHashes } = dataAppAnalysisModel.create.mock
+            .calls[0][0] as {
+            sourceHashes: { hash: string }[];
+        };
+        dataAppAnalysisModel.create.mockClear();
+        aiService.detectDataAppAnomalies.mockClear();
+        dataAppAnalysisModel.findLatestDetectByHash.mockImplementation(
+            async ({ userUuid }: { userUuid: string | null }) =>
+                userUuid
+                    ? null
+                    : storedRow({
+                          source_hashes: [
+                              {
+                                  queryUuid: 'their-q',
+                                  hash: sourceHashes[0].hash,
+                              },
+                          ],
+                      }),
+        );
+        const found = await service.lookup(account(), 'proj-1', 'app-1', {
+            sources: [{ queryUuid: 'my-q', label: 'Mine' }],
+        });
+        expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+        expect(dataAppAnalysisModel.findInvestigations).not.toHaveBeenCalled();
+        expect(found?.investigations).toEqual([]);
+        expect(found?.analysis.sources).toEqual([
+            { queryUuid: 'my-q', label: 'Mine' },
+        ]);
+        expect(found?.analysis.anomalies[0].queryUuid).toBe('my-q');
+        expect(dataAppAnalysisModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                operation: 'detect',
+                reusedFromAnalysisUuid: 'stored-1',
+                modelId: 'fast-model',
+            }),
+        );
+    });
+
+    it('returns null and runs nothing when no analysis matches', async () => {
+        const { service, aiService } = buildService();
+        expect(
+            await service.lookup(account(), 'proj-1', 'app-1', request),
+        ).toBeNull();
+        expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+    });
+
+    it('force runs the model even when a stored analysis matches', async () => {
+        const { service, dataAppAnalysisModel, aiService } = buildService();
+        dataAppAnalysisModel.findLatestDetectByHash.mockResolvedValue(
+            storedRow({ created_by_user_uuid: account().user.id }),
+        );
+        await service.detect(account(), 'proj-1', 'app-1', {
+            ...request,
+            force: true,
+        });
+        expect(aiService.detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+    });
+
+    it('shares one run between concurrent detects of the same rows, keyed to each caller', async () => {
+        const { service, aiService } = buildService();
+        const [a, b] = await Promise.all([
+            service.detect(account(), 'proj-1', 'app-1', request),
+            service.detect(account(), 'proj-1', 'app-1', {
+                sources: [{ queryUuid: 'q-other-tab', label: 'Orders' }],
+            }),
+        ]);
+        expect(aiService.detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+        expect(a.analysisId).toBe(b.analysisId);
+        expect(a.anomalies[0].queryUuid).toBe('q1');
+        expect(b.sources).toEqual([
+            { queryUuid: 'q-other-tab', label: 'Orders' },
+        ]);
+        expect(b.anomalies[0].queryUuid).toBe('q-other-tab');
     });
 });
 
