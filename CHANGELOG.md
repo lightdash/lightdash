@@ -1,3 +1,16 @@
+# [2.264.0](https://github.com/lightdash/lightdash/compare/2.263.2...2.264.0) (2026-09-18)
+
+
+### Bug Fixes
+
+* **ai:** preserve embed user attributes in artifact queries ([#29524](https://github.com/lightdash/lightdash/issues/29524)) ([be183b3](https://github.com/lightdash/lightdash/commit/be183b3aa50232e6e4e2f5c7a16feece98d2a1eb))
+* **sql-runner:** list only granted Redshift objects in the catalog ([#29526](https://github.com/lightdash/lightdash/issues/29526)) ([d805f59](https://github.com/lightdash/lightdash/commit/d805f59eba6a4c3a0db048a585017d70fc5bc8b8)), closes [#29525](https://github.com/lightdash/lightdash/issues/29525)
+
+
+### Features
+
+* **ai-agent:** org setting to allow continuing data-app investigations in Ask AI ([#29461](https://github.com/lightdash/lightdash/issues/29461)) ([dee3864](https://github.com/lightdash/lightdash/commit/dee38647a9215f9c3d65b431c16b00e00aa5e38e))
+
 ## [2.263.2](https://github.com/lightdash/lightdash/compare/2.263.1...2.263.2) (2026-09-18)
 
 

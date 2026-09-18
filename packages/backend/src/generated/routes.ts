@@ -36252,6 +36252,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
+                dataAppContinueInAskAiEnabled: { dataType: 'boolean' },
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 visibleDataAppModels: {
                     dataType: 'array',
@@ -41480,6 +41481,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 requireExplicitSlackChannelLinking: { dataType: 'boolean' },
+                dataAppContinueInAskAiEnabled: { dataType: 'boolean' },
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 mcpAgentsEnabled: { dataType: 'boolean', required: true },
                 mcpContentWritesEnabled: {
@@ -41684,6 +41686,7 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 requireExplicitSlackChannelLinking: { dataType: 'boolean' },
+                dataAppContinueInAskAiEnabled: { dataType: 'boolean' },
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 mcpAgentsEnabled: { dataType: 'boolean' },
                 mcpContentWritesEnabled: { dataType: 'boolean' },

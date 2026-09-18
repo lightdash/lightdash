@@ -36612,6 +36612,9 @@
                         "format": "double",
                         "nullable": true
                     },
+                    "dataAppContinueInAskAiEnabled": {
+                        "type": "boolean"
+                    },
                     "dataAppRuntimeAiEnabled": {
                         "type": "boolean"
                     },
@@ -41510,6 +41513,9 @@
                     "requireExplicitSlackChannelLinking": {
                         "type": "boolean"
                     },
+                    "dataAppContinueInAskAiEnabled": {
+                        "type": "boolean"
+                    },
                     "dataAppRuntimeAiEnabled": {
                         "type": "boolean"
                     },
@@ -41714,6 +41720,9 @@
                         "nullable": true
                     },
                     "requireExplicitSlackChannelLinking": {
+                        "type": "boolean"
+                    },
+                    "dataAppContinueInAskAiEnabled": {
                         "type": "boolean"
                     },
                     "dataAppRuntimeAiEnabled": {
@@ -63675,7 +63684,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.263.2",
+        "version": "2.264.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
