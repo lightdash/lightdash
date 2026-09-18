@@ -2600,10 +2600,733 @@ Usage tips:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "searchResults": {
+                  "description": "One entry per search query, in the order given.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "content": {
+                        "description": "Matches for this query, verified content first.",
+                        "items": {
+                          "oneOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "contentType": {
+                                  "const": "document",
+                                  "type": "string",
+                                },
+                                "description": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Description truncated to the tool limit, or null when empty.",
+                                },
+                                "href": {
+                                  "type": "string",
+                                },
+                                "name": {
+                                  "type": "string",
+                                },
+                                "slug": {
+                                  "type": "string",
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "contentType",
+                                "uuid",
+                                "name",
+                                "slug",
+                                "href",
+                                "description",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "appCount": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                                "chartCount": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                                "childSpaceCount": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                                "contentType": {
+                                  "const": "space",
+                                  "type": "string",
+                                },
+                                "dashboardCount": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                                "directAccess": {
+                                  "description": "Whether the user has direct access to this space.",
+                                  "type": "boolean",
+                                },
+                                "name": {
+                                  "type": "string",
+                                },
+                                "searchRank": {
+                                  "type": "number",
+                                },
+                                "slug": {
+                                  "type": "string",
+                                },
+                                "space": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "breadcrumb": {
+                                      "description": "Space path from the root, space names joined by " / ".",
+                                      "type": "string",
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                    },
+                                    "slug": {
+                                      "type": "string",
+                                    },
+                                    "uuid": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "uuid",
+                                    "name",
+                                    "slug",
+                                    "breadcrumb",
+                                  ],
+                                  "type": "object",
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "contentType",
+                                "uuid",
+                                "name",
+                                "slug",
+                                "searchRank",
+                                "chartCount",
+                                "dashboardCount",
+                                "childSpaceCount",
+                                "appCount",
+                                "directAccess",
+                                "space",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "contentType": {
+                                  "const": "data_app",
+                                  "type": "string",
+                                },
+                                "createdBy": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Full name of the user, or null when unknown.",
+                                },
+                                "description": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Description truncated to the tool limit, or null when empty.",
+                                },
+                                "href": {
+                                  "description": "Canonical viewer URL of the Data App.",
+                                  "type": "string",
+                                },
+                                "name": {
+                                  "type": "string",
+                                },
+                                "searchRank": {
+                                  "type": "number",
+                                },
+                                "slug": {
+                                  "type": "string",
+                                },
+                                "space": {
+                                  "anyOf": [
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "breadcrumb": {
+                                          "description": "Space path from the root, space names joined by " / ".",
+                                          "type": "string",
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                        },
+                                        "slug": {
+                                          "type": "string",
+                                        },
+                                        "uuid": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "uuid",
+                                        "name",
+                                        "slug",
+                                        "breadcrumb",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                },
+                                "spaceUuid": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Null for personal apps that live outside any space.",
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                },
+                                "viewsCount": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                              },
+                              "required": [
+                                "contentType",
+                                "uuid",
+                                "name",
+                                "slug",
+                                "searchRank",
+                                "spaceUuid",
+                                "viewsCount",
+                                "href",
+                                "space",
+                                "description",
+                                "createdBy",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "charts": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "count": {
+                                      "description": "Total number of charts on the dashboard.",
+                                      "maximum": 9007199254740991,
+                                      "minimum": -9007199254740991,
+                                      "type": "integer",
+                                    },
+                                    "preview": {
+                                      "description": "First few charts, verified first; use readContent for the full list.",
+                                      "items": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "chartType": {
+                                            "type": "string",
+                                          },
+                                          "description": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string",
+                                              },
+                                              {
+                                                "type": "null",
+                                              },
+                                            ],
+                                            "description": "Description truncated to the tool limit, or null when empty.",
+                                          },
+                                          "name": {
+                                            "type": "string",
+                                          },
+                                          "uuid": {
+                                            "type": "string",
+                                          },
+                                          "verification": {
+                                            "anyOf": [
+                                              {
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                  "verifiedAt": {
+                                                    "description": "ISO 8601 verification timestamp.",
+                                                    "type": "string",
+                                                  },
+                                                  "verifiedBy": {
+                                                    "description": "Full name of the admin who verified the content.",
+                                                    "type": "string",
+                                                  },
+                                                },
+                                                "required": [
+                                                  "verifiedBy",
+                                                  "verifiedAt",
+                                                ],
+                                                "type": "object",
+                                              },
+                                              {
+                                                "type": "null",
+                                              },
+                                            ],
+                                            "description": "Admin verification, or null when the content is unverified.",
+                                          },
+                                        },
+                                        "required": [
+                                          "uuid",
+                                          "name",
+                                          "chartType",
+                                          "description",
+                                          "verification",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "type": "array",
+                                    },
+                                  },
+                                  "required": [
+                                    "count",
+                                    "preview",
+                                  ],
+                                  "type": "object",
+                                },
+                                "contentType": {
+                                  "const": "dashboard",
+                                  "type": "string",
+                                },
+                                "createdBy": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Full name of the user, or null when unknown.",
+                                },
+                                "description": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Description truncated to the tool limit, or null when empty.",
+                                },
+                                "firstViewedAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "ISO 8601 timestamp, or null when unknown.",
+                                },
+                                "href": {
+                                  "description": "Canonical URL of the dashboard.",
+                                  "type": "string",
+                                },
+                                "lastModified": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "ISO 8601 timestamp, or null when unknown.",
+                                },
+                                "lastUpdatedBy": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Full name of the user, or null when unknown.",
+                                },
+                                "name": {
+                                  "type": "string",
+                                },
+                                "searchRank": {
+                                  "type": "number",
+                                },
+                                "slug": {
+                                  "type": "string",
+                                },
+                                "space": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "breadcrumb": {
+                                      "description": "Space path from the root, space names joined by " / ".",
+                                      "type": "string",
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                    },
+                                    "slug": {
+                                      "type": "string",
+                                    },
+                                    "uuid": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "uuid",
+                                    "name",
+                                    "slug",
+                                    "breadcrumb",
+                                  ],
+                                  "type": "object",
+                                },
+                                "spaceUuid": {
+                                  "type": "string",
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                },
+                                "validationErrorCount": {
+                                  "description": "Number of validation errors; dashboards with errors are deprioritized.",
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                                "verification": {
+                                  "anyOf": [
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "verifiedAt": {
+                                          "description": "ISO 8601 verification timestamp.",
+                                          "type": "string",
+                                        },
+                                        "verifiedBy": {
+                                          "description": "Full name of the admin who verified the content.",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "verifiedBy",
+                                        "verifiedAt",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Admin verification, or null when the content is unverified.",
+                                },
+                                "viewsCount": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                              },
+                              "required": [
+                                "contentType",
+                                "uuid",
+                                "name",
+                                "slug",
+                                "searchRank",
+                                "spaceUuid",
+                                "viewsCount",
+                                "href",
+                                "space",
+                                "description",
+                                "verification",
+                                "firstViewedAt",
+                                "lastModified",
+                                "createdBy",
+                                "lastUpdatedBy",
+                                "charts",
+                                "validationErrorCount",
+                              ],
+                              "type": "object",
+                            },
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "chartSource": {
+                                  "description": ""saved" for explore charts, "sql" for SQL Runner charts.",
+                                  "enum": [
+                                    "saved",
+                                    "sql",
+                                  ],
+                                  "type": "string",
+                                },
+                                "chartType": {
+                                  "type": "string",
+                                },
+                                "contentType": {
+                                  "const": "chart",
+                                  "type": "string",
+                                },
+                                "createdBy": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Full name of the user, or null when unknown.",
+                                },
+                                "description": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Description truncated to the tool limit, or null when empty.",
+                                },
+                                "firstViewedAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "ISO 8601 timestamp, or null when unknown.",
+                                },
+                                "href": {
+                                  "description": "Canonical URL of the chart.",
+                                  "type": "string",
+                                },
+                                "lastModified": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "ISO 8601 timestamp, or null when unknown.",
+                                },
+                                "lastUpdatedBy": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Full name of the user, or null when unknown.",
+                                },
+                                "name": {
+                                  "type": "string",
+                                },
+                                "searchRank": {
+                                  "type": "number",
+                                },
+                                "slug": {
+                                  "type": "string",
+                                },
+                                "space": {
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "breadcrumb": {
+                                      "description": "Space path from the root, space names joined by " / ".",
+                                      "type": "string",
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                    },
+                                    "slug": {
+                                      "type": "string",
+                                    },
+                                    "uuid": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "uuid",
+                                    "name",
+                                    "slug",
+                                    "breadcrumb",
+                                  ],
+                                  "type": "object",
+                                },
+                                "spaceUuid": {
+                                  "type": "string",
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                },
+                                "verification": {
+                                  "anyOf": [
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "verifiedAt": {
+                                          "description": "ISO 8601 verification timestamp.",
+                                          "type": "string",
+                                        },
+                                        "verifiedBy": {
+                                          "description": "Full name of the admin who verified the content.",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "verifiedBy",
+                                        "verifiedAt",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                  "description": "Admin verification, or null when the content is unverified.",
+                                },
+                                "viewsCount": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer",
+                                },
+                              },
+                              "required": [
+                                "contentType",
+                                "uuid",
+                                "name",
+                                "slug",
+                                "searchRank",
+                                "chartType",
+                                "chartSource",
+                                "spaceUuid",
+                                "viewsCount",
+                                "href",
+                                "space",
+                                "description",
+                                "verification",
+                                "firstViewedAt",
+                                "lastModified",
+                                "createdBy",
+                                "lastUpdatedBy",
+                              ],
+                              "type": "object",
+                            },
+                          ],
+                        },
+                        "type": "array",
+                      },
+                      "count": {
+                        "description": "Number of matches for this query.",
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer",
+                      },
+                      "note": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "Guidance when a verifiedOnly search matched nothing; null otherwise.",
+                      },
+                      "searchQuery": {
+                        "type": "string",
+                      },
+                      "verifiedOnly": {
+                        "type": "boolean",
+                      },
+                    },
+                    "required": [
+                      "searchQuery",
+                      "verifiedOnly",
+                      "count",
+                      "note",
+                      "content",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "searchResults",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },

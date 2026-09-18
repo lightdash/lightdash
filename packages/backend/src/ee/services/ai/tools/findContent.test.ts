@@ -1,11 +1,13 @@
 import {
     ChartKind,
+    toolFindContentOutputSchema,
     type ContentVerificationInfo,
     type DashboardSearchResult,
     type ToolFindContentOutput,
     type ToolGetDashboardChartsOutput,
 } from '@lightdash/common';
 import type {
+    FindContentChartResult,
     FindContentDashboardResult,
     FindContentDataAppResult,
     FindContentResult,
@@ -13,6 +15,30 @@ import type {
 import { DASHBOARD_CHARTS_PREVIEW_COUNT } from '../utils/truncation';
 import { getFindContent } from './findContent';
 import { getGetDashboardCharts } from './getDashboardCharts';
+
+vi.mock('@sentry/node', () => ({
+    captureException: vi.fn(),
+    addBreadcrumb: vi.fn(),
+    getActiveSpan: vi.fn(),
+}));
+
+vi.mock('../../../../logging/logger', () => ({
+    __esModule: true,
+    default: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}));
+
+// Search rows carry timestamps as Date objects despite their declared string type.
+type SearchRow<
+    T extends { firstViewedAt: string | null; lastModified: string | null },
+> = Omit<T, 'firstViewedAt' | 'lastModified'> & {
+    firstViewedAt: Date | null;
+    lastModified: Date | null;
+};
+
+type FindContentRow =
+    | FindContentResult
+    | SearchRow<FindContentChartResult>
+    | SearchRow<FindContentDashboardResult>;
 
 const makeVerification = (
     firstName = 'Sarah',
@@ -41,8 +67,8 @@ const makeMockChart = (
 
 const makeMockDashboard = (
     chartCount: number,
-    overrides: Partial<FindContentDashboardResult> = {},
-): FindContentDashboardResult => ({
+    overrides: Partial<SearchRow<FindContentDashboardResult>> = {},
+): SearchRow<FindContentDashboardResult> => ({
     uuid: 'dash-uuid-1',
     name: 'Test Dashboard',
     slug: 'test-dashboard',
@@ -51,8 +77,8 @@ const makeMockDashboard = (
     projectUuid: 'project-uuid-1',
     search_rank: 1,
     viewsCount: 42,
-    firstViewedAt: '2024-01-01T00:00:00Z',
-    lastModified: '2024-06-15T00:00:00Z',
+    firstViewedAt: new Date('2024-01-01T00:00:00Z'),
+    lastModified: new Date('2024-06-15T00:00:00Z'),
     createdBy: {
         firstName: 'Test',
         lastName: 'User',
@@ -125,6 +151,45 @@ const makeMockSpace = (): FindContentResult => ({
     },
 });
 
+const makeMockChartResult = (
+    overrides: Partial<SearchRow<FindContentChartResult>> = {},
+): SearchRow<FindContentChartResult> => ({
+    contentType: 'chart',
+    uuid: 'chart-result-uuid',
+    name: 'Revenue by month',
+    slug: 'revenue-by-month',
+    description: 'Monthly revenue',
+    spaceUuid: 'space-uuid-1',
+    projectUuid: 'project-uuid-1',
+    search_rank: 2,
+    chartType: ChartKind.VERTICAL_BAR,
+    chartSource: 'saved',
+    dashboardUuid: null,
+    viewsCount: 7,
+    firstViewedAt: new Date('2024-01-01T00:00:00Z'),
+    lastModified: new Date('2024-06-15T00:00:00Z'),
+    createdBy: {
+        firstName: 'Test',
+        lastName: 'User',
+        userUuid: 'user-uuid-1',
+    },
+    lastUpdatedBy: null,
+    verification: null,
+    space: {
+        uuid: 'space-uuid-1',
+        name: 'Marketing',
+        slug: 'marketing',
+        breadcrumbs: [
+            {
+                uuid: 'space-uuid-1',
+                name: 'Marketing',
+                slug: 'marketing',
+            },
+        ],
+    },
+    ...overrides,
+});
+
 const makeMockDataApp = (
     overrides: Partial<FindContentDataAppResult> = {},
 ): FindContentDataAppResult => ({
@@ -160,7 +225,7 @@ const makeMockDataApp = (
 
 describe('getFindContent', () => {
     const createTool = (
-        content: FindContentResult[],
+        content: FindContentRow[],
         trackCoverage: import('vitest').Mock = vi.fn(),
     ) => {
         const mockFindContent = vi.fn().mockResolvedValue({ content });
@@ -176,7 +241,7 @@ describe('getFindContent', () => {
             trackCoverage,
         };
     };
-    const toolOf = (content: FindContentResult[]) => createTool(content).tool;
+    const toolOf = (content: FindContentRow[]) => createTool(content).tool;
 
     it('renders Data App discovery metadata and canonical viewer link', async () => {
         const tool = toolOf([makeMockDataApp()]);
@@ -483,6 +548,263 @@ describe('getFindContent', () => {
 
         expect(output.metadata.status).toBe('success');
         expect(output.result).not.toContain('No verified content matched');
+    });
+
+    describe('structuredContent', () => {
+        it('parses with the output schema and mirrors the rendered dashboard', async () => {
+            const dashboard = makeMockDashboard(7, {
+                verification: makeVerification('Alex', 'Doe'),
+                validationErrors: [
+                    { validationUuid: 'v-1', validationId: null },
+                ],
+            });
+            const tool = toolOf([dashboard]);
+            const output = await executeFindContent(tool, {
+                searchQueries: [{ label: 'test query' }],
+                spaceSlug: null,
+            });
+
+            expect(toolFindContentOutputSchema.safeParse(output).success).toBe(
+                true,
+            );
+            expect(output.metadata).toEqual({ status: 'success' });
+            expect(output.structuredContent).toEqual({
+                searchResults: [
+                    {
+                        searchQuery: 'test query',
+                        verifiedOnly: false,
+                        count: 1,
+                        note: null,
+                        content: [
+                            {
+                                contentType: 'dashboard',
+                                uuid: 'dash-uuid-1',
+                                name: 'Test Dashboard',
+                                slug: 'test-dashboard',
+                                searchRank: 1,
+                                spaceUuid: 'space-uuid-1',
+                                viewsCount: 42,
+                                href: '/projects/project-uuid-1/dashboards/dash-uuid-1/view#dashboard-link',
+                                space: {
+                                    uuid: 'space-uuid-1',
+                                    name: 'Marketing',
+                                    slug: 'marketing',
+                                    breadcrumb: 'Marketing',
+                                },
+                                description: 'A test dashboard',
+                                verification: {
+                                    verifiedBy: 'Alex Doe',
+                                    verifiedAt: '2026-04-01T00:00:00.000Z',
+                                },
+                                firstViewedAt: '2024-01-01T00:00:00.000Z',
+                                lastModified: '2024-06-15T00:00:00.000Z',
+                                createdBy: 'Test User',
+                                lastUpdatedBy: null,
+                                charts: {
+                                    count: 7,
+                                    preview: Array.from(
+                                        {
+                                            length: DASHBOARD_CHARTS_PREVIEW_COUNT,
+                                        },
+                                        (_, i) => ({
+                                            uuid: `chart-uuid-${i}`,
+                                            name: `Chart ${i}`,
+                                            chartType: ChartKind.VERTICAL_BAR,
+                                            description:
+                                                i % 2 === 0
+                                                    ? `Description for chart ${i}`
+                                                    : null,
+                                            verification: null,
+                                        }),
+                                    ),
+                                },
+                                validationErrorCount: 1,
+                            },
+                        ],
+                    },
+                ],
+            });
+
+            expect(output.result).toContain('dashboardUuid="dash-uuid-1"');
+            expect(output.result).toContain('<name>Test Dashboard</name>');
+            expect(output.result).toContain(
+                'href="/projects/project-uuid-1/dashboards/dash-uuid-1/view#dashboard-link"',
+            );
+            expect(output.result).toMatch(/<verified[^>]*by="Alex Doe"/);
+            expect(output.result).toMatch(/<charts count="7"[^>]*>/);
+            expect(output.result).toContain('<validationerrors count="1"/>');
+        });
+
+        it('mirrors spaces, Data Apps without a space and the verified-first order', async () => {
+            const unverified = makeMockDashboard(0, {
+                uuid: 'dash-unverified',
+                search_rank: 10,
+            });
+            const verified = makeMockDashboard(0, {
+                uuid: 'dash-verified',
+                search_rank: 1,
+                verification: makeVerification(),
+            });
+            const tool = toolOf([
+                unverified,
+                makeMockSpace(),
+                makeMockDataApp({ spaceUuid: null, space: null }),
+                verified,
+            ]);
+            const output = await executeFindContent(tool, {
+                searchQueries: [{ label: 'marketing' }],
+                spaceSlug: null,
+            });
+
+            expect(toolFindContentOutputSchema.safeParse(output).success).toBe(
+                true,
+            );
+            if ('error' in output.structuredContent) {
+                throw new Error('expected success structuredContent');
+            }
+            const [searchResult] = output.structuredContent.searchResults;
+            expect(searchResult.count).toBe(4);
+            expect(searchResult.content.map((item) => item.uuid)).toEqual([
+                'dash-verified',
+                'dash-unverified',
+                'space-uuid-1',
+                'app-uuid-1',
+            ]);
+            expect(searchResult.content[2]).toEqual({
+                contentType: 'space',
+                uuid: 'space-uuid-1',
+                name: 'Marketing',
+                slug: 'marketing',
+                searchRank: 1,
+                chartCount: 2,
+                dashboardCount: 1,
+                childSpaceCount: 1,
+                appCount: 0,
+                directAccess: true,
+                space: {
+                    uuid: 'space-uuid-1',
+                    name: 'Marketing',
+                    slug: 'marketing',
+                    breadcrumb: 'Marketing',
+                },
+            });
+            expect(searchResult.content[3]).toEqual({
+                contentType: 'data_app',
+                uuid: 'app-uuid-1',
+                name: 'Sales forecast',
+                slug: 'sales-forecast',
+                searchRank: 0.75,
+                spaceUuid: null,
+                viewsCount: 12,
+                href: '/projects/project-uuid-1/apps/app-uuid-1/view',
+                space: null,
+                description: 'Forecast revenue by region',
+                createdBy: 'Ada Lovelace',
+            });
+            expect(output.result.indexOf('dash-verified')).toBeLessThan(
+                output.result.indexOf('dash-unverified'),
+            );
+        });
+
+        it('serializes chart timestamps read from the database as ISO strings', async () => {
+            const tool = toolOf([makeMockChartResult()]);
+            const output = await executeFindContent(tool, {
+                searchQueries: [{ label: 'revenue' }],
+                spaceSlug: null,
+            });
+
+            expect(toolFindContentOutputSchema.safeParse(output).success).toBe(
+                true,
+            );
+            if ('error' in output.structuredContent) {
+                throw new Error('expected success structuredContent');
+            }
+            const [searchResult] = output.structuredContent.searchResults;
+            expect(searchResult.content).toEqual([
+                {
+                    contentType: 'chart',
+                    uuid: 'chart-result-uuid',
+                    name: 'Revenue by month',
+                    slug: 'revenue-by-month',
+                    searchRank: 2,
+                    chartType: ChartKind.VERTICAL_BAR,
+                    chartSource: 'saved',
+                    spaceUuid: 'space-uuid-1',
+                    viewsCount: 7,
+                    href: `/projects/project-uuid-1/saved/chart-result-uuid/view#chart-link#chart-type-${ChartKind.VERTICAL_BAR}`,
+                    space: {
+                        uuid: 'space-uuid-1',
+                        name: 'Marketing',
+                        slug: 'marketing',
+                        breadcrumb: 'Marketing',
+                    },
+                    description: 'Monthly revenue',
+                    verification: null,
+                    firstViewedAt: '2024-01-01T00:00:00.000Z',
+                    lastModified: '2024-06-15T00:00:00.000Z',
+                    createdBy: 'Test User',
+                    lastUpdatedBy: null,
+                },
+            ]);
+
+            expect(output.result).toContain('chartUuid="chart-result-uuid"');
+            expect(output.result).toContain('<name>Revenue by month</name>');
+            expect(output.result).toContain('<firstviewedat>');
+            expect(output.result).toContain('<lastmodified>');
+        });
+
+        it('carries the empty verified-only guidance', async () => {
+            const { tool } = createTool([]);
+            const output = await executeFindContent(tool, {
+                searchQueries: [{ label: 'revenue' }],
+                spaceSlug: null,
+                verifiedOnly: true,
+            });
+
+            expect(toolFindContentOutputSchema.safeParse(output).success).toBe(
+                true,
+            );
+            expect(output.structuredContent).toEqual({
+                searchResults: [
+                    {
+                        searchQuery: 'revenue',
+                        verifiedOnly: true,
+                        count: 0,
+                        note: expect.stringContaining(
+                            'No verified content matched this query',
+                        ),
+                        content: [],
+                    },
+                ],
+            });
+        });
+
+        it('returns { error } when the search fails', async () => {
+            const mockFindContent = vi
+                .fn()
+                .mockRejectedValue(new Error('search index unavailable'));
+            const tool = getFindContent({
+                findContent: mockFindContent,
+                siteUrl: '',
+                toolDescriptionMaxChars: 600,
+                trackCoverage: vi.fn(),
+                dashboardDetailsToolName: 'readContent',
+            });
+            const output = await executeFindContent(tool, {
+                searchQueries: [{ label: 'revenue' }],
+                spaceSlug: null,
+            });
+
+            expect(toolFindContentOutputSchema.safeParse(output).success).toBe(
+                true,
+            );
+            expect(output.metadata).toEqual({ status: 'error' });
+            expect(output.result).toContain(
+                'Error finding content for search queries: revenue',
+            );
+            expect(output.result).toContain('search index unavailable');
+            expect(output.structuredContent).toEqual({ error: output.result });
+        });
     });
 });
 
