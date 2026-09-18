@@ -117,6 +117,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                     {
                         name: tableName,
                         label: tableLabel,
+                        primaryKey: ['org_id', dimensionFields[dimension].key],
                         sqlTable: `"${tableName}"`,
                         database: 'memory',
                         schema: 'main',

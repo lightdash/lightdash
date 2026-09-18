@@ -1,7 +1,44 @@
-import { MetricType } from '@lightdash/common';
+import { MetricType, WarehouseTypes } from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import { MetricQueryBuilder } from '../../../utils/QueryBuilder/MetricQueryBuilder';
 import { createAnalyticsExplores } from './createAnalyticsExplores';
 
 describe('createAnalyticsExplores', () => {
+    it.each([
+        ['ai_usage', 'users', 'total_ai_calls'],
+        ['query_events', 'charts', 'total_queries'],
+        ['query_events', 'dashboards', 'total_queries'],
+    ])(
+        'compiles %s joined to %s without primary-key warnings',
+        (name, dimension, metric) => {
+            const explore = createAnalyticsExplores().find(
+                (item) => item.name === name,
+            )!;
+            const { warnings } = new MetricQueryBuilder({
+                explore,
+                compiledMetricQuery: {
+                    exploreName: name,
+                    dimensions: [`lightdash_${dimension}_name`],
+                    metrics: [`${name}_${metric}`],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                    compiledTableCalculations: [],
+                    compiledAdditionalMetrics: [],
+                    compiledCustomDimensions: [],
+                },
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    WarehouseTypes.DUCKDB,
+                ),
+                intrinsicUserAttributes: {},
+                parameterDefinitions: {},
+                timezone: 'UTC',
+            }).compileQuery();
+            expect(warnings).toEqual([]);
+        },
+    );
+
     it('compiles curated metrics and time dimensions against internal views', () => {
         const explores = createAnalyticsExplores();
         const [queries, ai, apps, exports] = explores;
