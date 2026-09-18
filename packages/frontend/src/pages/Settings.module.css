@@ -1,6 +1,5 @@
 .sidebarStack {
     flex-grow: 1;
-    overflow: hidden;
     min-height: 0;
 }
 
@@ -13,8 +12,9 @@
 .sidebarScroll {
     flex: 1 1 auto;
     min-height: 0;
-    /* Pull into the Stack gap so the top fade zone doesn't add space */
-    margin-top: calc(-1 * var(--mantine-spacing-md));
+    /* Pull into the gaps above (Stack gap) and below (footer margin) so the
+       fade zones live in existing space instead of adding their own. */
+    margin-block: calc(-1 * var(--mantine-spacing-md));
 }
 
 /* Edge fade: items dissolve as they slide under the top/bottom edges.
