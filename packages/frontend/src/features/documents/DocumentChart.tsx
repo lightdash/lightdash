@@ -11,8 +11,11 @@ import LightdashVisualization from '../../components/LightdashVisualization';
 import VisualizationProvider from '../../components/LightdashVisualization/VisualizationProvider';
 import MetricQueryDataProvider from '../../components/MetricQueryData/MetricQueryDataProvider';
 import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
+import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
+import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useInfiniteQueryResults } from '../../hooks/useQueryResults';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
+import DocumentChartExploreButton from './DocumentChartExploreButton';
 import ReportChartFrame from './presentation/ReportChartFrame';
 import { useDocumentCellQuery } from './useDocument';
 
@@ -34,6 +37,8 @@ const DocumentChart = ({
     cell,
 }: Props) => {
     const { chart } = cell.content;
+    const authoringEnabled = useContentAuthoringEnabled();
+    const { canViewExplore } = useContextMenuPermissions({ projectUuid });
     const palette = useProjectColorPalette(projectUuid, { spaceUuid });
     const query = useDocumentCellQuery(
         projectUuid,
@@ -93,6 +98,26 @@ const DocumentChart = ({
         <ReportChartFrame
             ariaLabel={chart.name}
             description={chart.description}
+            actions={
+                cell.content.source === 'semantic' &&
+                authoringEnabled &&
+                canViewExplore &&
+                query.data &&
+                !query.isFetching ? (
+                    <DocumentChartExploreButton
+                        projectUuid={projectUuid}
+                        chart={{
+                            ...chart,
+                            chartConfig: chart.chartConfig,
+                            metricQuery: query.data.metricQuery,
+                            parameters: query.data.usedParametersValues,
+                            tableConfig: chart.tableConfig ?? {
+                                columnOrder: [],
+                            },
+                        }}
+                    />
+                ) : null
+            }
         >
             {query.isFetching || results.isFetchingRows || !query.data ? (
                 <EmptyStateLoader title="Loading live chart data" />
