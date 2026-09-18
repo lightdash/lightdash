@@ -195,16 +195,18 @@ describe('dbt source connection binding migration', () => {
         const [{ project_id: primaryProjectId }] = await database('projects')
             .select('project_id')
             .where('project_uuid', primaryProjectUuid);
-        await database('warehouse_credentials').insert([
-            {
-                project_id: primaryProjectId,
-                warehouse_credentials_uuid: additionalConnectionUuid,
-            },
-            {
-                project_id: primaryProjectId,
-                warehouse_credentials_uuid: thirdConnectionUuid,
-            },
-        ]);
+        await database<Record<string, unknown>>('warehouse_credentials').insert(
+            [
+                {
+                    project_id: primaryProjectId,
+                    warehouse_credentials_uuid: additionalConnectionUuid,
+                },
+                {
+                    project_id: primaryProjectId,
+                    warehouse_credentials_uuid: thirdConnectionUuid,
+                },
+            ],
+        );
 
         await down(database);
         expect(
