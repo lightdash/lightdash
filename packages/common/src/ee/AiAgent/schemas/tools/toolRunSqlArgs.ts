@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
     buildMcpVisualizationFollowUpInstruction,
@@ -6,6 +7,7 @@ import {
     MCP_QUERY_ERROR_NOTE,
     MCP_QUERY_RESULT_USAGE_NOTE,
 } from './toolMcpQueryResultDescription';
+import { mcpSqlQueryRowsColumnsSchema } from './toolQueryResultSchemas';
 
 export const DEFAULT_RUN_SQL_LIMIT = 500;
 export const DEFAULT_RUN_SQL_MAX_LIMIT = 5000;
@@ -65,12 +67,32 @@ export const createToolRunSqlArgsSchema = ({
 
 export const toolRunSqlArgsSchema = createToolRunSqlArgsSchema();
 
-export const toolRunSqlOutputSchema = z.object({
-    result: z.string(),
+export const RUN_SQL_PREVIEW_ROW_LIMIT = 50;
+
+export const toolRunSqlStructuredContentSchema = z.object({
+    rowCount: mcpSqlQueryRowsColumnsSchema.shape.rowCount,
+    columns: mcpSqlQueryRowsColumnsSchema.shape.columns,
+    rows: mcpSqlQueryRowsColumnsSchema.shape.rows
+        .nullable()
+        .describe(
+            `Preview rows shown to the model (first ${RUN_SQL_PREVIEW_ROW_LIMIT} at most). Null when data access is disabled and no row values are exposed.`,
+        ),
+    truncated: z
+        .boolean()
+        .describe(
+            'True when `rows` holds only the first rows of a larger result; `rowCount` is the full count.',
+        ),
+});
+
+export const toolRunSqlOutputSchema = structuredToolOutputSchema({
     metadata: z.object({
         status: z.enum(['success', 'error', 'rejected', 'timeout']),
     }),
+    structuredContent: toolRunSqlStructuredContentSchema,
 });
 
 export type ToolRunSqlArgs = z.infer<typeof toolRunSqlArgsSchema>;
+export type ToolRunSqlStructuredContent = z.infer<
+    typeof toolRunSqlStructuredContentSchema
+>;
 export type ToolRunSqlOutput = z.infer<typeof toolRunSqlOutputSchema>;
