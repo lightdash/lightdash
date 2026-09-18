@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DimensionType } from '../../../../types/field';
 import {
     type MetricQueryRequest,
     type SortField,
@@ -11,6 +12,7 @@ import {
     type SqlSourceQuery,
 } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const DEFAULT_COMPOSER_QUERY_LIMIT = 500;
@@ -354,11 +356,63 @@ export const parsePartialToolComposerQueriesArgs = (
     };
 };
 
-export const toolComposerQueriesOutputSchema = z.object({
-    result: z.string(),
+const composerQuerySubmissionSchema = z.object({
+    nodeId: nodeIdSchema,
+    sourceType: z.nativeEnum(QuerySourceType),
+    queryUuid: z
+        .string()
+        .describe(
+            'Stored result of this node. A later submission can reference it via the map form of "references" without re-running the query.',
+        ),
+});
+
+const composerQueryColumnSchema = z.object({
+    reference: z.string().describe('Column name as it appears in the rows.'),
+    type: z.nativeEnum(DimensionType),
+});
+
+export const toolComposerQueriesStructuredContentSchema = z.object({
+    terminalNodeId: nodeIdSchema.describe(
+        'Node whose result the artifact shows and whose rows are returned.',
+    ),
+    terminalQueryUuid: z
+        .string()
+        .describe('queryUuid of the terminal node result.'),
+    rowCount: z
+        .number()
+        .int()
+        .nonnegative()
+        .describe('Total rows in the terminal result, before any preview cap.'),
+    submissions: z
+        .array(composerQuerySubmissionSchema)
+        .describe('Every node that ran in this submission, in pipeline order.'),
+    columns: z
+        .array(composerQueryColumnSchema)
+        .describe('Terminal result columns, in order.'),
+    preview: z
+        .object({
+            rows: z
+                .array(z.record(z.string(), z.unknown()))
+                .describe(
+                    'Terminal rows keyed by column reference, capped to the first rows of the result.',
+                ),
+            truncated: z
+                .boolean()
+                .describe(
+                    'True when rowCount exceeds the preview cap, so rows is only a prefix of the result.',
+                ),
+        })
+        .nullable()
+        .describe(
+            'Rows the model was shown; null when data access is disabled or the terminal result is empty.',
+        ),
+});
+
+export const toolComposerQueriesOutputSchema = structuredToolOutputSchema({
     metadata: z.object({
         status: z.enum(['success', 'error', 'rejected', 'timeout']),
     }),
+    structuredContent: toolComposerQueriesStructuredContentSchema,
 });
 
 export type ToolComposerQueriesArgs = z.infer<
@@ -366,4 +420,7 @@ export type ToolComposerQueriesArgs = z.infer<
 >;
 export type ToolComposerQueriesOutput = z.infer<
     typeof toolComposerQueriesOutputSchema
+>;
+export type ToolComposerQueriesStructuredContent = z.infer<
+    typeof toolComposerQueriesStructuredContentSchema
 >;

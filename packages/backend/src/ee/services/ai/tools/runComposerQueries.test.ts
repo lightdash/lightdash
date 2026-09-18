@@ -1,5 +1,7 @@
 import {
     QuerySourceType,
+    toolComposerQueriesOutputSchema,
+    toolComposerQueriesStructuredContentSchema,
     type AiWebAppPrompt,
     type ToolComposerQueriesArgs,
 } from '@lightdash/common';
@@ -9,6 +11,7 @@ type ComposerTool = ReturnType<typeof getRunComposerQueries>;
 type ComposerOutput = {
     result: string;
     metadata?: { status: string };
+    structuredContent?: unknown;
 };
 
 const makePrompt = (): AiWebAppPrompt => ({
@@ -180,6 +183,103 @@ describe('getRunComposerQueries', () => {
         expect(output.result).toContain('```csv');
     });
 
+    it('returns structured content carrying the same facts as the text', async () => {
+        const { tool } = makeTool({ autoApproveSql: true });
+
+        const output = await executeTool(tool, makeArgs());
+
+        expect(toolComposerQueriesOutputSchema.safeParse(output).success).toBe(
+            true,
+        );
+        expect(output.structuredContent).toEqual({
+            terminalNodeId: 'joined',
+            terminalQueryUuid: 'query-3',
+            rowCount: 1,
+            submissions: [
+                {
+                    nodeId: 'revenue',
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    queryUuid: 'query-1',
+                },
+                {
+                    nodeId: 'signups',
+                    sourceType: QuerySourceType.SQL,
+                    queryUuid: 'query-2',
+                },
+                {
+                    nodeId: 'joined',
+                    sourceType: QuerySourceType.DUCKDB,
+                    queryUuid: 'query-3',
+                },
+            ],
+            columns: [
+                { reference: 'month', type: 'string' },
+                { reference: 'signups', type: 'number' },
+            ],
+            preview: {
+                rows: [{ month: '2026-01', signups: 12 }],
+                truncated: false,
+            },
+        });
+
+        const content = toolComposerQueriesStructuredContentSchema.parse(
+            output.structuredContent,
+        );
+        expect(output.result).toContain(
+            `Terminal node "${content.terminalNodeId}" returned ${content.rowCount} rows (queryUuid ${content.terminalQueryUuid})`,
+        );
+        content.submissions.forEach((submission) => {
+            expect(output.result).toContain(
+                `- ${submission.nodeId} (${submission.sourceType}): queryUuid ${submission.queryUuid}`,
+            );
+        });
+        expect(output.result).toContain(
+            'Terminal columns: month (string), signups (number).',
+        );
+        expect(output.result).toContain('month,signups\n2026-01,12');
+    });
+
+    it('marks the preview as truncated when the terminal result exceeds the preview cap', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        const rows = Array.from({ length: 60 }, (_, index) => ({
+            month: `2026-${index}`,
+            signups: index,
+        }));
+        dependencies.runComposerQueries.mockResolvedValue({
+            submissions: [
+                {
+                    nodeId: 'joined',
+                    sourceType: QuerySourceType.DUCKDB,
+                    queryUuid: 'query-3',
+                },
+            ],
+            terminal: {
+                queryUuid: 'query-3',
+                columns: {
+                    month: { reference: 'month', type: 'string' },
+                    signups: { reference: 'signups', type: 'number' },
+                },
+                rows,
+                rowCount: 60,
+            },
+        });
+
+        const output = await executeTool(tool, makeArgs());
+
+        expect(toolComposerQueriesOutputSchema.safeParse(output).success).toBe(
+            true,
+        );
+        const content = toolComposerQueriesStructuredContentSchema.parse(
+            output.structuredContent,
+        );
+        expect(content.rowCount).toBe(60);
+        expect(content.preview).toEqual({
+            rows: rows.slice(0, 50),
+            truncated: true,
+        });
+        expect(output.result).toContain('(Showing first 50 of 60 rows.)');
+    });
+
     it('defaults the terminal node to the unique sink', async () => {
         const { tool, dependencies } = makeTool({ autoApproveSql: true });
 
@@ -211,6 +311,10 @@ describe('getRunComposerQueries', () => {
 
         expect(output.metadata?.status).toBe('error');
         expect(output.result).toContain('terminalNodeId');
+        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(toolComposerQueriesOutputSchema.safeParse(output).success).toBe(
+            true,
+        );
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
     });
 
@@ -221,6 +325,7 @@ describe('getRunComposerQueries', () => {
 
         expect(output.metadata?.status).toBe('error');
         expect(output.result).toContain('sql');
+        expect(output.structuredContent).toEqual({ error: output.result });
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
     });
@@ -332,6 +437,10 @@ describe('getRunComposerQueries', () => {
         const output = await executeTool(tool, makeArgs());
 
         expect(output.metadata?.status).toBe('rejected');
+        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(toolComposerQueriesOutputSchema.safeParse(output).success).toBe(
+            true,
+        );
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
         expect(dependencies.createOrUpdateArtifact).not.toHaveBeenCalled();
     });
@@ -344,7 +453,13 @@ describe('getRunComposerQueries', () => {
         const secondOutput = await executeTool(tool, makeArgs(), 'tool-call-2');
 
         expect(firstOutput.metadata?.status).toBe('timeout');
+        expect(firstOutput.structuredContent).toEqual({
+            error: firstOutput.result,
+        });
         expect(secondOutput.metadata?.status).toBe('timeout');
+        expect(secondOutput.structuredContent).toEqual({
+            error: secondOutput.result,
+        });
         expect(dependencies.waitForSqlApproval).toHaveBeenCalledTimes(1);
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
     });
@@ -449,5 +564,29 @@ describe('getRunComposerQueries', () => {
         expect(output.metadata?.status).toBe('success');
         expect(output.result).not.toContain('```csv');
         expect(output.result).toContain('query-3');
+        expect(toolComposerQueriesOutputSchema.safeParse(output).success).toBe(
+            true,
+        );
+        const content = toolComposerQueriesStructuredContentSchema.parse(
+            output.structuredContent,
+        );
+        expect(content.preview).toBeNull();
+        expect(content.terminalQueryUuid).toBe('query-3');
+    });
+
+    it('returns a structured error when the pipeline fails to run', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runComposerQueries.mockRejectedValue(
+            new Error('column not found'),
+        );
+
+        const output = await executeTool(tool, makeArgs());
+
+        expect(output.metadata?.status).toBe('error');
+        expect(output.result).toContain('column not found');
+        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(toolComposerQueriesOutputSchema.safeParse(output).success).toBe(
+            true,
+        );
     });
 });

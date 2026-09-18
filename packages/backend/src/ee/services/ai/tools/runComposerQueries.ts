@@ -8,6 +8,7 @@ import {
     type AnyType,
     type SourceQuery,
     type ToolComposerQueriesArgs,
+    type ToolComposerQueriesStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
@@ -20,7 +21,11 @@ import type {
     WaitForSqlApprovalFn,
 } from '../types/aiAgentDependencies';
 import { serializeData } from '../utils/serializeData';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { validateSelectOnly } from './runSql';
 
 type Dependencies = {
@@ -40,6 +45,19 @@ type Dependencies = {
 const toolDefinition = runComposerQueriesToolDefinition.for('agent');
 
 const PREVIEW_ROW_LIMIT = 50;
+
+type ComposerQueriesOutput =
+    | ExecuteStructuredToolResult<ToolComposerQueriesStructuredContent>
+    | ExecuteToolErrorResult<{ status: 'error' | 'rejected' | 'timeout' }>;
+
+const failure = (
+    result: string,
+    status: 'error' | 'rejected' | 'timeout',
+): ComposerQueriesOutput => ({
+    result,
+    metadata: { status },
+    structuredContent: { error: result },
+});
 
 /**
  * Resolves which node the artifact should show: the explicit terminalNodeId
@@ -111,7 +129,7 @@ export const getRunComposerQueries = ({
         execute: async (
             { title, description, queries: queryNodes, terminalNodeId },
             { toolCallId },
-        ) => {
+        ): Promise<ComposerQueriesOutput> => {
             try {
                 const duplicates = queryNodes
                     .map((node) => node.nodeId)
@@ -120,10 +138,10 @@ export const getRunComposerQueries = ({
                             nodeIds.indexOf(nodeId) !== index,
                     );
                 if (duplicates.length > 0) {
-                    return {
-                        result: `Duplicate node id(s) in submission: ${duplicates.join(', ')}. Give every node a unique nodeId.`,
-                        metadata: { status: 'error' as const },
-                    };
+                    return failure(
+                        `Duplicate node id(s) in submission: ${duplicates.join(', ')}. Give every node a unique nodeId.`,
+                        'error',
+                    );
                 }
 
                 const resolvedTerminalNodeId = resolveTerminalNodeId(
@@ -135,10 +153,10 @@ export const getRunComposerQueries = ({
                     (node) => node.sourceType === QuerySourceType.SQL,
                 );
                 if (sqlNodes.length > 0 && !canRunSql) {
-                    return {
-                        result: 'This pipeline contains "sql" nodes but SQL execution is not enabled for this agent. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',
-                        metadata: { status: 'error' as const },
-                    };
+                    return failure(
+                        'This pipeline contains "sql" nodes but SQL execution is not enabled for this agent. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',
+                        'error',
+                    );
                 }
                 sqlNodes.forEach((node) => validateSelectOnly(node.sql));
 
@@ -153,10 +171,10 @@ export const getRunComposerQueries = ({
                 // nodes run without approval.
                 if (sqlNodes.length > 0) {
                     if (sqlApprovalTimedOut) {
-                        return {
-                            result: 'A previous SQL approval timed out in this response. Do not call runComposerQueries again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
-                            metadata: { status: 'timeout' as const },
-                        };
+                        return failure(
+                            'A previous SQL approval timed out in this response. Do not call runComposerQueries again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
+                            'timeout',
+                        );
                     }
                     if (autoApproveSql) {
                         await recordSqlApproval(
@@ -168,17 +186,17 @@ export const getRunComposerQueries = ({
                         await updateProgress('Awaiting approval to run SQL...');
                         const decision = await waitForSqlApproval(toolCallId);
                         if (decision === 'rejected') {
-                            return {
-                                result: 'User rejected this SQL execution. Do not retry the same pipeline; ask the user what they would like instead.',
-                                metadata: { status: 'rejected' as const },
-                            };
+                            return failure(
+                                'User rejected this SQL execution. Do not retry the same pipeline; ask the user what they would like instead.',
+                                'rejected',
+                            );
                         }
                         if (decision === 'timeout') {
                             sqlApprovalTimedOut = true;
-                            return {
-                                result: 'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
-                                metadata: { status: 'timeout' as const },
-                            };
+                            return failure(
+                                'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
+                                'timeout',
+                            );
                         }
                     }
                 }
@@ -245,8 +263,13 @@ export const getRunComposerQueries = ({
                             `- ${submission.nodeId} (${submission.sourceType}): queryUuid ${submission.queryUuid}`,
                     )
                     .join('\n');
-                const columnReferences = Object.keys(terminal.columns);
-                const columnSummary = Object.values(terminal.columns)
+                const columns = Object.values(terminal.columns).map(
+                    ({ reference, type }) => ({ reference, type }),
+                );
+                const columnReferences = columns.map(
+                    (column) => column.reference,
+                );
+                const columnSummary = columns
                     .map((column) => `${column.reference} (${column.type})`)
                     .join(', ');
                 const resultSummary = [
@@ -254,17 +277,31 @@ export const getRunComposerQueries = ({
                     `Submitted nodes (any queryUuid below can be reused by a later submission via the map form of "references", without re-running that query):\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
                 ].join('\n');
+                const summary = {
+                    terminalNodeId: resolvedTerminalNodeId,
+                    terminalQueryUuid: terminal.queryUuid,
+                    rowCount: terminal.rowCount,
+                    submissions: submissions.map(
+                        ({ nodeId, sourceType, queryUuid }) => ({
+                            nodeId,
+                            sourceType,
+                            queryUuid,
+                        }),
+                    ),
+                    columns,
+                };
 
                 if (!enableDataAccess || terminal.rowCount === 0) {
                     return {
                         result: resultSummary,
-                        metadata: { status: 'success' as const },
+                        metadata: { status: 'success' },
+                        structuredContent: { ...summary, preview: null },
                     };
                 }
 
-                const previewRows = terminal.rows.slice(0, PREVIEW_ROW_LIMIT);
-                const previewCsv = stringify(
-                    previewRows.map((row) =>
+                const previewRows = terminal.rows
+                    .slice(0, PREVIEW_ROW_LIMIT)
+                    .map((row) =>
                         columnReferences.reduce<Record<string, AnyType>>(
                             (acc, col) => {
                                 acc[col] = row[col];
@@ -272,29 +309,29 @@ export const getRunComposerQueries = ({
                             },
                             {},
                         ),
-                    ),
-                    { header: true, columns: columnReferences },
-                );
-                const truncatedNote =
-                    terminal.rowCount > PREVIEW_ROW_LIMIT
-                        ? `\n(Showing first ${PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
-                        : '';
+                    );
+                const previewCsv = stringify(previewRows, {
+                    header: true,
+                    columns: columnReferences,
+                });
+                const truncated = terminal.rowCount > PREVIEW_ROW_LIMIT;
+                const truncatedNote = truncated
+                    ? `\n(Showing first ${PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
+                    : '';
 
                 return {
                     result: `${resultSummary}${truncatedNote}\n${serializeData(
                         previewCsv,
                         'csv',
                     )}`,
-                    metadata: { status: 'success' as const },
+                    metadata: { status: 'success' },
+                    structuredContent: {
+                        ...summary,
+                        preview: { rows: previewRows, truncated },
+                    },
                 };
             } catch (e) {
-                return {
-                    result: toolErrorHandler(
-                        e,
-                        'Error running composer queries.',
-                    ),
-                    metadata: { status: 'error' as const },
-                };
+                return toolErrorOutput(e, 'Error running composer queries.');
             }
         },
     });
