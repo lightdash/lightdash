@@ -14,6 +14,9 @@ const serialFiles = [
     'tests/embedDashboard.test.ts',
     'tests/embedTimezone.test.ts',
     'tests/dataAppVizRender.test.ts',
+    // Asserts every project member's role name; must not overlap a file
+    // that assigns a temporary custom role (dataAppVizRender).
+    'tests/projectPermissions.test.ts',
     'tests/attributes.test.ts',
     'tests/catalog.test.ts',
     'tests/resultsCacheSettings.test.ts',
