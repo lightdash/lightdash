@@ -6,6 +6,12 @@ const [gpt] = MODEL_PRESETS.openai;
 const opus47 = MODEL_PRESETS.anthropic.find(
     (model) => model.name === 'claude-opus-4-7',
 )!;
+const opus48 = MODEL_PRESETS.anthropic.find(
+    (model) => model.name === 'claude-opus-4-8',
+)!;
+const opus5 = MODEL_PRESETS.anthropic.find(
+    (model) => model.name === 'claude-opus-5',
+)!;
 const bedrockOpus47 = MODEL_PRESETS.bedrock.find(
     (model) => model.name === 'claude-opus-4-7',
 )!;
@@ -62,6 +68,32 @@ describe('pickAutopilotModel', () => {
                 availableModels: [sonnet, opus47, gpt],
             }),
         ).toEqual({ provider: 'anthropic', modelName: 'claude-opus-4-7' });
+    });
+
+    it('prefers the newest Opus the org may use', () => {
+        expect(
+            pickAutopilotModel({
+                orgDefault: {
+                    modelProvider: 'anthropic',
+                    modelName: sonnet.name,
+                },
+                instanceDefault: { provider: 'anthropic', name: sonnet.name },
+                availableModels: [sonnet, opus47, opus48, opus5],
+            }),
+        ).toEqual({ provider: 'anthropic', modelName: 'claude-opus-5' });
+    });
+
+    it('keeps an Opus the organisation chose instead of moving it to a newer one', () => {
+        expect(
+            pickAutopilotModel({
+                orgDefault: {
+                    modelProvider: 'anthropic',
+                    modelName: opus48.name,
+                },
+                instanceDefault: { provider: 'anthropic', name: sonnet.name },
+                availableModels: [sonnet, opus47, opus48, opus5],
+            }),
+        ).toEqual({ provider: 'anthropic', modelName: 'claude-opus-4-8' });
     });
 
     it('prefers Opus 4.7 on Bedrock too', () => {
