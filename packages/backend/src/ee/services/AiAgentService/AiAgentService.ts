@@ -2775,6 +2775,7 @@ export class AiAgentService extends BaseService {
         // envelope): pivot derivation follows the type's schema instead of
         // the builtin groupBy path.
         customChartType?: DataAppVizChart,
+        userAttributeOverrides?: UserAttributeValueMap,
     ) {
         const explore = await this.getExplore(
             user,
@@ -2842,6 +2843,7 @@ export class AiAgentService extends BaseService {
                 context: QueryExecutionContext.AI,
                 pivotConfiguration,
                 parameters: parameters ?? undefined,
+                userAttributeOverrides,
             },
         );
 
@@ -2881,6 +2883,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         toolArgs: ToolRunQueryArgsTransformed,
+        userAttributeOverrides?: UserAttributeValueMap,
     ) {
         const mergeQuery = await this.buildAiMergeQuery(
             user,
@@ -2894,6 +2897,7 @@ export class AiAgentService extends BaseService {
             context: QueryExecutionContext.AI,
             parameters: toolArgs.queryConfig.parameters ?? undefined,
             mode: { type: 'interactive' },
+            userAttributeOverrides,
         });
         if (outcome.outcome === 'refused') {
             throw new ParameterError(formatMergeQueryRefusal(outcome.errors), {
@@ -7681,6 +7685,7 @@ export class AiAgentService extends BaseService {
                 user,
                 projectUuid,
                 parsed,
+                runtimeOptions?.userAttributeOverrides,
             );
             this.analytics.track({
                 event: 'ai_agent.artifact_viz_query',
@@ -7792,6 +7797,7 @@ export class AiAgentService extends BaseService {
             artifactChartConfig.config,
             parsedVizConfig.parameters,
             customChartType,
+            runtimeOptions?.userAttributeOverrides,
         );
 
         const metadata = {
@@ -7930,6 +7936,8 @@ export class AiAgentService extends BaseService {
             parsedVizConfig.metricQuery,
             chartConfig,
             parsedVizConfig.parameters,
+            undefined,
+            runtimeOptions?.userAttributeOverrides,
         );
 
         const metadata = {
