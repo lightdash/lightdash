@@ -6048,10 +6048,42 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "pending",
+                  "description": "The change has started in the background; the pull request is opened later and this tool must not be called again to check on it.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
