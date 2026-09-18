@@ -60,14 +60,20 @@ describe('connection-scoped personal credential preference migration', () => {
             },
         );
 
-        const [{ project_id: projectId }] = await database('projects')
+        const [{ project_id: projectId }] = await database<
+            Record<string, unknown>
+        >('projects')
             .insert({ project_uuid: projectUuid })
             .returning('project_id');
-        await database('warehouse_credentials').insert({
-            warehouse_credentials_uuid: connectionUuid,
-            project_id: projectId,
-        });
-        await database('project_user_warehouse_credentials_preference').insert({
+        await database<Record<string, unknown>>('warehouse_credentials').insert(
+            {
+                warehouse_credentials_uuid: connectionUuid,
+                project_id: projectId,
+            },
+        );
+        await database<Record<string, unknown>>(
+            'project_user_warehouse_credentials_preference',
+        ).insert({
             user_uuid: userUuid,
             project_uuid: projectUuid,
             user_warehouse_credentials_uuid: userWarehouseCredentialsUuid,
