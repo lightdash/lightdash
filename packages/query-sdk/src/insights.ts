@@ -354,13 +354,25 @@ export type QueryInsights = {
     /** Anomalies that refer to this query's rows. */
     anomalies: Insight[];
     /** The anomalies whose dimension values match this row, if any. Safe to
-     *  call with the missing datum chart libraries pass between points. */
-    matches: (row: Row | null | undefined) => Insight[];
+     *  call with the missing datum chart libraries pass between points.
+     *  `fieldId` (qualified id or the app's short key) narrows to the metric
+     *  a series plots, so a revenue anomaly never marks the orders line. */
+    matches: (row: Row | null | undefined, fieldId?: string) => Insight[];
     canInvestigate: boolean;
     canContinue: boolean;
     investigate: (anomalyId: string) => void;
     continueInAskAi: (anomalyId: string) => void;
 };
+
+/** Exported for tests; hooks wrap it. */
+export const insightIsForField = (
+    anomaly: Pick<Insight, 'fieldId'>,
+    fieldId: string | undefined,
+    rowKeys?: InsightSource['rowKeys'],
+): boolean =>
+    fieldId === undefined ||
+    anomaly.fieldId === fieldId ||
+    rowKeys?.[anomaly.fieldId] === fieldId;
 
 /** Exported for tests; hooks wrap it. */
 export const rowMatchesInsight = (
@@ -452,9 +464,11 @@ export function useInsights(
         [payload.anomalies, queryUuid, source],
     );
     const matches = useCallback(
-        (row: Row | null | undefined) =>
-            anomalies.filter((a) =>
-                rowMatchesInsight(row, a.dimensionValues, format, rowKeys),
+        (row: Row | null | undefined, fieldId?: string) =>
+            anomalies.filter(
+                (a) =>
+                    insightIsForField(a, fieldId, rowKeys) &&
+                    rowMatchesInsight(row, a.dimensionValues, format, rowKeys),
             ),
         [anomalies, format, rowKeys],
     );

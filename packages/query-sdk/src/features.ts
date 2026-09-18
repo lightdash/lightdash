@@ -183,7 +183,7 @@ export const SDK_FEATURES: SdkFeature[] = [
         label: 'AI analysis',
         description:
             "Render the host's AI analysis of the current view inside the app: an executive summary with notable changes, markers on the flagged data points, and Investigate / Continue in Ask AI actions.",
-        wiring: 'Call useInsights() for the view-level headline, summary, limitations and anomalies (render a summary block; call analyse() from a Regenerate control), and useInsights(result) per chart to mark rows where matches(row) has a high, medium or positive anomaly (never info) and to offer investigate(id). On line charts render the marker as both dot and activeDot so hover cannot cover it. Render nothing when status is "unavailable".',
+        wiring: 'Wire the template\'s shipped components from src/components/insights (InsightsSummary at the top of the page; InsightMarker as both dot and activeDot, or insightCellProps on bar Cells, on every query-bound chart; InvestigateMenuItem in every point menu; InvestigationCard under the chart). A short ask such as "add AI analysis" gets the whole set. They sit on useInsights() and render nothing when the host has no analysis.',
     },
     {
         key: 'ai-prompt',

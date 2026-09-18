@@ -117,14 +117,14 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
 - `external-fetch`: `client.externalFetch(alias, opts)` calls an external
   connection linked to this app. The connection must already be linked by the
   host; you cannot add one from app code.
-- `ai-insights`: `useInsights()` returns the host's AI analysis of the current
-  view (headline, summary, limitations, anomalies) plus `analyse()`;
-  `useInsights(result)` narrows to one chart and adds `matches(row)` so flagged
-  points can be marked, with `investigate(id)` / `continueInAskAi(id)` for the
-  action menu. Render a summary block and markers (only `high`, `medium`,
-  `positive`; never `info`); on line charts the marker must also be the
-  `activeDot` so hover does not cover it. Render nothing when
-  `status === 'unavailable'`. Full contract in `/app/references/ai-analysis.md`.
+- `ai-insights`: wire the shipped components in `src/components/insights/`
+  (`InsightsSummary`, `InsightMarker` / `insightCellProps`,
+  `InvestigateMenuItem`, `InvestigationCard`) rather than writing your own:
+  summary block at the top, markers on every query-bound chart (as both `dot`
+  and `activeDot`), Investigate in every point menu, the card under the chart.
+  A short ask ("add AI analysis") gets the whole set. They sit on
+  `useInsights()` / `useInsights(result)` and render nothing when the host has
+  no analysis. Full contract in `/app/references/ai-analysis.md`.
 - `ai-prompt`: `useAiPrompt()` returns `{ available, ask, loading, text, error }`;
   `ask({ prompt, sources: [{ result, label }], focus?: { row } })` sends an
   author-written question over loaded `useLightdash` results and resolves to
