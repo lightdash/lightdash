@@ -12310,10 +12310,151 @@ Returns the terminal node's result columns and a CSV preview of its rows, plus p
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "columns": {
+                  "description": "Terminal result columns, in order.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "reference": {
+                        "description": "Column name as it appears in the rows.",
+                        "type": "string",
+                      },
+                      "type": {
+                        "enum": [
+                          "string",
+                          "number",
+                          "timestamp",
+                          "date",
+                          "boolean",
+                        ],
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "reference",
+                      "type",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "preview": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "rows": {
+                          "description": "Terminal rows keyed by column reference, capped to the first rows of the result.",
+                          "items": {
+                            "additionalProperties": false,
+                            "propertyNames": {
+                              "type": "string",
+                            },
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "truncated": {
+                          "description": "True when rowCount exceeds the preview cap, so rows is only a prefix of the result.",
+                          "type": "boolean",
+                        },
+                      },
+                      "required": [
+                        "rows",
+                        "truncated",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Rows the model was shown; null when data access is disabled or the terminal result is empty.",
+                },
+                "rowCount": {
+                  "description": "Total rows in the terminal result, before any preview cap.",
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+                "submissions": {
+                  "description": "Every node that ran in this submission, in pipeline order.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "nodeId": {
+                        "description": "Names this query so other queries in the same submission can reference its results. Also the DuckDB table name its results are exposed as.",
+                        "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                        "type": "string",
+                      },
+                      "queryUuid": {
+                        "description": "Stored result of this node. A later submission can reference it via the map form of "references" without re-running the query.",
+                        "type": "string",
+                      },
+                      "sourceType": {
+                        "enum": [
+                          "semanticLayer",
+                          "sql",
+                          "duckdb",
+                          "external",
+                        ],
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "nodeId",
+                      "sourceType",
+                      "queryUuid",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "terminalNodeId": {
+                  "description": "Node whose result the artifact shows and whose rows are returned.",
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                  "type": "string",
+                },
+                "terminalQueryUuid": {
+                  "description": "queryUuid of the terminal node result.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "terminalNodeId",
+                "terminalQueryUuid",
+                "rowCount",
+                "submissions",
+                "columns",
+                "preview",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
