@@ -38,14 +38,12 @@ import {
     IconArrowUp,
     IconBrush,
     IconExternalLink,
-    IconArrowBackUp,
     IconFileDescription,
     IconHistory,
     IconLayoutDashboard,
     IconLink,
     IconPackage,
     IconPlayerStop,
-    IconRestore,
     IconPlugConnected,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -68,7 +66,6 @@ import {
 } from 'react-router';
 import { validate as isUuidString, v4 as uuid4 } from 'uuid';
 import { AiMarkdown } from '../components/common/AiMarkdown';
-import Callout from '../components/common/Callout';
 import MantineIcon from '../components/common/MantineIcon';
 import {
     ComposerSubmitButton,
@@ -113,6 +110,7 @@ import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestio
 import { RestoreAppVersionModal } from '../features/apps/components/RestoreAppVersionModal';
 import { SampleDataButton } from '../features/apps/components/SampleDataButton';
 import ThreadDivider from '../features/apps/components/ThreadDivider';
+import { ViewingOlderVersionCard } from '../features/apps/components/ViewingOlderVersionCard';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -2558,62 +2556,25 @@ const AppGenerate: FC = () => {
                         </Box>
 
                         {/* Chat Input */}
-                        {isViewingOlderVersion && (
-                            <Box className={classes.chatInputArea}>
-                                <Callout
-                                    variant="info"
-                                    title={`You're viewing version ${previewApp?.version}`}
-                                >
-                                    <Text size="sm">
-                                        New prompts always continue from the
-                                        latest build. Return to version{' '}
-                                        {latestReadyVersion?.version}, or
-                                        restore this version as the new latest
-                                        to keep iterating from here.
-                                    </Text>
-                                    <Group gap="xs" mt="sm">
-                                        <Button
-                                            size="xs"
-                                            variant="light"
-                                            color="blue"
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconArrowBackUp}
-                                                    size={12}
-                                                />
-                                            }
-                                            onClick={() => setPin(null)}
-                                        >
-                                            Return to latest (v
-                                            {latestReadyVersion?.version})
-                                        </Button>
-                                        {previewApp &&
-                                            previewApp.version !==
-                                                latestReadyVersion?.version && (
-                                                <Button
-                                                    size="xs"
-                                                    variant="outline"
-                                                    color="blue"
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconRestore}
-                                                            size={12}
-                                                        />
-                                                    }
-                                                    disabled={isAgentWorking}
-                                                    onClick={() =>
-                                                        setRestoreTargetVersion(
-                                                            previewApp.version,
-                                                        )
-                                                    }
-                                                >
-                                                    Restore this version
-                                                </Button>
-                                            )}
-                                    </Group>
-                                </Callout>
-                            </Box>
-                        )}
+                        {isViewingOlderVersion &&
+                            previewApp &&
+                            latestReadyVersion && (
+                                <Box className={classes.chatInputArea}>
+                                    <ViewingOlderVersionCard
+                                        viewingVersion={previewApp.version}
+                                        latestVersion={
+                                            latestReadyVersion.version
+                                        }
+                                        restoreDisabled={isAgentWorking}
+                                        onRestore={() =>
+                                            setRestoreTargetVersion(
+                                                previewApp.version,
+                                            )
+                                        }
+                                        onReturnToLatest={() => setPin(null)}
+                                    />
+                                </Box>
+                            )}
 
                         {!isViewingOlderVersion && (
                             <Box className={classes.chatInputArea}>
