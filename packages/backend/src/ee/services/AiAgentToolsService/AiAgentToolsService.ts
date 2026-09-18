@@ -115,6 +115,7 @@ import {
     FindFieldsFn,
     GenerateDataAppFn,
     GetDashboardChartsFn,
+    GetDataAppBuildStatusFn,
     GetExploreFn,
     GetProjectInfoFn,
     GetSavedChartFn,
@@ -294,6 +295,7 @@ export type McpAiAgentToolsRuntime = Omit<
     | 'iterateDataApp'
     | 'listDataAppThemes'
 > & {
+    getDataAppBuildStatus: GetDataAppBuildStatusFn;
     createDocumentContent: (content: unknown) => Promise<DocumentContentResult>;
     readDocumentContent: (
         identifier: { slug: string } | { documentUuid: string },
@@ -739,6 +741,8 @@ export class AiAgentToolsService extends BaseService {
     ): McpAiAgentToolsRuntime {
         return {
             ...runtime,
+            getDataAppBuildStatus: (args) =>
+                this.getDataAppBuildStatus(context, args),
             createDocumentContent: (content) =>
                 this.createDocumentContent(context, content),
             readDocumentContent: (slug) =>
@@ -1701,18 +1705,21 @@ export class AiAgentToolsService extends BaseService {
         }
     }
 
-    /** Data apps enabled and the user may create them in the project. */
+    // Data apps enabled and the user may create them in the project. Without a
+    // project a coarse check keeps tools/list stable across set_project.
     async canGenerateDataApp(context: {
         user: SessionUser;
-        projectUuid: string;
+        projectUuid: string | undefined;
     }): Promise<boolean> {
         if (!(await this.appGenerateService.dataAppsEnabledFor(context.user))) {
             return false;
         }
-        return this.appGenerateService.canCreateDataApp(
-            context.user,
-            context.projectUuid,
-        );
+        return context.projectUuid === undefined
+            ? this.appGenerateService.canCreateAnyDataApp(context.user)
+            : this.appGenerateService.canCreateDataApp(
+                  context.user,
+                  context.projectUuid,
+              );
     }
 
     private async listDataAppThemes(
@@ -1927,6 +1934,25 @@ export class AiAgentToolsService extends BaseService {
                 );
             },
         );
+    }
+
+    /** Build status for any version the caller can see, within the agent's space scope. */
+    private async getDataAppBuildStatus(
+        context: AiAgentToolsRuntimeContext,
+        { appSlug, version }: Parameters<GetDataAppBuildStatusFn>[0],
+    ): ReturnType<GetDataAppBuildStatusFn> {
+        const source = await this.appGenerateService.getDataAppBuildStatus(
+            context.user,
+            context.projectUuid,
+            appSlug,
+            version,
+        );
+        AiAgentToolsService.assertDataAppInAgentScope(
+            context,
+            source.app.spaceUuid,
+            appSlug,
+        );
+        return source;
     }
 
     private async resolveDataAppDashboardReference(

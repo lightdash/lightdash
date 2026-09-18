@@ -173,6 +173,11 @@ import {
     toolGetDashboardChartsOutputSchema,
 } from './toolGetDashboardChartsArgs';
 import {
+    MCP_TOOL_GET_DATA_APP_BUILD_STATUS_DESCRIPTION,
+    mcpGetDataAppBuildStatusArgsSchema,
+    mcpGetDataAppBuildStatusStructuredOutputSchema,
+} from './toolGetDataAppBuildStatusArgs';
+import {
     TOOL_GET_KNOWLEDGE_DOCUMENT_CONTENT_DESCRIPTION,
     toolGetKnowledgeDocumentContentArgsSchema,
     toolGetKnowledgeDocumentContentOutputSchema,
@@ -1722,6 +1727,24 @@ export const getAiWritebackStatusToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+export const getDataAppBuildStatusToolDefinition: ToolDefinitionWithMcpOutput<
+    'getDataAppBuildStatus',
+    typeof mcpGetDataAppBuildStatusArgsSchema,
+    typeof mcpGetDataAppBuildStatusArgsSchema,
+    undefined,
+    typeof mcpGetDataAppBuildStatusStructuredOutputSchema
+> = defineTool({
+    name: 'getDataAppBuildStatus',
+    title: 'Get data app build status',
+    description: MCP_TOOL_GET_DATA_APP_BUILD_STATUS_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpGetDataAppBuildStatusArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpGetDataAppBuildStatusStructuredOutputSchema,
+    },
+});
+
 type AgentToolDefinitionsByName = {
     findExplores: typeof findExploresToolDefinition;
     findCustomChartTypes: typeof findCustomChartTypesToolDefinition;
@@ -1918,6 +1941,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listVerifiedContentToolDefinition,
     runAiWritebackToolDefinition,
     getAiWritebackStatusToolDefinition,
+    getDataAppBuildStatusToolDefinition,
 ] as const;
 
 export type BuiltInToolDefinition = ToolDefinitionInstance;
