@@ -1376,6 +1376,13 @@ export type Connection = {
     createdAt: Date;
 };
 
+/**
+ * Raised when a connection name is already taken in the project. Shared so the
+ * client can put the conflict on the Name field instead of a toast.
+ */
+export const CONNECTION_NAME_CONFLICT_MESSAGE =
+    'A connection with this name already exists in this project.';
+
 export type ConnectionCapabilities = {
     canAddConnection: boolean;
     reason?: string;

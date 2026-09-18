@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     assertRegisteredAccount,
     ConflictError,
+    CONNECTION_NAME_CONFLICT_MESSAGE,
     FeatureFlags,
     fillOmittedSecrets,
     ForbiddenError,
@@ -140,9 +141,7 @@ export class ConnectionService extends BaseService {
 
     private static mapConnectionNameConflict(error: unknown): never {
         if (isConnectionNameConflict(error)) {
-            throw new ConflictError(
-                'A connection with this name already exists in this project.',
-            );
+            throw new ConflictError(CONNECTION_NAME_CONFLICT_MESSAGE);
         }
         throw error;
     }

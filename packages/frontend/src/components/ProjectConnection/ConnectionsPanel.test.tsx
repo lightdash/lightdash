@@ -1,4 +1,8 @@
-import { WarehouseTypes, type Connection } from '@lightdash/common';
+import {
+    CONNECTION_NAME_CONFLICT_MESSAGE,
+    WarehouseTypes,
+    type Connection,
+} from '@lightdash/common';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
@@ -42,11 +46,30 @@ const secondConnection: Connection = {
     createdAt: new Date('2026-09-10T10:00:00.000Z'),
 };
 
+const storedCredentials = {
+    type: WarehouseTypes.POSTGRES,
+    host: 'localhost',
+    dbname: 'acc_marketing',
+    schema: 'public',
+    port: 6132,
+};
+
+const nameConflict = () =>
+    Promise.reject({
+        status: 'error',
+        error: {
+            statusCode: 409,
+            name: 'ConflictError',
+            message: CONNECTION_NAME_CONFLICT_MESSAGE,
+        },
+    });
+
 const routeApi = (options: {
     connections: Connection[];
     canAddConnection: boolean;
     reason?: string;
     deleteError?: string;
+    nameIsTaken?: boolean;
 }) => {
     mockApi.mockImplementation(
         ({ url, method }: { url: string; method: string }) => {
@@ -57,6 +80,25 @@ const routeApi = (options: {
                         canAddConnection: options.canAddConnection,
                         ...(options.reason ? { reason: options.reason } : {}),
                     },
+                });
+            }
+            if (url === CONNECTIONS_URL && method === 'POST') {
+                return options.nameIsTaken
+                    ? nameConflict()
+                    : Promise.resolve(options.connections[0]);
+            }
+            if (
+                url === `${CONNECTIONS_URL}/connection-1/name` &&
+                method === 'PATCH'
+            ) {
+                return options.nameIsTaken
+                    ? nameConflict()
+                    : Promise.resolve(options.connections[0]);
+            }
+            if (url === `${CONNECTIONS_URL}/connection-1` && method === 'GET') {
+                return Promise.resolve({
+                    ...options.connections[0],
+                    warehouseConnection: storedCredentials,
                 });
             }
             if (
@@ -211,5 +253,134 @@ describe('ConnectionsPanel', () => {
         await waitFor(() =>
             expect(screen.getByRole('dialog')).toBeInTheDocument(),
         );
+    });
+
+    it('puts a duplicate name on the Name field of the add dialog', async () => {
+        routeApi({
+            connections: [primaryConnection, secondConnection],
+            canAddConnection: true,
+            nameIsTaken: true,
+        });
+        const user = userEvent.setup();
+        renderWithProviders(<ConnectionsPanel projectUuid="project-uuid" />);
+
+        await user.click(
+            await screen.findByRole('button', { name: 'Add connection' }),
+        );
+        const dialog = await screen.findByRole('dialog');
+        await user.type(
+            within(dialog).getByRole('textbox', { name: /Name/ }),
+            'Reporting warehouse',
+        );
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Add connection' }),
+        );
+
+        expect(
+            await within(dialog).findByText(CONNECTION_NAME_CONFLICT_MESSAGE),
+        ).toBeInTheDocument();
+        expect(
+            within(dialog).getByRole('textbox', { name: /Name/ }),
+        ).toHaveFocus();
+    });
+
+    it('puts a duplicate name on the Name field of the rename dialog', async () => {
+        routeApi({
+            connections: [primaryConnection, secondConnection],
+            canAddConnection: true,
+            nameIsTaken: true,
+        });
+        const user = userEvent.setup();
+        renderWithProviders(<ConnectionsPanel projectUuid="project-uuid" />);
+
+        await user.click(
+            await screen.findByRole('button', {
+                name: 'Actions for Analytics warehouse',
+            }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Rename' }),
+        );
+        const dialog = await screen.findByRole('dialog');
+        const nameInput = within(dialog).getByRole('textbox', {
+            name: /Name/,
+        });
+        await user.clear(nameInput);
+        await user.type(nameInput, 'Reporting warehouse');
+        await user.click(
+            within(dialog).getByRole('button', { name: 'Save changes' }),
+        );
+
+        expect(
+            await within(dialog).findByText(CONNECTION_NAME_CONFLICT_MESSAGE),
+        ).toBeInTheDocument();
+        expect(nameInput).toHaveFocus();
+    });
+
+    it('prefills the stored connection and stops asking for saved secrets', async () => {
+        routeApi({
+            connections: [primaryConnection, secondConnection],
+            canAddConnection: true,
+        });
+        const user = userEvent.setup();
+        const { container } = renderWithProviders(
+            <ConnectionsPanel projectUuid="project-uuid" />,
+        );
+
+        await user.click(
+            await screen.findByRole('button', {
+                name: 'Actions for Analytics warehouse',
+            }),
+        );
+        await user.click(await screen.findByRole('menuitem', { name: 'Edit' }));
+
+        await waitFor(() =>
+            expect(
+                container.querySelector('input[name="warehouse.host"]'),
+            ).toHaveValue('localhost'),
+        );
+        expect(
+            container.querySelector('input[name="warehouse.dbname"]'),
+        ).toHaveValue('acc_marketing');
+        expect(
+            container.querySelector('input[name="warehouse.schema"]'),
+        ).toHaveValue('public');
+
+        // The stored user and password are never returned, so the fields stay
+        // blank and must not read as "fill this in".
+        const userInput = container.querySelector(
+            'input[name="warehouse.user"]',
+        );
+        expect(userInput).toHaveValue('');
+        expect(userInput).not.toBeRequired();
+        expect(userInput).toHaveAttribute('placeholder', '**************');
+        expect(
+            container.querySelector('input[name="warehouse.password"]'),
+        ).not.toBeRequired();
+    });
+
+    it('still requires a user and password when adding a connection', async () => {
+        routeApi({
+            connections: [primaryConnection, secondConnection],
+            canAddConnection: true,
+        });
+        const user = userEvent.setup();
+        const { container } = renderWithProviders(
+            <ConnectionsPanel projectUuid="project-uuid" />,
+        );
+
+        await user.click(
+            await screen.findByRole('button', { name: 'Add connection' }),
+        );
+        await screen.findByRole('dialog');
+
+        await waitFor(() =>
+            expect(
+                container.querySelector('input[name="warehouse.user"]'),
+            ).toBeRequired(),
+        );
+        expect(
+            container.querySelector('input[name="warehouse.password"]'),
+        ).toBeRequired();
     });
 });
