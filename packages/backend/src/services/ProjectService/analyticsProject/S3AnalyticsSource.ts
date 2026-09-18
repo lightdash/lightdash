@@ -3,6 +3,12 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ParameterError } from '@lightdash/common';
 import { type DuckdbParquetSource } from '@lightdash/warehouses';
 import {
+    usageDimensionKey,
+    usageDimensionNames,
+    usageDimensionSchemas,
+    usageDimensionTable,
+} from '../../../analytics/eventStream/usageDimensions';
+import {
     createS3ClientFromConfig,
     type S3ConnectionConfig,
 } from '../../../clients/Aws/S3BaseClient';
@@ -57,6 +63,7 @@ export const createS3AnalyticsSourceResolver = ({
     return async () => {
         const client = createS3ClientFromConfig(config);
         const tables = new Map<string, string[]>();
+        let hasEvents = false;
         try {
             let continuationToken: string | undefined;
             let pages = 0;
@@ -78,12 +85,20 @@ export const createS3AnalyticsSourceResolver = ({
                         throw new Error('Unexpected analytics object scope');
                     }
                     const match =
-                        /^stream=(query_events|ai_usage|data_app_events)\/dt=(\d{4}-\d{2}-\d{2})\/[a-zA-Z0-9_-]+\.parquet$/.exec(
+                        /^stream=(query_events|ai_usage|data_app_events|export_events)\/dt=(\d{4}-\d{2}-\d{2})\/[a-zA-Z0-9_-]+\.parquet$/.exec(
                             key.slice(prefix.length),
                         );
+                    const dimension = usageDimensionNames.find(
+                        (name) =>
+                            key === usageDimensionKey(organizationUuid, name),
+                    );
+                    const tableName =
+                        match?.[1] ??
+                        (dimension ? usageDimensionTable(dimension) : null);
                     // Expose all retained partitions. Date filters belong to
                     // the Explore query, not a fixed source-level window.
-                    if (match) {
+                    if (tableName) {
+                        if (match) hasEvents = true;
                         fileCount += 1;
                         if (fileCount > MAX_FILES)
                             throw new Error(
@@ -95,9 +110,9 @@ export const createS3AnalyticsSourceResolver = ({
                             new GetObjectCommand({ Bucket: bucket, Key: key }),
                             { expiresIn: SIGNED_URL_LIFETIME_SECONDS },
                         );
-                        const urls = tables.get(match[1]) ?? [];
+                        const urls = tables.get(tableName) ?? [];
                         urls.push(url);
-                        tables.set(match[1], urls);
+                        tables.set(tableName, urls);
                     }
                 }
                 pages += 1;
@@ -115,7 +130,7 @@ export const createS3AnalyticsSourceResolver = ({
         } finally {
             client.destroy();
         }
-        if (tables.size === 0) {
+        if (!hasEvents) {
             throw new ParameterError(
                 'No analytics data is available yet. Newly captured events become available after daily processing. Try again after the next daily update.',
             );
@@ -123,6 +138,12 @@ export const createS3AnalyticsSourceResolver = ({
         return {
             scope,
             signedUrls: true,
+            emptyTables: usageDimensionNames
+                .filter((name) => !tables.has(usageDimensionTable(name)))
+                .map((name) => ({
+                    name: usageDimensionTable(name),
+                    columns: usageDimensionSchemas[name],
+                })),
             tables: [...tables].map(([name, urls]) => ({
                 name,
                 urls: urls.sort(),

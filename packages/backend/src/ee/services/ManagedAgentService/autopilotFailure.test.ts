@@ -21,7 +21,6 @@ vi.mock('@sentry/node', async () => {
 
 const context = {
     stage: 'run' as const,
-    runtime: 'ai-sdk' as const,
     organizationUuid: 'org-uuid',
     projectUuid: 'project-uuid',
     runUuid: 'run-uuid',
@@ -70,7 +69,6 @@ describe('captureAutopilotFailure', () => {
 
         expect(setTags).toHaveBeenNthCalledWith(1, {
             'autopilot.stage': 'run',
-            'autopilot.runtime': 'ai-sdk',
             'autopilot.runUuid': 'run-uuid',
             'ai.provider': 'azure',
             'ai.model': 'gpt-5.4',
@@ -101,13 +99,11 @@ describe('captureAutopilotFailure', () => {
         captureAutopilotFailure('socket hang up', {
             ...context,
             stage: 'session',
-            runtime: 'anthropic-managed',
             attribution: null,
         });
         expect(setTags).toHaveBeenCalledWith(
             expect.objectContaining({
                 'autopilot.stage': 'session',
-                'autopilot.runtime': 'anthropic-managed',
                 'ai.provider': 'unknown',
                 'ai.model': 'unknown',
             }),

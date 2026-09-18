@@ -11,6 +11,7 @@ import {
 import { RoadmapDetails, RoadmapRailRow } from './RoadmapDetails';
 import styles from './RoadmapDetails.module.css';
 import { getProjectPresentation } from './roadmapPresentation';
+import { RoadmapSlackThreadsRow } from './RoadmapSlackThreads';
 
 export function RoadmapProjectDetails({
     item,
@@ -115,6 +116,9 @@ export function RoadmapProjectDetails({
                                 Following
                             </Text>
                         </RoadmapRailRow>
+                    )}
+                    {item && (
+                        <RoadmapSlackThreadsRow urls={item.slackThreadUrls} />
                     )}
                 </>
             )}

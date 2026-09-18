@@ -59,12 +59,15 @@ import type {
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
     ApiDataAppActivityResponse,
+    ApiDataAppAnalysisLookupResponse,
     ApiDataAppAnalysisResponse,
     ApiDataAppDetectResponse,
     ApiDataAppInvestigateResponse,
+    ApiDataAppPromptResponse,
     ApiDataAppVizDeleteImpactResponse,
     ApiDataAppVizPreviewTokenResponse,
     ApiDataAppVizRenderMetadataResponse,
+    ApiDataAppVizUpgradeImpactResponse,
     ApiExternalConnectionAsCodeListResponse,
     ApiExternalConnectionAsCodeUpsertResponse,
     ApiGenerateAppResponse,
@@ -1553,8 +1556,10 @@ type ApiResults =
     | ApiAiOrganizationSettingsResponse['results']
     | ApiAiOrganizationRuntimeSettingsResponse['results']
     | ApiDataAppDetectResponse['results']
+    | ApiDataAppAnalysisLookupResponse['results']
     | ApiDataAppAnalysisResponse['results']
     | ApiDataAppInvestigateResponse['results']
+    | ApiDataAppPromptResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiAiReviewNotificationSettingsResponse['results']
     | ApiAiRouterResponse['results']
@@ -1593,6 +1598,7 @@ type ApiResults =
     | ApiInstallRegistryChartTypeResponse['results']
     | ApiGetDataAppVizResponse['results']
     | ApiDataAppVizDeleteImpactResponse['results']
+    | ApiDataAppVizUpgradeImpactResponse['results']
     | ApiDataAppVizRenderMetadataResponse['results']
     | ApiDataAppVizPreviewTokenResponse['results']
     | ApiMyAppsResponse['results']

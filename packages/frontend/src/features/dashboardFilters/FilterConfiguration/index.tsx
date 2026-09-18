@@ -21,6 +21,7 @@ import {
     type ResultColumn,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Button,
     Flex,
@@ -32,7 +33,7 @@ import {
     Tooltip,
     type PopoverProps,
 } from '@mantine/core';
-import { IconRotate2, IconSql } from '@tabler/icons-react';
+import { IconInfoCircle, IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { flushSync } from 'react-dom';
@@ -533,6 +534,31 @@ const FilterConfiguration: FC<Props> = ({
                                     </Text>
                                 ) : (
                                     <FieldLabel item={selectedField} fz="sm" />
+                                )}
+                                {selectedField.description?.trim() && (
+                                    <Tooltip
+                                        label={selectedField.description}
+                                        events={{
+                                            hover: true,
+                                            focus: true,
+                                            touch: true,
+                                        }}
+                                        multiline
+                                        maw={300}
+                                        withinPortal={false}
+                                    >
+                                        <ActionIcon
+                                            size="xs"
+                                            aria-label={
+                                                selectedField.description
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={IconInfoCircle}
+                                                color="dimmed"
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
                                 )}
                             </Group>
                         ) : (

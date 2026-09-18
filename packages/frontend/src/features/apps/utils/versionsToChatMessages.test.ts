@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { versionNarrationTexts } from './versionNarration';
 import {
     versionsToChatMessages,
+    versionsToThreadChat,
     type ChatMessageFallbacks,
 } from './versionsToChatMessages';
 
@@ -18,6 +19,8 @@ const version = (
     overrides: Partial<ApiAppVersionSummary> = {},
 ): ApiAppVersionSummary => ({
     version: 1,
+    threadUuid: 'app-thread-1',
+    threadNumber: 1,
     prompt: 'stacked bars per shipping method',
     status: 'ready',
     statusMessage: null,
@@ -211,6 +214,113 @@ describe('versionsToChatMessages', () => {
     it('handles a missing author', () => {
         const [user] = convert([version({ createdByUser: null })]);
         expect(user.userName).toBeNull();
+    });
+});
+
+describe('versionsToThreadChat', () => {
+    const inThread = (threadNumber: number, v: number, prompt = `v${v}`) =>
+        version({
+            version: v,
+            prompt,
+            threadUuid: `app-thread-${threadNumber}`,
+            threadNumber,
+        });
+    const prompts = (chat: ReturnType<typeof versionsToThreadChat>) =>
+        chat.messages.filter((m) => m.role === 'user').map((m) => m.content);
+
+    it('turns only the newest thread into bubbles', () => {
+        const chat = versionsToThreadChat(
+            [inThread(1, 1), inThread(1, 2), inThread(2, 3), inThread(2, 4)],
+            2,
+        );
+        expect(prompts(chat)).toEqual(['v3', 'v4']);
+    });
+
+    it('names the last ready version before the clear on the divider', () => {
+        const chat = versionsToThreadChat(
+            [
+                inThread(1, 1),
+                inThread(1, 2),
+                version({ version: 3, status: 'error' }),
+                inThread(2, 4),
+            ],
+            2,
+        );
+        expect(chat.divider).toEqual({ fromVersion: 2 });
+    });
+
+    it('emits no divider for a single thread', () => {
+        const chat = versionsToThreadChat([inThread(1, 1), inThread(1, 2)], 1);
+        expect(chat.divider).toBeNull();
+        expect(prompts(chat)).toEqual(['v1', 'v2']);
+    });
+
+    it('renders a freshly cleared thread as the divider alone', () => {
+        const chat = versionsToThreadChat([inThread(1, 1), inThread(1, 2)], 2);
+        expect(chat.messages).toEqual([]);
+        expect(chat.divider).toEqual({ fromVersion: 2 });
+    });
+
+    it('prefers the app response over the versions for the current thread', () => {
+        // The app says thread 3 exists even though nothing was built in it.
+        const chat = versionsToThreadChat([inThread(2, 5)], 3);
+        expect(chat.messages).toEqual([]);
+        expect(chat.divider).toEqual({ fromVersion: 5 });
+    });
+
+    it('falls back to the newest loaded thread without an app response', () => {
+        const chat = versionsToThreadChat(
+            [inThread(1, 1), inThread(2, 2), inThread(3, 3)],
+            null,
+        );
+        expect(prompts(chat)).toEqual(['v3']);
+        expect(chat.divider).toEqual({ fromVersion: 2 });
+    });
+
+    it('shows a restore made from history as the newest bubble', () => {
+        const chat = versionsToThreadChat(
+            [
+                inThread(1, 1),
+                inThread(1, 2),
+                inThread(2, 3, 'Restore version 1'),
+            ],
+            2,
+        );
+        expect(prompts(chat)).toEqual(['Restore version 1']);
+        expect(chat.messages.at(-1)?.version).toBe(3);
+    });
+
+    it('names the version below the thread while earlier pages are unloaded', () => {
+        const chat = versionsToThreadChat(
+            [inThread(2, 7), inThread(2, 8), inThread(2, 9)],
+            2,
+        );
+        expect(chat.divider).toEqual({ fromVersion: 6 });
+        expect(chat.isThreadComplete).toBe(false);
+    });
+
+    it('knows the thread is complete once an earlier thread is loaded', () => {
+        expect(
+            versionsToThreadChat([inThread(1, 6), inThread(2, 7)], 2)
+                .isThreadComplete,
+        ).toBe(true);
+        expect(
+            versionsToThreadChat([inThread(1, 1), inThread(1, 2)], 1)
+                .isThreadComplete,
+        ).toBe(true);
+        expect(
+            versionsToThreadChat([inThread(1, 5), inThread(1, 6)], 1)
+                .isThreadComplete,
+        ).toBe(false);
+    });
+
+    it('keeps a second clear to a single divider in the chat', () => {
+        const chat = versionsToThreadChat(
+            [inThread(1, 1), inThread(2, 2), inThread(3, 3)],
+            3,
+        );
+        expect(prompts(chat)).toEqual(['v3']);
+        expect(chat.divider).toEqual({ fromVersion: 2 });
     });
 });
 

@@ -245,7 +245,7 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
                 element: (
                     <ProjectSettingsPage
                         title="Verified content"
-                        description="Review verified charts and dashboards in this project."
+                        description="Review verified charts, dashboards, and data apps in this project."
                     >
                         <VerifiedContentPanel projectUuid={projectUuid} />
                     </ProjectSettingsPage>

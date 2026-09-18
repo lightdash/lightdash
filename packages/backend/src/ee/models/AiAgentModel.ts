@@ -67,6 +67,7 @@ import {
     CreateSlackThread,
     CreateWebAppPrompt,
     CreateWebAppThread,
+    EE_SCHEDULER_TASKS,
     elementReferenceToWireString,
     generateSlug,
     getAppDisplayName,
@@ -5483,6 +5484,7 @@ export class AiAgentModel {
                 projectUuid: `${AiThreadTableName}.project_uuid`,
                 promptUuid: `${AiPromptTableName}.ai_prompt_uuid`,
                 threadUuid: `${AiPromptTableName}.ai_thread_uuid`,
+                threadCreatedFrom: `${AiThreadTableName}.created_from`,
                 agentUuid: `${AiThreadTableName}.agent_uuid`,
                 createdByUserUuid: `${AiPromptTableName}.created_by_user_uuid`,
                 prompt: `${AiPromptTableName}.prompt`,
@@ -6438,6 +6440,7 @@ export class AiAgentModel {
                 projectUuid: `${AiThreadTableName}.project_uuid`,
                 promptUuid: `${AiPromptTableName}.ai_prompt_uuid`,
                 threadUuid: `${AiPromptTableName}.ai_thread_uuid`,
+                threadCreatedFrom: `${AiThreadTableName}.created_from`,
                 agentUuid: `${AiThreadTableName}.agent_uuid`,
                 createdByUserUuid: `${AiPromptTableName}.created_by_user_uuid`,
                 userUuid: `${AiWebAppPromptTableName}.user_uuid`,
@@ -9491,6 +9494,70 @@ export class AiAgentModel {
                         : null,
             })),
         };
+    }
+
+    // A result stays running only while a worker holds its Graphile job.
+    // No job, an unlocked job (fail_job on shutdown) or a lock older than the
+    // eval timeout all mean the handler died before it could write a verdict.
+    async failInterruptedEvalRunResults({
+        staleLockThresholdMinutes,
+        errorMessage,
+    }: {
+        staleLockThresholdMinutes: number;
+        errorMessage: string;
+    }): Promise<Array<{ runUuid: string; resultUuid: string }>> {
+        const { rows } = await this.database.raw<{
+            rows: Array<{
+                ai_eval_run_uuid: string;
+                ai_eval_run_result_uuid: string;
+            }>;
+        }>(
+            `UPDATE ${AiEvalRunResultTableName} AS result
+             SET status = 'failed', error_message = ?, completed_at = now()
+             WHERE result.status IN ('running', 'assessing')
+               AND NOT EXISTS (
+                 SELECT 1
+                 FROM graphile_worker.jobs AS job
+                 WHERE job.task_identifier = ?
+                   AND job.payload->>'evalRunResultUuid' = result.ai_eval_run_result_uuid::text
+                   AND job.locked_by IS NOT NULL
+                   AND job.locked_at > now() - (? * interval '1 minute')
+               )
+             RETURNING result.ai_eval_run_uuid, result.ai_eval_run_result_uuid`,
+            [
+                errorMessage,
+                EE_SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT,
+                staleLockThresholdMinutes,
+            ],
+        );
+        return rows.map((row) => ({
+            runUuid: row.ai_eval_run_uuid,
+            resultUuid: row.ai_eval_run_result_uuid,
+        }));
+    }
+
+    async findEvalRunsAwaitingCompletion(): Promise<string[]> {
+        const rows = await this.database(AiEvalRunTableName)
+            .select('ai_eval_run_uuid')
+            .whereIn('status', ['pending', 'running'])
+            .whereExists((query) => {
+                void query
+                    .select('ai_eval_run_result_uuid')
+                    .from(AiEvalRunResultTableName)
+                    .whereRaw(
+                        `${AiEvalRunResultTableName}.ai_eval_run_uuid = ${AiEvalRunTableName}.ai_eval_run_uuid`,
+                    );
+            })
+            .whereNotExists((query) => {
+                void query
+                    .select('ai_eval_run_result_uuid')
+                    .from(AiEvalRunResultTableName)
+                    .whereRaw(
+                        `${AiEvalRunResultTableName}.ai_eval_run_uuid = ${AiEvalRunTableName}.ai_eval_run_uuid`,
+                    )
+                    .whereNotIn('status', ['completed', 'failed']);
+            });
+        return rows.map((row) => row.ai_eval_run_uuid);
     }
 
     async checkAndUpdateEvalRunCompletion(evalRunUuid: string): Promise<void> {

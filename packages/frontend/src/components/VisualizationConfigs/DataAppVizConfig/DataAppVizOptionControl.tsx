@@ -1,4 +1,5 @@
 import {
+    ECHARTS_DEFAULT_COLORS,
     assertUnreachable,
     getEffectiveOptionValue,
     type DataAppVizConfigOption,
@@ -113,15 +114,20 @@ const TextOptionControl: FC<{
 const ColorOptionControl: FC<{
     option: OptionOfType<'color'>;
     value: string;
+    colorPalette: string[];
     onChange: (value: string) => void;
-}> = ({ option, value, onChange }) => {
+}> = ({ option, value, colorPalette, onChange }) => {
     const draft = usePendingEdit(value, onChange);
     return (
         <Config.Group>
             <Config.Label>{option.label}</Config.Label>
             <ColorSelector
                 color={draft.current}
-                swatches={[]}
+                swatches={
+                    colorPalette.length > 0
+                        ? colorPalette
+                        : ECHARTS_DEFAULT_COLORS
+                }
                 ariaLabel={option.label}
                 onColorChange={draft.edit}
             />
@@ -133,6 +139,8 @@ type Props = {
     option: DataAppVizConfigOption;
     /** Effective value: the stored value, or the declared default. */
     value: DataAppVizOptionValue;
+    /** The resolved chart palette, including the current color scheme. */
+    colorPalette?: string[];
     onChange: (value: DataAppVizOptionValue) => void;
 };
 
@@ -141,7 +149,12 @@ type Props = {
  * from untyped JSONB, so the same resolver the host pushes into the iframe
  * decides what each control shows.
  */
-const DataAppVizOptionControl: FC<Props> = ({ option, value, onChange }) => {
+const DataAppVizOptionControl: FC<Props> = ({
+    option,
+    value,
+    colorPalette = [],
+    onChange,
+}) => {
     switch (option.type) {
         case 'boolean':
             return (
@@ -180,6 +193,7 @@ const DataAppVizOptionControl: FC<Props> = ({ option, value, onChange }) => {
                 <ColorOptionControl
                     option={option}
                     value={getEffectiveOptionValue(option, value)}
+                    colorPalette={colorPalette}
                     onChange={onChange}
                 />
             );

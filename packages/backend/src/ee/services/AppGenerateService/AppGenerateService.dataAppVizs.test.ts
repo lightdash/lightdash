@@ -129,6 +129,11 @@ function buildService(
         sandboxManager: null,
         appRuntimeS3: null,
         chartRegistryClient: {} as never,
+        contentVerificationModel: {
+            getByContent: async () => null,
+            verify: async () => undefined,
+            unverify: async () => undefined,
+        } as never,
     });
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (
@@ -669,6 +674,58 @@ describe('AppGenerateService data app vizs', () => {
             ).resolves.toMatchObject({ state: 'ready', version: 1 });
         });
 
+        it('renders an immutable chart-less artifact on its explicit version', async () => {
+            const versionTwoSchema = {
+                ...vizSchema,
+                fields: [
+                    ...vizSchema.fields,
+                    {
+                        name: 'series',
+                        label: 'Series',
+                        type: 'series' as const,
+                        required: false,
+                    },
+                ],
+            };
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn().mockResolvedValue(
+                    makeVersion({
+                        version: 2,
+                        viz_schema: versionTwoSchema,
+                    }),
+                ),
+                getLatestVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 3 })),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 3 })),
+            };
+            const service = buildService(appModel);
+
+            await expect(
+                service.getDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'data-app-viz-1',
+                    2,
+                ),
+            ).resolves.toEqual({
+                state: 'ready',
+                version: 2,
+                schema: versionTwoSchema,
+                latestBuildInProgress: false,
+            });
+            expect(appModel.getVersion).toHaveBeenCalledWith(
+                'data-app-viz-1',
+                2,
+            );
+            expect(appModel.getLatestVersion).not.toHaveBeenCalled();
+        });
+
         it('forbids a plain viewer from the chart-less authoring preview', async () => {
             const appModel = {
                 findVisualizationApp: vi
@@ -1184,6 +1241,8 @@ describe('AppGenerateService data app vizs', () => {
             created_by_user_uuid: 'user-1',
             created_by_user_first_name: 'A',
             created_by_user_last_name: 'B',
+            app_thread_uuid: 'thread-1',
+            thread_number: 1,
             ...overrides,
         });
         const appModel = {
@@ -1198,6 +1257,11 @@ describe('AppGenerateService data app vizs', () => {
                 template: DATA_APP_VIZ_TEMPLATE,
                 pinnedListUuid: null,
                 pinnedListOrder: null,
+                currentThread: {
+                    app_thread_uuid: 'thread-1',
+                    thread_number: 1,
+                    created_at: new Date('2026-06-30'),
+                },
                 hasMore: false,
                 versions: [
                     makeVersion({ version: 2, viz_schema: vizSchema }),
@@ -1447,5 +1511,102 @@ describe('getDataAppVizDeleteImpact', () => {
             service.getDataAppVizDeleteImpact(USER, 'project-1', 'missing-viz'),
         ).rejects.toThrow(NotFoundError);
         expect(countChartsUsingDataAppViz).not.toHaveBeenCalled();
+    });
+});
+
+describe('getDataAppVizUpgradeImpact', () => {
+    it('returns consumer and pinned counts for a chart type installer', async () => {
+        const findVisualizationApp = vi
+            .fn()
+            .mockResolvedValue(makeDataAppVizRow());
+        const getDataAppVizUsageCounts = vi
+            .fn()
+            .mockResolvedValue({ chartCount: 5, pinnedChartCount: 3 });
+        const { service, user } = buildServiceWithRealAbility(
+            { findVisualizationApp },
+            OrganizationMemberRole.ADMIN,
+            'user-1',
+            { savedChartModel: { getDataAppVizUsageCounts } },
+        );
+
+        await expect(
+            service.getDataAppVizUpgradeImpact(
+                user,
+                'project-1',
+                'data-app-viz-1',
+            ),
+        ).resolves.toEqual({ chartCount: 5, pinnedChartCount: 3 });
+        expect(findVisualizationApp).toHaveBeenCalledWith(
+            'data-app-viz-1',
+            'project-1',
+        );
+        expect(getDataAppVizUsageCounts).toHaveBeenCalledWith(
+            'project-1',
+            'data-app-viz-1',
+        );
+    });
+
+    it('does not disclose counts to users who cannot install chart types', async () => {
+        const getDataAppVizUsageCounts = vi.fn();
+        const { service, user } = buildServiceWithRealAbility(
+            {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+            },
+            OrganizationMemberRole.VIEWER,
+            'other-user',
+            { savedChartModel: { getDataAppVizUsageCounts } },
+        );
+
+        await expect(
+            service.getDataAppVizUpgradeImpact(
+                user,
+                'project-1',
+                'data-app-viz-1',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(getDataAppVizUsageCounts).not.toHaveBeenCalled();
+    });
+
+    it('rejects a missing chart type before querying consumers', async () => {
+        const getDataAppVizUsageCounts = vi.fn();
+        const service = buildService(
+            { findVisualizationApp: vi.fn().mockResolvedValue(undefined) },
+            { savedChartModel: { getDataAppVizUsageCounts } },
+        );
+
+        await expect(
+            service.getDataAppVizUpgradeImpact(
+                USER,
+                'project-1',
+                'missing-viz',
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(getDataAppVizUsageCounts).not.toHaveBeenCalled();
+    });
+
+    it('is gated on the chart type library flag', async () => {
+        const getDataAppVizUsageCounts = vi.fn();
+        const service = buildService(
+            {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+            },
+            {
+                savedChartModel: { getDataAppVizUsageCounts },
+                featureFlags: { [FeatureFlags.ChartTypeRegistry]: false },
+            },
+        );
+
+        await expect(
+            service.getDataAppVizUpgradeImpact(
+                USER,
+                'project-1',
+                'data-app-viz-1',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(getDataAppVizUsageCounts).not.toHaveBeenCalled();
     });
 });

@@ -1,8 +1,4 @@
-import {
-    ChartType,
-    type Document,
-    type DocumentCellV3,
-} from '@lightdash/common';
+import { ChartType, type Document, type DocumentCell } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -14,6 +10,7 @@ import DocumentPage from './Document';
 const mocks = vi.hoisted(() => ({
     api: vi.fn(),
     chartFails: false,
+    chart: vi.fn(),
     flag: { data: { enabled: true }, isInitialLoading: false, isError: false },
 }));
 
@@ -24,6 +21,9 @@ vi.mock('../features/documents/DocumentActions', () => ({
 }));
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
+}));
+vi.mock('../hooks/useProjectRoute', () => ({
+    useProjectUrlIdentifier: () => 'project-slug',
 }));
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => mocks.flag,
@@ -43,11 +43,9 @@ vi.mock('../components/common/Page/Page', () => ({
     ),
 }));
 vi.mock('../features/documents/DocumentChart', () => ({
-    default: ({
-        cell,
-    }: {
-        cell: Extract<DocumentCellV3, { type: 'chart' }>;
-    }) => {
+    default: (props: { cell: Extract<DocumentCell, { type: 'chart' }> }) => {
+        mocks.chart(props);
+        const { cell } = props;
         if (mocks.chartFails) {
             throw new Error('Chart rendering failed');
         }
@@ -57,8 +55,7 @@ vi.mock('../features/documents/DocumentChart', () => ({
     },
 }));
 
-const chart: DocumentCellV3 = {
-    id: 'chart',
+const chart: DocumentCell = {
     type: 'chart',
     content: {
         source: 'semantic',
@@ -92,11 +89,10 @@ const document: Document = {
     version: {
         versionUuid: 'version-uuid',
         versionNumber: 1,
-        schemaVersion: 3,
+        schemaVersion: 1,
         content: {
             cells: [
                 {
-                    id: 'intro',
                     type: 'markdown',
                     content: {
                         markdown: '# Findings\n\nSupporting findings',
@@ -104,7 +100,6 @@ const document: Document = {
                 },
                 chart,
                 {
-                    id: 'end',
                     type: 'markdown',
                     content: {
                         markdown: '# Recommendations\n\nNext steps',
@@ -117,7 +112,10 @@ const document: Document = {
     },
 };
 
-const renderPage = (returnTo?: string) => {
+const renderPage = (
+    returnTo?: string,
+    documentIdentifier = 'document-uuid',
+) => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, cacheTime: 0 } },
         logger: { log: () => {}, warn: () => {}, error: () => {} },
@@ -125,7 +123,7 @@ const renderPage = (returnTo?: string) => {
     const router = createMemoryRouter(
         [
             {
-                path: '/projects/:projectUuid/documents/:documentUuid',
+                path: '/projects/:projectUuid/documents/:documentUuidOrSlug',
                 element: <DocumentPage />,
             },
             {
@@ -143,7 +141,7 @@ const renderPage = (returnTo?: string) => {
         ],
         {
             initialEntries: [
-                `/projects/project-slug/documents/document-uuid${returnTo === undefined ? '' : `?returnTo=${encodeURIComponent(returnTo)}`}`,
+                `/projects/project-slug/documents/${documentIdentifier}${returnTo === undefined ? '' : `?returnTo=${encodeURIComponent(returnTo)}`}`,
             ],
         },
     );
@@ -160,6 +158,7 @@ const renderPage = (returnTo?: string) => {
 describe('Document page', () => {
     beforeEach(() => {
         mocks.chartFails = false;
+        mocks.chart.mockReset();
         mocks.api.mockReset();
         mocks.api.mockResolvedValue(document);
         mocks.flag = {
@@ -244,6 +243,25 @@ describe('Document page', () => {
         expect(await screen.findByText('Document list')).toBeInTheDocument();
     });
 
+    test('loads a document slug but passes resolved UUIDs to chart queries', async () => {
+        renderPage(undefined, 'weekly-review');
+        expect(await screen.findByTestId('document-chart')).toBeInTheDocument();
+        expect(mocks.api).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/projects/project-uuid/documents/weekly-review',
+                method: 'GET',
+            }),
+        );
+        expect(mocks.chart).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project-uuid',
+                documentUuid: 'document-uuid',
+                versionUuid: 'version-uuid',
+                cellIndex: 1,
+            }),
+        );
+    });
+
     test('shows report contents linked to the document sections', async () => {
         renderPage();
         const heading = await screen.findByRole('heading', {
@@ -255,14 +273,14 @@ describe('Document page', () => {
         expect(
             screen.getByRole('button', { name: 'Findings' }),
         ).toBeInTheDocument();
-        expect(heading).toHaveAttribute('id', 'document-heading-intro-0');
+        expect(heading).toHaveAttribute('id', 'document-heading-0-0');
         expect(heading.tagName).toBe('H1');
         expect(heading.closest('section')).toHaveClass(
             reportStyles.reportFinding,
         );
         expect(
             screen.getByRole('heading', { name: 'Recommendations' }),
-        ).toHaveAttribute('id', 'document-heading-end-0');
+        ).toHaveAttribute('id', 'document-heading-2-0');
     });
 
     test('omits chart names and Markdown H2s from the contents', async () => {
@@ -273,7 +291,6 @@ describe('Document page', () => {
                 content: {
                     cells: [
                         {
-                            id: 'untitled',
                             type: 'markdown',
                             content: { markdown: '## Embedded heading' },
                         },
@@ -374,7 +391,6 @@ describe('Document page', () => {
                 content: {
                     cells: [
                         {
-                            id: 'safe-title',
                             type: 'chart',
                             content: {
                                 ...chart.content,
@@ -414,7 +430,7 @@ describe('Document page', () => {
                 content: {
                     cells: [
                         document.version.content.cells[0],
-                        { id: 'widget', type: 'widget', content: {} },
+                        { type: 'widget', content: {} },
                     ],
                 },
             },
@@ -445,7 +461,7 @@ describe('Document page', () => {
         renderPage('https://example.com/projects/project-uuid/research');
         expect(
             await screen.findByRole('link', { name: 'Back' }),
-        ).toHaveAttribute('href', '/projects/project-uuid/documents');
+        ).toHaveAttribute('href', '/projects/project-slug/documents');
     });
 
     test.each(['Weekly review', 'A long document name '.repeat(20)])(
@@ -483,7 +499,6 @@ describe('Document page', () => {
                 content: {
                     cells: [
                         {
-                            id: 'unsafe',
                             type: 'markdown',
                             content: {
                                 markdown: [

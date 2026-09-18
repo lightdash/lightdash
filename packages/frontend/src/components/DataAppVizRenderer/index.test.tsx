@@ -1,5 +1,6 @@
 import { DimensionType, FieldType, MetricType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
+import { captureException } from '@sentry/react';
 import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChartColorMappingContext } from '../../hooks/useChartColorConfig/context';
@@ -21,6 +22,7 @@ const mocks = vi.hoisted(() => ({
                           label: string;
                           type: 'dimension' | 'metric';
                           required: boolean;
+                          multiple?: boolean;
                       }>;
                       configOptions: Array<{
                           type: 'text';
@@ -55,6 +57,12 @@ const mocks = vi.hoisted(() => ({
     embedToken: { current: undefined as string | undefined },
     dataAppVizUuid: { current: 'viz-uuid' as string | null },
     dataAppVizVersion: { current: 7 as number | undefined },
+    fieldMapping: {
+        current: { category: 'orders_category' } as Record<
+            string,
+            string | string[]
+        >,
+    },
     setDataAppVizVersion: vi.fn(),
     iframePreview: vi.fn(
         (_props: {
@@ -90,6 +98,9 @@ vi.mock('react-router', () => ({
     Link: ({ to, children }: { to: string; children: React.ReactNode }) => (
         <a href={to}>{children}</a>
     ),
+}));
+vi.mock('@sentry/react', () => ({
+    captureException: vi.fn(),
 }));
 vi.mock('../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
@@ -161,7 +172,7 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
                               dataAppVizUuid: mocks.dataAppVizUuid.current,
                               dataAppVizVersion:
                                   mocks.dataAppVizVersion.current,
-                              fieldMapping: { category: 'orders_category' },
+                              fieldMapping: mocks.fieldMapping.current,
                               optionValues: { title: 12 },
                           },
                 setDataAppVizVersion: mocks.setDataAppVizVersion,
@@ -276,6 +287,7 @@ const readyMetadata = () => ({
 describe('DataAppVizRenderer', () => {
     beforeEach(() => {
         mocks.metadata.current = readyMetadata();
+        mocks.fieldMapping.current = { category: 'orders_category' };
         mocks.metadataError.current = undefined;
         mocks.token.current = 'preview-token';
         mocks.tokenError.current = undefined;
@@ -434,12 +446,37 @@ describe('DataAppVizRenderer', () => {
             state: 'unavailable',
             latestBuildInProgress: false,
         };
-        mocks.vizContextOverrides.current = { savedChartUuid: undefined };
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: true,
+        };
 
         renderRenderer();
 
         expect(
             screen.getByText('Custom chart type preview is unavailable.'),
+        ).toBeInTheDocument();
+    });
+
+    it('explains how to recover a chartless artifact whose recorded version is unavailable', () => {
+        mocks.metadata.current = {
+            state: 'unavailable',
+            latestBuildInProgress: false,
+        };
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: false,
+        };
+
+        renderRenderer();
+
+        expect(
+            screen.getByText('Custom chart type version 7 is unavailable.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Regenerate the chart to use a renderable version.',
+            ),
         ).toBeInTheDocument();
     });
 
@@ -553,6 +590,29 @@ describe('DataAppVizRenderer', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('reports unexpected load failures to Sentry', () => {
+        vi.mocked(captureException).mockClear();
+        mocks.token.current = undefined;
+        mocks.tokenError.current = apiError(500);
+
+        renderRenderer();
+
+        expect(captureException).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(captureException).mock.calls[0][1]).toMatchObject({
+            tags: { errorType: 'chartTypeRender', statusCode: '500' },
+        });
+    });
+
+    it('does not report the designed chart-type-removed 404 state', () => {
+        vi.mocked(captureException).mockClear();
+        mocks.metadata.current = undefined;
+        mocks.metadataError.current = apiError(404);
+
+        renderRenderer();
+
+        expect(captureException).not.toHaveBeenCalled();
+    });
+
     it('uses the metadata schema to deliver effective options', () => {
         renderRenderer();
 
@@ -564,6 +624,44 @@ describe('DataAppVizRenderer', () => {
                     seriesColors: {},
                     valueColors: {
                         orders_category: { Hardware: '#00ff00' },
+                    },
+                }),
+            }),
+            undefined,
+        );
+    });
+
+    it('delivers reconciled multiple bindings to the iframe context', () => {
+        const metadata = readyMetadata();
+        mocks.metadata.current = {
+            ...metadata,
+            schema: {
+                ...metadata.schema,
+                fields: [
+                    ...metadata.schema.fields,
+                    {
+                        name: 'values',
+                        label: 'Values',
+                        type: 'metric',
+                        required: true,
+                        multiple: true,
+                    },
+                ],
+            },
+        };
+        mocks.fieldMapping.current = {
+            category: 'orders_category',
+            values: ['orders_count'],
+        };
+
+        renderRenderer();
+
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                dataAppVizContext: expect.objectContaining({
+                    fieldMapping: {
+                        category: 'orders_category',
+                        values: ['orders_count'],
                     },
                 }),
             }),
@@ -619,6 +717,25 @@ describe('DataAppVizRenderer', () => {
         renderRenderer();
 
         expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
+    });
+
+    it('renders an unsaved immutable artifact on its recorded version', () => {
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: false,
+        };
+
+        renderRenderer();
+
+        expect(mocks.renderMetadataHook).toHaveBeenLastCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            {
+                isEmbedded: false,
+                savedChartUuid: undefined,
+            },
+            7,
+        );
     });
 
     it('lazily pins a legacy saved chart when it is next edited', () => {

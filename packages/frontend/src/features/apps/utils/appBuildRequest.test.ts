@@ -24,6 +24,23 @@ const request = (
 });
 
 describe('toAppGeneratePayload', () => {
+    it('sends chart context separately from the prompt and excludes it from clarification', () => {
+        const build = request({
+            template: 'data_app_viz',
+            vizContext: {
+                fieldMapping: { value: 'orders_total' },
+                sampleRows: [{ orders_total: '42' }],
+            },
+        });
+
+        expect(toAppGeneratePayload('project-1', build, [])).toMatchObject({
+            prompt: build.prompt,
+            vizContext: build.vizContext,
+        });
+        expect(toAppClarifyParams(build)).not.toHaveProperty('vizContext');
+        expect(toAppClarifyParams(build).prompt).toBe(build.prompt);
+    });
+
     it('carries every snapshotted field onto the generate call', () => {
         expect(toAppGeneratePayload('project-1', request(), [])).toEqual({
             projectUuid: 'project-1',

@@ -15,6 +15,7 @@ import {
     type DataAppVizContext,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Badge,
     Box,
     Button,
@@ -29,6 +30,7 @@ import {
     Tooltip,
     useMatches,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconAppsOff,
     IconAppWindow,
@@ -36,13 +38,12 @@ import {
     IconArrowUp,
     IconBrush,
     IconExternalLink,
-    IconArrowBackUp,
     IconFileDescription,
+    IconHistory,
     IconLayoutDashboard,
     IconLink,
     IconPackage,
     IconPlayerStop,
-    IconRestore,
     IconPlugConnected,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -65,7 +66,6 @@ import {
 } from 'react-router';
 import { validate as isUuidString, v4 as uuid4 } from 'uuid';
 import { AiMarkdown } from '../components/common/AiMarkdown';
-import Callout from '../components/common/Callout';
 import MantineIcon from '../components/common/MantineIcon';
 import {
     ComposerSubmitButton,
@@ -97,15 +97,20 @@ import ChatMessageContent from '../features/apps/ChatMessageContent';
 import AppBuilderSidebarToggle from '../features/apps/components/AppBuilderSidebarToggle';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
+import AppHistoryDrawer from '../features/apps/components/AppHistoryDrawer';
 import AppPreview from '../features/apps/components/AppPreview';
 import AppVersionNarration from '../features/apps/components/AppVersionNarration';
 import ClarificationQuestionList from '../features/apps/components/ClarificationQuestionList';
+import ClearAgentContextAction from '../features/apps/components/ClearAgentContextAction';
 import ConnectionChip from '../features/apps/components/ConnectionChip';
 import { ElementPickerButton } from '../features/apps/components/ElementPickerButton';
 import { ElementRefPill } from '../features/apps/components/ElementRefPill';
 import LoadingDots from '../features/apps/components/LoadingDots';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
 import { RestoreAppVersionModal } from '../features/apps/components/RestoreAppVersionModal';
+import { SampleDataButton } from '../features/apps/components/SampleDataButton';
+import ThreadDivider from '../features/apps/components/ThreadDivider';
+import { ViewingOlderVersionCard } from '../features/apps/components/ViewingOlderVersionCard';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -115,6 +120,7 @@ import {
     useBuildNotification,
 } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
+import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useCaptureThumbnail } from '../features/apps/hooks/useCaptureThumbnail';
 import { useClarificationRound } from '../features/apps/hooks/useClarificationRound';
 import { useDataAppModelSelection } from '../features/apps/hooks/useDataAppModelSelection';
@@ -151,11 +157,14 @@ import {
     elementRefKey,
     refToWireString,
 } from '../features/apps/utils/elementRefs';
+import { getHistoryLiveBuild } from '../features/apps/utils/historyLiveBuild';
 import { getVersionNarration } from '../features/apps/utils/versionNarration';
-import { versionsToChatMessages } from '../features/apps/utils/versionsToChatMessages';
+import { versionsToThreadChat } from '../features/apps/utils/versionsToChatMessages';
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTestPanel';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
+import { normalizeVizBuildContext } from '../features/chartTypes/utils/vizBuildContext';
+import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
@@ -664,6 +673,10 @@ const AppGenerate: FC = () => {
     const [restoreTargetVersion, setRestoreTargetVersion] = useState<
         number | null
     >(null);
+    // Project history drawer over the chat; `openHistory` is also the target
+    // of the thread divider's CTA in the chat.
+    const [isHistoryOpen, { open: openHistory, close: closeHistory }] =
+        useDisclosure(false);
     const { mutateAsync: uploadFile } = useAppFileUpload();
     const { showToastError, showToastWarning } = useToaster();
     const { mutateAsync: uploadThumbnail } = useAppThumbnailUpload();
@@ -724,6 +737,14 @@ const AppGenerate: FC = () => {
     const appPersistedTemplate = appData?.pages?.[0]?.template ?? null;
     const appSlug = appData?.pages?.[0]?.slug ?? null;
     const appViews = appData?.pages?.[0]?.views ?? null;
+    const appVerification = appData?.pages?.[0]?.verification ?? null;
+    const canEditVerifiedApp = useCanEditVerifiedDataApp(projectUuid, {
+        spaceUuid: appSpaceUuid,
+        createdByUserUuid: appCreatedByUserUuid,
+        verification: appVerification,
+    });
+    // The backend refuses iterations on a verified app the user cannot edit.
+    const isVerifiedLocked = appVerification !== null && !canEditVerifiedApp;
     // Latest build activity stands in for "last modified" — apps have no
     // updated-at of their own.
     const appNewestVersion = appData?.pages?.[0]?.versions[0];
@@ -781,6 +802,15 @@ const AppGenerate: FC = () => {
     // question UI, not a placeholder).
     const isAgentWorking =
         isGenerating || isIterating || isBuilding || isClarifying;
+    // Shown on top of history until the poller brings the building version.
+    const historyLiveBuild = useMemo(
+        () =>
+            getHistoryLiveBuild(
+                localMessages,
+                (isGenerating || isIterating) && !isBuilding,
+            ),
+        [localMessages, isGenerating, isIterating, isBuilding],
+    );
     const isLoading = isSubmitting || isAgentWorking || hasPendingClarification;
 
     // OS notification when a build finishes (only fires when tab is in background)
@@ -810,17 +840,23 @@ const AppGenerate: FC = () => {
         }
     }, [serverVersionCount]);
 
-    // Convert fetched versions into chat messages (oldest first)
-    const historyMessages = useMemo<ChatMessage[]>(
+    // The chat shows the newest thread only; earlier threads live in History.
+    const currentThreadNumber =
+        appData?.pages?.[0]?.currentThread.number ?? null;
+    const {
+        messages: historyMessages,
+        divider: threadDivider,
+        isThreadComplete,
+    } = useMemo(
         () =>
-            versionsToChatMessages(allVersions, {
+            versionsToThreadChat(allVersions, currentThreadNumber, {
                 charts: sentChartsByPrompt.current,
                 connections: sentConnectionsByPrompt.current,
                 imagePreviewUrls: sentImagesByPrompt.current,
                 files: sentFilesByPrompt.current,
                 dashboardName: sentDashboardByPrompt.current,
             }),
-        [allVersions],
+        [allVersions, currentThreadNumber],
     );
 
     // Lookup table: version number → full version summary. Used to retrieve
@@ -876,7 +912,7 @@ const AppGenerate: FC = () => {
     // 1-indexed and contiguous, so seeing version 1 means we've loaded
     // everything and the "Load earlier messages" button is misleading.
     const hasUnloadedEarlierVersions =
-        hasNextPage && !allVersions.some((v) => v.version === 1);
+        hasNextPage === true && !allVersions.some((v) => v.version === 1);
 
     // Latest ready version for this app. Updates as new versions finish
     // building — preview defaults to this unless the user pins an older one.
@@ -1256,6 +1292,24 @@ const AppGenerate: FC = () => {
     // data-app-viz renders with real result rows instead of mock data.
     const [testVizContext, setTestVizContext] =
         useState<DataAppVizContext | null>(null);
+    const [sampleDataConsent, setSampleDataConsent] = useState<{
+        context: DataAppVizContext;
+        appUuid: string | null;
+        version: number | null;
+    } | null>(null);
+    const includeTestVizSampleData =
+        sampleDataConsent !== null &&
+        sampleDataConsent.context === testVizContext &&
+        sampleDataConsent.appUuid === (activeAppUuid ?? null) &&
+        sampleDataConsent.version === (previewApp?.version ?? null);
+    const isVizBuilder =
+        appPersistedTemplate === DATA_APP_VIZ_TEMPLATE ||
+        selectedTemplate === DATA_APP_VIZ_TEMPLATE;
+    const showVizSampleConsent =
+        sampleDataEnabled &&
+        isVizBuilder &&
+        !isViewingOlderVersion &&
+        Boolean(testVizContext?.rows.length);
     // Latched on by the first manual refresh: a refresh means "show me fresh
     // data", so from then on the preview's queries bypass the warehouse cache.
     // Starts false so the initial load can still serve cached results fast.
@@ -1539,11 +1593,29 @@ const AppGenerate: FC = () => {
             isSubmittingRef.current
         )
             return;
-        // Element references travel as their own lines after the typed text —
-        // the same bracketed wire format the agent has always received.
-        const trimmed = [typed, ...elementPicker.refs.map(refToWireString)]
-            .filter(Boolean)
-            .join('\n');
+        const trimmed = isVizBuilder
+            ? typed
+            : [typed, ...elementPicker.refs.map(refToWireString)]
+                  .filter(Boolean)
+                  .join('\n');
+        const vizContext = isVizBuilder
+            ? normalizeVizBuildContext(
+                  {
+                      schema:
+                          latestReadyVersion?.resources?.vizSchema ?? undefined,
+                      fieldMapping: testVizContext?.fieldMapping,
+                      elementReferences:
+                          elementPicker.refs.map(refToWireString),
+                      sampleRows: testVizContext
+                          ? vizBuildSampleRows(
+                                testVizContext.rows,
+                                testVizContext.fieldMapping,
+                            )
+                          : undefined,
+                  },
+                  showVizSampleConsent && includeTestVizSampleData,
+              )
+            : undefined;
 
         isSubmittingRef.current = true;
         // Morph the centered composer into the split sidebar layout. Only the
@@ -1705,6 +1777,7 @@ const AppGenerate: FC = () => {
             setIsPromptEmpty(true);
             setFileAttachments([]);
             setIsCapturingScreenshot(false);
+            setSampleDataConsent(null);
             setSelectedCharts([]);
             setSelectedDashboard(null);
             setSelectedConnections([]);
@@ -1718,6 +1791,7 @@ const AppGenerate: FC = () => {
                         projectUuid,
                         appUuid: activeAppUuid,
                         prompt: trimmed,
+                        vizContext,
                         creationExperience: 'app_builder',
                         fileIds,
                         charts,
@@ -1732,6 +1806,7 @@ const AppGenerate: FC = () => {
                 // back into runBuildRef once it resolves, answered or not.
                 clarification.send({
                     prompt: trimmed,
+                    vizContext,
                     template: starterTemplate,
                     fileIds,
                     appUuid: targetAppUuid,
@@ -1824,6 +1899,22 @@ const AppGenerate: FC = () => {
                                     collapsed={isChatPanelCollapsed}
                                     onToggle={handleToggleChatPanel}
                                 />
+                                {activeAppUuid && (
+                                    <Tooltip label="Show project history">
+                                        <ActionIcon
+                                            size="md"
+                                            className={classes.sidebarHistory}
+                                            onClick={openHistory}
+                                            aria-label="Show project history"
+                                        >
+                                            <MantineIcon
+                                                icon={IconHistory}
+                                                size={16}
+                                                stroke={1.7}
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                )}
                             </Box>
                         )}
                         {newAppLanding && (
@@ -1859,25 +1950,28 @@ const AppGenerate: FC = () => {
                             data-tour-label="Every prompt makes a new version"
                             data-tour-docs="data-apps.mdx#iterating-on-your-app:1-2"
                         >
-                            {hasUnloadedEarlierVersions && (
-                                <Group
-                                    gap="xs"
-                                    justify="center"
-                                    p="xs"
-                                    onClick={loadEarlierMessages}
-                                    className={classes.loadEarlierRow}
-                                >
-                                    {isFetchingNextPage ? (
-                                        <Loader size="xs" />
-                                    ) : null}
-                                    <Text size="xs" c="dimmed">
-                                        {isFetchingNextPage
-                                            ? 'Loading earlier messages...'
-                                            : 'Load earlier messages'}
-                                    </Text>
-                                </Group>
-                            )}
-                            {messages.length === 0 && !isLoading ? (
+                            {hasUnloadedEarlierVersions &&
+                                !isThreadComplete && (
+                                    <Group
+                                        gap="xs"
+                                        justify="center"
+                                        p="xs"
+                                        onClick={loadEarlierMessages}
+                                        className={classes.loadEarlierRow}
+                                    >
+                                        {isFetchingNextPage ? (
+                                            <Loader size="xs" />
+                                        ) : null}
+                                        <Text size="xs" c="dimmed">
+                                            {isFetchingNextPage
+                                                ? 'Loading earlier messages...'
+                                                : 'Load earlier messages'}
+                                        </Text>
+                                    </Group>
+                                )}
+                            {messages.length === 0 &&
+                            threadDivider === null &&
+                            !isLoading ? (
                                 <Box className={classes.emptyChat}>
                                     {!newAppLanding && (
                                         <Text
@@ -1901,6 +1995,13 @@ const AppGenerate: FC = () => {
                                                 : ''
                                         }`}
                                     >
+                                        {threadDivider && (
+                                            <ThreadDivider
+                                                fromVersion={
+                                                    threadDivider.fromVersion
+                                                }
+                                            />
+                                        )}
                                         {messages.map((msg, i) =>
                                             msg.role === 'user' ? (
                                                 <Box
@@ -2455,62 +2556,25 @@ const AppGenerate: FC = () => {
                         </Box>
 
                         {/* Chat Input */}
-                        {isViewingOlderVersion && (
-                            <Box className={classes.chatInputArea}>
-                                <Callout
-                                    variant="info"
-                                    title={`You're viewing version ${previewApp?.version}`}
-                                >
-                                    <Text size="sm">
-                                        New prompts always continue from the
-                                        latest build. Return to version{' '}
-                                        {latestReadyVersion?.version}, or
-                                        restore this version as the new latest
-                                        to keep iterating from here.
-                                    </Text>
-                                    <Group gap="xs" mt="sm">
-                                        <Button
-                                            size="xs"
-                                            variant="light"
-                                            color="blue"
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconArrowBackUp}
-                                                    size={12}
-                                                />
-                                            }
-                                            onClick={() => setPin(null)}
-                                        >
-                                            Return to latest (v
-                                            {latestReadyVersion?.version})
-                                        </Button>
-                                        {previewApp &&
-                                            previewApp.version !==
-                                                latestReadyVersion?.version && (
-                                                <Button
-                                                    size="xs"
-                                                    variant="outline"
-                                                    color="blue"
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconRestore}
-                                                            size={12}
-                                                        />
-                                                    }
-                                                    disabled={isAgentWorking}
-                                                    onClick={() =>
-                                                        setRestoreTargetVersion(
-                                                            previewApp.version,
-                                                        )
-                                                    }
-                                                >
-                                                    Restore this version
-                                                </Button>
-                                            )}
-                                    </Group>
-                                </Callout>
-                            </Box>
-                        )}
+                        {isViewingOlderVersion &&
+                            previewApp &&
+                            latestReadyVersion && (
+                                <Box className={classes.chatInputArea}>
+                                    <ViewingOlderVersionCard
+                                        viewingVersion={previewApp.version}
+                                        latestVersion={
+                                            latestReadyVersion.version
+                                        }
+                                        restoreDisabled={isAgentWorking}
+                                        onRestore={() =>
+                                            setRestoreTargetVersion(
+                                                previewApp.version,
+                                            )
+                                        }
+                                        onReturnToLatest={() => setPin(null)}
+                                    />
+                                </Box>
+                            )}
 
                         {!isViewingOlderVersion && (
                             <Box className={classes.chatInputArea}>
@@ -2571,12 +2635,18 @@ const AppGenerate: FC = () => {
                                     <PromptComposer
                                         ref={promptEditorRef}
                                         size={compact ? 'sm' : 'md'}
-                                        placeholder="Describe the app you want to build..."
+                                        placeholder={
+                                            isVerifiedLocked
+                                                ? 'This app is verified. Ask an admin to unverify it before editing.'
+                                                : 'Describe the app you want to build...'
+                                        }
                                         autoFocus
                                         // Editable while the agent works so the next prompt
                                         // can be drafted; disabled only during the
                                         // client-side submit, where clear() would wipe text.
-                                        disabled={isSubmitting}
+                                        disabled={
+                                            isSubmitting || isVerifiedLocked
+                                        }
                                         submitDisabled={isLoading}
                                         onEmptyChange={setIsPromptEmpty}
                                         onSubmit={() => void handleSubmit()}
@@ -2880,6 +2950,31 @@ const AppGenerate: FC = () => {
                                                         }
                                                     />
                                                 )}
+                                                {showVizSampleConsent && (
+                                                    <SampleDataButton
+                                                        enabled={
+                                                            includeTestVizSampleData
+                                                        }
+                                                        disabled={isSubmitting}
+                                                        onToggle={() =>
+                                                            setSampleDataConsent(
+                                                                !includeTestVizSampleData &&
+                                                                    testVizContext
+                                                                    ? {
+                                                                          context:
+                                                                              testVizContext,
+                                                                          appUuid:
+                                                                              activeAppUuid ??
+                                                                              null,
+                                                                          version:
+                                                                              previewApp?.version ??
+                                                                              null,
+                                                                      }
+                                                                    : null,
+                                                            )
+                                                        }
+                                                    />
+                                                )}
                                                 {newAppLanding && (
                                                     <Divider
                                                         orientation="vertical"
@@ -2951,6 +3046,15 @@ const AppGenerate: FC = () => {
                                         }
                                         toolbarRight={
                                             <Group gap="xs">
+                                                {activeAppUuid && (
+                                                    <ClearAgentContextAction
+                                                        projectUuid={
+                                                            projectUuid
+                                                        }
+                                                        appUuid={activeAppUuid}
+                                                        disabled={isLoading}
+                                                    />
+                                                )}
                                                 <ModelPicker
                                                     value={selectedModel}
                                                     onChange={handleModelChange}
@@ -3050,6 +3154,7 @@ const AppGenerate: FC = () => {
                                         lastModified: appLastModified,
                                         views: appViews,
                                         slug: appSlug,
+                                        verification: appVerification,
                                     }}
                                     rightSection={
                                         <AppHeaderActions
@@ -3072,6 +3177,7 @@ const AppGenerate: FC = () => {
                                             appCreatedByUserUuid={
                                                 appCreatedByUserUuid
                                             }
+                                            verification={appVerification}
                                             latestVersionNumber={
                                                 latestReadyVersion?.version ??
                                                 null
@@ -3130,6 +3236,28 @@ const AppGenerate: FC = () => {
                                             askAiItem={null}
                                         />
                                     }
+                                />
+                            )}
+                            {activeAppUuid && (
+                                <AppHistoryDrawer
+                                    opened={isHistoryOpen}
+                                    onClose={closeHistory}
+                                    versions={allVersions}
+                                    latestReadyVersion={
+                                        latestReadyVersion?.version ?? null
+                                    }
+                                    viewedVersion={effectivePinnedVersion}
+                                    onView={(version) =>
+                                        version === null
+                                            ? setPin(null)
+                                            : pinPreviewToVersion(version)
+                                    }
+                                    onRestore={setRestoreTargetVersion}
+                                    liveBuild={historyLiveBuild}
+                                    hasEarlier={hasUnloadedEarlierVersions}
+                                    isFetchingEarlier={isFetchingNextPage}
+                                    fetchEarlier={loadEarlierMessages}
+                                    currentThreadNumber={currentThreadNumber}
                                 />
                             )}
                             {restoreTargetVersion !== null && activeAppUuid && (
@@ -3212,6 +3340,7 @@ const AppGenerate: FC = () => {
                                         dataAppVizContext={
                                             testVizContext ?? undefined
                                         }
+                                        dataAppVizMode={isVizBuilder}
                                         onSdkManifest={handleSdkManifest}
                                         insights={
                                             showAnalysisInPreview

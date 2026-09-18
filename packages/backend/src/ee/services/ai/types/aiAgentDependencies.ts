@@ -28,6 +28,8 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    McpDocumentAsCode,
+    McpDocumentEdit,
     MergeQuery,
     MetricQuery,
     ParameterDefinitions,
@@ -123,6 +125,7 @@ export type FindCustomChartTypesFn = (
 // not resolve to a schema-bearing custom chart type in this project.
 export type ResolveCustomChartTypeFn = (slug: string) => Promise<{
     dataAppVizUuid: string;
+    dataAppVizVersion: number;
     schema: DataAppVizSchema;
 } | null>;
 
@@ -321,10 +324,23 @@ export type GetDashboardChartsFn = (args: {
     };
 }>;
 
-export type ReadContentFn = (args: {
-    slug: string;
-    type: ReadContentType;
-}) => Promise<
+export type DocumentContentResult = {
+    type: 'document';
+    content: McpDocumentAsCode;
+    uuid: string;
+    href: string;
+    versionUuid: string;
+};
+
+export type ReadContentFn = (
+    args:
+        | {
+              slug: string;
+              type: ReadContentType | 'document';
+          }
+        | { type: 'document'; documentUuid: string },
+) => Promise<
+    | DocumentContentResult
     | {
           type: 'dashboard';
           content: DashboardAsCode;
@@ -346,11 +362,16 @@ export type ResolveUrlFn = (args: {
     url: string;
 }) => Promise<{ isShareLink: true; url: string } | { isShareLink: false }>;
 
-export type EditContentFn = (args: {
-    slug: string;
-    type: 'dashboard' | 'chart';
-    patch: unknown;
-}) => Promise<
+export type EditContentFn = (
+    args:
+        | {
+              slug: string;
+              type: 'dashboard' | 'chart';
+              patch: unknown;
+          }
+        | { slug: string; type: 'document'; documentEdit: McpDocumentEdit },
+) => Promise<
+    | DocumentContentResult
     | {
           type: 'dashboard';
           content: DashboardAsCode;
@@ -383,7 +404,10 @@ type CreateContentArgs =
           content: ChartAsCode;
       };
 
-export type CreateContentFn = (args: CreateContentArgs) => Promise<
+export type CreateContentFn = (
+    args: CreateContentArgs | { type: 'document'; content: McpDocumentAsCode },
+) => Promise<
+    | DocumentContentResult
     | {
           type: 'dashboard';
           content: DashboardAsCode;

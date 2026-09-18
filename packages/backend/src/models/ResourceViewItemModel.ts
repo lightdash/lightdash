@@ -338,6 +338,7 @@ const getApps = async (
             latestReadyVersionNumber: row.latest_ready_version_number ?? null,
             pinnedListUuid: row.pinned_list_uuid,
             pinnedListOrder: row.order,
+            verification: null,
         },
     }));
 };

@@ -4,6 +4,7 @@ import {
     FilterOperator,
     FilterType,
     MetricType,
+    NotFoundError,
     parseAiArtifactChartConfig,
 } from '@lightdash/common';
 import type { AgentSelectOption } from './getSlackBlocks';
@@ -575,6 +576,7 @@ describe('Slack AI agent blocks', () => {
                         source: 'customChartType',
                         schemaVersion: 1,
                         dataAppVizUuid: 'data-app-viz-1',
+                        dataAppVizVersion: 2,
                         config: {
                             title: 'Monthly Orders by Status',
                             description: 'Orders by month and status',
@@ -597,7 +599,11 @@ describe('Slack AI agent blocks', () => {
                                 fieldMapping: {
                                     x: 'orders_order_date_month',
                                     y: 'orders_unique_order_count',
-                                    series: 'orders_status',
+
+                                    series: [
+                                        'orders_status',
+                                        'orders_order_date_month',
+                                    ],
                                 },
                                 options: null,
                             },
@@ -606,8 +612,9 @@ describe('Slack AI agent blocks', () => {
                 },
             ],
             [],
-            async (dataAppVizUuid) => {
+            async (dataAppVizUuid, dataAppVizVersion) => {
                 expect(dataAppVizUuid).toBe('data-app-viz-1');
+                expect(dataAppVizVersion).toBe(2);
                 return [
                     {
                         name: 'x',
@@ -621,6 +628,7 @@ describe('Slack AI agent blocks', () => {
                         label: 'Series',
                         type: 'series',
                         required: false,
+                        multiple: true,
                     },
                 ];
             },
@@ -636,17 +644,21 @@ describe('Slack AI agent blocks', () => {
             type: ChartType.DATA_APP_VIZ,
             config: {
                 dataAppVizUuid: 'data-app-viz-1',
+                dataAppVizVersion: 2,
                 fieldMapping: {
                     x: 'orders_order_date_month',
                     y: 'orders_unique_order_count',
-                    series: 'orders_status',
+
+                    series: ['orders_status', 'orders_order_date_month'],
                 },
             },
         });
-        expect(saved.pivotConfig).toEqual({ columns: ['orders_status'] });
+        expect(saved.pivotConfig).toEqual({
+            columns: ['orders_status', 'orders_order_date_month'],
+        });
     });
 
-    it('keeps the table fallback for custom chart type answers when the schema is unavailable', async () => {
+    it('keeps the table fallback for legacy custom chart type answers when the schema is unavailable', async () => {
         let sharedParams: string | undefined;
         await getModernArtifactCardBlocks(
             {
@@ -721,6 +733,121 @@ describe('Slack AI agent blocks', () => {
         );
         expect(saved.chartConfig.type).toBe(ChartType.TABLE);
         expect(saved.pivotConfig).toBeUndefined();
+    });
+
+    it('keeps other Slack cards when a pinned chart version is unavailable without offering a substitute save', async () => {
+        const sharedParams: string[] = [];
+        let requestedVersion: number | undefined;
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async (_path, params) => {
+                sharedParams.push(params);
+                return 'https://lightdash.example.com/share/chart';
+            },
+            async () => ({}) as never,
+            async () => true,
+            'agent-1',
+            [
+                {
+                    artifactUuid: 'artifact-1',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'chart',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'version-1',
+                    title: 'Pinned Orders',
+                    description: null,
+                    dashboardConfig: null,
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: {
+                        source: 'customChartType',
+                        schemaVersion: 1,
+                        dataAppVizUuid: 'data-app-viz-1',
+                        dataAppVizVersion: 2,
+                        config: {
+                            title: 'Pinned Orders',
+                            description: 'Orders by month',
+                            queryConfig: {
+                                exploreName: 'orders',
+                                dimensions: ['orders_order_date_month'],
+                                metrics: ['orders_unique_order_count'],
+                                sorts: [],
+                                limit: 500,
+                                parameters: null,
+                                customMetrics: [],
+                                tableCalculations: [],
+                                filters: null,
+                            },
+                            chartConfig: {
+                                customChartTypeSlug: 'fuzzy-bar',
+                                fieldMapping: {
+                                    x: 'orders_order_date_month',
+                                    y: 'orders_unique_order_count',
+                                },
+                                options: null,
+                            },
+                        },
+                    },
+                },
+                {
+                    artifactUuid: 'artifact-2',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'dashboard',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'version-2',
+                    title: 'Orders Dashboard',
+                    description: null,
+                    dashboardConfig: {},
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: null,
+                },
+            ] as never,
+            [],
+            async (_dataAppVizUuid, dataAppVizVersion) => {
+                requestedVersion = dataAppVizVersion;
+                throw new NotFoundError(
+                    'Custom chart type version 2 is unavailable. Regenerate the chart to use a renderable version.',
+                );
+            },
+        );
+
+        expect(requestedVersion).toBe(2);
+        expect(sharedParams).toEqual([]);
+        expect(blocks).toMatchObject([
+            {
+                type: 'carousel',
+                elements: [
+                    {
+                        title: { text: 'Pinned Orders' },
+                        body: {
+                            text: 'Custom chart type version 2 is unavailable. Regenerate the chart to use a renderable version.',
+                        },
+                    },
+                    { title: { text: 'Orders Dashboard' } },
+                ],
+            },
+        ]);
+        const cards = (
+            blocks[0] as unknown as { elements: Array<{ actions?: unknown }> }
+        ).elements;
+        expect(cards[0].actions).toBeUndefined();
     });
 
     it('omits the hero but keeps the Open image button when the image URL is unreachable', async () => {

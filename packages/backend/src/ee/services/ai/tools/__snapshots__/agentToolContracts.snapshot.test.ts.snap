@@ -7044,7 +7044,22 @@ All branches of an IF must return the same type.",
             },
           ],
         },
-        "__schema131": {
+        "__schema130": {
+          "anyOf": [
+            {
+              "type": "string",
+            },
+            {
+              "items": {
+                "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                "type": "string",
+              },
+              "type": "array",
+            },
+          ],
+          "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+        },
+        "__schema132": {
           "additionalProperties": {
             "anyOf": [
               {
@@ -7063,13 +7078,13 @@ All branches of an IF must return the same type.",
             "null",
           ],
         },
-        "__schema132": {
+        "__schema133": {
           "additionalProperties": false,
           "properties": {
             "additionalSources": {
               "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
               "items": {
-                "$ref": "#/definitions/__schema133",
+                "$ref": "#/definitions/__schema134",
               },
               "maxItems": 1,
               "minItems": 1,
@@ -7077,7 +7092,7 @@ All branches of an IF must return the same type.",
             },
             "joinKey": {
               "items": {
-                "$ref": "#/definitions/__schema134",
+                "$ref": "#/definitions/__schema135",
               },
               "minItems": 1,
               "type": "array",
@@ -7104,7 +7119,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema133": {
+        "__schema134": {
           "additionalProperties": false,
           "properties": {
             "id": {
@@ -7152,13 +7167,13 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema134": {
+        "__schema135": {
           "additionalProperties": false,
           "properties": {
             "fields": {
               "description": "One selected dimension from each source. Both must represent the same grain and value type.",
               "items": {
-                "$ref": "#/definitions/__schema135",
+                "$ref": "#/definitions/__schema136",
               },
               "maxItems": 2,
               "minItems": 2,
@@ -7176,7 +7191,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema135": {
+        "__schema136": {
           "additionalProperties": false,
           "properties": {
             "fieldId": {
@@ -8077,16 +8092,15 @@ All branches of an IF must return the same type.",
                 },
                 "fieldMapping": {
                   "additionalProperties": {
-                    "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                    "type": "string",
+                    "$ref": "#/definitions/__schema130",
                   },
-                  "description": "Binds the custom chart type's field slots to this query's fields: slot name (from the type's schema) → a field id selected in queryConfig. Every required slot must be bound.",
+                  "description": "Binds each custom chart type slot to this query's fields: a field id for a single slot, or ordered unique field ids for a slot declared multiple. Every required slot must be bound.",
                   "type": "object",
                 },
                 "options": {
                   "allOf": [
                     {
-                      "$ref": "#/definitions/__schema131",
+                      "$ref": "#/definitions/__schema132",
                     },
                   ],
                   "default": null,
@@ -8111,7 +8125,7 @@ All branches of an IF must return the same type.",
         "mergeConfig": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema132",
+              "$ref": "#/definitions/__schema133",
             },
             {
               "type": "null",
@@ -10032,6 +10046,21 @@ All branches of an IF must return the same type.",
           "null",
         ],
       },
+      "__schema29": {
+        "anyOf": [
+          {
+            "type": "string",
+          },
+          {
+            "items": {
+              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+              "type": "string",
+            },
+            "type": "array",
+          },
+        ],
+        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+      },
       "__schema3": {
         "description": "The field ids of the metrics to be calculated. They will be grouped by the dimensions.",
         "items": {
@@ -10040,7 +10069,7 @@ All branches of an IF must return the same type.",
         },
         "type": "array",
       },
-      "__schema30": {
+      "__schema31": {
         "additionalProperties": {
           "anyOf": [
             {
@@ -10059,13 +10088,13 @@ All branches of an IF must return the same type.",
           "null",
         ],
       },
-      "__schema31": {
+      "__schema32": {
         "additionalProperties": false,
         "properties": {
           "additionalSources": {
             "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
             "items": {
-              "$ref": "#/definitions/__schema32",
+              "$ref": "#/definitions/__schema33",
             },
             "maxItems": 1,
             "minItems": 1,
@@ -10073,7 +10102,7 @@ All branches of an IF must return the same type.",
           },
           "joinKey": {
             "items": {
-              "$ref": "#/definitions/__schema33",
+              "$ref": "#/definitions/__schema34",
             },
             "minItems": 1,
             "type": "array",
@@ -10100,7 +10129,7 @@ All branches of an IF must return the same type.",
         ],
         "type": "object",
       },
-      "__schema32": {
+      "__schema33": {
         "additionalProperties": false,
         "properties": {
           "id": {
@@ -10148,13 +10177,13 @@ All branches of an IF must return the same type.",
         ],
         "type": "object",
       },
-      "__schema33": {
+      "__schema34": {
         "additionalProperties": false,
         "properties": {
           "fields": {
             "description": "One selected dimension from each source. Both must represent the same grain and value type.",
             "items": {
-              "$ref": "#/definitions/__schema34",
+              "$ref": "#/definitions/__schema35",
             },
             "maxItems": 2,
             "minItems": 2,
@@ -10172,7 +10201,7 @@ All branches of an IF must return the same type.",
         ],
         "type": "object",
       },
-      "__schema34": {
+      "__schema35": {
         "additionalProperties": false,
         "properties": {
           "fieldId": {
@@ -10378,16 +10407,15 @@ All branches of an IF must return the same type.",
               },
               "fieldMapping": {
                 "additionalProperties": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
+                  "$ref": "#/definitions/__schema29",
                 },
-                "description": "Binds the custom chart type's field slots to this query's fields: slot name (from the type's schema) → a field id selected in queryConfig. Every required slot must be bound.",
+                "description": "Binds each custom chart type slot to this query's fields: a field id for a single slot, or ordered unique field ids for a slot declared multiple. Every required slot must be bound.",
                 "type": "object",
               },
               "options": {
                 "allOf": [
                   {
-                    "$ref": "#/definitions/__schema30",
+                    "$ref": "#/definitions/__schema31",
                   },
                 ],
                 "default": null,
@@ -10412,7 +10440,7 @@ All branches of an IF must return the same type.",
       "mergeConfig": {
         "anyOf": [
           {
-            "$ref": "#/definitions/__schema31",
+            "$ref": "#/definitions/__schema32",
           },
           {
             "type": "null",

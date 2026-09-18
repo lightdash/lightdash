@@ -52,14 +52,11 @@ import {
     type DataAppVizSchema,
     type Document,
     type FieldValueSearchResult,
-    type McpDocumentAsCode,
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
     type SchedulerAiAugmentation,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
-import { isEqual } from 'lodash';
-import { randomUUID } from 'node:crypto';
 import { type DbApp } from '../../../database/entities/apps';
 import Logger from '../../../logging/logger';
 import { AppModel } from '../../../models/AppModel';
@@ -106,6 +103,7 @@ import {
     CreateContentFn,
     CreateScheduledDeliveryFn,
     DescribeWarehouseTableFn,
+    DocumentContentResult,
     EditContentFn,
     FindContentFn,
     FindContentResult,
@@ -173,7 +171,7 @@ import type {
 type AgentListContentResult = Awaited<ReturnType<ListContentFn>>;
 type AgentListContentItem = AgentListContentResult['items'][number];
 type ProjectSpace = Awaited<ReturnType<ProjectService['getSpaces']>>[number];
-type ContentAsCodeType = Parameters<EditContentFn>[0]['type'];
+type ContentAsCodeType = Parameters<ValidateContentFn>[0]['type'];
 type SearchContentResult = Awaited<
     ReturnType<SearchService['findContent']>
 >['content'][number];
@@ -196,6 +194,7 @@ export type AiAgentToolsRuntimeContext = {
     organizationUuid: string;
     projectUuid: string;
     source: AiAgentToolsSource;
+    enableDocuments?: boolean;
     catalogSearchContext: CatalogSearchContext;
     defaultQueryExecutionContext: QueryExecutionContext;
     tags: string[] | null;
@@ -312,14 +311,6 @@ export type McpAiAgentToolsRuntime = Omit<
     findFields: (
         args: Parameters<FindFieldsFn>[0],
     ) => Promise<McpRuntimeResult<FindFieldsRuntimeResult>>;
-};
-
-export type DocumentContentResult = {
-    type: 'document';
-    content: McpDocumentAsCode;
-    uuid: string;
-    href: string;
-    versionUuid: string;
 };
 
 type BuiltInSkillsClient = Pick<
@@ -1043,14 +1034,23 @@ export class AiAgentToolsService extends BaseService {
             slug,
         );
         if (!row) return null;
-        const parsed = dataAppVizSchema.safeParse(row.viz_schema);
+        const version =
+            await this.appModel.getLatestRenderableDataAppVizVersion(
+                row.app_id,
+            );
+        if (!version) return null;
+        const parsed = dataAppVizSchema.safeParse(version.viz_schema);
         if (!parsed.success) {
             this.logger.warn(
                 `Cannot resolve custom chart type "${slug}": persisted viz_schema failed validation`,
             );
             return null;
         }
-        return { dataAppVizUuid: row.app_id, schema: parsed.data };
+        return {
+            dataAppVizUuid: row.app_id,
+            dataAppVizVersion: version.version,
+            schema: parsed.data,
+        };
     }
 
     private findFields(
@@ -1509,7 +1509,8 @@ export class AiAgentToolsService extends BaseService {
                     );
 
                 const documentResults =
-                    context.source === 'mcp' && !verifiedOnly
+                    (context.source === 'mcp' || context.enableDocuments) &&
+                    !verifiedOnly
                         ? await this.findDocumentContent(
                               context,
                               args.searchQuery.label,
@@ -1772,10 +1773,15 @@ export class AiAgentToolsService extends BaseService {
                 withTheme: themeSlug !== null,
             },
             async () => {
-                const { promptUuid } = context;
+                const { promptUuid, threadUuid } = context;
                 if (!promptUuid) {
                     throw new UnexpectedServerError(
                         'generateDataApp requires a prompt',
+                    );
+                }
+                if (!threadUuid) {
+                    throw new UnexpectedServerError(
+                        'generateDataApp requires a thread',
                     );
                 }
                 const designUuid =
@@ -1818,6 +1824,10 @@ export class AiAgentToolsService extends BaseService {
                     {
                         creationExperience: 'ai_agent',
                         aiAgentToolCall: { promptUuid, toolCallId },
+                        thread: {
+                            origin: 'ai_thread',
+                            aiThreadUuid: threadUuid,
+                        },
                         ...(designUuid === undefined
                             ? {}
                             : { designUuidInput: designUuid }),
@@ -1975,8 +1985,12 @@ export class AiAgentToolsService extends BaseService {
 
     private readContent(
         context: AiAgentToolsRuntimeContext,
-        { slug, type }: Parameters<ReadContentFn>[0],
+        args: Parameters<ReadContentFn>[0],
     ): ReturnType<ReadContentFn> {
+        if (args.type === 'document') {
+            return this.readDocumentContent(context, args);
+        }
+        const { slug, type } = args;
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.readContent`,
             { slug, type },
@@ -2335,8 +2349,16 @@ export class AiAgentToolsService extends BaseService {
 
     private editContent(
         context: AiAgentToolsRuntimeContext,
-        { slug, type, patch }: Parameters<EditContentFn>[0],
+        args: Parameters<EditContentFn>[0],
     ): ReturnType<EditContentFn> {
+        if (args.type === 'document') {
+            return this.editDocumentContent(
+                context,
+                args.slug,
+                args.documentEdit,
+            );
+        }
+        const { slug, type, patch } = args;
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.editContent`,
             { slug, type },
@@ -2470,6 +2492,9 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         { type, content }: Parameters<CreateContentFn>[0],
     ): ReturnType<CreateContentFn> {
+        if (type === 'document') {
+            return this.createDocumentContent(context, content);
+        }
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.createContent`,
             { slug: content.slug, type },
@@ -3980,12 +4005,20 @@ export class AiAgentToolsService extends BaseService {
                     ContentType.CHART,
                     ContentType.SPACE,
                     ContentType.DATA_APP,
-                    ...(context.source === 'mcp' ? [ContentType.DOCUMENT] : []),
+                    ...(context.source === 'mcp' || context.enableDocuments
+                        ? [ContentType.DOCUMENT]
+                        : []),
                 ],
             },
             {},
             { page, pageSize },
         );
+
+        const projectSlug = results.data.some(
+            (item) => item.contentType === ContentType.DOCUMENT,
+        )
+            ? (await this.projectModel.getSummary(projectUuid)).slug
+            : projectUuid;
 
         return {
             spaceSlug,
@@ -3993,6 +4026,7 @@ export class AiAgentToolsService extends BaseService {
                 .filter(
                     (item) =>
                         context.source === 'mcp' ||
+                        context.enableDocuments ||
                         item.contentType !== ContentType.DOCUMENT,
                 )
                 .filter(
@@ -4029,8 +4063,9 @@ export class AiAgentToolsService extends BaseService {
                                 name: item.name,
                                 slug: item.slug,
                                 href: getDocumentUrl(
-                                    context.projectUuid,
+                                    projectSlug ?? projectUuid,
                                     item.uuid,
+                                    item.slug,
                                 ),
                             };
                         }
@@ -4110,27 +4145,33 @@ export class AiAgentToolsService extends BaseService {
             {},
             { page: 1, pageSize: 25 },
         );
-        return results.data
-            .filter((item) => item.contentType === ContentType.DOCUMENT)
-            .map((item): FindContentResult => {
-                const space = spacesByUuid.get(item.space.uuid);
-                return {
-                    contentType: 'document',
-                    uuid: item.uuid,
-                    name: item.name,
-                    slug: item.slug,
-                    href: getDocumentUrl(context.projectUuid, item.uuid),
-                    description: item.description,
-                    search_rank: 0,
-                    space: space
-                        ? AiAgentToolsService.getSpaceMetadata(
-                              space,
-                              spacesByPath,
-                          )
-                        : null,
-                    verification: null,
-                };
-            });
+        const documents = results.data.filter(
+            (item) => item.contentType === ContentType.DOCUMENT,
+        );
+        if (documents.length === 0) {
+            return [];
+        }
+        const project = await this.projectModel.getSummary(context.projectUuid);
+        return documents.map((item): FindContentResult => {
+            const space = spacesByUuid.get(item.space.uuid);
+            return {
+                contentType: 'document',
+                uuid: item.uuid,
+                name: item.name,
+                slug: item.slug,
+                href: getDocumentUrl(
+                    project.slug ?? context.projectUuid,
+                    item.uuid,
+                    item.slug,
+                ),
+                description: item.description,
+                search_rank: 0,
+                space: space
+                    ? AiAgentToolsService.getSpaceMetadata(space, spacesByPath)
+                    : null,
+                verification: null,
+            };
+        });
     }
 
     private async documentContentResult(
@@ -4152,10 +4193,15 @@ export class AiAgentToolsService extends BaseService {
         if (!space) {
             throw new NotFoundError('Document not found');
         }
+        const project = await this.projectModel.getSummary(context.projectUuid);
         return {
             type: 'document',
             uuid: document.documentUuid,
-            href: getDocumentUrl(context.projectUuid, document.documentUuid),
+            href: getDocumentUrl(
+                project.slug ?? context.projectUuid,
+                document.documentUuid,
+                document.slug,
+            ),
             versionUuid: document.version.versionUuid,
             content: {
                 name: document.name,
@@ -4163,11 +4209,7 @@ export class AiAgentToolsService extends BaseService {
                 description: document.description,
                 spaceSlug: getContentAsCodePathFromLtreePath(space.path),
                 schemaVersion: document.version.schemaVersion,
-                content: {
-                    cells: document.version.content.cells.map(
-                        ({ id: _id, ...cell }) => cell,
-                    ),
-                },
+                content: document.version.content,
             },
         };
     }
@@ -4225,12 +4267,10 @@ export class AiAgentToolsService extends BaseService {
                 description: input.description,
                 spaceUuid: space.uuid,
                 schemaVersion: input.schemaVersion,
-                content: parseDocumentContent(input.schemaVersion, {
-                    cells: input.content.cells.map((cell) => ({
-                        ...cell,
-                        id: randomUUID(),
-                    })),
-                }),
+                content: parseDocumentContent(
+                    input.schemaVersion,
+                    input.content,
+                ),
             },
         );
         return this.documentContentResult(context, document);
@@ -4260,22 +4300,10 @@ export class AiAgentToolsService extends BaseService {
             );
             return this.documentContentResult(context, document);
         }
-        const unmatchedCells = [...existing.version.content.cells];
-        const content = parseDocumentContent(3, {
-            cells: edit.content.cells.map((cell) => {
-                const index = unmatchedCells.findIndex(
-                    (previous) =>
-                        previous.type === cell.type &&
-                        isEqual(previous.content, cell.content),
-                );
-                // Retain unchanged chart IDs so narrative edits do not require chart-authoring permissions.
-                const id =
-                    index < 0
-                        ? randomUUID()
-                        : unmatchedCells.splice(index, 1)[0].id;
-                return { ...cell, id };
-            }),
-        });
+        const content = parseDocumentContent(
+            existing.version.schemaVersion,
+            edit.content,
+        );
         const document = await this.documentService.updateContent(
             context.account,
             context.projectUuid,

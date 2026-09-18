@@ -9,8 +9,8 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
 import { useAppColorScheme } from '../../../providers/ColorSchemeContext';
 import { registryThumbnailPath } from '../utils/registryAssetUrl';
-import ChartTypeBetaBadge from './ChartTypeBetaBadge';
 import classes from './ChartTypeLibraryCard.module.css';
+import ChartTypeReleaseStageBadge from './ChartTypeReleaseStageBadge';
 import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 import RegistryAssetImage from './RegistryAssetImage';
 
@@ -87,7 +87,7 @@ const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => {
                         {item.name}
                     </Text>
                     <Group gap={4} wrap="nowrap" flex="0 0 auto">
-                        {item.channel === 'beta' && <ChartTypeBetaBadge />}
+                        <ChartTypeReleaseStageBadge stage={item.releaseStage} />
                         <OfficialChartTypeBadge />
                     </Group>
                 </Group>

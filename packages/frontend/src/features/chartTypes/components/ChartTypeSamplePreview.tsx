@@ -126,6 +126,7 @@ const ChartTypeSamplePreview: FC<Props> = ({
                         appUuid={dataAppVizUuid}
                         identityKey={dataAppVizUuid}
                         dataAppVizContext={sampleContext}
+                        dataAppVizMode
                     />
                 </Box>
             )}

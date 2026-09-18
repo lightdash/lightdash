@@ -1,4 +1,9 @@
-import { createContentToolDefinition } from '@lightdash/common';
+import {
+    createContentToolDefinition,
+    mcpCreateContentArgsSchema,
+    mcpCreateContentToolDefinition,
+    toolCreateContentArgsSchema,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
 import { getContentWarnings } from '../utils/contentWarnings';
@@ -7,6 +12,7 @@ import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     createContent: CreateContentFn;
+    documentsEnabled?: boolean;
 };
 
 const toolDefinition = createContentToolDefinition.for('agent');
@@ -19,7 +25,7 @@ const contentResult = ({
 }: {
     content: unknown;
     href: string;
-    type: 'dashboard' | 'chart';
+    type: 'dashboard' | 'chart' | 'document';
     warnings: string[];
 }) => {
     const warningText =
@@ -31,11 +37,21 @@ const contentResult = ({
     )}${warningText}`;
 };
 
-export const getCreateContent = ({ createContent }: Dependencies) =>
+export const getCreateContent = ({
+    createContent,
+    documentsEnabled = false,
+}: Dependencies) =>
     tool({
-        ...toolDefinition,
-        execute: async ({ type, content }) => {
+        ...(documentsEnabled
+            ? mcpCreateContentToolDefinition.for('agent')
+            : toolDefinition),
+        execute: async (args) => {
+            const { type, content } = args;
             try {
+                (documentsEnabled
+                    ? mcpCreateContentArgsSchema
+                    : toolCreateContentArgsSchema
+                ).parse(args);
                 const result = await createContent({
                     type,
                     content,
@@ -48,11 +64,17 @@ export const getCreateContent = ({ createContent }: Dependencies) =>
                     uuid: result.uuid,
                     href: result.href,
                     warnings,
+                    ...(result.type === 'document'
+                        ? { versionUuid: result.versionUuid }
+                        : {}),
                 };
 
                 return {
                     result: contentResult({
-                        content: result.content,
+                        content:
+                            result.type === 'document'
+                                ? result
+                                : result.content,
                         href: metadata.href,
                         type: result.type,
                         warnings,

@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { type SpaceSummary } from '@lightdash/common';
+import {
+    canMutateVerifiedContent,
+    type ContentVerificationInfo,
+    type SpaceSummary,
+} from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
@@ -90,4 +94,37 @@ export const useCanEditDataAppChecker = (
             ),
         [ability, user.data?.organizationUuid, projectUuid, spaces],
     );
+};
+
+/**
+ * `useCanEditDataApp` plus the verified-content gate: a verified app is
+ * read-only unless the user manages verified content or verified it.
+ */
+export const useCanEditVerifiedDataApp = (
+    projectUuid: string | undefined,
+    app: DataAppAccess & { verification: ContentVerificationInfo | null },
+): boolean => {
+    const ability = useAbilityContext();
+    const { user } = useApp();
+    const canEdit = useCanEditDataApp(projectUuid, app);
+    const { verification } = app;
+    const organizationUuid = user.data?.organizationUuid;
+    const userUuid = user.data?.userUuid;
+
+    return useMemo(() => {
+        if (!canEdit || !projectUuid || !organizationUuid) return false;
+        return canMutateVerifiedContent(
+            ability,
+            { organizationUuid, projectUuid },
+            verification,
+            userUuid,
+        );
+    }, [
+        ability,
+        canEdit,
+        organizationUuid,
+        projectUuid,
+        userUuid,
+        verification,
+    ]);
 };

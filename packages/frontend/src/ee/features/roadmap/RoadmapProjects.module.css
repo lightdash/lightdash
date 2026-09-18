@@ -49,9 +49,7 @@
 .ticketCard:hover {
     border-color: var(--mantine-color-ldGray-3);
 }
-.projectCardBody:focus-visible,
-.projectCardFooter:focus-visible,
-.ticketCard:focus-visible {
+.projectCardFooter:focus-visible {
     outline: 2px solid var(--mantine-color-indigo-outline);
     outline-offset: 2px;
 }
@@ -158,7 +156,7 @@
     transition: opacity 120ms ease;
 }
 .ticketCard:hover .priorityNone,
-.ticketCard:focus-visible .priorityNone,
+.ticketCard:focus-within .priorityNone,
 .projectCard:hover .priorityNone,
 .projectCard:focus-within .priorityNone {
     opacity: 1;
@@ -200,6 +198,8 @@
         box-shadow 120ms ease-out;
 }
 .tableTitle {
+    flex: 1;
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: var(--mantine-spacing-sm);
@@ -228,6 +228,7 @@
     overflow: hidden;
 }
 .projectFollowAction {
+    z-index: 2;
     position: absolute;
     top: var(--mantine-spacing-xs);
     right: var(--mantine-spacing-xs);
@@ -252,6 +253,7 @@
     padding-right: 5rem;
 }
 .projectCardBody {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: calc(var(--mantine-spacing-xs) / 2);
@@ -273,11 +275,39 @@
     background: var(--mantine-color-default-hover);
 }
 
-.projectCardBody:focus-visible,
 .projectCardFooter:focus-visible {
     outline-offset: -2px;
 }
 
 .cardMetadata {
     margin-top: var(--mantine-spacing-xs);
+}
+
+.cardOpen {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--mantine-spacing-xs) / 2);
+    width: 100%;
+}
+.cardOpen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--mantine-radius-md);
+}
+.cardOpen:focus-visible {
+    outline: none;
+}
+.cardOpen:focus-visible::after {
+    outline: 2px solid var(--mantine-color-indigo-outline);
+    outline-offset: -2px;
+}
+.slackControl {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-shrink: 0;
+}
+.slackControl:empty {
+    display: none;
 }

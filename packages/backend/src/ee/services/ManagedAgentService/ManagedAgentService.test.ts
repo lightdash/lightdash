@@ -6,8 +6,6 @@ import {
     ManagedAgentActionType,
     ManagedAgentRunStatus,
     ManagedAgentTargetType,
-    ProjectMemberRole,
-    ServiceAccountScope,
     ValidationErrorType,
     ValidationSourceType,
     type PossibleAbilities,
@@ -15,7 +13,6 @@ import {
 } from '@lightdash/common';
 import { MockLanguageModelV3 } from 'ai/test';
 import { fromSession } from '../../../auth/account';
-import type { ManagedAgentRuntime } from '../../../config/parseConfig';
 import { getAvailableModels, getModel } from '../ai/models';
 import { ManagedAgentService } from './ManagedAgentService';
 
@@ -47,7 +44,6 @@ const resolvedModel = {
 
 const ORGANIZATION_UUID = 'organization-uuid';
 const PROJECT_UUID = 'project-uuid';
-const SERVICE_ACCOUNT_UUID = 'service-account-uuid';
 const USER_UUID = 'user-uuid';
 
 const settings = {
@@ -79,31 +75,13 @@ const user = {
 } as AnyType as SessionUser;
 
 const buildService = ({
-    projectGrants = [
-        {
-            projectUuid: PROJECT_UUID,
-            role: ProjectMemberRole.EDITOR,
-            roleUuid: null,
-        },
-    ],
-    serviceAccountScopes = [ServiceAccountScope.SYSTEM_MEMBER],
-    serviceAccountTokens = [null, 'service-account-token'],
     suggestionsSpaces = [],
-    runtime = 'anthropic-managed',
     defaultModelConfig = null,
 }: {
-    projectGrants?: Array<{
-        projectUuid: string;
-        role: ProjectMemberRole;
-        roleUuid: string | null;
-    }>;
-    serviceAccountScopes?: ServiceAccountScope[];
-    serviceAccountTokens?: Array<string | null>;
     suggestionsSpaces?: Array<{
         uuid: string;
         inheritParentPermissions: boolean;
     }>;
-    runtime?: ManagedAgentRuntime;
     defaultModelConfig?: {
         modelProvider: string;
         modelName: string;
@@ -151,43 +129,12 @@ const buildService = ({
         }),
         setCurrentActivity: vi.fn().mockResolvedValue(undefined),
         upsertSettings: vi.fn().mockResolvedValue(settings),
-        getServiceAccountToken: vi
-            .fn()
-            .mockResolvedValueOnce(serviceAccountTokens[0])
-            .mockResolvedValueOnce(serviceAccountTokens[1]),
-        setServiceAccountToken: vi.fn().mockResolvedValue(undefined),
-        getAnthropicResourceIds: vi.fn().mockResolvedValue({
-            agentId: null,
-            agentConfigHash: null,
-            agentVersion: null,
-            environmentId: null,
-            vaultId: null,
-            vaultConfigHash: null,
-        }),
     };
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({
             organizationUuid: ORGANIZATION_UUID,
         }),
         findExploresFromCache: vi.fn().mockResolvedValue({}),
-        createServiceAccountProjectAccess: vi.fn().mockResolvedValue(undefined),
-        getServiceAccountProjectGrants: vi
-            .fn()
-            .mockResolvedValue(projectGrants),
-        setServiceAccountProjectAccess: vi.fn().mockResolvedValue(undefined),
-    };
-    const serviceAccountModel = {
-        create: vi.fn().mockResolvedValue({
-            uuid: SERVICE_ACCOUNT_UUID,
-            token: 'service-account-token',
-        }),
-        delete: vi.fn().mockResolvedValue(undefined),
-        findByToken: vi.fn().mockResolvedValue({
-            uuid: SERVICE_ACCOUNT_UUID,
-            description: `Autopilot (${PROJECT_UUID})`,
-            scopes: serviceAccountScopes,
-        }),
-        update: vi.fn().mockResolvedValue(undefined),
     };
     const schedulerClient = {
         scheduleManagedAgentHeartbeat: vi.fn().mockResolvedValue(undefined),
@@ -195,9 +142,6 @@ const buildService = ({
         cancelManagedAgentHeartbeat: vi.fn().mockResolvedValue(undefined),
     };
 
-    const managedAgentClient = {
-        syncAgent: vi.fn().mockResolvedValue(undefined),
-    };
     const dataRuntime = {
         listExplores: vi.fn().mockResolvedValue([]),
         getProjectParameterDefinitions: vi.fn().mockResolvedValue([]),
@@ -237,7 +181,6 @@ const buildService = ({
             },
             managedAgent: {
                 schedule: '0 0 * * *',
-                runtime,
                 validatedModels: [],
                 maxSteps: 5,
                 sessionTimeoutMs: 5000,
@@ -264,10 +207,8 @@ const buildService = ({
             findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(user),
         },
         featureFlagModel: {},
-        serviceAccountModel,
         schedulerClient,
         slackClient,
-        managedAgentClient,
         orgAiCopilotConfigResolver,
         aiOrganizationSettingsService,
         aiAgentToolsService,
@@ -285,12 +226,10 @@ const buildService = ({
         dataRuntime,
         aiOrganizationSettingsService,
         orgAiCopilotConfigResolver,
-        managedAgentClient,
         managedAgentModel,
         projectModel,
         schedulerClient,
         service,
-        serviceAccountModel,
     };
 };
 
@@ -342,194 +281,22 @@ describe('ManagedAgentService run locking', () => {
 });
 
 describe('ManagedAgentService.updateSettings', () => {
-    it('skips the MCP service account and agent sync on the AI SDK runtime', async () => {
-        const {
-            managedAgentClient,
-            managedAgentModel,
-            schedulerClient,
-            service,
-            serviceAccountModel,
-        } = buildService({ runtime: 'ai-sdk' });
+    it('schedules the heartbeat when Autopilot is enabled', async () => {
+        const { schedulerClient, service } = buildService();
 
         await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
             enabled: true,
         });
 
-        expect(serviceAccountModel.create).not.toHaveBeenCalled();
-        expect(managedAgentModel.setServiceAccountToken).not.toHaveBeenCalled();
-        expect(managedAgentClient.syncAgent).not.toHaveBeenCalled();
         expect(
             schedulerClient.scheduleManagedAgentHeartbeat,
         ).toHaveBeenCalledWith('0 0 * * *', PROJECT_UUID);
-    });
-
-    it('creates a project-scoped service account for MCP authentication', async () => {
-        const {
-            managedAgentClient,
-            managedAgentModel,
-            projectModel,
-            service,
-            serviceAccountModel,
-        } = buildService();
-
-        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-            enabled: true,
-        });
-
-        expect(serviceAccountModel.create).toHaveBeenCalledWith({
-            user,
-            data: {
-                organizationUuid: ORGANIZATION_UUID,
-                description: `Autopilot (${PROJECT_UUID})`,
-                expiresAt: null,
-                scopes: [ServiceAccountScope.SYSTEM_MEMBER],
-            },
-        });
-        expect(
-            projectModel.createServiceAccountProjectAccess,
-        ).toHaveBeenCalledWith(PROJECT_UUID, SERVICE_ACCOUNT_UUID, {
-            role: ProjectMemberRole.EDITOR,
-            roleUuid: undefined,
-        });
-        expect(managedAgentModel.setServiceAccountToken).toHaveBeenCalledWith(
-            PROJECT_UUID,
-            'service-account-token',
-        );
-        expect(managedAgentClient.syncAgent).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: PROJECT_UUID,
-                serviceAccountPat: 'service-account-token',
-            }),
-        );
-    });
-
-    it('restricts an existing organization-scoped account before syncing the agent', async () => {
-        const {
-            managedAgentClient,
-            projectModel,
-            service,
-            serviceAccountModel,
-        } = buildService({
-            projectGrants: [
-                {
-                    projectUuid: 'another-project-uuid',
-                    role: ProjectMemberRole.ADMIN,
-                    roleUuid: null,
-                },
-            ],
-            serviceAccountScopes: [ServiceAccountScope.ORG_ADMIN],
-            serviceAccountTokens: [
-                'existing-service-account-token',
-                'existing-service-account-token',
-            ],
-        });
-
-        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-            enabled: true,
-        });
-
-        expect(
-            projectModel.setServiceAccountProjectAccess,
-        ).toHaveBeenCalledWith(
-            SERVICE_ACCOUNT_UUID,
-            [
-                {
-                    projectUuid: PROJECT_UUID,
-                    role: ProjectMemberRole.EDITOR,
-                },
-            ],
-            { makeProjectScoped: true },
-        );
-        expect(serviceAccountModel.update).not.toHaveBeenCalled();
-        expect(
-            projectModel.setServiceAccountProjectAccess.mock
-                .invocationCallOrder[0],
-        ).toBeLessThan(
-            managedAgentClient.syncAgent.mock.invocationCallOrder[0],
-        );
-        expect(managedAgentClient.syncAgent).toHaveBeenCalledOnce();
-    });
-
-    it('replaces multiple grants on an existing member-scoped account', async () => {
-        const { projectModel, service } = buildService({
-            projectGrants: [
-                {
-                    projectUuid: PROJECT_UUID,
-                    role: ProjectMemberRole.EDITOR,
-                    roleUuid: null,
-                },
-                {
-                    projectUuid: 'another-project-uuid',
-                    role: ProjectMemberRole.VIEWER,
-                    roleUuid: null,
-                },
-            ],
-            serviceAccountTokens: [
-                'existing-service-account-token',
-                'existing-service-account-token',
-            ],
-        });
-
-        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-            enabled: true,
-        });
-
-        expect(
-            projectModel.setServiceAccountProjectAccess,
-        ).toHaveBeenCalledWith(
-            SERVICE_ACCOUNT_UUID,
-            [
-                {
-                    projectUuid: PROJECT_UUID,
-                    role: ProjectMemberRole.EDITOR,
-                },
-            ],
-            { makeProjectScoped: true },
-        );
-    });
-
-    it('deletes a new service account when its project grant cannot be created', async () => {
-        const { projectModel, service, serviceAccountModel } = buildService();
-        const grantError = new Error('project grant failed');
-        projectModel.createServiceAccountProjectAccess.mockRejectedValue(
-            grantError,
-        );
-
-        await expect(
-            service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-                enabled: true,
-            }),
-        ).rejects.toBe(grantError);
-
-        expect(serviceAccountModel.delete).toHaveBeenCalledWith(
-            SERVICE_ACCOUNT_UUID,
-        );
-    });
-
-    it('resolves the agent audience from the suggestions space when it exists', async () => {
-        const { managedAgentClient, service } = buildService({
-            suggestionsSpaces: [
-                { uuid: 'space-uuid', inheritParentPermissions: false },
-            ],
-        });
-
-        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-            enabled: true,
-        });
-
-        expect(managedAgentClient.syncAgent).toHaveBeenCalledWith(
-            expect.objectContaining({
-                policy: expect.objectContaining({ audience: 'admins' }),
-            }),
-        );
     });
 });
 
 describe('ManagedAgentService provider preflight', () => {
     it('rejects enabling on the AI SDK runtime when the org has no usable provider', async () => {
-        const { managedAgentModel, schedulerClient, service } = buildService({
-            runtime: 'ai-sdk',
-        });
+        const { managedAgentModel, schedulerClient, service } = buildService();
         vi.mocked(getModel).mockImplementation(() => {
             throw new Error('anthropic provider configuration is required');
         });
@@ -550,7 +317,6 @@ describe('ManagedAgentService provider preflight', () => {
 
     it('resolves the org default model when enabling on the AI SDK runtime', async () => {
         const { service } = buildService({
-            runtime: 'ai-sdk',
             defaultModelConfig: {
                 modelProvider: 'openai',
                 modelName: 'gpt-5',
@@ -571,7 +337,6 @@ describe('ManagedAgentService provider preflight', () => {
 
     it('falls back to the provider default when the org default names an unknown provider', async () => {
         const { service } = buildService({
-            runtime: 'ai-sdk',
             defaultModelConfig: {
                 modelProvider: 'not-a-provider',
                 modelName: 'whatever',
@@ -592,7 +357,6 @@ describe('ManagedAgentService provider preflight', () => {
 
     it('falls back when the stored org model is no longer available', async () => {
         const { service } = buildService({
-            runtime: 'ai-sdk',
             defaultModelConfig: {
                 modelProvider: 'openai',
                 modelName: 'removed-model',
@@ -610,9 +374,7 @@ describe('ManagedAgentService provider preflight', () => {
     });
 
     it('does not fall back to a provider hidden by the organization', async () => {
-        const { service, orgAiCopilotConfigResolver } = buildService({
-            runtime: 'ai-sdk',
-        });
+        const { service, orgAiCopilotConfigResolver } = buildService();
         orgAiCopilotConfigResolver.getOrgModelOverrides.mockResolvedValue({
             modelVisibility: { anthropic: { enabled: false } },
             keyAccessibleModelIds: null,
@@ -630,7 +392,7 @@ describe('ManagedAgentService provider preflight', () => {
 
     it('rejects enabling when every model is hidden', async () => {
         const { service, orgAiCopilotConfigResolver, managedAgentModel } =
-            buildService({ runtime: 'ai-sdk' });
+            buildService();
         orgAiCopilotConfigResolver.getOrgModelOverrides.mockResolvedValue({
             modelVisibility: {
                 anthropic: { enabled: false },
@@ -644,19 +406,6 @@ describe('ManagedAgentService provider preflight', () => {
             }),
         ).rejects.toThrow('No AI model is available');
         expect(managedAgentModel.upsertSettings).not.toHaveBeenCalled();
-    });
-
-    it('does not preflight the provider on the managed-agents runtime', async () => {
-        const { aiOrganizationSettingsService, service } = buildService();
-
-        await service.updateSettings(user, PROJECT_UUID, USER_UUID, {
-            enabled: true,
-        });
-
-        expect(getModel).not.toHaveBeenCalled();
-        expect(
-            aiOrganizationSettingsService.getDefaultModelConfig,
-        ).not.toHaveBeenCalled();
     });
 });
 
@@ -678,9 +427,7 @@ describe('ManagedAgentService heartbeat initialization', () => {
 
 describe('ManagedAgentService runtime details', () => {
     it('reports instance keys accurately and downgrades unvalidated cleanup', async () => {
-        const { service, managedAgentModel } = buildService({
-            runtime: 'ai-sdk',
-        });
+        const { service, managedAgentModel } = buildService();
         managedAgentModel.getSettings.mockResolvedValue({
             ...settings,
             policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression: 'cleanup' },
@@ -706,9 +453,7 @@ describe('ManagedAgentService runtime details', () => {
     });
 
     it('reports an organization key when that provider came from BYO configuration', async () => {
-        const { service, orgAiCopilotConfigResolver } = buildService({
-            runtime: 'ai-sdk',
-        });
+        const { service, orgAiCopilotConfigResolver } = buildService();
         orgAiCopilotConfigResolver.getCopilotConfig.mockResolvedValue({
             ...copilotConfig,
             byoProviders: ['anthropic'],
@@ -726,9 +471,7 @@ describe('ManagedAgentService runtime details', () => {
     });
 
     it('returns an actionable error without model attribution when resolution fails', async () => {
-        const { service, orgAiCopilotConfigResolver } = buildService({
-            runtime: 'ai-sdk',
-        });
+        const { service, orgAiCopilotConfigResolver } = buildService();
         orgAiCopilotConfigResolver.getCopilotConfig.mockRejectedValue(
             new Error('Invalid provider configuration'),
         );
@@ -744,7 +487,7 @@ describe('ManagedAgentService runtime details', () => {
     });
 
     it('does not expose configuration to a user who cannot administer the project', async () => {
-        const { service } = buildService({ runtime: 'ai-sdk' });
+        const { service } = buildService();
         await expect(
             service.getRuntimeInfo(
                 fromSession({ ...user, ability: new Ability([]) }),
@@ -759,7 +502,7 @@ describe('ManagedAgentService cleanup qualification enforcement', () => {
     it.each(['soft_delete_content', 'bulk_delete_broken_content'])(
         'refuses %s for an unqualified run before invoking its handler',
         async (name) => {
-            const { service } = buildService({ runtime: 'ai-sdk' });
+            const { service } = buildService();
             const result = await (service as AnyType).handleToolCall(
                 PROJECT_UUID,
                 'session',
@@ -831,9 +574,7 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
         async (fail) => {
             captureAutopilotFailure.mockClear();
             const { service, managedAgentModel, analytics, slackClient } =
-                buildService({
-                    runtime: 'ai-sdk',
-                });
+                buildService();
             managedAgentModel.getSettings.mockResolvedValue({
                 ...settings,
                 policy: {
@@ -976,7 +717,6 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                     }),
                     {
                         stage: 'run',
-                        runtime: 'ai-sdk',
                         organizationUuid: expect.any(String),
                         projectUuid: PROJECT_UUID,
                         runUuid: 'run-uuid',
@@ -1020,7 +760,7 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
 
     it('reports an unreadable action ledger without inventing zero actions', async () => {
         const { service, managedAgentModel, orgAiCopilotConfigResolver } =
-            buildService({ runtime: 'ai-sdk' });
+            buildService();
         orgAiCopilotConfigResolver.getCopilotConfig.mockRejectedValue(
             new Error('Provider unavailable'),
         );
@@ -1043,7 +783,7 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
             managedAgentModel,
             orgAiCopilotConfigResolver,
             analytics,
-        } = buildService({ runtime: 'ai-sdk' });
+        } = buildService();
         orgAiCopilotConfigResolver.getCopilotConfig.mockRejectedValue(
             new Error('No configured provider'),
         );
@@ -1063,9 +803,7 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
     });
 
     it('does not execute the model if saving attribution fails', async () => {
-        const { service, managedAgentModel } = buildService({
-            runtime: 'ai-sdk',
-        });
+        const { service, managedAgentModel } = buildService();
         const doGenerate = vi.fn();
         vi.mocked(getModel).mockReturnValue({
             ...resolvedModel,
@@ -1090,9 +828,7 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
     });
 
     it('cannot delete a prior creation through the reversal tool when cleanup is not allowed', async () => {
-        const { service, managedAgentModel } = buildService({
-            runtime: 'ai-sdk',
-        });
+        const { service, managedAgentModel } = buildService();
         managedAgentModel.getAction.mockResolvedValue({
             actionUuid: 'created-action',
             projectUuid: PROJECT_UUID,
@@ -1119,9 +855,7 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
 
 describe('ManagedAgentService reversal scope', () => {
     it('refuses to reverse an action recorded by an earlier run', async () => {
-        const { service, managedAgentModel } = buildService({
-            runtime: 'ai-sdk',
-        });
+        const { service, managedAgentModel } = buildService();
         managedAgentModel.getAction.mockResolvedValue({
             actionUuid: 'old-flag',
             projectUuid: PROJECT_UUID,
@@ -1144,9 +878,7 @@ describe('ManagedAgentService reversal scope', () => {
     });
 
     it('reverses a flag recorded by the current run', async () => {
-        const { service, managedAgentModel } = buildService({
-            runtime: 'ai-sdk',
-        });
+        const { service, managedAgentModel } = buildService();
         managedAgentModel.getAction.mockResolvedValue({
             actionUuid: 'own-flag',
             projectUuid: PROJECT_UUID,
@@ -1215,9 +947,7 @@ describe('ManagedAgentService query check before saving', () => {
     };
 
     it('does not save a repaired version when the query fails', async () => {
-        const { service, savedChartModel, asyncQueryService } = buildService({
-            runtime: 'ai-sdk',
-        });
+        const { service, savedChartModel, asyncQueryService } = buildService();
         stubGuards(service);
         savedChartModel.get.mockResolvedValue(existingChart);
         asyncQueryService.executeMetricQueryAndGetResults.mockRejectedValue(
@@ -1244,9 +974,7 @@ describe('ManagedAgentService query check before saving', () => {
     });
 
     it('runs the repaired query at limit 1 before saving the version', async () => {
-        const { service, savedChartModel, asyncQueryService } = buildService({
-            runtime: 'ai-sdk',
-        });
+        const { service, savedChartModel, asyncQueryService } = buildService();
         stubGuards(service);
         savedChartModel.get.mockResolvedValue(existingChart);
         const result = await (service as AnyType).handleToolCall(
@@ -1280,7 +1008,7 @@ describe('ManagedAgentService query check before saving', () => {
 
     it('does not create a chart when its query fails', async () => {
         const { service, savedChartModel, asyncQueryService, projectModel } =
-            buildService({ runtime: 'ai-sdk' });
+            buildService();
         stubGuards(service);
         projectModel.findExploresFromCache.mockResolvedValue({
             orders: {
@@ -1325,7 +1053,7 @@ describe('ManagedAgentService broken-content pagination', () => {
             validationModel,
             savedChartModel,
             spacePermissionService,
-        } = buildService({ runtime: 'ai-sdk' });
+        } = buildService();
         const actor = {
             ...user,
             ability: new Ability<PossibleAbilities>([

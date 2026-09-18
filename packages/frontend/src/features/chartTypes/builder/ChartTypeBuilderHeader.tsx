@@ -20,6 +20,7 @@ import { Link, type To } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import AppUpgradeModal from '../../apps/components/AppUpgradeModal';
+import ClearAgentContextAction from '../../apps/components/ClearAgentContextAction';
 import { type SdkUpgradeOffer } from '../../apps/hooks/useSdkUpgradeStatus';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import { type ChartTypeAppMeta } from './appMeta';
@@ -38,6 +39,8 @@ type Props = {
     /** False while the visualization has no versions to look back through. */
     hasHistory: boolean;
     isHistoryOpen: boolean;
+    /** Clearing agent context is refused while a build runs. */
+    isBuilding: boolean;
     upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
     onUpgradeStarted: () => void;
     onToggleHistory: () => void;
@@ -53,6 +56,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     latestReadyVersion,
     hasHistory,
     isHistoryOpen,
+    isBuilding,
     upgrade,
     onUpgradeStarted,
     onToggleHistory,
@@ -146,6 +150,13 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                     >
                         Upgrade available
                     </Button>
+                )}
+                {app && (
+                    <ClearAgentContextAction
+                        projectUuid={projectUuid}
+                        appUuid={app.appUuid}
+                        disabled={isBuilding}
+                    />
                 )}
                 {hasHistory && (
                     <Button

@@ -430,6 +430,7 @@ import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
+import { resolveRenderableDataAppVizVersion } from '../AppGenerateService/dataAppVizRender';
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
@@ -439,6 +440,7 @@ import {
 } from './agentSelectionPrompt';
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import { deriveAiAgentThreadLiveStatus } from './aiAgentThreadLiveStatus';
+import { resolveStandardToolAllowlist } from './dataAppThreadPolicy';
 import {
     responseMatchesPromptInputRequestGate,
     runPromptInputRequestClassification,
@@ -487,6 +489,12 @@ const AI_AGENT_SHUTDOWN_ERROR_MESSAGE =
     'The server restarted while generating this response. Please try again.';
 const AI_AGENT_SHUTDOWN_PERSIST_TIMEOUT_MS = 5_000;
 const AI_AGENT_SHUTDOWN_PERSIST_ATTEMPTS = 2;
+
+// Eval jobs time out after 10 minutes, so an older Graphile lock can only
+// belong to a worker that died without releasing it.
+const AI_AGENT_EVAL_STALE_LOCK_THRESHOLD_MINUTES = 15;
+const INTERRUPTED_EVAL_RESULT_ERROR_MESSAGE =
+    'Evaluation was interrupted by a scheduler restart before it completed';
 const EXPLICIT_SLACK_CHANNEL_LINKING_REQUIRED_REASON =
     'explicit_slack_channel_linking_required';
 const AGENT_AVATAR_MAX_BYTES = 5 * 1024 * 1024;
@@ -527,6 +535,8 @@ type GenerateAgentExecutionOptions =
           onWarehouseQuery?: () => void | Promise<void>;
           /** Restricts the run to these registered tool names. */
           toolAllowlist?: ReadonlySet<string>;
+          /** Aborts model calls and tools mid-run (worker timeouts). */
+          abortSignal?: AbortSignal;
       }
     | {
           mode: 'deep_research';
@@ -2670,27 +2680,81 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    private async getDataAppVizSchemaFields(
+        projectUuid: string,
+        dataAppVizUuid: string,
+        dataAppVizVersion?: number,
+    ) {
+        const app = await this.appModel.findVisualizationApp(
+            dataAppVizUuid,
+            projectUuid,
+        );
+        if (!app) {
+            if (dataAppVizVersion !== undefined) {
+                throw new NotFoundError(
+                    `Custom chart type version ${dataAppVizVersion} is unavailable. Regenerate the chart to use a renderable version.`,
+                );
+            }
+            return null;
+        }
+
+        let schema = app.viz_schema;
+        if (dataAppVizVersion !== undefined) {
+            try {
+                schema = (
+                    await resolveRenderableDataAppVizVersion(
+                        this.appModel,
+                        app.app_id,
+                        dataAppVizVersion,
+                    )
+                ).viz_schema;
+            } catch (error) {
+                if (
+                    error instanceof NotFoundError ||
+                    error instanceof ParameterError
+                ) {
+                    throw new NotFoundError(
+                        `Custom chart type version ${dataAppVizVersion} is unavailable. Regenerate the chart to use a renderable version.`,
+                    );
+                }
+                throw error;
+            }
+        }
+
+        const parsedSchema = dataAppVizSchema.safeParse(schema);
+        if (!parsedSchema.success) {
+            if (dataAppVizVersion !== undefined) {
+                throw new NotFoundError(
+                    `Custom chart type version ${dataAppVizVersion} is unavailable. Regenerate the chart to use a renderable version.`,
+                );
+            }
+            Logger.warn(
+                `Skipping custom chart type schema for ${dataAppVizUuid}: app missing or viz_schema failed validation`,
+            );
+            return null;
+        }
+        return parsedSchema.data.fields;
+    }
+
     // Pivot on the type's series slots, schema fetched at query time.
-    // Best-effort: a deleted app or invalid schema yields no pivot.
+    // Legacy artifacts retain the latest-schema fallback; versioned artifacts
+    // resolve the schema that rendered their recorded chart type version.
     private async deriveCustomChartTypePivotConfiguration(
         projectUuid: string,
         customChartConfig: DataAppVizChart,
         metricQuery: MetricQuery,
         fields: ItemsMap,
     ): Promise<PivotConfiguration | undefined> {
-        const app = await this.appModel.findVisualizationApp(
-            customChartConfig.dataAppVizUuid,
+        const schemaFields = await this.getDataAppVizSchemaFields(
             projectUuid,
+            customChartConfig.dataAppVizUuid,
+            customChartConfig.dataAppVizVersion,
         );
-        const parsedSchema = dataAppVizSchema.safeParse(app?.viz_schema);
-        if (!parsedSchema.success) {
-            Logger.warn(
-                `Skipping custom chart type pivot for ${customChartConfig.dataAppVizUuid}: app missing or viz_schema failed validation`,
-            );
+        if (!schemaFields) {
             return undefined;
         }
         const pivotConfig = deriveDataAppVizPivotConfig(
-            parsedSchema.data.fields,
+            schemaFields,
             customChartConfig.fieldMapping,
         );
         return deriveDataAppVizPivotConfiguration(
@@ -10166,6 +10230,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             suppressWritebackPreview?: boolean;
             dbtSourceUuid?: string;
             onWarehouseQuery?: () => void | Promise<void>;
+            enableDocuments: boolean;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -10177,6 +10242,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             organizationUuid,
             projectUuid,
             source: 'ai_agent',
+            enableDocuments: options?.enableDocuments ?? false,
             catalogSearchContext: CatalogSearchContext.AI_AGENT,
             defaultQueryExecutionContext: QueryExecutionContext.AI,
             tags: runtimeAgentSettings.tags,
@@ -11085,88 +11151,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 user,
             );
 
-        const {
-            listExplores,
-            getExplore,
-            getProjectParameterDefinitions,
-            getProjectContextDocument,
-            getAiAgentMemoryContextEntries,
-            incrementAiAgentMemoryPulls,
-            resolveThreadMemoryOwnerUuid,
-            listContent,
-            findContent,
-            readContent,
-            generateDataApp,
-            iterateDataApp,
-            listDataAppThemes,
-            resolveUrl,
-            editContent,
-            createContent,
-            createScheduledDelivery,
-            updateUserName,
-            validateContent,
-            getDashboardCharts,
-            findExplores,
-            listCustomChartTypes,
-            findCustomChartTypes,
-            resolveCustomChartType,
-            getVerifiedFieldUsage,
-            searchSemanticLayer,
-            analyzeFieldImpact,
-            syncDbtProject,
-            updateProgress,
-            getPrompt,
-            runAsyncQuery,
-            runAsyncMergeQuery,
-            runSavedChartQuery,
-            runSqlJob,
-            runComposerQueries,
-            listWarehouseTables,
-            describeWarehouseTable,
-            listKnowledgeDocuments,
-            getKnowledgeDocumentContent,
-            getSavedChart,
-            sendFile,
-            exportCustomChartTypeImage,
-            sendSlackBlocks,
-            updateSlackMessage,
-            storeToolCall,
-            storeToolCallError,
-            storeToolResults,
-            storeReasoning,
-            isPromptInterrupted,
-            consumePromptSteers,
-            searchFieldValues,
-            editDbtProject,
-            editProjectContext,
-            editRepo,
-            setupPreviewDeploy,
-            exploreRepo,
-            discoverRepos,
-            listWorkstreams,
-            closePullRequest,
-            getPullRequestDiff,
-            listProjects,
-            getProjectInfo,
-        } = await this.getAiAgentDependencies(user, prompt, {
-            onStepProgress:
-                options.onSlackStepProgress ??
-                (stepProgressEmitter
-                    ? (progress, toolName, progressId, progressStatus) => {
-                          stepProgressEmitter.emit('stepProgress', {
-                              message: progress,
-                              toolName,
-                              progressId,
-                              progressStatus,
-                          });
-                      }
-                    : undefined),
-            runtimeOptions: options.runtimeOptions,
-            suppressWritebackPreview: options.suppressWritebackPreview,
-            dbtSourceUuid: options.dbtSourceUuid,
-            onWarehouseQuery: responseExecution.onWarehouseQuery,
-        });
-
         const agentSettings = await this.getAgentSettings(user, prompt);
         const enableSqlMode =
             options.enableSqlMode ?? agentSettings.enableSqlMode;
@@ -11481,6 +11465,95 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 user,
                 projectUuid: promptProject.projectUuid,
             }));
+        const { enabled: documentsEnabled } = await this.featureFlagService.get(
+            {
+                user,
+                featureFlagId: FeatureFlags.Documents,
+            },
+        );
+        const {
+            listExplores,
+            getExplore,
+            getProjectParameterDefinitions,
+            getProjectContextDocument,
+            getAiAgentMemoryContextEntries,
+            incrementAiAgentMemoryPulls,
+            resolveThreadMemoryOwnerUuid,
+            listContent,
+            findContent,
+            readContent,
+            generateDataApp,
+            iterateDataApp,
+            listDataAppThemes,
+            resolveUrl,
+            editContent,
+            createContent,
+            createScheduledDelivery,
+            updateUserName,
+            validateContent,
+            getDashboardCharts,
+            findExplores,
+            listCustomChartTypes,
+            findCustomChartTypes,
+            resolveCustomChartType,
+            getVerifiedFieldUsage,
+            searchSemanticLayer,
+            analyzeFieldImpact,
+            syncDbtProject,
+            updateProgress,
+            getPrompt,
+            runAsyncQuery,
+            runAsyncMergeQuery,
+            runSavedChartQuery,
+            runSqlJob,
+            runComposerQueries,
+            listWarehouseTables,
+            describeWarehouseTable,
+            listKnowledgeDocuments,
+            getKnowledgeDocumentContent,
+            getSavedChart,
+            sendFile,
+            exportCustomChartTypeImage,
+            sendSlackBlocks,
+            updateSlackMessage,
+            storeToolCall,
+            storeToolCallError,
+            storeToolResults,
+            storeReasoning,
+            isPromptInterrupted,
+            consumePromptSteers,
+            searchFieldValues,
+            editDbtProject,
+            editProjectContext,
+            editRepo,
+            setupPreviewDeploy,
+            exploreRepo,
+            discoverRepos,
+            listWorkstreams,
+            closePullRequest,
+            getPullRequestDiff,
+            listProjects,
+            getProjectInfo,
+        } = await this.getAiAgentDependencies(user, prompt, {
+            onStepProgress:
+                options.onSlackStepProgress ??
+                (stepProgressEmitter
+                    ? (progress, toolName, progressId, progressStatus) => {
+                          stepProgressEmitter.emit('stepProgress', {
+                              message: progress,
+                              toolName,
+                              progressId,
+                              progressStatus,
+                          });
+                      }
+                    : undefined),
+            runtimeOptions: options.runtimeOptions,
+            suppressWritebackPreview: options.suppressWritebackPreview,
+            dbtSourceUuid: options.dbtSourceUuid,
+            onWarehouseQuery: responseExecution.onWarehouseQuery,
+            enableDocuments: canUseContentTools && documentsEnabled,
+        });
+
         const availableSkills = canUseContentTools
             ? await this.aiAgentToolsService.listAgentSkills()
             : [];
@@ -11566,7 +11639,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
             execution = {
                 mode: 'standard',
                 maxSteps: responseExecution.maxSteps ?? DEFAULT_AGENT_MAX_STEPS,
-                toolAllowlist: responseExecution.toolAllowlist,
+                toolAllowlist: resolveStandardToolAllowlist(
+                    prompt.threadCreatedFrom,
+                    responseExecution.toolAllowlist,
+                ),
             };
         }
 
@@ -11596,6 +11672,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             enableContentTools: canUseContentTools,
+            enableDocuments: canUseContentTools && documentsEnabled,
             enableGenerateDataApp,
             enableAiWriteback: aiWritebackEnabled,
             enableEditProjectContext: isReviewRemediationWorkThread,
@@ -11960,7 +12037,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 dependencies,
                 mcpToolSetup,
                 abortSignal:
-                    responseExecution.mode === 'deep_research'
+                    responseExecution.mode === 'deep_research' ||
+                    responseExecution.mode === 'standard'
                         ? responseExecution.abortSignal
                         : undefined,
             });
@@ -12426,16 +12504,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 ? promptArtifactVersions
                 : promptArtifacts,
             toolResults,
-            async (dataAppVizUuid) => {
-                const app = await this.appModel.findVisualizationApp(
-                    dataAppVizUuid,
+            async (dataAppVizUuid, dataAppVizVersion) =>
+                this.getDataAppVizSchemaFields(
                     slackPrompt.projectUuid,
-                );
-                const parsedSchema = dataAppVizSchema.safeParse(
-                    app?.viz_schema,
-                );
-                return parsedSchema.success ? parsedSchema.data.fields : null;
-            },
+                    dataAppVizUuid,
+                    dataAppVizVersion,
+                ),
         );
         const sqlArtifactBlocks = await getSqlArtifactCardBlocks(
             slackPrompt.promptUuid,
@@ -17503,6 +17577,37 @@ Use your existing tools to inspect them when relevant to the user's question (re
             completedAt: new Date(),
         });
         await this.aiAgentModel.checkAndUpdateEvalRunCompletion(evalRunUuid);
+    }
+
+    async sweepStaleEvalRuns(): Promise<{
+        failedResults: number;
+        completedRuns: number;
+    }> {
+        const interrupted =
+            await this.aiAgentModel.failInterruptedEvalRunResults({
+                staleLockThresholdMinutes:
+                    AI_AGENT_EVAL_STALE_LOCK_THRESHOLD_MINUTES,
+                errorMessage: INTERRUPTED_EVAL_RESULT_ERROR_MESSAGE,
+            });
+        if (interrupted.length > 0) {
+            Logger.warn(
+                `Failed ${interrupted.length} interrupted evaluation result(s): ${interrupted
+                    .map(({ resultUuid }) => resultUuid)
+                    .join(', ')}`,
+            );
+        }
+
+        const runUuids =
+            await this.aiAgentModel.findEvalRunsAwaitingCompletion();
+        await Promise.all(
+            runUuids.map((runUuid) =>
+                this.aiAgentModel.checkAndUpdateEvalRunCompletion(runUuid),
+            ),
+        );
+        return {
+            failedResults: interrupted.length,
+            completedRuns: runUuids.length,
+        };
     }
 
     async executeReviewRemediationRun({

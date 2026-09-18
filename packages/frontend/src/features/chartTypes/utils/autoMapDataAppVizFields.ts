@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    getDataAppVizFieldIds,
     getItemId,
     type DataAppVizField,
     type DataAppVizFieldMapping,
@@ -49,6 +50,18 @@ const poolsFor = (itemsMap: ItemsMap): Pools => {
 const poolFor = (pools: Pools, field: DataAppVizField): string[] =>
     pools[poolKeyForSlot(field)];
 
+const setBinding = (
+    mapping: DataAppVizFieldMapping,
+    field: DataAppVizField,
+    ids: string[],
+): void => {
+    if (field.multiple) {
+        mapping[field.name] = ids;
+    } else if (ids[0]) {
+        mapping[field.name] = ids[0];
+    }
+};
+
 /**
  * Give each still-unbound slot the first column of its type that nothing else
  * has taken. Slots already in `mapping` keep what they have.
@@ -60,11 +73,29 @@ const fillSlots = (
     slots: DataAppVizField[],
 ): void => {
     for (const field of slots) {
-        if (mapping[field.name]) continue;
+        if (mapping[field.name] !== undefined) continue;
         const next = poolFor(pools, field).find((id) => !taken.has(id));
         if (!next) continue;
-        mapping[field.name] = next;
+        setBinding(mapping, field, [next]);
         taken.add(next);
+    }
+};
+
+const fillMultipleSlots = (
+    mapping: DataAppVizFieldMapping,
+    taken: Set<string>,
+    pools: Pools,
+    slots: DataAppVizField[],
+): void => {
+    for (const field of slots) {
+        if (!field.multiple || mapping[field.name] === undefined) continue;
+        const extras = poolFor(pools, field).filter((id) => !taken.has(id));
+        if (extras.length === 0) continue;
+        mapping[field.name] = [
+            ...getDataAppVizFieldIds(mapping[field.name]),
+            ...extras,
+        ];
+        extras.forEach((id) => taken.add(id));
     }
 };
 
@@ -93,7 +124,21 @@ export const autoMapDataAppVizFields = (
         pools,
         fields.filter((f) => f.required),
     );
+    // Required slots each get one column before a multiple slot consumes the
+    // remaining compatible columns. This keeps a sparse query renderable.
+    fillMultipleSlots(
+        mapping,
+        taken,
+        pools,
+        fields.filter((f) => f.required),
+    );
     fillSlots(
+        mapping,
+        taken,
+        pools,
+        fields.filter((f) => !f.required),
+    );
+    fillMultipleSlots(
         mapping,
         taken,
         pools,
@@ -132,11 +177,27 @@ export const reconcileDataAppVizFieldMapping = (
     const taken = new Set<string>();
 
     for (const field of fields) {
-        const bound = persisted[field.name];
-        if (!bound) continue;
-        if (!poolFor(pools, field).includes(bound)) continue;
-        mapping[field.name] = bound;
-        taken.add(bound);
+        const persistedValue = persisted[field.name];
+        if (persistedValue === undefined) continue;
+        const valid = getDataAppVizFieldIds(persistedValue).filter(
+            (id, index, ids) =>
+                poolFor(pools, field).includes(id) && ids.indexOf(id) === index,
+        );
+        // An explicit empty array is a user clear, including for required
+        // slots. Validation reports the missing requirement rather than silently
+        // undoing the clear.
+        if (field.multiple) {
+            if (
+                valid.length > 0 ||
+                (Array.isArray(persistedValue) && persistedValue.length === 0)
+            ) {
+                mapping[field.name] = valid;
+                valid.forEach((id) => taken.add(id));
+            }
+        } else if (valid[0]) {
+            mapping[field.name] = valid[0];
+            taken.add(valid[0]);
+        }
     }
 
     // Kept bindings are already in `mapping`, so this only reaches slots the
@@ -156,4 +217,8 @@ export const getUnboundRequiredDataAppVizFields = (
     fields: DataAppVizField[],
     mapping: DataAppVizFieldMapping,
 ): DataAppVizField[] =>
-    fields.filter((field) => field.required && !mapping[field.name]);
+    fields.filter(
+        (field) =>
+            field.required &&
+            getDataAppVizFieldIds(mapping[field.name]).length === 0,
+    );

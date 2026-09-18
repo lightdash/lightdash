@@ -76,6 +76,7 @@ export * from './compiler/lightdashModelConverter';
 export * from './compiler/parameters';
 export * from './compiler/referenceLookup';
 export * from './compiler/translator';
+export * from './parameters/parameterDefaults';
 export * from './parameters/reservedParameters';
 export * from './constants/screenshot';
 export * from './constants/sessionStorageKeys';
@@ -98,7 +99,6 @@ export * from './pivot/utils';
 export { default as chartAsCodeSchema } from './schemas/json/chart-as-code-1.0.json';
 export * from './types/document';
 export * from './utils/document';
-export * from './utils/documentOperations';
 export { default as dashboardAsCodeSchema } from './schemas/json/dashboard-as-code-1.0.json';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export { default as lightdashProjectContextSchema } from './schemas/json/lightdash-project-context-2.0.json';
@@ -237,6 +237,7 @@ export {
     stripDucklakeNestedSensitive,
     SupportedDbtVersions,
     supportsOptionalUserCredentials,
+    allowsOptionalUserCredentials,
     WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS,
     WarehouseTypes,
 } from './types/projects';

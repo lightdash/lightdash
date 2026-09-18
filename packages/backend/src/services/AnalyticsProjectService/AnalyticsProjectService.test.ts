@@ -4,6 +4,7 @@ import {
     NotFoundError,
 } from '@lightdash/common';
 import { analyticsContentAsCode } from '../../analytics/systemExplores/sampleContent';
+import * as analyticsExplores from '../ProjectService/analyticsProject/createAnalyticsExplores';
 import {
     user as baseUser,
     defaultProject,
@@ -25,6 +26,7 @@ describe('AnalyticsProjectService', () => {
         createdAt: new Date('2026-09-10T00:00:00Z'),
     };
     const getAllByOrganizationUuid = vi.fn();
+    const saveExploresToCache = vi.fn();
     const assertAnalyticsProjectAccess = vi.fn();
     const ensureAnalyticsProject = vi.fn();
     const deleteProject = vi.fn();
@@ -40,6 +42,7 @@ describe('AnalyticsProjectService', () => {
         savedChartModel: { get: getChart },
         projectModel: {
             getAllByOrganizationUuid,
+            saveExploresToCache,
             runInAnalyticsProvisioningLock: async <T>(
                 org: string,
                 callback: () => Promise<T>,
@@ -57,6 +60,7 @@ describe('AnalyticsProjectService', () => {
     });
 
     beforeEach(() => {
+        vi.restoreAllMocks();
         vi.resetAllMocks();
         findDashboard.mockResolvedValue([{ uuid: 'existing-dashboard' }]);
         getChart.mockRejectedValue(new NotFoundError('missing'));
@@ -137,6 +141,64 @@ describe('AnalyticsProjectService', () => {
         }
     });
 
+    it('refreshes all system explores under the org lock before uploading any content', async () => {
+        await service.installSampleContent(user);
+        expect(saveExploresToCache).toHaveBeenCalledExactlyOnceWith(
+            analyticsProject.projectUuid,
+            analyticsExplores.createAnalyticsExplores(),
+            true,
+        );
+        const explores = saveExploresToCache.mock.calls[0][1];
+        expect(explores.map(({ name }: { name: string }) => name)).toEqual(
+            expect.arrayContaining([
+                'ai_usage',
+                'query_events',
+                'data_app_events',
+                'export_events',
+            ]),
+        );
+        expect(lock.mock.invocationCallOrder[0]).toBeLessThan(
+            saveExploresToCache.mock.invocationCallOrder[0],
+        );
+        expect(saveExploresToCache.mock.invocationCallOrder[0]).toBeLessThan(
+            upsertChart.mock.invocationCallOrder[0],
+        );
+        expect(saveExploresToCache.mock.invocationCallOrder[0]).toBeLessThan(
+            upsertDashboard.mock.invocationCallOrder[0],
+        );
+        expect(deleteProject).not.toHaveBeenCalled();
+        expect(ensureAnalyticsProject).not.toHaveBeenCalled();
+    });
+
+    it('does not upload content if model compilation fails', async () => {
+        vi.spyOn(
+            analyticsExplores,
+            'createAnalyticsExplores',
+        ).mockImplementationOnce(() => {
+            throw new Error('compile failed');
+        });
+        await expect(service.installSampleContent(user)).rejects.toThrow(
+            'compile failed',
+        );
+        expect(saveExploresToCache).not.toHaveBeenCalled();
+        expect(upsertChart).not.toHaveBeenCalled();
+        expect(upsertDashboard).not.toHaveBeenCalled();
+    });
+
+    it('does not upload content if saving models fails, and allows retrying', async () => {
+        saveExploresToCache.mockRejectedValueOnce(new Error('save failed'));
+        await expect(service.installSampleContent(user)).rejects.toThrow(
+            'save failed',
+        );
+        expect(upsertChart).not.toHaveBeenCalled();
+        expect(upsertDashboard).not.toHaveBeenCalled();
+        await service.installSampleContent(user);
+        expect(saveExploresToCache).toHaveBeenCalledTimes(2);
+        expect(upsertDashboard).toHaveBeenCalledTimes(
+            analyticsContentAsCode.length,
+        );
+    });
+
     it('does not install into an ordinary project when analytics has not been provisioned', async () => {
         getAllByOrganizationUuid.mockResolvedValue([defaultProject]);
         await expect(service.installSampleContent(user)).rejects.toThrow(
@@ -144,6 +206,7 @@ describe('AnalyticsProjectService', () => {
         );
         expect(upsertChart).not.toHaveBeenCalled();
         expect(upsertDashboard).not.toHaveBeenCalled();
+        expect(saveExploresToCache).not.toHaveBeenCalled();
     });
 
     it.each(['getStatus', 'delete', 'installSampleContent'] as const)(
@@ -163,6 +226,7 @@ describe('AnalyticsProjectService', () => {
             );
             expect(getAllByOrganizationUuid).not.toHaveBeenCalled();
             expect(lock).not.toHaveBeenCalled();
+            expect(saveExploresToCache).not.toHaveBeenCalled();
             expect(deleteProject).not.toHaveBeenCalled();
             expect(upsertChart).not.toHaveBeenCalled();
             expect(upsertDashboard).not.toHaveBeenCalled();

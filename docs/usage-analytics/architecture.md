@@ -14,16 +14,18 @@ queries. It does not require dbt or a MotherDuck account.
 
 | Area                   | Implemented                                                                                     | Still required for production                                               |
 | ---------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Project                | Internal `PREVIEW` project with `provisioning_source=analytics`; both Query Events and AI Usage | Final metadata-project lifecycle and role design                            |
-| Entry point            | Session-authenticated, org-admin-only create-or-get endpoint                                    | Admin navigation/button; no connector setup UI                              |
+| Project                | Internal `PREVIEW` project with `provisioning_source=analytics`                                 | Final metadata-project lifecycle and role design                            |
+| Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints             | No configurable connector setup UI                                         |
 | Enablement             | Standard `analytics-project` resolver: Console organization flags or deployment ENV flags       | Controlled live verification before customer rollout                        |
 | Source org             | Persisted, authorized project org; legacy local overrides ignored                               | Live shared-instance isolation verification                                 |
 | Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB               | Verify effective IAM; read-only hardening is deferred (PROD-11103)          |
-| Models                 | Backend-owned `query_events` and `ai_usage` explores                                            | Reevaluate other streams, metadata enrichment and additional event coverage |
+| Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores                 | Additional event coverage and named-entity lookups                          |
+| Current names          | Daily per-org charts, dashboards and users snapshots with optional ID joins                      | Other entity lookups; production-scale database load verification            |
 
 Historical tickets and handover proposals may describe different designs. They
-are not evidence that production provisioning, resource-name enrichment, exports
-or final role restrictions are implemented.
+are not evidence that production rollout or final role restrictions are complete.
+See [current dimensions](dimensions.md) and [export events](exports.md) for the
+implemented enrichment and event coverage.
 
 ## End-to-end data flow
 
@@ -31,6 +33,10 @@ or final role restrictions are implemented.
 Backend event projections
   → buffered writer: gzip JSONL in events/raw/ (org / stream / date)
   → scheduled compactor: typed Parquet in events/compacted/ (same partitions)
+
+Postgres charts, dashboards and organization members
+  → same daily job: paged reads → temporary JSONL → Parquet
+  → overwrite one current object per organization and dimension
 
 Signed-in org admin
   → create-or-get endpoint → fixed system explores stored in the app database
@@ -68,8 +74,34 @@ additional parts. There is not necessarily one file per day or one file per org.
 
 Compaction reduces the small-file overhead of independent writers and produces
 a columnar format suitable for analytics. The reader only sees compacted output,
-so capture is not immediately visible in Explore. This stack does not change the
-writer or nightly process, or establish an exactly-once delivery guarantee.
+so capture is not immediately visible in Explore. Event delivery does not have
+an exactly-once guarantee.
+
+### Current dimension snapshots
+
+After event compaction, the same `compactUsageEvents` job refreshes charts,
+dashboards and users from Postgres, including on days with no new events. Each
+organization has separate files in the shared bucket:
+
+```text
+events/compacted/org_id=<org-uuid>/dim=charts/charts.parquet
+events/compacted/org_id=<org-uuid>/dim=dashboards/dashboards.parquet
+events/compacted/org_id=<org-uuid>/dim=users/users.parquet
+```
+
+Every successful refresh overwrites these keys, even when the source is unchanged.
+There is no checksum comparison, missing-ID reconciliation or historical snapshot
+series. Names reflect the latest successful refresh, including for older events.
+The exporter filters Postgres rows by org before writing; the reader lists and
+signs only that org's files. Org isolation does not depend on a query-time SQL
+filter over a shared all-org file.
+
+The exporter processes organizations and dimensions sequentially, reads 1,000-row
+keyset pages, stages data on disk, converts with one DuckDB thread and a 256 MB
+engine limit, and streams uploads with one 8 MB part in flight. See
+[dimension export and failure behavior](dimensions.md#export-and-failure-behavior)
+for resource limits, retries and operational caveats. Reader resource settings
+below apply to interactive queries, not this background export.
 
 ### Project creation and models
 
@@ -82,7 +114,7 @@ backs `POST /api/v1/org/analytics-project`:
    in memory, but the endpoint includes this storage round trip.
 3. Acquire the per-org advisory lock and look for `provisioning_source=analytics`.
 4. Reuse that project or create an internal DuckDB analytics connection, then
-   save both compiled system explores. Repeated calls refresh models without
+   save the compiled system explores. Repeated calls refresh models without
    deleting saved content and can repair a previous model-save failure.
 5. Return `{ projectUuid, url, created }`. Redirect to the returned URL.
 
@@ -96,8 +128,11 @@ and UUID; a conflicting ordinary project is never repurposed.
 [`createAnalyticsExplores`](../../packages/backend/src/services/ProjectService/analyticsProject/createAnalyticsExplores.ts)
 derives dimensions from the compacted schemas and metrics from
 [`systemStreamMetrics`](../../packages/backend/src/analytics/systemExplores/systemStreamMetrics.ts).
-It explicitly includes only `query_events` and `ai_usage`; registering another
-writer stream does not expose another explore automatically. Compiled models
+It explicitly includes `query_events`, `ai_usage`, `data_app_events` and
+`export_events`; registering another writer stream does not expose another
+explore automatically. Query Events joins Charts, Dashboards and Users; the other
+models join Users. These optional many-to-one LEFT joins match organization and
+entity ID, preserving events whose lookup is missing. Compiled models
 refer to table names, not signed URLs. SQL and aggregations are generated from
 the user's Explore selections over these fixed models.
 
@@ -160,7 +195,8 @@ The internal Parquet path in
 - Enables HTTP metadata, Parquet metadata and external-file caching only inside
   the private query instance. The instance is closed on success or failure;
   neither cached bytes nor signed URLs are reused by another request or org.
-- Builds temporary views over `read_parquet` for those exact objects only.
+- Builds temporary views over `read_parquet` for those exact objects only, plus
+  validated typed empty views for dimension snapshots not yet published.
 - Restricts user SQL and blocks catalog access that could disclose view SQL;
   disables profiling and sanitizes native query errors.
 
@@ -207,8 +243,13 @@ no Terraform/IAM change or read-only cutover is included in this stack.
 - Follow [credential verification](credentials.md) for real-bucket read-only
   smoke tests and disposable MinIO tests of signatures, expiry and denied writes.
 - Missing data: check capture, compaction success, source org, Explore date
-  filters, retention and stream schemas. No supported files fails closed; partially missing
+  filters, retention and stream schemas. No supported event files means no data is
+  available, even if dimension snapshots exist; partially missing
   streams and schema evolution still need rollout design.
+- Missing names: check dimension refresh logs and the current per-org objects.
+  Click **Sync content** to refresh an existing project's models and managed
+  sample dashboards, or re-run the provisioning endpoint. See
+  [dimension rollout](dimensions.md#read-path-and-rollout).
 - Access errors: check endpoint, bucket and configured key permissions without
   printing keys, SDK request details or signed URLs. A new query can recover from
   URL expiry; it cannot fix revoked or incorrectly scoped source credentials.
@@ -223,7 +264,8 @@ no Terraform/IAM change or read-only cutover is included in this stack.
   separation are not substitutes for access control.
 
 The read path has been exercised against real GCS with native DuckDB and via the
-local API for both explores; local UI provisioning was manually confirmed.
+local API for the original Query Events and AI Usage explores; local UI provisioning was manually confirmed.
+Dimension exports and joins have been exercised against isolated Postgres and MinIO.
 Focused tests cover reuse, access denial and credential boundaries. This is not
 a production multi-tenant security audit or a claim that every warehouse provider
 and failure mode has been validated.
@@ -232,6 +274,7 @@ and failure mode has been validated.
 
 - [PROD-11059](https://linear.app/lightdash/issue/PROD-11059): implementation/triage.
 - [PROD-8603](https://linear.app/lightdash/issue/PROD-8603): pipeline architecture.
+- [PROD-8678](https://linear.app/lightdash/issue/PROD-8678): current content and user dimensions.
 - [PROD-11103](https://linear.app/lightdash/issue/PROD-11103): deferred read-only credentials.
 - Stack: [connector + flag](https://github.com/lightdash/lightdash/pull/28909) →
   [credentials](https://github.com/lightdash/lightdash/pull/28916) →

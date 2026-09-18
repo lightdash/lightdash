@@ -443,16 +443,6 @@ const parseApiExpiration = (envVariable: string): Date | null => {
     return new Date(Date.now() + 1000 * 60 * 60 * 24 * apiExpirationDays);
 };
 
-// Which engine runs Autopilot heartbeats: the in-process AI SDK loop on the
-// org's copilot provider, or a hosted session on Anthropic's Managed Agents API.
-export const MANAGED_AGENT_RUNTIMES = {
-    AI_SDK: 'ai-sdk',
-    ANTHROPIC_MANAGED: 'anthropic-managed',
-} as const;
-
-export type ManagedAgentRuntime =
-    (typeof MANAGED_AGENT_RUNTIMES)[keyof typeof MANAGED_AGENT_RUNTIMES];
-
 const parseEnum = <T>(
     value: string | undefined,
     enumObj?: AnyType,
@@ -1723,6 +1713,7 @@ export type LightdashConfig = {
         pollInterval: number;
         jobTimeout: number;
         screenshotTimeout?: number;
+        shutdownTimeout: number;
         tasks: Array<SchedulerTaskName>;
         quiesce: {
             pollInterval: number;
@@ -1824,9 +1815,6 @@ export type LightdashConfig = {
         projectId?: string;
     };
     managedAgent: {
-        runtime: ManagedAgentRuntime;
-        anthropicApiKey: string | null;
-        skillIds: string[];
         schedule: string;
         sessionTimeoutMs: number;
         maxSteps: number;
@@ -2499,6 +2487,9 @@ export type PostmarkConfig = {
 };
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
+// Must stay below the orchestrator's termination grace period (helm: 90s)
+// so the fail_job fallback runs before SIGKILL.
+const DEFAULT_SCHEDULER_SHUTDOWN_TIMEOUT = 1000 * 60; // 1 minute
 
 // The official chart type registry (lightdash/lightdash-library, GitHub Pages).
 const DEFAULT_CHART_REGISTRY_URL: string | null =
@@ -2885,6 +2876,26 @@ const parseMobilePushCredential = (
 };
 
 export const parseConfig = (): LightdashConfig => {
+    if (process.env.MANAGED_AGENT_RUNTIME) {
+        console.warn(
+            'WARNING: MANAGED_AGENT_RUNTIME is set but no longer selects a runtime. Autopilot always runs on the AI SDK; remove the variable.',
+        );
+    }
+    // Still read for one release so operators are told to remove them and the
+    // release-safety config diff does not report them as removed.
+    const retiredManagedAgentVariables = [
+        process.env.MANAGED_AGENT_ANTHROPIC_API_KEY
+            ? 'MANAGED_AGENT_ANTHROPIC_API_KEY'
+            : null,
+        (process.env.MANAGED_AGENT_SKILL_IDS || '') !== ''
+            ? 'MANAGED_AGENT_SKILL_IDS'
+            : null,
+    ].filter((name): name is string => name !== null);
+    for (const name of retiredManagedAgentVariables) {
+        console.warn(
+            `WARNING: ${name} is set but no longer used. Autopilot runs on the organization's AI provider; remove the variable.`,
+        );
+    }
     const lightdashSecret = process.env.LIGHTDASH_SECRET;
     if (!lightdashSecret) {
         throw new ParseError(
@@ -3589,6 +3600,10 @@ export const parseConfig = (): LightdashConfig => {
             screenshotTimeout: process.env.SCHEDULER_SCREENSHOT_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
+            shutdownTimeout:
+                getIntegerFromEnvironmentVariable(
+                    'SCHEDULER_SHUTDOWN_TIMEOUT',
+                ) ?? DEFAULT_SCHEDULER_SHUTDOWN_TIMEOUT,
             tasks: parseAndSanitizeSchedulerTasks(),
             quiesce: {
                 pollInterval:
@@ -3810,21 +3825,6 @@ export const parseConfig = (): LightdashConfig => {
             validatedModels: parseAutopilotValidatedModels(
                 process.env.MANAGED_AGENT_VALIDATED_MODELS,
             ),
-            runtime:
-                parseEnum<ManagedAgentRuntime>(
-                    process.env.MANAGED_AGENT_RUNTIME,
-                    MANAGED_AGENT_RUNTIMES,
-                ) ?? 'anthropic-managed',
-            anthropicApiKey:
-                process.env.MANAGED_AGENT_ANTHROPIC_API_KEY ||
-                (!process.env.ANTHROPIC_BASE_URL
-                    ? process.env.ANTHROPIC_API_KEY
-                    : undefined) ||
-                null,
-            skillIds: (process.env.MANAGED_AGENT_SKILL_IDS || '')
-                .split(',')
-                .map((skillId) => skillId.trim())
-                .filter(Boolean),
             schedule: process.env.MANAGED_AGENT_SCHEDULE || '0 0 * * *',
             sessionTimeoutMs: getPositiveIntegerFromEnvironmentVariable(
                 'MANAGED_AGENT_SESSION_TIMEOUT_MS',

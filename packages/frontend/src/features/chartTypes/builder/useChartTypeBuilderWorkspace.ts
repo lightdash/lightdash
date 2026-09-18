@@ -2,6 +2,7 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     isAppVersionInProgress,
     type AppClarification,
+    type AppChartReference,
     type DataAppCreationExperience,
     type DataAppViz,
     type ItemsMap,
@@ -66,6 +67,8 @@ export type ChartTypeBuilderWorkspaceArgs = {
     /** Result columns the build binds fields against; {} when no query
      *  backs the session. */
     itemsMap: ItemsMap;
+    /** Saved chart backing an Explorer-hosted builder, when one exists. */
+    chartReference?: AppChartReference;
 };
 
 export type ChartTypeBuilderWorkspaceState = {
@@ -110,10 +113,12 @@ export const useChartTypeBuilderWorkspace = ({
     dataAppVizUuid,
     creationExperience,
     itemsMap,
+    chartReference,
 }: ChartTypeBuilderWorkspaceArgs): ChartTypeBuilderWorkspaceState => {
     const build = useDataAppVizBuild({
         projectUuid,
         creationExperience,
+        chartReference,
         itemsMap,
         dataAppVizUuid,
         // Selection is the host's explicit act; nothing binds on landing.

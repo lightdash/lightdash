@@ -364,6 +364,67 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
     // must equal the value its source query returns on its own, and each
     // join type must keep exactly the key sets it promises. A merge that
     // joins wrong or drops rows fails here on whichever engine ran it.
+    // A source whose filter matches nothing is an empty side, not a failed
+    // merge: a left join keeps every primary row with blanks for it.
+    it('keeps the other side when a source returns no rows', async () => {
+        const [ordersRows, runResp] = await Promise.all([
+            runSourceQuery(ordersByMonth),
+            admin.post<Body<ApiExecuteAsyncMergeQueryResults>>(
+                `/api/v2/projects/${projectUuid}/query/merge-query`,
+                {
+                    mergeQuery: {
+                        ...mergeQuery,
+                        sources: [
+                            { id: 'orders', metricQuery: ordersByMonth },
+                            {
+                                id: 'payments',
+                                metricQuery: {
+                                    ...paymentsByMonth,
+                                    filters: {
+                                        dimensions: {
+                                            id: 'empty',
+                                            and: [
+                                                {
+                                                    id: 'future',
+                                                    target: {
+                                                        fieldId:
+                                                            'orders_order_date_month',
+                                                    },
+                                                    operator:
+                                                        'greaterThanOrEqual',
+                                                    values: ['2999-01-01'],
+                                                },
+                                            ],
+                                        },
+                                    },
+                                },
+                            },
+                        ],
+                        joinType: MergeJoinType.LEFT,
+                    },
+                    context: QueryExecutionContext.EXPLORE,
+                    mode: { type: 'interactive' },
+                },
+            ),
+        ]);
+        expect(runResp.body.results.outcome).toBe('started');
+        if (runResp.body.results.outcome !== 'started') {
+            throw new Error(
+                `Merge was refused: ${JSON.stringify(runResp.body.results.errors)}`,
+            );
+        }
+
+        const results = await pollQueryResults(
+            admin,
+            runResp.body.results.query.queryUuid,
+        );
+
+        expect(results.totalResults).toBe(ordersRows.length);
+        results.rows.forEach((row) => {
+            expect(cellOf(row, PAYMENTS_FIELD_ID).raw).toBeNull();
+        });
+    }, 60_000);
+
     it('returns exactly the values its source queries return on their own', async () => {
         const [ordersRows, paymentsRows, runResp] = await Promise.all([
             runSourceQuery(ordersByMonth),
@@ -411,6 +472,62 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
                 numeric(ordersByKey.get(key) ?? null),
             );
             expect(numeric(payments)).toEqual(
+                numeric(paymentsByKey.get(key) ?? null),
+            );
+        });
+    }, 60_000);
+
+    // A join key need not be a selected field: the leg groups by it, so a
+    // source that selects only metrics still merges at the key's grain and
+    // returns the values its query returns grouped by that key.
+    // Runs through the v2 route the Explorer uses: the leg the DAG submits
+    // must be the widened query, or the join finds no key column in it.
+    it('groups a leg by a join key its query does not select', async () => {
+        const [paymentsRows, runResp] = await Promise.all([
+            runSourceQuery(paymentsByMonth),
+            admin.post<Body<ApiExecuteAsyncMergeQueryResults>>(
+                `/api/v2/projects/${projectUuid}/query/merge-query`,
+                {
+                    mergeQuery: {
+                        ...mergeQuery,
+                        sources: [
+                            { id: 'orders', metricQuery: ordersByMonth },
+                            {
+                                id: 'payments',
+                                metricQuery: {
+                                    ...paymentsByMonth,
+                                    dimensions: [],
+                                },
+                            },
+                        ],
+                    },
+                    context: QueryExecutionContext.EXPLORE,
+                    mode: { type: 'interactive' },
+                },
+            ),
+        ]);
+        expect(runResp.body.results.outcome).toBe('started');
+        if (runResp.body.results.outcome !== 'started') {
+            throw new Error(
+                `Merge was refused: ${JSON.stringify(runResp.body.results.errors)}`,
+            );
+        }
+        const paymentsByKey = new Map(
+            paymentsRows.map((row) => [
+                monthOf(row.orders_order_date_month),
+                row.payments_unique_payment_count,
+            ]),
+        );
+
+        const results = await pollQueryResults(
+            admin,
+            runResp.body.results.query.queryUuid,
+        );
+
+        expect(results.rows.length).toBeGreaterThan(1);
+        results.rows.forEach((row) => {
+            const key = monthOf(cellOf(row, KEY_FIELD_ID).raw);
+            expect(numeric(cellOf(row, PAYMENTS_FIELD_ID).raw)).toEqual(
                 numeric(paymentsByKey.get(key) ?? null),
             );
         });
@@ -491,19 +608,39 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
     // expectation is read from the same merge run unlimited, because each
     // warehouse's dataset carries its own share of null months.
     it('places nulls under a limit the way the project warehouse does', async () => {
-        // Coupon payments cover only some months, so a FULL merge leaves
-        // the payments count null on the rest.
-        const couponPayments = {
+        // Restrict payments to one existing order so other months are unmatched,
+        // regardless of the payment-method distribution in each warehouse.
+        const paymentOrders = await runSourceQuery({
+            ...paymentsByMonth,
+            dimensions: ['orders_order_id'],
+            filters: {
+                dimensions: {
+                    id: 'existing-order-group',
+                    and: [
+                        {
+                            id: 'existing-order',
+                            target: { fieldId: 'orders_order_id' },
+                            operator: FilterOperator.NOT_NULL,
+                            values: [],
+                        },
+                    ],
+                },
+            },
+            limit: 1,
+        });
+        expect(paymentOrders).toHaveLength(1);
+        expect(paymentOrders[0].orders_order_id).not.toBeNull();
+        const oneOrderPayments = {
             ...paymentsByMonth,
             filters: {
                 dimensions: {
-                    id: 'coupon-only-group',
+                    id: 'one-order-group',
                     and: [
                         {
-                            id: 'coupon-only',
-                            target: { fieldId: 'payments_payment_method' },
+                            id: 'one-order',
+                            target: { fieldId: 'orders_order_id' },
                             operator: FilterOperator.EQUALS,
-                            values: ['coupon'],
+                            values: [paymentOrders[0].orders_order_id],
                         },
                     ],
                 },
@@ -517,7 +654,7 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
                     ...mergeQuery,
                     sources: [
                         { id: 'orders', metricQuery: ordersByMonth },
-                        { id: 'payments', metricQuery: couponPayments },
+                        { id: 'payments', metricQuery: oneOrderPayments },
                     ],
                     sorts: [{ fieldId: PAYMENTS_FIELD_ID, descending: true }],
                     limit,
@@ -541,10 +678,11 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
 
         const [everyRow, limitedRows] = await Promise.all([
             runSorted(500),
-            runSorted(5),
+            runSorted(1),
         ]);
         expect(everyRow.some((count) => count === null)).toBe(true);
-        expect(limitedRows).toHaveLength(Math.min(5, everyRow.length));
+        expect(everyRow.some((count) => count !== null)).toBe(true);
+        expect(limitedRows).toHaveLength(1);
         // The limited run keeps the head of the unlimited run's order: the
         // null rows first or last per the warehouse, values descending.
         expect(limitedRows).toEqual(

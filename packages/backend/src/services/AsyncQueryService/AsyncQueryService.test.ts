@@ -16,6 +16,7 @@ import {
     FilterOperator,
     ForbiddenError,
     getFilterRulesFromGroup,
+    isMergeMetricSource,
     MergeJoinType,
     MergeQueryErrorKind,
     MetricType,
@@ -6562,7 +6563,7 @@ describe('saved Document chart queries', () => {
     const reference: DocumentQueryReference = {
         documentUuid: 'document-uuid',
         versionUuid: 'version-uuid',
-        cellId: 'chart-cell',
+        cellIndex: 0,
     };
     const document = {
         documentUuid: reference.documentUuid,
@@ -6572,7 +6573,6 @@ describe('saved Document chart queries', () => {
             content: {
                 cells: [
                     {
-                        id: reference.cellId,
                         type: 'chart',
                         content: {
                             source: 'semantic',
@@ -7779,6 +7779,52 @@ describe('runDuckdbQuery', () => {
         );
     });
 
+    it('reads a referenced result with no rows as its fields, so a join can still bind', async () => {
+        const { run, runWarehouseQuery, pollForQueryCompletion } =
+            buildService();
+        // A result with no rows recorded no columns; only its fields say
+        // what the (empty) file holds.
+        pollForQueryCompletion.mockResolvedValue({
+            ...legHistory(0),
+            columns: {},
+            fields: {
+                orders_status: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'status',
+                    label: 'Status',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.status',
+                    hidden: false,
+                },
+            },
+        } as unknown as QueryHistory);
+
+        await run(
+            baseArgs({
+                engine: {
+                    kind: 'client',
+                    warehouseClient: warehouseClientMock,
+                },
+                sql: 'SELECT * FROM merge_source_0',
+                references: {
+                    kind: 'queries',
+                    references: { merge_source_0: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: {},
+                },
+            }),
+        );
+
+        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+        const executed = runWarehouseQuery.mock.calls[0][0];
+        expect(executed.query).toContain(
+            `read_json('s3://results-bucket/leg-results.jsonl', columns={"orders_status": 'VARCHAR'}, format='newline_delimited')`,
+        );
+        expect(executed.query).not.toContain('read_json_auto');
+    });
+
     it('a session scoped to referenced results reaches exactly the bound leg files', async () => {
         const createExecutionWarehouseClient = vi.fn(() => warehouseClientMock);
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
@@ -8477,7 +8523,7 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         const reference = {
             documentUuid: 'saved-doc',
             versionUuid: 'saved-version',
-            cellId: 'merged-cell',
+            cellIndex: 0,
         };
         const { sources } = attributeScopedMergeQuery;
         if (!('metricQuery' in sources[0]) || !('metricQuery' in sources[1])) {
@@ -8491,7 +8537,6 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
                 content: {
                     cells: [
                         {
-                            id: reference.cellId,
                             type: 'chart',
                             content: {
                                 source: 'merge',
@@ -8797,6 +8842,55 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             expect(usSql).not.toContain('base');
         }
         await drainMergeEvents(trackAccount, 2);
+    });
+
+    it('runs a leg as the query the compile widened, not the query submitted', async () => {
+        const { service, compiledLegs, trackAccount } =
+            buildServiceWithCompiledLegs();
+        // The second source selects nothing the join can use; the compile
+        // widens it by the join key and the leg must run that query
+        const unselectedKey: MergeQuery = {
+            ...attributeScopedMergeQuery,
+            sources: [
+                attributeScopedMergeQuery.sources[0],
+                {
+                    id: 'b',
+                    metricQuery: {
+                        ...metricQueryMock,
+                        exploreName: 'payments',
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                },
+            ],
+        };
+        vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
+            ...compiledMerge,
+            legs: unselectedKey.sources.map((source) => ({
+                sourceId: source.id,
+                sql: null,
+                metricQuery: isMergeMetricSource(source)
+                    ? { ...source.metricQuery, dimensions: ['a_dim1'] }
+                    : null,
+            })),
+        } as never);
+
+        const outcome = await service.executeAsyncMergeQuery({
+            account: sessionAccount,
+            projectUuid,
+            mergeQuery: unselectedKey,
+            context: QueryExecutionContext.EXPLORE,
+            mode: { type: 'interactive' },
+        });
+
+        expect(outcome.outcome).toBe('started');
+        const payments = compiledLegs().find(
+            (leg) => leg.exploreName === 'payments',
+        );
+        expect(payments?.sql).toContain('a_dim1');
+        expect(payments?.sql).toContain('GROUP BY');
+        await drainMergeEvents(trackAccount, 1);
     });
 });
 
@@ -9262,8 +9356,8 @@ describe('executeAsyncMergeQuery over a result source', () => {
         expect(compiled.errors).toEqual([]);
         // A result source contributes rows, never a leg statement
         expect(compiled.legs).toEqual([
-            { sourceId: 'a', sql: null },
-            { sourceId: 'b', sql: null },
+            { sourceId: 'a', sql: null, metricQuery: null },
+            { sourceId: 'b', sql: null, metricQuery: null },
         ]);
         expect(compiled.coreSql).toContain('"merge_source_0"');
         expect(compiled.coreSql).toContain('"merge_source_1"');
@@ -9964,6 +10058,30 @@ describe('chart embed token query history access', () => {
             );
         },
     );
+
+    it('includes the downloaded query UUID in export analytics', async () => {
+        const { account, service } = buildFixture([validExplore.name]);
+        const trackAccount = vi.spyOn(analyticsMock, 'trackAccount');
+
+        await run(service, account, 'download');
+
+        expect(trackAccount).toHaveBeenCalledWith(account, {
+            event: 'download_results.started',
+            userId: account.user.id,
+            properties: expect.objectContaining({
+                queryId: 'source-query-uuid',
+            }),
+        });
+        expect(trackAccount).toHaveBeenCalledWith(account, {
+            event: 'download_results.completed',
+            userId: account.user.id,
+            properties: expect.objectContaining({
+                queryId: 'source-query-uuid',
+            }),
+        });
+
+        trackAccount.mockRestore();
+    });
 
     it.each(operations)(
         'refuses a chart token scoped to another explore through %s',

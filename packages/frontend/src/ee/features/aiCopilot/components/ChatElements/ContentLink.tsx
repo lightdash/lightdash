@@ -103,6 +103,17 @@ export const ContentLink: FC<ContentLinkProps> = ({
     }
 
     switch (contentType) {
+        case 'document-link':
+            return (
+                <ContentReferenceLink
+                    to={resourceHref || undefined}
+                    kind="document"
+                    title={title}
+                >
+                    {children}
+                </ContentReferenceLink>
+            );
+
         case 'dashboard-link':
         // Resource view URL with ?scheduler_uuid — navigating opens that
         // delivery's edit modal on the chart/dashboard page.

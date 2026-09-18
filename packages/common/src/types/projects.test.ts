@@ -187,6 +187,39 @@ describe('normalizeWarehouseCredentials', () => {
 });
 
 describe('mergeWarehouseCredentials', () => {
+    test.each([undefined, false, true])(
+        'preserves or overrides the BigQuery personal credential opt-in (%s)',
+        (allowUserCredentials) => {
+            const base: CreateBigqueryCredentials = {
+                type: WarehouseTypes.BIGQUERY,
+                project: 'project',
+                dataset: 'dataset',
+                timeoutSeconds: undefined,
+                priority: undefined,
+                keyfileContents: {},
+                retries: undefined,
+                location: undefined,
+                maximumBytesBilled: undefined,
+                allowUserCredentials: true,
+            };
+            const {
+                allowUserCredentials: _allowUserCredentials,
+                ...connection
+            } = base;
+            const preview: CreateBigqueryCredentials = {
+                ...connection,
+                dataset: 'preview',
+                ...(allowUserCredentials === undefined
+                    ? {}
+                    : { allowUserCredentials }),
+            };
+
+            expect(
+                mergeWarehouseCredentials(base, preview).allowUserCredentials,
+            ).toBe(allowUserCredentials ?? true);
+        },
+    );
+
     const athenaBase: CreateAthenaCredentials = {
         type: WarehouseTypes.ATHENA,
         region: 'us-east-2',

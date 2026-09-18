@@ -5284,9 +5284,27 @@
                 "enum": ["data_app_viz"],
                 "type": "string"
             },
+            "Record_string.string-or-string-Array_": {
+                "properties": {},
+                "additionalProperties": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    ]
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "DataAppVizFieldMapping": {
-                "$ref": "#/components/schemas/Record_string.string_",
-                "description": "Maps a data app viz's field name → the host query field id bound to it."
+                "$ref": "#/components/schemas/Record_string.string-or-string-Array_",
+                "description": "Maps a viz field name to one query field id or an ordered collection."
             },
             "DataAppVizOptionValue": {
                 "anyOf": [
@@ -5340,6 +5358,12 @@
                     },
                     {
                         "properties": {
+                            "dataAppVizVersion": {
+                                "type": "integer",
+                                "format": "int32",
+                                "description": "The version of the custom chart type this saved chart renders.",
+                                "minimum": 1
+                            },
                             "dataAppVizUuid": {
                                 "type": "string"
                             },
@@ -16148,24 +16172,6 @@
                 "enum": ["dimension"],
                 "type": "string"
             },
-            "Record_string.string-or-string-Array_": {
-                "properties": {},
-                "additionalProperties": {
-                    "anyOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "items": {
-                                "type": "string"
-                            },
-                            "type": "array"
-                        }
-                    ]
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "TimestampDomain": {
                 "type": "string",
                 "enum": ["aware", "naive"],
@@ -19465,6 +19471,33 @@
             },
             "DataAppVizField": {
                 "properties": {
+                    "examples": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                {
+                                    "type": "boolean"
+                                }
+                            ],
+                            "nullable": true
+                        },
+                        "type": "array",
+                        "description": "Scalar display examples for this slot, independent of any one query."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Explain what belongs in this slot for a reusable visualization."
+                    },
+                    "multiple": {
+                        "type": "boolean",
+                        "description": "Whether this slot accepts an ordered collection of query fields."
+                    },
                     "required": {
                         "type": "boolean"
                     },
@@ -19642,6 +19675,10 @@
             },
             "DataAppVizSchema": {
                 "properties": {
+                    "inputGuidance": {
+                        "type": "string",
+                        "description": "Explains the row shape, ordering, and recovery needed to use this viz."
+                    },
                     "colorPalette": {
                         "allOf": [
                             {
@@ -19942,6 +19979,10 @@
             },
             "DataAppDetectRequest": {
                 "properties": {
+                    "force": {
+                        "type": "boolean",
+                        "description": "Run the model even when an analysis of identical rows exists."
+                    },
                     "instructions": {
                         "type": "string"
                     },
@@ -19953,41 +19994,6 @@
                     }
                 },
                 "required": ["sources"],
-                "type": "object"
-            },
-            "ApiSuccess__jobId-string__": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "jobId": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["jobId"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiDataAppInvestigateResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__jobId-string__"
-            },
-            "DataAppInvestigateRequest": {
-                "properties": {
-                    "agentUuid": {
-                        "type": "string"
-                    },
-                    "anomalyId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["agentUuid", "anomalyId"],
                 "type": "object"
             },
             "DataAppInvestigateResult": {
@@ -20059,6 +20065,189 @@
                     }
                 ]
             },
+            "DataAppAnalysisLookup": {
+                "properties": {
+                    "investigations": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppInvestigation"
+                        },
+                        "type": "array"
+                    },
+                    "analysis": {
+                        "$ref": "#/components/schemas/DataAppAnalysis"
+                    }
+                },
+                "required": ["investigations", "analysis"],
+                "type": "object",
+                "description": "A stored analysis of exactly the rows the viewer sees now, with its investigations."
+            },
+            "ApiSuccess_DataAppAnalysisLookup-or-null_": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppAnalysisLookup"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppAnalysisLookupResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppAnalysisLookup-or-null_"
+            },
+            "DataAppLookupRequest": {
+                "properties": {
+                    "instructions": {
+                        "type": "string"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppAnalysisSource"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["sources"],
+                "type": "object"
+            },
+            "DataAppPromptResult": {
+                "properties": {
+                    "text": {
+                        "type": "string"
+                    },
+                    "focus": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["text", "focus", "prompt"],
+                "type": "object"
+            },
+            "DataAppPromptAnswer": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DataAppPromptResult"
+                    },
+                    {
+                        "properties": {
+                            "generatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "sources": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DataAppAnalysisSource"
+                                },
+                                "type": "array"
+                            },
+                            "appVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "promptId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "generatedAt",
+                            "sources",
+                            "appVersion",
+                            "appUuid",
+                            "promptId"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_DataAppPromptAnswer_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DataAppPromptAnswer"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppPromptResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppPromptAnswer_"
+            },
+            "DataAppPromptRequest": {
+                "properties": {
+                    "focus": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppAnalysisSource"
+                        },
+                        "type": "array"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sources", "prompt"],
+                "type": "object",
+                "description": "A free-form question an app asks about the viewer's own query results.\n`focus` narrows the question to one row (field id → value as shown)."
+            },
+            "ApiSuccess__jobId-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "jobId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["jobId"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppInvestigateResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__jobId-string__"
+            },
+            "DataAppInvestigateRequest": {
+                "properties": {
+                    "agentUuid": {
+                        "type": "string"
+                    },
+                    "anomalyId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["agentUuid", "anomalyId"],
+                "type": "object"
+            },
             "DataAppAnalysisRecord": {
                 "anyOf": [
                     {
@@ -20094,6 +20283,24 @@
                             },
                             {
                                 "$ref": "#/components/schemas/DataAppInvestigation"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "properties": {
+                                    "operation": {
+                                        "type": "string",
+                                        "enum": ["prompt"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["operation"],
+                                "type": "object"
+                            },
+                            {
+                                "$ref": "#/components/schemas/DataAppPromptAnswer"
                             }
                         ]
                     }
@@ -20152,6 +20359,30 @@
                     "pdf",
                     "data_app_viz"
                 ]
+            },
+            "AppVizBuildContext": {
+                "properties": {
+                    "sampleRows": {
+                        "items": {
+                            "$ref": "#/components/schemas/Record_string.string_"
+                        },
+                        "type": "array"
+                    },
+                    "elementReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "fieldMapping": {
+                        "$ref": "#/components/schemas/DataAppVizFieldMapping"
+                    },
+                    "schema": {
+                        "$ref": "#/components/schemas/DataAppVizSchema"
+                    }
+                },
+                "type": "object",
+                "description": "Chart-builder context sent to the coding agent for one build only."
             },
             "DataAppCreationExperience": {
                 "type": "string",
@@ -20280,6 +20511,10 @@
                     },
                     "creationExperience": {
                         "$ref": "#/components/schemas/DataAppCreationExperience"
+                    },
+                    "vizContext": {
+                        "$ref": "#/components/schemas/AppVizBuildContext",
+                        "description": "Transient chart context; never stored in an app version's prompt."
                     },
                     "template": {
                         "$ref": "#/components/schemas/DataAppTemplate"
@@ -20512,6 +20747,11 @@
                     "incompatible"
                 ]
             },
+            "RegistryChartTypeReleaseStage": {
+                "type": "string",
+                "enum": ["stable", "beta", "prerelease"],
+                "description": "Server-derived release stage. The raw `channel` is ambiguous when absent:\nstable on the stable index, unpointed (pre-release) on index-next — only\nthe backend knows which index the instance reads."
+            },
             "RegistryChartTypeListItem": {
                 "allOf": [
                     {
@@ -20531,6 +20771,9 @@
                                 "type": "string",
                                 "nullable": true
                             },
+                            "releaseStage": {
+                                "$ref": "#/components/schemas/RegistryChartTypeReleaseStage"
+                            },
                             "state": {
                                 "$ref": "#/components/schemas/RegistryChartTypeState"
                             }
@@ -20539,6 +20782,7 @@
                             "installedCreatedByUserUuid",
                             "installedRegistryVersion",
                             "installedAppUuid",
+                            "releaseStage",
                             "state"
                         ],
                         "type": "object"
@@ -20574,10 +20818,15 @@
             "ApiListRegistryChartTypesResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__registryEnabled-boolean--charts-RegistryChartTypeListItem-Array__"
             },
-            "ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged__": {
+            "ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged--upgradedChartCount_description-Savedchartsrepinnedby_96_upgradeConsumingCharts_96__40_0whennotrequested_41_._-number__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "upgradedChartCount": {
+                                "type": "number",
+                                "format": "double",
+                                "description": "Saved charts repinned by `upgradeConsumingCharts` (0 when not requested)."
+                            },
                             "action": {
                                 "type": "string",
                                 "enum": ["installed", "upgraded", "unchanged"]
@@ -20593,7 +20842,13 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["action", "version", "slug", "appUuid"],
+                        "required": [
+                            "upgradedChartCount",
+                            "action",
+                            "version",
+                            "slug",
+                            "appUuid"
+                        ],
                         "type": "object"
                     },
                     "status": {
@@ -20606,7 +20861,16 @@
                 "type": "object"
             },
             "ApiInstallRegistryChartTypeResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged--upgradedChartCount_description-Savedchartsrepinnedby_96_upgradeConsumingCharts_96__40_0whennotrequested_41_._-number__"
+            },
+            "InstallRegistryChartTypeBody": {
+                "properties": {
+                    "upgradeConsumingCharts": {
+                        "type": "boolean",
+                        "description": "Also move every consuming saved chart's pinned version onto the\ninstalled version, deliberately overriding per-chart pins. Unpinned\ncharts already follow the latest version and are left untouched."
+                    }
+                },
+                "type": "object"
             },
             "DataAppViz": {
                 "properties": {
@@ -20765,6 +21029,38 @@
             },
             "ApiDataAppVizDeleteImpactResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppVizDeleteImpact_"
+            },
+            "DataAppVizUpgradeImpact": {
+                "properties": {
+                    "pinnedChartCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Charts whose config pins a chart type version (`dataAppVizVersion`)."
+                    },
+                    "chartCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["pinnedChartCount", "chartCount"],
+                "type": "object"
+            },
+            "ApiSuccess_DataAppVizUpgradeImpact_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DataAppVizUpgradeImpact"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppVizUpgradeImpactResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppVizUpgradeImpact_"
             },
             "ApiSuccess__questions-string-Array__": {
                 "properties": {
@@ -20952,6 +21248,24 @@
             },
             "ApiGetDataAppAuthoringContextResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppContext_"
+            },
+            "AppThread": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "number": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["createdAt", "number", "uuid"],
+                "type": "object",
+                "description": "One conversation between the user and the coding agent on a data app."
             },
             "AppVersionStatus": {
                 "type": "string",
@@ -21214,6 +21528,13 @@
                     "prompt": {
                         "type": "string"
                     },
+                    "threadNumber": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -21229,14 +21550,24 @@
                     "statusMessage",
                     "status",
                     "prompt",
+                    "threadNumber",
+                    "threadUuid",
                     "version"
                 ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "verification": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ContentVerificationInfo"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "icon": {
                                 "allOf": [
                                     {
@@ -21262,6 +21593,9 @@
                                     "$ref": "#/components/schemas/ApiAppVersionSummary"
                                 },
                                 "type": "array"
+                            },
+                            "currentThread": {
+                                "$ref": "#/components/schemas/AppThread"
                             },
                             "views": {
                                 "type": "number",
@@ -21309,11 +21643,13 @@
                             }
                         },
                         "required": [
+                            "verification",
                             "icon",
                             "registrySlug",
                             "latestReadyVersion",
                             "hasMore",
                             "versions",
+                            "currentThread",
                             "views",
                             "slug",
                             "pinnedListOrder",
@@ -21338,7 +21674,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__"
             },
             "UuidOrSlug": {
                 "type": "string",
@@ -21529,6 +21865,32 @@
             },
             "ApiPromoteAppResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__appUuid-string--projectUuid-string--version-number--action-PromoteAppAction__"
+            },
+            "ApiContentVerificationResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentVerificationInfo"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiContentVerificationDeleteResponse": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
             },
             "ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__": {
                 "properties": {
@@ -31477,6 +31839,9 @@
                         "type": "string",
                         "enum": ["interactive", "batch"]
                     },
+                    "allowUserCredentials": {
+                        "type": "boolean"
+                    },
                     "retries": {
                         "type": "number",
                         "format": "double"
@@ -32503,6 +32868,9 @@
                     "retries": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "allowUserCredentials": {
+                        "type": "boolean"
                     },
                     "requireUserCredentials": {
                         "type": "boolean"
@@ -34292,6 +34660,12 @@
             },
             "RoadmapItem": {
                 "properties": {
+                    "slackThreadUrls": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "pullRequestUrl": {
                         "type": "string",
                         "nullable": true
@@ -34324,6 +34698,7 @@
                     }
                 },
                 "required": [
+                    "slackThreadUrls",
                     "pullRequestUrl",
                     "issueUrl",
                     "updatedAt",
@@ -34518,6 +34893,12 @@
             },
             "RoadmapProjectGroup": {
                 "properties": {
+                    "slackThreadUrls": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "hasDirectNeed": {
                         "type": "boolean"
                     },
@@ -34529,7 +34910,12 @@
                         "$ref": "#/components/schemas/RoadmapProject"
                     }
                 },
-                "required": ["hasDirectNeed", "ownRequestCount", "project"],
+                "required": [
+                    "slackThreadUrls",
+                    "hasDirectNeed",
+                    "ownRequestCount",
+                    "project"
+                ],
                 "type": "object"
             },
             "RoadmapProjectPagination": {
@@ -46044,6 +46430,7 @@
                     "sweepStaleAppLocks",
                     "sweepStaleAiWritebackRuns",
                     "sweepStaleAiDeepResearchRuns",
+                    "sweepStaleAiEvalRuns",
                     "sweepAiAgentMemoryThreads",
                     "aiAgentMemoryDistill",
                     "consolidateAiAgentMemories",
@@ -47011,32 +47398,6 @@
                     }
                 },
                 "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiContentVerificationResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/ContentVerificationInfo"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiContentVerificationDeleteResponse": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
                 "type": "object"
             },
             "RenameType": {
@@ -48651,6 +49012,15 @@
             },
             "MergeCompiledLeg": {
                 "properties": {
+                    "metricQuery": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MetricQuery"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The query the leg runs: the source's query widened by any join key it\ndid not select. Null for a result source, which runs nothing."
+                    },
                     "sql": {
                         "type": "string",
                         "nullable": true
@@ -48659,7 +49029,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["sql", "sourceId"],
+                "required": ["metricQuery", "sql", "sourceId"],
                 "type": "object",
                 "description": "One side of a merge as it runs: the statement its metric query compiles to,\nor null for a result source, whose rows already exist."
             },
@@ -50622,6 +50992,29 @@
                     }
                 ]
             },
+            "ContentType.DATA_APP": {
+                "enum": ["data_app"],
+                "type": "string"
+            },
+            "VerifiedDataAppListItem": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/VerifiedContentListItemBase"
+                    },
+                    {
+                        "properties": {
+                            "slug": {
+                                "type": "string"
+                            },
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentType.DATA_APP"
+                            }
+                        },
+                        "required": ["slug", "contentType"],
+                        "type": "object"
+                    }
+                ]
+            },
             "VerifiedContentListItem": {
                 "anyOf": [
                     {
@@ -50629,6 +51022,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/VerifiedDashboardListItem"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VerifiedDataAppListItem"
                     }
                 ]
             },
@@ -51381,6 +51777,14 @@
                     },
                     "data": {
                         "properties": {
+                            "verification": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ContentVerificationInfo"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "pinnedListOrder": {
                                 "type": "number",
                                 "format": "double",
@@ -51460,6 +51864,7 @@
                             }
                         },
                         "required": [
+                            "verification",
                             "pinnedListOrder",
                             "pinnedListUuid",
                             "latestReadyVersionNumber",
@@ -57830,7 +58235,81 @@
                 ],
                 "type": "object"
             },
-            "Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_": {
+            "ChartAsCodeConfig__type-ChartType.DATA_APP_VIZ--config_63__58__fieldMapping-Record_string.string_--optionValues_63_-DataAppVizOptionValues_-and-_dataAppVizSlug_63_-string--dataAppVizUuid_63_-string___": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/BigNumberConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CartesianChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomVisConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PieChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FunnelChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TableChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TreemapChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/GaugeChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MapChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SankeyChartConfig"
+                    },
+                    {
+                        "properties": {
+                            "config": {
+                                "allOf": [
+                                    {
+                                        "properties": {
+                                            "optionValues": {
+                                                "$ref": "#/components/schemas/DataAppVizOptionValues"
+                                            },
+                                            "fieldMapping": {
+                                                "$ref": "#/components/schemas/Record_string.string_"
+                                            }
+                                        },
+                                        "required": ["fieldMapping"],
+                                        "type": "object"
+                                    },
+                                    {
+                                        "properties": {
+                                            "dataAppVizUuid": {
+                                                "type": "string"
+                                            },
+                                            "dataAppVizSlug": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                ]
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/ChartType.DATA_APP_VIZ"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ],
+                "description": "ChartConfig as serialized in chart YAML: viz bindings are slug-based.\nEnumerated rather than Exclude<ChartConfig, DataAppVizChartConfig> —\nTSOA cannot resolve Exclude over object unions, which corrupts the\ngenerated chart-as-code JSON schema. Keep in sync with ChartConfig."
+            },
+            "DocumentChartConfig": {
+                "$ref": "#/components/schemas/ChartAsCodeConfig__type-ChartType.DATA_APP_VIZ--config_63__58__fieldMapping-Record_string.string_--optionValues_63_-DataAppVizOptionValues_-and-_dataAppVizSlug_63_-string--dataAppVizUuid_63_-string___"
+            },
+            "Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -57861,7 +58340,7 @@
                         ]
                     },
                     "chartConfig": {
-                        "$ref": "#/components/schemas/ChartAsCodeConfig"
+                        "$ref": "#/components/schemas/DocumentChartConfig"
                     },
                     "pivotConfig": {
                         "properties": {
@@ -57905,7 +58384,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "SemanticChartAsCode": {
-                "$ref": "#/components/schemas/Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
+                "$ref": "#/components/schemas/Pick_Omit_ChartAsCode.chartConfig_-and-_chartConfig-DocumentChartConfig_.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
             },
             "MergeChartAsCode": {
                 "allOf": [
@@ -57955,7 +58434,7 @@
                     }
                 ]
             },
-            "DocumentCellV3": {
+            "DocumentCell": {
                 "anyOf": [
                     {
                         "properties": {
@@ -57972,12 +58451,9 @@
                                 "type": "string",
                                 "enum": ["markdown"],
                                 "nullable": false
-                            },
-                            "id": {
-                                "type": "string"
                             }
                         },
-                        "required": ["content", "type", "id"],
+                        "required": ["content", "type"],
                         "type": "object"
                     },
                     {
@@ -57989,21 +58465,18 @@
                                 "type": "string",
                                 "enum": ["chart"],
                                 "nullable": false
-                            },
-                            "id": {
-                                "type": "string"
                             }
                         },
-                        "required": ["content", "type", "id"],
+                        "required": ["content", "type"],
                         "type": "object"
                     }
                 ]
             },
-            "DocumentContentV3": {
+            "DocumentContent": {
                 "properties": {
                     "cells": {
                         "items": {
-                            "$ref": "#/components/schemas/DocumentCellV3"
+                            "$ref": "#/components/schemas/DocumentCell"
                         },
                         "type": "array"
                     }
@@ -58022,11 +58495,11 @@
                         "nullable": true
                     },
                     "content": {
-                        "$ref": "#/components/schemas/DocumentContentV3"
+                        "$ref": "#/components/schemas/DocumentContent"
                     },
                     "schemaVersion": {
                         "type": "number",
-                        "enum": [3],
+                        "enum": [1],
                         "nullable": false
                     },
                     "versionNumber": {
@@ -58083,11 +58556,11 @@
             "CreateDocumentRequest": {
                 "properties": {
                     "content": {
-                        "$ref": "#/components/schemas/DocumentContentV3"
+                        "$ref": "#/components/schemas/DocumentContent"
                     },
                     "schemaVersion": {
                         "type": "number",
-                        "enum": [3],
+                        "enum": [1],
                         "nullable": false
                     },
                     "spaceUuid": {
@@ -58126,100 +58599,16 @@
                 },
                 "type": "object"
             },
-            "DocumentCellOperation": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "cell": {
-                                "$ref": "#/components/schemas/DocumentCellV3"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["append"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["cell", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "cell": {
-                                "$ref": "#/components/schemas/DocumentCellV3"
-                            },
-                            "targetCellId": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["insert_before", "insert_after"]
-                            }
-                        },
-                        "required": ["cell", "targetCellId", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "cell": {
-                                "$ref": "#/components/schemas/DocumentCellV3"
-                            },
-                            "cellId": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["replace"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["cell", "cellId", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "cellId": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["remove"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["cellId", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "targetCellId": {
-                                "type": "string"
-                            },
-                            "cellId": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["move_before", "move_after"]
-                            }
-                        },
-                        "required": ["targetCellId", "cellId", "type"],
-                        "type": "object"
-                    }
-                ]
-            },
             "UpdateDocumentContentRequest": {
                 "properties": {
-                    "operations": {
-                        "items": {
-                            "$ref": "#/components/schemas/DocumentCellOperation"
-                        },
-                        "type": "array"
+                    "content": {
+                        "$ref": "#/components/schemas/DocumentContent"
                     },
                     "baseVersionUuid": {
                         "type": "string"
                     }
                 },
-                "required": ["operations", "baseVersionUuid"],
+                "required": ["content", "baseVersionUuid"],
                 "type": "object"
             },
             "DocumentList": {
@@ -59908,8 +60297,9 @@
             },
             "DocumentQueryReference": {
                 "properties": {
-                    "cellId": {
-                        "type": "string"
+                    "cellIndex": {
+                        "type": "number",
+                        "format": "double"
                     },
                     "versionUuid": {
                         "type": "string"
@@ -59918,7 +60308,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["cellId", "versionUuid", "documentUuid"],
+                "required": ["cellIndex", "versionUuid", "documentUuid"],
                 "type": "object"
             },
             "ExecuteAsyncQueryRequestParams": {
@@ -61858,7 +62248,7 @@
                 "enum": ["document"],
                 "type": "string"
             },
-            "DocumentContent": {
+            "DocumentContentItem": {
                 "properties": {
                     "contentType": {
                         "$ref": "#/components/schemas/ContentType.DOCUMENT"
@@ -62013,10 +62403,6 @@
                 ],
                 "type": "object",
                 "additionalProperties": true
-            },
-            "ContentType.DATA_APP": {
-                "enum": ["data_app"],
-                "type": "string"
             },
             "Pick_Content.Exclude_keyofContent.space-or-pinnedList__": {
                 "properties": {
@@ -62346,7 +62732,7 @@
                         "$ref": "#/components/schemas/SpaceContent"
                     },
                     {
-                        "$ref": "#/components/schemas/DocumentContent"
+                        "$ref": "#/components/schemas/DocumentContentItem"
                     },
                     {
                         "$ref": "#/components/schemas/DataAppContent"
@@ -63289,7 +63675,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.243.5",
+        "version": "2.263.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -99344,7 +99730,7 @@
                 }
             }
         },
-        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/cells/{cellId}/query": {
+        "/api/v1/projects/{projectUuid}/documents/{documentUuid}/cells/{cellIndex}/query": {
             "post": {
                 "operationId": "ExecuteDocumentCellQuery",
                 "responses": {
@@ -99390,10 +99776,11 @@
                     },
                     {
                         "in": "path",
-                        "name": "cellId",
+                        "name": "cellIndex",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "format": "double",
+                            "type": "number"
                         }
                     }
                 ],
@@ -99513,7 +99900,7 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/documents/{documentUuid}": {
+        "/api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}": {
             "patch": {
                 "operationId": "UpdateDocumentMetadata",
                 "responses": {
@@ -99551,7 +99938,7 @@
                     },
                     {
                         "in": "path",
-                        "name": "documentUuid",
+                        "name": "documentUuidOrSlug",
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
@@ -99606,10 +99993,10 @@
                     },
                     {
                         "in": "path",
-                        "name": "documentUuid",
+                        "name": "documentUuidOrSlug",
                         "required": true,
                         "schema": {
-                            "$ref": "#/components/schemas/UUID"
+                            "$ref": "#/components/schemas/UuidOrSlug"
                         }
                     }
                 ]

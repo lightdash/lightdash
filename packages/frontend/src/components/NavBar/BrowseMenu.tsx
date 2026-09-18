@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     FeatureFlags,
     getResourceViewItemName,
+    getDocumentUrl,
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
@@ -65,7 +66,11 @@ const getFavoriteItemUrl = (
         case ResourceViewItemType.DATA_APP:
             return `/projects/${projectUuid}/apps/${item.data.uuid}/view`;
         case ResourceViewItemType.DOCUMENT:
-            return `/projects/${projectUuid}/documents/${item.data.uuid}`;
+            return getDocumentUrl(
+                projectUrlIdentifier,
+                item.data.uuid,
+                item.data.slug,
+            );
         default:
             return assertUnreachable(item, `Unknown favorite item type`);
     }
@@ -204,7 +209,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 {documentsFlag.data?.enabled && !documentsFlag.isError && (
                     <Menu.Item
                         component={Link}
-                        to={`/projects/${projectUuid}/documents`}
+                        to={`/projects/${projectUrlIdentifier}/documents`}
                         leftSection={<MantineIcon icon={IconFileText} />}
                     >
                         All documents

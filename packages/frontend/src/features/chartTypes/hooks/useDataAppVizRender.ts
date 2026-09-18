@@ -46,6 +46,21 @@ const getChartVersionQuery = ({
         ? `?chartVersionUuid=${chartVersionUuid}`
         : '';
 
+// Immutable chart-less artifacts include their pin; authoring stays latest.
+const getRenderMetadataQuery = (
+    target: DataAppVizRenderTarget,
+    pinnedVersion: number | undefined,
+): string => {
+    const chartVersionQuery = getChartVersionQuery(target);
+    if (chartVersionQuery) return chartVersionQuery;
+
+    return !target.isEmbedded &&
+        !target.savedChartUuid &&
+        pinnedVersion !== undefined
+        ? `?version=${pinnedVersion}`
+        : '';
+};
+
 const isTargetReady = (
     projectUuid: string | undefined,
     dataAppVizUuid: string | null,
@@ -101,7 +116,10 @@ export const useDataAppVizRenderMetadata = (
                     projectUuid!,
                     dataAppVizUuid!,
                     target,
-                )}/render-metadata${getChartVersionQuery(target)}`,
+                )}/render-metadata${getRenderMetadataQuery(
+                    target,
+                    pinnedVersion,
+                )}`,
             }),
         enabled: isTargetReady(projectUuid, dataAppVizUuid, target),
         retry: shouldRetryDataAppVizRenderQuery,

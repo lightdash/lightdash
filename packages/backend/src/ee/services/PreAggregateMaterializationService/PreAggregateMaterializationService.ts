@@ -1,4 +1,7 @@
+import { subject } from '@casl/ability';
 import {
+    assertIsAccountWithOrg,
+    ForbiddenError,
     getErrorMessage,
     getIntrinsicUserAttributes,
     NotFoundError,
@@ -17,6 +20,7 @@ import * as Sentry from '@sentry/node';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type LightdashConfig } from '../../../config/parseConfig';
+import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
@@ -34,6 +38,8 @@ export class PreAggregateMaterializationService extends BaseService {
 
     private readonly preAggregateModel: PreAggregateModel;
 
+    private readonly projectModel: ProjectModel;
+
     private readonly queryHistoryModel: QueryHistoryModel;
 
     private readonly asyncQueryService: AsyncQueryService;
@@ -47,6 +53,7 @@ export class PreAggregateMaterializationService extends BaseService {
     constructor(args: {
         lightdashConfig: LightdashConfig;
         preAggregateModel: PreAggregateModel;
+        projectModel: ProjectModel;
         queryHistoryModel: QueryHistoryModel;
         asyncQueryService: AsyncQueryService;
         analytics: LightdashAnalytics;
@@ -56,6 +63,7 @@ export class PreAggregateMaterializationService extends BaseService {
         super({ serviceName: 'PreAggregateMaterializationService' });
         this.lightdashConfig = args.lightdashConfig;
         this.preAggregateModel = args.preAggregateModel;
+        this.projectModel = args.projectModel;
         this.queryHistoryModel = args.queryHistoryModel;
         this.asyncQueryService = args.asyncQueryService;
         this.analytics = args.analytics;
@@ -625,9 +633,25 @@ export class PreAggregateMaterializationService extends BaseService {
     }
 
     async getMaterializations(
+        account: Account,
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<ApiPreAggregateMaterializationsResults>> {
+        assertIsAccountWithOrg(account);
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         return this.preAggregateModel.getDefinitionsWithLatestMaterialization(
             projectUuid,
             paginateArgs,

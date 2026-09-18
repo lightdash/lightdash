@@ -1087,7 +1087,7 @@
                                     }
                                 },
                                 "default": {
-                                    "description": "The default value(s) for the parameter",
+                                    "description": "The default value(s) for the parameter. For date parameters, `today` resolves to the current date at query time.",
                                     "oneOf": [
                                         {
                                             "type": ["string", "number"]

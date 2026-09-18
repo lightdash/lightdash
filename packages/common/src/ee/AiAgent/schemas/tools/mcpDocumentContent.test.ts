@@ -68,7 +68,7 @@ const document = {
     slug: 'order-review',
     description: 'A review of orders',
     spaceSlug: 'reports',
-    schemaVersion: 3,
+    schemaVersion: 1,
     content: { cells: [markdown, semantic, merge] },
 };
 const baseVersionUuid = '9e8f3019-5299-43cd-a8b7-ab60a895d9cf';
@@ -78,12 +78,7 @@ describe('MCP Document content', () => {
         const parsed = documentAsCodeSchema.parse(document);
         expect(parsed).toEqual(document);
         expect(
-            parseDocumentContent(parsed.schemaVersion, {
-                cells: parsed.content.cells.map((cell, index) => ({
-                    ...cell,
-                    id: String(index),
-                })),
-            }).cells.map(({ id: _id, ...cell }) => cell),
+            parseDocumentContent(parsed.schemaVersion, parsed.content).cells,
         ).toEqual(document.content.cells);
         expect(
             mcpCreateContentArgsSchema.parse({
@@ -167,9 +162,7 @@ describe('MCP Document content', () => {
                     },
                 },
             });
-            expect(() =>
-                parseDocumentContent(3, { cells: [{ ...cell, id: 'test' }] }),
-            ).toThrow();
+            expect(() => parseDocumentContent(1, { cells: [cell] })).toThrow();
         },
     );
 
@@ -197,12 +190,10 @@ describe('MCP Document content', () => {
                 },
             },
         });
-        expect(() =>
-            parseDocumentContent(3, { cells: [{ ...cell, id: 'test' }] }),
-        ).toThrow();
+        expect(() => parseDocumentContent(1, { cells: [cell] })).toThrow();
     });
 
-    test.each([1, 2, 4])(
+    test.each([0, 2, 3, 4])(
         'rejects unsupported write schema version %s',
         (schemaVersion) => {
             expect(

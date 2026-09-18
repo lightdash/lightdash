@@ -276,9 +276,11 @@ type ResolvedRunQueryArtifactConfig =
 const buildResolvedRunQueryArtifactConfig = ({
     persistedArgs,
     dataAppVizUuid,
+    dataAppVizVersion,
 }: {
     persistedArgs: ToolRunQueryExpressionResolvedArgs;
     dataAppVizUuid: string | null;
+    dataAppVizVersion: number | null;
 }): ResolvedRunQueryArtifactConfig => {
     if (persistedArgs.mergeConfig !== null) {
         return {
@@ -288,11 +290,12 @@ const buildResolvedRunQueryArtifactConfig = ({
         };
     }
 
-    if (dataAppVizUuid !== null) {
+    if (dataAppVizUuid !== null && dataAppVizVersion !== null) {
         return {
             source: 'customChartType',
             schemaVersion: 1,
             dataAppVizUuid,
+            dataAppVizVersion,
             config: persistedArgs,
         };
     }
@@ -609,6 +612,7 @@ export const getRunQuery = ({
                                           persistedArgs:
                                               persistedExpressionArgs,
                                           dataAppVizUuid: null,
+                                          dataAppVizVersion: null,
                                       }),
                         });
 
@@ -680,7 +684,10 @@ export const getRunQuery = ({
                 // Custom chart type answers: resolve the slug project-scoped
                 // and validate the field mapping against the type's schema.
                 // The resolved uuid is persisted beside the replay payload.
-                let customChartTypeDataAppVizUuid: string | null = null;
+                let customChartTypeBinding: {
+                    dataAppVizUuid: string;
+                    dataAppVizVersion: number;
+                } | null = null;
                 if (isCustomChartTypeSlugChartConfig(queryTool.chartConfig)) {
                     const customChartConfig = queryTool.chartConfig;
                     const resolved = await resolveCustomChartType(
@@ -708,7 +715,10 @@ export const getRunQuery = ({
                             ).map((tableCalc) => tableCalc.name),
                         },
                     );
-                    customChartTypeDataAppVizUuid = resolved.dataAppVizUuid;
+                    customChartTypeBinding = {
+                        dataAppVizUuid: resolved.dataAppVizUuid,
+                        dataAppVizVersion: resolved.dataAppVizVersion,
+                    };
                 }
 
                 const populatedCustomMetrics = populateCustomMetricsSQL(
@@ -768,7 +778,7 @@ export const getRunQuery = ({
                         : persistedExpressionArgs;
 
                 const structuredArtifactConfig =
-                    customChartTypeDataAppVizUuid === null
+                    customChartTypeBinding === null
                         ? {
                               source: 'semantic',
                               config: expandedToolArgs,
@@ -778,7 +788,10 @@ export const getRunQuery = ({
                               // server-derived uuid beside it.
                               source: 'customChartType',
                               schemaVersion: 1,
-                              dataAppVizUuid: customChartTypeDataAppVizUuid,
+                              dataAppVizUuid:
+                                  customChartTypeBinding.dataAppVizUuid,
+                              dataAppVizVersion:
+                                  customChartTypeBinding.dataAppVizVersion,
                               config: toolArgs,
                           };
                 const artifactConfig =
@@ -786,7 +799,12 @@ export const getRunQuery = ({
                         ? structuredArtifactConfig
                         : buildResolvedRunQueryArtifactConfig({
                               persistedArgs: expandedPersistedExpressionArgs,
-                              dataAppVizUuid: customChartTypeDataAppVizUuid,
+                              dataAppVizUuid:
+                                  customChartTypeBinding?.dataAppVizUuid ??
+                                  null,
+                              dataAppVizVersion:
+                                  customChartTypeBinding?.dataAppVizVersion ??
+                                  null,
                           });
 
                 const createOrUpdateArtifactHook = () =>

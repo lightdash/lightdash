@@ -42,7 +42,7 @@ export interface DataAppVizVisualizationConfigAndData {
     ) => void;
     /** Back to pointing at no viz; bindings and options go with it. */
     clearDataAppViz: () => void;
-    setField: (fieldName: string, fieldId: string | null) => void;
+    setField: (fieldName: string, fieldId: string | string[] | null) => void;
     /** `dataAppVizUuid` is the viz the edited control belonged to. */
     setOption: (
         dataAppVizUuid: string,
@@ -176,16 +176,18 @@ const useDataAppVizVisualizationConfig = (
     );
 
     const setField = useCallback(
-        (fieldName: string, fieldId: string | null) => {
+        (fieldName: string, fieldId: string | string[] | null) => {
             const selected = configRef.current;
             if (selected === null) return;
-            const nextMapping = { ...selected.fieldMapping };
-            if (fieldId === null) {
-                delete nextMapping[fieldName];
+            const fieldMapping = { ...selected.fieldMapping };
+            if (Array.isArray(fieldId)) {
+                fieldMapping[fieldName] = fieldId;
+            } else if (fieldId === null) {
+                delete fieldMapping[fieldName];
             } else {
-                nextMapping[fieldName] = fieldId;
+                fieldMapping[fieldName] = fieldId;
             }
-            commit({ ...selected, fieldMapping: nextMapping });
+            commit({ ...selected, fieldMapping });
         },
         [commit],
     );

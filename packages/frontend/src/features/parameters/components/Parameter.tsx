@@ -2,6 +2,7 @@ import {
     DEFAULT_UI_STRINGS,
     formatDate,
     parseDate,
+    resolveParameterDefault,
     TimeFrames,
     type LightdashProjectParameter,
     type ParametersValuesMap,
@@ -71,8 +72,8 @@ const Parameter: FC<Props> = ({
 
     const displayValue = useMemo(() => {
         if (value === null || value === undefined || value === '') {
-            if (parameter.default !== undefined) {
-                const defaultVal = parameter.default;
+            const defaultVal = resolveParameterDefault(parameter);
+            if (defaultVal !== undefined) {
                 if (
                     parameter.type === 'date' &&
                     typeof defaultVal === 'string'

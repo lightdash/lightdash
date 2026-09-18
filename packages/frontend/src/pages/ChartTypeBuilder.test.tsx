@@ -180,6 +180,7 @@ const appMeta = (overrides: Partial<AppMeta> = {}): AppMeta =>
         latestReadyVersion: 1,
         registrySlug: null,
         icon: null,
+        verification: null,
         ...overrides,
     }) as AppMeta;
 
@@ -192,6 +193,7 @@ const historyStub = (
     latest: versions.length ? versions[0] : null,
     latestReadyVersion,
     hasOrigin: versions.some((v) => v.version === 1),
+    currentThreadNumber: null,
     hasEarlier: false,
     isLoading: false,
     isError: false,
@@ -785,7 +787,9 @@ describe('ChartTypeBuilder', () => {
                 name: 'Resize version history',
             }),
         ).toBeInTheDocument();
-        expect(screen.getByLabelText('View v1')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Preview' }),
+        ).toBeInTheDocument();
     });
 
     it('offers the preview SDK upgrade and opens history after starting it', () => {
@@ -851,7 +855,7 @@ describe('ChartTypeBuilder', () => {
         });
 
         fireEvent.click(screen.getByText('History'));
-        fireEvent.click(screen.getByLabelText('View v1'));
+        fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
 
         // An upgrade always rebuilds from v2, so the offer keeps describing
         // it; the v1 bundle on screen must not be classified in its place.
@@ -898,7 +902,7 @@ describe('ChartTypeBuilder', () => {
         );
 
         fireEvent.click(screen.getByText('History'));
-        fireEvent.click(screen.getByLabelText('View v1'));
+        fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
         expect(screen.getByTestId('app-preview')).toHaveTextContent(
             'preview-v1',
         );
@@ -956,7 +960,7 @@ describe('ChartTypeBuilder', () => {
         expect(screen.getByLabelText('Show markers')).toBeInTheDocument();
 
         fireEvent.click(screen.getByText('History'));
-        fireEvent.click(screen.getByLabelText('View v1'));
+        fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
 
         // The uuid comes from the loaded app row, the version from the pin.
         expect(vi.mocked(useDataAppVisualization)).toHaveBeenLastCalledWith(
@@ -989,7 +993,7 @@ describe('ChartTypeBuilder', () => {
         expect(screen.getByLabelText('Show markers')).not.toBeChecked();
 
         fireEvent.click(screen.getByText('History'));
-        fireEvent.click(screen.getByLabelText('View v1'));
+        fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
         fireEvent.click(screen.getByLabelText('Collapse version history'));
 
         expect(screen.getByLabelText('Show markers')).not.toBeChecked();

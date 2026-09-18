@@ -201,6 +201,7 @@ const ChartTypeBuilder: FC = () => {
             onOptionChange={panel.onOptionChange}
             colorPaletteUuid={panel.colorPaletteUuid}
             onPaletteChange={panel.onPaletteChange}
+            resolvedColorPalette={colorPalette}
             isStale={workspace.isFetchingSchema}
         />
     ) : null;
@@ -229,6 +230,7 @@ const ChartTypeBuilder: FC = () => {
                 latestReadyVersion={history.latestReadyVersion}
                 hasHistory={workspace.hasHistory}
                 isHistoryOpen={isHistoryOpen}
+                isBuilding={isBuilding}
                 upgrade={
                     activeVizUuid && history.latestReadyVersion !== null
                         ? { ...workspace.sdkUpgradeOffer, disabled: isBuilding }

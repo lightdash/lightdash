@@ -65,6 +65,7 @@ import {
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
+import AiDocumentCards from './AiDocumentCards';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import {
@@ -965,6 +966,11 @@ const AssistantBubbleContent: FC<{
                         <TypingDots />
                     </Box>
                 )}
+            <AiDocumentCards
+                projectUuid={projectUuid}
+                toolResults={message.toolResults}
+                streamParts={streamingState?.parts}
+            />
             {editDbtProjectResult && (
                 <AiEditDbtProjectToolCall
                     metadata={editDbtProjectResult.metadata}
@@ -1239,12 +1245,12 @@ export const AssistantBubble: FC<Props> = memo(
                 {isLoading ? null : (
                     <Group
                         gap={0}
-                        // Walkthrough: rating the answer teaches the agent.
+                        // Walkthrough: rating the answer feeds the Issues loop.
                         // See scripts/scope-tours.
                         data-tour-scope="create:AiAgentThread"
                         data-tour-result="3"
                         data-tour-label="Rate the answer"
-                        data-tour-docs="agents/agent-memory.mdx#intro:2"
+                        data-tour-docs="agents/issues.mdx#ai-filed-findings:1"
                     >
                         <CopyActionIcon
                             value={message.message ?? ''}

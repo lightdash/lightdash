@@ -57,7 +57,6 @@ describe.skipIf(!provider || contextBenchmark || paginationBenchmark)(
                     callOptions: { ...callOptions, maxRetries: 0 },
                     providerOptions,
                     agent: renderAutopilotAgent({
-                        runtime: 'ai-sdk',
                         policy: { ...DEFAULT_MANAGED_AGENT_POLICY, aggression },
                     }),
                     dataTools: {},
@@ -152,7 +151,6 @@ describe.skipIf(!provider || !contextBenchmark)(
                         enableReasoning: true,
                     });
                 const agent = renderAutopilotAgent({
-                    runtime: 'ai-sdk',
                     policy: {
                         ...DEFAULT_MANAGED_AGENT_POLICY,
                         aggression: 'observe',
@@ -276,7 +274,6 @@ describe.skipIf(!provider || !paginationBenchmark)(
                     enableReasoning: true,
                 });
             const agent = renderAutopilotAgent({
-                runtime: 'ai-sdk',
                 policy: {
                     ...DEFAULT_MANAGED_AGENT_POLICY,
                     aggression: 'observe',

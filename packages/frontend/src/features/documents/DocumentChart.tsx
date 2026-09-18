@@ -2,7 +2,7 @@ import {
     ChartType,
     ECHARTS_DEFAULT_COLORS,
     isWarehouseResourceLimitError,
-    type DocumentCellV3,
+    type DocumentCell,
 } from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
@@ -21,7 +21,8 @@ type Props = {
     spaceUuid: string;
     documentUuid: string;
     versionUuid: string;
-    cell: Extract<DocumentCellV3, { type: 'chart' }>;
+    cellIndex: number;
+    cell: Extract<DocumentCell, { type: 'chart' }>;
 };
 
 const DocumentChart = ({
@@ -29,6 +30,7 @@ const DocumentChart = ({
     spaceUuid,
     documentUuid,
     versionUuid,
+    cellIndex,
     cell,
 }: Props) => {
     const { chart } = cell.content;
@@ -37,7 +39,7 @@ const DocumentChart = ({
         projectUuid,
         documentUuid,
         versionUuid,
-        cell.id,
+        cellIndex,
     );
     const results = useInfiniteQueryResults(
         projectUuid,

@@ -186,42 +186,30 @@
 
 .cardLabel {
     min-height: 2lh;
-    transition: opacity 100ms ease-out;
 }
 
-.cardConfigureAction {
-    color: light-dark(var(--mantine-color-blue-9), var(--mantine-color-blue-3));
+.cardLabelSlot {
+    width: 100%;
+    min-height: calc(var(--mantine-font-size-xs) * 1.2 * 2);
+}
+
+/* Sits in the label slot's second line, inside the card. */
+.cardWrapper .cardConfigureAction {
     position: absolute;
-    inset-inline: var(--mantine-spacing-xs);
-    bottom: var(--mantine-spacing-sm);
+    left: 50%;
+    bottom: 5px;
     z-index: 1;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 100ms ease-out;
+    height: 18px;
+    transform: translateX(-50%);
 }
 
-.cardConfigureAction:hover:not(:disabled) {
-    background-color: light-dark(
-        var(--mantine-color-blue-1),
-        var(--button-hover)
-    );
-}
-
-.cardWrapper[data-configurable='true']:is(:hover, :has(:focus-visible))
-    .cardConfigureAction {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.cardWrapper[data-configurable='true']:is(:hover, :has(:focus-visible))
-    .cardLabel {
-    opacity: 0;
+.cardWrapper .cardConfigureAction:active:not(:disabled) {
+    transform: translateX(-50%) scale(0.98);
 }
 
 @media (prefers-reduced-motion: reduce) {
     .card,
     .cardConfigureAction,
-    .cardLabel,
     .cardMoreActions,
     .cardIcon {
         transition: none;
@@ -238,14 +226,9 @@
 
 /* Keep editing available on devices without hover. */
 @media (hover: none) {
-    .cardWrapper[data-configurable='true'] .cardConfigureAction,
     .cardMoreActions:not(:disabled) {
         opacity: 1;
         pointer-events: auto;
-    }
-
-    .cardWrapper[data-configurable='true'] .cardLabel {
-        opacity: 0;
     }
 }
 

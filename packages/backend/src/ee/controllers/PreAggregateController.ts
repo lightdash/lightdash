@@ -150,13 +150,14 @@ export class PreAggregateController extends BaseController {
         @Query() page?: number,
         @Query() pageSize?: number,
     ): Promise<ApiGetPreAggregateMaterializationsResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const paginateArgs = page && pageSize ? { page, pageSize } : undefined;
 
         const results = await this.services
             .getPreAggregateMaterializationService()
-            .getMaterializations(projectUuid, paginateArgs);
+            .getMaterializations(req.account, projectUuid, paginateArgs);
 
         return {
             status: 'ok',

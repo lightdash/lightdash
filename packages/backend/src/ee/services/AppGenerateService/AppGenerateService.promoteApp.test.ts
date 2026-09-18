@@ -58,6 +58,7 @@ type VersionRow = {
     app_version_id: string;
     app_id: string;
     version: number;
+    app_thread_uuid: string;
     prompt: string;
     status: 'ready' | 'pending' | 'sandbox';
     created_at: Date;
@@ -131,6 +132,7 @@ async function buildScenario() {
                     app_version_id: 'preview-version-3',
                     app_id: PREVIEW_APP_UUID,
                     version: 3,
+                    app_thread_uuid: `${PREVIEW_APP_UUID}-thread-1`,
                     prompt: 'Fix currency formatting',
                     status: 'ready',
                     created_at: new Date(),
@@ -149,6 +151,7 @@ async function buildScenario() {
                     app_version_id: 'production-version-6',
                     app_id: PRODUCTION_APP_UUID,
                     version: 6,
+                    app_thread_uuid: `${PRODUCTION_APP_UUID}-thread-1`,
                     prompt: 'Old prompt',
                     status: 'ready',
                     created_at: new Date(),
@@ -232,6 +235,7 @@ async function buildScenario() {
                 app_version_id: `${appUuid}-version-${input.version}`,
                 app_id: appUuid,
                 version: input.version,
+                app_thread_uuid: `${appUuid}-thread-1`,
                 prompt: input.prompt,
                 status,
                 created_at: new Date(),
@@ -267,6 +271,19 @@ async function buildScenario() {
         syncPromotedApp: async () => undefined,
         updateStatusMessage: async () => undefined,
         touchVersionIfInProgress: async () => undefined,
+        findThreadByUuid: async (appThreadUuid: string) => ({
+            app_thread_uuid: appThreadUuid,
+            app_id: appThreadUuid.replace(/-thread-1$/, ''),
+            thread_number: 1,
+            origin: 'builder' as const,
+            ai_thread_uuid: null,
+            coding_agent: 'claude' as const,
+            coding_agent_session_id: null,
+            created_at: new Date(),
+            created_by_user_uuid: 'user-1',
+        }),
+        threadHasVersionThatReachedCodingAgent: async () => false,
+        setThreadCodingAgentSessionId: async () => true,
     };
     let pipelinePayload: AppGeneratePipelineJobPayload | undefined;
     const sandboxManager = new MockSandboxManager({
@@ -295,6 +312,11 @@ async function buildScenario() {
         } as never,
         appModel: appModel as never,
         chartRegistryClient: {} as never,
+        contentVerificationModel: {
+            getByContent: async () => null,
+            verify: async () => undefined,
+            unverify: async () => undefined,
+        } as never,
         featureFlagModel: { get: async () => ({ enabled: true }) } as never,
         organizationDesignModel: {
             findInOrganization: async () => null,

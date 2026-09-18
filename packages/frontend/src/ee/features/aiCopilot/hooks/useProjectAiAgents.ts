@@ -48,7 +48,7 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../../../../api';
-import { invalidateAppAfterRestore } from '../../../../features/apps/hooks/useRestoreAppVersion';
+import { invalidateAppQueries } from '../../../../features/apps/hooks/useRestoreAppVersion';
 import useHealth from '../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -1671,7 +1671,7 @@ export const useRestoreAiAgentThreadDataAppVersionMutation = (
                         threadUuid,
                     ),
                 }),
-                invalidateAppAfterRestore(queryClient, projectUuid, appUuid),
+                invalidateAppQueries(queryClient, projectUuid, appUuid),
             ]),
     });
 };

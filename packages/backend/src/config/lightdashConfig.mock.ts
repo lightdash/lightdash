@@ -200,6 +200,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         pollInterval: 1000,
         jobTimeout: 0,
+        shutdownTimeout: 60_000,
         tasks: ALL_TASK_NAMES,
         quiesce: {
             pollInterval: 2_000,
@@ -392,9 +393,6 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     managedAgent: {
         validatedModels: [],
-        runtime: 'anthropic-managed',
-        anthropicApiKey: null,
-        skillIds: [],
         schedule: '0 0 * * *',
         sessionTimeoutMs: 300000,
         maxSteps: 120,

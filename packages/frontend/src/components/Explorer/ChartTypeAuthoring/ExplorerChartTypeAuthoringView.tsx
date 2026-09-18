@@ -5,6 +5,7 @@ import { type SdkUpgradeOffer } from '../../../features/apps/hooks/useSdkUpgrade
 import { type ChartTypeAppMeta } from '../../../features/chartTypes/builder/appMeta';
 import ChartTypeBuilderWorkspace from '../../../features/chartTypes/builder/ChartTypeBuilderWorkspace';
 import { type ChartTypeBuilderWorkspaceState } from '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace';
+import { type VizBuildRequest } from '../../../features/chartTypes/hooks/useDataAppVizBuild';
 import { ChartGalleryContext } from '../../common/ChartGallery/ChartGalleryContext';
 import { ConfigTabs as DataAppVizConfigTabs } from '../../VisualizationConfigs/DataAppVizConfig/DataAppVizConfigTabs';
 import { deriveAuthoringStatus } from './authoringStatus';
@@ -17,6 +18,8 @@ type Props = {
     upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
     workspace: ChartTypeBuilderWorkspaceState;
     previewContext: DataAppVizContext | null;
+    sampleRows: Record<string, string>[];
+    buildContext?: VizBuildRequest['context'];
     /** The host's results-staleness warning; renders nothing while clean. */
     warning: ReactNode;
     onDetailsSaved: () => void;
@@ -30,6 +33,8 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
     upgrade,
     workspace,
     previewContext,
+    sampleRows,
+    buildContext,
     warning,
     onDetailsSaved,
     onDone,
@@ -71,6 +76,8 @@ const ExplorerChartTypeAuthoringView: FC<Props> = ({
                 projectUuid={projectUuid}
                 workspace={workspace}
                 previewContext={previewContext}
+                sampleRows={sampleRows}
+                currentBuildContext={buildContext}
                 syncPreviewUrlState={false}
                 configurePanel={null}
                 configurationSidebar={

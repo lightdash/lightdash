@@ -1,9 +1,13 @@
 import { type DataAppVizContext } from '@lightdash/common';
 import { Box, Transition } from '@mantine/core';
 import { useReducedMotion } from '@mantine/hooks';
-import { useState, type FC, type ReactNode } from 'react';
+import { useRef, useState, type FC, type ReactNode } from 'react';
 import { SIDEBAR_ANIMATION_DURATION } from '../../../components/common/Page/constants';
 import ResizableSplitter from '../../../components/common/ResizableSplitter';
+import { type AppIframePreviewHandle } from '../../apps/AppIframePreview';
+import { useElementPicker } from '../../apps/hooks/useElementPicker';
+import { refToWireString } from '../../apps/utils/elementRefs';
+import { type VizBuildRequest } from '../hooks/useDataAppVizBuild';
 import BuilderCanvas from './BuilderCanvas';
 import BuilderPromptBar from './BuilderPromptBar';
 import classes from './ChartTypeBuilderWorkspace.module.css';
@@ -15,6 +19,9 @@ type Props = {
     workspace: ChartTypeBuilderWorkspaceState;
     /** What the preview renders with; null renders the app bare. */
     previewContext: DataAppVizContext | null;
+    /** Bounded sample of the host's current rows, even before a schema exists. */
+    sampleRows?: Record<string, string>[];
+    currentBuildContext?: VizBuildRequest['context'];
     /** Whether the previewed viz may write its own state into the page URL. */
     syncPreviewUrlState: boolean;
     /** The previewed version's options beside it; null when the host
@@ -33,6 +40,8 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
     projectUuid,
     workspace,
     previewContext,
+    sampleRows = [],
+    currentBuildContext,
     syncPreviewUrlState,
     configurePanel,
     configurationSidebar,
@@ -65,8 +74,25 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
     } = workspace;
 
     const reducedMotion = useReducedMotion();
+    const previewRef = useRef<AppIframePreviewHandle>(null);
+    const [screenshotAvailable, setScreenshotAvailable] = useState(false);
+    const elementPicker = useElementPicker({
+        identityKey: `${dataAppVizUuid ?? 'draft'}:${previewVersion ?? 0}`,
+        refsIdentityKey: dataAppVizUuid ?? 'draft',
+        maxRefs: 5,
+    });
     const [isResizingHistory, setIsResizingHistory] = useState(false);
     const showHistory = hasHistory && isHistoryOpen && dataAppVizUuid !== null;
+    const latestReadySchema =
+        history.versions.find(
+            (version) => version.version === history.latestReadyVersion,
+        )?.resources?.vizSchema ??
+        (viewedVersion === null && !workspace.isFetchingSchema
+            ? workspace.dataAppViz?.schema
+            : undefined);
+    const buildContext =
+        currentBuildContext ??
+        (latestReadySchema ? { schema: latestReadySchema } : {});
 
     return (
         <Box
@@ -109,6 +135,11 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                 onPickExample={onPickExample}
                                 onSdkManifest={onSdkManifest}
                                 syncPreviewUrlState={syncPreviewUrlState}
+                                elementPickerProps={elementPicker.iframeProps}
+                                previewRef={previewRef}
+                                onScreenshotAvailabilityChange={
+                                    setScreenshotAvailable
+                                }
                             />
                             {isPromptBarMounted && (
                                 <BuilderPromptBar
@@ -133,6 +164,36 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                     narration={narration}
                                     modelSelection={modelSelection}
                                     clarification={clarification}
+                                    buildContext={{
+                                        ...buildContext,
+                                        ...(sampleRows.length > 0
+                                            ? { sampleRows }
+                                            : {}),
+                                        ...(elementPicker.refs.length > 0
+                                            ? {
+                                                  elementReferences:
+                                                      elementPicker.refs.map(
+                                                          refToWireString,
+                                                      ),
+                                              }
+                                            : {}),
+                                    }}
+                                    elementPicker={elementPicker}
+                                    onCaptureScreenshot={
+                                        screenshotAvailable
+                                            ? async () => {
+                                                  const capture =
+                                                      previewRef.current
+                                                          ?.captureScreenshot;
+                                                  if (!capture) {
+                                                      throw new Error(
+                                                          'Screenshot capture is not available',
+                                                      );
+                                                  }
+                                                  return capture();
+                                              }
+                                            : undefined
+                                    }
                                 />
                             )}
                         </Box>
@@ -179,6 +240,9 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                             history.isFetchingEarlier
                                         }
                                         fetchEarlier={history.fetchEarlier}
+                                        currentThreadNumber={
+                                            history.currentThreadNumber
+                                        }
                                     />
                                 </Box>
                             )}

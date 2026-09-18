@@ -98,6 +98,11 @@ function buildService(
         getLatestVersion: vi.fn().mockResolvedValue(null),
         getLatestReadyVersion: vi.fn().mockResolvedValue(null),
         getVersion: vi.fn().mockResolvedValue(null),
+        getCurrentThread: vi.fn().mockResolvedValue({
+            app_thread_uuid: 'thread-1',
+            thread_number: 1,
+            coding_agent_session_id: null,
+        }),
         createVersion: vi.fn().mockResolvedValue({ version: 1 }),
         createWithVersion: vi.fn().mockResolvedValue({
             app: { app_id: 'new-app-uuid', slug: 'sankey-custom-2' },
@@ -177,6 +182,11 @@ function buildService(
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
         chartRegistryClient: {} as never,
+        contentVerificationModel: {
+            getByContent: async () => null,
+            verify: async () => undefined,
+            unverify: async () => undefined,
+        } as never,
         sandboxManager: null,
         appRuntimeS3: null,
     });
@@ -498,7 +508,7 @@ describe('read-only invariant for registry-managed apps', () => {
             undefined,
             undefined,
             undefined,
-            { registryVersion: '1.1.0' },
+            expect.objectContaining({ registryVersion: '1.1.0' }),
         );
     });
 });

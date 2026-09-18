@@ -87,7 +87,6 @@ describe.skipIf(process.env.AUTOPILOT_HEARTBEAT_EVAL !== 'true')(
             // This App exists only inside the isolated evaluation process.
             config.managedAgent = {
                 ...config.managedAgent,
-                runtime: 'ai-sdk',
                 maxSteps: fixture === 'large' ? 120 : 80,
                 sessionTimeoutMs: fixture === 'large' ? 600_000 : 300_000,
                 validatedModels: [{ provider, model: model.modelId, mode }],

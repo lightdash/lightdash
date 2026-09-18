@@ -4,7 +4,6 @@ import {
     Account,
     assertUnreachable,
     BulkActionable,
-    canMutateVerifiedContent,
     ChartHistory,
     ChartSummary,
     ChartType,
@@ -110,6 +109,10 @@ import type {
 } from '../SoftDeletableService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
+import {
+    assertCanMutateVerifiedContent,
+    getVerificationAfterUpdate,
+} from '../verifiedContentGuards';
 import {
     assertChartDraftOverlay,
     mergeDraftIntoChart,
@@ -484,9 +487,9 @@ export class SavedChartService
                     ? {
                           dataAppVizUuid:
                               savedChart.chartConfig.config.dataAppVizUuid,
-                          mappedFieldCount: Object.keys(
+                          mappedFieldCount: Object.values(
                               savedChart.chartConfig.config.fieldMapping || {},
-                          ).length,
+                          ).filter((binding) => binding.length > 0).length,
                           changedOptionCount: Object.keys(
                               savedChart.chartConfig.config.optionValues || {},
                           ).length,
@@ -1373,32 +1376,20 @@ export class SavedChartService
         organizationUuid: string;
         preserveVerification?: boolean;
     }): Promise<ContentVerificationInfo | null> {
-        const verification = await this.contentVerificationModel.getByContent(
-            ContentType.CHART,
-            chartUuid,
-        );
-        if (!verification || preserveVerification === false) return null;
-
-        const auditedAbility = this.createAuditedAbility(user);
-        const canManageVerification = auditedAbility.can(
-            'manage',
-            subject('ContentVerification', {
-                organizationUuid,
+        return getVerificationAfterUpdate(
+            {
+                contentVerificationModel: this.contentVerificationModel,
+                ability: this.createAuditedAbility(user),
+                user,
+            },
+            {
+                contentType: ContentType.CHART,
+                contentUuid: chartUuid,
                 projectUuid,
-                metadata: { chartUuid },
-            }),
+                organizationUuid,
+                preserveVerification,
+            },
         );
-        const isVerifier = verification.verifiedBy.userUuid === user.userUuid;
-
-        if (canManageVerification || isVerifier) return verification;
-
-        if (preserveVerification === true) {
-            throw new ForbiddenError(
-                'Only admins or the verifier can preserve chart verification',
-            );
-        }
-
-        return null;
     }
 
     private async assertCanMutateVerifiedChart({
@@ -1412,22 +1403,19 @@ export class SavedChartService
         projectUuid: string;
         organizationUuid: string;
     }): Promise<void> {
-        const verification = await this.contentVerificationModel.getByContent(
-            ContentType.CHART,
-            chartUuid,
+        await assertCanMutateVerifiedContent(
+            {
+                contentVerificationModel: this.contentVerificationModel,
+                ability: this.createAuditedAbility(user),
+                user,
+            },
+            {
+                contentType: ContentType.CHART,
+                contentUuid: chartUuid,
+                projectUuid,
+                organizationUuid,
+            },
         );
-        if (
-            !canMutateVerifiedContent(
-                this.createAuditedAbility(user),
-                { organizationUuid, projectUuid },
-                verification,
-                user.userUuid,
-            )
-        ) {
-            throw new ForbiddenError(
-                'This chart is verified. You need permission to edit verified content, or ask an admin to unverify it first.',
-            );
-        }
     }
 
     async togglePinning(

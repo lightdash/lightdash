@@ -80,9 +80,16 @@ const buildService = (role: SpaceMemberRole) => {
             viewsCount: 3,
             pinnedListUuid: 'private-list',
             pinnedListOrder: 1,
+            currentThread: {
+                app_thread_uuid: 'thread-1',
+                thread_number: 1,
+                created_at: new Date(),
+            },
             versions: [
                 {
                     version: 2,
+                    app_thread_uuid: 'thread-1',
+                    thread_number: 1,
                     prompt: 'generation prompt',
                     status: 'ready',
                     status_message: null,
@@ -171,6 +178,11 @@ const buildService = (role: SpaceMemberRole) => {
         sandboxManager: null,
         appRuntimeS3: null,
         chartRegistryClient: {} as never,
+        contentVerificationModel: {
+            getByContent: async () => null,
+            verify: async () => undefined,
+            unverify: async () => undefined,
+        } as never,
     });
     return { appModel, service, spacePermissionService, userModel };
 };

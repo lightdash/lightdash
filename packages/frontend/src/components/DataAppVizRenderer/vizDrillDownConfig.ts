@@ -1,19 +1,27 @@
-import { isField, isMetric, type ItemsMap } from '@lightdash/common';
+import {
+    isField,
+    isMetric,
+    type DataAppVizFieldMapping,
+    type ItemsMap,
+} from '@lightdash/common';
 import { type DrillDownConfig } from '../MetricQueryData/types';
-import { isVizIntent, toVizFieldValues } from './vizIntent';
+import { isVizIntent, resolveVizFieldId, toVizFieldValues } from './vizIntent';
 
 // Resolves a viz's drill click intent (untrusted iframe input) into the
 // config DrillDownModal consumes. metricQuery/explore come from the
 // MetricQueryDataProvider already mounted on the surface.
 export const resolveVizDrillDownConfig = (
     intent: unknown,
-    args: { fieldMapping: Record<string, string>; itemsMap: ItemsMap },
+    args: {
+        fieldMapping: DataAppVizFieldMapping;
+        itemsMap: ItemsMap;
+    },
 ): DrillDownConfig => {
     if (!isVizIntent(intent)) {
         throw new Error('Invalid drill-down request.');
     }
-    const fieldId = args.fieldMapping[intent.metric];
-    const item = fieldId ? args.itemsMap[fieldId] : undefined;
+    const fieldId = resolveVizFieldId(intent, args.fieldMapping);
+    const item = args.itemsMap[fieldId];
     if (!fieldId || !item) {
         throw new Error(
             `"${intent.metric}" is not bound to a query field on this chart.`,

@@ -27,3 +27,9 @@ test('AI_DEEP_RESEARCH tasks are registered', () => {
         'cleanAiDeepResearchReports',
     );
 });
+
+test('AI eval sweep task is registered', () => {
+    expect(EE_SCHEDULER_TASKS.SWEEP_STALE_AI_EVAL_RUNS).toBe(
+        'sweepStaleAiEvalRuns',
+    );
+});

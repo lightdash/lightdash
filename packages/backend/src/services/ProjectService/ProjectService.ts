@@ -3,6 +3,7 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     AdditionalMetric,
+    allowsOptionalUserCredentials,
     AlreadyExistsError,
     AndFilterGroup,
     AnonymousAccount,
@@ -134,6 +135,7 @@ import {
     isReservedParameterName,
     isSqlTableCalculation,
     isSshTunnelErrorData,
+    isTodayParameterDefault,
     isUserManagedExplore,
     isUserWithOrg,
     isValidTimezone,
@@ -155,6 +157,7 @@ import {
     MERGE_TABLE_NAME,
     mergeCalculationReferencePattern,
     MergeFieldTypes,
+    MergeJoinKeyPart,
     MergeQuery,
     MergeQueryColumns,
     MergeQueryError,
@@ -203,6 +206,7 @@ import {
     RequestMethod,
     ResolvedProjectColorPalette,
     resolveMergeSorts,
+    resolveParameterDefault,
     resolveQueryTimezone,
     ResultRow,
     ResultsCacheProjectSettings,
@@ -220,7 +224,6 @@ import {
     SshTunnelError,
     SummaryExplore,
     SupportedDbtAdapter,
-    supportsOptionalUserCredentials,
     TablesConfiguration,
     TableSelectionType,
     TooManyRequestsError,
@@ -2174,14 +2177,10 @@ export class ProjectService extends BaseService {
             );
         }
 
-        // Check if user has their own credentials for this project's warehouse type
-        // Only fetch user credentials when:
-        // 1. requireUserCredentials is enabled (user credentials are mandatory)
-        // 2. The warehouse type supports optional user credentials, which are
-        //    used when present and fall back to the project connection otherwise
+        // Only load personal credentials when required or enabled by the project.
         const shouldFetchUserCredentials =
             credentials.requireUserCredentials ||
-            supportsOptionalUserCredentials(credentials.type);
+            allowsOptionalUserCredentials(credentials);
 
         if (isRegisteredUser) {
             // Fetch user credentials only when needed (for performance)
@@ -6314,6 +6313,39 @@ export class ProjectService extends BaseService {
      * running total would be frozen at its pre-merge value and a pivot-function
      * calc compiles to a literal null column.
      */
+    /**
+     * A join key may name a dimension of the source's explore that the query
+     * does not select: the leg groups by it, so the join has the column, and
+     * the merged result shows it once, as the key. Only the explore's own
+     * dimensions qualify; a custom dimension exists only where the query
+     * defines it, and a key the explore lacks is left for the validator.
+     */
+    private static selectJoinKeyDimensions(
+        source: MergeQueryMetricSource,
+        joinKey: MergeJoinKeyPart[],
+        itemMap: ItemsMap,
+    ): MetricQuery {
+        const missing = joinKey.flatMap((part) => {
+            const fieldId = part.fieldIdBySourceId[source.id];
+            if (
+                fieldId === undefined ||
+                source.metricQuery.dimensions.includes(fieldId)
+            ) {
+                return [];
+            }
+            const item = itemMap[fieldId];
+            return item && isDimension(item) ? [fieldId] : [];
+        });
+        if (missing.length === 0) return source.metricQuery;
+        return {
+            ...source.metricQuery,
+            dimensions: [
+                ...source.metricQuery.dimensions,
+                ...missing.filter((id, index) => missing.indexOf(id) === index),
+            ],
+        };
+    }
+
     private static getUnsupportedTableCalculations(
         source: MergeQueryMetricSource,
     ): string[] {
@@ -6405,15 +6437,20 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     source.metricQuery.exploreName,
                 );
+                const itemMap = getItemMap(
+                    explore,
+                    source.metricQuery.additionalMetrics,
+                    source.metricQuery.tableCalculations,
+                    source.metricQuery.customDimensions,
+                );
                 return {
                     id: source.id,
-                    metricQuery: source.metricQuery,
-                    itemMap: getItemMap(
-                        explore,
-                        source.metricQuery.additionalMetrics,
-                        source.metricQuery.tableCalculations,
-                        source.metricQuery.customDimensions,
+                    metricQuery: ProjectService.selectJoinKeyDimensions(
+                        source,
+                        mergeQuery.joinKey,
+                        itemMap,
                     ),
+                    itemMap,
                     explore,
                 };
             }),
@@ -6533,7 +6570,7 @@ export class ProjectService extends BaseService {
 
         const sources = await Promise.all(
             mergeQuery.sources.map(async (source) => {
-                const resolvedMetricQuery =
+                const resolvedMetricQuery: MetricQuery =
                     resolvedMetricQueryBySourceId[source.id];
                 const valueColumns = [
                     ...resolvedMetricQuery.metrics,
@@ -6551,6 +6588,7 @@ export class ProjectService extends BaseService {
                     return {
                         id: source.id,
                         sql: null,
+                        metricQuery: null,
                         valueColumns,
                         missingParameters: [],
                         parameterReferences: [],
@@ -6568,9 +6606,9 @@ export class ProjectService extends BaseService {
                     documentQueryContext: args.documentQueryContext,
                     account,
                     projectUuid,
-                    exploreName: source.metricQuery.exploreName,
+                    exploreName: resolvedMetricQuery.exploreName,
                     body: {
-                        ...source.metricQuery,
+                        ...resolvedMetricQuery,
                         sorts: [],
                         limit: sourceRowCap,
                         parameters,
@@ -6588,6 +6626,7 @@ export class ProjectService extends BaseService {
                 return {
                     id: source.id,
                     sql: compiled.query,
+                    metricQuery: resolvedMetricQuery,
                     valueColumns,
                     missingParameters: Array.from(
                         compiled.missingParameterReferences,
@@ -6625,6 +6664,7 @@ export class ProjectService extends BaseService {
         const legs: MergeCompiledLeg[] = sources.map((source) => ({
             sourceId: source.id,
             sql: source.sql,
+            metricQuery: source.metricQuery,
         }));
         if (parameterErrors.length > 0) {
             return {
@@ -13310,20 +13350,38 @@ export class ProjectService extends BaseService {
             preloadedProjectParameters ??
             (await this.projectParametersModel.find(projectUuid));
 
+        const exploreParameters = explore
+            ? getAvailableParametersFromTables(Object.values(explore.tables))
+            : {};
+
+        // A `today` default is taken in the project's query timezone, so "today" means
+        // the same day the project's date dimensions report. Only look the zone up when
+        // a definition actually needs it.
+        const hasTodayDefault =
+            parameterConfigs.some((p) => isTodayParameterDefault(p.config)) ||
+            Object.values(exploreParameters).some(isTodayParameterDefault);
+        const now = new Date();
+        const timezone = hasTodayDefault
+            ? await this.getQueryTimezoneForProject(projectUuid)
+            : undefined;
+
         for (const paramConfig of parameterConfigs) {
-            if (paramConfig.config.default !== undefined) {
-                projectDefaultParameterValues[paramConfig.name] =
-                    paramConfig.config.default;
+            const defaultValue = resolveParameterDefault(
+                paramConfig.config,
+                now,
+                timezone,
+            );
+            if (defaultValue !== undefined) {
+                projectDefaultParameterValues[paramConfig.name] = defaultValue;
             }
         }
 
-        const exploreParameters = explore
-            ? getAvailableParametersFromTables(Object.values(explore.tables))
-            : [];
-
         const exploreDefaultParameterValues = Object.fromEntries(
             Object.entries(exploreParameters)
-                .map(([key, value]) => [key, value.default])
+                .map(([key, value]) => [
+                    key,
+                    resolveParameterDefault(value, now, timezone),
+                ])
                 .filter(([key, value]) => value !== undefined),
         );
 

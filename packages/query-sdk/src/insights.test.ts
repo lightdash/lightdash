@@ -7,6 +7,7 @@ import {
     MOUNTED_QUERIES_MESSAGE,
     mountInsights,
     parseInsightsPayload,
+    peekHostAiAvailable,
     peekInsights,
     postInsightAction,
     registerMountedQuery,
@@ -71,6 +72,18 @@ describe('insights channel', () => {
         dispatch(host, { type: INSIGHTS_MESSAGE, payload });
         expect(peekInsights().headline).toBe('Returns doubled');
         expect(peekInsights().anomalies).toHaveLength(2);
+    });
+
+    it('reports host AI availability only once the host has pushed', () => {
+        mountInsights(host);
+        expect(peekHostAiAvailable()).toBe(false);
+        dispatch(host, {
+            type: INSIGHTS_MESSAGE,
+            payload: { ...payload, status: 'unavailable' },
+        });
+        expect(peekHostAiAvailable()).toBe(false);
+        dispatch(host, { type: INSIGHTS_MESSAGE, payload });
+        expect(peekHostAiAvailable()).toBe(true);
     });
 
     it('ignores other windows and malformed payloads', () => {

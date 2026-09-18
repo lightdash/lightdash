@@ -64,7 +64,6 @@ describe('Document content PostgreSQL integration', () => {
             content: {
                 cells: [
                     {
-                        id: 'intro',
                         type: 'markdown',
                         content: { markdown: 'Body must not be projected' },
                     },
@@ -340,7 +339,6 @@ describe('Document content PostgreSQL integration', () => {
             content: {
                 cells: [
                     {
-                        id: 'intro',
                         type: 'markdown',
                         content: { markdown: 'Private content' },
                     },

@@ -71,8 +71,10 @@ type ResourceActionMenuItemsProps = {
     onPromoteDashboard: (uuid: string) => void;
     onUnverifyChart: (uuid: string) => void;
     onUnverifyDashboard: (uuid: string) => void;
+    onUnverifyDataApp: (uuid: string) => void;
     onVerifyChart: (uuid: string) => void;
     onVerifyDashboard: (uuid: string) => void;
+    onVerifyDataApp: (uuid: string) => void;
     onOpenManageAccess: () => void;
 };
 
@@ -111,8 +113,10 @@ export const ResourceActionMenuItems: FC<ResourceActionMenuItemsProps> = ({
     onPromoteDashboard,
     onUnverifyChart,
     onUnverifyDashboard,
+    onUnverifyDataApp,
     onVerifyChart,
     onVerifyDashboard,
+    onVerifyDataApp,
     onOpenManageAccess,
 }) => (
     <>
@@ -342,7 +346,8 @@ export const ResourceActionMenuItems: FC<ResourceActionMenuItemsProps> = ({
                 ) : null}
 
                 {userCanManageVerification &&
-                    isChartOrDashboard &&
+                    (isChartOrDashboard ||
+                        item.type === ResourceViewItemType.DATA_APP) &&
                     !hideVerification && (
                         <Menu.Item
                             component="button"
@@ -361,15 +366,21 @@ export const ResourceActionMenuItems: FC<ResourceActionMenuItemsProps> = ({
                                 if (isVerified) {
                                     if (isResourceViewItemChart(item)) {
                                         onUnverifyChart(item.data.uuid);
-                                    } else {
+                                    } else if (
+                                        isResourceViewItemDashboard(item)
+                                    ) {
                                         onUnverifyDashboard(item.data.uuid);
+                                    } else if (
+                                        isResourceViewDataAppItem(item)
+                                    ) {
+                                        onUnverifyDataApp(item.data.uuid);
                                     }
-                                } else {
-                                    if (isResourceViewItemChart(item)) {
-                                        onVerifyChart(item.data.uuid);
-                                    } else {
-                                        onVerifyDashboard(item.data.uuid);
-                                    }
+                                } else if (isResourceViewItemChart(item)) {
+                                    onVerifyChart(item.data.uuid);
+                                } else if (isResourceViewItemDashboard(item)) {
+                                    onVerifyDashboard(item.data.uuid);
+                                } else if (isResourceViewDataAppItem(item)) {
+                                    onVerifyDataApp(item.data.uuid);
                                 }
                             }}
                         >

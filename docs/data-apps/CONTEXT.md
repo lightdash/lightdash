@@ -32,10 +32,15 @@ _Avoid_: private app, draft, unshared app
 
 **Custom chart type**:
 A data app that declares a viz schema and is used as a reusable chart type
-in the explorer rather than opened as an app. Excluded from data app
-listings. Named "data app viz" in code.
+in the explorer rather than opened as an app. Created and edited in Chart
+Studio, and excluded from data app listings. Named "data app viz" in code.
 _Avoid_: project chart type (the old name), custom chart (that is the Vega
 chart type), chart-type app, viz app
+
+**Chart Studio**:
+The builder for creating and editing custom chart types, available as a
+standalone page and within the explorer.
+_Avoid_: chart builder, custom chart type builder, chart type editor
 
 **Template**:
 The starter flavor a data app is generated from: Dashboard, Slide show, PDF
@@ -48,7 +53,7 @@ _Avoid_: presentation (say "slide show template"), layout, mode
 **Version**:
 One snapshot of a data app's source in its version timeline, normally
 produced by one prompt. Versions are append-only; new ones land at the head
-of the timeline.
+of the timeline. Every version belongs to exactly one thread.
 _Avoid_: revision, iteration (as a noun)
 
 **Build**:
@@ -92,6 +97,29 @@ To snapshot a data app's latest ready version from a preview project into
 its upstream project. The first promotion creates a linked upstream app;
 later ones append a version to it.
 _Avoid_: publish, deploy, push, sync
+
+### Threads
+
+**Thread**:
+One conversation between a user and the coding agent about a data app. An
+app always has a current thread; every version belongs to the thread whose
+prompt produced it. Threads are per app, not per user, and numbered per app
+in order of creation. Not an Ask AI **thread**, which lives in the AI agent
+context; say "data app thread" where both are in scope.
+_Avoid_: chat, conversation (in code and docs), session (that is the coding
+agent's transcript)
+
+**Clear agent context**:
+To start a fresh thread on a data app. The coding agent forgets the current
+thread and starts from the app's current source; the app, its versions, and
+its sandbox are unchanged. Blocked while a build is in progress.
+_Avoid_: clear chat, reset, new chat
+
+**History**:
+The list of every version of a data app across all threads, newest first,
+with each version's prompt, time, and actions. The builder's chat shows only
+the current thread; history shows everything.
+_Avoid_: timeline (in UI copy), version log, changelog
 
 ### Prompting
 

@@ -22,10 +22,12 @@ import {
     checkThemeLimits,
     compareSemverVersions,
     ConflictError,
+    ContentType,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_CODEX_MODELS,
     DATA_APP_VIZ_TEMPLATE,
     DATA_REFERENCE_EXTRACTOR_VERSION,
+    dataAppVizGenerationSchema,
     dataAppVizJsonSchema,
     dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
@@ -50,6 +52,10 @@ import {
     isSemverVersion,
     isValidDataAppSlug,
     MAX_APP_FILES_PER_VERSION,
+    MAX_APP_VIZ_BUILD_ELEMENT_REFS,
+    MAX_APP_VIZ_BUILD_SAMPLE_CELL_CHARS,
+    MAX_APP_VIZ_BUILD_SAMPLE_FIELDS,
+    MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -64,6 +70,7 @@ import {
     type Account,
     type AnonymousAccount,
     type ApiDuplicateAppResponse,
+    type ApiGetAppResponse,
     type ApiOrganizationDesign,
     type AppBuildFromSourceJobPayload,
     type AppChartReference,
@@ -71,6 +78,7 @@ import {
     type AppDashboardReference,
     type AppExternalConnectionReference,
     type AppGeneratePipelineJobPayload,
+    type AppThread,
     type AppVersionChartResource,
     type AppVersionDependencies,
     type AppVersionDependencyEntry,
@@ -79,12 +87,14 @@ import {
     type AppVersionResources,
     type AppVersionStatusHistoryEntry,
     type AppVersionStatusHistoryEntryKind,
+    type AppVizBuildContext,
     type ChartConfig,
     type ChartReference,
     type ChartSampleData,
     type ChartTypeIcon,
     type CompiledExploreJoin,
     type CompiledTable,
+    type ContentVerificationInfo,
     type DashboardBlueprint,
     type DataAppActivityEvent,
     type DataAppActivityFilters,
@@ -107,11 +117,13 @@ import {
     type DataAppVizRenderMetadata,
     type DataAppVizSchema,
     type DataAppVizsFilter,
+    type DataAppVizUpgradeImpact,
     type EmbedProjectApp,
     type Explore,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ImportAppCodeRequestBody,
+    type InstallRegistryChartTypeBody,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type LightdashProjectParameter,
@@ -160,6 +172,7 @@ import {
     type AppVersionStatus,
     type DbApp,
     type DbAppActivityRow,
+    type DbAppThread,
     type DbAppVersion,
 } from '../../../database/entities/apps';
 import { isUniqueConstraintViolation } from '../../../database/errors';
@@ -167,9 +180,11 @@ import { type CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import {
     AppModel,
+    type CreateAppThreadArgs,
     type PreviewChartVizBindingMapping,
 } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
+import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
@@ -190,6 +205,10 @@ import type { ProjectService } from '../../../services/ProjectService/ProjectSer
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import {
+    assertCanMutateVerifiedContent,
+    getVerificationAfterUpdate,
+} from '../../../services/verifiedContentGuards';
 import {
     getOtelTraceHeaders,
     runWithOtelSpanContext,
@@ -290,6 +309,16 @@ import {
     PREPARE_CODEX_SKILLS_COMMAND,
 } from './codexCodeEnv';
 import { CodexStreamProcessor } from './CodexStreamProcessor';
+import {
+    codingAgentRetryStart,
+    codingAgentSessionFlags,
+    decideCodingAgentSessionStart,
+    findCodingAgentSessionId,
+    isCodingAgentSessionLostFailure,
+    versionReachedCodingAgent,
+    type CodingAgentSessionHooks,
+    type CodingAgentSessionStart,
+} from './codingAgentSession';
 import {
     buildDashboardBlueprint,
     DASHBOARD_BLUEPRINT_PATH,
@@ -392,6 +421,7 @@ type AppGenerateServiceDeps = {
     sandboxManager: SandboxManagerPort | null;
     appRuntimeS3: AppRuntimeS3 | null;
     chartRegistryClient: ChartRegistryClient;
+    contentVerificationModel: ContentVerificationModel;
 };
 
 // Inputs for the AI agent's code-free data app read: manifest fields, the
@@ -428,9 +458,60 @@ type GenerateAppOptions = {
     themeChangePrompt?: 'replace' | 'append';
     externalConnections?: AppExternalConnectionReference[];
     codexModelInput?: DataAppCodexModel;
+    /** Context for one chart-type build; never persisted with the version. */
+    vizContext?: AppVizBuildContext;
     // The AI agent tool call that started the build; travels on the job so
     // the worker can patch its pending result when the build ends.
     aiAgentToolCall?: AppGeneratePipelineJobPayload['aiAgentToolCall'];
+    // Thread 1 of the new app; defaults to a builder-originated thread.
+    thread?: Pick<CreateAppThreadArgs, 'origin' | 'aiThreadUuid'>;
+};
+
+const appendVizBuildContext = (
+    prompt: string,
+    vizContext: AppVizBuildContext | undefined,
+    sampleDataEnabled: boolean,
+): string => {
+    if (!vizContext) return prompt;
+
+    const elementReferences = vizContext.elementReferences
+        ?.filter((ref): ref is string => typeof ref === 'string')
+        .slice(0, MAX_APP_VIZ_BUILD_ELEMENT_REFS);
+    const boundedRows = sampleDataEnabled
+        ? vizContext.sampleRows?.slice(0, MAX_APP_VIZ_BUILD_SAMPLE_ROWS)
+        : undefined;
+    const sampleFields = [
+        ...new Set(boundedRows?.flatMap((row) => Object.keys(row ?? {})) ?? []),
+    ].slice(0, MAX_APP_VIZ_BUILD_SAMPLE_FIELDS);
+    const sampleRows = boundedRows?.map((row) =>
+        Object.fromEntries(
+            sampleFields.flatMap((field) => {
+                const value = row?.[field];
+                return typeof value === 'string'
+                    ? [
+                          [
+                              field,
+                              value.slice(
+                                  0,
+                                  MAX_APP_VIZ_BUILD_SAMPLE_CELL_CHARS,
+                              ),
+                          ],
+                      ]
+                    : [];
+            }),
+        ),
+    );
+    const context: AppVizBuildContext = {
+        ...(vizContext.schema ? { schema: vizContext.schema } : {}),
+        ...(vizContext.fieldMapping
+            ? { fieldMapping: vizContext.fieldMapping }
+            : {}),
+        ...(elementReferences?.length ? { elementReferences } : {}),
+        ...(sampleRows?.length ? { sampleRows } : {}),
+    };
+    if (Object.keys(context).length === 0) return prompt;
+
+    return `${prompt}\n\n[Current chart-type contract — preserve compatible field names unless the user asks to change them]\n${JSON.stringify(context, null, 2)}`;
 };
 
 type GenerateAppResult = {
@@ -623,6 +704,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly chartRegistryClient: ChartRegistryClient;
 
+    private readonly contentVerificationModel: ContentVerificationModel;
+
     private sandboxManager: SandboxManagerPort | undefined;
 
     private readonly dataReferenceRefreshes = new Map<
@@ -657,6 +740,7 @@ export class AppGenerateService extends BaseService {
         sandboxManager,
         appRuntimeS3,
         chartRegistryClient,
+        contentVerificationModel,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -685,6 +769,7 @@ export class AppGenerateService extends BaseService {
         this.sandboxManager = sandboxManager ?? undefined;
         this.appRuntimeS3 = appRuntimeS3;
         this.chartRegistryClient = chartRegistryClient;
+        this.contentVerificationModel = contentVerificationModel;
     }
 
     private async getDataAppProjectContext(
@@ -899,6 +984,195 @@ export class AppGenerateService extends BaseService {
             },
         );
         return appContext;
+    }
+
+    private async assertCanMutateVerifiedApp({
+        user,
+        appUuid,
+        projectUuid,
+        organizationUuid,
+    }: {
+        user: SessionUser;
+        appUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        await assertCanMutateVerifiedContent(
+            {
+                contentVerificationModel: this.contentVerificationModel,
+                ability: this.createAuditedAbility(user),
+                user,
+            },
+            {
+                contentType: ContentType.DATA_APP,
+                contentUuid: appUuid,
+                projectUuid,
+                organizationUuid,
+            },
+        );
+    }
+
+    private async getVerificationAfterAppUpdate({
+        user,
+        appUuid,
+        projectUuid,
+        organizationUuid,
+        preserveVerification,
+    }: {
+        user: SessionUser;
+        appUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        preserveVerification?: boolean;
+    }): Promise<ContentVerificationInfo | null> {
+        return getVerificationAfterUpdate(
+            {
+                contentVerificationModel: this.contentVerificationModel,
+                ability: this.createAuditedAbility(user),
+                user,
+            },
+            {
+                contentType: ContentType.DATA_APP,
+                contentUuid: appUuid,
+                projectUuid,
+                organizationUuid,
+                preserveVerification,
+            },
+        );
+    }
+
+    private async unverifyAppIfNotPreserved({
+        user,
+        appUuid,
+        projectUuid,
+        organizationUuid,
+    }: {
+        user: SessionUser;
+        appUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        const verificationAfterUpdate =
+            await this.getVerificationAfterAppUpdate({
+                user,
+                appUuid,
+                projectUuid,
+                organizationUuid,
+            });
+        if (verificationAfterUpdate === null) {
+            await this.contentVerificationModel.unverify(
+                ContentType.DATA_APP,
+                appUuid,
+            );
+        }
+    }
+
+    async verifyDataApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<ContentVerificationInfo> {
+        await this.assertDataAppsEnabled(user);
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        const { organizationUuid } = await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to manage data apps',
+        );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError('Only admins can verify data apps');
+        }
+        if (app.space_uuid === null) {
+            throw new ParameterError(
+                'Move this data app to a space before verifying it',
+            );
+        }
+
+        await this.contentVerificationModel.verify(
+            ContentType.DATA_APP,
+            appUuid,
+            projectUuid,
+            user.userUuid,
+        );
+
+        const verification = await this.contentVerificationModel.getByContent(
+            ContentType.DATA_APP,
+            appUuid,
+        );
+
+        if (!verification) {
+            throw new Error('Failed to verify data app');
+        }
+
+        this.analytics.track({
+            event: 'content_verification.created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                contentType: ContentType.DATA_APP,
+                contentId: appUuid,
+            },
+        });
+
+        return verification;
+    }
+
+    async unverifyDataApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<void> {
+        await this.assertDataAppsEnabled(user);
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        const { organizationUuid } = await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to manage data apps',
+        );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only admins can remove data app verification',
+            );
+        }
+
+        await this.contentVerificationModel.unverify(
+            ContentType.DATA_APP,
+            appUuid,
+        );
+
+        this.analytics.track({
+            event: 'content_verification.deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                contentType: ContentType.DATA_APP,
+                contentId: appUuid,
+            },
+        });
     }
 
     /** Registry-installed chart types only receive versions from the registry. */
@@ -3081,58 +3355,60 @@ export class AppGenerateService extends BaseService {
     }> {
         const start = performance.now();
 
-        // Source the synthetic schema from the compiled explore cache (not the
-        // flattened catalog summary) so it carries joins, real dimension/metric
-        // types, and parameters. See exploresToModelFiles.
-        const [exploresByUuid, chartUsageByTable] = await Promise.all([
-            this.projectModel.getAllExploresFromCache(projectUuid),
-            this.catalogModel.getChartUsageByTable(projectUuid),
-        ]);
-        const explores = Object.values(exploresByUuid).filter(
-            (explore): explore is Explore => !isExploreError(explore),
-        );
-        const {
-            files: modelFiles,
-            tableCount,
-            dimensionCount,
-            metricCount,
-            totalBytes,
-        } = AppGenerateService.exploresToModelFiles(
-            explores,
-            chartUsageByTable,
-        );
-
-        // Project-level parameters are global (not attached to any one explore)
-        // and live in lightdash.config.yml — the location skill.md already tells
-        // the agent to look. Write them there so `.parameters()` is usable.
-        const globalParameters =
-            await this.projectParametersModel.find(projectUuid);
-        const configYaml =
-            AppGenerateService.projectParametersToConfigYaml(globalParameters);
-
         // Remove files that may have been created by a previous run with
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -rf /tmp/dbt-repo/models 2>/dev/null; rm -f /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/uploads /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
+            'rm -rf /tmp/dbt-repo/models 2>/dev/null; rm -f /tmp/dbt-repo/models.tar /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/uploads /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
             { timeoutMs: 10_000 },
         );
 
-        // One round trip per model file would cost minutes on a large project,
-        // so ship the whole directory as a single archive and unpack in place.
-        await sandbox.files.write(
-            '/tmp/dbt-repo/models.tar',
-            await AppGenerateService.packModelFiles(modelFiles),
-        );
-        await sandbox.commands.run(
-            'mkdir -p /tmp/dbt-repo/models && tar -xf /tmp/dbt-repo/models.tar -C /tmp/dbt-repo/models && rm -f /tmp/dbt-repo/models.tar',
-            { timeoutMs: 60_000 },
-        );
-        if (configYaml) {
-            await sandbox.files.write(
-                '/tmp/dbt-repo/lightdash.config.yml',
-                configYaml,
+        let modelFiles: ModelFile[] = [];
+        let tableCount = 0;
+        let dimensionCount = 0;
+        let metricCount = 0;
+        let totalBytes = 0;
+        if (!isDataAppViz) {
+            // Source the synthetic schema from the compiled explore cache (not
+            // the flattened catalog summary) so it carries joins, real field
+            // types, and parameters. A chart type receives host rows instead.
+            const [exploresByUuid, chartUsageByTable] = await Promise.all([
+                this.projectModel.getAllExploresFromCache(projectUuid),
+                this.catalogModel.getChartUsageByTable(projectUuid),
+            ]);
+            const explores = Object.values(exploresByUuid).filter(
+                (explore): explore is Explore => !isExploreError(explore),
             );
+            const catalog = AppGenerateService.exploresToModelFiles(
+                explores,
+                chartUsageByTable,
+            );
+            modelFiles = catalog.files;
+            tableCount = catalog.tableCount;
+            dimensionCount = catalog.dimensionCount;
+            metricCount = catalog.metricCount;
+            totalBytes = catalog.totalBytes;
+
+            const globalParameters =
+                await this.projectParametersModel.find(projectUuid);
+            const configYaml =
+                AppGenerateService.projectParametersToConfigYaml(
+                    globalParameters,
+                );
+            await sandbox.files.write(
+                '/tmp/dbt-repo/models.tar',
+                await AppGenerateService.packModelFiles(modelFiles),
+            );
+            await sandbox.commands.run(
+                'mkdir -p /tmp/dbt-repo/models && tar -xf /tmp/dbt-repo/models.tar -C /tmp/dbt-repo/models && rm -f /tmp/dbt-repo/models.tar',
+                { timeoutMs: 60_000 },
+            );
+            if (configYaml) {
+                await sandbox.files.write(
+                    '/tmp/dbt-repo/lightdash.config.yml',
+                    configYaml,
+                );
+            }
         }
 
         // Write chart reference files and prepend summary to prompt
@@ -3639,7 +3915,10 @@ export class AppGenerateService extends BaseService {
         sandbox: SandboxHandle,
         appUuid: string,
         version: number,
-        continueSession: boolean,
+        sessionStart: CodingAgentSessionStart,
+        // Null for follow-up turns of the same version (build fixes), whose
+        // session the generating turn already recorded.
+        sessionHooks: CodingAgentSessionHooks | null,
         claudeCodeEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
         claudeEffort: DataAppClaudeEffort,
@@ -3680,18 +3959,12 @@ export class AppGenerateService extends BaseService {
 
         const effortFlag = `--effort ${claudeEffort} `;
 
-        // When the sandbox was resumed from a previous iteration, use
-        // --continue so Claude has the full conversation history of what
-        // it built before. For fresh sandboxes, start a new session.
-        // On retry we promote to --continue if the failed attempt
-        // produced *any* stream event — that means a session exists on
-        // disk and we want to resume rather than throw away the work
-        // Claude already did. If no event ever arrived (CLI died on
-        // startup) we keep the original flags, since --continue would
-        // just fail with "no session to resume".
+        // `session` says how the thread's agent session starts (see
+        // codingAgentSession.ts); a lost resumed session is replaced once.
         const runAttempt = async (
             attempt: number,
-            forceContinue: boolean,
+            session: CodingAgentSessionStart,
+            lostSessionId: string | null,
         ): Promise<CodingAgentGenerationResult> => {
             // Bail before spawning claude when the version is no longer in
             // progress (typically cancelled). This gates the retry and
@@ -3708,12 +3981,12 @@ export class AppGenerateService extends BaseService {
                 );
             }
             const attemptStartedAfterMs = AppGenerateService.elapsed(start);
-            const sessionFlags =
-                continueSession || forceContinue ? '--continue -p' : '-p';
+            const sessionFlags = codingAgentSessionFlags(session);
             const processor = new ClaudeStreamProcessor();
             let responseText: string | null = null;
             let structuredOutput: unknown = null;
             let sessionEstablished = false;
+            let learnedSessionId: string | null = null;
 
             const result = await sandbox.commands
                 .run(
@@ -3731,6 +4004,25 @@ export class AppGenerateService extends BaseService {
                             for (const event of processor.feedChunk(chunk)) {
                                 sessionEstablished = true;
                                 switch (event.kind) {
+                                    case 'session_started':
+                                        // Only turns without a stored id learn one.
+                                        if (
+                                            session.kind !== 'resume' &&
+                                            learnedSessionId === null
+                                        ) {
+                                            learnedSessionId = event.sessionId;
+                                            sessionHooks
+                                                ?.onSessionStarted(
+                                                    event.sessionId,
+                                                    lostSessionId,
+                                                )
+                                                .catch((error: unknown) => {
+                                                    this.logger.warn(
+                                                        `App ${appUuid}: failed to record coding agent session: ${getErrorMessage(error)}`,
+                                                    );
+                                                });
+                                        }
+                                        break;
                                     case 'thinking_started':
                                         this.logger.info(
                                             `App ${appUuid}: claude turn #${event.turn}: thinking`,
@@ -3867,6 +4159,19 @@ export class AppGenerateService extends BaseService {
                 4000,
             );
 
+            // Stored session gone from this sandbox: start a new one once and
+            // let the thread replace its id.
+            if (
+                session.kind === 'resume' &&
+                isCodingAgentSessionLostFailure(session, result)
+            ) {
+                this.logger.warn(
+                    `App ${appUuid}: coding agent session ${session.sessionId} not found in sandbox, starting a new session`,
+                );
+                sessionHooks?.onSessionLost(session.sessionId);
+                return runAttempt(attempt, { kind: 'new' }, session.sessionId);
+            }
+
             const classification = classifyClaudeCliFailure(
                 result.stderr,
                 result.stdout,
@@ -3917,10 +4222,18 @@ export class AppGenerateService extends BaseService {
                     AppGenerateService.GENERATION_RETRY_DELAY_MS,
                 );
             });
-            return runAttempt(attempt + 1, forceContinue || sessionEstablished);
+            return runAttempt(
+                attempt + 1,
+                codingAgentRetryStart({
+                    start: session,
+                    learnedSessionId,
+                    sawStreamEvent: sessionEstablished,
+                }),
+                lostSessionId,
+            );
         };
 
-        return runAttempt(1, false);
+        return runAttempt(1, sessionStart, null);
     }
 
     /**
@@ -4136,7 +4449,8 @@ export class AppGenerateService extends BaseService {
         sandbox: SandboxHandle,
         appUuid: string,
         version: number,
-        continueSession: boolean,
+        sessionStart: CodingAgentSessionStart,
+        sessionHooks: CodingAgentSessionHooks | null,
         codingAgentEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
         reasoningEffort: DataAppClaudeEffort,
@@ -4158,7 +4472,8 @@ export class AppGenerateService extends BaseService {
             sandbox,
             appUuid,
             version,
-            continueSession,
+            sessionStart,
+            sessionHooks,
             codingAgentEnv,
             claudeModel,
             reasoningEffort,
@@ -4466,7 +4781,8 @@ export class AppGenerateService extends BaseService {
                 sandbox,
                 appUuid,
                 version,
-                true, // --continue: keep conversation context from generation
+                { kind: 'continue' }, // keep thread context from generation
+                null,
                 codingAgentEnv,
                 claudeModel,
                 claudeEffort,
@@ -4703,6 +5019,110 @@ export class AppGenerateService extends BaseService {
             );
         }
         return updated;
+    }
+
+    /**
+     * Session rule for `thread` plus the hooks that store the session id a
+     * turn learns and report a lost one.
+     */
+    private resolveThreadSession(
+        thread: DbAppThread,
+        args: {
+            sandboxWasResumed: boolean;
+            threadHasVersionThatReachedAgent: boolean;
+            tracking: {
+                userUuid: string;
+                organizationUuid: string;
+                projectUuid: string;
+                appUuid: string;
+            };
+        },
+    ): {
+        sessionStart: CodingAgentSessionStart;
+        sessionHooks: CodingAgentSessionHooks;
+    } {
+        const { appUuid } = args.tracking;
+        const sessionStart = decideCodingAgentSessionStart({
+            sandboxWasResumed: args.sandboxWasResumed,
+            threadHasVersionThatReachedAgent:
+                args.threadHasVersionThatReachedAgent,
+            codingAgentSessionId: thread.coding_agent_session_id,
+        });
+        const sessionHooks: CodingAgentSessionHooks = {
+            onSessionStarted: async (sessionId, replacing) => {
+                const stored =
+                    await this.appModel.setThreadCodingAgentSessionId(
+                        thread.app_thread_uuid,
+                        { replacing, sessionId },
+                    );
+                if (stored) {
+                    this.logger.info(
+                        `App ${appUuid}: thread ${thread.thread_number} now addresses coding agent session ${sessionId}${replacing ? ` (replacing lost ${replacing})` : ''}`,
+                    );
+                }
+            },
+            onSessionLost: (previousSessionId) => {
+                this.analytics.track({
+                    event: 'data_app.thread.session_lost',
+                    userId: args.tracking.userUuid,
+                    properties: {
+                        organizationId: args.tracking.organizationUuid,
+                        projectId: args.tracking.projectUuid,
+                        appUuid,
+                        threadNumber: thread.thread_number,
+                        previousSessionId,
+                    },
+                });
+            },
+        };
+        return { sessionStart, sessionHooks };
+    }
+
+    /**
+     * Session rule for the thread `version` belongs to. On a cross-pod retry
+     * of the generating stage the version's own stream evidence counts, so
+     * the turn continues its own transcript and never a cleared thread's.
+     */
+    private async resolveCodingAgentSession(
+        payload: AppGeneratePipelineJobPayload,
+        wasResumed: boolean,
+        retryingGeneration: boolean,
+    ): Promise<{
+        sessionStart: CodingAgentSessionStart;
+        sessionHooks: CodingAgentSessionHooks;
+    }> {
+        const { appUuid, version } = payload;
+        const versionRow = await this.appModel.getVersion(appUuid, version);
+        if (!versionRow) {
+            throw new NotFoundError(
+                `App version not found: ${appUuid} v${version}`,
+            );
+        }
+        const thread = await this.appModel.findThreadByUuid(
+            versionRow.app_thread_uuid,
+        );
+        if (!thread) {
+            throw new NotFoundError(
+                `App thread not found: ${versionRow.app_thread_uuid}`,
+            );
+        }
+        const threadHasVersionThatReachedAgent =
+            (await this.appModel.threadHasVersionThatReachedCodingAgent(
+                versionRow.app_thread_uuid,
+                version,
+            )) ||
+            (retryingGeneration &&
+                versionReachedCodingAgent(versionRow.status_history));
+        return this.resolveThreadSession(thread, {
+            sandboxWasResumed: wasResumed,
+            threadHasVersionThatReachedAgent,
+            tracking: {
+                userUuid: payload.userUuid,
+                organizationUuid: payload.organizationUuid,
+                projectUuid: payload.projectUuid,
+                appUuid,
+            },
+        });
     }
 
     /**
@@ -5247,6 +5667,14 @@ export class AppGenerateService extends BaseService {
                 : {}),
         });
 
+        // How the thread's agent session starts; also gates the cancelled-prompt notice.
+        const { sessionStart, sessionHooks } =
+            await this.resolveCodingAgentSession(
+                payload,
+                wasResumed,
+                currentStatus === 'generating',
+            );
+
         // --- Stage: catalog ---
         if (shouldRun('catalog')) {
             try {
@@ -5259,12 +5687,12 @@ export class AppGenerateService extends BaseService {
                 if (!advanced) {
                     return;
                 }
-                // A resumed sandbox's Claude session may still end with a
+                // A resumed or continued Claude session may still end with a
                 // prompt the user cancelled mid-run — disavow it so Claude
-                // doesn't treat it as outstanding work. Fresh sandboxes get
-                // a new session (no --continue), so no notice is needed.
+                // doesn't treat it as outstanding work. New sessions need no
+                // notice.
                 const previousPromptCancelled =
-                    wasResumed &&
+                    sessionStart.kind !== 'new' &&
                     (await this.appModel.hasCancelledVersionSinceLastReady(
                         appUuid,
                         version,
@@ -5340,16 +5768,12 @@ export class AppGenerateService extends BaseService {
                 if (!advanced) {
                     return;
                 }
-                // On retry (currentStatus === 'generating') or iteration
-                // with resumed sandbox, use --continue so Claude picks up
-                // the conversation where it left off.
-                const continueSession =
-                    currentStatus === 'generating' || wasResumed;
                 const generation = await this.runCodingAgentGeneration(
                     sandbox,
                     appUuid,
                     version,
-                    continueSession,
+                    sessionStart,
+                    sessionHooks,
                     codingAgentEnv,
                     claudeModel,
                     claudeEffort,
@@ -6366,6 +6790,8 @@ export class AppGenerateService extends BaseService {
             externalConnections,
             codexModelInput,
             aiAgentToolCall,
+            vizContext,
+            thread,
         } = options;
         await this.assertDataAppsEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
@@ -6428,10 +6854,14 @@ export class AppGenerateService extends BaseService {
         // sees the resolved intent. The version row keeps the original
         // prompt — clarifications travel separately on `resources` so the
         // chat can render the Q&A as a structured card.
-        const pipelinePrompt = formatPromptWithClarifications(
-            prompt,
-            clarifications,
-        );
+        const pipelinePrompt =
+            template === DATA_APP_VIZ_TEMPLATE
+                ? appendVizBuildContext(
+                      formatPromptWithClarifications(prompt, clarifications),
+                      vizContext,
+                      this.lightdashConfig.appRuntime.sampleDataEnabled,
+                  )
+                : formatPromptWithClarifications(prompt, clarifications);
 
         this.logger.info(
             `App ${appUuid}: generation started (model=${codingAgentModel}, promptLength=${prompt.length}, clarifications=${
@@ -6527,6 +6957,9 @@ export class AppGenerateService extends BaseService {
                 { version, prompt },
                 'pending',
                 resources,
+                undefined,
+                undefined,
+                { thread },
             );
         } catch (error) {
             this.logger.error(
@@ -6606,6 +7039,7 @@ export class AppGenerateService extends BaseService {
             externalConnections,
             codexModelInput,
             aiAgentToolCall,
+            vizContext,
         } = options;
         await this.assertDataAppsEnabled(user);
 
@@ -6617,6 +7051,12 @@ export class AppGenerateService extends BaseService {
             app,
             'Insufficient permissions to modify data apps',
         );
+        await this.assertCanMutateVerifiedApp({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
         AppGenerateService.assertNotRegistryManaged(app, 'edited');
 
         // Resolve attachment types/filenames from the staged S3 objects so the
@@ -6734,6 +7174,13 @@ export class AppGenerateService extends BaseService {
                       )
                     : AppGenerateService.buildThemeChangePrompt(themeName);
         }
+        if (app.template === DATA_APP_VIZ_TEMPLATE) {
+            pipelinePrompt = appendVizBuildContext(
+                pipelinePrompt,
+                vizContext,
+                this.lightdashConfig.appRuntime.sampleDataEnabled,
+            );
+        }
 
         const resources: AppVersionResources = {
             ...AppGenerateService.toAttachmentResources(stagedFiles),
@@ -6761,6 +7208,13 @@ export class AppGenerateService extends BaseService {
             resources,
             carriedDependencies,
         );
+
+        await this.unverifyAppIfNotPreserved({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
 
         if (isThemeChange) {
             await this.appModel.updateDesignUuid(
@@ -7008,11 +7462,17 @@ export class AppGenerateService extends BaseService {
         await this.assertDataAppsEnabled(user);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
+        const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
             'Insufficient permissions to upgrade this data app',
         );
+        await this.assertCanMutateVerifiedApp({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
         AppGenerateService.assertNotRegistryManaged(app, 'upgraded here');
 
         const latestVersion = await this.appModel.getLatestVersion(appUuid);
@@ -7058,6 +7518,13 @@ export class AppGenerateService extends BaseService {
                 ? (latestReady.viz_schema ?? undefined)
                 : undefined,
         );
+
+        await this.unverifyAppIfNotPreserved({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
 
         this.analytics.track({
             event: 'data_app.upgrade_requested',
@@ -7129,11 +7596,17 @@ export class AppGenerateService extends BaseService {
         await this.assertDataAppsEnabled(user);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
+        const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
             'Insufficient permissions to modify data apps',
         );
+        await this.assertCanMutateVerifiedApp({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
 
         const latestVersion = await this.appModel.getLatestVersion(appUuid);
         if (
@@ -7163,7 +7636,11 @@ export class AppGenerateService extends BaseService {
                 `Cannot restore version ${sourceVersion}: status is ${source.status}, expected ready`,
             );
         }
+
         const newVersion = (latestVersion?.version ?? 0) + 1;
+        // The restored version joins the newest thread, whichever thread the
+        // source version came from.
+        const currentThread = await this.appModel.getCurrentThread(appUuid);
         const { client: s3Client, bucket } = this.getS3Client();
 
         // 1. Copy every S3 object under the source version's prefix.
@@ -7197,17 +7674,35 @@ export class AppGenerateService extends BaseService {
                     appUuid,
                     sourceVersion,
                 );
-                // Best-effort: leave a breadcrumb in the persistent Claude
-                // session so the next iteration's `--continue` sees that
-                // the working tree was reset and doesn't try to diff
-                // against code we've undone. Failures here don't fail the
-                // restore — worst case the next reply is mildly confused.
-                if (this.dataAppCodingAgent === 'claude') {
+                // Best-effort breadcrumb in the thread's session so the next
+                // turn knows the working tree was reset. Skipped when the
+                // thread would start a new session anyway.
+                const { sessionStart, sessionHooks } =
+                    this.resolveThreadSession(currentThread, {
+                        sandboxWasResumed: true,
+                        threadHasVersionThatReachedAgent:
+                            await this.appModel.threadHasVersionThatReachedCodingAgent(
+                                currentThread.app_thread_uuid,
+                                null,
+                            ),
+                        tracking: {
+                            userUuid: user.userUuid,
+                            organizationUuid: app.organization_uuid,
+                            projectUuid,
+                            appUuid,
+                        },
+                    });
+                if (
+                    this.dataAppCodingAgent === 'claude' &&
+                    sessionStart.kind !== 'new'
+                ) {
                     await this.notifyClaudeOfRestore(
                         sandbox,
                         appUuid,
                         sourceVersion,
                         copilot,
+                        sessionStart,
+                        sessionHooks,
                     );
                 }
             } catch (error) {
@@ -7249,8 +7744,18 @@ export class AppGenerateService extends BaseService {
             // declares a schema, so dropping it here delists the viz and
             // strips the contract from every chart bound to it.
             source.viz_schema ?? undefined,
-            { registryVersion: source.registry_version ?? undefined },
+            {
+                registryVersion: source.registry_version ?? undefined,
+                appThreadUuid: currentThread.app_thread_uuid,
+            },
         );
+        await this.unverifyAppIfNotPreserved({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
+
         await this.persistVersionDataReferences(
             appUuid,
             newVersion,
@@ -7279,6 +7784,59 @@ export class AppGenerateService extends BaseService {
         );
 
         return { appUuid, version: newVersion };
+    }
+
+    /**
+     * Start a fresh thread on the app: the coding agent forgets the current
+     * thread; the app, its versions and its sandbox are unchanged.
+     */
+    async clearAgentContext(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<ApiGetAppResponse['results']> {
+        await this.assertDataAppsEnabled(user);
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to modify data apps',
+        );
+        AppGenerateService.assertNotRegistryManaged(app, 'edited');
+
+        const latestVersion = await this.appModel.getLatestVersion(appUuid);
+        if (
+            latestVersion?.status &&
+            isAppVersionInProgress(latestVersion.status)
+        ) {
+            throw new ParameterError(
+                'A version is already building for this app',
+            );
+        }
+
+        const thread = await this.appModel.createThread({
+            appUuid,
+            origin: 'builder',
+            aiThreadUuid: null,
+            createdByUserUuid: user.userUuid,
+        });
+
+        this.analytics.track({
+            event: 'data_app.thread.cleared',
+            userId: user.userUuid,
+            properties: {
+                organizationId: app.organization_uuid,
+                projectId: projectUuid,
+                appUuid,
+                threadNumber: thread.thread_number,
+            },
+        });
+        this.logger.info(
+            `App ${appUuid}: agent context cleared (thread=${thread.thread_number}, user=${user.userUuid})`,
+        );
+
+        return this.getAppVersions(user, projectUuid, appUuid, {});
     }
 
     /**
@@ -7417,6 +7975,8 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         sourceVersion: number,
         copilot: CodingAgentConfig,
+        sessionStart: CodingAgentSessionStart,
+        sessionHooks: CodingAgentSessionHooks,
     ): Promise<void> {
         let claudeCodeEnv: Record<string, string>;
         try {
@@ -7435,20 +7995,41 @@ export class AppGenerateService extends BaseService {
             `so the code now on disk may differ from what you remember writing. ` +
             `This is informational only — no action required. ` +
             `Reply with a brief acknowledgment.`;
-
-        try {
-            await sandbox.commands.run(`rm -f ${noticePath}`, {
-                timeoutMs: 5_000,
-            });
-            await sandbox.files.write(noticePath, notice);
-            const result = await sandbox.commands.run(
-                `cat ${noticePath} | claude --continue -p --model sonnet; rm -f ${noticePath}`,
+        const runNotice = (start: CodingAgentSessionStart) =>
+            sandbox.commands.run(
+                `cat ${noticePath} | claude ${codingAgentSessionFlags(start)} --verbose --output-format stream-json --model sonnet`,
                 {
                     cwd: '/app',
                     timeoutMs: 60_000,
                     envs: claudeCodeEnv,
                 },
             );
+
+        try {
+            await sandbox.commands.run(`rm -f ${noticePath}`, {
+                timeoutMs: 5_000,
+            });
+            await sandbox.files.write(noticePath, notice);
+            let start = sessionStart;
+            let lostSessionId: string | null = null;
+            let result = await runNotice(start);
+            // Same fallback as a generation turn: the stored session is gone,
+            // so start a new one and let the thread replace its id.
+            if (
+                start.kind === 'resume' &&
+                isCodingAgentSessionLostFailure(start, result)
+            ) {
+                this.logger.warn(
+                    `App ${appUuid}: coding agent session ${start.sessionId} not found in sandbox, restore FYI starts a new session`,
+                );
+                sessionHooks.onSessionLost(start.sessionId);
+                lostSessionId = start.sessionId;
+                start = { kind: 'new' };
+                result = await runNotice(start);
+            }
+            await sandbox.commands.run(`rm -f ${noticePath}`, {
+                timeoutMs: 5_000,
+            });
             if (result.exitCode !== 0) {
                 // `--continue` fails when no session exists yet (e.g.
                 // sandbox hasn't generated anything before this restore).
@@ -7457,6 +8038,17 @@ export class AppGenerateService extends BaseService {
                     `App ${appUuid}: restore FYI to Claude failed (exit ${result.exitCode}): ${AppGenerateService.truncateEnd(redactSandboxEnvSecrets(result.stderr, claudeCodeEnv, CLAUDE_CODE_SECRET_ENV_KEYS), 500)}`,
                 );
                 return;
+            }
+            if (start.kind !== 'resume') {
+                const learnedSessionId = findCodingAgentSessionId(
+                    result.stdout,
+                );
+                if (learnedSessionId !== null) {
+                    await sessionHooks.onSessionStarted(
+                        learnedSessionId,
+                        lostSessionId,
+                    );
+                }
             }
             this.logger.info(
                 `App ${appUuid}: notified Claude session of restore (sourceVersion=${sourceVersion})`,
@@ -8558,8 +9150,11 @@ export class AppGenerateService extends BaseService {
         pinnedListOrder: number | null;
         slug: string;
         views: number;
+        currentThread: AppThread;
         versions: {
             version: number;
+            threadUuid: string;
+            threadNumber: number;
             prompt: string;
             status: AppVersionStatus;
             statusMessage: string | null;
@@ -8579,6 +9174,7 @@ export class AppGenerateService extends BaseService {
         latestReadyVersion: number | null;
         registrySlug: string | null;
         icon: ChartTypeIcon | null;
+        verification: ContentVerificationInfo | null;
     }> {
         await this.assertDataAppsEnabled(user);
 
@@ -8603,6 +9199,7 @@ export class AppGenerateService extends BaseService {
             viewsCount,
             pinnedListUuid,
             pinnedListOrder,
+            currentThread,
             versions,
             hasMore,
             registrySlug,
@@ -8619,6 +9216,10 @@ export class AppGenerateService extends BaseService {
         // The latest ready version can be older than the returned page of
         // versions, so resolve it independently of pagination.
         const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
+        const verification = await this.contentVerificationModel.getByContent(
+            ContentType.DATA_APP,
+            appUuid,
+        );
 
         return {
             appUuid,
@@ -8634,8 +9235,15 @@ export class AppGenerateService extends BaseService {
             pinnedListOrder: appAuthorization.directOnly
                 ? null
                 : pinnedListOrder,
+            currentThread: {
+                uuid: currentThread.app_thread_uuid,
+                number: currentThread.thread_number,
+                createdAt: currentThread.created_at,
+            },
             versions: versions.map((v) => ({
                 version: v.version,
+                threadUuid: v.app_thread_uuid,
+                threadNumber: v.thread_number,
                 prompt: v.prompt,
                 status: v.status,
                 statusMessage: v.status_message,
@@ -8691,6 +9299,7 @@ export class AppGenerateService extends BaseService {
             registrySlug,
             // An icon retired from the curated set reads back as no icon.
             icon: isChartTypeIcon(icon) ? icon : null,
+            verification,
         };
     }
 
@@ -8745,13 +9354,14 @@ export class AppGenerateService extends BaseService {
             );
             return;
         }
-        const schema = AppGenerateService.parseSchema(structuredOutput);
-        if (!schema) {
+        const parsed = dataAppVizGenerationSchema.safeParse(structuredOutput);
+        if (!parsed.success) {
             this.logger.warn(
                 `App ${appUuid}: structured schema failed validation; leaving viz_schema null`,
             );
             return;
         }
+        const schema = parsed.data;
         await this.appModel.setSchema(appUuid, version, schema);
         this.logger.info(
             `App ${appUuid} v${version}: persisted schema (${schema.fields.length} field(s), ${schema.configOptions.length} option(s))`,
@@ -8833,6 +9443,11 @@ export class AppGenerateService extends BaseService {
             this.appModel.listRegistryInstalledApps(projectUuid),
         ]);
         const bySlug = new Map(installed.map((a) => [a.registry_slug, a]));
+        // An untagged entry is stable on the stable index, but unpointed
+        // (pre-release) on index-next — only this side knows which is read.
+        const untaggedStage = this.chartRegistryClient.readsNextChannelIndex()
+            ? 'prerelease'
+            : 'stable';
         const charts: RegistryChartTypeListItem[] = index.charts.map(
             (entry) => {
                 const inst = bySlug.get(entry.slug);
@@ -8854,6 +9469,7 @@ export class AppGenerateService extends BaseService {
                 return {
                     ...entry,
                     state,
+                    releaseStage: entry.channel ?? untaggedStage,
                     installedAppUuid: inst?.app_id ?? null,
                     installedRegistryVersion:
                         inst?.latest_ready_registry_version ?? null,
@@ -8872,16 +9488,20 @@ export class AppGenerateService extends BaseService {
      * it heal and the slug is not suffixed by the deleted row that owns it.
      * Registry artifacts are verified (digest-checked) and downloaded before
      * any S3 or DB write; a DB write failure rolls back the copied S3 keys.
+     * `upgradeConsumingCharts` additionally moves every pinned consuming
+     * saved chart onto the installed version — a deliberate pin override.
      */
     async installRegistryChartType(
         user: SessionUser,
         projectUuid: string,
         chartSlug: string,
+        options: InstallRegistryChartTypeBody = {},
     ): Promise<{
         appUuid: string;
         slug: string;
         version: number;
         action: 'installed' | 'upgraded' | 'unchanged';
+        upgradedChartCount: number;
     }> {
         await this.assertChartTypeLibraryEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
@@ -8952,6 +9572,15 @@ export class AppGenerateService extends BaseService {
             const latest = await this.appModel.getLatestReadyVersion(
                 existing.app_id,
             );
+            // With nothing new to install the sweep still applies: a
+            // concurrent admin may have upgraded without moving charts.
+            const upgradedChartCount = options.upgradeConsumingCharts
+                ? await this.savedChartModel.repinChartsUsingDataAppViz(
+                      projectUuid,
+                      existing.app_id,
+                      latest!.version,
+                  )
+                : 0;
             if (revived) {
                 // The registry icon may have moved on while uninstalled.
                 await this.appModel.updateApp(existing.app_id, projectUuid, {
@@ -8969,6 +9598,7 @@ export class AppGenerateService extends BaseService {
                         registryVersion: entry.version,
                         action: 'installed',
                         revived: true,
+                        upgradedChartCount,
                     },
                 });
             }
@@ -8977,6 +9607,7 @@ export class AppGenerateService extends BaseService {
                 slug: chartSlug,
                 version: latest!.version,
                 action: revived ? 'installed' : 'unchanged',
+                upgradedChartCount,
             };
         }
 
@@ -9047,7 +9678,10 @@ export class AppGenerateService extends BaseService {
                     undefined,
                     undefined,
                     vizSchema,
-                    { registryVersion: entry.version },
+                    {
+                        registryVersion: entry.version,
+                        thread: { origin: 'import', aiThreadUuid: null },
+                    },
                 );
             }
         } catch (e) {
@@ -9086,6 +9720,14 @@ export class AppGenerateService extends BaseService {
         // A revived install reads as an install to the user even though it
         // appends a version like an upgrade does.
         const action = existing && !revived ? 'upgraded' : 'installed';
+        // Fresh installs have no consumers, so the sweep is a no-op there.
+        const upgradedChartCount = options.upgradeConsumingCharts
+            ? await this.savedChartModel.repinChartsUsingDataAppViz(
+                  projectUuid,
+                  appUuid,
+                  version,
+              )
+            : 0;
         this.analytics.track({
             event: 'data_app.registry_installed',
             userId: user.userUuid,
@@ -9098,10 +9740,17 @@ export class AppGenerateService extends BaseService {
                 registryVersion: entry.version,
                 action,
                 revived,
+                upgradedChartCount,
             },
         });
 
-        return { appUuid, slug: entry.slug, version, action };
+        return {
+            appUuid,
+            slug: entry.slug,
+            version,
+            action,
+            upgradedChartCount,
+        };
     }
 
     /**
@@ -9146,6 +9795,38 @@ export class AppGenerateService extends BaseService {
                 dataAppViz.app_id,
             ),
         };
+    }
+
+    /**
+     * Blast radius for the chart type upgrade confirmation: how many saved
+     * charts consume this viz, and how many of those pin a version. Gated
+     * like install, the action it informs.
+     */
+    async getDataAppVizUpgradeImpact(
+        user: SessionUser,
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<DataAppVizUpgradeImpact> {
+        await this.assertChartTypeLibraryEnabled(user);
+        await this.assertDataAppAbility(
+            user,
+            'create',
+            projectUuid,
+            'Insufficient permissions to upgrade chart types',
+        );
+        const dataAppViz = await this.appModel.findVisualizationApp(
+            dataAppVizUuid,
+            projectUuid,
+        );
+        if (!dataAppViz) {
+            throw new NotFoundError(
+                `Data app visualization not found: ${dataAppVizUuid}`,
+            );
+        }
+        return this.savedChartModel.getDataAppVizUsageCounts(
+            projectUuid,
+            dataAppViz.app_id,
+        );
     }
 
     /**
@@ -9275,13 +9956,14 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         dataAppVizUuid: string,
+        version?: number,
     ): Promise<DataAppVizRenderMetadata> {
         const dataAppViz = await this.getAuthorizedDataAppVizForAuthoring(
             user,
             projectUuid,
             dataAppVizUuid,
         );
-        return this.resolveVizRenderMetadata(dataAppViz.app_id);
+        return this.resolveVizRenderMetadata(dataAppViz.app_id, version);
     }
 
     async getDataAppVizPreviewToken(
@@ -9608,11 +10290,17 @@ export class AppGenerateService extends BaseService {
     }> {
         await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
+        const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
             'Insufficient permissions to manage data apps',
         );
+        await this.assertCanMutateVerifiedApp({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
         AppGenerateService.assertNotRegistryManaged(app, 'renamed');
 
         const fieldsToUpdate: Partial<{
@@ -9666,6 +10354,12 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             fieldsToUpdate,
         );
+        await this.unverifyAppIfNotPreserved({
+            user,
+            appUuid,
+            projectUuid,
+            organizationUuid,
+        });
         return {
             appUuid: updatedApp.app_id,
             name: updatedApp.name,
@@ -9708,6 +10402,12 @@ export class AppGenerateService extends BaseService {
                 app,
                 'Insufficient permissions to delete data apps',
             );
+            await this.assertCanMutateVerifiedApp({
+                user,
+                appUuid,
+                projectUuid,
+                organizationUuid: app.organization_uuid,
+            });
         }
 
         const softDeleteEnabled = this.lightdashConfig.softDelete.enabled;
@@ -10058,6 +10758,12 @@ export class AppGenerateService extends BaseService {
                 app,
                 'Insufficient permissions to move data apps',
             );
+            await this.assertCanMutateVerifiedApp({
+                user,
+                appUuid,
+                projectUuid,
+                organizationUuid: app.organization_uuid,
+            });
             // …and manage on the target space, otherwise a user could move an
             // app into a space they don't own.
             const targetSpaceContext =
@@ -10078,6 +10784,14 @@ export class AppGenerateService extends BaseService {
             { appId: appUuid, projectUuid, targetSpaceUuid },
             { tx },
         );
+
+        // Personal apps are only visible to their creator, so the badge cannot follow.
+        if (targetSpaceUuid === null) {
+            await this.contentVerificationModel.unverify(
+                ContentType.DATA_APP,
+                appUuid,
+            );
+        }
 
         if (trackEvent) {
             this.analytics.track({
@@ -12020,6 +12734,12 @@ export class AppGenerateService extends BaseService {
                 existingApp,
                 'You do not have access to update this app',
             );
+            await this.assertCanMutateVerifiedApp({
+                user,
+                appUuid: existingApp.app_id,
+                projectUuid,
+                organizationUuid: existingApp.organization_uuid,
+            });
             const latestVersion = await this.appModel.getLatestVersion(
                 existingApp.app_id,
             );
@@ -12113,6 +12833,12 @@ export class AppGenerateService extends BaseService {
                 existingApp,
                 'You do not have access to update this app',
             );
+            await this.assertCanMutateVerifiedApp({
+                user,
+                appUuid: existingApp.app_id,
+                projectUuid,
+                organizationUuid: existingApp.organization_uuid,
+            });
             await this.updateAppMetadataIfChanged(
                 existingApp,
                 code.manifest,
@@ -12177,6 +12903,12 @@ export class AppGenerateService extends BaseService {
                     ? manifestVizSchema
                     : undefined,
             );
+            await this.unverifyAppIfNotPreserved({
+                user,
+                appUuid: existingApp.app_id,
+                projectUuid,
+                organizationUuid: existingApp.organization_uuid,
+            });
         } else {
             await this.assertDataAppAbility(
                 user,
@@ -12257,7 +12989,10 @@ export class AppGenerateService extends BaseService {
                     : undefined,
                 // Verbatim slug + loud conflict, so re-uploads stay
                 // idempotent (never silently minting suffixed duplicates).
-                { forceSlug: true },
+                {
+                    forceSlug: true,
+                    thread: { origin: 'import', aiThreadUuid: null },
+                },
             );
             newAppUuid = app.app_id;
             newAppSlug = app.slug;

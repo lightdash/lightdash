@@ -1,4 +1,5 @@
 import {
+    resolveParameterDefault,
     type LightdashProjectParameter,
     type ParameterValue,
 } from '@lightdash/common';
@@ -33,9 +34,10 @@ const ParameterDateInput: FC<Props> = ({
     isError,
 }) => {
     const currentDate = parseParameterDateValue(currentValue);
+    const resolvedDefault = resolveParameterDefault(parameter);
     const defaultValue =
-        typeof parameter.default === 'string'
-            ? parseParameterDateValue(parameter.default)
+        typeof resolvedDefault === 'string'
+            ? parseParameterDateValue(resolvedDefault)
             : null;
 
     return (

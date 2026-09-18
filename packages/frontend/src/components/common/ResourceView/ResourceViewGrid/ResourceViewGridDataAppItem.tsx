@@ -8,7 +8,7 @@ import { IconEye } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import AppThumbnailHoverCard from '../../../../features/apps/components/AppThumbnailHoverCard';
 import MantineIcon from '../../MantineIcon';
-import { ResourceIcon } from '../../ResourceIcon';
+import { VerifiedResourceIcon } from '../../ResourceIcon';
 import { ResourceInfoPopupContent } from '../../ResourceInfoPopup/ResourceInfoPopup';
 import ResourceViewActionMenu, {
     type ResourceViewActionMenuCommonProps,
@@ -80,7 +80,10 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
                         className={classes.gridCardTopSection}
                     >
                         {dragIcon}
-                        <ResourceIcon item={item} />
+                        <VerifiedResourceIcon
+                            item={item}
+                            verification={item.data.verification}
+                        />
 
                         <Tooltip
                             label={item.data.description}

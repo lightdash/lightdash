@@ -49,6 +49,7 @@ export const useExplorerResultsData = () => {
                 metricQuery: mergeResults.metricQuery,
                 fields: mergeResults.fields,
                 resolvedTimezone: undefined,
+                fieldOrigins: mergeResults.fieldOrigins,
             };
         }
         // No fields and no rows while the restored merge is pending: the

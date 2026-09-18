@@ -36,6 +36,8 @@ const PROJECT_ORG_UUID = 'org-uuid-project'; // org derived from the project
 const USER_ORG_UUID = 'org-uuid-user'; // org from the user session (different)
 const USER_UUID = 'user-uuid-1';
 const NEW_APP_UUID = 'new-app-uuid';
+// As-code uploads always open thread 1 as an import.
+const IMPORT_THREAD = { origin: 'import', aiThreadUuid: null };
 const NEW_APP_SLUG = 'new-app-slug';
 const EXISTING_APP_UUID = 'existing-app-uuid';
 const EXISTING_APP_SLUG = 'existing-app-slug';
@@ -236,6 +238,11 @@ function buildService(
         sandboxManager: null,
         appRuntimeS3: null,
         chartRegistryClient: {} as never,
+        contentVerificationModel: {
+            getByContent: async () => null,
+            verify: async () => undefined,
+            unverify: async () => undefined,
+        } as never,
     });
 
     // Stub ability checks to allow everything
@@ -311,7 +318,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             undefined, // no viz schema
-            { forceSlug: true },
+            { forceSlug: true, thread: IMPORT_THREAD },
         );
 
         // S3 PutObjectCommand sent for source.tar
@@ -465,7 +472,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined,
             undefined,
-            { forceSlug: true },
+            { forceSlug: true, thread: IMPORT_THREAD },
         );
     });
 
@@ -486,7 +493,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined,
             undefined,
-            { forceSlug: true },
+            { forceSlug: true, thread: IMPORT_THREAD },
         );
     });
 
@@ -585,7 +592,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined,
             expect.anything(),
-            { forceSlug: true },
+            { forceSlug: true, thread: IMPORT_THREAD },
         );
         expect(result.warnings).toEqual(
             expect.arrayContaining([
@@ -799,7 +806,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
-            { forceSlug: true },
+            { forceSlug: true, thread: IMPORT_THREAD },
         );
     });
 
@@ -891,7 +898,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             undefined, // vizSchema not persisted for non-viz apps
-            { forceSlug: true },
+            { forceSlug: true, thread: IMPORT_THREAD },
         );
     });
 
@@ -915,7 +922,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             undefined, // no vizSchema in the manifest
-            { forceSlug: true },
+            { forceSlug: true, thread: IMPORT_THREAD },
         );
     });
 
@@ -2205,7 +2212,7 @@ describe('importAppCode slug identity', () => {
             undefined,
             // Exact round-trip: the manifest slug must be forced, never
             // silently dedupe-suffixed.
-            { forceSlug: true },
+            { forceSlug: true, thread: IMPORT_THREAD },
         );
     });
 
@@ -2333,7 +2340,7 @@ describe('importAppCode slug validation', () => {
             expect.any(Object),
             undefined,
             undefined,
-            { forceSlug: true },
+            { forceSlug: true, thread: IMPORT_THREAD },
         );
     });
 });

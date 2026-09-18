@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    applyDocumentCellOperations,
     buildMergeQueryFromSaved,
     ConflictError,
     DirectAccessResourceType,
@@ -12,16 +11,19 @@ import {
     parseDocumentContent,
     type CreateDocumentRequest,
     type Document,
-    type DocumentContentV3,
+    type DocumentContent,
     type DocumentList,
     type MetricQuery,
     type ParametersValuesMap,
     type RegisteredAccount,
     type UpdateDocumentMetadataRequest,
+    type UUID,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import type { Knex } from 'knex';
 import { isEqual } from 'lodash';
 import pLimit from 'p-limit';
+import { validate as isUuid } from 'uuid';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type {
     DocumentContentUpdate,
@@ -292,13 +294,10 @@ export class DocumentService extends BaseService {
                 'Document has changed. Reload it and retry with the latest version UUID',
             );
         }
-        const content =
-            'content' in input
-                ? parseDocumentContent(DOCUMENT_SCHEMA_VERSION, input.content)
-                : applyDocumentCellOperations(
-                      document.version.content,
-                      input.operations,
-                  );
+        const content = parseDocumentContent(
+            DOCUMENT_SCHEMA_VERSION,
+            input.content,
+        );
         await this.validateCharts(
             account,
             projectUuid,
@@ -436,33 +435,31 @@ export class DocumentService extends BaseService {
     private async validateCharts(
         account: RegisteredAccount,
         projectUuid: string,
-        content: DocumentContentV3,
-        previous?: DocumentContentV3,
+        content: DocumentContent,
+        previous?: DocumentContent,
     ): Promise<void> {
         parseDocumentContent(DOCUMENT_SCHEMA_VERSION, content);
-        const previousById = new Map(
-            previous?.cells.map((cell) => [cell.id, cell]),
-        );
         const limit = pLimit(MAX_CONCURRENT_CHART_VALIDATIONS);
         // Compile only changed charts: narrative edits must not require chart authoring capabilities.
         await Promise.all(
-            content.cells.map((cell) =>
+            content.cells.map((cell, cellIndex) =>
                 limit(async () => {
                     if (cell.type !== 'chart') {
                         return;
                     }
-                    const previousCell = previousById.get(cell.id);
                     if (
-                        previousCell?.type === 'chart' &&
-                        previousCell.content.source === cell.content.source &&
-                        isEqual(previousCell.content.chart, cell.content.chart)
+                        previous?.cells.some(
+                            (previousCell) =>
+                                previousCell.type === 'chart' &&
+                                isEqual(previousCell.content, cell.content),
+                        )
                     ) {
                         return;
                     }
                     const { chart } = cell.content;
                     if (chart.tableName !== chart.metricQuery.exploreName) {
                         throw new ParameterError(
-                            `Chart tableName must match its exploreName in cell ${cell.id}`,
+                            `Chart tableName must match its exploreName in cell ${cellIndex}`,
                         );
                     }
                     const metricQuery = {
@@ -481,7 +478,7 @@ export class DocumentService extends BaseService {
                                 this.validateQuery({
                                     account,
                                     projectUuid,
-                                    cellId: cell.id,
+                                    cellIndex,
                                     metricQuery: query,
                                     parameters: chart.parameters,
                                 }),
@@ -502,7 +499,7 @@ export class DocumentService extends BaseService {
                             );
                         if (compiled.errors.length > 0) {
                             throw new ParameterError(
-                                `Invalid chart in cell ${cell.id}: ${compiled.errors.map((error) => error.message).join('; ')}`,
+                                `Invalid chart in cell ${cellIndex}: ${compiled.errors.map((error) => error.message).join('; ')}`,
                             );
                         }
                         return;
@@ -510,7 +507,7 @@ export class DocumentService extends BaseService {
                     await this.validateQuery({
                         account,
                         projectUuid,
-                        cellId: cell.id,
+                        cellIndex,
                         metricQuery,
                         parameters: chart.parameters,
                     });
@@ -522,13 +519,13 @@ export class DocumentService extends BaseService {
     private async validateQuery({
         account,
         projectUuid,
-        cellId,
+        cellIndex,
         metricQuery,
         parameters,
     }: {
         account: RegisteredAccount;
         projectUuid: string;
-        cellId: string;
+        cellIndex: number;
         metricQuery: MetricQuery;
         parameters: ParametersValuesMap | undefined;
     }): Promise<void> {
@@ -541,12 +538,12 @@ export class DocumentService extends BaseService {
         });
         if (compiled.compilationErrors.length > 0) {
             throw new ParameterError(
-                `Invalid chart in cell ${cellId}: ${compiled.compilationErrors.join('; ')}`,
+                `Invalid chart in cell ${cellIndex}: ${compiled.compilationErrors.join('; ')}`,
             );
         }
         if (compiled.missingParameterReferences.size > 0) {
             throw new ParameterError(
-                `Missing parameters in cell ${cellId}: ${[...compiled.missingParameterReferences].join(', ')}`,
+                `Missing parameters in cell ${cellIndex}: ${[...compiled.missingParameterReferences].join(', ')}`,
             );
         }
     }
@@ -688,6 +685,16 @@ export class DocumentService extends BaseService {
             documentUuid,
         );
         return this.authorizeDocument(account, document);
+    }
+
+    async getByIdOrSlug(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        documentUuidOrSlug: UuidOrSlug,
+    ): Promise<Document> {
+        return isUuid(documentUuidOrSlug)
+            ? this.get(account, projectUuid, documentUuidOrSlug)
+            : this.getBySlug(account, projectUuid, documentUuidOrSlug);
     }
 
     async getBySlug(

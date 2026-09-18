@@ -74,7 +74,7 @@ describe('signed analytics file manifests', () => {
         expect(command).toBeInstanceOf(GetObjectCommand);
         expect(command.input).toEqual({ Bucket: 'example-bucket', Key: key() });
         expect(options).toEqual({ expiresIn: 900 });
-        expect(source).toEqual({
+        expect(source).toMatchObject({
             scope: `https://storage.googleapis.com/example-bucket/events/compacted/org_id%3D${org}/`,
             signedUrls: true,
             tables: [{ name: 'query_events', urls: ['signed-url'] }],
@@ -96,6 +96,7 @@ describe('signed analytics file manifests', () => {
             Contents: [
                 { Key: key('ai_usage') },
                 { Key: key('data_app_events') },
+                { Key: key('export_events') },
             ],
         });
         const source = await createS3AnalyticsSourceResolver(config)();
@@ -103,8 +104,9 @@ describe('signed analytics file manifests', () => {
             'query_events',
             'ai_usage',
             'data_app_events',
+            'export_events',
         ]);
-        expect(getSignedUrl).toHaveBeenCalledTimes(4);
+        expect(getSignedUrl).toHaveBeenCalledTimes(5);
         expect(
             vi
                 .mocked(getSignedUrl)
@@ -116,8 +118,40 @@ describe('signed analytics file manifests', () => {
             key(),
             key('ai_usage'),
             key('data_app_events'),
+            key('export_events'),
         ]);
         expect(send.mock.calls[1][0].input.ContinuationToken).toBe('next');
+    });
+
+    it('signs only the deterministic dimension snapshots and supplies missing lookup schemas', async () => {
+        send.mockResolvedValue({
+            Contents: [
+                { Key: key() },
+                { Key: `${prefix}dim=charts/charts.parquet` },
+                { Key: `${prefix}dim=charts/old.parquet` },
+                { Key: `${prefix}dim=users/users.parquet` },
+                { Key: `${prefix}dim=users/backup/users.parquet` },
+            ],
+        });
+        const source = await createS3AnalyticsSourceResolver(config)();
+        expect(source.tables.map(({ name }) => name)).toEqual([
+            'query_events',
+            'lightdash_charts',
+            'lightdash_users',
+        ]);
+        expect(source.emptyTables?.map(({ name }) => name)).toEqual([
+            'lightdash_dashboards',
+        ]);
+        expect(getSignedUrl).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not treat dimension-only storage as captured event data', async () => {
+        send.mockResolvedValue({
+            Contents: [{ Key: `${prefix}dim=users/users.parquet` }],
+        });
+        await expect(createS3AnalyticsSourceResolver(config)()).rejects.toThrow(
+            noDataMessage,
+        );
     });
 
     it('refreshes the manifest and signatures on each query', async () => {
@@ -166,6 +200,13 @@ describe('signed analytics file manifests', () => {
 
     it.each([
         { Contents: [{ Key: 'events/compacted/org_id=other/file.parquet' }] },
+        {
+            Contents: [
+                {
+                    Key: 'events/compacted/org_id=00000000-0000-0000-0000-000000000002/stream=export_events/dt=2026-09-07/part.parquet',
+                },
+            ],
+        },
         { Contents: [], IsTruncated: true },
     ])('fails closed on invalid or incomplete manifests', async (response) => {
         send.mockResolvedValue(response);

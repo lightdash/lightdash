@@ -124,6 +124,7 @@ const PREVIEW_TOKEN = 'signed-preview-token';
 function renderBridge(
     onQueryEvent: (event: QueryEvent) => void,
     previewToken = PREVIEW_TOKEN,
+    dataAppVizMode = false,
 ) {
     const iframeRef = {
         current: { contentWindow: window } as unknown as HTMLIFrameElement,
@@ -137,6 +138,7 @@ function renderBridge(
             appUuid: APP_UUID,
             previewToken,
             onQueryEvent,
+            dataAppVizMode,
         }),
     );
 }
@@ -149,6 +151,25 @@ describe('useAppSdkBridge', () => {
     afterEach(() => {
         vi.unstubAllGlobals();
         vi.clearAllMocks();
+    });
+
+    it('blocks every query route for a chart-type iframe', async () => {
+        renderBridge(() => undefined, PREVIEW_TOKEN, true);
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+        postMetricQuery();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: `Blocked: POST ${POST_PATH}`,
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
     });
 
     it('re-keys ready events to the POST request id (regression: id mismatch left MinimalApp stuck on the indicator)', async () => {
@@ -1587,7 +1608,7 @@ describe('color scheme push', () => {
         postSpy.mockClear();
         result.current.handleIframeLoad();
         expect(postSpy.mock.calls.map(([message]) => message)).toEqual([
-            { type: 'lightdash:sdk:ready' },
+            { type: 'lightdash:sdk:ready', appUuid: APP_UUID },
             { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
             // No insights supplied: the host says so instead of staying silent.
             {
@@ -1669,6 +1690,7 @@ describe('delivery-render flag on the ready handshake', () => {
         expect(postSpy.mock.calls[0][0]).toEqual({
             type: 'lightdash:sdk:ready',
             deliveryRender: true,
+            appUuid: APP_UUID,
         });
     });
 
@@ -1681,6 +1703,7 @@ describe('delivery-render flag on the ready handshake', () => {
         result.current.handleIframeLoad();
         expect(postSpy.mock.calls[0][0]).toEqual({
             type: 'lightdash:sdk:ready',
+            appUuid: APP_UUID,
         });
     });
 });
@@ -1711,6 +1734,7 @@ describe('viz underlying-data virtual route', () => {
             path: string;
             body: unknown;
         },
+        dataAppVizMode = false,
     ) {
         const iframeRef = {
             current: { contentWindow: window } as unknown as HTMLIFrameElement,
@@ -1724,6 +1748,7 @@ describe('viz underlying-data virtual route', () => {
                 appUuid: APP_UUID,
                 previewToken: PREVIEW_TOKEN,
                 rewriteVizUnderlyingDataRequest,
+                dataAppVizMode,
             }),
         );
     }
@@ -1773,6 +1798,43 @@ describe('viz underlying-data virtual route', () => {
                 '*',
             ),
         );
+    });
+
+    it('allows only host-rewritten underlying data in viz mode', async () => {
+        const rewrite = vi.fn((intentBody: unknown) => ({
+            method: 'POST' as const,
+            path: UNDERLYING_DATA_PATH,
+            body: { rewritten: true, original: intentBody },
+        }));
+        renderBridgeWithRewrite(rewrite, true);
+        mockFetchOk({ status: 'ok', results: { queryUuid: QUERY_UUID } });
+
+        postVirtualRoute();
+        await vi.waitFor(() =>
+            expect(fetch).toHaveBeenCalledWith(
+                UNDERLYING_DATA_PATH,
+                expect.objectContaining({ method: 'POST' }),
+            ),
+        );
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: GET_ID,
+            method: 'POST',
+            path: UNDERLYING_DATA_PATH,
+            body: { bypass: true },
+        });
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    id: GET_ID,
+                    error: `Blocked: POST ${UNDERLYING_DATA_PATH}`,
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).toHaveBeenCalledTimes(1);
     });
 
     it('answers the virtual route with an error when no rewrite callback is installed', async () => {

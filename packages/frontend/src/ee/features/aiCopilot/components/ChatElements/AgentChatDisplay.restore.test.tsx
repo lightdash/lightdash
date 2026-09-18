@@ -39,10 +39,16 @@ const app: ApiGetAppResponse['results'] = {
     pinnedListOrder: null,
     slug: 'revenue-app',
     views: 0,
+    currentThread: {
+        uuid: 'app-thread-1',
+        number: 1,
+        createdAt: new Date('2026-08-28T09:00:00.000Z'),
+    },
     versions: [],
     hasMore: false,
     latestReadyVersion: 3,
     icon: null,
+    verification: null,
 };
 
 const userMessage = (

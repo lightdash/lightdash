@@ -1680,7 +1680,7 @@ export const listVerifiedContentToolDefinition: ToolDefinitionWithoutMcpOutput<
     name: 'listVerifiedContent',
     title: 'List verified content',
     description:
-        'List all verified charts and dashboards in the required projectUuid. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.',
+        'List all verified charts, dashboards, and data apps in the required projectUuid. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Each item includes contentType (chart, dashboard, or data_app), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
@@ -1933,8 +1933,8 @@ export const mcpCreateContentToolDefinition = defineTool({
     name: 'createContent',
     title: 'Create content',
     description:
-        'Create a dashboard, chart, or Document. Documents use schema version 3 with Markdown and semantic/merge chart-as-code cells. Returns the persisted content and canonical reference.',
-    availability: ['mcp'],
+        'Create a dashboard, chart, or Document. Documents use schema version 1 with Markdown and semantic/merge chart-as-code cells. Returns the persisted content and canonical reference.',
+    availability: ['agent', 'mcp'],
     inputSchema: mcpCreateContentArgsSchema,
     mcp: { name: 'create_content', annotations: writeAnnotations },
 });
@@ -1944,7 +1944,7 @@ export const mcpReadContentToolDefinition = defineTool({
     title: 'Read content',
     description:
         'Read a dashboard, chart, data app, or Document by slug. Documents include their latest version UUID, required for cell edits.',
-    availability: ['mcp'],
+    availability: ['agent', 'mcp'],
     inputSchema: mcpReadContentArgsSchema,
     mcp: { name: 'read_content', annotations: readOnlyAnnotations },
 });
@@ -1954,7 +1954,7 @@ export const mcpEditContentToolDefinition = defineTool({
     title: 'Edit content',
     description:
         'Edit dashboards and charts with RFC6902 patch. For Documents, use documentEdit to replace all content with baseVersionUuid, or update metadata separately. Include every cell to keep, without cell IDs. Stale versions are rejected; read again and retry.',
-    availability: ['mcp'],
+    availability: ['agent', 'mcp'],
     inputSchema: mcpEditContentArgsSchema,
     mcp: { name: 'edit_content', annotations: destructiveWriteAnnotations },
 });

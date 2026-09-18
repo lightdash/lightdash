@@ -42,6 +42,8 @@ export type MergeJoinPart = {
  */
 export type MergeResults = {
     queryUuid: string;
+    /** The merge that produced these results, so edits since can be told apart. */
+    mergeQuery: MergeQuery;
     fields: ItemsMap;
     metricQuery: MetricQuery;
     /** Field ids in the order the merged statement returns them. */
@@ -91,6 +93,15 @@ export type MergeContextValue = {
     parameterReferences: string[];
     /** The merged run, or null when none has succeeded yet. */
     mergeResults: MergeResults | null;
+    /**
+     * The merge, not the Explorer's own query, owns what is on screen: a
+     * run was submitted or arrived with the chart, and the merge has not
+     * been removed since. It stays true through a re-run and a refusal, so
+     * the Explorer's query never runs with sorts that name merged fields.
+     */
+    replacesQuery: boolean;
+    /** The merge last submitted, whether it ran or was refused. */
+    lastRunMergeQuery: MergeQuery | null;
     focus: MergeFocus;
     /** Sources owned by the merge; the chart-owned source stays in Explorer. */
     additionalSources: MergeEditorSource[];

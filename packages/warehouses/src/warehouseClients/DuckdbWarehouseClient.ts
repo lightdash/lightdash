@@ -144,6 +144,14 @@ export type DuckdbS3Credentials = {
 export type DuckdbParquetSource = {
     scope: string;
     tables: { name: string; urls: string[] }[];
+    /** Typed, empty lookups for snapshots which have not been published yet. */
+    emptyTables?: {
+        name: string;
+        columns: {
+            name: string;
+            type: 'VARCHAR' | 'BOOLEAN' | 'TIMESTAMP' | 'INTEGER' | 'BIGINT';
+        }[];
+    }[];
     /** Exact server-signed GET URLs; never combine with bucket credentials. */
     signedUrls?: boolean;
     httpAuth?: { bearerToken: string };
@@ -1081,6 +1089,29 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             );
         }
         const names = new Set<string>();
+        (source.emptyTables ?? []).forEach(({ name, columns }) => {
+            if (
+                !/^[a-z][a-z0-9_]*$/.test(name) ||
+                names.has(name) ||
+                columns.length === 0 ||
+                new Set(columns.map((column) => column.name)).size !==
+                    columns.length ||
+                columns.some(
+                    (column) =>
+                        !/^[a-z][a-z0-9_]*$/.test(column.name) ||
+                        ![
+                            'VARCHAR',
+                            'BOOLEAN',
+                            'TIMESTAMP',
+                            'INTEGER',
+                            'BIGINT',
+                        ].includes(column.type),
+                )
+            ) {
+                throw new ParameterError('Invalid empty Parquet table schema');
+            }
+            names.add(name);
+        });
         source.tables.forEach(({ name, urls }) => {
             if (
                 !/^[a-z][a-z0-9_]*$/.test(name) ||
@@ -1147,6 +1178,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const files = source.tables.flatMap(({ urls }) => urls);
         await db.run(`SET allowed_paths = [${files.map(literal).join(',')}];`);
         await db.run('SET enable_external_access = false;');
+        for (const { name, columns } of source.emptyTables ?? []) {
+            // eslint-disable-next-line no-await-in-loop
+            await db.run(
+                `CREATE VIEW "${name}" AS SELECT ${columns.map((column) => `NULL::${column.type} AS "${column.name}"`).join(', ')} WHERE false;`,
+            );
+        }
         // eslint-disable-next-line no-restricted-syntax
         for (const { name, urls } of source.tables) {
             // eslint-disable-next-line no-await-in-loop

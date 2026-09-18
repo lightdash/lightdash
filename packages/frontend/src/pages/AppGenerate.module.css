@@ -26,10 +26,10 @@
 /* Collapsed: the panel becomes a slim rail that keeps the toggle visible in
    the same top-left spot. Collapse is CSS-only — the panel-group layout is
    untouched, so expanding restores the exact pre-collapse width. Rail width
-   = sidebarHeader horizontal padding (2 × xs) + the 22px ActionIcon. */
+   = collapsed sidebarHeader padding (2 × xs) + the 28px ActionIcon. */
 .chatPanelOuter[data-collapsed='true'] {
-    min-width: 38px;
-    max-width: 38px;
+    min-width: 44px;
+    max-width: 44px;
 }
 
 /* Hide the chat content from view, the tab order, and the a11y tree —
@@ -39,11 +39,23 @@
     visibility: hidden;
 }
 
-/* Toggle row pinned to the sidebar's top-left. */
+/* Toggle on the left, project history on the right. */
 .sidebarHeader {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
     flex: 0 0 auto;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
+    padding: 10px var(--mantine-spacing-sm);
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.chatPanelOuter[data-collapsed='true'] .sidebarHeader {
+    padding: 10px var(--mantine-spacing-xs);
+    border-bottom-color: transparent;
+}
+
+.chatPanelOuter[data-collapsed='true'] .sidebarHistory {
+    display: none;
 }
 
 /* Compose stage: the chat panel becomes a centered card on the muted

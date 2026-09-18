@@ -7,6 +7,7 @@ import {
     CustomVisConfig,
     DashboardDAO,
     DashboardFilterRule,
+    DataAppVizChartConfig,
     FilterGroup,
     FilterOperator,
     isFilterRuleDefinedForFieldId,
@@ -756,6 +757,27 @@ describe('renameMetricQuery', () => {
 });
 
 describe('renameChartConfigType', () => {
+    test('renames scalar and ordered multiple data app viz field bindings', () => {
+        const chartConfig = {
+            type: ChartType.DATA_APP_VIZ,
+            config: {
+                dataAppVizUuid: 'viz-uuid',
+                fieldMapping: {
+                    category: 'payment_category',
+
+                    metrics: ['payment_amount', 'orders_count', 'payment_tax'],
+                },
+            },
+        } as DataAppVizChartConfig;
+
+        const result = renameChartConfigType(chartConfig, tableRename);
+
+        expect((result as DataAppVizChartConfig).config?.fieldMapping).toEqual({
+            category: 'invoice_category',
+            metrics: ['invoice_amount', 'orders_count', 'invoice_tax'],
+        });
+    });
+
     test('should rename table prefix in cartesian chart config', () => {
         const chartConfig = {
             type: ChartType.CARTESIAN,
@@ -1026,6 +1048,46 @@ describe('renameSavedChart', () => {
 
         expect(hasChanges).toBe(true);
         expect(updatedChart).toEqual(expectedRenamedChartMocked); // toEqual doesn't check extra `undefined` fields
+    });
+    test('renames ordered multiple bindings in a saved data app viz config', () => {
+        const { updatedChart, hasChanges } = renameSavedChart({
+            type: RenameType.FIELD,
+            chart: {
+                ...chartMocked,
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizUuid: 'viz-uuid',
+                        fieldMapping: {
+                            category: 'orders_status',
+
+                            metrics: [
+                                'orders_status',
+                                'orders_order_date_week',
+                            ],
+                        },
+                    },
+                },
+            },
+            nameChanges: {
+                from: 'orders_status',
+                to: 'orders_order_type',
+                fromReference: 'orders.status',
+                toReference: 'orders.order_type',
+                fromFieldName: 'status',
+                toFieldName: 'order_type',
+            },
+            validate: false,
+        });
+
+        expect(hasChanges).toBe(true);
+        expect(
+            (updatedChart.chartConfig as DataAppVizChartConfig).config
+                ?.fieldMapping,
+        ).toEqual({
+            category: 'orders_order_type',
+            metrics: ['orders_order_type', 'orders_order_date_week'],
+        });
     });
     test('should rename mocked saved chart field with custom metric', () => {
         const { updatedChart, hasChanges } = renameSavedChart({

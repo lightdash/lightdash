@@ -19,7 +19,7 @@ import {
     type ItemsMap,
     type TableCalculation,
 } from '@lightdash/common';
-import { act, screen } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -39,6 +39,8 @@ type FieldSelectProps = {
     onChange: (item: Item | null) => void;
     disabled: boolean;
     placeholder: string;
+    'aria-label'?: string;
+    'aria-describedby'?: string;
 };
 
 const {
@@ -167,7 +169,14 @@ vi.mock('../../common/FieldSelect', () => ({
     default: (props: FieldSelectProps) => {
         fieldSelectItems.push(props.items);
         fieldSelectProps.push(props);
-        return <div data-testid="field-select" />;
+        return (
+            <input
+                data-testid="field-select"
+                disabled={props.disabled}
+                aria-label={props['aria-label']}
+                aria-describedby={props['aria-describedby']}
+            />
+        );
     },
 }));
 vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
@@ -224,7 +233,14 @@ const tableCalculation: TableCalculation = {
 };
 
 const declaredFields: DataAppVizField[] = [
-    { name: 'source', label: 'Source', type: 'dimension', required: true },
+    {
+        name: 'source',
+        label: 'Source',
+        type: 'dimension',
+        required: true,
+        description: 'The label for each funnel stage',
+        examples: ['Listing started', 'Price entered'],
+    },
     { name: 'value', label: 'Value', type: 'metric', required: true },
 ];
 
@@ -250,6 +266,7 @@ const mockSchema = (
     configOptions: DataAppVizConfigOption[],
     colorPalette: DataAppVizPaletteDeclaration | null = null,
     viz: Partial<DataAppViz> = {},
+    inputGuidance?: string,
 ) => {
     vi.mocked(useDataAppVisualization).mockReturnValue({
         data: {
@@ -258,7 +275,12 @@ const mockSchema = (
             description: '',
             spaceUuid: null,
             createdByUserUuid: MOCK_USER_UUID,
-            schema: { fields: declaredFields, configOptions, colorPalette },
+            schema: {
+                fields: declaredFields,
+                configOptions,
+                colorPalette,
+                inputGuidance,
+            },
             ...viz,
         },
     } as unknown as ReturnType<typeof useDataAppVisualization>);
@@ -804,17 +826,83 @@ describe('DataAppVizConfigTabs', () => {
         expect(setPivotDimensions).toHaveBeenCalled();
     });
 
-    it('explains missing fields without presenting a warning', () => {
+    it('keeps missing mappings readable without repeating a warning', () => {
         mockContext({}, 'data-app-viz-uuid', {}, {});
         mockSchema([]);
 
         renderWithProviders(<ConfigTabs />);
 
         expect(
-            screen.getByText(
+            screen.queryByText(
                 'Select fields for “Source” and “Value” to display your chart.',
             ),
-        ).toBeInTheDocument();
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('textbox', { name: 'Source' }),
+        ).toHaveAccessibleDescription('The label for each funnel stage');
+    });
+
+    it('shows chart setup guidance and reveals field help on demand', async () => {
+        const user = userEvent.setup();
+        mockContext({}, 'data-app-viz-uuid', {}, {});
+        mockSchema(
+            [],
+            null,
+            {},
+            'Use one row per stage in order; reshape the query when it returns a different row shape.',
+        );
+
+        renderWithProviders(<ConfigTabs />);
+
+        expect(
+            screen.getByRole('region', { name: 'How to use this chart type' }),
+        ).toBeVisible();
+        expect(
+            screen.getByText(
+                'Use one row per stage in order; reshape the query when it returns a different row shape.',
+            ),
+        ).not.toBeVisible();
+        expect(
+            screen.getByText('The label for each funnel stage'),
+        ).not.toBeVisible();
+        expect(
+            screen.queryByText('Examples: Listing started, Price entered'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Map this required field to continue.'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('textbox', { name: 'Source' }),
+        ).toHaveAccessibleDescription('The label for each funnel stage');
+        expect(
+            screen.getByRole('textbox', { name: 'Value' }),
+        ).not.toHaveAttribute('aria-describedby');
+        expect(
+            screen.queryByRole('img', { name: 'About Value' }),
+        ).not.toBeInTheDocument();
+
+        const setupHelp = screen.getByRole('button', {
+            name: 'How to use this chart type',
+        });
+        expect(setupHelp).toHaveAttribute('aria-expanded', 'false');
+        await user.click(setupHelp);
+        expect(setupHelp).toHaveAttribute('aria-expanded', 'true');
+        await waitFor(() =>
+            expect(screen.getByText(/^Use one row per stage/)).toBeVisible(),
+        );
+
+        await user.hover(screen.getByRole('img', { name: 'About Source' }));
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'The label for each funnel stage',
+        );
+        expect(
+            screen.queryByText('Examples: Listing started, Price entered'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen
+                .getAllByText('The label for each funnel stage')
+                .some((element) => !element.hasAttribute('hidden')),
+        ).toBe(true);
     });
 
     it('clearly distinguishes a field named To from the instruction', () => {
@@ -836,9 +924,17 @@ describe('DataAppVizConfigTabs', () => {
 
         renderWithProviders(<ConfigTabs />);
 
+        expect(screen.getByRole('textbox', { name: 'To' })).not.toHaveAttribute(
+            'aria-describedby',
+        );
         expect(
-            screen.getByText('Select a field for “To” to display your chart.'),
-        ).toBeInTheDocument();
+            screen.queryByRole('img', { name: 'About To' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(
+                'Select a field for “To” to display your chart.',
+            ),
+        ).not.toBeInTheDocument();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 

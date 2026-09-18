@@ -20,7 +20,9 @@ dashboard title change does not create a new space. Sync removes the former
 overview's query tiles without deleting their saved history or custom copies.
 
 Project creation and **Sync content** in organization analytics settings both install
-the current definitions. After creation, settings stays open and shows dashboard
+the current definitions: system explores first, then managed charts and dashboards.
+This makes newly shipped explores, dimensions and metrics available in existing
+analytics projects without recreating the project. After creation, settings stays open and shows dashboard
 shortcuts and the **Explore** button; it does not redirect automatically. Sync calls
 `POST /api/v1/org/analytics-project/sample-content`. Both paths require the existing
 analytics feature flag and org-admin guard. The server
@@ -74,6 +76,10 @@ Spaces keep the original project-permission inheritance behavior.
 The existing organization provisioning lock serializes create/sync/delete actions.
 Before uploading anything, the service uses `SavedChartModel.get` (including
 soft-deleted rows) to reject chart aliases or charts belonging to another dashboard.
+It then compiles the current backend-owned system explores and saves them through
+the same model-cache method used during project creation. If compilation or saving
+the models fails, no charts or dashboards are uploaded. This does not fetch or
+backfill event data; new events still follow the capture and compaction pipeline.
 A missing or deleted dashboard is created/restored with an empty layout before
 its charts are uploaded, then its final layout is applied. This ensures the first
 chart is also updated when restoring a deleted dashboard. Restore and space
@@ -97,8 +103,10 @@ applies the definitions shipped with the current backend. Version detection and
 broader content synchronization are tracked in PROD-11152. Creation timestamps
 alone would not indicate the version after an in-place sync.
 
-Keep bundle/chart keys stable when changing metrics or dimensions. A future
-user-name lookup and joined user table should be introduced through the system
-explores first, then referenced by the sample charts. Preserve existing field IDs
-where possible to avoid breaking user-created charts. Future model-and-content
-sync must compile the explores before applying chart definitions.
+Keep bundle/chart keys stable when changing metrics or dimensions. The system
+explores now expose a joined Users table with **User name**; Query Events also
+exposes Charts and Dashboards. See [current dimensions](dimensions.md). Existing
+sample chart definitions are not automatically rewritten to use these joins.
+Preserve existing field IDs where possible to avoid breaking user-created charts.
+Sync compiles the explores before applying chart definitions; incompatible model
+changes can still break custom charts that reference removed fields.

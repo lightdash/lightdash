@@ -220,8 +220,9 @@ flag-gated extension: registry-only, lockfile required, screened for malicious p
 
 A custom chart type is a data app built from a dedicated template that declares a viz schema instead of running
 queries: the explorer hands it rows and a field mapping, and it renders. They share the pipeline, storage and
-permissions of data apps but are excluded from app listings, have their own gallery and builder, and are downloaded
-as code separately. A type can carry one icon from a curated Tabler set; the as-code manifest's `icon` field round-trips
+permissions of data apps but are excluded from app listings, have their own gallery, and are created and edited in
+**Chart Studio**, available as a standalone page and within the explorer. They are downloaded as code separately.
+A type can carry one icon from a curated Tabler set; the as-code manifest's `icon` field round-trips
 it (omitted for non-chart-type apps), null clears it, and an off-list value is rejected on upload.
 
 Official chart types can also be installed prebuilt from a chart registry, are read-only once installed, and are
@@ -233,6 +234,42 @@ Charts saved before pins exist follow the latest version until they are next edi
 exists, the explorer's configure panel offers an upgrade that lists the field, option and palette changes; upgrading
 re-pins the chart being edited and reconciles its field mapping and option values against the new contract, and
 nothing is persisted until the chart is saved.
+
+Chart Studio supplies the current schema and field mapping to the coding agent, plus a saved-chart reference
+when opened from a saved chart. Authors can attach a screenshot of the preview, pick an element, and opt in to
+**Include sample data** for the next build. Samples use the current Explorer or Test-panel results, are bounded
+to 10 rows and 20 columns, and respect the instance's sample-data setting. Context travels separately from the
+user's prompt; sample data is not stored in version history. Queued builds refresh their schema, mapping and
+opted-in sample data together when they start.
+
+Chart-type builds omit the explores catalog and remove stale catalog files from reused sandboxes. Their SDK
+bridge blocks independent queries while allowing underlying-data interactions resolved by the host.
+
+### Ordered field inputs
+
+A viz schema field can set `multiple: true` to accept an ordered selection of metrics,
+dimensions, series, or any result columns. For example:
+
+```json
+{ "name": "values", "label": "Measures", "type": "metric", "required": true, "multiple": true }
+```
+
+`useVizContext().fieldMapping.values` then contains an array such as
+`["orders_total_revenue", "orders_total_order_amount", "orders_order_count"]`. The chart
+iterates that array in order. A multiple dimension input uses the same declaration with
+`"type": "dimension"`. Fields appear in the order they are added. Replacing a field keeps
+its position; removing and adding it again appends it to the end. The saved chart and
+chart-as-code config preserve that selection order. `[]` records an explicitly
+cleared input; a required input with no selections is unbound.
+
+Omitting `multiple` (or setting it to `false`) retains the original string binding in
+`fieldMapping`. Multiple inputs use ordered arrays in that same mapping in saved
+charts, chart-as-code, and SDK context. Narrow with `Array.isArray(binding)` before
+iterating; older single-field bindings remain strings.
+Compatible upgrades preserve the order of surviving bindings. Changing an input from
+single to multiple moves its current field into an array; changing back retains the
+first compatible field as a string and appears in the upgrade summary. Registry
+manifests and app-as-code `vizSchema` use the same declaration schema.
 
 ---
 
@@ -257,6 +294,8 @@ truth for names and defaults.
 - `packages/backend/src/ee/services/AppGenerateService/` — the pipeline, authorization, coding agent environments.
 - `packages/backend/src/routers/appPreviewRouter.ts` — serving, tokens, CSP.
 - `packages/frontend/src/features/apps/` — builder, preview, bridge, inspector.
+- `packages/frontend/src/features/chartTypes/builder/` — standalone Chart Studio.
+- `packages/frontend/src/components/Explorer/ChartTypeAuthoring/` — Chart Studio within the explorer.
 - `packages/query-sdk/` — the SDK shipped inside apps.
 - `sandboxes/data-apps/` — the starter template, skill and references, benchmark harness.
 - `packages/cli/src/handlers/apps/` — data apps as code.

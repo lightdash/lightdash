@@ -10,6 +10,16 @@ const mocks = vi.hoisted(() => ({
     deleteModal: vi.fn(),
     canDelete: false,
     navigate: vi.fn(),
+    copy: vi.fn(),
+}));
+vi.mock('../../hooks/useProjectRoute', () => ({
+    useProjectUrlIdentifier: () => 'project-slug',
+}));
+vi.mock('../../components/common/CopyActionIcon', () => ({
+    CopyActionIcon: (props: { value: string; copyLabel: string }) => {
+        mocks.copy(props);
+        return <button>{props.copyLabel}</button>;
+    },
 }));
 vi.mock('react-router', () => ({ useNavigate: () => mocks.navigate }));
 vi.mock('./useCanDeleteDocument', () => ({
@@ -52,7 +62,7 @@ const document: Document = {
     version: {
         versionUuid: 'version',
         versionNumber: 1,
-        schemaVersion: 3,
+        schemaVersion: 1,
         content: { cells: [] },
         createdByUserUuid: null,
         createdAt: new Date('2026-09-15'),
@@ -67,6 +77,7 @@ describe('Document actions', () => {
         mocks.canDelete = false;
         mocks.deleteModal.mockReset();
         mocks.navigate.mockReset();
+        mocks.copy.mockReset();
     });
     const renderActions = () =>
         render(
@@ -88,6 +99,15 @@ describe('Document actions', () => {
                     resourceUuid: 'document',
                     name: 'Weekly report',
                 },
+            }),
+        );
+    });
+
+    it('copies a full project-slug and document-slug URL', () => {
+        renderActions();
+        expect(mocks.copy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                value: `${window.location.origin}/projects/project-slug/documents/weekly-report`,
             }),
         );
     });
@@ -116,7 +136,7 @@ describe('Document actions', () => {
             screen.getByRole('button', { name: 'Confirm document deletion' }),
         );
         expect(mocks.navigate).toHaveBeenCalledWith(
-            '/projects/project/documents',
+            '/projects/project-slug/documents',
         );
     });
 

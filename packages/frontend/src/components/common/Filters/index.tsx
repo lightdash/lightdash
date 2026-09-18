@@ -25,7 +25,6 @@ import {
     Stack,
     Text,
     Tooltip,
-    useMantineColorScheme,
 } from '@mantine/core';
 import { IconAlertTriangle, IconPlus, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, useRef, type FC } from 'react';
@@ -116,16 +115,12 @@ const AddFilterSection: FC<AddFilterSectionProps> = ({
     clearAllFilters,
     addFieldRule,
 }) => {
-    const { colorScheme } = useMantineColorScheme();
     return (
         <Box
             pos="relative"
             style={{
                 zIndex: 2,
-                backgroundColor:
-                    colorScheme === 'dark'
-                        ? 'var(--mantine-color-dark-6)'
-                        : 'white',
+                backgroundColor: 'var(--mantine-color-body)',
             }}
         >
             {!isOpen ? (

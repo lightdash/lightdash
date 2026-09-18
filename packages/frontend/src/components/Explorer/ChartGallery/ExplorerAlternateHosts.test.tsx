@@ -190,7 +190,9 @@ describe('Explorer chart configuration in alternate hosts', () => {
         expect(screen.getByText('Bar chart')).toBeVisible();
         expect(screen.getByRole('tab', { name: 'Layout' })).toBeVisible();
 
-        await user.click(screen.getByRole('button', { name: 'Change' }));
+        await user.click(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        );
 
         expect(screen.getByText('Choose chart type')).toBeVisible();
         expect(screen.getByRole('button', { name: 'Bar chart' })).toBeVisible();
@@ -214,7 +216,9 @@ describe('Explorer chart configuration in alternate hosts', () => {
         expect(screen.getByText('Bar chart')).toBeVisible();
         expect(screen.getByRole('tab', { name: 'Layout' })).toBeVisible();
 
-        await user.click(screen.getByRole('button', { name: 'Change' }));
+        await user.click(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        );
 
         expect(screen.getByText('Choose chart type')).toBeVisible();
         expect(screen.getByRole('button', { name: 'Bar chart' })).toBeVisible();

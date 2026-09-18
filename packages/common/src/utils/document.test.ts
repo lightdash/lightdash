@@ -1,6 +1,53 @@
 import { MergeJoinType } from '../types/mergeQuery';
 import { ChartType } from '../types/savedCharts';
-import { DOCUMENT_SCHEMA_VERSION, parseDocumentContent } from './document';
+import {
+    DOCUMENT_SCHEMA_VERSION,
+    getDocumentUrl,
+    parseDocumentContent,
+} from './document';
+
+describe('getDocumentUrl', () => {
+    test('prefers the document slug when its canonical UUID is provided', () => {
+        expect(
+            getDocumentUrl(
+                'project',
+                '36d4516a-3af0-48f6-9b47-d50956301501',
+                'weekly-review',
+            ),
+        ).toBe('/projects/project/documents/weekly-review');
+    });
+    test('uses the canonical UUID for UUID-shaped slugs to avoid identity ambiguity', () => {
+        expect(
+            getDocumentUrl(
+                'project',
+                '36d4516a-3af0-48f6-9b47-d50956301501',
+                '26eefd62-30f9-485c-81c4-3b814aa8032f',
+            ),
+        ).toBe(
+            '/projects/project/documents/36d4516a-3af0-48f6-9b47-d50956301501',
+        );
+    });
+    test.each([
+        ['project-slug', 'document-slug'],
+        ['3675b69e-8324-4110-bdca-059031aa8da3', 'document-slug'],
+        ['project-slug', '36d4516a-3af0-48f6-9b47-d50956301501'],
+        [
+            '3675b69e-8324-4110-bdca-059031aa8da3',
+            '36d4516a-3af0-48f6-9b47-d50956301501',
+        ],
+    ])('builds a link for %s / %s', (project, document) => {
+        expect(getDocumentUrl(project, document)).toBe(
+            `/projects/${project}/documents/${document}`,
+        );
+    });
+    test('encodes path identifiers rather than allowing URL structure injection', () => {
+        expect(
+            getDocumentUrl('project/name', 'report?redirect=elsewhere'),
+        ).toBe(
+            '/projects/project%2Fname/documents/report%3Fredirect%3Delsewhere',
+        );
+    });
+});
 
 const query = {
     exploreName: 'orders',
@@ -17,15 +64,13 @@ const chart = {
     metricQuery: query,
     chartConfig: { type: ChartType.TABLE },
 };
-const markdown = { id: 'intro', type: 'markdown', content: '# Findings' };
+const markdown = { type: 'markdown', content: { markdown: '# Findings' } };
 const semantic = {
-    id: 'orders',
     type: 'chart',
     content: { source: 'semantic', chart },
 };
 const merge = {
     ...semantic,
-    id: 'merged-orders',
     content: {
         source: 'merge',
         chart: {
@@ -149,13 +194,9 @@ describe('Document schema version 1', () => {
         'preserves valid ordered content: %j',
         (...cells) => {
             const content = { cells };
-            expect(parseDocumentContent(1, content)).toEqual({
-                cells: cells.map((cell) =>
-                    cell.type === 'markdown'
-                        ? { ...cell, content: { markdown: cell.content } }
-                        : cell,
-                ),
-            });
+            expect(
+                parseDocumentContent(DOCUMENT_SCHEMA_VERSION, content),
+            ).toEqual(content);
         },
     );
 
@@ -164,7 +205,9 @@ describe('Document schema version 1', () => {
     });
 
     test.each([
-        { cells: [markdown, markdown] },
+        { cells: [{ ...markdown, id: 'intro' }] },
+        { cells: [{ ...markdown, content: '# Findings' }] },
+        { cells: [{ ...markdown, content: { markdown: 1 } }] },
         { cells: [{ ...markdown, id: '' }] },
         { cells: [{ ...markdown, id: ' ' }] },
         { cells: [{ ...markdown, content: {} }] },
@@ -279,7 +322,7 @@ describe('Document schema version 1', () => {
         expect(() => parseDocumentContent(1, content)).toThrow();
     });
 
-    test.each([0, 4, -1])(
+    test.each([0, 2, 3, 4, -1])(
         'rejects unsupported schema version %s',
         (version) => {
             expect(() => parseDocumentContent(version, { cells: [] })).toThrow(
@@ -289,116 +332,27 @@ describe('Document schema version 1', () => {
     );
 });
 
-describe('Document schema version 2', () => {
-    const currentMarkdown = {
-        ...markdown,
-        content: { markdown: markdown.content },
-    };
-
-    test.each([currentMarkdown, semantic, merge])(
-        'omits retired titles while preserving content and historical input',
-        (cell) => {
-            const untitled = { cells: [cell] };
-            expect(
-                parseDocumentContent(DOCUMENT_SCHEMA_VERSION, untitled),
-            ).toEqual(untitled);
-            const titled = {
-                cells: [
-                    {
-                        ...cell,
-                        content: { ...cell.content, title: '  Findings  ' },
-                    },
-                ],
-            };
-            const before = structuredClone(titled);
-            expect(parseDocumentContent(2, titled)).toEqual(untitled);
-            expect(titled).toEqual(before);
-        },
-    );
-
-    test.each(['', ' ', '\t\n', 1, null])(
-        'rejects invalid titles %j for every cell kind',
-        (title) => {
-            for (const cell of [currentMarkdown, semantic, merge]) {
-                expect(() =>
-                    parseDocumentContent(2, {
-                        cells: [
-                            { ...cell, content: { ...cell.content, title } },
-                        ],
-                    }),
-                ).toThrow('Invalid Document content');
-            }
-        },
-    );
-
-    test('upcasts legacy content without mutating it or inferring titles', () => {
-        const legacy = { cells: [markdown, semantic, merge] };
-        const snapshot = JSON.parse(JSON.stringify(legacy));
-        const result = parseDocumentContent(1, legacy);
-        expect(result).toEqual({ cells: [currentMarkdown, semantic, merge] });
-        expect(legacy).toEqual(snapshot);
-        expect(result).not.toBe(legacy);
-        result.cells.forEach((cell) =>
-            expect(cell.content).not.toHaveProperty('title'),
-        );
+describe('Document cell identity', () => {
+    test('preserves duplicate cells and ordering without generating IDs', () => {
+        const content = {
+            cells: [markdown, semantic, markdown, semantic, merge],
+        };
+        const snapshot = structuredClone(content);
+        expect(parseDocumentContent(1, content)).toEqual(content);
+        expect(content).toEqual(snapshot);
+        content.cells.forEach((cell) => expect(cell).not.toHaveProperty('id'));
     });
 
-    test.each([
-        { cells: [markdown] },
-        {
-            cells: [
-                { ...currentMarkdown, content: { title: 'Missing markdown' } },
-            ],
-        },
-        { cells: [{ ...currentMarkdown, content: { markdown: 1 } }] },
-        {
-            cells: [
-                {
-                    ...currentMarkdown,
-                    content: { markdown: '', unknown: true },
-                },
-            ],
-        },
-        { cells: [{ ...currentMarkdown, title: 'Wrong location' }] },
-        { cells: [currentMarkdown, currentMarkdown] },
-    ])('rejects malformed V2 content %j', (content) => {
-        expect(() => parseDocumentContent(2, content)).toThrow();
-    });
-
-    test.each([
-        currentMarkdown,
-        { ...semantic, content: { ...semantic.content, title: 'New title' } },
-    ])('rejects V2 fields at the strict legacy boundary', (cell) => {
-        expect(() => parseDocumentContent(1, { cells: [cell] })).toThrow(
-            'Invalid Document content',
-        );
-    });
-});
-
-describe('Document schema version 3', () => {
-    const currentMarkdown = {
-        ...markdown,
-        content: { markdown: markdown.content },
-    };
-
-    test.each([currentMarkdown, semantic, merge])(
-        'preserves current content exactly',
-        (cell) => {
-            const content = { cells: [cell] };
-            expect(parseDocumentContent(3, content)).toEqual(content);
-        },
-    );
-
-    test.each([currentMarkdown, semantic, merge])(
-        'rejects retired and speculative content metadata',
+    test.each([markdown, semantic, merge])(
+        'rejects unsupported content metadata',
         (cell) => {
             for (const extra of [
-                { title: 'Retired' },
+                { title: 'Title' },
                 { metadata: {} },
                 { futureField: true },
             ]) {
                 expect(() =>
-                    parseDocumentContent(3, {
+                    parseDocumentContent(1, {
                         cells: [
                             { ...cell, content: { ...cell.content, ...extra } },
                         ],
@@ -407,10 +361,4 @@ describe('Document schema version 3', () => {
             }
         },
     );
-
-    test('rejects string markdown on current writes', () => {
-        expect(() => parseDocumentContent(3, { cells: [markdown] })).toThrow(
-            'Invalid Document content',
-        );
-    });
 });

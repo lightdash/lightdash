@@ -72,7 +72,7 @@ import Analytics, {
 import { EventEmitter } from 'events';
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { LightdashConfig, ManagedAgentRuntime } from '../config/parseConfig';
+import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
 import Logger from '../logging/logger';
 import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
@@ -1970,6 +1970,29 @@ export type DataAppVersionRestoredEvent = BaseTrack & {
     };
 };
 
+export type DataAppThreadClearedEvent = BaseTrack & {
+    event: 'data_app.thread.cleared';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        threadNumber: number;
+    };
+};
+
+export type DataAppThreadSessionLostEvent = BaseTrack & {
+    event: 'data_app.thread.session_lost';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        threadNumber: number;
+        previousSessionId: string;
+    };
+};
+
 export type DataAppDuplicatedEvent = BaseTrack & {
     event: 'data_app.duplicated';
     userId: string;
@@ -2095,6 +2118,8 @@ export type DataAppRegistryInstalledEvent = BaseTrack & {
         action: 'installed' | 'upgraded';
         /** The install revived a soft-deleted copy instead of creating one. */
         revived: boolean;
+        /** Saved charts repinned by the upgrade-consuming-charts sweep. */
+        upgradedChartCount: number;
     };
 };
 
@@ -2108,6 +2133,8 @@ export type DataAppEvent =
     | DataAppFileUploadedEvent
     | DataAppViewedEvent
     | DataAppVersionRestoredEvent
+    | DataAppThreadClearedEvent
+    | DataAppThreadSessionLostEvent
     | DataAppDuplicatedEvent
     | DataAppDeletedEvent
     | DataAppPromotedEvent
@@ -2321,7 +2348,6 @@ export type ManagedAgentRunCompletedEvent = BaseTrack & {
         runUuid: string;
         triggeredBy: 'cron' | 'manual' | 'on_enable';
         status: 'completed' | 'error';
-        runtime: ManagedAgentRuntime;
         provider: string | null;
         model: string | null;
         keyManagement: AiKeyManagement | null;
@@ -2450,6 +2476,7 @@ export type DownloadCsv = BaseTrack & {
     userId: string;
     properties: {
         jobId?: string;
+        queryId?: string;
         organizationId?: string;
         projectId: string;
         tableId?: string;

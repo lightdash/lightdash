@@ -5,9 +5,14 @@ import {
     type CompiledDimension,
     type CompiledMetric,
     type DataAppVizField,
+    type DataAppVizSchema,
     type ItemsMap,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
+import {
+    buildTestMetricQuery,
+    isMappingComplete,
+} from '../components/dataAppVizTestQuery';
 import {
     autoMapDataAppVizFields,
     getUnboundRequiredDataAppVizFields,
@@ -48,6 +53,31 @@ const field = (
     type: DataAppVizField['type'],
     required = true,
 ): DataAppVizField => ({ name, label: name, type, required });
+
+const funnelSchema: DataAppVizSchema = {
+    fields: [
+        {
+            name: 'step',
+            label: 'Step',
+            type: 'dimension',
+            required: true,
+            description: 'The label for each funnel stage.',
+            examples: ['Listing started', 'Price entered'],
+        },
+        {
+            name: 'count',
+            label: 'Count',
+            type: 'metric',
+            required: true,
+            description: 'The number that reached the stage.',
+            examples: [120, 83],
+        },
+    ],
+    configOptions: [],
+    colorPalette: null,
+    inputGuidance:
+        'Use one row per stage in the intended order. Reshape separate metrics or boolean flags into stage/count rows before mapping.',
+};
 
 describe('autoMapDataAppVizFields', () => {
     it('binds nothing when the contract declares no slots', () => {
@@ -141,6 +171,32 @@ describe('autoMapDataAppVizFields', () => {
         expect(mapping).toEqual({
             first: 'orders_status',
             second: 'orders_method',
+        });
+    });
+
+    it('reserves one column for every required slot before filling a multiple slot', () => {
+        const mapping = autoMapDataAppVizFields(
+            [
+                { ...field('values', 'metric'), multiple: true },
+                field('target', 'metric'),
+            ],
+            itemsMap(metric('first'), metric('second'), metric('third')),
+        );
+
+        expect(mapping).toEqual({
+            target: 'orders_second',
+            values: ['orders_first', 'orders_third'],
+        });
+    });
+
+    it('fills remaining compatible columns for an optional multiple slot', () => {
+        expect(
+            autoMapDataAppVizFields(
+                [{ ...field('values', 'metric', false), multiple: true }],
+                itemsMap(metric('first'), metric('second'), metric('third')),
+            ),
+        ).toEqual({
+            values: ['orders_first', 'orders_second', 'orders_third'],
         });
     });
 
@@ -271,6 +327,93 @@ describe('reconcileDataAppVizFieldMapping', () => {
         });
     });
 
+    it('keeps a multiple binding ordered, unique, and unexpanded on reconcile', () => {
+        const mapping = reconcileDataAppVizFieldMapping(
+            [{ ...field('values', 'metric'), multiple: true }],
+            itemsMap(metric('first'), metric('second'), metric('third')),
+            {
+                values: [
+                    'orders_second',
+                    'orders_missing',
+                    'orders_first',
+                    'orders_second',
+                ],
+            },
+        );
+
+        expect(mapping).toEqual({
+            values: ['orders_second', 'orders_first'],
+        });
+    });
+
+    it('preserves an explicit empty multiple binding through reconciliation', () => {
+        const mapping = reconcileDataAppVizFieldMapping(
+            [{ ...field('values', 'metric'), multiple: true }],
+            itemsMap(metric('first')),
+            { values: [] },
+        );
+
+        expect(mapping).toEqual({ values: [] });
+        expect(
+            getUnboundRequiredDataAppVizFields(
+                [{ ...field('values', 'metric'), multiple: true }],
+                mapping,
+            ),
+        ).toHaveLength(1);
+    });
+
+    it('rebinds a required multiple slot after all saved fields depart or change type', () => {
+        const fields = [{ ...field('values', 'metric'), multiple: true }];
+        const items = itemsMap(dimension('status'), metric('replacement'));
+
+        expect(
+            reconcileDataAppVizFieldMapping(fields, items, {
+                values: ['orders_departed'],
+            }),
+        ).toEqual({ values: ['orders_replacement'] });
+        expect(
+            reconcileDataAppVizFieldMapping(fields, items, {
+                values: ['orders_status'],
+            }),
+        ).toEqual({ values: ['orders_replacement'] });
+    });
+
+    it('leaves an optional multiple slot unbound after all saved fields depart', () => {
+        expect(
+            reconcileDataAppVizFieldMapping(
+                [{ ...field('values', 'metric', false), multiple: true }],
+                itemsMap(metric('replacement')),
+                { values: ['orders_departed'] },
+            ),
+        ).toEqual({});
+    });
+
+    it('converts a legacy scalar to a multiple binding and a multiple binding to its first scalar', () => {
+        const items = itemsMap(metric('first'), metric('second'));
+        expect(
+            reconcileDataAppVizFieldMapping(
+                [{ ...field('values', 'metric'), multiple: true }],
+                items,
+                { values: 'orders_second' },
+            ),
+        ).toEqual({ values: ['orders_second'] });
+        expect(
+            reconcileDataAppVizFieldMapping([field('value', 'metric')], items, {
+                value: ['orders_second', 'orders_first'],
+            }),
+        ).toEqual({ value: 'orders_second' });
+    });
+
+    it('uses the first still-valid multiple member when a slot becomes scalar', () => {
+        const mapping = reconcileDataAppVizFieldMapping(
+            [field('value', 'metric')],
+            itemsMap(metric('first'), metric('second')),
+            { value: ['orders_removed', 'orders_second', 'orders_first'] },
+        );
+
+        expect(mapping).toEqual({ value: 'orders_second' });
+    });
+
     it('matches a fresh auto-map when nothing is persisted and all slots are required', () => {
         const fields = [
             field('category', 'dimension'),
@@ -303,5 +446,76 @@ describe('getUnboundRequiredDataAppVizFields', () => {
             fields[0],
             fields[1],
         ]);
+    });
+});
+
+describe('representative funnel query shapes', () => {
+    it('leaves Step unbound for separate stage measures and directs the required-field recovery', () => {
+        const mapping = autoMapDataAppVizFields(
+            funnelSchema.fields,
+            itemsMap(metric('listing_started'), metric('price_entered')),
+        );
+
+        expect(mapping).toEqual({
+            count: 'orders_listing_started',
+        });
+        expect(isMappingComplete(funnelSchema, mapping)).toBe(false);
+        expect(
+            getUnboundRequiredDataAppVizFields(
+                funnelSchema.fields,
+                mapping,
+            ).map((field) => field.label),
+        ).toEqual(['Step']);
+        expect(funnelSchema.inputGuidance).toContain(
+            'Reshape separate metrics or boolean flags into stage/count rows',
+        );
+    });
+
+    it('can map a boolean stage flag without claiming that the field has funnel semantics', () => {
+        const booleanFlag = {
+            ...dimension('reached_price'),
+            type: DimensionType.BOOLEAN,
+        };
+        const mapping = autoMapDataAppVizFields(
+            funnelSchema.fields,
+            itemsMap(booleanFlag, metric('count')),
+        );
+
+        expect(mapping).toEqual({
+            step: 'orders_reached_price',
+            count: 'orders_count',
+        });
+        expect(isMappingComplete(funnelSchema, mapping)).toBe(true);
+        expect(funnelSchema.inputGuidance).toContain('boolean flags');
+    });
+
+    it('maps a reshaped stage/count query and keeps the same help for different field ids', () => {
+        const firstMapping = autoMapDataAppVizFields(
+            funnelSchema.fields,
+            itemsMap(dimension('stage'), metric('count')),
+        );
+        const reshapedMapping = autoMapDataAppVizFields(
+            funnelSchema.fields,
+            itemsMap(dimension('funnel_stage'), metric('funnel_count')),
+        );
+
+        expect(isMappingComplete(funnelSchema, reshapedMapping)).toBe(true);
+        expect(
+            getUnboundRequiredDataAppVizFields(
+                funnelSchema.fields,
+                reshapedMapping,
+            ),
+        ).toEqual([]);
+        expect(
+            buildTestMetricQuery('orders', funnelSchema, reshapedMapping, {}),
+        ).toMatchObject({
+            dimensions: ['orders_funnel_stage'],
+            metrics: ['orders_funnel_count'],
+        });
+        expect(firstMapping).toEqual({
+            step: 'orders_stage',
+            count: 'orders_count',
+        });
+        expect(funnelSchema.inputGuidance).toContain('one row per stage');
     });
 });

@@ -220,6 +220,7 @@ export const AiChartQuickOptions = ({
         projectUuid,
         readDataAppVizUuid(customChartTypeConfig),
         customChartTypeRenderTarget,
+        customChartTypeConfig?.dataAppVizVersion,
     );
 
     const savedData = useMemo(

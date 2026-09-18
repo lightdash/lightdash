@@ -60,6 +60,40 @@ type SampleFields = {
     metrics: DataAppVizField[];
 };
 
+const expandSampleFields = (schema: DataAppVizSchema) => {
+    const fieldMapping: DataAppVizContext['fieldMapping'] = {};
+    const declaredNames = new Set(schema.fields.map((field) => field.name));
+    const generatedNames = new Set<string>();
+    const uniqueGeneratedName = (base: string): string => {
+        let name = base;
+        let suffix = 2;
+        while (declaredNames.has(name) || generatedNames.has(name)) {
+            name = `${base}_${suffix++}`;
+        }
+        generatedNames.add(name);
+        return name;
+    };
+    const fields = schema.fields.flatMap((field) => {
+        const copies = field.multiple ? 3 : 1;
+        const expanded = Array.from({ length: copies }, (_, index) => ({
+            ...field,
+            name:
+                copies === 1
+                    ? field.name
+                    : uniqueGeneratedName(`${field.name}_${index + 1}`),
+            label: copies === 1 ? field.label : `${field.label} ${index + 1}`,
+            multiple: false,
+        }));
+        if (field.multiple) {
+            fieldMapping[field.name] = expanded.map(sampleColumnId);
+        } else {
+            fieldMapping[field.name] = sampleColumnId(expanded[0]);
+        }
+        return expanded;
+    });
+    return { fields, fieldMapping };
+};
+
 const sampleResultColumn = (
     field: DataAppVizField,
     type: DimensionType,
@@ -201,10 +235,14 @@ export const buildSampleVizContext = (
     colorPalette: string[] = ECHARTS_DEFAULT_COLORS,
     optionValues: DataAppVizOptionValues = {},
 ): DataAppVizContext => {
+    const expanded = expandSampleFields(schema);
     const fields: SampleFields = {
-        dimensions: schema.fields.filter((f) => f.type === 'dimension'),
-        series: schema.fields.filter((f) => f.type === 'series'),
-        metrics: schema.fields.filter((f) => f.type === 'metric'),
+        dimensions: expanded.fields.filter((f) => f.type === 'dimension'),
+        series: expanded.fields.filter((f) => f.type === 'series'),
+        // Any-column slots use numeric samples and follow the metric pivot path.
+        metrics: expanded.fields.filter(
+            (f) => f.type === 'metric' || f.type === 'column',
+        ),
     };
 
     // A chart type that declares a series field renders from pivoted rows, so
@@ -214,9 +252,7 @@ export const buildSampleVizContext = (
     const shouldPivot = fields.series.length > 0 && fields.metrics.length > 0;
 
     return {
-        fieldMapping: Object.fromEntries(
-            schema.fields.map((field) => [field.name, sampleColumnId(field)]),
-        ),
+        fieldMapping: expanded.fieldMapping,
         options: getEffectiveOptionValues(schema.configOptions, optionValues),
         colorPalette,
         seriesColors: {},

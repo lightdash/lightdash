@@ -291,6 +291,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 },
             },
             {
+                task: EE_SCHEDULER_TASKS.SWEEP_STALE_AI_EVAL_RUNS,
+                pattern: '*/2 * * * *',
+                options: {
+                    backfillPeriod: 5 * 60 * 1000,
+                    maxAttempts: 1,
+                },
+            },
+            {
                 task: EE_SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS,
                 pattern: '*/2 * * * *',
                 options: {
@@ -479,6 +487,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 payload,
                 helpers,
             ) => {
+                // The timeout must stop the agent, not just report it.
+                const abort = new AbortController();
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         EE_SCHEDULER_TASKS.DATA_APP_INVESTIGATE,
@@ -490,12 +500,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                                 payload,
                                 helpers.job.id,
                                 helpers.job.run_at,
+                                abort.signal,
                             );
                         },
                     ),
                     helpers.job,
                     DATA_APP_INVESTIGATE_TIMEOUT_MS,
                     async (job, e) => {
+                        abort.abort();
                         await this.schedulerService.logSchedulerJob({
                             task: EE_SCHEDULER_TASKS.DATA_APP_INVESTIGATE,
                             jobId: job.id,
@@ -1028,6 +1040,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 async () => {
                     await this.aiDeepResearchService.sweepStaleRuns();
                 },
+            [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_EVAL_RUNS]: async () => {
+                await this.aiAgentService.sweepStaleEvalRuns();
+            },
             [EE_SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS]: async (
                 payload,
                 helpers,

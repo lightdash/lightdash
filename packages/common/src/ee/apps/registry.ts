@@ -182,8 +182,16 @@ export type RegistryChartTypeState =
     | 'update_available'
     | 'incompatible';
 
+/**
+ * Server-derived release stage. The raw `channel` is ambiguous when absent:
+ * stable on the stable index, unpointed (pre-release) on index-next — only
+ * the backend knows which index the instance reads.
+ */
+export type RegistryChartTypeReleaseStage = 'stable' | 'beta' | 'prerelease';
+
 export type RegistryChartTypeListItem = ChartRegistryEntry & {
     state: RegistryChartTypeState;
+    releaseStage: RegistryChartTypeReleaseStage;
     installedAppUuid: string | null;
     installedRegistryVersion: string | null;
     installedCreatedByUserUuid: string | null;
@@ -194,9 +202,20 @@ export type ApiListRegistryChartTypesResponse = ApiSuccess<{
     charts: RegistryChartTypeListItem[];
 }>;
 
+export type InstallRegistryChartTypeBody = {
+    /**
+     * Also move every consuming saved chart's pinned version onto the
+     * installed version, deliberately overriding per-chart pins. Unpinned
+     * charts already follow the latest version and are left untouched.
+     */
+    upgradeConsumingCharts?: boolean;
+};
+
 export type ApiInstallRegistryChartTypeResponse = ApiSuccess<{
     appUuid: string;
     slug: string;
     version: number;
     action: 'installed' | 'upgraded' | 'unchanged';
+    /** Saved charts repinned by `upgradeConsumingCharts` (0 when not requested). */
+    upgradedChartCount: number;
 }>;

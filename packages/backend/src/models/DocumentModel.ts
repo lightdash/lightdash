@@ -1,13 +1,12 @@
 import {
-    applyDocumentCellOperations,
     ConflictError,
     Document,
     DOCUMENT_SCHEMA_VERSION,
-    DocumentCellOperation,
-    DocumentContentV3,
+    DocumentContent,
     DocumentSummary,
     NotFoundError,
     parseDocumentContent,
+    UpdateDocumentContentRequest,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -29,14 +28,11 @@ export type CreateDocument = {
     name: string;
     slug?: string;
     description: string;
-    content: DocumentContentV3;
+    content: DocumentContent;
     createdByUserUuid: string | null;
 };
 
-export type DocumentContentUpdate = { baseVersionUuid: string } & (
-    | { operations: DocumentCellOperation[] }
-    | { content: DocumentContentV3 }
-);
+export type DocumentContentUpdate = UpdateDocumentContentRequest;
 
 type DocumentRow = DbDocument & {
     organization_uuid: string;
@@ -480,16 +476,10 @@ export class DocumentModel {
                     'Document has changed. Reload the latest version before editing.',
                 );
             }
-            const content =
-                'content' in input
-                    ? parseDocumentContent(
-                          DOCUMENT_SCHEMA_VERSION,
-                          input.content,
-                      )
-                    : applyDocumentCellOperations(
-                          document.version.content,
-                          input.operations,
-                      );
+            const content = parseDocumentContent(
+                DOCUMENT_SCHEMA_VERSION,
+                input.content,
+            );
             await transaction(DocumentVersionsTableName).insert({
                 document_id: row.document_id,
                 version_number: document.version.versionNumber + 1,

@@ -3,6 +3,7 @@ import {
     FieldType,
     getItemId,
     isLightdashParameterOption,
+    resolveParameterDefault,
     type FilterableItem,
     type LightdashProjectParameter,
     type ParametersValuesMap,
@@ -146,10 +147,11 @@ export const ParameterInput: FC<ParameterInputProps> = ({
     }, [results, shouldFetch]);
 
     const placeholder = useMemo(() => {
-        const defaultValues = parameter.default
-            ? Array.isArray(parameter.default)
-                ? parameter.default
-                : [parameter.default]
+        const resolvedDefault = resolveParameterDefault(parameter);
+        const defaultValues = resolvedDefault
+            ? Array.isArray(resolvedDefault)
+                ? resolvedDefault
+                : [resolvedDefault]
             : undefined;
         return defaultValues
             ? `${

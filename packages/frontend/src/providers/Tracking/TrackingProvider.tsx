@@ -1,4 +1,5 @@
 import { LightdashMode } from '@lightdash/common';
+import noop from 'lodash/noop';
 import {
     memo,
     useCallback,
@@ -18,6 +19,7 @@ import {
     type PageData,
     type SectionData,
     type TrackingData,
+    type TrackingContextType,
 } from './types';
 import useTracking from './useTracking';
 
@@ -169,6 +171,13 @@ const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
     );
 };
 
+const disabledTrackingContext: TrackingContextType = {
+    data: {},
+    page: noop,
+    track: noop,
+    identify: noop,
+};
+
 interface TrackingProviderProps extends TrackingData {
     enabled?: boolean;
 }
@@ -183,7 +192,11 @@ const TrackingProvider: FC<React.PropsWithChildren<TrackingProviderProps>> = ({
             <TrackingProviderMain {...rest}>{children}</TrackingProviderMain>
         );
     } else {
-        return <>{children}</>;
+        return (
+            <TrackingContext.Provider value={disabledTrackingContext}>
+                {children}
+            </TrackingContext.Provider>
+        );
     }
 };
 
@@ -191,8 +204,11 @@ const NestedTrackingProvider: FC<
     React.PropsWithChildren<Partial<TrackingData>>
 > = ({ children, ...rest }) => (
     <TrackingContext.Consumer>
-        {({ data }) => (
-            <TrackingProvider {...{ ...data, ...rest }}>
+        {(context) => (
+            <TrackingProvider
+                {...{ ...context.data, ...rest }}
+                enabled={context !== disabledTrackingContext}
+            >
                 {children || null}
             </TrackingProvider>
         )}

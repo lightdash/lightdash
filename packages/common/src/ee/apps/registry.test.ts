@@ -36,6 +36,30 @@ describe('chartRegistryIndexSchema', () => {
         });
         expect(result.success).toBe(true);
     });
+    it('retains multi-field declarations in registry entries', () => {
+        const result = chartRegistryIndexSchema.parse({
+            schemaVersion: 1,
+            generatedAt: '2026-08-31T00:00:00.000Z',
+            charts: [
+                {
+                    ...validEntry,
+                    vizSchema: {
+                        ...validEntry.vizSchema,
+                        fields: [
+                            {
+                                name: 'values',
+                                label: 'Values',
+                                type: 'metric',
+                                required: true,
+                                multiple: true,
+                            },
+                        ],
+                    },
+                },
+            ],
+        });
+        expect(result.charts[0]?.vizSchema.fields[0]?.multiple).toBe(true);
+    });
     it('rejects a non-semver version', () => {
         const result = chartRegistryIndexSchema.safeParse({
             schemaVersion: 1,

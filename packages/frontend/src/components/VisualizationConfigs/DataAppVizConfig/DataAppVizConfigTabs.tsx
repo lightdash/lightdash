@@ -16,10 +16,7 @@ import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDa
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVizRenderMetadata } from '../../../features/chartTypes/hooks/useDataAppVizRender';
-import {
-    getUnboundRequiredDataAppVizFields,
-    reconcileDataAppVizFieldMapping,
-} from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
+import { reconcileDataAppVizFieldMapping } from '../../../features/chartTypes/utils/autoMapDataAppVizFields';
 import { chartTypeBuilderPath } from '../../../features/chartTypes/utils/chartTypeBuilderPath';
 import { getDataAppVizFieldItems } from '../../../features/chartTypes/utils/getDataAppVizFieldItems';
 import {
@@ -41,6 +38,7 @@ import { type CustomChartTypeOption } from '../CustomChartType/customChartTypeOp
 import CustomChartTypeSection from '../CustomChartType/CustomChartTypeSection';
 import { useSelectProjectChartType } from '../CustomChartType/useSelectProjectChartType';
 import classes from './DataAppVizConfigTabs.module.css';
+import DataAppVizInputGuidance from './DataAppVizInputGuidance';
 import DataAppVizOptionTabs from './DataAppVizOptionTabs';
 import DataAppVizSettings from './DataAppVizSettings';
 import DataAppVizUpgradeNotice from './DataAppVizUpgradeNotice';
@@ -58,8 +56,13 @@ export const ConfigTabs: FC = memo(() => {
     const projectUuid = useProjectUuid();
     const location = useLocation();
     const navigate = useNavigate();
-    const { visualizationConfig, itemsMap, setChartType, setPivotDimensions } =
-        useVisualizationContext();
+    const {
+        visualizationConfig,
+        itemsMap,
+        colorPalette: resolvedColorPalette,
+        setChartType,
+        setPivotDimensions,
+    } = useVisualizationContext();
     const { addableItems, isFieldPending } = useAddFieldsToQuery();
     const selectProjectChartType = useSelectProjectChartType();
     const dispatch = useExplorerDispatch();
@@ -180,7 +183,7 @@ export const ConfigTabs: FC = memo(() => {
         );
         // A rebuild can change the contract under a stable uuid, so the selects
         // show the saved mapping reconciled the way the renderer does.
-        const effectiveMapping = reconcileDataAppVizFieldMapping(
+        const effectiveBindings = reconcileDataAppVizFieldMapping(
             fields,
             effectiveItemsMap,
             selectedViz.fieldMapping,
@@ -188,33 +191,33 @@ export const ConfigTabs: FC = memo(() => {
 
         const handleFieldChange = (
             fieldName: string,
-            fieldId: string | null,
+            fieldId: string | string[] | null,
         ) => {
-            const nextMapping = { ...effectiveMapping };
-            if (fieldId) nextMapping[fieldName] = fieldId;
-            else delete nextMapping[fieldName];
+            const nextFieldMapping = { ...effectiveBindings };
+            if (Array.isArray(fieldId)) {
+                nextFieldMapping[fieldName] = fieldId;
+            } else if (fieldId !== null) {
+                nextFieldMapping[fieldName] = fieldId;
+            } else {
+                delete nextFieldMapping[fieldName];
+            }
 
             setField(fieldName, fieldId);
             setPivotDimensions(
-                deriveDataAppVizPivotConfig(fields, nextMapping)?.columns,
+                deriveDataAppVizPivotConfig(fields, nextFieldMapping)?.columns,
             );
         };
 
-        const unboundRequired = getUnboundRequiredDataAppVizFields(
-            fields,
-            effectiveMapping,
-        );
-
         const handleUpgrade = () => {
             if (!upgradeTarget) return;
-            const nextMapping = reconcileDataAppVizFieldMapping(
+            const nextBindings = reconcileDataAppVizFieldMapping(
                 upgradeTarget.schema.fields,
                 effectiveItemsMap,
                 selectedViz.fieldMapping,
             );
             upgradeDataAppVizVersion(
                 upgradeTarget.version,
-                nextMapping,
+                nextBindings,
                 pruneDataAppVizOptionValues(
                     upgradeTarget.schema.configOptions,
                     selectedViz.optionValues,
@@ -223,33 +226,21 @@ export const ConfigTabs: FC = memo(() => {
             setPivotDimensions(
                 deriveDataAppVizPivotConfig(
                     upgradeTarget.schema.fields,
-                    nextMapping,
+                    nextBindings,
                 )?.columns,
             );
         };
 
         const settings = (
             <Stack>
-                {unboundRequired.length > 0 && (
-                    <Text fz="xs" c="dimmed">
-                        Select{' '}
-                        {unboundRequired.length === 1 ? 'a field' : 'fields'}{' '}
-                        for{' '}
-                        {new Intl.ListFormat('en', {
-                            type: 'conjunction',
-                        }).format(
-                            unboundRequired.map(
-                                (field) => '“' + field.label + '”',
-                            ),
-                        )}{' '}
-                        to display your chart.
-                    </Text>
-                )}
                 <DataAppVizSettings
                     itemsMap={effectiveItemsMap}
                     fields={fields}
-                    fieldMapping={effectiveMapping}
+                    fieldMapping={effectiveBindings}
                     onFieldChange={handleFieldChange}
+                />
+                <DataAppVizInputGuidance
+                    guidance={dataAppViz?.schema?.inputGuidance}
                 />
                 {dataAppViz && !isInsideChartGallery && (
                     <Box className={classes.typeCard}>
@@ -308,6 +299,7 @@ export const ConfigTabs: FC = memo(() => {
                         setOption(selectedViz.dataAppVizUuid, name, value)
                     }
                     colorPalette={colorPalette}
+                    resolvedColorPalette={resolvedColorPalette}
                     paletteControl={<ColorPaletteSection size="xs" />}
                 />
             </>

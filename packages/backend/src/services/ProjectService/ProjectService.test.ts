@@ -55,7 +55,7 @@ import {
     type Job,
     type LightdashProjectConfig,
     type MergeQuery,
-    type MergeQuerySource,
+    type MergeQueryMetricSource,
     type PossibleAbilities,
     type Project,
     type ProjectDbtSource,
@@ -229,7 +229,7 @@ const projectModel = {
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
     getExploreFromCache: vi.fn(async () => validExplore),
-    getQueryTimezone: vi.fn(async () => null),
+    getQueryTimezone: vi.fn(async (): Promise<string | null> => null),
     getProjectWarehouseConfig: vi.fn(async () => ({
         organizationWarehouseCredentialsUuid: null,
         queryTimezone: null,
@@ -3133,6 +3133,7 @@ describe('ProjectService', () => {
                     private_key: 'project-private-key',
                 },
                 requireUserCredentials: false,
+                allowUserCredentials: true,
             };
             const personalCredentials = {
                 uuid: 'personal-bigquery-credentials',
@@ -3184,6 +3185,28 @@ describe('ProjectService', () => {
                 ).userWarehouseCredentialsModel.findForProjectWithSecrets =
                     findPersonalCredentials;
             });
+
+            test.each([undefined, false])(
+                'uses the shared connection when personal credentials are not enabled (%s)',
+                async (allowUserCredentials) => {
+                    const sharedCredentials = {
+                        ...projectCredentials,
+                        allowUserCredentials,
+                    };
+                    vi.mocked(
+                        projectModel.getWarehouseCredentialsForProject,
+                    ).mockResolvedValueOnce(sharedCredentials);
+                    findPersonalCredentials.mockResolvedValue(
+                        personalCredentials,
+                    );
+
+                    expect(await getCredentials()).toEqual({
+                        ...sharedCredentials,
+                        userWarehouseCredentialsUuid: undefined,
+                    });
+                    expect(findPersonalCredentials).not.toHaveBeenCalled();
+                },
+            );
 
             test.each([
                 BigqueryAuthenticationType.PRIVATE_KEY,
@@ -3250,6 +3273,7 @@ describe('ProjectService', () => {
                 ).mockResolvedValueOnce({
                     ...projectCredentials,
                     requireUserCredentials: true,
+                    allowUserCredentials: false,
                 });
 
                 await expect(getCredentials()).rejects.toThrow(
@@ -3263,6 +3287,7 @@ describe('ProjectService', () => {
                 ).mockResolvedValueOnce({
                     ...projectCredentials,
                     requireUserCredentials: true,
+                    allowUserCredentials: false,
                 });
                 findPersonalCredentials.mockResolvedValue(personalCredentials);
 
@@ -6143,6 +6168,153 @@ describe('ProjectService', () => {
             // Saved param without request override is still included
             expect(result.region).toBe('US');
         });
+
+        describe('date parameter with a `today` default', () => {
+            beforeEach(() => {
+                vi.useFakeTimers().setSystemTime(
+                    new Date('2026-09-17T12:00:00Z'),
+                );
+                projectModel.getQueryTimezone.mockResolvedValue('UTC');
+            });
+            afterEach(() => {
+                vi.useRealTimers();
+                projectModel.getQueryTimezone.mockReset();
+                projectModel.getQueryTimezone.mockResolvedValue(null);
+            });
+
+            test('takes the date in the project query timezone', async () => {
+                // 23:30 UTC on 17 Sep is already 18 Sep in Auckland
+                vi.setSystemTime(new Date('2026-09-17T23:30:00Z'));
+                projectModel.getQueryTimezone.mockResolvedValue(
+                    'Pacific/Auckland',
+                );
+                (
+                    service as unknown as {
+                        projectParametersModel: {
+                            find: import('vitest').Mock;
+                        };
+                    }
+                ).projectParametersModel.find.mockResolvedValueOnce([
+                    {
+                        name: 'period_to',
+                        config: {
+                            label: 'Period to',
+                            type: 'date',
+                            default: 'today',
+                        },
+                    },
+                ]);
+
+                const result = await service.combineParameters(projectUuid);
+
+                expect(result.period_to).toBe('2026-09-18');
+                expect(projectModel.getQueryTimezone).toHaveBeenCalledWith(
+                    projectUuid,
+                );
+            });
+
+            test('does not look up the timezone when no default is `today`', async () => {
+                (
+                    service as unknown as {
+                        projectParametersModel: {
+                            find: import('vitest').Mock;
+                        };
+                    }
+                ).projectParametersModel.find.mockResolvedValueOnce([
+                    {
+                        name: 'fixed',
+                        config: {
+                            label: 'Fixed',
+                            type: 'date',
+                            default: '2026-07-31',
+                        },
+                    },
+                ]);
+
+                const result = await service.combineParameters(projectUuid);
+
+                expect(result.fixed).toBe('2026-07-31');
+                expect(projectModel.getQueryTimezone).not.toHaveBeenCalled();
+            });
+
+            test('resolves project and model level defaults to the current date', async () => {
+                (
+                    service as unknown as {
+                        projectParametersModel: {
+                            find: import('vitest').Mock;
+                        };
+                    }
+                ).projectParametersModel.find.mockResolvedValueOnce([
+                    {
+                        name: 'period_to',
+                        config: {
+                            label: 'Period to',
+                            type: 'date',
+                            default: 'today',
+                        },
+                    },
+                ]);
+                const explore = {
+                    name: 'orders',
+                    baseTable: 'orders',
+                    tables: {
+                        orders: {
+                            name: 'orders',
+                            parameters: {
+                                as_of: {
+                                    label: 'As of',
+                                    type: 'date',
+                                    default: 'today',
+                                },
+                                fixed: {
+                                    label: 'Fixed',
+                                    type: 'date',
+                                    default: '2026-07-31',
+                                },
+                            },
+                        },
+                    },
+                } as unknown as Explore;
+
+                const result = await service.combineParameters(
+                    projectUuid,
+                    explore,
+                );
+
+                expect(result).toEqual({
+                    period_to: '2026-09-17',
+                    'orders.as_of': '2026-09-17',
+                    'orders.fixed': '2026-07-31',
+                });
+            });
+
+            test('an explicit value still wins over the resolved default', async () => {
+                (
+                    service as unknown as {
+                        projectParametersModel: {
+                            find: import('vitest').Mock;
+                        };
+                    }
+                ).projectParametersModel.find.mockResolvedValueOnce([
+                    {
+                        name: 'period_to',
+                        config: {
+                            label: 'Period to',
+                            type: 'date',
+                            default: 'today',
+                        },
+                    },
+                ]);
+
+                const result = await service.combineParameters(
+                    projectUuid,
+                    undefined,
+                    { period_to: '2026-07-31' },
+                );
+
+                expect(result.period_to).toBe('2026-07-31');
+            });
+        });
     });
 
     describe('getChartsByExploreName', () => {
@@ -6606,7 +6778,7 @@ describe('ProjectService', () => {
         const source = (
             id: string,
             tableCalculations: MergeQuery['tableCalculations'] = [],
-        ): MergeQuerySource => ({
+        ): MergeQueryMetricSource => ({
             id,
             metricQuery: {
                 exploreName: validExplore.name,
@@ -6747,6 +6919,64 @@ describe('ProjectService', () => {
             });
 
             expect(result.terminalWrapper?.orderBy).toEqual(['"merge_dim1"']);
+        });
+
+        // The key is a dimension of the explore, so the leg groups by it and
+        // the join has its column; the merged result shows it once, as the key.
+        test('groups a leg by a join key dimension its query does not select', async () => {
+            const unselected = source('b');
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    sources: [
+                        source('a'),
+                        {
+                            ...unselected,
+                            metricQuery: {
+                                ...unselected.metricQuery,
+                                dimensions: [],
+                            },
+                        },
+                    ],
+                }),
+            });
+
+            expect(result.errors).toEqual([]);
+            expect(result.legs[1].sql).toContain('AS `a_dim1`');
+            expect(result.legs[1].sql).toContain('GROUP BY');
+            // The leg the run submits is the widened query, not the request
+            expect(result.legs[1].metricQuery?.dimensions).toEqual(['a_dim1']);
+            expect(result.legs[0].metricQuery?.dimensions).toEqual(['a_dim1']);
+            expect(result.fields.map((field) => field.sourceFieldId)).toEqual([
+                null,
+                'a_met1',
+                'a_met1',
+            ]);
+        });
+
+        test('refuses a join key the source explore has no dimension for', async () => {
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    joinKey: [
+                        {
+                            name: 'dim1',
+                            fieldIdBySourceId: { a: 'a_dim1', b: 'a_ghost' },
+                        },
+                    ],
+                }),
+            });
+
+            expect(result.sql).toBeNull();
+            expect(result.errors).toContainEqual(
+                expect.objectContaining({
+                    kind: MergeQueryErrorKind.JOIN_KEY_NOT_SELECTED,
+                    sourceId: 'b',
+                    fieldIds: ['a_ghost'],
+                }),
+            );
         });
 
         describe('merge calculation SQL authorization', () => {

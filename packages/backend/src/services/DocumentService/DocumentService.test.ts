@@ -33,11 +33,10 @@ const document: Document = {
     version: {
         versionUuid: 'version-uuid',
         versionNumber: 1,
-        schemaVersion: 3,
+        schemaVersion: 1,
         content: {
             cells: [
                 {
-                    id: 'intro',
                     type: 'markdown',
                     content: { markdown: '# Findings' },
                 },
@@ -143,6 +142,67 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
 };
 
 describe('DocumentService', () => {
+    test('UUID read identifiers retain UUID lookup and canonical authorization', async () => {
+        const { service, documentModel, spacePermissionService } = setup();
+        const identifier = '36d4516a-3af0-48f6-9b47-d50956301501';
+        documentModel.get.mockResolvedValue({
+            ...document,
+            documentUuid: identifier,
+        });
+        await expect(
+            service.getByIdOrSlug(makeAccount(), projectUuid, identifier),
+        ).resolves.toMatchObject({ documentUuid: identifier });
+        expect(documentModel.get).toHaveBeenCalledWith(projectUuid, identifier);
+        expect(documentModel.getBySlug).not.toHaveBeenCalled();
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            userUuid,
+            {
+                type: 'document',
+                documentUuid: identifier,
+                spaceUuid,
+            },
+        );
+    });
+
+    test('slug read identifiers resolve before permission checks', async () => {
+        const { service, documentModel, spacePermissionService } = setup();
+        await expect(
+            service.getByIdOrSlug(makeAccount(), projectUuid, document.slug),
+        ).resolves.toMatchObject(document);
+        expect(documentModel.getBySlug).toHaveBeenCalledWith(
+            projectUuid,
+            document.slug,
+        );
+        expect(documentModel.get).not.toHaveBeenCalled();
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            userUuid,
+            {
+                type: 'document',
+                documentUuid,
+                spaceUuid,
+            },
+        );
+    });
+
+    test('slug read identifiers cannot bypass the feature flag', async () => {
+        const { service, documentModel, featureFlagModel } = setup();
+        featureFlagModel.get.mockResolvedValue({ enabled: false });
+        await expect(
+            service.getByIdOrSlug(makeAccount(), projectUuid, document.slug),
+        ).rejects.toThrow(ForbiddenError);
+        expect(documentModel.getBySlug).not.toHaveBeenCalled();
+    });
+
+    test('slug read identifiers cannot expose inaccessible Documents', async () => {
+        const { service, spacePermissionService } = setup();
+        spacePermissionService.resolveAccess.mockResolvedValue(
+            makeContext([], false),
+        );
+        await expect(
+            service.getByIdOrSlug(makeAccount(), projectUuid, document.slug),
+        ).rejects.toThrow(new NotFoundError('Document not found'));
+    });
+
     test('reads an exact project-scoped slug through normal Document authorization', async () => {
         const { service, documentModel, spacePermissionService } = setup();
         await expect(

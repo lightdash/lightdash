@@ -2,6 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { getToolCallChipLabel } from './getToolCallChipLabel';
 
 describe('getToolCallChipLabel', () => {
+    it('labels document reads by UUID when no slug is supplied', () => {
+        expect(
+            getToolCallChipLabel('readContent', {
+                type: 'document',
+                documentUuid: 'document-uuid',
+            }),
+        ).toBe('document-uuid');
+    });
+
+    it('continues to label document reads by slug when supplied', () => {
+        expect(
+            getToolCallChipLabel('readContent', {
+                type: 'document',
+                slug: 'hello-world',
+            }),
+        ).toBe('hello-world');
+    });
+
     it('returns null for runSql args without crashing', () => {
         // Regression: runSql used to fall through into the runContentQuery
         // handler and read `args.source.type` off undefined

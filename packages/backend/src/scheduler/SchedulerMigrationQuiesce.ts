@@ -128,7 +128,9 @@ export class SchedulerMigrationQuiesce {
         }
     }
 
-    async stop(): Promise<void> {
+    // Only cancels the lease machinery; the caller decides how to stop
+    // the workers (drain on ordinary shutdown, park for retry mid-migration).
+    stop(): void {
         if (this.stopped) {
             return;
         }
@@ -138,7 +140,6 @@ export class SchedulerMigrationQuiesce {
         this.clearPoll();
         this.clearGrace();
         this.cancelDequeueWaiters();
-        await this.hooks.stopWorkersForRetry('Scheduler worker stopping');
     }
 
     private applyLeaseState(active: boolean): void {

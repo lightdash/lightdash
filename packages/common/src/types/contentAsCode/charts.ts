@@ -37,6 +37,12 @@ export type DataAppVizChartAsCode = Omit<
 > & {
     dataAppVizSlug?: string;
     dataAppVizUuid?: string;
+    /**
+     * The version of the custom chart type this saved chart renders.
+     * @isInt
+     * @minimum 1
+     */
+    dataAppVizVersion?: number;
 };
 
 export type DataAppVizChartConfigAsCode = {
@@ -50,7 +56,7 @@ export type DataAppVizChartConfigAsCode = {
  * TSOA cannot resolve Exclude over object unions, which corrupts the
  * generated chart-as-code JSON schema. Keep in sync with ChartConfig.
  */
-export type ChartAsCodeConfig =
+export type ChartAsCodeConfig<CustomChartConfig = DataAppVizChartConfigAsCode> =
     | BigNumberConfig
     | CartesianChartConfig
     | CustomVisConfig
@@ -61,7 +67,7 @@ export type ChartAsCodeConfig =
     | GaugeChartConfig
     | MapChartConfig
     | SankeyChartConfig
-    | DataAppVizChartConfigAsCode;
+    | CustomChartConfig;
 
 // We want to only use properties that can be modified by the user
 // We'll be using slug to access these charts, so uuids are not included

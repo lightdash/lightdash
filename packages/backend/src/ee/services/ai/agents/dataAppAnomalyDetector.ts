@@ -13,7 +13,7 @@ const AnomalySchema = z.object({
     severity: z
         .enum(['high', 'medium', 'positive', 'info'])
         .describe(
-            'high: needs attention now; medium: worth a look; positive: notable improvement; info: context worth knowing',
+            'high: needs attention now; medium: worth a look; positive: notable improvement; info: context that changes how the other findings read (a gap, a partial period). Never info for "X is the largest share".',
         ),
     text: z
         .string()
@@ -111,6 +111,8 @@ Rules:
 - Use only the figures in the data. Never invent, extrapolate or round beyond what is shown.
 - Every claim names its period and its scope (which region, product, segment, etc.).
 - "Notable" means a material change against a comparison in the data, a breach of a target in the data, or an outlier among peers in the same table. Ordinary variation is not notable.
+- Assess each source section on its own before writing the summary. A row several times its peers in the same section, or a period several times its neighbouring periods, is notable even when every other section looks ordinary.
+- The largest category, the dominant share or the top of a ranking is not a finding by itself. Report it only when the data shows it changed or breaches a comparison.
 - Do not explain causes. Do not speculate about why. That is a separate step.
 - When the data has no comparison period, say so in limitations instead of inferring a trend.
 - When nothing is out of the ordinary, return an empty anomalies list and say so in the headline. That is a valid, useful answer.
@@ -124,9 +126,12 @@ export async function detectDataAppAnomalies(
     {
         content,
         instructions,
+        today,
     }: {
         content: string;
         instructions: string | null;
+        /** Calendar date the run happens on; the model has no clock. */
+        today: string;
     },
 ): Promise<DataAppDetection> {
     const telemetry = getGeneratorTelemetry(
@@ -145,6 +150,7 @@ export async function detectDataAppAnomalies(
             {
                 role: 'user',
                 content: [
+                    `Today is ${today}. Dates up to today are past, not forecasts.`,
                     instructions
                         ? `Author instructions:\n${instructions}`
                         : null,

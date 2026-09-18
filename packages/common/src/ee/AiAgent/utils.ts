@@ -141,10 +141,29 @@ export const parseAiArtifactChartConfig = (
             parsed.mergeConfig === null &&
             isCustomChartTypeSlugChartConfig(parsed.chartConfig)
         ) {
+            const versionCandidate =
+                'dataAppVizVersion' in config
+                    ? config.dataAppVizVersion
+                    : undefined;
+            if (
+                versionCandidate !== undefined &&
+                (typeof versionCandidate !== 'number' ||
+                    !Number.isInteger(versionCandidate) ||
+                    versionCandidate < 1)
+            ) {
+                return null;
+            }
+            const dataAppVizVersion =
+                typeof versionCandidate === 'number'
+                    ? versionCandidate
+                    : undefined;
             return {
                 source: 'customChartType',
                 schemaVersion: 1,
                 dataAppVizUuid: config.dataAppVizUuid,
+                ...(dataAppVizVersion === undefined
+                    ? {}
+                    : { dataAppVizVersion }),
                 config: parsed,
             };
         }
@@ -222,6 +241,9 @@ export const getDataAppVizChartFromArtifact = (
     if (!isCustomChartTypeSlugChartConfig(chartConfig)) return null;
     return {
         dataAppVizUuid: artifactConfig.dataAppVizUuid,
+        ...(artifactConfig.dataAppVizVersion === undefined
+            ? {}
+            : { dataAppVizVersion: artifactConfig.dataAppVizVersion }),
         fieldMapping: chartConfig.fieldMapping,
         ...(chartConfig.options ? { optionValues: chartConfig.options } : {}),
     };

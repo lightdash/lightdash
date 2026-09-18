@@ -83,6 +83,62 @@ describe('explore summary projection threshold', () => {
     });
 });
 
+describe('managed agent runtime variable', () => {
+    afterEach(() => {
+        delete process.env.MANAGED_AGENT_RUNTIME;
+        delete process.env.MANAGED_AGENT_ANTHROPIC_API_KEY;
+        delete process.env.MANAGED_AGENT_SKILL_IDS;
+    });
+
+    it.each(['MANAGED_AGENT_ANTHROPIC_API_KEY', 'MANAGED_AGENT_SKILL_IDS'])(
+        'warns that the retired %s is no longer used',
+        (name) => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            process.env[name] = 'retired-value';
+            try {
+                parseConfig();
+                expect(warn).toHaveBeenCalledWith(
+                    expect.stringContaining(
+                        `${name} is set but no longer used`,
+                    ),
+                );
+            } finally {
+                warn.mockRestore();
+            }
+        },
+    );
+
+    it.each(['anthropic-managed', 'ai-sdk'])(
+        'warns that MANAGED_AGENT_RUNTIME=%s is ignored',
+        (value) => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            process.env.MANAGED_AGENT_RUNTIME = value;
+            try {
+                parseConfig();
+                expect(warn).toHaveBeenCalledWith(
+                    expect.stringContaining(
+                        'MANAGED_AGENT_RUNTIME is set but no longer selects a runtime',
+                    ),
+                );
+            } finally {
+                warn.mockRestore();
+            }
+        },
+    );
+
+    it('stays quiet when the variable is unset', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            parseConfig();
+            expect(warn).not.toHaveBeenCalledWith(
+                expect.stringContaining('MANAGED_AGENT_'),
+            );
+        } finally {
+            warn.mockRestore();
+        }
+    });
+});
+
 describe('query history retention', () => {
     it('warns when cleanup can expire charts before their Deep Research reports', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -1094,22 +1150,6 @@ test('explains that Bedrock skip-auth does not configure backend credentials', (
     );
 });
 
-test('does not reuse an Anthropic gateway token for Managed Agent', () => {
-    process.env.ANTHROPIC_API_KEY = 'gateway-token';
-    process.env.ANTHROPIC_BASE_URL = 'https://anthropic-gateway.example';
-
-    expect(parseConfig().managedAgent.anthropicApiKey).toBeNull();
-
-    process.env.MANAGED_AGENT_ANTHROPIC_API_KEY = 'managed-agent-key';
-    expect(parseConfig().managedAgent.anthropicApiKey).toBe(
-        'managed-agent-key',
-    );
-
-    delete process.env.MANAGED_AGENT_ANTHROPIC_API_KEY;
-    delete process.env.ANTHROPIC_BASE_URL;
-    expect(parseConfig().managedAgent.anthropicApiKey).toBe('gateway-token');
-});
-
 test('Should default AI tool description max chars to 600', () => {
     expect(parseConfig().ai.copilot.toolDescriptionMaxChars).toEqual(600);
 });
@@ -2038,6 +2078,22 @@ describe('scheduler poll interval', () => {
         const config = parseConfig();
 
         expect(config.scheduler.pollInterval).toBe(2500);
+    });
+});
+
+describe('scheduler shutdown timeout', () => {
+    afterEach(() => {
+        delete process.env.SCHEDULER_SHUTDOWN_TIMEOUT;
+    });
+
+    test('defaults to one minute so the drain fits the pod grace period', () => {
+        expect(parseConfig().scheduler.shutdownTimeout).toBe(60_000);
+    });
+
+    test('parses the drain deadline from the environment', () => {
+        process.env.SCHEDULER_SHUTDOWN_TIMEOUT = '30000';
+
+        expect(parseConfig().scheduler.shutdownTimeout).toBe(30_000);
     });
 });
 

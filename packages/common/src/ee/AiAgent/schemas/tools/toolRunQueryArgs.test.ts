@@ -361,6 +361,34 @@ describe('chartConfig custom chart type union', () => {
         expect(result.success).toBe(true);
     });
 
+    it('preserves ordered arrays alongside scalar field mappings', () => {
+        const fieldMapping = {
+            ...customChartTypeChartConfig.fieldMapping,
+            values: ['orders_revenue', 'orders_count', 'orders_average'],
+        };
+        const result = toolRunQueryArgsSchema.parse({
+            ...buildV2Args(),
+            chartConfig: { ...customChartTypeChartConfig, fieldMapping },
+        });
+        expect(result.chartConfig).toMatchObject({
+            fieldMapping,
+        });
+    });
+
+    it.each([
+        { fieldMapping: { values: 42 } },
+        { fieldMapping: { values: ['orders_revenue', 42] } },
+        { fieldMapping: { values: [['orders_revenue']] } },
+        { fieldMapping: { values: ['orders_revenue', 'orders_revenue'] } },
+    ])('rejects invalid mapping values or duplicate ids: %j', (mapping) => {
+        expect(
+            toolRunQueryArgsSchema.safeParse({
+                ...buildV2Args(),
+                chartConfig: { ...customChartTypeChartConfig, ...mapping },
+            }).success,
+        ).toBe(false);
+    });
+
     it('advertised schema rejects a custom config missing fieldMapping', () => {
         const { fieldMapping, ...withoutMapping } = customChartTypeChartConfig;
         expect(

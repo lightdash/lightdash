@@ -1,3 +1,4 @@
+import { MODEL_PRESETS } from '../ee/services/ai/models/presets';
 import {
     DEFAULT_AUTOPILOT_VALIDATED_MODELS,
     getAutopilotCleanupMode,
@@ -32,6 +33,45 @@ describe('Autopilot model qualification', () => {
             ]),
         ).toBe('flag');
     });
+    it('qualifies only model ids that exist in the preset catalog', () => {
+        const presetIds = Object.values(MODEL_PRESETS).flatMap((presets) =>
+            presets.map((preset) => `${preset.provider}:${preset.modelId}`),
+        );
+        const unknown = DEFAULT_AUTOPILOT_VALIDATED_MODELS.filter(
+            (entry) => !presetIds.includes(`${entry.provider}:${entry.model}`),
+        );
+        expect(unknown).toEqual([]);
+    });
+
+    it.each([
+        ['anthropic', 'claude-opus-5'],
+        ['anthropic', 'claude-opus-4-8'],
+        ['bedrock', 'us.anthropic.claude-opus-5'],
+        ['bedrock', 'anthropic.claude-sonnet-5'],
+        ['openai', 'gpt-5.6-sol'],
+        ['openai', 'gpt-5.5-2026-04-23'],
+    ])('qualifies %s %s for cleanup by default', (provider, model) => {
+        expect(
+            getAutopilotCleanupMode(
+                'cleanup',
+                provider,
+                model,
+                DEFAULT_AUTOPILOT_VALIDATED_MODELS,
+            ),
+        ).toBe('cleanup');
+    });
+
+    it('keeps the lightweight GPT-5.6 Luna in observe mode', () => {
+        expect(
+            getAutopilotCleanupMode(
+                'cleanup',
+                'openai',
+                'gpt-5.6-luna',
+                DEFAULT_AUTOPILOT_VALIDATED_MODELS,
+            ),
+        ).toBe('observe');
+    });
+
     it('qualifies only the scored models when the variable is unset', () => {
         const defaults = parseAutopilotValidatedModels(undefined);
         expect(defaults).toBe(DEFAULT_AUTOPILOT_VALIDATED_MODELS);
@@ -74,7 +114,7 @@ describe('Autopilot model qualification', () => {
             getAutopilotCleanupMode(
                 'cleanup',
                 'bedrock',
-                'anthropic.claude-sonnet-5',
+                'anthropic.claude-haiku-4-5-20251001-v1:0',
                 defaults,
             ),
         ).toBe('observe');

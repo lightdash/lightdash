@@ -5,6 +5,7 @@ import {
     ContentReviewContentType,
     DirectAccessResourceType,
     getDashboardDeleteAccess,
+    isResourceViewDataAppItem,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     ResourceViewItemType,
@@ -38,8 +39,10 @@ import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEn
 import {
     useUnverifyChartMutation,
     useUnverifyDashboardMutation,
+    useUnverifyDataAppMutation,
     useVerifyChartMutation,
     useVerifyDashboardMutation,
+    useVerifyDataAppMutation,
 } from '../../../hooks/useContentVerification';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -284,7 +287,9 @@ const ExistingResourceViewActionMenu: FC<
 
     const isChartOrDashboard =
         isResourceViewItemChart(item) || isResourceViewItemDashboard(item);
-    const isVerified = isChartOrDashboard && item.data.verification !== null;
+    const isDataApp = isResourceViewDataAppItem(item);
+    const isVerified =
+        (isChartOrDashboard || isDataApp) && item.data.verification !== null;
     const userCanManageVerification =
         user.data?.ability?.can(
             'manage',
@@ -298,6 +303,8 @@ const ExistingResourceViewActionMenu: FC<
     const { mutate: unverifyChart } = useUnverifyChartMutation();
     const { mutate: verifyDashboard } = useVerifyDashboardMutation();
     const { mutate: unverifyDashboard } = useUnverifyDashboardMutation();
+    const { mutate: verifyDataApp } = useVerifyDataAppMutation();
+    const { mutate: unverifyDataApp } = useUnverifyDataAppMutation();
 
     const { mutate: promoteChart } = usePromoteMutation();
     const { mutate: promoteDashboard } = usePromoteDashboardMutation();
@@ -519,8 +526,18 @@ const ExistingResourceViewActionMenu: FC<
                         onPromoteDashboard={getPromoteDashboardDiff}
                         onUnverifyChart={unverifyChart}
                         onUnverifyDashboard={unverifyDashboard}
+                        onUnverifyDataApp={(appUuid) => {
+                            if (projectUuid) {
+                                unverifyDataApp({ projectUuid, appUuid });
+                            }
+                        }}
                         onVerifyChart={verifyChart}
                         onVerifyDashboard={verifyDashboard}
+                        onVerifyDataApp={(appUuid) => {
+                            if (projectUuid) {
+                                verifyDataApp({ projectUuid, appUuid });
+                            }
+                        }}
                         onOpenManageAccess={() => setIsManageAccessOpen(true)}
                     />
                 </Menu.Dropdown>

@@ -1,13 +1,17 @@
+import { type DataAppVizSchema } from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
+import { appVersion } from '../../apps/testing/appVersionHistory';
+import { buildStub } from '../testing/dataAppVizBuildStub';
+import BuilderPromptBar from './BuilderPromptBar';
 import ChartTypeBuilderWorkspace from './ChartTypeBuilderWorkspace';
 import { type ChartTypeBuilderWorkspaceState } from './useChartTypeBuilderWorkspace';
 
 vi.mock('./BuilderCanvas', () => ({
     default: () => <div>Chart preview</div>,
 }));
-vi.mock('./BuilderPromptBar', () => ({ default: () => null }));
+vi.mock('./BuilderPromptBar', () => ({ default: vi.fn(() => null) }));
 vi.mock('./VersionHistoryPanel', () => ({
     default: ({ onClose }: { onClose: () => void }) => (
         <aside aria-label="Version history">
@@ -40,6 +44,48 @@ const view = (isHistoryOpen: boolean) => (
 );
 
 describe('ChartTypeBuilderWorkspace layout', () => {
+    it('supplies the latest ready schema to standalone builds when an older preview is pinned', () => {
+        const schema: DataAppVizSchema = {
+            fields: [],
+            configOptions: [],
+            colorPalette: null,
+        };
+        renderWithProviders(
+            <ChartTypeBuilderWorkspace
+                projectUuid="project-1"
+                workspace={{
+                    ...workspace(false),
+                    isPromptBarMounted: true,
+                    build: buildStub(),
+                    viewedVersion: 1,
+                    history: {
+                        ...workspace(false).history,
+                        latestReadyVersion: 2,
+                        versions: [
+                            appVersion({
+                                version: 2,
+                                resources: {
+                                    images: [],
+                                    files: [],
+                                    charts: [],
+                                    dashboardName: null,
+                                    clarifications: [],
+                                    vizSchema: schema,
+                                },
+                            }),
+                        ],
+                    },
+                }}
+                previewContext={null}
+                syncPreviewUrlState={false}
+                configurePanel={null}
+            />,
+        );
+        expect(
+            vi.mocked(BuilderPromptBar).mock.lastCall?.[0].buildContext,
+        ).toEqual({ schema });
+    });
+
     it('keeps the history pane available for its exit transition but inactive', () => {
         const { rerender } = renderWithProviders(view(true));
         const pane = document.getElementById('chart-type-builder-history');

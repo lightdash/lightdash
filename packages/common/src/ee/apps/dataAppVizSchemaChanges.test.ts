@@ -46,6 +46,41 @@ describe('diffDataAppVizSchema', () => {
         expect(summarizeDataAppVizSchemaChanges(changes)).toEqual([]);
     });
 
+    it('keeps existing bindings when only field help changes', () => {
+        const changes = diffDataAppVizSchema(base, {
+            ...base,
+            fields: base.fields.map((field) =>
+                field.name === 'category'
+                    ? {
+                          ...field,
+                          description: 'Category for each row',
+                          examples: ['New', 'Returning'],
+                      }
+                    : field,
+            ),
+            inputGuidance: 'One row per category.',
+        });
+
+        expect(hasDataAppVizSchemaChanges(changes)).toBe(false);
+    });
+
+    it('reports an omitted scalar declaration changing to multiple', () => {
+        const changes = diffDataAppVizSchema(base, {
+            ...base,
+            fields: base.fields.map((field) =>
+                field.name === 'value' ? { ...field, multiple: true } : field,
+            ),
+        });
+
+        expect(changes.fields.changed).toEqual([
+            {
+                before: base.fields[1],
+                after: { ...base.fields[1], multiple: true },
+            },
+        ]);
+        expect(hasDataAppVizSchemaChanges(changes)).toBe(true);
+    });
+
     it('tracks added, removed and retyped fields by name', () => {
         const changes = diffDataAppVizSchema(base, {
             ...base,

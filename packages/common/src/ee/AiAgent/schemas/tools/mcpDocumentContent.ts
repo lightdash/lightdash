@@ -77,12 +77,12 @@ export const documentAsCodeSchema = z
         slug: z.string().min(1),
         description: z.string(),
         spaceSlug: z.string().min(1),
-        schemaVersion: z.literal(3),
+        schemaVersion: z.literal(1),
         content: z.object({ cells: z.array(mcpDocumentCellSchema) }).strict(),
     })
     .strict()
     .describe(
-        'Document schema version 3. Supply ordered cells without IDs; IDs are server-managed. Headings come from Markdown and chart names.',
+        'Document schema version 1. Supply ordered cells without IDs. Headings come from Markdown and chart names.',
     );
 
 export const mcpDocumentEditSchema = z.discriminatedUnion('type', [
@@ -146,7 +146,7 @@ export const mcpEditContentArgsSchema = toolEditContentArgsSchema.extend({
     documentEdit: mcpDocumentEditSchema
         .optional()
         .describe(
-            'Required for Documents instead of patch. Replace all content with baseVersionUuid, or update metadata separately. Cell IDs are server-managed.',
+            'Required for Documents instead of patch. Replace all content with baseVersionUuid, or update metadata separately.',
         ),
 });
 

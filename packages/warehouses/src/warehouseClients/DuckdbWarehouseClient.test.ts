@@ -214,6 +214,41 @@ describe('internal Parquet projects', () => {
         expect(run).not.toHaveBeenCalledWith('SET threads = 2;');
     });
 
+    it.each([
+        { name: 'bad; SELECT 1', columns: [{ name: 'name', type: 'VARCHAR' }] },
+        {
+            name: 'users',
+            columns: [{ name: 'name', type: 'VARCHAR); SELECT 1' }],
+        },
+        { name: 'query_events', columns: [{ name: 'name', type: 'VARCHAR' }] },
+        {
+            name: 'users',
+            columns: [
+                { name: 'name', type: 'VARCHAR' },
+                { name: 'name', type: 'VARCHAR' },
+            ],
+        },
+    ])(
+        'rejects invalid or overlapping empty lookup schemas: %j',
+        async (table) => {
+            const client = new DuckdbWarehouseClient({
+                type: 'duckdb_parquet',
+                resolveSource: async () => ({
+                    ...source(),
+                    emptyTables: [table] as DuckdbParquetSource['emptyTables'],
+                }),
+            });
+            await expect(
+                client.runQuery('SELECT count(*) FROM query_events'),
+            ).rejects.toThrow();
+            expect(
+                run.mock.calls.some(([sql]) =>
+                    String(sql).startsWith('CREATE VIEW'),
+                ),
+            ).toBe(false);
+        },
+    );
+
     it('closes the private cache when view binding fails', async () => {
         run.mockImplementation(async (sql: string) => {
             if (sql.startsWith('CREATE VIEW'))

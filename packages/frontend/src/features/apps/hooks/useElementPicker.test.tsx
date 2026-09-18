@@ -60,6 +60,27 @@ describe('useElementPicker', () => {
         ]);
     });
 
+    it('caps chart-type references and accepts another after removal', () => {
+        const { result } = renderHook(() =>
+            useElementPicker({ identityKey: 'chart:1', maxRefs: 2 }),
+        );
+
+        act(() => result.current.select({ label: '[button "First"]' }));
+        act(() => result.current.select({ label: '[button "Second"]' }));
+        act(() => result.current.select({ label: '[button "Third"]' }));
+        expect(result.current.refs.map((ref) => ref.text)).toEqual([
+            'First',
+            'Second',
+        ]);
+
+        act(() => result.current.remove(result.current.refs[0]));
+        act(() => result.current.select({ label: '[button "Third"]' }));
+        expect(result.current.refs.map((ref) => ref.text)).toEqual([
+            'Second',
+            'Third',
+        ]);
+    });
+
     it('warns and ignores a label it does not recognise', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const { result } = renderPicker();
@@ -146,5 +167,23 @@ describe('useElementPicker', () => {
         expect(result.current.available).toBe(false);
         expect(result.current.enabled).toBe(false);
         expect(result.current.refs).toHaveLength(1);
+    });
+
+    it('retains version references but clears them when the chart type changes', () => {
+        const { result, rerender } = renderHook(
+            ({ appUuid, version }) =>
+                useElementPicker({
+                    identityKey: `${appUuid}:${version}`,
+                    refsIdentityKey: appUuid,
+                }),
+            { initialProps: { appUuid: 'chart-a', version: 1 } },
+        );
+        act(() => result.current.select({ label: h1Label }));
+
+        rerender({ appUuid: 'chart-a', version: 2 });
+        expect(result.current.refs).toHaveLength(1);
+
+        rerender({ appUuid: 'chart-b', version: 1 });
+        expect(result.current.refs).toEqual([]);
     });
 });

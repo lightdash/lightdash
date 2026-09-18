@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type AppVizBuildContext,
     type ApiGenerateAppResponse,
     type AppChartReference,
     type AppDashboardReference,
@@ -15,6 +16,7 @@ type IterateAppParams = {
     projectUuid: string;
     appUuid: string;
     prompt: string;
+    vizContext?: AppVizBuildContext;
     creationExperience: DataAppCreationExperience;
     fileIds?: string[];
     charts?: AppChartReference[];
@@ -31,6 +33,7 @@ const iterateApp = async ({
     projectUuid,
     appUuid,
     prompt,
+    vizContext,
     creationExperience,
     fileIds,
     charts,
@@ -45,6 +48,7 @@ const iterateApp = async ({
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/versions`,
         body: JSON.stringify({
             prompt,
+            vizContext,
             creationExperience,
             fileIds,
             charts,

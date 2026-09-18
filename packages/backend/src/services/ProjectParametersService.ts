@@ -34,7 +34,28 @@ export class ProjectParametersService extends BaseService {
         this.projectModel = args.projectModel;
     }
 
-    async findProjectParameters(projectUuid: string, names?: string[]) {
+    async findProjectParameters(
+        account: Account,
+        projectUuid: string,
+        names?: string[],
+    ) {
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         return this.projectParametersModel.find(projectUuid, names);
     }
 

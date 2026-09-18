@@ -4,11 +4,13 @@ import {
     getUnusedDimensions,
     type ChartAsCode,
     type DashboardAsCode,
+    type McpDocumentAsCode,
 } from '@lightdash/common';
 
 export type ContentWithWarnings =
     | { type: 'dashboard'; content: DashboardAsCode }
-    | { type: 'chart'; content: ChartAsCode };
+    | { type: 'chart'; content: ChartAsCode }
+    | { type: 'document'; content: McpDocumentAsCode };
 
 export const getChartContentWarnings = (content: ChartAsCode): string[] => {
     const { unusedDimensions } = getUnusedDimensions({
@@ -37,6 +39,7 @@ export const getChartContentWarnings = (content: ChartAsCode): string[] => {
 export const getContentWarnings = (content: ContentWithWarnings): string[] => {
     switch (content.type) {
         case 'dashboard':
+        case 'document':
             return [];
         case 'chart':
             return getChartContentWarnings(content.content);

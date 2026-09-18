@@ -99,6 +99,29 @@ describe('derivePivotConfigurationFromChart', () => {
             });
         });
 
+        it('recognizes field ids inside multi-field mappings', () => {
+            expect(
+                deriveDataAppVizPivotConfiguration(
+                    {
+                        category: 'payments_payment_method',
+                        value: ['payments_total_revenue'],
+                        series: ['orders_status'],
+                    },
+                    savedChart.pivotConfig,
+                    mockMetricQuery,
+                    mockItems,
+                ),
+            ).toMatchObject({
+                groupByColumns: [{ reference: 'orders_status' }],
+                valuesColumns: [
+                    {
+                        reference: 'payments_total_revenue',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+            });
+        });
+
         it('stays unpivoted without persisted series columns', () => {
             expect(
                 deriveDataAppVizPivotConfiguration(

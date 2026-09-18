@@ -1,4 +1,4 @@
-import { supportsOptionalUserCredentials } from '@lightdash/common';
+import { allowsOptionalUserCredentials } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -167,9 +167,7 @@ const UserCredentialsSwitcher = () => {
     // are optional for this warehouse type and the user already has some
     const isSwitcherVisible =
         activeProject?.warehouseConnection?.requireUserCredentials ||
-        (supportsOptionalUserCredentials(
-            activeProject?.warehouseConnection?.type,
-        ) &&
+        (allowsOptionalUserCredentials(activeProject?.warehouseConnection) &&
             !!compatibleCredentials?.length);
 
     if (

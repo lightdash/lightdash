@@ -33,6 +33,13 @@ vi.mock('../../hooks/useProject', () => ({
     useProject: vi.fn(),
 }));
 
+vi.mock('../../hooks/useProjectRoute', () => ({
+    useOptionalProjectRoute: () => ({
+        projectUuid: 'project-1',
+        projectUrlIdentifier: 'jaffle-shop',
+    }),
+}));
+
 const projectUuid = 'project-1';
 
 const setDataAppsFlag = (enabled: boolean) => {
@@ -72,6 +79,13 @@ describe('BrowseMenu', () => {
         vi.mocked(useProject).mockReturnValue({
             data: undefined,
         } as unknown as ReturnType<typeof useProject>);
+    });
+
+    it('uses the project slug for document discovery', async () => {
+        renderMenu();
+        expect(
+            (await screen.findByText('All documents')).closest('a'),
+        ).toHaveAttribute('href', '/projects/jaffle-shop/documents');
     });
 
     it('links to the gallery when data apps are enabled and the user can manage explores', async () => {

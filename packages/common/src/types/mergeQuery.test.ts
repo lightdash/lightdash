@@ -527,8 +527,12 @@ describe('getMergeCompiledSqlText', () => {
     it('lists each leg under its source, then the join', () => {
         const text = getMergeCompiledSqlText({
             legs: [
-                { sourceId: 'orders', sql: 'SELECT 1 AS orders_month' },
-                { sourceId: 'payments', sql: null },
+                {
+                    sourceId: 'orders',
+                    sql: 'SELECT 1 AS orders_month',
+                    metricQuery: null,
+                },
+                { sourceId: 'payments', sql: null, metricQuery: null },
             ],
             sql: 'SELECT * FROM "merge_source_0" FULL OUTER JOIN "merge_source_1" USING (month)',
         });

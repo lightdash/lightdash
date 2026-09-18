@@ -862,6 +862,7 @@ describe('ContentAsCodeWritebackService', () => {
                 type: 'data_app_viz',
                 config: {
                     dataAppVizSlug: 'revenue-chart-type',
+                    dataAppVizVersion: 7,
                     fieldMapping: {},
                 },
             },
@@ -876,7 +877,7 @@ describe('ContentAsCodeWritebackService', () => {
             'dataAppVizSlug: revenue-chart-type',
         );
         expect(chartFileCall?.[4]).not.toContain('dataAppVizUuid');
-        expect(chartFileCall?.[4]).not.toContain('dataAppVizVersion');
+        expect(chartFileCall?.[4]).toContain('dataAppVizVersion: 7');
         expect(coderService.getCurrentChartAsCode).not.toHaveBeenCalled();
     });
 

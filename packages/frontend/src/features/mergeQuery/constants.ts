@@ -19,6 +19,7 @@ export const EMPTY_MERGE = {
     isMerging: false,
     readOnly: false,
     wasRestored: false,
+    replacesQuery: false,
     focus: { kind: 'source' as const, sourceId: PRIMARY_SOURCE_ID },
     additionalSources: [] as MergeEditorSource[],
     joinParts: [

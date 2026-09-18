@@ -6,6 +6,8 @@ export const appVersion = (
 ): ApiAppVersionSummary =>
     ({
         version: 1,
+        threadUuid: 't1',
+        threadNumber: 1,
         prompt: 'a donut of orders by status',
         status: 'ready',
         createdAt: new Date('2026-05-15T10:00:00Z'),

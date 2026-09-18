@@ -49,7 +49,7 @@ type ChangeRow = {
 };
 
 const describeField = (field: DataAppVizField) =>
-    `${field.type} field${field.required ? ', required' : ''}`;
+    `${field.multiple ? 'multiple ' : ''}${field.type} field${field.required ? ', required' : ''}`;
 
 const describeFieldChange = ({ before, after }: DataAppVizFieldChange) => {
     const parts: string[] = [];
@@ -57,6 +57,12 @@ const describeFieldChange = ({ before, after }: DataAppVizFieldChange) => {
         parts.push(`${before.type} → ${after.type}`);
     if (before.required !== after.required)
         parts.push(after.required ? 'now required' : 'now optional');
+    if ((before.multiple === true) !== (after.multiple === true))
+        parts.push(
+            after.multiple
+                ? 'now accepts multiple fields'
+                : 'now accepts one field',
+        );
     if (before.label !== after.label)
         parts.push(`renamed from "${before.label}"`);
     return parts.join(', ');

@@ -5,6 +5,7 @@ import {
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { AppsTableName, AppVersionsTableName } from '../database/entities/apps';
 import {
     ContentVerificationTableName,
     type CreateDbContentVerification,
@@ -284,7 +285,60 @@ export class ContentVerificationModel {
             }),
         );
 
-        return [...charts, ...dashboards];
+        const dataAppRows = await this.database(ContentVerificationTableName)
+            .innerJoin(
+                AppsTableName,
+                `${ContentVerificationTableName}.content_uuid`,
+                `${AppsTableName}.app_id`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${AppsTableName}.space_uuid`,
+                `${SpaceTableName}.space_uuid`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${ContentVerificationTableName}.verified_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .where(`${ContentVerificationTableName}.project_uuid`, projectUuid)
+            .where(
+                `${ContentVerificationTableName}.content_type`,
+                ContentType.DATA_APP,
+            )
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .select(
+                `${ContentVerificationTableName}.content_verification_uuid`,
+                `${ContentVerificationTableName}.content_type`,
+                `${ContentVerificationTableName}.content_uuid`,
+                `${AppsTableName}.name`,
+                `${AppsTableName}.slug`,
+                `${AppsTableName}.description`,
+                `${AppsTableName}.views_count`,
+                this.database(AppVersionsTableName)
+                    .select('created_at')
+                    .whereRaw(
+                        `${AppVersionsTableName}.app_id = ${AppsTableName}.app_id`,
+                    )
+                    .orderBy('created_at', 'desc')
+                    .limit(1)
+                    .as('last_updated_at'),
+                `${SpaceTableName}.space_uuid`,
+                this.database.ref(`${SpaceTableName}.name`).as('space_name'),
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${ContentVerificationTableName}.verified_at`,
+            );
+
+        const dataApps: VerifiedContentListItem[] = dataAppRows.map((row) => ({
+            ...toBaseItem(row),
+            contentType: ContentType.DATA_APP,
+            slug: row.slug,
+        }));
+
+        return [...charts, ...dashboards, ...dataApps];
     }
 
     async getVerifiedFieldUsage(

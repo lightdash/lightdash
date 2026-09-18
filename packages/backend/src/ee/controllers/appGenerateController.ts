@@ -9,11 +9,14 @@ import {
     type ApiCancelAppVersionResponse,
     type ApiClarifyAppRequest,
     type ApiClarifyAppResponse,
+    type ApiContentVerificationDeleteResponse,
+    type ApiContentVerificationResponse,
     type ApiCreateAppSchedulerResponse,
     type ApiDataAppActivityResponse,
     type ApiDataAppVizDeleteImpactResponse,
     type ApiDataAppVizPreviewTokenResponse,
     type ApiDataAppVizRenderMetadataResponse,
+    type ApiDataAppVizUpgradeImpactResponse,
     type ApiDeleteAppResponse,
     type ApiDuplicateAppRequest,
     type ApiDuplicateAppResponse,
@@ -40,6 +43,7 @@ import {
     type DataAppActivityFilters,
     type GenerateAppRequestBody,
     type ImportAppCodeRequestBody,
+    type InstallRegistryChartTypeBody,
     type MyAppsSortBy,
     type UpgradeAppRequestBody,
     type UUID,
@@ -104,6 +108,7 @@ export class AppGenerateController extends BaseController {
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
                 codexModelInput: body.codexModel,
+                vizContext: body.vizContext,
             },
         );
         return {
@@ -205,6 +210,7 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() chartSlug: string,
+        @Body() body?: InstallRegistryChartTypeBody,
     ): Promise<ApiInstallRegistryChartTypeResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -213,6 +219,7 @@ export class AppGenerateController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 chartSlug,
+                body,
             );
         return {
             status: 'ok',
@@ -301,6 +308,31 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * @summary Get chart type upgrade impact
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/visualizations/{dataAppVizUuid}/upgrade-impact')
+    @OperationId('getDataAppVizUpgradeImpact')
+    async getDataAppVizUpgradeImpact(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() dataAppVizUuid: UUID,
+    ): Promise<ApiDataAppVizUpgradeImpactResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAppGenerateService().getDataAppVizUpgradeImpact(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    dataAppVizUuid,
+                ),
+        };
+    }
+
+    /**
      * @summary Get data app visualization render metadata
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -311,6 +343,7 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() dataAppVizUuid: string,
+        @Query() version?: number,
     ): Promise<ApiDataAppVizRenderMetadataResponse> {
         assertRegisteredAccount(req.account);
         const result =
@@ -318,6 +351,7 @@ export class AppGenerateController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 dataAppVizUuid,
+                version,
             );
         return {
             status: 'ok',
@@ -617,7 +651,36 @@ export class AppGenerateController extends BaseController {
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
                 codexModelInput: body.codexModel,
+                vizContext: body.vizContext,
             },
+        );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Clear the coding agent's context by starting a new thread on the app.
+     * The next prompt starts a fresh agent session; versions and the sandbox
+     * are unchanged. Refused while a version is building.
+     * @summary Clear agent context
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/threads')
+    @OperationId('clearAppAgentContext')
+    async clearAppAgentContext(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() appUuid: UUID,
+    ): Promise<ApiGetAppResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const result = await this.getAppGenerateService().clearAgentContext(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
         );
         return {
             status: 'ok',
@@ -800,6 +863,65 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * Verify a data app
+     * @summary Verify data app
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/verification')
+    @OperationId('verifyDataApp')
+    async verifyDataApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: UUID,
+    ): Promise<ApiContentVerificationResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAppGenerateService().verifyDataApp(
+                toSessionUser(req.account),
+                projectUuid,
+                appUuid,
+            ),
+        };
+    }
+
+    /**
+     * Remove verification from a data app
+     * @summary Unverify data app
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{appUuid}/verification')
+    @OperationId('unverifyDataApp')
+    async unverifyDataApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: UUID,
+    ): Promise<ApiContentVerificationDeleteResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.getAppGenerateService().unverifyDataApp(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

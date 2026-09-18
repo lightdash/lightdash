@@ -34,7 +34,151 @@ describe('isOfficialChartType', () => {
     });
 });
 
+describe.each([
+    ['persisted', dataAppVizSchema],
+    ['generated', dataAppVizGenerationSchema],
+])('%s input guidance', (_name, schema) => {
+    const declaration = (description: unknown, inputGuidance?: unknown) => ({
+        fields: [{ ...validFields.fields[0], description }],
+        configOptions: [],
+        colorPalette: null,
+        inputGuidance,
+    });
+
+    it.each([undefined, null, '', '  \n  '])(
+        'treats absent or blank help (%j) as omitted',
+        (help) => {
+            const parsed = schema.parse(declaration(help, help));
+            expect(parsed.fields[0].description).toBeUndefined();
+            expect(parsed.inputGuidance).toBeUndefined();
+        },
+    );
+
+    it('trims multiline help while preserving its meaning', () => {
+        const parsed = schema.parse(
+            declaration(
+                '  Stage label.\nChoose one per row.  ',
+                '  One row per stage.\nSort in stage order.  ',
+            ),
+        );
+        expect(parsed.fields[0].description).toBe(
+            'Stage label.\nChoose one per row.',
+        );
+        expect(parsed.inputGuidance).toBe(
+            'One row per stage.\nSort in stage order.',
+        );
+    });
+});
+
+describe('dataAppVizGenerationSchema input guidance limits', () => {
+    const declaration = (description: unknown, inputGuidance?: unknown) => ({
+        fields: [{ ...validFields.fields[0], description }],
+        configOptions: [],
+        colorPalette: null,
+        inputGuidance,
+    });
+
+    it('accepts descriptions at 160 characters and rejects longer copy', () => {
+        expect(
+            dataAppVizGenerationSchema.safeParse(declaration('a'.repeat(160)))
+                .success,
+        ).toBe(true);
+        expect(
+            dataAppVizGenerationSchema.safeParse(declaration('a'.repeat(161)))
+                .success,
+        ).toBe(false);
+    });
+
+    it('accepts chart guidance at 200 characters and rejects longer copy', () => {
+        expect(
+            dataAppVizGenerationSchema.safeParse(
+                declaration(undefined, 'a'.repeat(200)),
+            ).success,
+        ).toBe(true);
+        expect(
+            dataAppVizGenerationSchema.safeParse(
+                declaration(undefined, 'a'.repeat(201)),
+            ).success,
+        ).toBe(false);
+    });
+
+    it('omits legacy examples from generated declarations', () => {
+        const withExamples = {
+            ...declaration(undefined),
+            fields: [{ ...validFields.fields[0], examples: [0, false, null] }],
+        };
+        expect(
+            dataAppVizGenerationSchema.parse(withExamples).fields[0],
+        ).not.toHaveProperty('examples');
+    });
+});
+
 describe('dataAppVizSchema', () => {
+    it('keeps omitted multiple scalar and accepts explicit multi fields', () => {
+        expect(
+            dataAppVizSchema.parse({
+                ...validFields,
+                configOptions: [],
+                colorPalette: null,
+            }).fields[0]?.multiple,
+        ).toBeUndefined();
+        expect(
+            dataAppVizGenerationSchema.parse({
+                ...validFields,
+                fields: [{ ...validFields.fields[0], multiple: true }],
+                configOptions: [],
+                colorPalette: null,
+            }).fields[0]?.multiple,
+        ).toBe(true);
+    });
+
+    it('accepts the null emitted for optional multiple by OpenAI strict JSON', () => {
+        const declaration = {
+            ...validFields,
+            fields: [{ ...validFields.fields[0], multiple: null }],
+            configOptions: [],
+            colorPalette: null,
+        };
+        expect(dataAppVizGenerationSchema.parse(declaration).fields[0]).toEqual(
+            validFields.fields[0],
+        );
+        expect(JSON.stringify(dataAppVizJsonSchema)).toContain('multiple');
+    });
+
+    it('keeps previously saved long guidance readable while generation rejects it', () => {
+        const savedSchema = {
+            fields: [
+                {
+                    ...validFields.fields[0],
+                    description: 'Stage label. '.repeat(12),
+                    examples: [
+                        'A long existing example '.repeat(3),
+                        0,
+                        false,
+                        null,
+                    ],
+                },
+            ],
+            inputGuidance: 'One row per stage. '.repeat(16),
+            configOptions: [],
+            colorPalette: null,
+        };
+
+        expect(dataAppVizSchema.parse(savedSchema)).toMatchObject({
+            ...savedSchema,
+            fields: [
+                {
+                    ...savedSchema.fields[0],
+                    description: savedSchema.fields[0].description.trim(),
+                },
+            ],
+            inputGuidance: savedSchema.inputGuidance.trim(),
+        });
+        expect(dataAppVizGenerationSchema.safeParse(savedSchema).success).toBe(
+            false,
+        );
+    });
+
     it('accepts a well-formed fields declaration (configOptions defaults to [], colorPalette to null)', () => {
         const r = dataAppVizSchema.safeParse(validFields);
         expect(r.success).toBe(true);
@@ -46,6 +190,32 @@ describe('dataAppVizSchema', () => {
 
     it('accepts an empty field list', () => {
         expect(dataAppVizSchema.safeParse({ fields: [] }).success).toBe(true);
+    });
+
+    it('persists optional field help while keeping legacy declarations valid', () => {
+        const parsed = dataAppVizSchema.parse({
+            fields: [
+                {
+                    name: 'stage',
+                    label: 'Stage',
+                    type: 'dimension',
+                    required: true,
+                    description: 'The label for each stage.',
+                    examples: [0, false, null],
+                },
+            ],
+            inputGuidance:
+                'Use one row per stage in order; reshape the query when it returns a different row shape.',
+        });
+
+        expect(parsed.fields[0]).toMatchObject({
+            description: 'The label for each stage.',
+            examples: [0, false, null],
+        });
+        expect(parsed.inputGuidance).toContain('one row per stage');
+        const legacy = dataAppVizSchema.parse(validFields);
+        expect(legacy).not.toHaveProperty('inputGuidance');
+        expect(legacy.fields[0]).not.toHaveProperty('description');
     });
 
     it('rejects non-object / nullish values', () => {
@@ -439,11 +609,17 @@ describe('dataAppVizGenerationSchema', () => {
                     },
                 ],
                 colorPalette: { group: null },
+                inputGuidance: null,
+                fields: validFields.fields.map((field) => ({
+                    ...field,
+                    description: null,
+                    examples: null,
+                })),
             }),
         ).toEqual({
             success: true,
             data: {
-                ...validFields,
+                fields: validFields.fields,
                 configOptions: [
                     {
                         name: 'barWidth',
@@ -470,6 +646,37 @@ describe('dataAppVizJsonSchema', () => {
         expect(jsonSchema.$schema).toBe(
             'http://json-schema.org/draft-07/schema#',
         );
+    });
+
+    it('tells the coding agent the same description and guidance limits without examples', () => {
+        expect(dataAppVizJsonSchema).toMatchObject({
+            properties: {
+                fields: {
+                    items: {
+                        properties: {
+                            description: {
+                                anyOf: expect.arrayContaining([
+                                    expect.objectContaining({ maxLength: 160 }),
+                                ]),
+                            },
+                        },
+                    },
+                },
+                inputGuidance: {
+                    anyOf: expect.arrayContaining([
+                        expect.objectContaining({ maxLength: 200 }),
+                    ]),
+                },
+            },
+        });
+        const fieldProperties = (
+            dataAppVizJsonSchema as {
+                properties: {
+                    fields: { items: { properties: Record<string, unknown> } };
+                };
+            }
+        ).properties.fields.items.properties;
+        expect(fieldProperties).not.toHaveProperty('examples');
     });
 
     it('makes fields, configOptions and colorPalette required', () => {

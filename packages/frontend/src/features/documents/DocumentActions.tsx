@@ -1,4 +1,8 @@
-import { DirectAccessResourceType, type Document } from '@lightdash/common';
+import {
+    DirectAccessResourceType,
+    getDocumentUrl,
+    type Document,
+} from '@lightdash/common';
 import { ActionIcon, Button, Group, Menu, Tooltip } from '@mantine/core';
 import { IconDots, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -6,6 +10,7 @@ import { useNavigate } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import DocumentDeleteModal from '../../components/common/modal/DocumentDeleteModal';
+import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import DirectAccessModal from '../directAccess/components/DirectAccessModal';
 import { useCanManageDirectAccess } from '../directAccess/hooks/useCanManageDirectAccess';
 import { useDirectAccessAvailability } from '../directAccess/hooks/useDirectAccess';
@@ -15,6 +20,7 @@ const DocumentActions = ({ document }: { document: Document }) => {
     const [isShareOpen, setShareOpen] = useState(false);
     const [isDeleteOpen, setDeleteOpen] = useState(false);
     const navigate = useNavigate();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const canDelete = useCanDeleteDocument(document);
     const { isAvailable } = useDirectAccessAvailability();
     const canManage = useCanManageDirectAccess({
@@ -24,7 +30,7 @@ const DocumentActions = ({ document }: { document: Document }) => {
         access: document.access ?? [],
         grantRoles: document.directAccessRoles ?? [],
     });
-    const url = `${window.location.origin}/projects/${document.projectUuid}/documents/${document.documentUuid}`;
+    const url = `${window.location.origin}${getDocumentUrl(projectUrlIdentifier, document.documentUuid, document.slug)}`;
     return (
         <Group gap="sm">
             <CopyActionIcon value={url} copyLabel="Copy document link" />
@@ -79,7 +85,7 @@ const DocumentActions = ({ document }: { document: Document }) => {
                             onClose={() => setDeleteOpen(false)}
                             onConfirm={() =>
                                 navigate(
-                                    `/projects/${document.projectUuid}/documents`,
+                                    `/projects/${projectUrlIdentifier}/documents`,
                                 )
                             }
                         />

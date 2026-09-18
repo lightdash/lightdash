@@ -65,8 +65,8 @@ export const SDK_FEATURES: SdkFeature[] = [
     },
     {
         key: 'inspect',
-        appliesTo: ['data_app'],
-        label: 'Element inspection',
+        appliesTo: ['data_app', 'chart_type'],
+        label: 'Element picker',
         description:
             'Lets the Lightdash editor highlight and select app elements to reference them in prompts.',
     },
@@ -112,6 +112,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         label: 'Dashboard visualization context',
         description:
             'Receive query context when app visualizations are embedded in dashboards.',
+    },
+    {
+        key: 'viz-multiple-fields',
+        appliesTo: ['chart_type'],
+        label: 'Multiple visualization fields',
+        description:
+            'Receive ordered mappings for reusable visualization slots that accept multiple metrics or dimensions.',
+        wiring: 'Declare multiple: true for a viz schema field, then read fieldMapping[name] as an ordered array of query field ids. Existing single-field slots continue to use fieldMapping[name] as a string.',
     },
     {
         key: 'viz-config-options',
@@ -175,7 +183,15 @@ export const SDK_FEATURES: SdkFeature[] = [
         label: 'AI analysis',
         description:
             "Render the host's AI analysis of the current view inside the app: an executive summary with notable changes, markers on the flagged data points, and Investigate / Continue in Ask AI actions.",
-        wiring: 'Call useInsights() for the view-level headline, summary, limitations and anomalies (render a summary block; call analyse() from a Regenerate control), and useInsights(result) per chart to mark rows where matches(row) is non-empty and to offer investigate(id). Render nothing when status is "unavailable".',
+        wiring: 'Call useInsights() for the view-level headline, summary, limitations and anomalies (render a summary block; call analyse() from a Regenerate control), and useInsights(result) per chart to mark rows where matches(row) has a high, medium or positive anomaly (never info) and to offer investigate(id). On line charts render the marker as both dot and activeDot so hover cannot cover it. Render nothing when status is "unavailable".',
+    },
+    {
+        key: 'ai-prompt',
+        appliesTo: ['data_app'],
+        label: 'AI prompts',
+        description:
+            "Ask the org-approved AI an author-written question about results the app already loaded, for example a one-line takeaway under a chart or an explanation of a clicked row. Answers are plain text; the host applies the organisation's consent and permission gates.",
+        wiring: 'Call useAiPrompt() and, from a user action or once per loaded view, ask({ prompt, sources: [{ result, label }], focus: { row } }) where result is the object useLightdash returns (keep a reference to it when destructuring; a rebuilt { data, columns } has no query uuid). Render text while loading is false; hide the control when available is false.',
     },
     {
         key: 'viz-drill-down',

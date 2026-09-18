@@ -86,6 +86,58 @@ describe('useDataAppVizVisualizationConfig', () => {
         });
     });
 
+    it('carries ordered multiple bindings through a version upgrade', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        );
+
+        act(() =>
+            result.current.upgradeDataAppVizVersion(
+                5,
+                {
+                    category: 'orders_status',
+                    values: ['orders_total', 'orders_count'],
+                },
+                {},
+            ),
+        );
+
+        expect(onConfigChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                fieldMapping: {
+                    category: 'orders_status',
+                    values: ['orders_total', 'orders_count'],
+                },
+            }),
+        );
+    });
+
+    it('drops stale multiple bindings when an upgrade supplies no binding', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(
+                {
+                    ...initialConfig,
+                    fieldMapping: {
+                        ...initialConfig.fieldMapping,
+                        values: ['orders_total'],
+                    },
+                },
+                onConfigChange,
+            ),
+        );
+
+        act(() => result.current.upgradeDataAppVizVersion(5, {}, {}));
+
+        expect(onConfigChange).toHaveBeenLastCalledWith({
+            dataAppVizUuid: 'viz-1',
+            dataAppVizVersion: 5,
+            fieldMapping: {},
+            optionValues: {},
+        });
+    });
+
     it('ignores an upgrade while no type is selected', () => {
         const onConfigChange = vi.fn();
         const { result } = renderHook(() =>
@@ -199,6 +251,48 @@ describe('useDataAppVizVisualizationConfig', () => {
                 value: 'orders_count',
             },
             optionValues: { showLegend: false },
+        });
+    });
+
+    it('persists an ordered multiple field binding, including an explicit clear', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        );
+
+        act(() =>
+            result.current.setField('values', [
+                'orders_total',
+                'orders_average_order_size',
+            ]),
+        );
+        expect(result.current.validConfig?.fieldMapping).toEqual({
+            category: 'orders_status',
+            values: ['orders_total', 'orders_average_order_size'],
+        });
+
+        act(() => result.current.setField('values', []));
+        expect(onConfigChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                fieldMapping: expect.objectContaining({ values: [] }),
+            }),
+        );
+    });
+
+    it('reopens scalar and multiple bindings without changing either', () => {
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig({
+                dataAppVizUuid: 'viz-1',
+                fieldMapping: {
+                    category: 'orders_status',
+                    values: ['orders_total', 'orders_average_order_size'],
+                },
+            }),
+        );
+
+        expect(result.current.validConfig?.fieldMapping).toEqual({
+            category: 'orders_status',
+            values: ['orders_total', 'orders_average_order_size'],
         });
     });
 

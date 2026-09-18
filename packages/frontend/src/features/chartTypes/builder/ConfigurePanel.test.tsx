@@ -33,6 +33,7 @@ const renderPanel = (
             onOptionChange={vi.fn()}
             colorPaletteUuid={null}
             onPaletteChange={vi.fn()}
+            resolvedColorPalette={['#111111']}
             isStale={false}
             {...props}
         />,

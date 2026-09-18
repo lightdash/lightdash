@@ -23,6 +23,7 @@ export function mockRoadmapProject(projectId: string): RoadmapProjectGroup {
             lastIssueUpdatedAt: null,
         },
         hasDirectNeed: false,
+        slackThreadUrls: [],
         ownRequestCount: 0,
     };
 }

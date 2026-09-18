@@ -97,7 +97,7 @@ export type VizContextPivotDetails = {
  */
 export type DataAppVizContextMessage = {
     type: 'lightdash:sdk:data-app-viz-context';
-    fieldMapping: Record<string, string>;
+    fieldMapping: Record<string, string | string[]>;
     rows: VizContextRow[];
     /** Absent when the installed host predates config-option delivery. */
     options?: Record<string, VizContextOptionValue>;
@@ -164,18 +164,18 @@ export function resolveVizFixtureUrl(location: {
 /** Display string for a field's cell in a row, e.g. `"$1,234"`. Empty when unset. */
 export const getFormatted = (
     row: VizContextRow | undefined,
-    fieldId: string | undefined,
+    fieldId: string | string[] | undefined,
 ): string => {
-    if (!row || !fieldId) return '';
+    if (!row || !fieldId || Array.isArray(fieldId)) return '';
     return String(row[fieldId]?.value?.formatted ?? '');
 };
 
 /** Raw value for a field's cell in a row (number/string/etc.), or null when unset. */
 export const getRaw = (
     row: VizContextRow | undefined,
-    fieldId: string | undefined,
+    fieldId: string | string[] | undefined,
 ): unknown => {
-    if (!row || !fieldId) return null;
+    if (!row || !fieldId || Array.isArray(fieldId)) return null;
     return row[fieldId]?.value?.raw ?? null;
 };
 
@@ -189,22 +189,31 @@ export const getRaw = (
 export type VizUnderlyingData = {
     enabled: boolean;
     /** Ask Lightdash to open its standard underlying-data dialog. */
-    open: (opts: { row: VizContextRow; metric: string }) => Promise<void>;
+    open: (opts: {
+        row: VizContextRow;
+        metric: string;
+        fieldId?: string;
+    }) => Promise<void>;
     /** Legacy bundle compatibility. New visualizations should call `open`. */
     get: (opts: {
         row: VizContextRow;
         metric: string;
+        fieldId?: string;
         limit?: number;
     }) => Promise<UnderlyingDataResult>;
     /** Legacy bundle compatibility. Lightdash owns download UI after `open`. */
     download: (
-        opts: { row: VizContextRow; metric: string } & DownloadResultsOptions,
+        opts: {
+            row: VizContextRow;
+            metric: string;
+            fieldId?: string;
+        } & DownloadResultsOptions,
     ) => Promise<DownloadResultsResult>;
 };
 
 export type VizContext = {
-    /** field name → query field id, as bound in the host field mapping UI. */
-    fieldMapping: Record<string, string>;
+    /** Slot name → query field id, or ordered ids for a slot declared multiple. */
+    fieldMapping: Record<string, string | string[]>;
     /** Host-fetched result rows, keyed by query field id. */
     rows: VizContextRow[];
     /** Config option name → current value (the user's choice, else the declared default). */
@@ -230,7 +239,7 @@ export type VizContext = {
 };
 
 type VizContextValue = {
-    fieldMapping: Record<string, string>;
+    fieldMapping: Record<string, string | string[]>;
     rows: VizContextRow[];
     options: Record<string, VizContextOptionValue>;
     colorPalette: string[];
@@ -324,12 +333,14 @@ export const resolveSeriesColor = (
 /** Resolve a client-side grouped raw value color, with the chart palette as fallback. */
 export const resolveValueColor = (
     context: VizColorContext,
-    fieldId: string,
+    fieldId: string | string[],
     rawValue: unknown,
     index: number,
 ): string | undefined =>
-    context.valueColors[fieldId]?.[String(rawValue)] ??
-    getPaletteColor(context.colorPalette, index);
+    Array.isArray(fieldId)
+        ? undefined
+        : (context.valueColors[fieldId]?.[String(rawValue)] ??
+          getPaletteColor(context.colorPalette, index));
 
 /**
  * Normalises an inbound host message into provider state. Optional capabilities
@@ -371,7 +382,7 @@ export function buildVizUnderlyingData(
     const supported = typeof transport?.openVizUnderlyingData === 'function';
     return {
         enabled: hostOpenEnabled && supported,
-        open: async ({ row, metric }) => {
+        open: async ({ row, metric, fieldId }) => {
             if (!hostOpenEnabled) {
                 throw new Error(
                     'Underlying data is not enabled for this visualization.',
@@ -382,9 +393,13 @@ export function buildVizUnderlyingData(
                     'This SDK build predates host-owned underlying data. Rebuild the app on the current template.',
                 );
             }
-            return transport.openVizUnderlyingData({ row, metric });
+            return transport.openVizUnderlyingData({
+                row,
+                metric,
+                ...(fieldId === undefined ? {} : { fieldId }),
+            });
         },
-        get: async ({ row, metric, limit }) => {
+        get: async ({ row, metric, fieldId, limit }) => {
             if (!hostEnabled) {
                 throw new Error(
                     'Underlying data is not enabled for this visualization.',
@@ -395,9 +410,14 @@ export function buildVizUnderlyingData(
                     'This SDK build predates underlying data. Rebuild the app on the current template.',
                 );
             }
-            return transport.getVizUnderlyingData({ row, metric, limit });
+            return transport.getVizUnderlyingData({
+                row,
+                metric,
+                ...(fieldId === undefined ? {} : { fieldId }),
+                limit,
+            });
         },
-        download: async ({ row, metric, ...options }) => {
+        download: async ({ row, metric, fieldId, ...options }) => {
             if (!hostEnabled) {
                 throw new Error(
                     'Underlying data is not enabled for this visualization.',
@@ -409,7 +429,7 @@ export function buildVizUnderlyingData(
                 );
             }
             return transport.downloadVizUnderlyingData(
-                { row, metric },
+                { row, metric, ...(fieldId === undefined ? {} : { fieldId }) },
                 options,
             );
         },
@@ -425,7 +445,11 @@ export function buildVizUnderlyingData(
  */
 export type VizDrillDown = {
     enabled: boolean;
-    open: (opts: { row: VizContextRow; metric: string }) => Promise<void>;
+    open: (opts: {
+        row: VizContextRow;
+        metric: string;
+        fieldId?: string;
+    }) => Promise<void>;
 };
 
 /** Builds the `drillDown` surface. Exported for tests. */
@@ -436,7 +460,7 @@ export function buildVizDrillDown(
     const supported = typeof transport?.openVizDrillDown === 'function';
     return {
         enabled: hostEnabled && supported,
-        open: async ({ row, metric }) => {
+        open: async ({ row, metric, fieldId }) => {
             if (!hostEnabled) {
                 throw new Error(
                     'Drill-down is not enabled for this visualization.',
@@ -447,7 +471,11 @@ export function buildVizDrillDown(
                     'This SDK build predates drill-down. Rebuild the app on the current template.',
                 );
             }
-            return transport.openVizDrillDown({ row, metric });
+            return transport.openVizDrillDown({
+                row,
+                metric,
+                ...(fieldId === undefined ? {} : { fieldId }),
+            });
         },
     };
 }
@@ -547,9 +575,10 @@ export function VizContextProvider({ children }: { children: ReactNode }) {
  * Subscribe to the host's render context. Reads from `VizContextProvider` when
  * one is mounted (the scaffold default); otherwise self-subscribes so the hook
  * still works standalone. Re-renders whenever the host pushes (on load, on
- * mapping change, on query change). Resolve a declared field to its bound cell
- * with `fieldMapping[name]` then `getFormatted`/`getRaw`; read a declared
- * config option with `options[name]`, and colour series with
+ * mapping change, on query change). Resolve a single-field slot with
+ * `fieldMapping[name]`, or iterate that value when the slot declares multiple
+ * fields, then read cells with `getFormatted`/`getRaw`. Read a declared config
+ * option with `options[name]`, and colour series with
  * `resolveSeriesColor` / `resolveValueColor`.
  */
 export function useVizContext(): VizContext {

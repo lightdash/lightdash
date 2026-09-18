@@ -78,6 +78,7 @@ export const FavoritePersonalDataAppModal: FC<
                                 : null,
                         pinnedListUuid: null,
                         pinnedListOrder: null,
+                        verification: null,
                     },
                 },
             ]}

@@ -6,7 +6,7 @@ import {
     type FilterableDimension,
     type FilterRule,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../testing/testUtils';
 import FilterRuleForm from './FilterRuleForm';
@@ -70,6 +70,44 @@ describe('FilterRuleForm', () => {
 
     afterAll(() => {
         delete (Element.prototype as Partial<Element>).scrollIntoView;
+    });
+
+    it('uses the original non-wrapping Group layout on desktop', async () => {
+        const matchMedia = vi.mocked(window.matchMedia);
+        const defaultImplementation = matchMedia.getMockImplementation();
+        matchMedia.mockImplementation(
+            (query) =>
+                ({
+                    matches: query.startsWith('(min-width:'),
+                    media: query,
+                    onchange: null,
+                    addListener: vi.fn(),
+                    removeListener: vi.fn(),
+                    addEventListener: vi.fn(),
+                    removeEventListener: vi.fn(),
+                    dispatchEvent: vi.fn(),
+                }) as MediaQueryList,
+        );
+
+        try {
+            renderFilterRuleForm(visibleDimension);
+
+            await waitFor(() =>
+                expect(
+                    screen.getByTestId('FilterRuleForm/filter-rule'),
+                ).toHaveStyle('--group-wrap: nowrap'),
+            );
+        } finally {
+            matchMedia.mockImplementation(defaultImplementation!);
+        }
+    });
+
+    it('wraps filter controls on mobile', () => {
+        renderFilterRuleForm(visibleDimension);
+
+        expect(screen.getByTestId('FilterRuleForm/filter-rule')).toHaveStyle(
+            '--group-wrap: wrap',
+        );
     });
 
     it('locks a hidden field and explains why in a tooltip', async () => {

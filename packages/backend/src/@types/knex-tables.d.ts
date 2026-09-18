@@ -19,6 +19,8 @@ import {
 import {
     AppsTable,
     AppsTableName,
+    AppThreadsTable,
+    AppThreadsTableName,
     AppVersionsTable,
     AppVersionsTableName,
 } from '../database/entities/apps';
@@ -865,6 +867,7 @@ declare module 'knex/types/tables' {
         [ContentReviewSettingsTableName]: ContentReviewSettingsTable;
         [AppsTableName]: AppsTable;
         [AppVersionsTableName]: AppVersionsTable;
+        [AppThreadsTableName]: AppThreadsTable;
         [AppUserAccessTableName]: AppUserAccessTable;
         [AppGroupAccessTableName]: AppGroupAccessTable;
         [AiRouterTableName]: AiRouterTable;

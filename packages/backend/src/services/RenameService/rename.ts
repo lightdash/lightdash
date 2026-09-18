@@ -512,8 +512,7 @@ export const renameChartConfigType = (
         case ChartType.DATA_APP_VIZ: {
             const dataAppVizConfig = chartConfig as DataAppVizChartConfig;
             if (!dataAppVizConfig.config) return dataAppVizConfig;
-            // Field mapping keys are the viz's internal field names; the values
-            // are query field ids, so only the values get renamed.
+            // Mapping keys are the viz's internal field names; only query ids change.
             return {
                 ...dataAppVizConfig,
                 config: {
@@ -521,9 +520,11 @@ export const renameChartConfigType = (
                     fieldMapping: Object.fromEntries(
                         Object.entries(
                             dataAppVizConfig.config.fieldMapping,
-                        ).map(([field, fieldId]) => [
+                        ).map(([field, binding]) => [
                             field,
-                            replaceId(fieldId),
+                            Array.isArray(binding)
+                                ? binding.map(replaceId)
+                                : replaceId(binding),
                         ]),
                     ),
                 },

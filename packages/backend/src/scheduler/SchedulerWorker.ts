@@ -23,6 +23,7 @@ import type { PoolClient } from 'pg';
 import { UsageEventsCompactor } from '../analytics/eventStream/UsageEventsCompactor';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
+import type { UsageDimensionsModel } from '../models/UsageDimensionsModel';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { MigrationLeaseProbe } from './MigrationLeaseProbe';
@@ -40,6 +41,7 @@ import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
 
 export type SchedulerWorkerArguments = SchedulerTaskArguments & {
+    usageDimensionsModel: UsageDimensionsModel;
     // When omitted, no pg-ping interval runs and the health probe falls back to
     // job-activity events alone.
     workerHealth?: SchedulerWorkerHealth;
@@ -111,6 +113,8 @@ export class SchedulerWorker extends SchedulerTask {
 
     private readonly prometheusMetrics: PrometheusMetrics | null;
 
+    private readonly usageDimensionsModel: UsageDimensionsModel;
+
     private readonly managedRunners = new Set<ManagedRunner>();
 
     private readonly expectedRunnerStops = new Set<Runner>();
@@ -128,6 +132,7 @@ export class SchedulerWorker extends SchedulerTask {
         this.resolveOrganizationName =
             schedulerWorkerArgs.resolveOrganizationName;
         this.prometheusMetrics = schedulerWorkerArgs.prometheusMetrics ?? null;
+        this.usageDimensionsModel = schedulerWorkerArgs.usageDimensionsModel;
     }
 
     async run() {
@@ -197,10 +202,67 @@ export class SchedulerWorker extends SchedulerTask {
 
     async stop() {
         this.isStopping = true;
-        await this.migrationQuiesce?.stop();
+        this.migrationQuiesce?.stop();
         this.stopPgPing();
+        await this.drainManagedRunners();
         this.isRunning = false;
         this.isQuiesced = false;
+    }
+
+    // Ordinary shutdown lets in-flight jobs finish: a single-attempt job
+    // (evals, Slack prompts) released mid-run by fail_job can never be
+    // re-acquired, and its handler's own error path dies with the process.
+    // Past the deadline, or when the pool is already dead, fall back to the
+    // fail_job release so jobs with attempts left move to a live worker.
+    private async drainManagedRunners(): Promise<void> {
+        const managedRunners = [...this.managedRunners];
+        if (managedRunners.length === 0) {
+            return;
+        }
+        if (this.workerHealth?.isPoolDead()) {
+            await this.stopManagedRunnersForRetry(
+                'Scheduler worker stopping with dead pool',
+            );
+            return;
+        }
+
+        for (const { runner } of managedRunners) {
+            this.expectedRunnerStops.add(runner);
+        }
+        const { shutdownTimeout } = this.lightdashConfig.scheduler;
+        const drained = Promise.all(
+            managedRunners.map(({ runner }) => runner.stop()),
+        ).then(
+            () => 'drained' as const,
+            (error: unknown) => {
+                Logger.warn(
+                    `Scheduler runner stop failed: ${getErrorMessage(error)}`,
+                );
+                return 'drained' as const;
+            },
+        );
+        const deadline = new Promise<'timeout'>((resolve) => {
+            setTimeout(() => resolve('timeout'), shutdownTimeout).unref();
+        });
+
+        const outcome = await Promise.race([drained, deadline]);
+        if (outcome === 'timeout') {
+            Logger.warn(
+                `Scheduler shutdown drain exceeded ${shutdownTimeout}ms; releasing in-flight jobs for retry`,
+            );
+            // runner.stop() is already in flight, so only the pool-level
+            // release is needed here.
+            await Promise.all(
+                managedRunners.map(({ workerPool }) =>
+                    workerPool?.gracefulShutdown(
+                        'Scheduler shutdown deadline exceeded',
+                    ),
+                ),
+            );
+        }
+        this.managedRunners.clear();
+        this.runner = undefined;
+        this.isRunning = false;
     }
 
     private async startManagedRunner(
@@ -440,6 +502,7 @@ export class SchedulerWorker extends SchedulerTask {
                 task: SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
                 pattern: '30 0 * * *', // 00:30 UTC daily
                 options: {
+                    queueName: 'usage-events-compaction',
                     backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
                     maxAttempts: 3,
                 },
@@ -1634,6 +1697,7 @@ export class SchedulerWorker extends SchedulerTask {
                 const compactor = new UsageEventsCompactor({
                     s3Config: usageEvents.s3,
                     prometheusMetrics: this.prometheusMetrics,
+                    usageDimensionsModel: this.usageDimensionsModel,
                 });
                 const summary = await compactor.run();
                 Sentry.getActiveSpan()?.setAttributes({

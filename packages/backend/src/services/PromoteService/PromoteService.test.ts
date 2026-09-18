@@ -2140,6 +2140,6 @@ describe('PromoteService data app promotion', () => {
             chartConfig.type === ChartType.DATA_APP_VIZ
                 ? chartConfig.config?.dataAppVizVersion
                 : undefined,
-        ).toBeUndefined();
+        ).toBe(3);
     });
 });

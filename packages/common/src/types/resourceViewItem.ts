@@ -5,6 +5,7 @@ import {
     type ChartSourceType,
     type SummaryContent,
 } from './content';
+import { type ContentVerificationInfo } from './contentVerification';
 import { type DashboardBasicDetails } from './dashboard';
 import { type SpaceQuery } from './savedCharts';
 import { type Space, type SpaceMemberRole, type SpaceSummary } from './space';
@@ -123,6 +124,7 @@ export type ResourceViewDataAppItem = {
         latestReadyVersionNumber: number | null;
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
+        verification: ContentVerificationInfo | null;
     };
     category?: ResourceItemCategory;
 };
@@ -335,6 +337,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                 latestReadyVersionNumber: content.latestReadyVersionNumber,
                 pinnedListUuid: content.pinnedList?.uuid || null,
                 pinnedListOrder: content.pinnedList?.order || null,
+                verification: content.verification,
             };
             return wrapResource(dataAppViewItem, ResourceViewItemType.DATA_APP);
         default:

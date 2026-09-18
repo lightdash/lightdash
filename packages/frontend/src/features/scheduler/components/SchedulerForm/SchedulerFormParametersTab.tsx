@@ -1,4 +1,5 @@
 import {
+    resolveParameterDefault,
     type Dashboard,
     type LightdashProjectParameter,
     type ParameterDefinitions,
@@ -224,7 +225,7 @@ export const SchedulerFormParametersTab: FC<SchedulerParametersProps> = ({
                     // Use actual dashboard parameter value, fallback to default if not set
                     const dashboardValue =
                         currentParameterValues?.[paramKey] ??
-                        parameter.default ??
+                        resolveParameterDefault(parameter) ??
                         null;
 
                     return (

@@ -1209,7 +1209,10 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
-        { fullTextSearchOperator = 'AND' }: SearchContentOptions = {},
+        {
+            fullTextSearchOperator = 'AND',
+            verifiedOnly = false,
+        }: SearchContentOptions = {},
     ): Promise<DataAppSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.DATA_APP, filters?.type)) {
             return [];
@@ -1270,6 +1273,16 @@ export class SearchModel {
         // Custom chart types are not data apps — they have their own gallery
         // and must not surface as "Data app" search results.
         AppModel.applyDataAppVizsFilter(subquery, 'exclude');
+
+        if (verifiedOnly) {
+            subquery = subquery.whereExists(
+                this.verifiedContentExists(
+                    projectUuid,
+                    ContentType.DATA_APP,
+                    `${AppsTableName}.app_id`,
+                ),
+            );
+        }
 
         subquery = filterByCreatedAt(AppsTableName, subquery, filters);
         subquery = filterByCreatedByUuid(

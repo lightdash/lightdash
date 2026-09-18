@@ -88,7 +88,7 @@ export interface DashboardContent extends Content {
     owner: DashboardOwner | null;
 }
 
-export interface DocumentContent extends Content {
+export interface DocumentContentItem extends Content {
     contentType: ContentType.DOCUMENT;
     directAccessRoles: SpaceMemberRole[];
 }
@@ -141,7 +141,7 @@ export type SummaryContentBase =
     | ChartContent
     | DashboardContent
     | SpaceContentBase
-    | DocumentContent
+    | DocumentContentItem
     | DataAppContent;
 
 // What the API returns (spaces enriched with access data)
@@ -149,7 +149,7 @@ export type SummaryContent =
     | ChartContent
     | DashboardContent
     | SpaceContent
-    | DocumentContent
+    | DocumentContentItem
     | DataAppContent;
 
 // API types

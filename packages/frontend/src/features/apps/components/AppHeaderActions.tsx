@@ -13,6 +13,7 @@ type Props = Pick<
     | 'appDescription'
     | 'appSpaceUuid'
     | 'appCreatedByUserUuid'
+    | 'verification'
     | 'latestVersionNumber'
     | 'latestVersionStatus'
     | 'onDeleted'

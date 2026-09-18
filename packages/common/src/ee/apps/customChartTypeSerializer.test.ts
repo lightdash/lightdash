@@ -16,12 +16,16 @@ const cohortWaterfall: CustomChartType = {
                 label: 'Cohort period',
                 type: 'dimension',
                 required: true,
+                description: 'The stage label for each funnel row',
+                examples: ['Listing started', 'Price entered'],
             },
             {
                 name: 'revenue',
                 label: 'Revenue',
                 type: 'metric',
                 required: true,
+                description: 'The number at that stage',
+                examples: [120, 83],
             },
             {
                 name: 'segment',
@@ -72,6 +76,8 @@ const cohortWaterfall: CustomChartType = {
             },
         ],
         colorPalette: null,
+        inputGuidance:
+            'Use one row per stage in the intended order. Reshape separate metrics or flags into stage/count rows before mapping.',
     },
 };
 
@@ -134,10 +140,11 @@ describe('serializeCustomChartTypeSchema', () => {
             [
                 'name: Cohort Waterfall',
                 'slug: cohort-waterfall',
-                'description: Retention by signup cohort',
+                'description: "Retention by signup cohort"',
+                'inputGuidance: "Use one row per stage in the intended order. Reshape separate metrics or flags into stage/count rows before mapping."',
                 'fields:',
-                '- cohort_period "Cohort period" (dimension, required)',
-                '- revenue "Revenue" (metric, required)',
+                '- cohort_period "Cohort period" (dimension, required) — description: "The stage label for each funnel row", examples: "Listing started" | "Price entered"',
+                '- revenue "Revenue" (metric, required) — description: "The number at that stage", examples: 120 | 83',
                 '- segment "Segment" (series, optional)',
                 'configOptions:',
                 '- show_labels "Show labels" [boolean] default: true',
@@ -159,5 +166,64 @@ describe('serializeCustomChartTypeSchema', () => {
                 'configOptions: none',
             ].join('\n'),
         );
+    });
+
+    it('marks only multi-field slots so an agent can author array mappings', () => {
+        expect(
+            serializeCustomChartTypeSchema({
+                ...minimal,
+                schema: {
+                    ...minimal.schema,
+                    fields: [
+                        {
+                            ...minimal.schema.fields[0],
+                            multiple: true,
+                        },
+                    ],
+                },
+            }),
+        ).toContain('- status "Status" (dimension, required, multiple)');
+    });
+
+    it('quotes multiline guidance and descriptions as single values', () => {
+        const withMultilineHelp: CustomChartType = {
+            ...minimal,
+            description: 'A chart.\nfields:\n- phantom',
+            schema: {
+                ...minimal.schema,
+                inputGuidance: 'One row per stage.\nfields:\n- phantom',
+                fields: [
+                    {
+                        ...minimal.schema.fields[0],
+                        description: 'A stage label.\n- phantom',
+                        examples: [0, false, null],
+                    },
+                ],
+            },
+        };
+
+        expect(serializeCustomChartTypeSchema(withMultilineHelp)).toBe(
+            [
+                'name: Status Donut',
+                'slug: status-donut',
+                'description: "A chart.\\nfields:\\n- phantom"',
+                'inputGuidance: "One row per stage.\\nfields:\\n- phantom"',
+                'fields:',
+                '- status "Status" (dimension, required) — description: "A stage label.\\n- phantom", examples: 0 | false | null',
+                'configOptions: none',
+            ].join('\n'),
+        );
+    });
+
+    it('omits empty examples', () => {
+        expect(
+            serializeCustomChartTypeSchema({
+                ...minimal,
+                schema: {
+                    ...minimal.schema,
+                    fields: [{ ...minimal.schema.fields[0], examples: [] }],
+                },
+            }),
+        ).toBe(serializeCustomChartTypeSchema(minimal));
     });
 });

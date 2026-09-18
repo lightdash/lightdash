@@ -40,6 +40,7 @@ export type AppPreviewProps = {
     lineageHighlightQueryUuid?: string | null;
     onLineageCancelled?: () => void;
     dataAppVizContext?: DataAppVizContext;
+    dataAppVizMode?: boolean;
     onSdkManifest?: (manifest: SdkManifest) => void;
     /** Whether the app may mirror its own state into the page URL. */
     urlStateSync?: boolean;
@@ -70,6 +71,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
             lineageHighlightQueryUuid,
             onLineageCancelled,
             dataAppVizContext,
+            dataAppVizMode,
             onSdkManifest,
             urlStateSync = true,
             insights,
@@ -138,6 +140,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 onLineageCancelled={onLineageCancelled}
                 capabilities={{ gsheetExport: true }}
                 dataAppVizContext={dataAppVizContext}
+                dataAppVizMode={dataAppVizMode}
                 urlStateSync={urlStateSync}
                 onSdkManifest={onSdkManifest}
                 insights={insights}

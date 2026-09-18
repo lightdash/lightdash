@@ -20,6 +20,7 @@ import {
     type EchartsGrid,
     type EchartsLegend,
     type ItemsMap,
+    type MergeFieldOrigins,
     type MarkLineData,
     type MetricQuery,
     type PivotReference,
@@ -36,6 +37,7 @@ import {
     getMarkLineAxis,
     type ReferenceLineField,
 } from '../../components/common/ReferenceLine';
+import { getMergeDefaultYAxisIndexByField } from '../../features/mergeQuery/utils/getMergeDefaultYAxisIndex';
 import type { InfiniteQueryResults } from '../useQueryResults';
 import {
     getExpectedSeriesMap,
@@ -60,6 +62,7 @@ type Args = {
               metricQuery?: MetricQuery;
               fields?: ItemsMap;
               resolvedTimezone?: string;
+              fieldOrigins?: MergeFieldOrigins;
           })
         | undefined;
     columnOrder: string[];
@@ -1312,6 +1315,11 @@ const useCartesianChartConfig = ({
                     itemsMap,
                     columnLimit,
                     existingSeries: prev?.series,
+                    defaultYAxisIndexByField: getMergeDefaultYAxisIndexByField({
+                        yFields: dirtyLayout.yField,
+                        itemsMap,
+                        fieldOrigins: resultsData.fieldOrigins,
+                    }),
                 });
                 const sortedByPivot = isPivotSeriesOrderDeterminedByQuery(
                     pivotKeys,

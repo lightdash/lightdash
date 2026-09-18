@@ -41,6 +41,7 @@ const makePrompt = (): AiWebAppPrompt => ({
     agentUuid: 'agent-uuid',
     promptUuid: 'prompt-uuid',
     threadUuid: 'thread-uuid',
+    threadCreatedFrom: 'web_app',
     createdByUserUuid: 'user-uuid',
     userUuid: 'user-uuid',
     prompt: 'Show the baseline',
@@ -802,6 +803,7 @@ describe('getRunQuery custom chart types', () => {
         chartConfig,
         resolveCustomChartType = vi.fn().mockResolvedValue({
             dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+            dataAppVizVersion: 2,
             schema: vizSchema,
         }) as ResolveCustomChartTypeFn,
         runAsyncQuery = vi
@@ -878,12 +880,49 @@ describe('getRunQuery custom chart types', () => {
                     source: 'customChartType',
                     schemaVersion: 1,
                     dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                    dataAppVizVersion: 2,
                     // Model output stored unmodified — slug config intact.
                     config: input,
                 },
             }),
         );
     });
+
+    it.each([false, true])(
+        'persists ordered multi-field bindings with filter expressions %s',
+        async (enableFilterExpressions) => {
+            const chartConfig: ToolRunQueryCustomChartTypeConfig = {
+                ...customChartConfig,
+                fieldMapping: { x: 'a_dim1', y: ['a_met1'] },
+            };
+            const multiSchema = {
+                ...vizSchema,
+                fields: vizSchema.fields.map((field) =>
+                    field.name === 'y' ? { ...field, multiple: true } : field,
+                ),
+            };
+            const { output, createOrUpdateArtifact } = await executeCustom({
+                chartConfig,
+                enableFilterExpressions,
+                resolveCustomChartType: vi.fn().mockResolvedValue({
+                    dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                    dataAppVizVersion: 2,
+                    schema: multiSchema,
+                }) as ResolveCustomChartTypeFn,
+            });
+
+            expect(output.metadata).toMatchObject({ status: 'success' });
+            expect(createOrUpdateArtifact).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    vizConfig: expect.objectContaining({
+                        source: 'customChartType',
+                        dataAppVizVersion: 2,
+                        config: expect.objectContaining({ chartConfig }),
+                    }),
+                }),
+            );
+        },
+    );
 
     it('persists resolved expression args for custom chart types', async () => {
         const { output, createOrUpdateArtifact } = await executeCustom({
@@ -898,6 +937,7 @@ describe('getRunQuery custom chart types', () => {
                     source: 'customChartType',
                     schemaVersion: 1,
                     dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                    dataAppVizVersion: 2,
                     config: expect.objectContaining({
                         queryConfig: expect.objectContaining({
                             filters: expect.objectContaining({
@@ -1029,6 +1069,7 @@ describe('getRunQuery custom chart types', () => {
             slackLinksOnly: false,
             resolveCustomChartType: vi.fn().mockResolvedValue({
                 dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                dataAppVizVersion: 2,
                 schema: vizSchema,
             }) as ResolveCustomChartTypeFn,
             exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
@@ -1141,6 +1182,7 @@ describe('getRunQuery custom chart types', () => {
                 slackLinksOnly: false,
                 resolveCustomChartType: vi.fn().mockResolvedValue({
                     dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+                    dataAppVizVersion: 2,
                     schema: vizSchema,
                 }) as ResolveCustomChartTypeFn,
                 exportCustomChartTypeImage,

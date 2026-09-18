@@ -20,6 +20,8 @@ type Props = {
     onChange: (name: string, value: DataAppVizOptionValue) => void;
     /** Null when the viz colours nothing from the resolved palette. */
     colorPalette: DataAppVizPaletteDeclaration | null;
+    /** Resolved chart palette used for colour option swatches. */
+    resolvedColorPalette: string[];
     /**
      * Rendered in the tab the declaration names. Picking the chart's Lightdash
      * palette differs by surface (Explorer store vs local state), so the caller
@@ -42,6 +44,7 @@ const DataAppVizOptionTabs: FC<Props> = ({
     values,
     onChange,
     colorPalette,
+    resolvedColorPalette,
     paletteControl,
 }) => {
     const optionGroups = useMemo(
@@ -75,6 +78,7 @@ const DataAppVizOptionTabs: FC<Props> = ({
                                     <DataAppVizOptionControl
                                         option={option}
                                         value={values[option.name]}
+                                        colorPalette={resolvedColorPalette}
                                         onChange={(value) =>
                                             onChange(option.name, value)
                                         }

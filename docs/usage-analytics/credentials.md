@@ -19,8 +19,9 @@ the existing usage-events writer and a validated org. It reuses the
 backend's S3 SDK authentication. There is no CLI authentication, OAuth exchange,
 new service account, or Terraform requirement for this temporary read path.
 
-The resolver lists only `events/compacted/org_id=<org>/` and selects the existing
-`query_events` and `ai_usage` Parquet files across all retained dates. Date filters
+The resolver lists only `events/compacted/org_id=<org>/` and selects supported
+event-stream Parquet files across all retained dates, plus the exact current
+[dimension snapshot keys](dimensions.md). Date filters
 belong to Explore queries; there is no fixed source date window. It signs exact GET
 URLs with 15-minute lifetimes. The file manifest and signatures are refreshed for
 each DuckDB session. Listing is bounded and fails closed on malformed pagination,
