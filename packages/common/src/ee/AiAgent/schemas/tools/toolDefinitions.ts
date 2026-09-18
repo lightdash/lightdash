@@ -1138,10 +1138,10 @@ export const iterateDataAppToolDefinition: ToolDefinitionWithMcpOutput<
 > = defineTool({
     name: 'iterateDataApp',
     title: 'Iterate on data app',
-    description: ({ runtime }) =>
-        runtime === 'mcp'
-            ? MCP_TOOL_ITERATE_DATA_APP_DESCRIPTION
-            : TOOL_ITERATE_DATA_APP_DESCRIPTION,
+    description: descriptionByRuntime({
+        agent: TOOL_ITERATE_DATA_APP_DESCRIPTION,
+        mcp: MCP_TOOL_ITERATE_DATA_APP_DESCRIPTION,
+    }),
     availability: ['agent', 'mcp'],
     inputSchema: toolIterateDataAppArgsSchema,
     agent: { outputSchema: toolIterateDataAppOutputSchema },

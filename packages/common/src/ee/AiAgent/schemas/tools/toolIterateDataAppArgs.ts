@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 import {
+    DATA_APP_BUILD_POLL_INTERVAL_MS,
     DATA_APP_THEME_SLUG_DESCRIPTION,
     isToolGenerateDataAppResult,
     MCP_DATA_APP_AGENT_SCOPE_GUIDANCE,
@@ -12,7 +13,7 @@ export const TOOL_ITERATE_DATA_APP_DESCRIPTION = [
     'Start a build that adds a version to an existing data app from a follow-up brief.',
     'Use it when the user wants to change, fix, or extend a data app that already exists — one built earlier in this thread, or one found with findContent; use generateDataApp only for a brand-new app.',
     "The coding agent works from the app's current source, so the brief should describe the change, not restate the whole app.",
-    'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request.',
+    'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn.',
     'While a version is already building for the app, the call fails — relay that the user should wait for the current build to finish.',
     'When the attached context lists element references for this app (bracketed `[tag "text" @path:line]` strings), copy every one of them verbatim into the brief — the coding agent resolves them by source location and cannot see them otherwise.',
 ].join(' ');
@@ -25,7 +26,9 @@ Start a build that adds a version to an existing data app from a follow-up brief
 Important:
 - The coding agent works from the app's current source, so the brief describes the change rather than restating the whole app.
 - The app's name and slug stay as they are. The build adds a version to the app named by appSlug.
-- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the same appSlug every 15 seconds until its status is "ready", "error", or "cancelled". Call this tool once per request.
+- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the same appSlug every ${
+    DATA_APP_BUILD_POLL_INTERVAL_MS / 1000
+} seconds until its status is "ready", "error", or "cancelled". Call this tool once per request.
 - While a version is already building for the app, this call fails with "A version is already building for this app". Poll get_data_app_build_status until that build reaches a terminal status, then call this tool again.
 ${MCP_DATA_APP_AGENT_SCOPE_GUIDANCE}
 - Pass themeSlug only when the user asks to switch the app's theme; omitting it keeps the current one. An unknown themeSlug fails before the build starts and lists the valid slugs, which list_data_app_themes also returns.
