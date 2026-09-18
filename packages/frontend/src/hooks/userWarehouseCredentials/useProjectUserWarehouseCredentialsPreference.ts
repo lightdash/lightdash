@@ -13,23 +13,25 @@ import useToaster from '../toaster/useToaster';
 
 const getProjectUserWarehouseCredentialsPreference = async (
     projectUuid: string,
-    connectionUuid?: string,
+    connectionUuid: string,
 ) =>
-    lightdashApi<UserWarehouseCredentials>({
-        url: `/projects/${projectUuid}/user-credentials${
-            connectionUuid
-                ? `?connectionUuid=${encodeURIComponent(connectionUuid)}`
-                : ''
-        }`,
+    lightdashApi<UserWarehouseCredentials | null>({
+        url: `/projects/${projectUuid}/user-credentials?connectionUuid=${encodeURIComponent(
+            connectionUuid,
+        )}`,
         method: 'GET',
         body: undefined,
     });
 
 export const useProjectUserWarehouseCredentialsPreference = (
     projectUuid: string | undefined,
-    connectionUuid?: string,
+    connectionUuid: string | undefined,
 ) => {
-    return useQuery<UserWarehouseCredentials, ApiError>({
+    return useQuery<
+        UserWarehouseCredentials | null,
+        ApiError,
+        UserWarehouseCredentials | undefined
+    >({
         queryKey: [
             'project-user-warehouse-credentials-preference',
             projectUuid,
@@ -38,24 +40,23 @@ export const useProjectUserWarehouseCredentialsPreference = (
         queryFn: () =>
             getProjectUserWarehouseCredentialsPreference(
                 projectUuid!,
-                connectionUuid,
+                connectionUuid!,
             ),
-        enabled: !!projectUuid,
+        enabled: !!projectUuid && !!connectionUuid,
         retry: false,
+        select: (preference) => preference ?? undefined,
     });
 };
 
 const updateProjectUserWarehouseCredentialsPreference = async (
     projectUuid: string,
     userWarehouseCredentialsUuid: string,
-    connectionUuid?: string,
+    connectionUuid: string,
 ) =>
     lightdashApi<null>({
-        url: `/projects/${projectUuid}/user-credentials/${userWarehouseCredentialsUuid}${
-            connectionUuid
-                ? `?connectionUuid=${encodeURIComponent(connectionUuid)}`
-                : ''
-        }`,
+        url: `/projects/${projectUuid}/user-credentials/${userWarehouseCredentialsUuid}?connectionUuid=${encodeURIComponent(
+            connectionUuid,
+        )}`,
         method: 'PATCH',
         body: undefined,
     });
@@ -63,7 +64,7 @@ const updateProjectUserWarehouseCredentialsPreference = async (
 type UpdateCredentialsPreference = {
     projectUuid: string;
     userWarehouseCredentialsUuid: string;
-    connectionUuid?: string;
+    connectionUuid: string;
 };
 
 export const useProjectUserWarehouseCredentialsPreferenceMutation = (
