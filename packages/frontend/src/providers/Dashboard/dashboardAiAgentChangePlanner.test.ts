@@ -95,6 +95,15 @@ const chartCreatePart = {
             href: '/projects/project-uuid/saved/chart-uuid',
             warnings: [],
         },
+        structuredContent: {
+            type: 'chart',
+            slug: 'new-orders-chart',
+            name: 'New orders chart',
+            uuid: 'chart-uuid',
+            href: '/projects/project-uuid/saved/chart-uuid',
+            content: {},
+            warnings: [],
+        },
     },
 } as StreamPart;
 
