@@ -132,7 +132,7 @@ describe('AppGenerateService.generateApp with the data app viz template', () => 
             undefined, // clarifications
             undefined, // spaceUuid
             undefined, // claudeModelInput
-            { creationExperience: 'explorer_chart_config' },
+            { name: null, creationExperience: 'explorer_chart_config' },
         );
 
         expect(result).toEqual({
@@ -227,7 +227,7 @@ describe('AppGenerateService.generateApp with the data app viz template', () => 
             undefined,
             undefined,
             undefined,
-            { codexModelInput: 'gpt-5.6-sol' },
+            { name: null, codexModelInput: 'gpt-5.6-sol' },
         );
 
         const event = analytics.track.mock.calls[0][0];
@@ -370,6 +370,7 @@ describe('AppGenerateService chart build context', () => {
             undefined,
             undefined,
             {
+                name: null,
                 vizContext: {
                     schema,
                     fieldMapping: { amount: 'orders_total' },
@@ -427,7 +428,7 @@ describe('AppGenerateService chart build context', () => {
             undefined,
             undefined,
             undefined,
-            { vizContext },
+            { name: null, vizContext },
         );
         const enabledPrompt = (
             enabled.schedulerClient.appGeneratePipeline as ReturnType<
@@ -454,7 +455,7 @@ describe('AppGenerateService chart build context', () => {
             undefined,
             undefined,
             undefined,
-            { vizContext },
+            { name: null, vizContext },
         );
         const disabledPrompt = (
             disabled.schedulerClient.appGeneratePipeline as ReturnType<
@@ -543,7 +544,10 @@ describe('AppGenerateService chart build context', () => {
             undefined,
             undefined,
             undefined,
-            { vizContext: { sampleRows: [{ orders_total: '€12.00' }] } },
+            {
+                name: null,
+                vizContext: { sampleRows: [{ orders_total: '€12.00' }] },
+            },
         );
 
         expect(

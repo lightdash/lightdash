@@ -1,7 +1,4 @@
-import {
-    NotFoundError,
-    toolGenerateDataAppArgsSchema,
-} from '@lightdash/common';
+import { NotFoundError } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { getGenerateDataApp } from './generateDataApp';
 
@@ -72,14 +69,6 @@ describe('getGenerateDataApp', () => {
             version: 1,
             name: 'Revenue Overview',
         });
-    });
-
-    it('rejects a call that leaves the app unnamed', () => {
-        expect(
-            toolGenerateDataAppArgsSchema.safeParse({
-                prompt: 'Build a revenue app',
-            }).success,
-        ).toBe(false);
     });
 
     it('reports a start-time failure as an error result', async () => {

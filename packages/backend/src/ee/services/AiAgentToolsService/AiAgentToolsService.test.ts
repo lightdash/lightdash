@@ -3084,20 +3084,9 @@ describe('AiAgentToolsService generateDataApp', () => {
         });
 
         expect(result).toEqual({ appUuid: 'app-uuid', version: 1 });
-        const [
-            calledUser,
-            calledProject,
-            prompt,
-            ,
-            ,
-            ,
-            ,
-            template,
-            ,
-            ,
-            ,
-            opts,
-        ] = appGenerateService.generateApp.mock.calls[0];
+        const [calledUser, calledProject, prompt, , , , , template] =
+            appGenerateService.generateApp.mock.calls[0];
+        const opts = generateAppOptions(appGenerateService);
         expect(calledUser).toBe(user);
         expect(calledProject).toBe(projectUuid);
         expect(prompt).toBe('Build a revenue app');
