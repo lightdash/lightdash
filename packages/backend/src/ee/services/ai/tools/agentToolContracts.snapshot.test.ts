@@ -1,8 +1,9 @@
 import {
     agentToolDefinitions,
     agentToolDefinitionsByName,
+    searchToolsToolDefinition,
 } from '@lightdash/common';
-import { asSchema, type FlexibleSchema, type ToolSet } from 'ai';
+import { asSchema, toolSearch, type FlexibleSchema, type ToolSet } from 'ai';
 import { DISTILL_TOOL_POLICIES } from '../../AiAgentMemoryService/transcriptToolPolicy';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getStaticToolDescription } from '../utils/toolDescription';
@@ -125,6 +126,8 @@ const makeAgentTools = (
         }),
         generateHashes: getGenerateHashes(),
         generateUuids: getGenerateUuids(),
+        // The AI SDK tool-search tool as the model sees it.
+        searchTools: toolSearch(),
         getDashboardCharts: getGetDashboardCharts({
             getDashboardCharts: noop,
             pageSize: 25,
@@ -342,6 +345,25 @@ describe('AI agent tool contracts', () => {
         expect(
             agentToolSnapshot('searchFieldValues', searchFieldValues),
         ).toMatchSnapshot();
+    });
+
+    it('keeps the AI SDK tool mirrors aligned with the SDK input schemas', () => {
+        const inputShape = (schema: FlexibleSchema | undefined) => {
+            const json = schemaToJson(schema);
+            if (!json || typeof json !== 'object') return json;
+            const { properties, required } = json as {
+                properties?: Record<string, unknown>;
+                required?: string[];
+            };
+            return {
+                properties: Object.keys(properties ?? {}).sort(),
+                required: [...(required ?? [])].sort(),
+            };
+        };
+
+        expect(
+            inputShape(searchToolsToolDefinition.for('agent').inputSchema),
+        ).toEqual(inputShape(toolSearch().inputSchema));
     });
 
     it('has an explicit memory distill policy for every shared agent tool', () => {

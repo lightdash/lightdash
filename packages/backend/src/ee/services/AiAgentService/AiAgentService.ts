@@ -11321,6 +11321,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 user,
                 featureFlagId: FeatureFlags.AiFilterExpressions,
             });
+        const { enabled: toolSearchEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiAgentToolSearch,
+            });
         let aiWritebackEnabled = hasTrustedPromptUserIdentity;
         if (!aiWritebackEnabled) {
             this.logger.info(
@@ -11683,6 +11688,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             enableRepoDiscovery: repoDiscoveryEnabled,
             enableMergeQueries: mergeQueriesEnabled,
             enableFilterExpressions: filterExpressionsEnabled,
+            enableToolSearch: toolSearchEnabled,
             repoFsRoot,
             repoFsSupportsCodeSearch,
             canRunSql,
@@ -13236,6 +13242,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     return 'Saving the changes...';
                 case 'loadProjectContext':
                     return 'Reviewing the project context...';
+                case 'searchTools':
+                    return 'Finding the right tools...';
                 case 'findContent':
                 case 'findCharts':
                 case 'findCustomChartTypes':

@@ -116,6 +116,7 @@ import {
     summarizeToolCall,
     summarizeToolResult,
 } from '../utils/toolSummaries';
+import { isToolRoutingEnabled, withToolSearch } from './agentToolRouting';
 import { getMcpActiveTools } from './mcpToolGating';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
@@ -1397,11 +1398,21 @@ export const getAgentTools = (
               )
             : mergedTools);
 
+    const routedTools =
+        args.enableToolSearch && isToolRoutingEnabled(args.execution)
+            ? withToolSearch({
+                  tools: finalTools,
+                  toolHints: args.toolHints,
+                  messageHistory: args.messageHistory,
+                  mcpToolNames,
+              })
+            : finalTools;
+
     logger(
         'Agent Tools',
-        `Successfully retrieved agent tools: ${Object.keys(finalTools).join(', ')}`,
+        `Successfully retrieved agent tools: ${Object.keys(routedTools).join(', ')}`,
     );
-    return finalTools;
+    return routedTools;
 };
 
 // Fires an `in_progress` task update the moment a tool's execute() runs — i.e. as
@@ -1657,6 +1668,8 @@ export const getAgentMessages = (
         slackLinksOnly: args.slackLinksOnly,
         enableComposerQueries: args.enableComposerQueries,
         enableMergeQueries: args.enableMergeQueries,
+        enableToolSearch:
+            args.enableToolSearch && isToolRoutingEnabled(args.execution),
         warehouseType: args.warehouseType,
         warehouseSchema: args.warehouseSchema,
         sqlScope: args.sqlScope,

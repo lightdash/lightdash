@@ -67,6 +67,7 @@ const DUMP_TOOL_RESULT_POLICIES = {
     editProjectContext: 'omit',
     getKnowledgeDocumentContent: 'omit',
     readPinnedThread: 'omit',
+    searchTools: 'keep',
     exploreRepo: 'omit',
     getPullRequestDiff: 'omit',
 } as const satisfies Record<ToolName, DumpToolResultPolicy>;

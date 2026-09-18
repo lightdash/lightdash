@@ -6332,6 +6332,50 @@ All branches of an IF must return the same type.",
     },
   },
   {
+    "description": "Search for tools by keywords in their names and descriptions. Returns up to five matching tools. Matches become available on the next model step, after this execution finishes. Wait for their tool definitions before calling the discovered tools. If no tools match, try different keywords.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "minLength": 1,
+          "type": "string",
+        },
+      },
+      "required": [
+        "query",
+      ],
+      "type": "object",
+    },
+    "name": "searchTools",
+    "outputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "tools": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "description": {
+                "type": "string",
+              },
+              "name": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "name",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+      },
+      "required": [
+        "tools",
+      ],
+      "type": "object",
+    },
+  },
+  {
     "description": "Tool: "getDashboardCharts"
 Purpose:
 Retrieves the list of charts within a specific dashboard, with pagination support.
@@ -34472,6 +34516,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "listKnowledgeDocuments",
   "getKnowledgeDocumentContent",
   "readPinnedThread",
+  "searchTools",
   "submitResearchReport",
   "delegateResearchTask",
   "submitWorkerFindings",
