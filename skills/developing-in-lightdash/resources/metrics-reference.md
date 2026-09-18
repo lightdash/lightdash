@@ -2,6 +2,49 @@
 
 Metrics are aggregated calculations performed on your data. They answer questions like "how much?", "how many?", and "what's the average?".
 
+## Metric Naming
+
+**Never reuse a dimension's name for a metric.** Dimensions and metrics share a field-name namespace on each table, regardless of where the metric is declared. This applies to dbt, dbt Fusion / dbt 1.10+, and pure Lightdash YAML. A different `label` does not resolve a name collision.
+
+Before adding a metric:
+
+1. Read the model's existing field definitions: all dimensions (including hidden and additional dimensions), metrics on every column, and model-level metrics.
+2. Default to an aggregation prefix on the source dimension name:
+
+    | Aggregation type   | Default metric name                                  |
+    | ------------------ | ---------------------------------------------------- |
+    | `sum`              | `sum_<dimension>`                                    |
+    | `count_distinct`   | `count_distinct_<dimension>`                         |
+    | `average`          | `avg_<dimension>`                                    |
+    | Other aggregations | `<aggregation>_<dimension>` (e.g. `min_<dimension>`) |
+
+    `avg_` is a naming prefix, not a metric type: use `type: average`.
+
+3. Check the candidate against **all** field names on that model, not just the source dimension. If it is taken, choose a descriptive alternative or append `_2`, `_3`, etc., checking again until unique. Never overwrite or rename an existing field to make room. If an existing metric already implements the requested calculation, reuse it rather than adding a duplicate.
+4. Keep the source dimension and its SQL unchanged. Use the new metric name in any chart/query references you create.
+5. Run `lightdash preview` and confirm the new metric is present without duplicate-field errors or skipped-metric warnings before deployment. `dbt compile` or YAML lint alone is not sufficient.
+
+For example, a sum of `net_welcome_offer_discount_local` should be named `sum_net_welcome_offer_discount_local`, assuming that name is unused:
+
+```yaml
+models:
+    - columns:
+          - meta:
+                dimension:
+                    type: number
+                metrics:
+                    sum_net_welcome_offer_discount_local:
+                        type: sum
+            name: net_welcome_offer_discount_local
+      name: orders
+```
+
+For dbt Fusion / dbt 1.10+, nest the column's `meta` under `config`. In pure Lightdash YAML, put the metric under top-level `metrics` with `sql: ${net_welcome_offer_discount_local}` and retain the source in `dimensions`.
+
+**Optional:** If the source dimension exists only to feed the metric, suggest `hidden: true` on the dimension (`meta.dimension` / `config.meta.dimension` in dbt, or the dimension entry in pure Lightdash). Do not hide it automatically. Hidden dimensions still reserve their names; hiding is not a collision fix.
+
+See the official [metric aggregation examples](https://docs.lightdash.com/semantic-layer/metrics#average) and [hiding fields](https://docs.lightdash.com/explore/formatting-your-fields#hiding-fields).
+
 ## Metric Locations
 
 Metrics can be defined in two places:
