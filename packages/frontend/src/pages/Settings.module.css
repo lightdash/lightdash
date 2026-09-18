@@ -14,3 +14,60 @@
     flex: 1 1 auto;
     min-height: 0;
 }
+
+/* Edge fade: content beyond an edge dissolves into it. Each fade grows with
+   the scroll offset, so nothing is faded while scrolled to that edge. Browsers
+   without scroll-driven animations keep hard edges. */
+@property --settings-nav-fade-top {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+
+@property --settings-nav-fade-bottom {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+
+.sidebarScrollViewport {
+    --settings-nav-fade: var(--mantine-spacing-xl);
+
+    mask-image: linear-gradient(
+        to bottom,
+        transparent,
+        black var(--settings-nav-fade-top),
+        black calc(100% - var(--settings-nav-fade-bottom)),
+        transparent
+    );
+}
+
+@supports (animation-timeline: scroll()) {
+    .sidebarScrollViewport {
+        animation:
+            fadeTop linear both,
+            fadeBottom linear both;
+        animation-timeline: scroll(self);
+        animation-range:
+            0px var(--settings-nav-fade),
+            calc(100% - var(--settings-nav-fade)) 100%;
+    }
+}
+
+@keyframes fadeTop {
+    from {
+        --settings-nav-fade-top: 0px;
+    }
+    to {
+        --settings-nav-fade-top: var(--settings-nav-fade);
+    }
+}
+
+@keyframes fadeBottom {
+    from {
+        --settings-nav-fade-bottom: var(--settings-nav-fade);
+    }
+    to {
+        --settings-nav-fade-bottom: 0px;
+    }
+}
