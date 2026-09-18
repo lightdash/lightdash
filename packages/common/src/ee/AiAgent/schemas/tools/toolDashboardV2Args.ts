@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
     chartConfigBuiltinOnlySchema,
@@ -92,9 +95,31 @@ export type ToolDashboardV2ArgsTransformed = z.infer<
     typeof toolDashboardV2ArgsSchemaTransformed
 >;
 
-export const toolDashboardV2OutputSchema = z.object({
-    result: z.string(),
+export const toolDashboardV2StructuredContentSchema = z.object({
+    visualizationCount: z
+        .number()
+        .describe('How many visualizations the dashboard was created with.'),
+    excludedVisualizations: z
+        .array(
+            z.object({
+                title: z.string().describe('Title of the visualization.'),
+                error: z
+                    .string()
+                    .describe('Why the visualization failed validation.'),
+            }),
+        )
+        .describe(
+            'Visualizations left out of the dashboard because they failed validation; empty when every visualization was included.',
+        ),
+});
+
+export type ToolDashboardV2StructuredContent = z.infer<
+    typeof toolDashboardV2StructuredContentSchema
+>;
+
+export const toolDashboardV2OutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema,
+    structuredContent: toolDashboardV2StructuredContentSchema,
 });
 
 export type ToolDashboardV2Output = z.infer<typeof toolDashboardV2OutputSchema>;

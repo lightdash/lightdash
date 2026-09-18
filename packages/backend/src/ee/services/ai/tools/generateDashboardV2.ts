@@ -1,7 +1,7 @@
 import {
     generateDashboardToolDefinition,
     toolDashboardV2ArgsSchemaTransformed,
-    type ToolDashboardV2ArgsTransformed,
+    type ToolDashboardV2StructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -9,14 +9,22 @@ import type {
     GetPromptFn,
 } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorHandler, toolErrorOutput } from '../utils/toolErrorHandler';
 import { validateRunQueryTool } from './runQuery';
 
 type Dependencies = {
     getPrompt: GetPromptFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
 };
+
+type VisualizationValidation =
+    | { status: 'valid'; index: number }
+    | { status: 'invalid'; index: number; title: string; error: string };
 
 const toolDefinition = generateDashboardToolDefinition.for('agent');
 
@@ -26,61 +34,66 @@ export const getGenerateDashboardV2 = ({
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (toolArgs, { experimental_context: context }) => {
+        execute: async (
+            toolArgs,
+            { experimental_context: context },
+        ): Promise<
+            | ExecuteStructuredToolResult<ToolDashboardV2StructuredContent>
+            | ExecuteToolErrorResult
+        > => {
             try {
                 const ctx = AgentContext.from(context);
                 const transformedToolArgs =
                     toolDashboardV2ArgsSchemaTransformed.parse(toolArgs);
 
-                const errors: string[] = [];
-                const failedVisualizations: string[] = [];
-                const validIndices = new Set<number>();
-
-                const vizPromises = transformedToolArgs.visualizations.map(
-                    async (viz, index) => {
+                const validations: VisualizationValidation[] =
+                    transformedToolArgs.visualizations.map((viz, index) => {
                         try {
                             const explore = ctx.getExplore(
                                 viz.queryConfig.exploreName,
                             );
-
                             validateRunQueryTool(viz, explore);
-                            validIndices.add(index);
-                            return viz;
+                            return { status: 'valid', index };
                         } catch (error) {
-                            const errorMessage = toolErrorHandler(
-                                error,
-                                `Validation failed for visualization ${
-                                    index + 1
-                                } (${viz.title})`,
-                            );
-                            errors.push(errorMessage);
-                            failedVisualizations.push(viz.title);
-                            return null;
+                            return {
+                                status: 'invalid',
+                                index,
+                                title: viz.title,
+                                error: toolErrorHandler(
+                                    error,
+                                    `Validation failed for visualization ${
+                                        index + 1
+                                    } (${viz.title})`,
+                                ),
+                            };
                         }
-                    },
-                );
+                    });
 
-                const validatedVisualizations = await Promise.all(vizPromises);
-
-                // Filter out null values (failed validations)
-                const validVisualizations = validatedVisualizations.filter(
-                    (
-                        viz,
-                    ): viz is ToolDashboardV2ArgsTransformed['visualizations'][number] =>
-                        viz !== null,
+                const validIndices = new Set(
+                    validations
+                        .filter((v) => v.status === 'valid')
+                        .map((v) => v.index),
                 );
+                const excludedVisualizations = validations.flatMap((v) =>
+                    v.status === 'invalid'
+                        ? [{ title: v.title, error: v.error }]
+                        : [],
+                );
+                const errors = excludedVisualizations.map((v) => v.error);
 
                 // Check if we have at least one valid visualization
-                if (validVisualizations.length === 0) {
-                    return {
-                        result: `Dashboard generation failed - all visualizations had validation errors:\n${errors.join(
-                            '\n',
-                        )}
+                if (validIndices.size === 0) {
+                    const result = `Dashboard generation failed - all visualizations had validation errors:\n${errors.join(
+                        '\n',
+                    )}
                     Please fix these issues and try again.
-                    `,
+                    `;
+                    return {
+                        result,
                         metadata: {
                             status: 'error',
                         },
+                        structuredContent: { error: result },
                     };
                 }
 
@@ -103,19 +116,25 @@ export const getGenerateDashboardV2 = ({
                     },
                 });
 
+                const structuredContent: ToolDashboardV2StructuredContent = {
+                    visualizationCount: validIndices.size,
+                    excludedVisualizations,
+                };
+
                 // Return appropriate message based on whether some visualizations failed
                 if (errors.length > 0) {
                     return {
                         result: `Dashboard created with ${
-                            validVisualizations.length
+                            validIndices.size
                         } visualization${
-                            validVisualizations.length > 1 ? 's' : ''
-                        }.\n\nThe following visualizations were excluded due to validation errors:\n${failedVisualizations
-                            .map((title) => `- ${title}`)
+                            validIndices.size > 1 ? 's' : ''
+                        }.\n\nThe following visualizations were excluded due to validation errors:\n${excludedVisualizations
+                            .map(({ title }) => `- ${title}`)
                             .join('\n')}\n\nErrors:\n${errors.join('\n')}`,
                         metadata: {
                             status: 'success',
                         },
+                        structuredContent,
                     };
                 }
 
@@ -124,14 +143,10 @@ export const getGenerateDashboardV2 = ({
                     metadata: {
                         status: 'success',
                     },
+                    structuredContent,
                 };
             } catch (e) {
-                return {
-                    result: toolErrorHandler(e, 'Error generating dashboard.'),
-                    metadata: {
-                        status: 'error',
-                    },
-                };
+                return toolErrorOutput(e, 'Error generating dashboard.');
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
