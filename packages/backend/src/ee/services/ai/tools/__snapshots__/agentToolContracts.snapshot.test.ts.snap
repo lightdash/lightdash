@@ -6253,10 +6253,47 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "prUrl": {
+                  "description": "URL of the pull request that was closed.",
+                  "type": "string",
+                },
+                "state": {
+                  "const": "closed",
+                  "description": "State of the pull request on the provider after the call.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "prUrl",
+                "state",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
