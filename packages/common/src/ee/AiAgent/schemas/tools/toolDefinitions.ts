@@ -13,6 +13,7 @@ import {
     mcpRunAiWritebackArgsSchema,
     mcpRunAiWritebackStructuredOutputSchema,
 } from '../../../aiWriteback/types';
+import { DOCUMENT_RESEARCH_SUMMARY_GUIDANCE } from '../../documentGuidance';
 import { createAgentInputSchema } from '../agentInputSchema';
 import {
     defineTool,
@@ -1932,8 +1933,7 @@ export type AgentToolDefinition = (typeof agentToolDefinitions)[number];
 export const mcpCreateContentToolDefinition = defineTool({
     name: 'createContent',
     title: 'Create content',
-    description:
-        'Create a dashboard, chart, or Document. Documents use schema version 1 with Markdown and semantic/merge chart-as-code cells. Returns the persisted content and canonical reference.',
+    description: `Create a dashboard, chart, or Document. Documents use schema version 1 with Markdown and semantic/merge chart-as-code cells. Returns the persisted content and canonical reference. ${DOCUMENT_RESEARCH_SUMMARY_GUIDANCE}`,
     availability: ['agent', 'mcp'],
     inputSchema: mcpCreateContentArgsSchema,
     mcp: { name: 'create_content', annotations: writeAnnotations },
