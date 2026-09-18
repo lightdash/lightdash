@@ -1,8 +1,18 @@
+import {
+    DimensionType,
+    RedshiftAuthenticationType,
+    WarehouseDatabaseListingNotSupportedError,
+    WarehouseTableType,
+    WarehouseTypes,
+    type CreatePostgresCredentials,
+    type CreateRedshiftCredentials,
+} from '@lightdash/common';
 /* eslint-disable prefer-arrow-callback, func-names */
 import * as pg from 'pg';
 import { PassThrough } from 'stream';
 import type { Mock } from 'vitest';
 import {
+    PostgresClient,
     PostgresSqlBuilder,
     PostgresWarehouseClient,
 } from './PostgresWarehouseClient';
@@ -11,6 +21,7 @@ import {
     credentials,
     queryColumnsMock,
 } from './PostgresWarehouseClient.mock';
+import { RedshiftWarehouseClient } from './RedshiftWarehouseClient';
 import {
     config,
     expectedFields,
@@ -143,9 +154,12 @@ describe('PostgresWarehouseClient', () => {
     });
 
     it('binds catalog filter values as query parameters', async () => {
-        const warehouse = new PostgresWarehouseClient(credentials);
         const database =
             "missing') OR (SELECT CAST(current_database() AS integer)=0) OR ('x'='x";
+        const warehouse = new PostgresWarehouseClient({
+            ...credentials,
+            dbname: database,
+        });
         const runQuery = vi
             .spyOn(warehouse, 'runQuery')
             .mockResolvedValueOnce({
@@ -236,9 +250,137 @@ describe('PostgresWarehouseClient', () => {
         });
     });
 
+    describe('database listing', () => {
+        it('queries databases and caps the result', async () => {
+            const warehouse = new PostgresWarehouseClient({
+                ...credentials,
+                dbname: 'warehouse',
+                listAllDatabases: true,
+            });
+            const runQuery = vi.spyOn(warehouse, 'runQuery').mockResolvedValue({
+                rows: Array.from({ length: 101 }, (_, index) => ({
+                    datname: `database_${index}`,
+                })),
+                fields: {},
+            });
+
+            const result = await warehouse.listDatabases();
+
+            expect(runQuery).toHaveBeenCalledOnce();
+            expect(runQuery.mock.calls[0][0]).toContain('FROM pg_database');
+            expect(runQuery.mock.calls[0][0]).toContain(
+                'WHERE datallowconn AND NOT datistemplate',
+            );
+            expect(runQuery.mock.calls[0][0]).toContain('ORDER BY datname');
+            expect(result.databases).toHaveLength(100);
+            expect(result.databases[0]).toEqual({
+                name: 'warehouse',
+                database: 'warehouse',
+                schema: null,
+                isDefault: true,
+            });
+            expect(result.truncated).toBe(true);
+            expect(result.limit).toBe(100);
+        });
+
+        it('uses deduped configured databases without a query', async () => {
+            const warehouse = new PostgresWarehouseClient({
+                ...credentials,
+                dbname: 'warehouse',
+                additionalDatabases: ['analytics', 'warehouse', 'analytics'],
+            });
+            const runQuery = vi.spyOn(warehouse, 'runQuery');
+
+            const result = await warehouse.listDatabases();
+
+            expect(result.databases).toEqual([
+                {
+                    name: 'warehouse',
+                    database: 'warehouse',
+                    schema: null,
+                    isDefault: true,
+                },
+                {
+                    name: 'analytics',
+                    database: 'analytics',
+                    schema: null,
+                    isDefault: false,
+                },
+            ]);
+            expect(runQuery).not.toHaveBeenCalled();
+        });
+
+        it('uses and closes a client for a non-default database', async () => {
+            const warehouse = new PostgresWarehouseClient({
+                ...credentials,
+                dbname: 'warehouse',
+            });
+            const getAllTables = vi
+                .spyOn(PostgresWarehouseClient.prototype, 'getAllTables')
+                .mockImplementation(
+                    async function (this: PostgresWarehouseClient) {
+                        expect(this.credentials.dbname).toBe('analytics');
+                        return [
+                            {
+                                database: 'reported_database',
+                                schema: 'public',
+                                table: 'orders',
+                                tableType: WarehouseTableType.TABLE,
+                            },
+                        ];
+                    },
+                );
+            const close = vi
+                .spyOn(PostgresClient.prototype, 'close')
+                .mockResolvedValue();
+
+            const result = await warehouse.getTablesForDatabase({
+                name: 'analytics',
+                database: 'analytics',
+                schema: null,
+                isDefault: false,
+            });
+
+            expect(getAllTables).toHaveBeenCalledOnce();
+            expect(close).toHaveBeenCalledOnce();
+            expect(result).toEqual([
+                {
+                    database: 'analytics',
+                    schema: 'public',
+                    table: 'orders',
+                    tableType: WarehouseTableType.TABLE,
+                },
+            ]);
+
+            getAllTables.mockRestore();
+            close.mockRestore();
+        });
+
+        it('keeps Redshift database listing unsupported', async () => {
+            const redshiftCredentials: CreateRedshiftCredentials = {
+                type: WarehouseTypes.REDSHIFT,
+                host: 'localhost',
+                user: 'analytics',
+                password: 'password',
+                port: 5439,
+                dbname: 'warehouse',
+                schema: 'public',
+                authenticationType: RedshiftAuthenticationType.PASSWORD,
+            };
+            const warehouse = new RedshiftWarehouseClient(redshiftCredentials);
+
+            await expect(warehouse.listDatabases()).rejects.toBeInstanceOf(
+                WarehouseDatabaseListingNotSupportedError,
+            );
+        });
+    });
+
     describe('getFields', () => {
         it('includes materialized view columns and binds filters in order', async () => {
-            const warehouse = new PostgresWarehouseClient(credentials);
+            const warehouse = new PostgresWarehouseClient({
+                ...credentials,
+                dbname: 'warehouse',
+            });
             const runQuery = vi
                 .spyOn(warehouse, 'runQuery')
                 .mockResolvedValueOnce({
@@ -273,6 +415,146 @@ describe('PostgresWarehouseClient', () => {
                 warehouse: { public: { orders_mv: { amount: 'number' } } },
             });
         });
+
+        it('uses and closes a client for another database', async () => {
+            const warehouse = new PostgresWarehouseClient({
+                ...credentials,
+                dbname: 'warehouse',
+            });
+            const calls: string[] = [];
+            const getFields = vi
+                .spyOn(PostgresClient.prototype, 'getFields')
+                .mockImplementation(
+                    async function (
+                        this: PostgresClient<CreatePostgresCredentials>,
+                    ) {
+                        calls.push(this.credentials.dbname);
+                        return {
+                            analytics: {
+                                ledger: {
+                                    invoices: { amount: DimensionType.NUMBER },
+                                },
+                            },
+                        };
+                    },
+                );
+            const close = vi
+                .spyOn(PostgresClient.prototype, 'close')
+                .mockResolvedValue();
+
+            const fields = await warehouse.getFields(
+                'invoices',
+                'ledger',
+                'analytics',
+                { requestId: 'fields' },
+            );
+
+            expect(calls).toEqual(['analytics']);
+            expect(getFields).toHaveBeenCalledWith(
+                'invoices',
+                'ledger',
+                'analytics',
+                { requestId: 'fields' },
+            );
+            expect(close).toHaveBeenCalledOnce();
+            expect(fields).toEqual({
+                analytics: {
+                    ledger: {
+                        invoices: { amount: DimensionType.NUMBER },
+                    },
+                },
+            });
+
+            getFields.mockRestore();
+            close.mockRestore();
+        });
+
+        it('uses the existing client for the default database', async () => {
+            const warehouse = new PostgresWarehouseClient({
+                ...credentials,
+                dbname: 'warehouse',
+            });
+            const clients: PostgresClient<CreatePostgresCredentials>[] = [];
+            const getFields = vi
+                .spyOn(PostgresClient.prototype, 'getFields')
+                .mockImplementation(
+                    async function (
+                        this: PostgresClient<CreatePostgresCredentials>,
+                    ) {
+                        clients.push(this);
+                        return {};
+                    },
+                );
+            const close = vi
+                .spyOn(PostgresClient.prototype, 'close')
+                .mockResolvedValue();
+
+            await warehouse.getFields('orders', 'public', 'warehouse');
+
+            expect(clients).toEqual([warehouse]);
+            expect(close).not.toHaveBeenCalled();
+
+            getFields.mockRestore();
+            close.mockRestore();
+        });
+    });
+
+    it('groups catalog requests by database and merges the results', async () => {
+        const warehouse = new PostgresWarehouseClient({
+            ...credentials,
+            dbname: 'warehouse',
+        });
+        const calls: {
+            database: string;
+            requests: { database: string; schema: string; table: string }[];
+        }[] = [];
+        const getCatalog = vi
+            .spyOn(PostgresClient.prototype, 'getCatalog')
+            .mockImplementation(
+                async function (
+                    this: PostgresClient<CreatePostgresCredentials>,
+                    requests,
+                ) {
+                    calls.push({
+                        database: this.credentials.dbname,
+                        requests,
+                    });
+                    const [{ database, schema, table }] = requests;
+                    return {
+                        [database]: {
+                            [schema]: {
+                                [table]: { id: DimensionType.STRING },
+                            },
+                        },
+                    };
+                },
+            );
+        const close = vi
+            .spyOn(PostgresClient.prototype, 'close')
+            .mockResolvedValue();
+        const requests = [
+            { database: 'warehouse', schema: 'public', table: 'orders' },
+            { database: 'analytics', schema: 'ledger', table: 'invoices' },
+        ];
+
+        const catalog = await warehouse.getCatalog(requests);
+
+        expect(calls).toEqual([
+            { database: 'warehouse', requests: [requests[0]] },
+            { database: 'analytics', requests: [requests[1]] },
+        ]);
+        expect(close).toHaveBeenCalledOnce();
+        expect(catalog).toEqual({
+            warehouse: {
+                public: { orders: { id: DimensionType.STRING } },
+            },
+            analytics: {
+                ledger: { invoices: { id: DimensionType.STRING } },
+            },
+        });
+
+        getCatalog.mockRestore();
+        close.mockRestore();
     });
 });
 

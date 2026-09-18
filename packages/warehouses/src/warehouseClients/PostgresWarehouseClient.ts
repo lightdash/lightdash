@@ -10,9 +10,13 @@ import {
     setCatalogTimestampDomain,
     SslConfiguration,
     SupportedDbtAdapter,
+    WAREHOUSE_LISTED_DATABASES_LIMIT,
     WarehouseCatalog,
+    WarehouseDatabaseListing,
+    WarehouseListedDatabase,
     WarehouseQueryError,
     WarehouseResults,
+    WarehouseTables,
     WarehouseTypes,
     type ResultNumericKind,
     type TimestampDomain,
@@ -261,6 +265,8 @@ type CatalogQueryFilters = {
 export class PostgresClient<
     T extends CreatePostgresLikeCredentials,
 > extends WarehouseBaseClient<T> {
+    private readonly activePools = new Set<pg.Pool>();
+
     async getSessionTimezone(): Promise<string | null> {
         try {
             const { rows } = await this.runQuery(
@@ -382,6 +388,7 @@ export class PostgresClient<
                 ...this.config,
                 connectionTimeoutMillis: 30000,
             });
+            this.activePools.add(pool);
 
             pool.on('error', (err) => {
                 console.error(`Postgres pool error ${getErrorMessage(err)}`);
@@ -570,9 +577,23 @@ export class PostgresClient<
                         await pool.end();
                     } catch (poolError) {
                         console.info('Failed to end postgres pool:', poolError);
+                    } finally {
+                        this.activePools.delete(pool);
                     }
                 }
             });
+    }
+
+    async close(): Promise<void> {
+        await Promise.all(
+            [...this.activePools].map(async (pool) => {
+                try {
+                    await pool.end();
+                } finally {
+                    this.activePools.delete(pool);
+                }
+            }),
+        );
     }
 
     async getCatalog(
@@ -941,5 +962,121 @@ export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCreden
             )}:${credentials.port}/${encodeURIComponent(credentials.dbname)}`,
             ssl,
         });
+    }
+
+    private toListedDatabase(name: string): WarehouseListedDatabase {
+        return {
+            name,
+            database: name,
+            schema: null,
+            isDefault: name === this.credentials.dbname,
+        };
+    }
+
+    private async withClientForDatabase<T>(
+        database: string,
+        operation: (client: PostgresWarehouseClient) => Promise<T>,
+    ): Promise<T> {
+        if (database === this.credentials.dbname) {
+            return operation(this);
+        }
+
+        const client = new PostgresWarehouseClient({
+            ...this.credentials,
+            dbname: database,
+        });
+        try {
+            return await operation(client);
+        } finally {
+            await client.close();
+        }
+    }
+
+    async getCatalog(
+        requests: {
+            database: string;
+            schema: string;
+            table: string;
+        }[],
+    ): Promise<WarehouseCatalog> {
+        const requestsByDatabase = requests.reduce<
+            Map<string, typeof requests>
+        >((groups, request) => {
+            const databaseRequests = groups.get(request.database) ?? [];
+            databaseRequests.push(request);
+            groups.set(request.database, databaseRequests);
+            return groups;
+        }, new Map());
+
+        const catalogs = await Promise.all(
+            [...requestsByDatabase].map(([database, databaseRequests]) => {
+                if (database === this.credentials.dbname) {
+                    return super.getCatalog(databaseRequests);
+                }
+                return this.withClientForDatabase(database, (client) =>
+                    client.getCatalog(databaseRequests),
+                );
+            }),
+        );
+
+        return Object.assign({}, ...catalogs);
+    }
+
+    async getFields(
+        tableName: string,
+        schema?: string,
+        database?: string,
+        tags?: Record<string, string>,
+    ): Promise<WarehouseCatalog> {
+        if (!database || database === this.credentials.dbname) {
+            return super.getFields(tableName, schema, database, tags);
+        }
+
+        return this.withClientForDatabase(database, (client) =>
+            client.getFields(tableName, schema, database, tags),
+        );
+    }
+
+    async listDatabases(): Promise<WarehouseDatabaseListing> {
+        const databaseNames = new Set([this.credentials.dbname]);
+
+        if (this.credentials.listAllDatabases) {
+            const { rows } = await this.runQuery(`
+                SELECT datname
+                FROM pg_database
+                WHERE datallowconn AND NOT datistemplate
+                ORDER BY datname
+            `);
+            rows.forEach(({ datname }) => {
+                if (typeof datname === 'string') {
+                    databaseNames.add(datname);
+                }
+            });
+        } else {
+            this.credentials.additionalDatabases?.forEach((database) => {
+                databaseNames.add(database);
+            });
+        }
+
+        return {
+            databases: [...databaseNames]
+                .slice(0, WAREHOUSE_LISTED_DATABASES_LIMIT)
+                .map((database) => this.toListedDatabase(database)),
+            truncated: databaseNames.size > WAREHOUSE_LISTED_DATABASES_LIMIT,
+            limit: WAREHOUSE_LISTED_DATABASES_LIMIT,
+        };
+    }
+
+    async getTablesForDatabase(
+        listedDatabase: WarehouseListedDatabase,
+    ): Promise<WarehouseTables> {
+        const tables = await this.withClientForDatabase(
+            listedDatabase.name,
+            (client) => client.getAllTables(),
+        );
+        return tables.map((table) => ({
+            ...table,
+            database: listedDatabase.name,
+        }));
     }
 }
