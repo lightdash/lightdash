@@ -47,6 +47,7 @@ import {
     grepFieldsToolDefinition,
     hashStringToBase36,
     ItemsMap,
+    iterateDataAppToolDefinition,
     listAgentsToolDefinition,
     listContentToolDefinition,
     listDataAppThemesToolDefinition,
@@ -227,6 +228,7 @@ export enum McpToolName {
     RUN_AI_WRITEBACK = 'run_ai_writeback',
     GET_AI_WRITEBACK_STATUS = 'get_ai_writeback_status',
     GENERATE_DATA_APP = 'generate_data_app',
+    ITERATE_DATA_APP = 'iterate_data_app',
     LIST_DATA_APP_THEMES = 'list_data_app_themes',
     GET_DATA_APP_BUILD_STATUS = 'get_data_app_build_status',
     LIST_SKILLS = 'list_skills',
@@ -298,6 +300,9 @@ const mcpGetDataAppBuildStatusTool = withProjectScopeInput(
 );
 const mcpGenerateDataAppTool = withProjectScopeInput(
     generateDataAppToolDefinition.for('mcp'),
+);
+const mcpIterateDataAppTool = withProjectScopeInput(
+    iterateDataAppToolDefinition.for('mcp'),
 );
 const mcpListDataAppThemesTool = withProjectScopeInput(
     listDataAppThemesToolDefinition.for('mcp'),
@@ -1518,6 +1523,7 @@ export class McpService extends BaseService {
     /** Data app build tools; gated together so tools/list stays stable. */
     private registerDataAppBuildTools(): void {
         this.registerGenerateDataAppTool();
+        this.registerIterateDataAppTool();
         this.registerListDataAppThemesTool();
         this.registerGetDataAppBuildStatusTool();
     }
@@ -1603,6 +1609,40 @@ export class McpService extends BaseService {
                             });
                         return {
                             summary: `Started building the data app "${args.name}" as slug "${slug}", version ${version}. Poll get_data_app_build_status with that slug every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status.`,
+                            structuredContent: { slug, version },
+                        };
+                    },
+                ),
+        );
+    }
+
+    private registerIterateDataAppTool(): void {
+        this.registerTrackedTool(
+            mcpIterateDataAppTool.name,
+            {
+                title: mcpIterateDataAppTool.title,
+                description: mcpIterateDataAppTool.description,
+                inputSchema: mcpIterateDataAppTool.inputSchema.shape,
+                outputSchema: mcpIterateDataAppTool.outputSchema.shape,
+                annotations: mcpIterateDataAppTool.annotations,
+            },
+            async (args, extra) =>
+                this.callDataAppBuildTool(
+                    extra,
+                    args,
+                    'Error starting the data app build. No version was added',
+                    async (toolsRuntime) => {
+                        const { slug, version } =
+                            await toolsRuntime.iterateDataApp({
+                                appSlug: args.appSlug,
+                                prompt: args.prompt,
+                                dashboardSlug: args.dashboardSlug ?? null,
+                                chartSlugs: args.chartSlugs ?? null,
+                                themeSlug: args.themeSlug ?? null,
+                                toolCallId: null,
+                            });
+                        return {
+                            summary: `Started building version ${version} of the data app "${slug}". Poll get_data_app_build_status with that slug every 15 seconds until it reports a terminal status.`,
                             structuredContent: { slug, version },
                         };
                     },

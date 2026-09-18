@@ -2055,6 +2055,89 @@
         {
             "annotations": {
                 "destructiveHint": false,
+                "idempotentHint": false,
+                "openWorldHint": false,
+                "readOnlyHint": false
+            },
+            "description": "Tool: iterate_data_app\n\nPurpose:\nStart a build that adds a version to an existing data app from a follow-up brief. Use it to change, fix, or extend an app that already exists; generate_data_app is the tool for a brand-new app.\n\nImportant:\n- The coding agent works from the app's current source, so the brief describes the change rather than restating the whole app.\n- The app's name and slug stay as they are. The build adds a version to the app named by appSlug.\n- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the same appSlug every 15 seconds until its status is \"ready\", \"error\", or \"cancelled\". Call this tool once per request.\n- While a version is already building for the app, this call fails with \"A version is already building for this app\". Poll get_data_app_build_status until that build reaches a terminal status, then call this tool again.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n- Pass themeSlug only when the user asks to switch the app's theme; omitting it keeps the current one. An unknown themeSlug fails before the build starts and lists the valid slugs, which list_data_app_themes also returns.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<confirmation that the build started>\" }]\n- structuredContent: {\n    slug:    string, // the app's slug, unchanged by this build\n    version: number  // the version of the app this build produces\n  }\n\nErrors: an unknown appSlug, themeSlug, dashboardSlug, or chartSlug returns an error and starts no build.\n",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "properties": {
+                    "appSlug": {
+                        "description": "Slug of the data app to change — from an earlier generateDataApp or iterateDataApp result, findContent, or readContent.",
+                        "type": "string"
+                    },
+                    "chartSlugs": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "description": "Saved charts (slugs from findContent) whose queries the change builds on; the charts themselves stay unchanged. Omit when the change does not reference saved charts."
+                    },
+                    "dashboardSlug": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "description": "Pull in an existing dashboard: its slug (from findContent). The coding agent gets the dashboard's layout and charts as context; the dashboard itself stays unchanged. Omit when the change does not reference a dashboard."
+                    },
+                    "prompt": {
+                        "description": "A self-contained brief of the change for the coding agent, which works from the app's current source and explores the semantic layer itself, but sees neither this conversation nor its query results. Describe what to change and the outcome you expect; carry over any analysis this thread already settled as queries — a number pasted into the brief gets hardcoded into the app.",
+                        "type": "string"
+                    },
+                    "themeSlug": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "description": "Organization theme to build the app with: its slug, from the attached context (\"Theme: <name> (slug: <slug>)\"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build. On an existing app, passing it switches the app's theme; omit it unless the user asked to switch the theme in this request, so the app keeps its current theme."
+                    }
+                },
+                "required": ["appSlug", "prompt"],
+                "type": "object"
+            },
+            "name": "iterate_data_app",
+            "outputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "slug": {
+                        "description": "The app's permanent slug. Poll get_data_app_build_status with it.",
+                        "type": "string"
+                    },
+                    "version": {
+                        "description": "The version of the app this build produces.",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                    }
+                },
+                "required": ["slug", "version"],
+                "type": "object"
+            },
+            "title": "Iterate on data app"
+        },
+        {
+            "annotations": {
+                "destructiveHint": false,
                 "idempotentHint": true,
                 "openWorldHint": false,
                 "readOnlyHint": true

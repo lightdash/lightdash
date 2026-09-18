@@ -3,6 +3,7 @@ import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 import {
     DATA_APP_THEME_SLUG_DESCRIPTION,
     isToolGenerateDataAppResult,
+    MCP_DATA_APP_AGENT_SCOPE_GUIDANCE,
     toolGenerateDataAppOutputSchema,
     type ToolGenerateDataAppOutput,
 } from './toolGenerateDataAppArgs';
@@ -15,6 +16,29 @@ export const TOOL_ITERATE_DATA_APP_DESCRIPTION = [
     'While a version is already building for the app, the call fails — relay that the user should wait for the current build to finish.',
     'When the attached context lists element references for this app (bracketed `[tag "text" @path:line]` strings), copy every one of them verbatim into the brief — the coding agent resolves them by source location and cannot see them otherwise.',
 ].join(' ');
+
+export const MCP_TOOL_ITERATE_DATA_APP_DESCRIPTION = `Tool: iterate_data_app
+
+Purpose:
+Start a build that adds a version to an existing data app from a follow-up brief. Use it to change, fix, or extend an app that already exists; generate_data_app is the tool for a brand-new app.
+
+Important:
+- The coding agent works from the app's current source, so the brief describes the change rather than restating the whole app.
+- The app's name and slug stay as they are. The build adds a version to the app named by appSlug.
+- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the same appSlug every 15 seconds until its status is "ready", "error", or "cancelled". Call this tool once per request.
+- While a version is already building for the app, this call fails with "A version is already building for this app". Poll get_data_app_build_status until that build reaches a terminal status, then call this tool again.
+${MCP_DATA_APP_AGENT_SCOPE_GUIDANCE}
+- Pass themeSlug only when the user asks to switch the app's theme; omitting it keeps the current one. An unknown themeSlug fails before the build starts and lists the valid slugs, which list_data_app_themes also returns.
+
+Response shape (MCP CallToolResult):
+- content: [{ type: "text", text: "<confirmation that the build started>" }]
+- structuredContent: {
+    slug:    string, // the app's slug, unchanged by this build
+    version: number  // the version of the app this build produces
+  }
+
+Errors: an unknown appSlug, themeSlug, dashboardSlug, or chartSlug returns an error and starts no build.
+`;
 
 export const toolIterateDataAppArgsSchema = z.object({
     appSlug: z
