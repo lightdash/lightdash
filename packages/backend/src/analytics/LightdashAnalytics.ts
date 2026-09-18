@@ -55,6 +55,7 @@ import {
     type DataAppClaudeModel,
     type DataAppCodingAgent,
     type DataAppCodingAgentModel,
+    type DataAppCompactionResult,
     type DataAppCreationExperience,
     type DataAppTemplate,
     type FunnelChartDataInput,
@@ -1861,8 +1862,6 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         outputTokens: number;
         cacheReadInputTokens: number;
         cacheCreationInputTokens: number;
-        // Split of the cache writes by TTL, to confirm the 1-hour cache is
-        // applied where intended and nowhere else.
         cacheCreation1hInputTokens: number;
         cacheCreation5mInputTokens: number;
         numTurns: number;
@@ -1878,15 +1877,10 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         catalogDimensionCount: number;
         catalogMetricCount: number;
         catalogYamlBytes: number;
-        // Whether this build summarized its coding agent session first, and
-        // how that went. 'failed' — the agent reported it could not compact;
-        // 'error' — the call produced no verdict (config, sandbox, timeout).
-        compacted: boolean;
-        compactionResult: 'success' | 'failed' | 'error' | null;
-        // Estimated context per internal turn read off the thread's previous
-        // version — what the compaction threshold was compared against. Null
-        // when the trigger was never evaluated or that version recorded no
-        // usage.
+        compactionAttempted: boolean;
+        compactionResult: DataAppCompactionResult | null;
+        // What the compaction threshold was compared against; null when the
+        // trigger was never evaluated or the previous version recorded no usage.
         contextTokensPerTurn: number | null;
         distBytes: number;
         sourceBytes: number;

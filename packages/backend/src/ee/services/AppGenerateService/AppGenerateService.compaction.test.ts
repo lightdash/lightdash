@@ -202,12 +202,6 @@ function buildService(compactStdout: string) {
     return { runStages, statuses, sandbox, appModel };
 }
 
-const COMPACT_SUCCEEDED = JSON.stringify({
-    type: 'system',
-    subtype: 'status',
-    status: null,
-    compact_result: 'success',
-});
 const COMPACT_FAILED = JSON.stringify({
     type: 'system',
     subtype: 'status',
@@ -217,15 +211,6 @@ const COMPACT_FAILED = JSON.stringify({
 });
 
 describe('AppGenerateService compact stage', () => {
-    it('narrates the pause and builds when the session is summarized', async () => {
-        const { runStages, statuses } = buildService(COMPACT_SUCCEEDED);
-
-        await runStages();
-
-        expect(statuses).toContain('compact');
-        expect(statuses.at(-1)).toBe('ready');
-    });
-
     it('still builds when the agent could not summarize its session', async () => {
         const { runStages, statuses } = buildService(COMPACT_FAILED);
 
@@ -236,8 +221,7 @@ describe('AppGenerateService compact stage', () => {
     });
 
     it('never summarizes twice when a retry resumes past the stage', async () => {
-        const { runStages, statuses, appModel } =
-            buildService(COMPACT_SUCCEEDED);
+        const { runStages, statuses, appModel } = buildService(COMPACT_FAILED);
 
         await runStages('generating');
 

@@ -106,6 +106,7 @@ import {
     type DataAppCodexModel,
     type DataAppCodingAgent,
     type DataAppCodingAgentModel,
+    type DataAppCompactionResult,
     type DataAppContext,
     type DataAppCreationExperience,
     type DataAppDependencies,
@@ -310,6 +311,7 @@ import {
 } from './codexCodeEnv';
 import { CodexStreamProcessor } from './CodexStreamProcessor';
 import {
+    CODING_AGENT_COMPACTION_NARRATION,
     CODING_AGENT_COMPACTION_TOKEN_THRESHOLD,
     codingAgentContextTokensPerTurn,
     codingAgentRetryStart,
@@ -319,6 +321,7 @@ import {
     findCodingAgentSessionId,
     isCodingAgentSessionLostFailure,
     shouldCompactCodingAgentSession,
+    versionCompactedCodingAgentSession,
     versionReachedCodingAgent,
     type CodingAgentSessionHooks,
     type CodingAgentSessionStart,
@@ -575,19 +578,15 @@ type ModelFile = {
 /** Bound on the `/compact` call, so a hung CLI cannot stall a build. */
 const COMPACTION_TIMEOUT_MS = 5 * 60 * 1000;
 
-/** What the compact stage did, for the version's telemetry. */
 type CodingAgentCompactionRun = {
-    // 'failed' — the CLI reported it could not compact. 'error' — the call
-    // never produced a verdict at all (missing config, sandbox, timeout).
-    result: 'success' | 'failed' | 'error';
+    result: DataAppCompactionResult;
     durationMs: number;
 };
 
 /** Org-resolved provider config plus the per-build CLI session options. */
 type CodingAgentConfig = ResolvedCopilotConfig &
     ClaudeCodeSessionConfig & {
-        // Whether a build that resumes a long session on a cold prompt cache
-        // summarizes that session before it runs.
+        // Summarize a long session before a build that resumes it cold.
         compactLongSessions: boolean;
     };
 
@@ -1293,19 +1292,19 @@ export class AppGenerateService extends BaseService {
     private async getCodingAgentConfig(
         organizationUuid: string | null | undefined,
     ): Promise<CodingAgentConfig> {
-        const off = { promptCacheTtl: null, compactLongSessions: false };
+        const leversOff = { promptCacheTtl: null, compactLongSessions: false };
         if (this.dataAppCodingAgent === 'codex') {
             const codex =
                 await this.orgAiCopilotConfigResolver.getCodexConfig(
                     organizationUuid,
                 );
-            return { ...codex, ...off };
+            return { ...codex, ...leversOff };
         }
         const claude =
             await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
                 organizationUuid,
             );
-        if (!organizationUuid) return { ...claude, ...off };
+        if (!organizationUuid) return { ...claude, ...leversOff };
         const { enabled } = await this.featureFlagModel.get({
             user: { organizationUuid },
             featureFlagId: FeatureFlags.DataAppAgentCostOptimizations,
@@ -5126,6 +5125,9 @@ export class AppGenerateService extends BaseService {
         sessionStart: CodingAgentSessionStart;
         sessionHooks: CodingAgentSessionHooks;
         appThreadUuid: string;
+        // An earlier attempt of this same version already summarized the
+        // session; this run must not, but the version still compacted.
+        compactedOnEarlierAttempt: boolean;
     }> {
         const { appUuid, version } = payload;
         const versionRow = await this.appModel.getVersion(appUuid, version);
@@ -5161,18 +5163,17 @@ export class AppGenerateService extends BaseService {
                 },
             }),
             appThreadUuid: versionRow.app_thread_uuid,
+            compactedOnEarlierAttempt: versionCompactedCodingAgentSession(
+                versionRow.status_history,
+            ),
         };
     }
 
     /**
-     * Whether this build summarizes its own coding agent session before it
-     * runs, and the context estimate the decision was made on (reported either
-     * way, so the threshold can be checked against builds that did not cross
-     * it). Only a Claude build whose org has the cost-optimization flag on and
-     * which resumes a stored session is ever considered.
-     *
-     * Never throws — a build must not fail over a cost optimization it was
-     * only being considered for.
+     * The session this build should summarize before it runs (null for the
+     * vast majority), plus the context estimate the decision read — reported
+     * either way, so the threshold can be checked against builds below it.
+     * Never throws: a build must not fail over a cost optimization.
      */
     private async evaluateSessionCompaction(args: {
         appUuid: string;
@@ -5180,9 +5181,13 @@ export class AppGenerateService extends BaseService {
         version: number;
         sessionStart: CodingAgentSessionStart;
         compactLongSessions: boolean;
-    }): Promise<{ compact: boolean; contextTokensPerTurn: number | null }> {
-        const skip = { compact: false, contextTokensPerTurn: null };
-        if (!args.compactLongSessions || args.sessionStart.kind !== 'resume') {
+    }): Promise<{
+        sessionToCompact: string | null;
+        contextTokensPerTurn: number | null;
+    }> {
+        const skip = { sessionToCompact: null, contextTokensPerTurn: null };
+        const { sessionStart } = args;
+        if (!args.compactLongSessions || sessionStart.kind !== 'resume') {
             return skip;
         }
         try {
@@ -5195,14 +5200,17 @@ export class AppGenerateService extends BaseService {
                 previous?.generationUsage ?? null,
             );
             const compact = shouldCompactCodingAgentSession({
-                start: args.sessionStart,
+                start: sessionStart,
                 msSincePreviousVersion: previous?.statusUpdatedAt
                     ? Date.now() - new Date(previous.statusUpdatedAt).getTime()
                     : null,
                 contextTokensPerTurn,
                 thresholdTokens: CODING_AGENT_COMPACTION_TOKEN_THRESHOLD,
             });
-            return { compact, contextTokensPerTurn };
+            return {
+                sessionToCompact: compact ? sessionStart.sessionId : null,
+                contextTokensPerTurn,
+            };
         } catch (error) {
             this.logger.warn(
                 `App ${args.appUuid}: could not decide on session compaction: ${getErrorMessage(error)}`,
@@ -5214,10 +5222,7 @@ export class AppGenerateService extends BaseService {
     /**
      * Ask the coding agent to summarize its own history, so this build and the
      * ones after it run against the summary instead of the whole transcript.
-     *
-     * Never throws: a build whose summary did not land is still a correct
-     * build, only a more expensive one, so every failure is logged and the
-     * pipeline goes on to resume the full session.
+     * Never throws — a build without its summary is correct, only pricier.
      */
     private async compactCodingAgentSession(
         sandbox: SandboxHandle,
@@ -5239,9 +5244,8 @@ export class AppGenerateService extends BaseService {
 
         let claudeCodeEnv: Record<string, string>;
         try {
-            // The 1-hour TTL is deliberately dropped here: this call's cache
-            // write covers the pre-compaction prefix, which compaction throws
-            // away moments later.
+            // No 1-hour TTL: this call's cache write covers the prefix
+            // compaction is about to throw away.
             claudeCodeEnv = AppGenerateService.getClaudeCodeEnv({
                 ...copilot,
                 promptCacheTtl: null,
@@ -5251,10 +5255,8 @@ export class AppGenerateService extends BaseService {
         }
 
         try {
-            // Sonnet whatever the build runs on: summarizing a transcript is
-            // far easier than writing it, and an Opus thread would pay Opus
-            // rates for it. Every other invocation passes its model
-            // explicitly, so this does not leak into later turns.
+            // Sonnet whatever the build runs on — summarizing is far easier
+            // than writing, and every other turn passes its own model.
             const result = await sandbox.commands.run(
                 `echo /compact | claude ${codingAgentSessionFlags({
                     kind: 'resume',
@@ -5272,7 +5274,7 @@ export class AppGenerateService extends BaseService {
                 return done('failed', outcome.error ?? 'no reason reported');
             }
             return done(
-                'failed',
+                'error',
                 `no compaction status event (exit ${result.exitCode}): ${AppGenerateService.truncateEnd(
                     redactSandboxEnvSecrets(
                         result.stderr,
@@ -5830,12 +5832,16 @@ export class AppGenerateService extends BaseService {
         });
 
         // How the thread's agent session starts; also gates the cancelled-prompt notice.
-        const { sessionStart, sessionHooks, appThreadUuid } =
-            await this.resolveCodingAgentSession(
-                payload,
-                wasResumed,
-                currentStatus === 'generating',
-            );
+        const {
+            sessionStart,
+            sessionHooks,
+            appThreadUuid,
+            compactedOnEarlierAttempt,
+        } = await this.resolveCodingAgentSession(
+            payload,
+            wasResumed,
+            currentStatus === 'generating',
+        );
 
         // Null when the build never reached the compact stage's decision.
         let compaction: CodingAgentCompactionRun | null = null;
@@ -5917,11 +5923,10 @@ export class AppGenerateService extends BaseService {
         }
 
         // --- Stage: compact ---
-        // Guarded by *strict* inequality, unlike every other stage: the
-        // transcript lives on sandbox disk, so a retry cannot tell whether the
-        // summary landed before the pod died. Summarizing a summary would lose
-        // information from the user's thread for good, so a retry that already
-        // reached this stage skips it and forfeits one build's savings.
+        // Strict inequality, unlike every other stage: the transcript lives on
+        // sandbox disk, so a retry cannot tell whether the summary landed
+        // before the pod died, and summarizing a summary loses the user's
+        // history for good. A retry that reached this stage forfeits it.
         if (
             AppGenerateService.stageIndex(currentStatus) <
             AppGenerateService.stageIndex('compact')
@@ -5934,12 +5939,12 @@ export class AppGenerateService extends BaseService {
                 compactLongSessions: copilot.compactLongSessions,
             });
             contextTokensPerTurn = decision.contextTokensPerTurn;
-            if (decision.compact && sessionStart.kind === 'resume') {
+            if (decision.sessionToCompact !== null) {
                 const advanced = await this.advanceStage(
                     appUuid,
                     version,
                     'compact',
-                    'Catching up on earlier work',
+                    CODING_AGENT_COMPACTION_NARRATION,
                 );
                 if (!advanced) {
                     return;
@@ -5947,7 +5952,7 @@ export class AppGenerateService extends BaseService {
                 compaction = await this.compactCodingAgentSession(
                     sandbox,
                     appUuid,
-                    sessionStart.sessionId,
+                    decision.sessionToCompact,
                     copilot,
                 );
                 durations.compactMs = compaction.durationMs;
@@ -6382,11 +6387,8 @@ export class AppGenerateService extends BaseService {
                 catalogDimensionCount: catalogStats.dimensionCount,
                 catalogMetricCount: catalogStats.metricCount,
                 catalogYamlBytes: catalogStats.yamlBytes,
-                // Compaction: whether this build summarized its session, how
-                // that went, and the context estimate the trigger read. The
-                // estimate is reported even when it did not cross the
-                // threshold, so the threshold itself can be checked.
-                compacted: compaction !== null,
+                compactionAttempted:
+                    compaction !== null || compactedOnEarlierAttempt,
                 compactionResult: compaction?.result ?? null,
                 contextTokensPerTurn,
                 distBytes,

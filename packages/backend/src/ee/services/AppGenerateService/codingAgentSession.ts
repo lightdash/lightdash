@@ -125,18 +125,27 @@ export const codingAgentRetryStart = (args: {
 };
 
 /**
- * Estimated context per internal turn at or above which summarizing the
- * session pays for itself. A constant, not configuration: savings are almost
- * flat across thresholds, so this is chosen for how few builds it touches
- * (~6.5%) rather than for money.
+ * Narration for the compact stage. Also how a retry recognises that an earlier
+ * attempt of the same version already summarized: the entry is persisted on
+ * the version, while the outcome died with the pod that produced it.
  */
+export const CODING_AGENT_COMPACTION_NARRATION = 'Catching up on earlier work';
+
+export const versionCompactedCodingAgentSession = (
+    statusHistory: ReadonlyArray<{ kind: string; message: string }>,
+): boolean =>
+    statusHistory.some(
+        (entry) =>
+            entry.kind === 'stage' &&
+            entry.message === CODING_AGENT_COMPACTION_NARRATION,
+    );
+
+// Savings are near-flat across thresholds, so this is picked for how few
+// builds it touches (~6.5%) rather than for money.
 export const CODING_AGENT_COMPACTION_TOKEN_THRESHOLD = 200_000;
 
-/**
- * How long after a thread's previous version finished its prompt cache is
- * assumed cold. On a cold cache the whole transcript is re-read anyway, so
- * summarizing it costs only the summary.
- */
+// After this long the agent's prompt cache is assumed cold, so the transcript
+// was going to be re-read anyway and the summary is nearly free.
 export const CODING_AGENT_COLD_CACHE_MS = 60 * 60 * 1000;
 
 /** What the trigger decision for a coding agent turn is made from. */
@@ -151,12 +160,9 @@ export type CodingAgentCompactionInput = {
     thresholdTokens: number;
 };
 
-/**
- * Whether a turn should summarize its own history before it runs. Only a turn
- * that resumes a stored session has a transcript worth summarizing; a cold
- * cache makes the summary nearly free, and the size floor keeps us from
- * spending one to save nothing.
- */
+// Whether a turn should summarize its own history before it runs: only a
+// resumed session, only on a cold cache, only above the size floor.
+
 export const shouldCompactCodingAgentSession = ({
     start,
     msSincePreviousVersion,
@@ -169,12 +175,10 @@ export const shouldCompactCodingAgentSession = ({
     contextTokensPerTurn !== null &&
     contextTokensPerTurn >= thresholdTokens;
 
-/**
- * Context the model read per internal turn on a previous version: everything
- * that entered the context window (uncached, cache reads, cache writes) over
- * the turns that read it. Null when the version's usage was never recorded or
- * it ran no turns — an unknown estimate must not trigger compaction.
- */
+// Context read per internal turn on a previous version — everything that
+// entered the window over the turns that read it. Null when it is unknown,
+// which must never trigger compaction.
+
 export const codingAgentContextTokensPerTurn = (
     usage: {
         inputTokens: number;
@@ -222,12 +226,10 @@ const parseCodingAgentCompactionStatus = (
     return null;
 };
 
-/**
- * Outcome from the CLI's compaction status event
- * (`{"type":"system","subtype":"status","compact_result":"success"|"failed"}`).
- * Null when the stream carried no such event — the run never got as far as
- * compacting, which the caller treats the same as a failure.
- */
+// Verdict from the CLI's compaction status event
+// (`{"type":"system","subtype":"status","compact_result":"success"|"failed"}`).
+// Null when the run never reported one.
+
 export const findCodingAgentCompactionOutcome = (
     stdout: string,
 ): CodingAgentCompactionOutcome | null => {

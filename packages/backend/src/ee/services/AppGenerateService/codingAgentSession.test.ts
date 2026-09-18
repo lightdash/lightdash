@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    CODING_AGENT_COMPACTION_NARRATION,
     codingAgentContextTokensPerTurn,
     codingAgentRetryStart,
     codingAgentSessionFlags,
@@ -9,6 +10,7 @@ import {
     isCodingAgentSessionLostFailure,
     parseCodingAgentSessionInit,
     shouldCompactCodingAgentSession,
+    versionCompactedCodingAgentSession,
     versionReachedCodingAgent,
     type CodingAgentCompactionInput,
     type CodingAgentSessionStart,
@@ -427,5 +429,39 @@ describe('findCodingAgentCompactionOutcome', () => {
             statusLine({ status: 'compacting' }),
         ].join('\n');
         expect(findCodingAgentCompactionOutcome(stdout)).toBeNull();
+    });
+});
+
+describe('versionCompactedCodingAgentSession', () => {
+    const entry = (kind: string, message: string) => ({
+        kind,
+        message,
+        timestamp: '2026-09-18T00:00:00.000Z',
+    });
+
+    it('recognises a version an earlier attempt already summarized', () => {
+        expect(
+            versionCompactedCodingAgentSession([
+                entry('stage', 'Loading your data models'),
+                entry('stage', CODING_AGENT_COMPACTION_NARRATION),
+                entry('thinking', 'Reading the chart code'),
+            ]),
+        ).toBe(true);
+    });
+
+    it('does not mistake the agent quoting the narration for the stage', () => {
+        expect(
+            versionCompactedCodingAgentSession([
+                entry('thinking', CODING_AGENT_COMPACTION_NARRATION),
+            ]),
+        ).toBe(false);
+    });
+
+    it('is false for a version that never compacted', () => {
+        expect(
+            versionCompactedCodingAgentSession([
+                entry('stage', 'Loading your data models'),
+            ]),
+        ).toBe(false);
     });
 });

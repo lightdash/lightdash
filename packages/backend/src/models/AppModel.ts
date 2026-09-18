@@ -906,14 +906,10 @@ export class AppModel {
     }
 
     /**
-     * The newest version before `beforeVersion` in the same thread that has
-     * already finished, with when it finished and what it spent. Drives the
-     * compaction trigger: the gap says whether the coding agent's prompt cache
-     * has gone cold, the usage says how much context a turn re-reads.
-     *
-     * Scoped to the thread, never the app: clearing context starts a fresh
-     * agent session, and the new thread must not inherit the old one's gap or
-     * size. Thread 1 also covers rows written before threads existed.
+     * The newest already-finished version before `beforeVersion` in the same
+     * thread, with when it finished and what it spent — the compaction
+     * trigger's two inputs. Scoped to the thread, never the app, so a cleared
+     * context never inherits the previous thread's gap or size.
      */
     async findPreviousFinishedVersionInThread(
         appThreadUuid: string,
