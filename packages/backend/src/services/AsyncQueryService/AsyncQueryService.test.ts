@@ -5556,19 +5556,33 @@ describe('AsyncQueryService', () => {
             vi.restoreAllMocks();
         });
 
-        const mergedField = (type: MetricType): ItemsMap[string] =>
+        const mergedField = (
+            type: MetricType,
+            { table, name }: { table: string; name: string },
+        ): ItemsMap[string] =>
             ({
                 fieldType: FieldType.METRIC,
                 type,
-                name: 'x',
-                label: 'X',
-                table: 'a',
-                tableLabel: 'A',
+                name,
+                label: name,
+                table,
+                tableLabel: table.toUpperCase(),
                 sql: '',
                 hidden: false,
             }) as ItemsMap[string];
 
+        const legQuery = (exploreName: string, metrics: string[]) => ({
+            exploreName,
+            dimensions: ['orders_month'],
+            metrics,
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+        });
+
         const mergedRow = (
+            joinType: 'full' | 'left' | 'inner',
             overrides: Partial<QueryHistory> = {},
         ): QueryHistory =>
             ({
@@ -5585,16 +5599,35 @@ describe('AsyncQueryService', () => {
                     tableCalculations: [],
                 },
                 fields: {
-                    a_orders_total: mergedField(MetricType.SUM),
-                    b_payments_unique: mergedField(MetricType.COUNT_DISTINCT),
+                    a_orders_total: mergedField(MetricType.SUM, {
+                        table: 'a',
+                        name: 'orders_total',
+                    }),
+                    b_payments_unique: mergedField(MetricType.COUNT_DISTINCT, {
+                        table: 'b',
+                        name: 'payments_unique',
+                    }),
                 },
                 pivotConfiguration: null,
                 requestParameters: {
                     context: QueryExecutionContext.EXPLORE,
                     mergeQuery: {
-                        sources: [],
+                        sources: [
+                            {
+                                id: 'a',
+                                metricQuery: legQuery('orders', [
+                                    'orders_total',
+                                ]),
+                            },
+                            {
+                                id: 'b',
+                                metricQuery: legQuery('payments', [
+                                    'payments_unique',
+                                ]),
+                            },
+                        ],
                         joinKey: [],
-                        joinType: 'full',
+                        joinType,
                         tableCalculations: [],
                         limit: 500,
                     },
@@ -5608,17 +5641,24 @@ describe('AsyncQueryService', () => {
             (
                 service.queryHistoryModel.get as import('vitest').Mock
             ).mockResolvedValue(row);
-            const duckdbSpy = vi
-                .spyOn(service, 'executeAsyncDuckdbSourceQuery')
-                .mockResolvedValue({ queryUuid: 'totals-uuid' });
-            return { service, duckdbSpy };
+            const submitSpy = vi
+                .spyOn(QuerySourceService.prototype, 'submitQueries')
+                .mockImplementation(async ({ queries }) => ({
+                    queries: queries.map((query) => ({
+                        nodeId: query.nodeId ?? 'anonymous',
+                        sourceType: query.sourceType,
+                        queryUuid: `${query.nodeId ?? 'anonymous'}-uuid`,
+                        cacheHit: false,
+                    })),
+                }));
+            return { service, submitSpy };
         };
 
-        // The join has no metric query to collapse; its totals are aggregated
-        // over the merged rows on the compose engine, exact only where the
-        // metric type allows it.
-        it('aggregates the exact columns over the merged rows and reports which', async () => {
-            const { service, duckdbSpy } = setup(mergedRow());
+        // The sum is exact over the merged rows; the distinct count is not,
+        // but a full join keeps every payments row, so the payments query
+        // collapsed to one row totals it, as a leg of the same DAG.
+        it('aggregates exact columns over the merged rows and totals the rest from their own query', async () => {
+            const { service, submitSpy } = setup(mergedRow('full'));
 
             const result =
                 await service.executeAsyncCalculateTotalFromQueryHistory({
@@ -5628,27 +5668,72 @@ describe('AsyncQueryService', () => {
                     kind: 'columnTotal',
                 });
 
-            expect(duckdbSpy).toHaveBeenCalledTimes(1);
-            const args = duckdbSpy.mock.calls[0][0];
-            expect(args.sql).toBe(
-                'SELECT SUM("a_orders_total") AS "a_orders_total"\nFROM "merged_result"',
-            );
-            expect(args.references).toEqual({
-                merged_result: 'merge-join-uuid',
-            });
+            expect(submitSpy).toHaveBeenCalledTimes(1);
+            const args = submitSpy.mock.calls[0][0];
             expect(args.context).toBe(QueryExecutionContext.CALCULATE_TOTAL);
             expect(args.parameters).toEqual({ region: 'EU' });
-            expect(result.queryUuid).toBe('totals-uuid');
-            expect(Object.keys(result.fields)).toEqual(['a_orders_total']);
-            expect(result.metricQuery.metrics).toEqual(['a_orders_total']);
+            expect(args.queries).toHaveLength(2);
+            expect(args.queries[0]).toMatchObject({
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'source_total_1',
+                exploreName: 'payments',
+                dimensions: [],
+                metrics: ['payments_unique'],
+                limit: 1,
+            });
+            expect(args.queries[1]).toEqual({
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'merge_totals',
+                sql: [
+                    'SELECT SUM("a_orders_total") AS "a_orders_total",',
+                    '       (SELECT "payments_unique" FROM "source_total_1") AS "b_payments_unique"',
+                    'FROM "merged_result"',
+                ].join('\n'),
+                references: {
+                    merged_result: 'merge-join-uuid',
+                    source_total_1: 'source_total_1',
+                },
+            });
+            expect(args.plans.merge_totals.referenceLabels).toEqual({
+                merged_result: 'Merged result',
+                source_total_1: 'B total',
+            });
+            expect(result.queryUuid).toBe('merge_totals-uuid');
+            expect(Object.keys(result.fields)).toEqual([
+                'a_orders_total',
+                'b_payments_unique',
+            ]);
+            expect(result.metricQuery.metrics).toEqual([
+                'a_orders_total',
+                'b_payments_unique',
+            ]);
         });
 
-        it('has nothing to total when no merged column is exact over rows', async () => {
-            const { service, duckdbSpy } = setup(
-                mergedRow({
+        it('runs no leg when the join drops rows of the only source that would need one', async () => {
+            const { service, submitSpy } = setup(mergedRow('inner'));
+
+            const result =
+                await service.executeAsyncCalculateTotalFromQueryHistory({
+                    account: buildAccount(),
+                    projectUuid,
+                    queryUuid: 'merge-join-uuid',
+                    kind: 'columnTotal',
+                });
+
+            const args = submitSpy.mock.calls[0][0];
+            expect(args.queries.map((query) => query.nodeId)).toEqual([
+                'merge_totals',
+            ]);
+            expect(Object.keys(result.fields)).toEqual(['a_orders_total']);
+        });
+
+        it('has nothing to total when no merged column has a total', async () => {
+            const { service, submitSpy } = setup(
+                mergedRow('inner', {
                     fields: {
                         b_payments_unique: mergedField(
                             MetricType.COUNT_DISTINCT,
+                            { table: 'b', name: 'payments_unique' },
                         ),
                     },
                     metricQuery: {
@@ -5671,12 +5756,12 @@ describe('AsyncQueryService', () => {
                     kind: 'columnTotal',
                 }),
             ).rejects.toThrow(NotSupportedError);
-            expect(duckdbSpy).not.toHaveBeenCalled();
+            expect(submitSpy).not.toHaveBeenCalled();
         });
 
         it('does not total a pivoted merged result yet', async () => {
-            const { service, duckdbSpy } = setup(
-                mergedRow({
+            const { service, submitSpy } = setup(
+                mergedRow('full', {
                     pivotConfiguration: {
                         indexColumn: [],
                         valuesColumns: [],
@@ -5694,7 +5779,7 @@ describe('AsyncQueryService', () => {
                     kind: 'columnTotal',
                 }),
             ).rejects.toThrow(NotSupportedError);
-            expect(duckdbSpy).not.toHaveBeenCalled();
+            expect(submitSpy).not.toHaveBeenCalled();
         });
     });
 

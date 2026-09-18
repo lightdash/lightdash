@@ -5,9 +5,7 @@ import {
     getErrorMessage,
     getItemId,
     getItemMap,
-    getMergeTotalAggregation,
-    getRepeatedMergeFieldIds,
-    getMergeTotalUnavailableReason,
+    getMergeColumnTotals,
     getMetricOverridesWithPopInheritance,
     isCustomDimension,
     isDimension,
@@ -53,6 +51,7 @@ import {
     TableHeaderRegularLabel,
 } from '../components/common/Table/Table.styles';
 import TotalCalculationErrorCell from '../components/common/Table/TotalCalculationErrorCell';
+import TotalFromSourceCell from '../components/common/Table/TotalFromSourceCell';
 import TotalNotComputableCell from '../components/common/Table/TotalNotComputableCell';
 import {
     columnHelper,
@@ -527,11 +526,15 @@ export const useColumns = (): TableColumn[] => {
                 : exploreActiveFields,
         [mergeResults, exploreActiveFields],
     );
-    const repeatedFieldIds = useMemo(
+    const mergeColumnTotals = useMemo(
         () =>
             mergeResults
-                ? getRepeatedMergeFieldIds(mergeResults.mergeQuery.sources)
-                : [],
+                ? getMergeColumnTotals({
+                      mergeQuery: mergeResults.mergeQuery,
+                      fieldIds: mergeResults.columnOrder,
+                      itemsMap: mergeResults.fields,
+                  })
+                : {},
         [mergeResults],
     );
     const resultsMetricQuery =
@@ -777,33 +780,35 @@ export const useColumns = (): TableColumn[] => {
                         );
                     },
                     footer: () => {
+                        const mergeTotal = mergeColumnTotals[fieldId];
                         if (totals?.[fieldId] !== undefined) {
-                            return formatItemValue(
+                            const value = formatItemValue(
                                 item,
                                 totals[fieldId],
                                 false,
                                 parameters,
                                 timezone,
                             );
+                            return mergeTotal?.from === 'sourceQuery' ? (
+                                <TotalFromSourceCell
+                                    value={value}
+                                    sourceLabel={mergeTotal.sourceLabel}
+                                />
+                            ) : (
+                                value
+                            );
                         }
-                        // Over merged rows only sums, counts, minimums and
-                        // maximums are exact; the rest say so instead of
-                        // showing a blank
+                        // A merged column with no total says why instead
+                        // of showing a blank
                         if (
                             mergeResults &&
                             totalsEnabledByDefault &&
                             canHaveWarehouseTotal(item) &&
-                            getMergeTotalAggregation(
-                                item,
-                                repeatedFieldIds.includes(fieldId),
-                            ) === null
+                            mergeTotal?.from === null
                         ) {
                             return (
                                 <TotalNotComputableCell
-                                    reason={getMergeTotalUnavailableReason(
-                                        item,
-                                        repeatedFieldIds.includes(fieldId),
-                                    )}
+                                    reason={mergeTotal.reason}
                                 />
                             );
                         }
@@ -906,6 +911,6 @@ export const useColumns = (): TableColumn[] => {
         timezone,
         mergeResults,
         mergeSourceLabels,
-        repeatedFieldIds,
+        mergeColumnTotals,
     ]);
 };
