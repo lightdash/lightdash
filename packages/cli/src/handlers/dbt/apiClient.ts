@@ -38,6 +38,41 @@ export const setGzipEnabled = (enabled: boolean) => {
     gzipEnabled = enabled;
 };
 
+/**
+ * Optional per-request deadline. Unset (the default) keeps today's behaviour:
+ * a request waits as long as the server takes. Set by hosts that run the CLI
+ * unattended, such as the Learn sandbox, so a stalled server surfaces as an
+ * error instead of a hang.
+ */
+const getRequestTimeoutMs = (): number | undefined => {
+    const raw = process.env.LIGHTDASH_API_TIMEOUT_MS;
+    if (!raw) return undefined;
+    const value = Number.parseInt(raw, 10);
+    return Number.isFinite(value) && value > 0 ? value : undefined;
+};
+
+const fetchWithTimeout = async (
+    fullUrl: string,
+    init: { method: string; headers: Record<string, string>; body?: BodyInit },
+): Promise<Response> => {
+    const timeoutMs = getRequestTimeoutMs();
+    if (timeoutMs === undefined) return fetch(fullUrl, init);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(fullUrl, { ...init, signal: controller.signal });
+    } catch (error) {
+        if ((error as { name?: string }).name === 'AbortError') {
+            throw new Error(
+                `Request to ${fullUrl} timed out after ${timeoutMs}ms`,
+            );
+        }
+        throw error;
+    } finally {
+        clearTimeout(timer);
+    }
+};
+
 export const lightdashRawApi = async ({
     method,
     url,
@@ -57,7 +92,7 @@ export const lightdashRawApi = async ({
     const fullUrl = new URL(url, config.context.serverUrl).href;
     GlobalState.debug(`> Making HTTP ${method} request to: ${fullUrl}`);
 
-    const response = await fetch(fullUrl, { method, headers, body });
+    const response = await fetchWithTimeout(fullUrl, { method, headers, body });
     GlobalState.debug(`> HTTP request returned status: ${response.status}`);
 
     if (!response.ok) {
