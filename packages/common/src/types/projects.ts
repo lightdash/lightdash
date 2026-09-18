@@ -40,9 +40,8 @@ export enum WarehouseTypes {
 }
 
 /**
- * Warehouse types where personal warehouse credentials are optional: they are
- * used when the user has them, and queries fall back to the shared project
- * connection when they don't, regardless of `requireUserCredentials`.
+ * Warehouse types that support optional personal credentials. BigQuery also
+ * requires the project to opt in via allowUserCredentials.
  */
 export const WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS: WarehouseTypes[] =
     [WarehouseTypes.DATABRICKS, WarehouseTypes.TRINO, WarehouseTypes.BIGQUERY];
@@ -52,6 +51,14 @@ export const supportsOptionalUserCredentials = (
 ): boolean =>
     !!warehouseType &&
     WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS.includes(warehouseType);
+
+export const allowsOptionalUserCredentials = (
+    credentials: WarehouseCredentials | undefined,
+): boolean =>
+    !!credentials &&
+    supportsOptionalUserCredentials(credentials.type) &&
+    (credentials.type !== WarehouseTypes.BIGQUERY ||
+        credentials.allowUserCredentials === true);
 
 export enum DuckdbConnectionType {
     MOTHERDUCK = 'motherduck',
@@ -86,6 +93,7 @@ export type CreateBigqueryCredentials = {
     // intersection-body validation preserves the keyfile fields.
     keyfileContents: { [key: string]: string }; // used for both sso and private key
     requireUserCredentials?: boolean;
+    allowUserCredentials?: boolean;
     retries: number | undefined;
     location: string | undefined;
     maximumBytesBilled: number | undefined;

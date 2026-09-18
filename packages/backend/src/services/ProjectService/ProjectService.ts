@@ -3,6 +3,7 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     AdditionalMetric,
+    allowsOptionalUserCredentials,
     AlreadyExistsError,
     AndFilterGroup,
     AnonymousAccount,
@@ -222,7 +223,6 @@ import {
     SshTunnelError,
     SummaryExplore,
     SupportedDbtAdapter,
-    supportsOptionalUserCredentials,
     TablesConfiguration,
     TableSelectionType,
     TooManyRequestsError,
@@ -2176,14 +2176,10 @@ export class ProjectService extends BaseService {
             );
         }
 
-        // Check if user has their own credentials for this project's warehouse type
-        // Only fetch user credentials when:
-        // 1. requireUserCredentials is enabled (user credentials are mandatory)
-        // 2. The warehouse type supports optional user credentials, which are
-        //    used when present and fall back to the project connection otherwise
+        // Only load personal credentials when required or enabled by the project.
         const shouldFetchUserCredentials =
             credentials.requireUserCredentials ||
-            supportsOptionalUserCredentials(credentials.type);
+            allowsOptionalUserCredentials(credentials);
 
         if (isRegisteredUser) {
             // Fetch user credentials only when needed (for performance)

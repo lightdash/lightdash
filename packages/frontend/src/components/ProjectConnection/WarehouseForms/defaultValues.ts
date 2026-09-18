@@ -31,6 +31,7 @@ export const BigQueryDefaultValues: CreateBigqueryCredentials = {
     project: '',
     location: '',
     authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+    allowUserCredentials: false,
     // @ts-expect-error we need to set it as empty string to avoid overwritting saved value
     keyfileContents: '', // Not needed for sso, we will load the refresh token from the user in the backend
     executionProject: '',
