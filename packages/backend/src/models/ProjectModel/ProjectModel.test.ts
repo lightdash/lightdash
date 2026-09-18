@@ -4837,4 +4837,73 @@ describe('ProjectModel', () => {
             expect(tracker.history.update).toHaveLength(0);
         });
     });
+
+    describe('resolveConnectionByName', () => {
+        const connection = (name: string, uuid: string) => ({
+            connectionUuid: uuid,
+            name,
+            warehouseType: WarehouseTypes.POSTGRES,
+            organizationWarehouseCredentialsUuid: null,
+            listAllDatabases: false,
+            additionalDatabases: [],
+            createdAt: new Date(),
+        });
+        const mockConnections = (
+            connections: ReturnType<typeof connection>[],
+        ) =>
+            vi
+                .spyOn(getConnectionModel(), 'listByProject')
+                .mockResolvedValue(connections as AnyType);
+
+        test('returns the sole connection when the definition names none', async () => {
+            mockConnections([connection('Postgres', 'sole-uuid')]);
+
+            await expect(
+                model.resolveConnectionByName(projectUuid),
+            ).resolves.toMatchObject({ connectionUuid: 'sole-uuid' });
+        });
+
+        test('names the choices when the project has several and none is given', async () => {
+            mockConnections([
+                connection('finance', 'finance-uuid'),
+                connection('marketing', 'marketing-uuid'),
+            ]);
+
+            await expect(
+                model.resolveConnectionByName(projectUuid),
+            ).rejects.toThrow(/"finance", "marketing"/);
+        });
+
+        test('resolves a named connection', async () => {
+            mockConnections([
+                connection('finance', 'finance-uuid'),
+                connection('marketing', 'marketing-uuid'),
+            ]);
+
+            await expect(
+                model.resolveConnectionByName(projectUuid, 'marketing'),
+            ).resolves.toMatchObject({ connectionUuid: 'marketing-uuid' });
+        });
+
+        test('lists the choices when the name is unknown', async () => {
+            mockConnections([
+                connection('finance', 'finance-uuid'),
+                connection('marketing', 'marketing-uuid'),
+            ]);
+
+            await expect(
+                model.resolveConnectionByName(projectUuid, 'sales'),
+            ).rejects.toThrow(
+                'Connection "sales" does not exist in this project. Available connections: "finance", "marketing".',
+            );
+        });
+
+        test('throws when the project has no connection at all', async () => {
+            mockConnections([]);
+
+            await expect(
+                model.resolveConnectionByName(projectUuid, 'finance'),
+            ).rejects.toThrow(NotFoundError);
+        });
+    });
 });

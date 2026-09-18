@@ -22,6 +22,8 @@ describeContentAsCodeSchemaContract({
     ],
     documentOnlyFields: [
         'access',
+        // The portable name of the connection behind the skipped connectionUuid.
+        'connectionName',
         'contentType',
         'downloadedAt',
         'spaceSlug',

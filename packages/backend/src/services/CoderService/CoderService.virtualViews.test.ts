@@ -67,6 +67,10 @@ const virtualView = {
     savedParameterValues: { region: 'EU' },
 } as unknown as Explore;
 
+const connectionUuid = 'connection-uuid';
+const connectionName = 'finance';
+const otherConnectionUuid = 'other-connection-uuid';
+
 const asCode: VirtualViewAsCode = {
     contentType: ContentAsCodeType.VIRTUAL_VIEW,
     version: 1,
@@ -75,9 +79,13 @@ const asCode: VirtualViewAsCode = {
     sql: '(SELECT ${ld.parameters.region} AS customer_id)',
     columns: [{ reference: 'customer_id', type: DimensionType.NUMBER }],
     parameters: { region: 'EU' },
+    connectionName,
 };
 
-const buildService = (existing: Explore | null = virtualView) => {
+const buildService = (
+    existing: Explore | null = virtualView,
+    storedConnectionUuid: string | null = connectionUuid,
+) => {
     const projectModel = {
         getSummary: vi.fn(async () => ({ projectUuid, organizationUuid })),
         findVirtualViewsFromCache: vi.fn(async () =>
@@ -86,6 +94,18 @@ const buildService = (existing: Explore | null = virtualView) => {
         findExploresFromCache: vi.fn(async () =>
             existing ? { [existing.name]: existing } : {},
         ),
+        getExploreConnectionUuids: vi.fn(
+            async (_projectUuid: string, exploreNames: string[]) =>
+                new Map(exploreNames.map((name) => [name, connectionUuid])),
+        ),
+        getExploreConnectionUuid: vi.fn(async () => storedConnectionUuid),
+        getConnectionNamesByUuid: vi.fn(
+            async () => new Map([[connectionUuid, connectionName]]),
+        ),
+        resolveConnectionByName: vi.fn(async (_projectUuid: string) => ({
+            connectionUuid,
+            name: connectionName,
+        })),
     };
     const projectService = {
         validateVirtualViewParameterReferences: vi.fn(async () => undefined),
@@ -117,7 +137,7 @@ const buildService = (existing: Explore | null = virtualView) => {
         organizationMemberProfileModel: {} as never,
         userModel: {} as never,
     });
-    return { service, projectService };
+    return { service, projectService, projectModel };
 };
 
 describe('CoderService virtual views as code', () => {
@@ -248,5 +268,57 @@ describe('CoderService virtual views as code', () => {
                 asCode,
             ),
         ).rejects.toThrow('cannot be adopted');
+    });
+
+    test('creates the view on the connection the definition names', async () => {
+        const { service, projectService, projectModel } = buildService(null);
+
+        await service.upsertVirtualView(
+            user as never,
+            projectUuid,
+            asCode.slug,
+            asCode,
+        );
+
+        expect(projectModel.resolveConnectionByName).toHaveBeenCalledWith(
+            projectUuid,
+            connectionName,
+        );
+        expect(projectService.createVirtualView).toHaveBeenCalledWith(
+            user,
+            projectUuid,
+            expect.objectContaining({ connectionUuid }),
+            false,
+        );
+    });
+
+    test('refuses to move an existing view to another connection', async () => {
+        const { service, projectService } = buildService(
+            virtualView,
+            otherConnectionUuid,
+        );
+
+        await expect(
+            service.upsertVirtualView(user as never, projectUuid, asCode.slug, {
+                ...asCode,
+                sql: '(SELECT ${ld.parameters.region} AS customer_id, 2 AS other)',
+            }),
+        ).rejects.toThrow('already runs on another connection');
+        expect(projectService.updateVirtualView).not.toHaveBeenCalled();
+    });
+
+    test('keeps the stored connection when the definition names none', async () => {
+        const { connectionName: _omitted, ...withoutConnection } = asCode;
+        const { service, projectService, projectModel } =
+            buildService(virtualView);
+
+        await expect(
+            service.upsertVirtualView(user as never, projectUuid, asCode.slug, {
+                ...withoutConnection,
+                sql: '(SELECT ${ld.parameters.region} AS customer_id, 2 AS other)',
+            }),
+        ).resolves.toEqual({ action: PromotionAction.UPDATE });
+        expect(projectModel.resolveConnectionByName).not.toHaveBeenCalled();
+        expect(projectService.updateVirtualView).toHaveBeenCalledOnce();
     });
 });
