@@ -6945,10 +6945,102 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "appUuid": {
+                      "description": "Uuid of the data app.",
+                      "type": "string",
+                    },
+                    "status": {
+                      "const": "pending",
+                      "description": "The build has started and is still running; its outcome replaces this result on a later turn.",
+                      "type": "string",
+                    },
+                    "version": {
+                      "description": "App version this build produces; 1 for a new app.",
+                      "type": "number",
+                    },
+                  },
+                  "required": [
+                    "status",
+                    "appUuid",
+                    "version",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "appUuid": {
+                      "description": "Uuid of the data app.",
+                      "type": "string",
+                    },
+                    "href": {
+                      "description": "URL of the app in the builder.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "description": "Name of the data app.",
+                      "type": "string",
+                    },
+                    "slug": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Slug of the data app, the appSlug for iterateDataApp.",
+                    },
+                    "status": {
+                      "const": "success",
+                      "description": "The build finished; the app version is ready.",
+                      "type": "string",
+                    },
+                    "version": {
+                      "description": "App version this build produces; 1 for a new app.",
+                      "type": "number",
+                    },
+                  },
+                  "required": [
+                    "status",
+                    "appUuid",
+                    "version",
+                    "name",
+                    "slug",
+                    "href",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
@@ -7109,10 +7201,102 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "appUuid": {
+                      "description": "Uuid of the data app.",
+                      "type": "string",
+                    },
+                    "status": {
+                      "const": "pending",
+                      "description": "The build has started and is still running; its outcome replaces this result on a later turn.",
+                      "type": "string",
+                    },
+                    "version": {
+                      "description": "App version this build produces; 1 for a new app.",
+                      "type": "number",
+                    },
+                  },
+                  "required": [
+                    "status",
+                    "appUuid",
+                    "version",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "appUuid": {
+                      "description": "Uuid of the data app.",
+                      "type": "string",
+                    },
+                    "href": {
+                      "description": "URL of the app in the builder.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "description": "Name of the data app.",
+                      "type": "string",
+                    },
+                    "slug": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "Slug of the data app, the appSlug for iterateDataApp.",
+                    },
+                    "status": {
+                      "const": "success",
+                      "description": "The build finished; the app version is ready.",
+                      "type": "string",
+                    },
+                    "version": {
+                      "description": "App version this build produces; 1 for a new app.",
+                      "type": "number",
+                    },
+                  },
+                  "required": [
+                    "status",
+                    "appUuid",
+                    "version",
+                    "name",
+                    "slug",
+                    "href",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
