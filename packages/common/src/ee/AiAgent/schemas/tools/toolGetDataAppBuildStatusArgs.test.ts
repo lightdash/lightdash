@@ -4,10 +4,8 @@ import {
     APP_VERSION_STAGE_ORDER,
     type AppVersionStatus,
 } from '../../../apps/types';
-import {
-    DATA_APP_BUILD_POLL_INTERVAL_MS,
-    getDataAppBuildStatusResponse,
-} from './toolGetDataAppBuildStatusArgs';
+import { DATA_APP_BUILD_POLL_INTERVAL_MS } from './toolGenerateDataAppArgs';
+import { getDataAppBuildStatusResponse } from './toolGetDataAppBuildStatusArgs';
 
 const APP_UUID = '11111111-2222-3333-4444-555555555555';
 

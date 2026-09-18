@@ -7,6 +7,9 @@ import {
 } from '../../../apps/types';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 
+/** Suggested gap between build status polls; a build runs minutes, not seconds. */
+export const DATA_APP_BUILD_POLL_INTERVAL_MS = 15_000;
+
 /** Builds run minutes, not seconds: a pending result older than this is stale. */
 export const AI_DATA_APP_BUILD_PENDING_GRACE_MS = 30 * 60 * 1000;
 

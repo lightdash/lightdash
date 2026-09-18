@@ -734,6 +734,7 @@ describe('MCP tool contracts', () => {
             makeMcpServerOptions({
                 runSqlEnabled: true,
                 runMetricQueryEnabled: true,
+                dataAppBuildsEnabled: true,
             }),
         );
 

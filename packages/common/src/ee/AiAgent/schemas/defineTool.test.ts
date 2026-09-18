@@ -355,6 +355,7 @@ describe('defineTool', () => {
             'generate_hashes',
             'get_ai_writeback_status',
             'get_context',
+            'get_data_app_build_status',
             'get_metadata',
             'get_query_result',
             'grep_fields',
