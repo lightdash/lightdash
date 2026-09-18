@@ -3,8 +3,8 @@ import {
     allowsOptionalUserCredentials,
     type ApiError,
     type Connection,
-    type Project,
     type WarehouseCredentials,
+    type UserWarehouseCredentials,
 } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
@@ -14,6 +14,7 @@ import {
     useMemo,
     useState,
     type Dispatch,
+    type FC,
     type SetStateAction,
 } from 'react';
 import { matchRoutes, useLocation } from 'react-router';
@@ -38,10 +39,7 @@ const routesThatNeedWarehouseCredentials = [
     '/projects/:projectUuid/sqlRunner',
 ];
 
-const getSoleProjectConnection = (
-    connections: Connection[],
-): Connection | undefined =>
-    connections.length === 1 ? connections[0] : undefined;
+const noConnections: Connection[] = [];
 
 const credentialErrorWarehouseTypes: Partial<Record<string, WarehouseTypes>> = {
     SnowflakeTokenError: WarehouseTypes.SNOWFLAKE,
@@ -50,136 +48,187 @@ const credentialErrorWarehouseTypes: Partial<Record<string, WarehouseTypes>> = {
     RedshiftIamTokenError: WarehouseTypes.REDSHIFT,
 };
 
-const shouldOpenCredentialsModal = (
+type ConnectionCredentials = {
+    connection: Connection;
+    credentials: UserWarehouseCredentials[];
+};
+
+type CredentialsModalState = {
+    connectionUuid: string;
+    openedOnPageLoad: boolean;
+};
+
+type SetCredentialsModalState = Dispatch<
+    SetStateAction<CredentialsModalState | null>
+>;
+
+const getConnectionForCredentialsError = (
     errorName: string | undefined,
-    requireUserCredentials: boolean | undefined,
-    activeConnection: Connection | undefined,
-) =>
-    !!requireUserCredentials &&
-    !!activeConnection &&
-    (errorName === 'MissingWarehouseCredentialsError' ||
-        credentialErrorWarehouseTypes[errorName ?? ''] ===
-            activeConnection.warehouseType);
+    connections: Connection[],
+    connectionMissingCredentialsUuid: string | undefined,
+): Connection | undefined => {
+    const errorWarehouseType = credentialErrorWarehouseTypes[errorName ?? ''];
+    if (errorWarehouseType) {
+        return connections.find(
+            ({ warehouseType }) => warehouseType === errorWarehouseType,
+        );
+    }
+
+    if (errorName !== 'MissingWarehouseCredentialsError') return undefined;
+    if (connections.length === 1) return connections[0];
+
+    return connections.find(
+        ({ connectionUuid }) =>
+            connectionUuid === connectionMissingCredentialsUuid,
+    );
+};
 
 const useCredentialsErrorModal = (
     queryClient: QueryClient,
-    activeConnection: Connection | undefined,
+    connections: Connection[],
     requireUserCredentials: boolean | undefined,
-    setShowCreateModalOnPageLoad: Dispatch<SetStateAction<boolean>>,
-    setIsCreatingCredentials: Dispatch<SetStateAction<boolean>>,
+    connectionMissingCredentialsUuid: string | undefined,
+    setCredentialsModal: SetCredentialsModalState,
 ) => {
     useEffect(() => {
         const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
             if (event.type !== 'updated' || !event.query.state.error) return;
+            if (!requireUserCredentials) return;
 
             const error = event.query.state.error as Partial<ApiError>;
-            if (
-                shouldOpenCredentialsModal(
-                    error.error?.name,
-                    requireUserCredentials,
-                    activeConnection,
-                )
-            ) {
-                setShowCreateModalOnPageLoad(true);
-                setIsCreatingCredentials(true);
-            }
+            const connection = getConnectionForCredentialsError(
+                error.error?.name,
+                connections,
+                connectionMissingCredentialsUuid,
+            );
+            if (!connection) return;
+
+            setCredentialsModal({
+                connectionUuid: connection.connectionUuid,
+                openedOnPageLoad: true,
+            });
         });
 
         return unsubscribe;
     }, [
         queryClient,
-        activeConnection,
+        connections,
         requireUserCredentials,
-        setShowCreateModalOnPageLoad,
-        setIsCreatingCredentials,
+        connectionMissingCredentialsUuid,
+        setCredentialsModal,
     ]);
 };
 
 const useRequiredCredentialsModal = (
     pathname: string,
     isRouteThatNeedsWarehouseCredentials: boolean,
-    activeConnection: Connection | undefined,
     requireUserCredentials: boolean | undefined,
-    compatibleCredentialsCount: number | undefined,
-    setShowCreateModalOnPageLoad: Dispatch<SetStateAction<boolean>>,
-    setIsCreatingCredentials: Dispatch<SetStateAction<boolean>>,
+    connectionMissingCredentialsUuid: string | undefined,
+    setCredentialsModal: SetCredentialsModalState,
 ) => {
     useEffect(() => {
-        setShowCreateModalOnPageLoad(false);
-    }, [pathname, setShowCreateModalOnPageLoad]);
+        setCredentialsModal((current) =>
+            current?.openedOnPageLoad
+                ? { ...current, openedOnPageLoad: false }
+                : current,
+        );
+    }, [pathname, setCredentialsModal]);
 
     useEffect(() => {
         if (
             isRouteThatNeedsWarehouseCredentials &&
-            !!activeConnection &&
             requireUserCredentials &&
-            compatibleCredentialsCount === 0
+            connectionMissingCredentialsUuid
         ) {
-            setShowCreateModalOnPageLoad(true);
-            setIsCreatingCredentials(true);
+            setCredentialsModal({
+                connectionUuid: connectionMissingCredentialsUuid,
+                openedOnPageLoad: true,
+            });
         }
     }, [
         pathname,
         isRouteThatNeedsWarehouseCredentials,
-        activeConnection,
         requireUserCredentials,
-        compatibleCredentialsCount,
-        setShowCreateModalOnPageLoad,
-        setIsCreatingCredentials,
+        connectionMissingCredentialsUuid,
+        setCredentialsModal,
     ]);
 };
 
 const shouldShowCredentialsSwitcher = (
     requireUserCredentials: boolean | undefined,
     warehouseConnection: WarehouseCredentials | undefined,
-    compatibleCredentialsCount: number | undefined,
+    connectionCredentials: ConnectionCredentials[],
 ) =>
-    !!requireUserCredentials ||
-    (allowsOptionalUserCredentials(warehouseConnection) &&
-        !!compatibleCredentialsCount);
-
-type CredentialsSwitcherState = {
-    isLoadingCredentials: boolean;
-    isLoadingActiveProject: boolean;
-    isLoadingActiveProjectUuid: boolean;
-    activeProjectUuid: string | undefined;
-    activeProject: Project | undefined;
-    activeConnection: Connection | undefined;
-    isSwitcherVisible: boolean;
-};
-
-type ReadyCredentialsSwitcherState = CredentialsSwitcherState & {
-    activeProjectUuid: string;
-    activeProject: Project;
-    activeConnection: Connection;
-};
-
-const isCredentialsSwitcherReady = (
-    state: CredentialsSwitcherState,
-): state is ReadyCredentialsSwitcherState =>
-    !state.isLoadingCredentials &&
-    !state.isLoadingActiveProject &&
-    !state.isLoadingActiveProjectUuid &&
-    !!state.activeProjectUuid &&
-    !!state.activeProject &&
-    !!state.activeConnection &&
-    state.isSwitcherVisible;
+    connectionCredentials.length > 0 &&
+    (!!requireUserCredentials ||
+        (allowsOptionalUserCredentials(warehouseConnection) &&
+            connectionCredentials.some(
+                ({ credentials }) => credentials.length > 0,
+            )));
 
 const reloadPageIfNeeded = (shouldReload: boolean) => {
     if (shouldReload) window.location.reload();
+};
+
+const ConnectionCredentialsSection: FC<
+    ConnectionCredentials & {
+        projectUuid: string;
+        showConnectionName: boolean;
+        onSelect: (connection: Connection, credentialsUuid: string) => void;
+        onCreateNew: (connection: Connection) => void;
+    }
+> = ({
+    connection,
+    credentials,
+    projectUuid,
+    showConnectionName,
+    onSelect,
+    onCreateNew,
+}) => {
+    const { data: preferredCredentials } =
+        useProjectUserWarehouseCredentialsPreference(
+            projectUuid,
+            connection.connectionUuid,
+        );
+
+    return (
+        <>
+            {showConnectionName && <Menu.Label>{connection.name}</Menu.Label>}
+            {credentials.map((item) => (
+                <Menu.Item
+                    key={item.uuid}
+                    leftSection={<MantineIcon icon={IconDatabaseCog} />}
+                    rightSection={
+                        preferredCredentials?.uuid === item.uuid ? (
+                            <MantineIcon icon={IconCheck} />
+                        ) : undefined
+                    }
+                    onClick={() => onSelect(connection, item.uuid)}
+                >
+                    {item.name}
+                </Menu.Item>
+            ))}
+            <Menu.Divider />
+            <Menu.Item
+                leftSection={<MantineIcon icon={IconPlus} />}
+                onClick={() => onCreateNew(connection)}
+            >
+                Create new
+            </Menu.Item>
+        </>
+    );
 };
 
 const UserCredentialsSwitcher = () => {
     const menuProps = useNavBarMenuProps();
     const { user } = useApp();
     const location = useLocation();
-    const [showCreateModalOnPageLoad, setShowCreateModalOnPageLoad] =
-        useState(false);
+    const [credentialsModal, setCredentialsModal] =
+        useState<CredentialsModalState | null>(null);
     const isRouteThatNeedsWarehouseCredentials = !!matchRoutes(
         routesThatNeedWarehouseCredentials.map((path) => ({ path })),
         location,
     );
-    const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
     const queryClient = useQueryClient();
 
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
@@ -190,68 +239,81 @@ const UserCredentialsSwitcher = () => {
         isInitialLoading: isLoadingCredentials,
         data: userWarehouseCredentials,
     } = useProjectUserWarehouseCredentials(activeProjectUuid);
-    const activeConnection = activeProject
-        ? getSoleProjectConnection(activeProject.connections)
-        : undefined;
-    const warehouseType = activeConnection?.warehouseType;
-    const { data: preferredCredentials } =
-        useProjectUserWarehouseCredentialsPreference(
-            activeProjectUuid,
-            activeConnection?.connectionUuid,
-        );
+    const connections = activeProject?.connections ?? noConnections;
+    const requireUserCredentials = activeProject?.requireUserCredentials;
     const { mutate } = useProjectUserWarehouseCredentialsPreferenceMutation({
         onSuccess: () =>
             reloadPageIfNeeded(isRouteThatNeedsWarehouseCredentials),
     });
 
-    const compatibleCredentials = useMemo(() => {
-        return userWarehouseCredentials?.filter(
-            ({ credentials }) => credentials.type === warehouseType,
-        );
-    }, [userWarehouseCredentials, warehouseType]);
+    const connectionCredentials = useMemo(
+        () =>
+            connections.map((connection) => ({
+                connection,
+                credentials: (userWarehouseCredentials ?? []).filter(
+                    ({ credentials }) =>
+                        credentials.type === connection.warehouseType,
+                ),
+            })),
+        [connections, userWarehouseCredentials],
+    );
+
+    const connectionMissingCredentialsUuid = useMemo(
+        () =>
+            userWarehouseCredentials
+                ? connectionCredentials.find(
+                      ({ credentials }) => credentials.length === 0,
+                  )?.connection.connectionUuid
+                : undefined,
+        [connectionCredentials, userWarehouseCredentials],
+    );
 
     useCredentialsErrorModal(
         queryClient,
-        activeConnection,
-        activeProject?.requireUserCredentials,
-        setShowCreateModalOnPageLoad,
-        setIsCreatingCredentials,
+        connections,
+        requireUserCredentials,
+        connectionMissingCredentialsUuid,
+        setCredentialsModal,
     );
     useRequiredCredentialsModal(
         location.pathname,
         isRouteThatNeedsWarehouseCredentials,
-        activeConnection,
-        activeProject?.requireUserCredentials,
-        compatibleCredentials?.length,
-        setShowCreateModalOnPageLoad,
-        setIsCreatingCredentials,
+        requireUserCredentials,
+        connectionMissingCredentialsUuid,
+        setCredentialsModal,
     );
 
     const isSwitcherVisible = shouldShowCredentialsSwitcher(
-        activeProject?.requireUserCredentials,
+        requireUserCredentials,
         activeProject?.warehouseConnection,
-        compatibleCredentials?.length,
+        connectionCredentials,
     );
 
-    const switcherState = {
-        isLoadingCredentials,
-        isLoadingActiveProject,
-        isLoadingActiveProjectUuid,
-        activeProjectUuid,
-        activeProject,
-        activeConnection,
-        isSwitcherVisible,
-    };
-
-    if (!isCredentialsSwitcherReady(switcherState)) {
+    if (
+        isLoadingCredentials ||
+        isLoadingActiveProject ||
+        isLoadingActiveProjectUuid ||
+        !activeProjectUuid ||
+        !activeProject ||
+        !isSwitcherVisible
+    ) {
         return null;
     }
 
-    const {
-        activeProjectUuid: selectedProjectUuid,
-        activeProject: selectedProject,
-        activeConnection: selectedConnection,
-    } = switcherState;
+    const selectCredentials = (
+        connection: Connection,
+        credentialsUuid: string,
+    ) =>
+        mutate({
+            projectUuid: activeProjectUuid,
+            userWarehouseCredentialsUuid: credentialsUuid,
+            connectionUuid: connection.connectionUuid,
+        });
+
+    const modalConnection = connections.find(
+        ({ connectionUuid }) =>
+            connectionUuid === credentialsModal?.connectionUuid,
+    );
 
     return (
         <>
@@ -276,74 +338,64 @@ const UserCredentialsSwitcher = () => {
                 </Menu.Target>
 
                 <Menu.Dropdown>
-                    {(compatibleCredentials || []).map((item) => (
-                        <Menu.Item
-                            key={item.uuid}
-                            leftSection={<MantineIcon icon={IconDatabaseCog} />}
-                            rightSection={
-                                preferredCredentials?.uuid === item.uuid ? (
-                                    <MantineIcon icon={IconCheck} />
-                                ) : undefined
+                    {connectionCredentials.map((item) => (
+                        <ConnectionCredentialsSection
+                            key={item.connection.connectionUuid}
+                            connection={item.connection}
+                            credentials={item.credentials}
+                            projectUuid={activeProjectUuid}
+                            showConnectionName={
+                                connectionCredentials.length > 1
                             }
-                            onClick={() => {
-                                mutate({
-                                    projectUuid: selectedProjectUuid,
-                                    userWarehouseCredentialsUuid: item.uuid,
-                                    connectionUuid:
-                                        selectedConnection.connectionUuid,
-                                });
-                            }}
-                        >
-                            {item.name}
-                        </Menu.Item>
+                            onSelect={selectCredentials}
+                            onCreateNew={(connection) =>
+                                setCredentialsModal({
+                                    connectionUuid: connection.connectionUuid,
+                                    openedOnPageLoad: false,
+                                })
+                            }
+                        />
                     ))}
-                    <Menu.Divider />
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconPlus} />}
-                        onClick={() => {
-                            setIsCreatingCredentials(true);
-                        }}
-                    >
-                        Create new
-                    </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
-            {isCreatingCredentials && (
+            {credentialsModal && modalConnection && (
                 <AppColorSchemeScope>
                     <CreateCredentialsModal
-                        opened={isCreatingCredentials}
+                        key={modalConnection.connectionUuid}
+                        opened
                         title={
-                            showCreateModalOnPageLoad
-                                ? `Login to ${getWarehouseLabel(warehouseType)}`
+                            credentialsModal.openedOnPageLoad
+                                ? `Login to ${getWarehouseLabel(
+                                      modalConnection.warehouseType,
+                                  )}`
                                 : undefined
                         }
                         description={
-                            showCreateModalOnPageLoad ? (
+                            credentialsModal.openedOnPageLoad ? (
                                 <Text>
                                     The admin of your organization "
                                     {user.data?.organizationName}" requires that
                                     you login to{' '}
-                                    {getWarehouseLabel(warehouseType)} to
-                                    continue.
+                                    {getWarehouseLabel(
+                                        modalConnection.warehouseType,
+                                    )}{' '}
+                                    to continue.
                                 </Text>
                             ) : undefined
                         }
                         nameValue={
-                            showCreateModalOnPageLoad ? 'Default' : undefined
+                            credentialsModal.openedOnPageLoad
+                                ? 'Default'
+                                : undefined
                         }
-                        warehouseType={warehouseType}
-                        projectUuid={selectedProjectUuid}
-                        projectName={selectedProject.name}
-                        connections={[selectedConnection]}
-                        onSuccess={(data) => {
-                            mutate({
-                                projectUuid: selectedProjectUuid,
-                                userWarehouseCredentialsUuid: data.uuid,
-                                connectionUuid:
-                                    selectedConnection.connectionUuid,
-                            });
-                        }}
-                        onClose={() => setIsCreatingCredentials(false)}
+                        warehouseType={modalConnection.warehouseType}
+                        projectUuid={activeProjectUuid}
+                        projectName={activeProject.name}
+                        connections={[modalConnection]}
+                        onSuccess={(data) =>
+                            selectCredentials(modalConnection, data.uuid)
+                        }
+                        onClose={() => setCredentialsModal(null)}
                     />
                 </AppColorSchemeScope>
             )}
