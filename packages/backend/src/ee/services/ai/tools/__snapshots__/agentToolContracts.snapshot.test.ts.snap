@@ -9804,10 +9804,190 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": false,
+                      "description": "Dashboard as code JSON, exactly as shown in \`result\`.",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical Lightdash URL of the content.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "description": "Display name of the content.",
+                      "type": "string",
+                    },
+                    "slug": {
+                      "description": "Slug of the content that was read.",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "dashboard",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "slug",
+                    "name",
+                    "href",
+                    "type",
+                    "content",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": false,
+                      "description": "Chart as code JSON, exactly as shown in \`result\`.",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical Lightdash URL of the content.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "description": "Display name of the content.",
+                      "type": "string",
+                    },
+                    "slug": {
+                      "description": "Slug of the content that was read.",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "chart",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "slug",
+                    "name",
+                    "href",
+                    "type",
+                    "content",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": false,
+                      "description": "Read-only data app JSON (no code), exactly as shown in \`result\`.",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical Lightdash URL of the content.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "description": "Display name of the content.",
+                      "type": "string",
+                    },
+                    "slug": {
+                      "description": "Slug of the content that was read.",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "data_app",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "slug",
+                    "name",
+                    "href",
+                    "type",
+                    "content",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": false,
+                      "description": "Document as code JSON (schema version 1), exactly as shown in \`result\`.",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical Lightdash URL of the content.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "description": "Display name of the content.",
+                      "type": "string",
+                    },
+                    "slug": {
+                      "description": "Slug of the content that was read.",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "document",
+                      "type": "string",
+                    },
+                    "uuid": {
+                      "description": "UUID of the Document.",
+                      "type": "string",
+                    },
+                    "versionUuid": {
+                      "description": "Latest version UUID of the Document; use it as baseVersionUuid for cell edits.",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "slug",
+                    "name",
+                    "href",
+                    "type",
+                    "uuid",
+                    "versionUuid",
+                    "content",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
