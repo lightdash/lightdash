@@ -32,7 +32,7 @@ export const TOOL_GENERATE_DATA_APP_DESCRIPTION = [
     'Use it when the user asks to build, make, or generate a data app (or an app, slide show, or PDF report); questions, charts, dashboards, and other saved content have their own tools.',
     'This tool always creates a new app: to change an app that already exists, use iterateDataApp instead.',
     'Name the app yourself: the name fixes both the app name and its slug at creation, and neither changes afterwards.',
-    'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request.',
+    'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn.',
 ].join(' ');
 
 export const toolGenerateDataAppArgsSchema = z.object({
