@@ -1,5 +1,9 @@
-import { loadMcpToolsToolDefinition } from '@lightdash/common';
+import {
+    loadMcpToolsToolDefinition,
+    type ToolLoadMcpToolsStructuredContent,
+} from '@lightdash/common';
 import { tool } from 'ai';
+import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 
 const editDistance = (left: string, right: string): number => {
@@ -41,21 +45,28 @@ export const getLoadMcpTools = (availableNames: string[]) => {
     const available = new Set(availableNames);
     return tool({
         ...toolDefinition,
-        execute: async ({ names }) => {
-            const matched = [
+        execute: async ({
+            names,
+        }): Promise<
+            ExecuteStructuredToolResult<ToolLoadMcpToolsStructuredContent>
+        > => {
+            const loaded = [
                 ...new Set(names.filter((name) => available.has(name))),
             ];
             const unmatched = [
                 ...new Set(names.filter((name) => !available.has(name))),
-            ];
+            ].map((name) => ({
+                name,
+                nearMatches: getNearMatches(name, availableNames),
+            }));
             const confirmation =
-                matched.length > 0
-                    ? `Loaded MCP tools: ${matched.join(', ')}.`
+                loaded.length > 0
+                    ? `Loaded MCP tools: ${loaded.join(', ')}.`
                     : 'No MCP tools loaded.';
-            const unmatchedLines = unmatched.map((name) => {
-                const nearMatches = getNearMatches(name, availableNames);
-                return `- ${name} (near matches: ${nearMatches.join(', ') || 'none'})`;
-            });
+            const unmatchedLines = unmatched.map(
+                ({ name, nearMatches }) =>
+                    `- ${name} (near matches: ${nearMatches.join(', ') || 'none'})`,
+            );
 
             return {
                 result: [
@@ -64,7 +75,8 @@ export const getLoadMcpTools = (availableNames: string[]) => {
                         ? ['Unmatched names:', ...unmatchedLines]
                         : []),
                 ].join('\n'),
-                metadata: { status: 'success' as const },
+                metadata: { status: 'success' },
+                structuredContent: { loaded, unmatched },
             };
         },
         toModelOutput: ({ output }) => toModelOutput(output),
