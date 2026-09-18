@@ -2018,10 +2018,133 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "aiAugmentationAttached": {
+                  "description": "Whether an AI-written message is generated on each send.",
+                  "type": "boolean",
+                },
+                "cron": {
+                  "description": "5-part cron expression the delivery runs on.",
+                  "type": "string",
+                },
+                "enabled": {
+                  "description": "true = live and firing; false = created paused.",
+                  "type": "boolean",
+                },
+                "href": {
+                  "description": "Link to the delivery's settings page, to share with the user as a markdown link whose text is the delivery name.",
+                  "type": "string",
+                },
+                "name": {
+                  "description": "Delivery name.",
+                  "type": "string",
+                },
+                "schedulerUuid": {
+                  "description": "Uuid of the created delivery.",
+                  "type": "string",
+                },
+                "targets": {
+                  "description": "Slack channels and email recipients the delivery sends to.",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "channel": {
+                            "description": "Slack channel ID (preferred, e.g. "C0123ABCDEF") or channel name. The Lightdash Slack app must be able to join it.",
+                            "minLength": 1,
+                            "type": "string",
+                          },
+                          "type": {
+                            "const": "slack",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "type",
+                          "channel",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "recipient": {
+                            "description": "Email address of the recipient.",
+                            "minLength": 3,
+                            "type": "string",
+                          },
+                          "type": {
+                            "const": "email",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "type",
+                          "recipient",
+                        ],
+                        "type": "object",
+                      },
+                    ],
+                  },
+                  "type": "array",
+                },
+                "timezone": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "IANA timezone the cron runs in; null = project default.",
+                },
+                "warnings": {
+                  "description": "Non-fatal issues raised while creating the delivery.",
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "schedulerUuid",
+                "name",
+                "cron",
+                "timezone",
+                "targets",
+                "enabled",
+                "aiAugmentationAttached",
+                "href",
+                "warnings",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
