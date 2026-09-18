@@ -108,6 +108,32 @@ describe('AppVersionHistoryPanel', () => {
         expect(screen.getAllByText('Restore')).toHaveLength(1);
     });
 
+    it('shows the author under each prompt, skipping deleted users', () => {
+        renderWithProviders(
+            <AppVersionHistoryPanel
+                {...defaultProps}
+                versions={[
+                    entry(3, 1),
+                    {
+                        ...entry(2, 1),
+                        createdByUser: {
+                            userUuid: 'u2',
+                            firstName: 'Tom',
+                            lastName: 'Weller',
+                        },
+                    },
+                    { ...entry(1, 1), createdByUser: null },
+                ]}
+            />,
+        );
+
+        expect(screen.getAllByText('Katie Jones')).toHaveLength(1);
+        expect(screen.getByText('KJ')).toBeInTheDocument();
+        expect(screen.getByText('Tom Weller')).toBeInTheDocument();
+        expect(screen.getByText('TW')).toBeInTheDocument();
+        expect(screen.getAllByText(/^[A-Z]{2}$/)).toHaveLength(2);
+    });
+
     it('shows an empty state with no versions', () => {
         renderWithProviders(
             <AppVersionHistoryPanel
