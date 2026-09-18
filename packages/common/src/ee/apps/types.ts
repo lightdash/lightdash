@@ -59,6 +59,12 @@ export const APP_VERSION_STAGE_ORDER = [
 export const APP_VERSION_TERMINAL_STATUSES = ['ready', 'error'] as const;
 
 /**
+ * Outcome of the compact stage. 'failed' — the agent reported it could not
+ * summarize. 'error' — the call produced no verdict (config, sandbox, timeout).
+ */
+export type DataAppCompactionResult = 'success' | 'failed' | 'error';
+
+/**
  * Error message stamped on a version when the user cancels its build. There is
  * no dedicated 'cancelled' status — cancellation is an 'error' carrying this
  * marker, which the pipeline also reads to detect that a previous prompt was
