@@ -232,6 +232,90 @@ exactly ONE source row and ONE metric-slot field, and only when
 show each action on its own flag (a viewer may have one permission but not
 the other).
 
+### Open the menu at the data point
+
+Anchor this menu at the activated mark, not at an edge of the iframe or chart.
+If neither action is enabled, do not open or render an empty menu and do not
+give marks action-button semantics.
+Keep the clicked datum's `sourceRow` and declared metric name (and `fieldId` for
+a multiple input) in the menu state; the menu items must act on that exact
+identity. Pass the helper a library-neutral anchor: the activating DOM mark,
+whether activation was by pointer or keyboard, and pointer viewport coordinates
+when available. For a pointer activation, use native `clientX` and `clientY`,
+never chart-relative coordinates such as `chartX` or `chartY`. For keyboard
+activation, anchor at the centre of the activating mark's
+`getBoundingClientRect()` instead.
+
+Adapt each chart library before calling the helper. Recharts' React click
+handler supplies `event.currentTarget`, `event.clientX`, `event.clientY`, and
+`event.detail === 0` for keyboard-originated clicks. For ECharts, extract the
+native pointer event from its click parameters before reading `clientX` and
+`clientY`; do not assume React fields exist. D3 already passes the native event.
+
+**Make each eligible SVG mark keyboard reachable while either action is enabled.**
+When neither is enabled, omit the button role, tab stop, and action handlers.
+Otherwise give the mark `tabIndex={0}`,
+`role="button"`, and an accessible name from its category and formatted value.
+In Recharts, use a custom `shape` to wire `onClick` and `onKeyDown` on the rendered
+mark; the chart-wide `accessibilityLayer` alone does not open per-mark menus.
+On Enter or Space, prevent the default key action and call the same helper with
+`keyboard: true` and the mark as `activator`. Verify Tab → mark → Enter/Space →
+menu → Escape returns focus to that mark.
+Register rendered marks in a ref map keyed by stable datum key, using a ref callback
+on the SVG element: `ref={(node) => registerMark(datum.key, node)}`.
+Resolve the current mark after the menu unmounts when restoring
+focus: a saved DOM element can become detached during chart rerenders.
+
+Use the existing shadcn/Radix `DropdownMenu`, rendered with
+`createPortal(..., document.body)`. Its 1px fixed trigger is positioned at the
+stored viewport coordinates; this avoids transformed iframe ancestors changing
+the containing block for `position: fixed`. Let `DropdownMenuContent` use its
+normal Radix collision handling so a menu near a viewport edge flips or shifts
+onscreen. The placement state is small; the existing `underlyingData.open` and
+`drillDown.open` calls remain the menu items' host actions:
+
+```tsx
+const markElements = useRef(new Map());
+const registerMark = (key, node) => {
+  if (node) markElements.current.set(key, node);
+  else markElements.current.delete(key);
+};
+const openPointMenu = (datum, anchor) => {
+  if (!underlyingData.enabled && !drillDown.enabled) return;
+  const rect = anchor.activator.getBoundingClientRect();
+  setTooltipVisible(false);
+  setMenu({
+    sourceRow: datum.sourceRow,
+    metric: datum.metric,
+    fieldId: datum.fieldId,
+    pointKey: datum.key,
+    keyboard: anchor.keyboard,
+    x: anchor.keyboard ? rect.left + rect.width / 2 : anchor.clientX,
+    y: anchor.keyboard ? rect.top + rect.height / 2 : anchor.clientY,
+  });
+  if (!anchor.keyboard) anchor.activator.blur();
+};
+
+{menu && (underlyingData.enabled || drillDown.enabled) && createPortal(
+  <DropdownMenu open onOpenChange={(open) => !open && setMenu(null)}>
+    <DropdownMenuTrigger asChild>
+      <span aria-hidden style={{ position: 'fixed', left: menu.x, top: menu.y, width: 1, height: 1 }} />
+    </DropdownMenuTrigger>
+    <DropdownMenuContent
+      onCloseAutoFocus={(event) => {
+        event.preventDefault();
+        if (menu.keyboard) {
+          requestAnimationFrame(() => markElements.current.get(menu.pointKey)?.focus());
+        }
+      }}
+    >
+      {/* independently gated action items */}
+    </DropdownMenuContent>
+  </DropdownMenu>,
+  document.body,
+)}
+```
+
 ### Interaction hygiene
 
 One floating surface at a time, and no leftover emphasis — native Lightdash
@@ -245,8 +329,9 @@ highlighted:
   reappear until the pointer moves again after the menu closes.
 - **No persistent focus or active styling on a clicked mark.** Disable click
   emphasis (recharts: no `activeShape` on click state; echarts: turn off
-  lingering `emphasis`/`select`) and blur any focused SVG node after opening
-  the menu. Only hover may emphasise, and only while hovering.
+  lingering `emphasis`/`select`). A keyboard activator keeps its normal focus
+  affordance and receives focus again when the menu closes; it must not look
+  like a selected data point. Only hover may emphasise, and only while hovering.
 - **Subtle hover, no cursor band.** The library-default full-height band
   behind the hovered mark (recharts `<Tooltip cursor>`) is not native
   behaviour — use `cursor={false}` or a faint theme-token fill.
