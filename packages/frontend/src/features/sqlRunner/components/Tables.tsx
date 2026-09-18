@@ -557,6 +557,50 @@ const VirtualTreeList: FC<{
     </ScrollArea>
 );
 
+/** The sidebar's one-line states: waiting, loading, failed, or nothing found. */
+const TablesStatus: FC<{
+    needsConnectionChoice: boolean;
+    isLoading: boolean;
+    errorMessage: string | undefined;
+    isEmpty: boolean;
+}> = ({ needsConnectionChoice, isLoading, errorMessage, isEmpty }) => {
+    if (needsConnectionChoice) {
+        return (
+            <Center p="sm">
+                <Text c="dimmed" fz="sm" ta="center">
+                    Choose a connection to start writing SQL
+                </Text>
+            </Center>
+        );
+    }
+    if (isLoading) {
+        return (
+            <Center p="sm">
+                <Loader size="sm" />
+            </Center>
+        );
+    }
+    if (errorMessage) {
+        return (
+            <Center p="sm">
+                <Text c="red" fz="sm" ta="center">
+                    {errorMessage}
+                </Text>
+            </Center>
+        );
+    }
+    if (isEmpty) {
+        return (
+            <Center p="sm">
+                <Text c="dimmed" fz="sm">
+                    No results found
+                </Text>
+            </Center>
+        );
+    }
+    return null;
+};
+
 export const Tables: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const warehouseConnectionType = useAppSelector(
@@ -594,6 +638,8 @@ export const Tables: FC = () => {
         activeConnection,
         connectionNameFor,
         switchConnection,
+        hasSeveralConnections,
+        isConnectionSettled,
     } = useActiveConnection();
 
     const isRowExpandedByOverride = useCallback(
@@ -825,27 +871,14 @@ export const Tables: FC = () => {
                 onSelect={handleTableSelect}
             />
 
-            {isLoading && (
-                <Center p="sm">
-                    <Loader size="sm" />
-                </Center>
-            )}
-
-            {listingError && (
-                <Center p="sm">
-                    <Text c="red" fz="sm" ta="center">
-                        {listingError.error.message}
-                    </Text>
-                </Center>
-            )}
-
-            {isSuccess && rows.length === 0 && (
-                <Center p="sm">
-                    <Text c="dimmed" fz="sm">
-                        No results found
-                    </Text>
-                </Center>
-            )}
+            <TablesStatus
+                needsConnectionChoice={
+                    hasSeveralConnections && !isConnectionSettled
+                }
+                isLoading={isLoading && isConnectionSettled}
+                errorMessage={listingError?.error.message}
+                isEmpty={isSuccess && isConnectionSettled && rows.length === 0}
+            />
         </>
     );
 };
