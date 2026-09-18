@@ -1,5 +1,6 @@
 import { Ability, subject } from '@casl/ability';
 import {
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
     ConflictError,
@@ -24,6 +25,7 @@ import {
     getCustomSqlFieldKey,
     getDbtManifestVersion,
     getModelsFromManifest,
+    InlineErrorType,
     JobStatusType,
     JobStepType,
     JobType,
@@ -57,6 +59,8 @@ import {
     type MergeQuery,
     type MergeQuerySource,
     type PossibleAbilities,
+    type PreAggregateDef,
+    type PreAggregateDefinition,
     type Project,
     type ProjectDbtSource,
     type RegisteredAccount,
@@ -65,10 +69,12 @@ import {
     type WarehouseLocation,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
+import knex, { type Knex } from 'knex';
+import { MockClient } from 'knex-mock-client';
 import { Readable } from 'stream';
 import { gunzipSync } from 'zlib';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
-import { fromJwt } from '../../auth/account/account';
+import { fromJwt, fromSession } from '../../auth/account/account';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -229,7 +235,7 @@ const projectModel = {
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
     getExploreFromCache: vi.fn(async () => validExplore),
-    getQueryTimezone: vi.fn(async (): Promise<string | null> => null),
+    getQueryTimezone: vi.fn<ProjectModel['getQueryTimezone']>(async () => null),
     getProjectWarehouseConfig: vi.fn(async () => ({
         organizationWarehouseCredentialsUuid: null,
         queryTimezone: null,
@@ -279,7 +285,9 @@ const projectModel = {
     getCachedExploreNames: vi.fn(async () => []),
     getWarehouseFromCache: vi.fn(async () => undefined),
     saveWarehouseToCache: vi.fn(async () => undefined),
-    saveExploresToCache: vi.fn(async () => ({ cachedExploreUuids: [] })),
+    saveExploresToCache: vi.fn<ProjectModel['saveExploresToCache']>(
+        async () => ({ cachedExploreUuids: [] }),
+    ),
     saveExploreStreamToCache: vi.fn<ProjectModel['saveExploreStreamToCache']>(
         async (_projectUuid, explores) => {
             for await (const explore of explores) {
@@ -321,7 +329,15 @@ const organizationWarehouseCredentialsModel = {
 };
 const preAggregateModel = {
     upsertPreAggregateDefinitions: vi.fn(),
-    getPreAggregateDefinitionsForProject: vi.fn(async () => []),
+    publishDefinitions: vi.fn<PreAggregateModel['publishDefinitions']>(
+        async () => ({ scheduleChanges: [], definitions: [] }),
+    ),
+    getPreAggregateDefinitionsForProject: vi.fn<
+        PreAggregateModel['getPreAggregateDefinitionsForProject']
+    >(async () => []),
+    getPreAggregateDefinitionByUuid: vi.fn<
+        PreAggregateModel['getPreAggregateDefinitionByUuid']
+    >(async () => undefined),
     getPreAggregateDefinitionByDefinitionName: vi.fn(async () => undefined),
     getActiveMaterialization: vi.fn(async () => undefined),
 };
@@ -421,6 +437,9 @@ const schedulerClient = {
     indexCatalog: vi.fn(async () => ({ jobId: 'catalog-job-1' })),
     materializePreAggregate: vi.fn(async () => ({ jobId: 'job-1' })),
     schedulePreAggregateCronJobs: vi.fn(async () => []),
+    reconcilePreAggregateCronSchedule: vi.fn<
+        SchedulerClient['reconcilePreAggregateCronSchedule']
+    >(async () => undefined),
 };
 
 const catalogModel = {
@@ -506,6 +525,17 @@ const getMockedProjectService = (
         } as unknown as EncryptionUtil,
         userModel: {
             invalidateSessionUserCache: vi.fn(),
+            findSessionUserByUUID: vi.fn<UserModel['findSessionUserByUUID']>(
+                async () => ({
+                    ...user,
+                    organizationUuid: projectSummary.organizationUuid,
+                    organizationName: 'Test organization',
+                    organizationCreatedAt: new Date('2026-01-01T00:00:00Z'),
+                }),
+            ),
+            findServiceAccountByUserUuid: vi.fn<
+                UserModel['findServiceAccountByUserUuid']
+            >(async () => undefined),
         } as unknown as UserModel,
         userOAuthGrantsModel: {} as UserOAuthGrantsModel,
         featureFlagModel:
@@ -598,6 +628,61 @@ const viewerAccount = {
         ]),
     },
 } as typeof account;
+
+const managedPreAggregate: PreAggregateDef = {
+    name: 'daily_orders',
+    dimensions: ['a.dim1'],
+    metrics: ['a.met1'],
+};
+const managedSourceExplore: Explore = {
+    ...validExplore,
+    joinedTables: [],
+    preAggregates: [managedPreAggregate],
+    tables: {
+        a: {
+            ...validExplore.tables.a,
+            dimensions: {
+                dim1: {
+                    ...validExplore.tables.a.dimensions.dim1,
+                    compiledSql: '"a"."status"',
+                },
+            },
+            metrics: {
+                met1: {
+                    ...validExplore.tables.a.metrics.met1,
+                    type: MetricType.COUNT,
+                    compiledSql: 'COUNT(*)',
+                },
+            },
+        },
+    },
+};
+const storedManagedDefinition: PreAggregateDefinition = {
+    preAggregateDefinitionUuid: 'definition-1',
+    projectUuid: defaultProject.projectUuid,
+    sourceCachedExploreUuid: 'source-1',
+    preAggCachedExploreUuid: 'generated-1',
+    sourceExploreName: managedSourceExplore.name,
+    preAggregateName: managedPreAggregate.name,
+    publicationVersion: 'publication-1',
+    compatibilityHash: 'compatible-hash',
+    scheduleRevision: 'schedule-1',
+    schedulerTimezone: 'UTC',
+    physicalOutputContract: null,
+    preparationStatus: 'ready',
+    automaticEligible: true,
+    preAggregateDefinition: managedPreAggregate,
+    materializationMetricQuery: {
+        metricQuery: METRIC_QUERY,
+        metricComponents: {},
+        timeDimensionFieldId: null,
+        resolvedMaxRows: null,
+    },
+    materializationQueryError: null,
+    refreshCron: '0 10 * * *',
+    createdAt: new Date('2026-09-14T10:00:00Z'),
+    updatedAt: new Date('2026-09-14T10:00:00Z'),
+};
 
 type RefreshForTest = <T>(
     user: Pick<SessionUser, 'userUuid'>,
@@ -5699,6 +5784,7 @@ describe('ProjectService', () => {
                     [validExplore],
                     false,
                     expected,
+                    undefined,
                 );
             },
         );
@@ -5725,11 +5811,356 @@ describe('ProjectService', () => {
                 [validExplore],
                 false,
                 undefined,
+                undefined,
+            );
+        });
+    });
+
+    describe('pre-aggregate preparation', () => {
+        const evaluatedAt = new Date('2026-09-14T10:00:00Z');
+        beforeEach(() => {
+            projectModel.getWarehouseCredentialsForProject
+                .mockReset()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            projectModel.getQueryTimezone
+                .mockReset()
+                .mockResolvedValue('Asia/Tokyo');
+            emailModel.getPrimaryEmailStatus
+                .mockReset()
+                .mockResolvedValue({ isVerified: true });
+            userAttributesModel.getAttributeValuesForOrgMember
+                .mockReset()
+                .mockResolvedValue({});
+        });
+        afterEach(() => {
+            projectModel.getQueryTimezone.mockReset().mockResolvedValue(null);
+            userAttributesModel.getAttributeValuesForOrgMember
+                .mockReset()
+                .mockResolvedValue({});
+        });
+
+        test('uses project query timezone even without a materialization role and with a different user preference', async () => {
+            const configuredService =
+                getMockedProjectService(lightdashConfigMock);
+            const prepared =
+                await configuredService.preparePreAggregateMaterialization({
+                    account: fromSession({
+                        ...user,
+                        organizationUuid: projectSummary.organizationUuid,
+                        organizationName: 'Test organization',
+                        organizationCreatedAt: evaluatedAt,
+                        timezone: 'America/Los_Angeles',
+                    }),
+                    projectUuid,
+                    sourceExplore: managedSourceExplore,
+                    preAggregateDef: managedPreAggregate,
+                    evaluatedAt,
+                });
+
+            expect(prepared.queryComposer.getTimezone()).toBe('Asia/Tokyo');
+            expect(prepared.evaluatedAt).toBe(evaluatedAt);
+            expect(prepared.compatibilityHash).toEqual(expect.any(String));
+            expect(projectModel.getQueryTimezone).toHaveBeenCalledWith(
+                projectUuid,
+            );
+        });
+
+        test.each<CreateWarehouseCredentials>([
+            {
+                type: WarehouseTypes.ATHENA,
+                authenticationType: AthenaAuthenticationType.IAM_ROLE,
+                region: 'us-east-1',
+                database: 'AwsDataCatalog',
+                schema: 'analytics',
+                s3StagingDir: 's3://test-results/',
+            },
+            {
+                type: WarehouseTypes.REDSHIFT,
+                authenticationType: RedshiftAuthenticationType.IAM,
+                region: 'us-east-1',
+                host: 'redshift.example.test',
+                port: 5439,
+                dbname: 'analytics',
+                schema: 'public',
+                user: '',
+                isServerless: true,
+                workgroupName: 'analytics',
+            },
+        ])(
+            'keeps ambient $type refresh preparation usable without claiming reusable identity',
+            async (warehouseCredentials) => {
+                const configuredService =
+                    getMockedProjectService(lightdashConfigMock);
+                configuredService['getWarehouseCredentials'] = vi
+                    .fn(
+                        configuredService['getWarehouseCredentials'].bind(
+                            configuredService,
+                        ),
+                    )
+                    .mockResolvedValue({
+                        ...warehouseCredentials,
+                        userWarehouseCredentialsUuid: undefined,
+                    });
+                const prepared =
+                    await configuredService.preparePreAggregateMaterialization({
+                        account: sessionAccount,
+                        projectUuid,
+                        sourceExplore: managedSourceExplore,
+                        preAggregateDef: managedPreAggregate,
+                        evaluatedAt,
+                    });
+                expect(prepared.compatibilityHash).toBeNull();
+                expect(prepared.pinnedContextHash).toEqual(expect.any(String));
+                expect(prepared.executionCredentialScope).toEqual(
+                    expect.any(String),
+                );
+                expect(prepared.warehouseCredentials).toMatchObject(
+                    warehouseCredentials,
+                );
+            },
+        );
+
+        test('signs new opaque proofs with the active secret and verifies retained fallback proofs', async () => {
+            const oldSecret = 'preaggregate-old-secret';
+            const newSecret = 'preaggregate-new-secret';
+            const configuredService = getMockedProjectService({
+                ...lightdashConfigMock,
+                lightdashSecrets: {
+                    active: oldSecret,
+                    fallbacks: [],
+                    all: [oldSecret],
+                },
+            });
+            configuredService['getWarehouseCredentials'] = vi
+                .fn(
+                    configuredService['getWarehouseCredentials'].bind(
+                        configuredService,
+                    ),
+                )
+                .mockResolvedValue({
+                    type: WarehouseTypes.ATHENA,
+                    authenticationType: AthenaAuthenticationType.IAM_ROLE,
+                    region: 'us-east-1',
+                    database: 'AwsDataCatalog',
+                    schema: 'analytics',
+                    s3StagingDir: 's3://test-results/',
+                    userWarehouseCredentialsUuid: undefined,
+                });
+            const args = {
+                account: sessionAccount,
+                projectUuid,
+                sourceExplore: managedSourceExplore,
+                preAggregateDef: managedPreAggregate,
+                evaluatedAt,
+            };
+            const original =
+                await configuredService.preparePreAggregateMaterialization(
+                    args,
+                );
+            configuredService.lightdashConfig.lightdashSecrets = {
+                active: newSecret,
+                fallbacks: [oldSecret],
+                all: [newSecret, oldSecret],
+            };
+            const fresh =
+                await configuredService.preparePreAggregateMaterialization(
+                    args,
+                );
+            expect(fresh.pinnedContextHash).not.toBe(
+                original.pinnedContextHash,
+            );
+            expect(fresh.executionScopeKeyId).not.toBe(
+                original.executionScopeKeyId,
+            );
+            expect(fresh.compatibilityHash).toBeNull();
+            const retained =
+                await configuredService.preparePreAggregateMaterialization({
+                    ...args,
+                    expectedPinnedContextHash: original.pinnedContextHash,
+                });
+            expect(retained.pinnedContextHash).toBe(original.pinnedContextHash);
+            expect(retained.executionScopeKeyId).toBe(
+                original.executionScopeKeyId,
+            );
+            configuredService.lightdashConfig.lightdashSecrets = {
+                active: newSecret,
+                fallbacks: [],
+                all: [newSecret],
+            };
+            const retired =
+                await configuredService.preparePreAggregateMaterialization({
+                    ...args,
+                    expectedPinnedContextHash: original.pinnedContextHash,
+                });
+            expect(retired.pinnedContextHash).not.toBe(
+                original.pinnedContextHash,
+            );
+        });
+
+        test('uses the configured materialization role instead of the triggering user attributes', async () => {
+            userAttributesModel.getAttributeValuesForOrgMember.mockResolvedValue(
+                { region: ['APAC'] },
+            );
+            const prepared = await service.preparePreAggregateMaterialization({
+                account,
+                projectUuid,
+                sourceExplore: managedSourceExplore,
+                preAggregateDef: {
+                    ...managedPreAggregate,
+                    materializationRole: {
+                        email: 'materialize@example.com',
+                        attributes: { region: ['EMEA'] },
+                    },
+                },
+                evaluatedAt,
+            });
+
+            expect(prepared.queryComposer.getUserAccessControls()).toEqual({
+                intrinsicUserAttributes: { email: 'materialize@example.com' },
+                userAttributes: { region: ['EMEA'] },
+            });
+            expect(
+                userAttributesModel.getAttributeValuesForOrgMember,
+            ).not.toHaveBeenCalled();
+            expect(prepared.queryComposer.getTimezone()).toBe('Asia/Tokyo');
+        });
+
+        test.each([
+            {
+                sorts: undefined,
+                expected: [{ fieldId: 'a_dim1', descending: false }],
+            },
+            { sorts: [], expected: [] },
+            {
+                sorts: [{ fieldId: 'a_dim1', descending: true }],
+                expected: [{ fieldId: 'a_dim1', descending: true }],
+            },
+        ])(
+            'preserves default or explicit materialization sorts: $sorts',
+            async ({ sorts, expected }) => {
+                const prepared =
+                    await service.preparePreAggregateMaterialization({
+                        account,
+                        projectUuid,
+                        sourceExplore: managedSourceExplore,
+                        preAggregateDef: {
+                            ...managedPreAggregate,
+                            ...(sorts !== undefined && { sorts }),
+                        },
+                        evaluatedAt,
+                    });
+
+                expect(prepared.queryComposer.getMetricQuery().sorts).toEqual(
+                    expected,
+                );
+            },
+        );
+
+        test('pins a source snapshot that cannot change when the caller mutates its explore', async () => {
+            const sourceExplore = structuredClone(managedSourceExplore);
+            const prepared = await service.preparePreAggregateMaterialization({
+                account,
+                projectUuid,
+                sourceExplore,
+                preAggregateDef: managedPreAggregate,
+                evaluatedAt,
+            });
+            const originalSql = prepared.queryComposer.getSql({
+                columnLimit: 100,
+            });
+            sourceExplore.tables.a.dimensions.dim1.compiledSql =
+                '"a"."different_status"';
+
+            expect(prepared.queryComposer.getSql({ columnLimit: 100 })).toBe(
+                originalSql,
             );
         });
     });
 
     describe('pre-aggregate refreshes', () => {
+        let publicationDatabase: Knex;
+        let cachePublicationCommitted = false;
+        let deletedExploreNames: string[] = [];
+        beforeEach(() => {
+            cachePublicationCommitted = false;
+            deletedExploreNames = [];
+            publicationDatabase = knex({ client: MockClient, dialect: 'pg' });
+            projectModel.getWarehouseCredentialsForProject
+                .mockReset()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            preAggregateModel.publishDefinitions
+                .mockReset()
+                .mockResolvedValue({ scheduleChanges: [], definitions: [] });
+            preAggregateModel.getPreAggregateDefinitionsForProject
+                .mockReset()
+                .mockResolvedValue([]);
+            preAggregateModel.getPreAggregateDefinitionByUuid
+                .mockReset()
+                .mockResolvedValue(undefined);
+            schedulerClient.materializePreAggregate
+                .mockReset()
+                .mockResolvedValue({ jobId: 'job-1' });
+            schedulerClient.reconcilePreAggregateCronSchedule
+                .mockReset()
+                .mockResolvedValue();
+            projectModel.get
+                .mockReset()
+                .mockResolvedValue(projectWithSensitiveFields);
+            projectModel.getAllExploresFromCache
+                .mockReset()
+                .mockResolvedValue({});
+            projectModel.saveExploresToCache.mockImplementation(
+                async (
+                    _projectUuid,
+                    _explores,
+                    _complete,
+                    _dbtModelNames,
+                    publish,
+                ) => {
+                    await publicationDatabase.transaction(
+                        async (transaction) => {
+                            await publish?.(transaction, {
+                                deletedExploreNames,
+                            });
+                        },
+                    );
+                    cachePublicationCommitted = true;
+                    return { cachedExploreUuids: [] };
+                },
+            );
+            projectModel.saveExploreStreamToCache.mockImplementation(
+                async (_projectUuid, explores, publish) => {
+                    for await (const explore of explores)
+                        expect(explore.name).toBeDefined();
+                    await publicationDatabase.transaction(
+                        async (transaction) => {
+                            await publish?.(transaction);
+                        },
+                    );
+                    cachePublicationCommitted = true;
+                    return { cachedExploreUuids: [] };
+                },
+            );
+        });
+        afterEach(async () => {
+            await publicationDatabase.destroy();
+            projectModel.get
+                .mockReset()
+                .mockResolvedValue(projectWithSensitiveFields);
+            projectModel.getAllExploresFromCache
+                .mockReset()
+                .mockResolvedValue({});
+            projectModel.saveExploresToCache
+                .mockReset()
+                .mockResolvedValue({ cachedExploreUuids: [] });
+            projectModel.saveExploreStreamToCache
+                .mockReset()
+                .mockImplementation(async (_projectUuid, explores) => {
+                    for await (const explore of explores)
+                        expect(explore.name).toBeDefined();
+                    return { cachedExploreUuids: [] };
+                });
+        });
         const adminUser: SessionUser = {
             ...user,
             role: OrganizationMemberRole.ADMIN,
@@ -5742,6 +6173,36 @@ describe('ProjectService', () => {
                 [],
             ),
         };
+
+        test('includes inventory-pruned sources in partial publication scope', async () => {
+            const configuredService = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            deletedExploreNames = ['deleted', 'deleted_preagg_daily'];
+            await configuredService.saveExploresToCacheAndIndexCatalog({
+                userUuid: user.userUuid,
+                projectUuid,
+                complete: false,
+                explores: [managedSourceExplore, preAggregateExplore],
+                compilationSource: 'cli_deploy',
+            });
+            expect(preAggregateModel.publishDefinitions).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    scope: {
+                        type: 'partial',
+                        sourceExploreNames: [
+                            managedSourceExplore.name,
+                            ...deletedExploreNames,
+                        ],
+                    },
+                }),
+                expect.objectContaining({ isTransaction: true }),
+            );
+        });
 
         test('saveExploresToCacheAndIndexCatalog skips preview project materialization jobs', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
@@ -5766,9 +6227,9 @@ describe('ProjectService', () => {
                 },
             );
 
-            expect(
-                preAggregateModel.upsertPreAggregateDefinitions,
-            ).toHaveBeenCalledTimes(1);
+            expect(preAggregateModel.publishDefinitions).toHaveBeenCalledTimes(
+                1,
+            );
             expect(
                 preAggregateModel.getPreAggregateDefinitionsForProject,
             ).not.toHaveBeenCalled();
@@ -5819,22 +6280,424 @@ describe('ProjectService', () => {
                 },
             );
 
-            expect(
-                preAggregateModel.upsertPreAggregateDefinitions,
-            ).toHaveBeenCalledWith([
+            expect(preAggregateModel.publishDefinitions).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    pre_agg_cached_explore_uuid: 'preagg-uuid',
-                    materialization_metric_query: null,
-                    materialization_query_error: null,
-                    refresh_cron: null,
+                    definitions: [
+                        expect.objectContaining({
+                            source_explore_name: validExplore.name,
+                            pre_aggregate_name: 'rollup',
+                            materialization_metric_query: null,
+                            materialization_query_error: null,
+                            refresh_cron: null,
+                            automatic_eligible: false,
+                        }),
+                    ],
                 }),
-            ]);
+                expect.objectContaining({ isTransaction: true }),
+            );
             expect(
                 schedulerClient.materializePreAggregate,
             ).not.toHaveBeenCalled();
             expect(
                 schedulerClient.schedulePreAggregateCronJobs,
             ).not.toHaveBeenCalled();
+        });
+
+        test.each([true, false, undefined])(
+            'publishes prepared definitions inside the array-cache transaction (complete=%s)',
+            async (complete) => {
+                const configuredService = getMockedProjectService({
+                    ...lightdashConfigMock,
+                    preAggregates: {
+                        ...lightdashConfigMock.preAggregates,
+                        enabled: true,
+                    },
+                });
+
+                await configuredService.saveExploresToCacheAndIndexCatalog({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    complete,
+                    explores: [managedSourceExplore, preAggregateExplore],
+                    compilationSource: 'cli_deploy',
+                });
+
+                expect(projectModel.saveExploresToCache).toHaveBeenCalledWith(
+                    projectUuid,
+                    [managedSourceExplore, preAggregateExplore],
+                    complete,
+                    undefined,
+                    expect.any(Function),
+                );
+                expect(
+                    preAggregateModel.publishDefinitions,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({
+                        projectUuid,
+                        scope: complete
+                            ? { type: 'full' }
+                            : {
+                                  type: 'partial',
+                                  sourceExploreNames: [
+                                      managedSourceExplore.name,
+                                  ],
+                              },
+                        definitions: [
+                            expect.objectContaining({
+                                source_explore_name: managedSourceExplore.name,
+                                pre_aggregate_name: managedPreAggregate.name,
+                                compatibility_hash: expect.any(String),
+                                preparation_status: 'ready',
+                                automatic_eligible: true,
+                                materialization_metric_query:
+                                    expect.objectContaining({
+                                        metricQuery: expect.any(Object),
+                                    }),
+                            }),
+                        ],
+                    }),
+                    expect.objectContaining({ isTransaction: true }),
+                );
+            },
+        );
+
+        test('observes streamed explores before publishing definitions inside the same cache transaction', async () => {
+            const configuredService = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            async function* exploreStream() {
+                yield managedSourceExplore;
+                yield preAggregateExplore;
+            }
+
+            await configuredService['saveExploreStreamToCacheAndIndexCatalog']({
+                userUuid: user.userUuid,
+                projectUuid,
+                exploreStream: exploreStream(),
+                compilationSource: 'refresh_dbt',
+            });
+
+            expect(projectModel.saveExploreStreamToCache).toHaveBeenCalledWith(
+                projectUuid,
+                expect.anything(),
+                expect.any(Function),
+            );
+            expect(
+                preAggregateModel.publishDefinitions,
+            ).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    scope: { type: 'full' },
+                    definitions: [
+                        expect.objectContaining({
+                            source_explore_name: managedSourceExplore.name,
+                            pre_aggregate_name: managedPreAggregate.name,
+                            compatibility_hash: expect.any(String),
+                            preparation_status: 'ready',
+                        }),
+                    ],
+                }),
+                expect.objectContaining({ isTransaction: true }),
+            );
+        });
+
+        test.each(['valid', 'invalid'] as const)(
+            'publishes only the last occurrence of a source when it becomes %s',
+            async (lastSource) => {
+                const configuredService = getMockedProjectService({
+                    ...lightdashConfigMock,
+                    preAggregates: {
+                        ...lightdashConfigMock.preAggregates,
+                        enabled: true,
+                    },
+                });
+                const invalidSource: ExploreError = {
+                    name: managedSourceExplore.name,
+                    label: managedSourceExplore.label,
+                    errors: [
+                        {
+                            type: InlineErrorType.METADATA_PARSE_ERROR,
+                            message: 'Invalid source model',
+                        },
+                    ],
+                };
+                await configuredService.saveExploresToCacheAndIndexCatalog({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    complete: true,
+                    explores:
+                        lastSource === 'valid'
+                            ? [invalidSource, managedSourceExplore]
+                            : [managedSourceExplore, invalidSource],
+                    compilationSource: 'cli_deploy',
+                });
+                expect(
+                    preAggregateModel.publishDefinitions,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        definitions:
+                            lastSource === 'valid'
+                                ? [
+                                      expect.objectContaining({
+                                          preparation_status: 'ready',
+                                          compatibility_hash:
+                                              expect.any(String),
+                                      }),
+                                  ]
+                                : [],
+                        invalidSourceErrors:
+                            lastSource === 'valid'
+                                ? {}
+                                : {
+                                      [managedSourceExplore.name]:
+                                          'Invalid source model',
+                                  },
+                    }),
+                    expect.objectContaining({ isTransaction: true }),
+                );
+            },
+        );
+
+        test('invalidates prepared proof when the source under the cache lock differs', async () => {
+            const configuredService = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            const changedSource = structuredClone(managedSourceExplore);
+            changedSource.tables.a.dimensions.dim1.compiledSql =
+                '"a"."changed_during_preparation"';
+            projectModel.getAllExploresFromCache
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({ 'source-cache': changedSource });
+
+            await configuredService.saveExploresToCacheAndIndexCatalog({
+                userUuid: user.userUuid,
+                projectUuid,
+                complete: true,
+                explores: [managedSourceExplore],
+                compilationSource: 'cli_deploy',
+            });
+
+            expect(projectModel.getAllExploresFromCache).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({ isTransaction: true }),
+                [managedSourceExplore.name],
+            );
+            expect(preAggregateModel.publishDefinitions).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    definitions: [
+                        expect.objectContaining({
+                            compatibility_hash: null,
+                            preparation_status: 'invalid',
+                            automatic_eligible: false,
+                            materialization_metric_query: null,
+                            materialization_query_error:
+                                'Source changed during preparation; recompile the project.',
+                        }),
+                    ],
+                }),
+                expect.objectContaining({ isTransaction: true }),
+            );
+        });
+
+        test('does not enqueue jobs when transactional publication fails', async () => {
+            const configuredService = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            preAggregateModel.publishDefinitions.mockRejectedValueOnce(
+                new Error('Publication failed'),
+            );
+
+            await expect(
+                configuredService.saveExploresToCacheAndIndexCatalog({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [managedSourceExplore],
+                    compilationSource: 'cli_deploy',
+                }),
+            ).rejects.toThrow('Publication failed');
+
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).not.toHaveBeenCalled();
+            expect(
+                schedulerClient.reconcilePreAggregateCronSchedule,
+            ).not.toHaveBeenCalled();
+            expect(schedulerClient.indexCatalog).not.toHaveBeenCalled();
+        });
+
+        test.each(['project-creator', null])(
+            'reconciles cron as the project creator while compile runs as the deployer: %s',
+            async (createdByUserUuid) => {
+                const configuredService = getMockedProjectService({
+                    ...lightdashConfigMock,
+                    preAggregates: {
+                        ...lightdashConfigMock.preAggregates,
+                        enabled: true,
+                    },
+                });
+                projectModel.get.mockResolvedValue({
+                    ...projectWithSensitiveFields,
+                    createdByUserUuid,
+                });
+                preAggregateModel.publishDefinitions.mockResolvedValue({
+                    definitions: [storedManagedDefinition],
+                    scheduleChanges: ['definition-1'],
+                });
+                preAggregateModel.getPreAggregateDefinitionsForProject.mockResolvedValue(
+                    [storedManagedDefinition],
+                );
+                preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue(
+                    storedManagedDefinition,
+                );
+
+                await configuredService.saveExploresToCacheAndIndexCatalog({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [managedSourceExplore],
+                    compilationSource: 'cli_deploy',
+                });
+
+                expect(
+                    schedulerClient.materializePreAggregate,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        trigger: 'compile',
+                        userUuid: user.userUuid,
+                    }),
+                );
+                expect(
+                    schedulerClient.reconcilePreAggregateCronSchedule,
+                ).toHaveBeenCalledExactlyOnceWith({
+                    preAggregateDefinitionUuid: 'definition-1',
+                    definition: createdByUserUuid
+                        ? expect.objectContaining({ createdByUserUuid })
+                        : null,
+                });
+            },
+        );
+
+        test.each(['enqueue', 'reconcile'])(
+            'keeps schedule reconciliation independent when %s fails after publication',
+            async (failingOperation) => {
+                const configuredService = getMockedProjectService({
+                    ...lightdashConfigMock,
+                    preAggregates: {
+                        ...lightdashConfigMock.preAggregates,
+                        enabled: true,
+                    },
+                });
+                preAggregateModel.publishDefinitions.mockResolvedValue({
+                    definitions: [storedManagedDefinition],
+                    scheduleChanges: [
+                        storedManagedDefinition.preAggregateDefinitionUuid,
+                    ],
+                });
+                preAggregateModel.getPreAggregateDefinitionsForProject.mockResolvedValue(
+                    [storedManagedDefinition],
+                );
+                preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue(
+                    storedManagedDefinition,
+                );
+                const committedWhenDispatched: boolean[] = [];
+                schedulerClient.materializePreAggregate.mockImplementationOnce(
+                    async () => {
+                        committedWhenDispatched.push(cachePublicationCommitted);
+                        if (failingOperation === 'enqueue')
+                            throw new Error('Enqueue failed');
+                        return { jobId: 'job-1' };
+                    },
+                );
+                schedulerClient.reconcilePreAggregateCronSchedule.mockImplementationOnce(
+                    async () => {
+                        committedWhenDispatched.push(cachePublicationCommitted);
+                        if (failingOperation === 'reconcile')
+                            throw new Error('Reconciliation failed');
+                    },
+                );
+
+                await configuredService.saveExploresToCacheAndIndexCatalog({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [managedSourceExplore],
+                    compilationSource: 'cli_deploy',
+                });
+
+                expect(
+                    schedulerClient.materializePreAggregate,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        trigger: 'compile',
+                        preAggregateDefinitionUuid: 'definition-1',
+                    }),
+                );
+                expect(
+                    schedulerClient.reconcilePreAggregateCronSchedule,
+                ).toHaveBeenCalledWith({
+                    preAggregateDefinitionUuid: 'definition-1',
+                    definition: expect.objectContaining({
+                        scheduleRevision: 'schedule-1',
+                        refreshCron: '0 10 * * *',
+                    }),
+                });
+                expect(
+                    preAggregateModel.publishDefinitions.mock
+                        .invocationCallOrder[0],
+                ).toBeLessThan(
+                    schedulerClient.materializePreAggregate.mock
+                        .invocationCallOrder[0],
+                );
+                expect(schedulerClient.indexCatalog).toHaveBeenCalledOnce();
+                expect(committedWhenDispatched).toEqual([true, true]);
+            },
+        );
+
+        test('cancels a removed schedule even when no definitions are eligible for compile jobs', async () => {
+            const configuredService = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            preAggregateModel.publishDefinitions.mockResolvedValue({
+                definitions: [],
+                scheduleChanges: ['definition-1'],
+            });
+            preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue(
+                {
+                    ...storedManagedDefinition,
+                    refreshCron: null,
+                    scheduleRevision: 'removed-schedule',
+                },
+            );
+
+            await configuredService.saveExploresToCacheAndIndexCatalog({
+                userUuid: user.userUuid,
+                projectUuid,
+                explores: [managedSourceExplore],
+                compilationSource: 'cli_deploy',
+            });
+
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).not.toHaveBeenCalled();
+            expect(
+                schedulerClient.reconcilePreAggregateCronSchedule,
+            ).toHaveBeenCalledWith({
+                preAggregateDefinitionUuid: 'definition-1',
+                definition: null,
+            });
         });
 
         test('checkPreAggregateMatch returns a hit for external pre-aggregates without a materialization', async () => {
