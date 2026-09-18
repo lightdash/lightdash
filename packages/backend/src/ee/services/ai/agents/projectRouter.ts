@@ -60,6 +60,7 @@ export async function routeProjectForSlack(
         model,
         experimental_telemetry: telemetryConfig,
         schema: ProjectRoutingSchema,
+        allowSystemInMessages: true,
         messages: [
             {
                 role: 'system',

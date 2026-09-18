@@ -48,6 +48,7 @@ export async function answerDataAppPrompt(
         providerOptions: modelOptions.providerOptions,
         maxOutputTokens: MAX_OUTPUT_TOKENS,
         experimental_telemetry: telemetry,
+        allowSystemInMessages: true,
         messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             {

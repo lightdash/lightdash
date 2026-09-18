@@ -96,6 +96,7 @@ export async function generateDocumentSummary(
         providerOptions: modelOptions.providerOptions,
         experimental_telemetry: telemetry,
         schema: DocumentSummarySchema,
+        allowSystemInMessages: true,
         messages: [
             {
                 role: 'system',

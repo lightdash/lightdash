@@ -1,6 +1,7 @@
 import {
     generateDashboardToolDefinition,
     toolDashboardV2ArgsSchemaTransformed,
+    type Explore,
     type ToolDashboardV2ArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -14,6 +15,7 @@ import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateRunQueryTool } from './runQuery';
 
 type Dependencies = {
+    availableExplores: Explore[];
     getPrompt: GetPromptFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
 };
@@ -21,14 +23,15 @@ type Dependencies = {
 const toolDefinition = generateDashboardToolDefinition.for('agent');
 
 export const getGenerateDashboardV2 = ({
+    availableExplores,
     getPrompt,
     createOrUpdateArtifact,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (toolArgs, { experimental_context: context }) => {
+        execute: async (toolArgs) => {
             try {
-                const ctx = AgentContext.from(context);
+                const ctx = new AgentContext(availableExplores);
                 const transformedToolArgs =
                     toolDashboardV2ArgsSchemaTransformed.parse(toolArgs);
 

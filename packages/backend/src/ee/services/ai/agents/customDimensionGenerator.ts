@@ -132,6 +132,7 @@ export async function generateCustomDimension(
         providerOptions: modelOptions.providerOptions,
         experimental_telemetry: telemetry,
         schema: CustomDimensionSchema,
+        allowSystemInMessages: true,
         messages: buildCustomDimensionMessages(context),
     });
 

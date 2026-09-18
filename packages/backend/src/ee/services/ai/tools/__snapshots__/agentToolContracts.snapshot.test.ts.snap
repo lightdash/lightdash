@@ -8574,7 +8574,9 @@ Returns the terminal node's result columns and a CSV preview of its rows, plus p
                         "type": "array",
                       },
                       {
-                        "additionalProperties": false,
+                        "additionalProperties": {
+                          "type": "string",
+                        },
                         "propertyNames": {
                           "type": "string",
                         },
@@ -8632,7 +8634,9 @@ Returns the terminal node's result columns and a CSV preview of its rows, plus p
                         "type": "array",
                       },
                       {
-                        "additionalProperties": false,
+                        "additionalProperties": {
+                          "type": "string",
+                        },
                         "propertyNames": {
                           "type": "string",
                         },

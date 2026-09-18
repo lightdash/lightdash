@@ -23,6 +23,7 @@ import {
     PROVIDER_BILLING_MESSAGE,
     STEP_CAP_REACHED_MESSAGE,
 } from '../utils/errorMessages';
+import { getStaticToolDescription } from '../utils/toolDescription';
 import {
     buildAgentMessages,
     buildDeepResearchExecutionContextSnapshot,
@@ -1177,11 +1178,12 @@ describe('getAgentTools workstream tool gate', () => {
                     '## Filter expressions',
                 ),
                 visualizationUsesExpressions:
-                    tools.generateVisualization.description?.includes(
-                        'follow the Lightdash Agent system prompt',
-                    ) ?? false,
+                    getStaticToolDescription(
+                        tools.generateVisualization,
+                    )?.includes('follow the Lightdash Agent system prompt') ??
+                    false,
                 fieldValueSearchUsesExpressions:
-                    tools.searchFieldValues.description?.includes(
+                    getStaticToolDescription(tools.searchFieldValues)?.includes(
                         'follow the Lightdash Agent system prompt',
                     ) ?? false,
             }).toEqual({

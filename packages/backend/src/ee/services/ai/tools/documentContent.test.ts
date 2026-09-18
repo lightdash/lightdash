@@ -31,7 +31,11 @@ const document: DocumentContentResult = {
         },
     },
 };
-const options: ToolExecutionOptions = { toolCallId: 'call', messages: [] };
+const options: ToolExecutionOptions<Record<string, unknown>> = {
+    toolCallId: 'call',
+    messages: [],
+    context: {},
+};
 
 describe('AI Agent Document authoring', () => {
     test.each([false, true])(

@@ -43,6 +43,7 @@ export async function generateArtifactQuestion(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         schema: QuestionSchema,
+        allowSystemInMessages: true,
         messages: [
             {
                 role: 'system',

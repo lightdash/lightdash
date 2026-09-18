@@ -1,3 +1,4 @@
+import { OpenTelemetry } from '@ai-sdk/otel';
 /**
  * Tracing runs in one of two exclusive modes, selected by
  * LIGHTDASH_OTEL_TRACES_ENABLED:
@@ -57,6 +58,7 @@ import {
     type SamplingResult,
 } from '@opentelemetry/sdk-trace-base';
 import * as Sentry from '@sentry/node';
+import { registerTelemetry } from 'ai';
 import Logger from '../logging/logger';
 import { VERSION } from '../version';
 
@@ -717,6 +719,10 @@ class TracingService {
     initialize() {
         this.sentry.initialize();
         this.otel.initialize();
+        // AI SDK 7 only emits spans through a registered integration; the
+        // adapter resolves its tracer from the global provider, so it follows
+        // whichever mode (OTel or Sentry) owns tracing.
+        registerTelemetry(new OpenTelemetry());
     }
 
     async shutdown() {

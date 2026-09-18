@@ -88,6 +88,7 @@ const executeFindContent = (
     tool.execute!(args, {
         messages: [],
         toolCallId: 'test',
+        context: {},
     }) as Promise<ToolFindContentOutput>;
 
 const executeGetDashboardCharts = (
@@ -97,6 +98,7 @@ const executeGetDashboardCharts = (
     tool.execute!(args, {
         messages: [],
         toolCallId: 'test',
+        context: {},
     }) as Promise<ToolGetDashboardChartsOutput>;
 
 const makeMockSpace = (): FindContentResult => ({

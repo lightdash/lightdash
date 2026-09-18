@@ -51,6 +51,7 @@ export async function generateTooltip(
         providerOptions: modelOptions.providerOptions,
         experimental_telemetry: telemetry,
         schema: TooltipSchema,
+        allowSystemInMessages: true,
         messages: [
             {
                 role: 'system',

@@ -87,6 +87,7 @@ import {
 type RunQueryToolInput = ToolRunQueryArgs | ToolRunQueryExpressionRuntimeArgs;
 
 type Dependencies = {
+    availableExplores: Explore[];
     updateProgress: UpdateProgressFn;
     runAsyncQuery: RunAsyncQueryFn;
     getPrompt: GetPromptFn;
@@ -406,6 +407,7 @@ const sendSlackVisualization = async ({
 };
 
 export const getRunQuery = ({
+    availableExplores,
     updateProgress,
     runAsyncQuery,
     getPrompt,
@@ -440,11 +442,11 @@ export const getRunQuery = ({
     return tool({
         ...toolView,
         inputSchema,
-        execute: async (toolArgs, { experimental_context: context }) => {
+        execute: async (toolArgs) => {
             try {
                 await updateProgress('Running your query...');
 
-                const ctx = AgentContext.from(context);
+                const ctx = new AgentContext(availableExplores);
                 let queryTool: ToolRunQueryArgsTransformed;
                 let persistedExpressionArgs: ToolRunQueryExpressionResolvedArgs | null =
                     null;

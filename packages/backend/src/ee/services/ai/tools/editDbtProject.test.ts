@@ -28,6 +28,7 @@ const executeEditDbtProject = (
         {
             messages: [],
             toolCallId: 'tool-call-1',
+            context: {},
         },
     ) as Promise<EditDbtProjectOutput>;
 

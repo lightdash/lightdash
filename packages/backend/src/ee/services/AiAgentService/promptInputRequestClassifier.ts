@@ -125,6 +125,7 @@ export const classifyPromptInputRequest = async ({
             abortSignal: AbortSignal.timeout(
                 PROMPT_INPUT_REQUEST_CLASSIFIER_TIMEOUT_MS,
             ),
+            allowSystemInMessages: true,
             messages: [
                 {
                     role: 'system',

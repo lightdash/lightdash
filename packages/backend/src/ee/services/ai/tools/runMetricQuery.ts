@@ -33,11 +33,13 @@ import {
 const toolDefinition = runMetricQueryToolDefinition.for('agent');
 
 type Dependencies = {
+    availableExplores: Explore[];
     runAsyncQuery: RunAsyncQueryFn;
     maxLimit: number;
 };
 
 export const getRunMetricQuery = ({
+    availableExplores,
     runAsyncQuery,
     maxLimit,
 }: Dependencies) => {
@@ -90,13 +92,10 @@ export const getRunMetricQuery = ({
 
     return tool({
         ...toolDefinition,
-        execute: async (
-            toolArgs,
-            { experimental_context: context, abortSignal },
-        ) => {
+        execute: async (toolArgs, { abortSignal }) => {
             try {
                 abortSignal?.throwIfAborted();
-                const ctx = AgentContext.from(context);
+                const ctx = new AgentContext(availableExplores);
                 const vizTool =
                     toolRunMetricQueryArgsSchemaTransformed.parse(toolArgs);
 
