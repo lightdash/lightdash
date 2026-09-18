@@ -352,6 +352,7 @@ describe('defineTool', () => {
             .sort();
 
         expect(structuredMcpToolNames).toEqual([
+            'generate_data_app',
             'generate_hashes',
             'get_ai_writeback_status',
             'get_context',
@@ -359,6 +360,7 @@ describe('defineTool', () => {
             'get_metadata',
             'get_query_result',
             'grep_fields',
+            'list_data_app_themes',
             'list_skills',
             'read_skill',
             'read_skill_resource',

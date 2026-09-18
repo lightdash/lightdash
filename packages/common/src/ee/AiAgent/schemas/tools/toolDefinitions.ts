@@ -152,6 +152,8 @@ import {
     toolFindFieldsOutputSchema,
 } from './toolFindFieldsArgs';
 import {
+    MCP_TOOL_GENERATE_DATA_APP_DESCRIPTION,
+    mcpDataAppBuildStartedOutputSchema,
     TOOL_GENERATE_DATA_APP_DESCRIPTION,
     toolGenerateDataAppArgsSchema,
     toolGenerateDataAppOutputSchema,
@@ -219,6 +221,8 @@ import {
     toolListContentOutputSchema,
 } from './toolListContentArgs';
 import {
+    MCP_TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
+    mcpListDataAppThemesStructuredOutputSchema,
     TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
     toolListDataAppThemesArgsSchema,
     toolListDataAppThemesOutputSchema,
@@ -1096,18 +1100,26 @@ export const loadMcpToolsToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolLoadMcpToolsOutputSchema },
 });
 
-export const generateDataAppToolDefinition: ToolDefinitionWithoutMcpOutput<
+export const generateDataAppToolDefinition: ToolDefinitionWithMcpOutput<
     'generateDataApp',
     typeof toolGenerateDataAppArgsSchema,
     typeof toolGenerateDataAppArgsSchema,
-    typeof toolGenerateDataAppOutputSchema
+    typeof toolGenerateDataAppOutputSchema,
+    typeof mcpDataAppBuildStartedOutputSchema
 > = defineTool({
     name: 'generateDataApp',
     title: 'Generate data app',
-    description: TOOL_GENERATE_DATA_APP_DESCRIPTION,
-    availability: ['agent'],
+    description: ({ runtime }) =>
+        runtime === 'mcp'
+            ? MCP_TOOL_GENERATE_DATA_APP_DESCRIPTION
+            : TOOL_GENERATE_DATA_APP_DESCRIPTION,
+    availability: ['agent', 'mcp'],
     inputSchema: toolGenerateDataAppArgsSchema,
     agent: { outputSchema: toolGenerateDataAppOutputSchema },
+    mcp: {
+        annotations: writeAnnotations,
+        structuredContentSchema: mcpDataAppBuildStartedOutputSchema,
+    },
 });
 
 export const iterateDataAppToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1124,18 +1136,26 @@ export const iterateDataAppToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolIterateDataAppOutputSchema },
 });
 
-export const listDataAppThemesToolDefinition: ToolDefinitionWithoutMcpOutput<
+export const listDataAppThemesToolDefinition: ToolDefinitionWithMcpOutput<
     'listDataAppThemes',
     typeof toolListDataAppThemesArgsSchema,
     typeof toolListDataAppThemesArgsSchema,
-    typeof toolListDataAppThemesOutputSchema
+    typeof toolListDataAppThemesOutputSchema,
+    typeof mcpListDataAppThemesStructuredOutputSchema
 > = defineTool({
     name: 'listDataAppThemes',
     title: 'List data app themes',
-    description: TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
-    availability: ['agent'],
+    description: ({ runtime }) =>
+        runtime === 'mcp'
+            ? MCP_TOOL_LIST_DATA_APP_THEMES_DESCRIPTION
+            : TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
+    availability: ['agent', 'mcp'],
     inputSchema: toolListDataAppThemesArgsSchema,
     agent: { outputSchema: toolListDataAppThemesOutputSchema },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpListDataAppThemesStructuredOutputSchema,
+    },
 });
 
 export const editDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
