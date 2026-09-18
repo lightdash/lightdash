@@ -1642,7 +1642,7 @@ export class McpService extends BaseService {
                                 toolCallId: null,
                             });
                         return {
-                            summary: `Started building version ${version} of the data app "${slug}". Poll get_data_app_build_status with that slug every 15 seconds until it reports a terminal status.`,
+                            summary: `Started building version ${version} of the data app "${slug}". Poll get_data_app_build_status with that slug every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status.`,
                             structuredContent: { slug, version },
                         };
                     },

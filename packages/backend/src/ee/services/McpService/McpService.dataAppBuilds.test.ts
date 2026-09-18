@@ -535,7 +535,7 @@ describe('McpService iterate_data_app', () => {
         expect(result.content).toEqual([
             {
                 type: 'text',
-                text: 'Error starting the data app build. No version was added: A version is already building for this app',
+                text: 'A version is already building for this app',
             },
         ]);
     });
