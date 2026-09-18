@@ -1,16 +1,17 @@
 import {
+    assertUnreachable,
     mcpReadContentArgsSchema,
     mcpReadContentToolDefinition,
     ParameterError,
     readContentToolDefinition,
     toolReadContentArgsSchema,
-    type ReadContentType,
+    type ToolReadContentStructuredContent,
 } from '@lightdash/common';
 import { tool, type FlexibleSchema } from 'ai';
 import { z } from 'zod';
 import type { ReadContentFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     readContent: ReadContentFn;
@@ -19,6 +20,8 @@ type Dependencies = {
 
 const toolDefinition = readContentToolDefinition.for('agent');
 
+type ReadContentResult = Awaited<ReturnType<ReadContentFn>>;
+
 const contentResult = ({
     content,
     href,
@@ -26,8 +29,34 @@ const contentResult = ({
 }: {
     content: unknown;
     href: string;
-    type: ReadContentType | 'document';
+    type: ReadContentResult['type'];
 }) => `<${type} href="${href}" />\n---\n${JSON.stringify(content, null, 2)}`;
+
+const toStructuredContent = (
+    read: ReadContentResult,
+): ToolReadContentStructuredContent => {
+    const base = {
+        slug: read.content.slug,
+        name: read.content.name,
+        href: read.href,
+    };
+    switch (read.type) {
+        case 'dashboard':
+        case 'chart':
+        case 'data_app':
+            return { ...base, type: read.type, content: read.content };
+        case 'document':
+            return {
+                ...base,
+                type: read.type,
+                uuid: read.uuid,
+                versionUuid: read.versionUuid,
+                content: read.content,
+            };
+        default:
+            return assertUnreachable(read, 'Unknown read content type');
+    }
+};
 
 export const getReadContent = ({
     readContent,
@@ -65,38 +94,35 @@ export const getReadContent = ({
                     }
                     return { slug, type };
                 };
-                const result = await readContent(getReadArgs());
+                const read = await readContent(getReadArgs());
+                const structuredContent = toStructuredContent(read);
                 const metadata = {
                     status: 'success' as const,
-                    slug: result.content.slug,
-                    name: result.content.name,
-                    href: result.href,
-                    ...(result.type === 'document'
-                        ? { uuid: result.uuid, versionUuid: result.versionUuid }
+                    slug: structuredContent.slug,
+                    name: structuredContent.name,
+                    href: structuredContent.href,
+                    ...(structuredContent.type === 'document'
+                        ? {
+                              uuid: structuredContent.uuid,
+                              versionUuid: structuredContent.versionUuid,
+                          }
                         : {}),
                 };
 
                 return {
                     result: contentResult({
-                        content:
-                            result.type === 'document'
-                                ? result
-                                : result.content,
-                        href: metadata.href,
-                        type: result.type,
+                        content: read.type === 'document' ? read : read.content,
+                        href: structuredContent.href,
+                        type: structuredContent.type,
                     }),
                     metadata,
+                    structuredContent,
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(
-                        error,
-                        `Error reading ${type} "${slug}"`,
-                    ),
-                    metadata: {
-                        status: 'error' as const,
-                    },
-                };
+                return toolErrorOutput(
+                    error,
+                    `Error reading ${type} "${slug}"`,
+                );
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
