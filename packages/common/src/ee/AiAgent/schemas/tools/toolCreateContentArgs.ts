@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ChartAsCode } from '../../../../types/coder';
+import { toolErrorStructuredContentSchema } from '../outputMetadata';
 
 export const TOOL_CREATE_CONTENT_DESCRIPTION =
     'Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.';
@@ -96,9 +97,55 @@ const toolCreateContentMetadataSchema = z.discriminatedUnion('status', [
     }),
 ]);
 
+const createdContentShape = {
+    href: z.string().describe('Canonical link to the created content.'),
+    uuid: z.string().describe('UUID of the created content.'),
+    slug: z
+        .string()
+        .describe(
+            'Final persisted slug; may differ from the requested slug when it was already taken.',
+        ),
+    name: z.string(),
+    content: z
+        .record(z.string(), z.unknown())
+        .describe('The persisted content as code, as shown in `result`.'),
+    warnings: z
+        .array(z.string())
+        .describe(
+            'Non-fatal problems with the created content, e.g. metricQuery dimensions the chart does not use.',
+        ),
+};
+
+export const toolCreateContentStructuredContentSchema = z.discriminatedUnion(
+    'type',
+    [
+        z.object({ type: z.literal('dashboard'), ...createdContentShape }),
+        z.object({ type: z.literal('chart'), ...createdContentShape }),
+        z.object({
+            type: z.literal('document'),
+            ...createdContentShape,
+            versionUuid: z
+                .string()
+                .describe(
+                    'Latest Document version UUID, required for content edits.',
+                ),
+        }),
+    ],
+);
+
+export type ToolCreateContentStructuredContent = z.infer<
+    typeof toolCreateContentStructuredContentSchema
+>;
+
+// Mirrors structuredToolOutputSchema, whose metadata parameter only accepts a
+// z.object; consumers narrow on this discriminated-union metadata.
 export const toolCreateContentOutputSchema = z.object({
     result: z.string(),
     metadata: toolCreateContentMetadataSchema,
+    structuredContent: z.union([
+        toolCreateContentStructuredContentSchema,
+        toolErrorStructuredContentSchema,
+    ]),
 });
 
 export type ToolCreateContentOutput = z.infer<

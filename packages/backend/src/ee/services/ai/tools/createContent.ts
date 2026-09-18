@@ -3,17 +3,32 @@ import {
     mcpCreateContentArgsSchema,
     mcpCreateContentToolDefinition,
     toolCreateContentArgsSchema,
+    type ToolCreateContentOutput,
+    type ToolCreateContentStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
 import { getContentWarnings } from '../utils/contentWarnings';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     createContent: CreateContentFn;
     documentsEnabled?: boolean;
 };
+
+type CreatedContent = Awaited<ReturnType<CreateContentFn>>;
+
+type ExecuteCreateContentResult =
+    | ExecuteStructuredToolResult<
+          ToolCreateContentStructuredContent,
+          Extract<ToolCreateContentOutput['metadata'], { status: 'success' }>
+      >
+    | ExecuteToolErrorResult;
 
 const toolDefinition = createContentToolDefinition.for('agent');
 
@@ -37,6 +52,23 @@ const contentResult = ({
     )}${warningText}`;
 };
 
+const toCreatedContent = (
+    result: CreatedContent,
+    warnings: string[],
+): ToolCreateContentStructuredContent => {
+    const created = {
+        href: result.href,
+        uuid: result.uuid,
+        slug: result.content.slug,
+        name: result.content.name,
+        content: result.content,
+        warnings,
+    };
+    return result.type === 'document'
+        ? { type: 'document', versionUuid: result.versionUuid, ...created }
+        : { type: result.type, ...created };
+};
+
 export const getCreateContent = ({
     createContent,
     documentsEnabled = false,
@@ -45,7 +77,7 @@ export const getCreateContent = ({
         ...(documentsEnabled
             ? mcpCreateContentToolDefinition.for('agent')
             : toolDefinition),
-        execute: async (args) => {
+        execute: async (args): Promise<ExecuteCreateContentResult> => {
             const { type, content } = args;
             try {
                 (documentsEnabled
@@ -56,16 +88,19 @@ export const getCreateContent = ({
                     type,
                     content,
                 } as Parameters<CreateContentFn>[0]);
-                const warnings = getContentWarnings(result);
+                const created = toCreatedContent(
+                    result,
+                    getContentWarnings(result),
+                );
                 const metadata = {
                     status: 'success' as const,
-                    slug: result.content.slug,
-                    name: result.content.name,
-                    uuid: result.uuid,
-                    href: result.href,
-                    warnings,
-                    ...(result.type === 'document'
-                        ? { versionUuid: result.versionUuid }
+                    slug: created.slug,
+                    name: created.name,
+                    uuid: created.uuid,
+                    href: created.href,
+                    warnings: created.warnings,
+                    ...(created.type === 'document'
+                        ? { versionUuid: created.versionUuid }
                         : {}),
                 };
 
@@ -74,23 +109,19 @@ export const getCreateContent = ({
                         content:
                             result.type === 'document'
                                 ? result
-                                : result.content,
-                        href: metadata.href,
-                        type: result.type,
-                        warnings,
+                                : created.content,
+                        href: created.href,
+                        type: created.type,
+                        warnings: created.warnings,
                     }),
                     metadata,
+                    structuredContent: created,
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(
-                        error,
-                        `Error creating ${type} "${content.slug}". Content was not created.`,
-                    ),
-                    metadata: {
-                        status: 'error' as const,
-                    },
-                };
+                return toolErrorOutput(
+                    error,
+                    `Error creating ${type} "${content.slug}". Content was not created.`,
+                );
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
