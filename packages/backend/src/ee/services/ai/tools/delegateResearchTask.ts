@@ -4,8 +4,13 @@ import {
     getErrorMessage,
     type AiDeepResearchWorkerResult,
     type AiDeepResearchWorkerTaskInput,
+    type ToolDelegateResearchTaskStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 
 type DelegateResearchTaskOptions = {
@@ -15,33 +20,41 @@ type DelegateResearchTaskOptions = {
     ) => Promise<AiDeepResearchWorkerResult>;
 };
 
+const errorOutput = (result: string): ExecuteToolErrorResult => ({
+    result,
+    metadata: { status: 'error' },
+    structuredContent: { error: result },
+});
+
 export const getDelegateResearchTask = (options: DelegateResearchTaskOptions) =>
     tool({
         ...delegateResearchTaskToolDefinition.for('agent'),
-        execute: async (input) => {
+        execute: async (
+            input,
+        ): Promise<
+            | ExecuteStructuredToolResult<ToolDelegateResearchTaskStructuredContent>
+            | ExecuteToolErrorResult
+        > => {
             const parsed = aiDeepResearchWorkerTaskInputSchema.safeParse(input);
             if (!parsed.success) {
-                return {
-                    result: getErrorMessage(parsed.error),
-                    metadata: { status: 'error' as const },
-                };
+                return errorOutput(getErrorMessage(parsed.error));
             }
 
             const outcome = await options.runTask(parsed.data);
             if (!outcome.findings) {
-                return {
-                    result:
-                        outcome.failureReason ??
+                return errorOutput(
+                    outcome.failureReason ??
                         'The delegated task did not return findings',
-                    metadata: { status: 'error' as const },
-                };
+                );
             }
+            const packet: ToolDelegateResearchTaskStructuredContent = {
+                taskId: outcome.task.id,
+                ...outcome.findings,
+            };
             return {
-                result: JSON.stringify({
-                    taskId: outcome.task.id,
-                    ...outcome.findings,
-                }),
-                metadata: { status: 'success' as const },
+                result: JSON.stringify(packet),
+                metadata: { status: 'success' },
+                structuredContent: packet,
             };
         },
         toModelOutput: ({ output }) => toModelOutput(output),
