@@ -9010,10 +9010,58 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "diff": {
+                  "description": "Unified diff of the pull request, cut at the character cap when \`truncated\` is true. Empty when the pull request has no file changes.",
+                  "type": "string",
+                },
+                "pullRequest": {
+                  "description": "Short "owner/repo #123" label of the pull request, parsed from its URL.",
+                  "type": "string",
+                },
+                "totalChars": {
+                  "description": "Length of the full diff in characters, before any cut.",
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "truncated": {
+                  "description": "True when \`diff\` was cut at the character cap; ask about a specific file to see the rest.",
+                  "type": "boolean",
+                },
+              },
+              "required": [
+                "pullRequest",
+                "diff",
+                "truncated",
+                "totalChars",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
