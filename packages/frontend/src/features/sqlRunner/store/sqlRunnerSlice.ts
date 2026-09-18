@@ -200,6 +200,17 @@ export const sqlRunnerSlice = createSlice({
         ) => {
             state.connectionUuid = action.payload;
         },
+        // A connection removed elsewhere cannot stay active. Drop the
+        // selection and the table it belonged to, and leave the results that
+        // are already on screen alone.
+        clearMissingConnection: (state) => {
+            state.connectionUuid = undefined;
+            state.activeTable = undefined;
+            state.activeSchema = undefined;
+            state.activeDatabase = undefined;
+            state.queryError = undefined;
+            state.queryIsLoading = false;
+        },
         // Seeding is not switching: the first connection a document resolves
         // to leaves any loaded results alone.
         switchActiveConnection: (state, action: PayloadAction<string>) => {
@@ -456,6 +467,7 @@ export const {
     toggleActiveTable,
     setProjectUuid,
     setConnectionUuid,
+    clearMissingConnection,
     switchActiveConnection,
     setFetchResultsOnLoad,
     updateName,

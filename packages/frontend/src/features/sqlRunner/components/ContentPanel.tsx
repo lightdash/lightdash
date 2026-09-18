@@ -56,6 +56,7 @@ import useApp from '../../../providers/App/useApp';
 import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useActiveConnection } from '../hooks/useActiveConnection';
+import { useReportMissingConnection } from '../hooks/useConnectionReconciliation';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     clearParameterValues,
@@ -81,6 +82,7 @@ import {
     updateParameterValue,
 } from '../store/sqlRunnerSlice';
 import { prepareAndFetchChartData, runSqlQuery } from '../store/thunks';
+import { isMissingConnectionError } from '../utils/activeConnection';
 import { executeSqlDownloadQuery } from '../utils/executeSqlDownloadQuery';
 import styles from './ContentPanel.module.css';
 import { ChartDownload } from './Download/ChartDownload';
@@ -127,6 +129,7 @@ export const ContentPanel: FC = () => {
     const { health } = useApp();
 
     const { showToastError } = useToaster();
+    const reportMissingConnection = useReportMissingConnection();
 
     // State tracked by this component
     const [panelSizes, setPanelSizes] = useState<SplitterPaneSize[]>([60, 40]);
@@ -217,6 +220,12 @@ export const ContentPanel: FC = () => {
 
     useEffect(() => {
         if (queryError) {
+            // A removed connection is reconciled instead: the picker resets and
+            // says so, which a raw "Connection not found" toast does not.
+            if (isMissingConnectionError(queryError)) {
+                reportMissingConnection(queryError);
+                return;
+            }
             showToastError({
                 title: 'Could not fetch SQL query results',
                 subtitle: queryError.message,
@@ -224,7 +233,7 @@ export const ContentPanel: FC = () => {
         } else {
             notifications.clean();
         }
-    }, [queryError, showToastError]);
+    }, [queryError, showToastError, reportMissingConnection]);
 
     const handleFormatSql = useCallback(() => {
         if (!sql) return;

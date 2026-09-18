@@ -1,6 +1,8 @@
 import { WarehouseTypes, type Connection } from '@lightdash/common';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+    forgetLastUsedConnection,
+    isMissingConnectionError,
     isReplaceableSql,
     readLastUsedConnection,
     resolveActiveConnection,
@@ -258,5 +260,67 @@ describe('tableClickOutcome', () => {
                 tableConnectionUuid: 'connection-2',
             }),
         ).toBe('select-only');
+    });
+});
+
+describe('isMissingConnectionError', () => {
+    it('recognises the api error a removed connection returns', () => {
+        expect(
+            isMissingConnectionError({
+                status: 'error',
+                error: {
+                    name: 'NotFoundError',
+                    message: 'Connection not found',
+                },
+            }),
+        ).toBe(true);
+    });
+
+    it('recognises the error the query slice stores', () => {
+        expect(
+            isMissingConnectionError({
+                name: 'NotFoundError',
+                message: 'Connection not found',
+            }),
+        ).toBe(true);
+    });
+
+    it('leaves every other failure alone', () => {
+        expect(isMissingConnectionError(undefined)).toBe(false);
+        expect(isMissingConnectionError(null)).toBe(false);
+        expect(isMissingConnectionError('Connection not found')).toBe(false);
+        expect(
+            isMissingConnectionError(new Error('syntax error near SELCT')),
+        ).toBe(false);
+        expect(
+            isMissingConnectionError({
+                error: {
+                    name: 'MultipleConnectionsError',
+                    message: 'This project has several connections.',
+                },
+            }),
+        ).toBe(false);
+    });
+});
+
+describe('forgetLastUsedConnection', () => {
+    const projectUuid = 'project-uuid';
+
+    beforeEach(() => window.localStorage.clear());
+
+    it('clears the stored connection when it is the one removed', () => {
+        writeLastUsedConnection(projectUuid, 'connection-1');
+
+        forgetLastUsedConnection(projectUuid, 'connection-1');
+
+        expect(readLastUsedConnection(projectUuid)).toBeUndefined();
+    });
+
+    it('keeps a different stored connection', () => {
+        writeLastUsedConnection(projectUuid, 'connection-2');
+
+        forgetLastUsedConnection(projectUuid, 'connection-1');
+
+        expect(readLastUsedConnection(projectUuid)).toBe('connection-2');
     });
 });

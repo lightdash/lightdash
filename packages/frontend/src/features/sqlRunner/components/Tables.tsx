@@ -39,12 +39,21 @@ import {
 } from '@tabler/icons-react';
 import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
 import dayjs from 'dayjs';
-import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import { useActiveConnection } from '../hooks/useActiveConnection';
+import { useReportMissingConnection } from '../hooks/useConnectionReconciliation';
 import { useWarehouseTree } from '../hooks/useWarehouseTree';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql, toggleActiveTable } from '../store/sqlRunnerSlice';
@@ -662,6 +671,11 @@ export const Tables: FC = () => {
         warehouseConnectionType,
         isRowExpandedByOverride,
     });
+
+    const reportMissingConnection = useReportMissingConnection();
+    useEffect(() => {
+        reportMissingConnection(listingError);
+    }, [listingError, reportMissingConnection]);
 
     const toggleRow = useCallback(
         (rowId: string, isExpanded: boolean) => {
