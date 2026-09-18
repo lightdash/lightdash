@@ -32,6 +32,7 @@ import {
     OrganizationMemberRole,
     OrganizationProject,
     ParameterError,
+    projectAbilitySubject,
     ProjectType,
     SaveOrganizationBrandRequest,
     SessionUser,
@@ -655,9 +656,11 @@ export class OrganizationService extends BaseService {
         const accessResults = auditedAbility.canBulk(
             'view',
             projects.map((project) =>
-                subject('Project', {
+                projectAbilitySubject({
+                    ...project,
                     organizationUuid,
-                    projectUuid: project.projectUuid,
+                    upstreamProjectUuid:
+                        project.upstreamProjectUuid ?? undefined,
                     metadata: {
                         projectUuid: project.projectUuid,
                         projectName: project.name,
