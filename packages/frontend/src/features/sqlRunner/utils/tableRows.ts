@@ -30,6 +30,8 @@ export type TreeConnection = {
     databases: WarehouseListedDatabase[];
     listingStatus: 'loading' | 'error' | 'loaded';
     listingError?: string;
+    /** The catalog was refused for this role, so retrying cannot help. */
+    listingForbidden?: boolean;
     truncated: boolean;
     limit: number;
 };
@@ -94,6 +96,7 @@ export type WarehouseTreeRow =
           connectionId: string;
           listedDatabase: string;
           message: string;
+          forbidden?: boolean;
       }
     | { type: 'truncation'; id: string; depth: number; limit: number };
 
@@ -553,6 +556,7 @@ export const buildWarehouseTreeRows = ({
                           message:
                               connection.listingError ??
                               'Failed to load databases',
+                          forbidden: connection.listingForbidden ?? false,
                       },
                   ]
                 : [

@@ -135,3 +135,68 @@ describe('useWarehouseTree on first load', () => {
         expect(listedConnections[0]).toContain('connection-finance');
     });
 });
+
+describe('useWarehouseTree when the catalog is refused', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockApi.mockImplementation((() =>
+            Promise.reject({
+                status: 'error',
+                error: {
+                    statusCode: 403,
+                    name: 'ForbiddenError',
+                    message: "You don't have access to this resource or action",
+                },
+            })) as never);
+    });
+
+    it('marks the listing forbidden so the tree offers no retry', async () => {
+        const { result } = renderHook(
+            () =>
+                useWarehouseTree({
+                    projectUuid: 'project-uuid',
+                    warehouseConnectionType: WarehouseTypes.POSTGRES,
+                    isRowExpandedByOverride: () => undefined,
+                }),
+            { wrapper },
+        );
+
+        await waitFor(() => expect(result.current.listingForbidden).toBe(true));
+        // The connection names still show; only the catalog is withheld.
+        expect(
+            result.current.connections.map(
+                ({ connectionName }) => connectionName,
+            ),
+        ).toEqual(['postgres', 'finance']);
+        const active = result.current.connections.find(
+            ({ isActive }) => isActive,
+        );
+        expect(active?.listingForbidden).toBe(true);
+        expect(active?.listingStatus).toBe('error');
+    });
+
+    it('leaves an ordinary failure retryable', async () => {
+        mockApi.mockImplementation((() =>
+            Promise.reject({
+                status: 'error',
+                error: {
+                    statusCode: 500,
+                    name: 'UnexpectedServerError',
+                    message: 'Something went wrong.',
+                },
+            })) as never);
+
+        const { result } = renderHook(
+            () =>
+                useWarehouseTree({
+                    projectUuid: 'project-uuid',
+                    warehouseConnectionType: WarehouseTypes.POSTGRES,
+                    isRowExpandedByOverride: () => undefined,
+                }),
+            { wrapper },
+        );
+
+        await waitFor(() => expect(result.current.listingError).not.toBeNull());
+        expect(result.current.listingForbidden).toBe(false);
+    });
+});
