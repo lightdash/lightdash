@@ -58594,6 +58594,38 @@
                 ],
                 "type": "object"
             },
+            "Pick_CreateDocumentRequest.name-or-spaceUuid_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "spaceUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Partial_Pick_CreateDocumentRequest.description__": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "DuplicateDocumentRequest": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_CreateDocumentRequest.name-or-spaceUuid_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_Pick_CreateDocumentRequest.description__"
+                    }
+                ]
+            },
             "UpdateDocumentMetadataRequest": {
                 "properties": {
                     "description": {
@@ -63741,7 +63773,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.267.0",
+        "version": "2.268.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -99964,6 +99996,63 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}/duplicate": {
+            "post": {
+                "operationId": "DuplicateDocument",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DuplicateDocumentRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}": {

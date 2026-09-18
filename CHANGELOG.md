@@ -1,3 +1,10 @@
+# [2.268.0](https://github.com/lightdash/lightdash/compare/2.267.0...2.268.0) (2026-09-18)
+
+
+### Features
+
+* **documents:** duplicate documents into an accessible space ([#29535](https://github.com/lightdash/lightdash/issues/29535)) ([578bcb7](https://github.com/lightdash/lightdash/commit/578bcb753d5da624998a0208f76566a8d794dad7))
+
 # [2.267.0](https://github.com/lightdash/lightdash/compare/2.266.0...2.267.0) (2026-09-18)
 
 
