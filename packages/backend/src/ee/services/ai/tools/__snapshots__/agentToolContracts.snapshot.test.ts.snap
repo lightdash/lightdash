@@ -981,10 +981,69 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "columnCount": {
+                  "description": "Number of columns returned.",
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "columns": {
+                  "description": "Column names and warehouse types; empty when the table was not found or has no cached metadata.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                      },
+                      "type": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "name",
+                      "type",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "qualifiedName": {
+                  "description": "Table name as resolved in the warehouse, e.g. "database.schema.table"; the schema part is "(default schema)" when none was given or resolved.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "qualifiedName",
+                "columnCount",
+                "columns",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },

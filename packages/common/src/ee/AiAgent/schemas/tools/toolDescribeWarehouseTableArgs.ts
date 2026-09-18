@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
+import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION = ({
@@ -54,12 +55,31 @@ export type ToolDescribeWarehouseTableArgs = z.infer<
     typeof toolDescribeWarehouseTableArgsSchema
 >;
 
-export const toolDescribeWarehouseTableOutputSchema = z.object({
-    result: z.string(),
-    metadata: z.object({
-        status: z.enum(['success', 'not_found', 'error']),
-    }),
+export const toolDescribeWarehouseTableStructuredContentSchema = z.object({
+    qualifiedName: z
+        .string()
+        .describe(
+            'Table name as resolved in the warehouse, e.g. "database.schema.table"; the schema part is "(default schema)" when none was given or resolved.',
+        ),
+    columnCount: z.number().int().describe('Number of columns returned.'),
+    columns: z
+        .array(z.object({ name: z.string(), type: z.string() }))
+        .describe(
+            'Column names and warehouse types; empty when the table was not found or has no cached metadata.',
+        ),
 });
+
+export type ToolDescribeWarehouseTableStructuredContent = z.infer<
+    typeof toolDescribeWarehouseTableStructuredContentSchema
+>;
+
+export const toolDescribeWarehouseTableOutputSchema =
+    structuredToolOutputSchema({
+        metadata: z.object({
+            status: z.enum(['success', 'not_found', 'error']),
+        }),
+        structuredContent: toolDescribeWarehouseTableStructuredContentSchema,
+    });
 
 export type ToolDescribeWarehouseTableOutput = z.infer<
     typeof toolDescribeWarehouseTableOutputSchema
