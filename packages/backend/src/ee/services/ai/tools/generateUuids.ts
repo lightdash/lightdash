@@ -1,32 +1,39 @@
-import { generateUuidsToolDefinition } from '@lightdash/common';
+import {
+    generateUuidsToolDefinition,
+    type ToolGenerateUuidsStructuredContent,
+} from '@lightdash/common';
 import { tool } from 'ai';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 const toolDefinition = generateUuidsToolDefinition.for('agent');
 
 export const getGenerateUuids = () =>
     tool({
         ...toolDefinition,
-        execute: async ({ count }) => {
+        execute: async ({
+            count,
+        }): Promise<
+            | ExecuteStructuredToolResult<ToolGenerateUuidsStructuredContent>
+            | ExecuteToolErrorResult
+        > => {
             try {
+                const structuredContent: ToolGenerateUuidsStructuredContent = {
+                    uuids: Array.from({ length: count }, () =>
+                        crypto.randomUUID(),
+                    ),
+                };
                 return {
-                    result: JSON.stringify({
-                        uuids: Array.from({ length: count }, () =>
-                            crypto.randomUUID(),
-                        ),
-                    }),
-                    metadata: {
-                        status: 'success' as const,
-                    },
+                    result: JSON.stringify(structuredContent),
+                    metadata: { status: 'success' },
+                    structuredContent,
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(error, 'Error generating UUIDs.'),
-                    metadata: {
-                        status: 'error' as const,
-                    },
-                };
+                return toolErrorOutput(error, 'Error generating UUIDs.');
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
