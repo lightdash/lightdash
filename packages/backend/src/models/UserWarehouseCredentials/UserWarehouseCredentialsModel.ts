@@ -344,6 +344,10 @@ export class UserWarehouseCredentialsModel {
             | DbUserWarehouseCredentialsWithProject
             | undefined = await preferredQuery.first();
 
+        if (connectionUuid && !projectPreferredCredentials) {
+            return [];
+        }
+
         const fallbackQuery = this.baseSelectWithProject()
             .where(
                 `${UserWarehouseCredentialsTableName}.warehouse_type`,
