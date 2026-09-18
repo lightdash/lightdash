@@ -1,4 +1,7 @@
-import type { AiAgentDocumentSummary } from '@lightdash/common';
+import type {
+    AiAgentDocumentSummary,
+    ToolListKnowledgeDocumentsOutput,
+} from '@lightdash/common';
 import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 
 vi.mock('@sentry/node', () => ({
@@ -12,7 +15,7 @@ vi.mock('../../../../logging/logger', () => ({
     default: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-type Output = { result: string; metadata: { status: string } };
+type Output = ToolListKnowledgeDocumentsOutput;
 
 const execute = (tool: ReturnType<typeof getListKnowledgeDocuments>) =>
     tool.execute!(

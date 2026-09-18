@@ -6845,33 +6845,162 @@ Parameters:
     "name": "listKnowledgeDocuments",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
+      "anyOf": [
+        {
           "additionalProperties": false,
           "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "error",
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
               ],
+            },
+            "result": {
               "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "description": "Number of knowledge documents curated for this agent.",
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "documents": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                      },
+                      "sizeBytes": {
+                        "description": "Size of the full document content in bytes.",
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer",
+                      },
+                      "uuid": {
+                        "description": "Pass to getKnowledgeDocumentContent to read the full document.",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "uuid",
+                      "name",
+                      "sizeBytes",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "count",
+                "documents",
+              ],
+              "type": "object",
             },
           },
           "required": [
-            "status",
+            "result",
+            "metadata",
+            "structuredContent",
           ],
           "type": "object",
         },
-        "result": {
-          "type": "string",
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
         },
-      },
-      "required": [
-        "result",
-        "metadata",
       ],
-      "type": "object",
     },
   },
   {
