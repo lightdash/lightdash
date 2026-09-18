@@ -10,7 +10,11 @@ import type { ToolExecutionOptions } from 'ai';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
 import { getCreateContent } from './createContent';
 
-const options: ToolExecutionOptions = { toolCallId: 'call', messages: [] };
+const options: ToolExecutionOptions<Record<string, unknown>> = {
+    toolCallId: 'call',
+    messages: [],
+    context: {},
+};
 
 const chart: ChartAsCode = {
     name: 'Orders by status',

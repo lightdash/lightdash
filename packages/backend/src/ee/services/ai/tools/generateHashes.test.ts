@@ -31,7 +31,7 @@ const execute = async (inputs: string[]) => {
     }
     const output = await tool.execute(
         { inputs },
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     );
     if (Symbol.asyncIterator in output) {
         throw new Error('Unexpected streamed output');

@@ -48,7 +48,7 @@ const executeEditRepo = async (editRepo: Mock) => {
             prUrl: null,
             startNewPullRequest: false,
         },
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     );
     const parsed = toolEditRepoOutputSchema.safeParse(output);
     expect(parsed.success).toBe(true);

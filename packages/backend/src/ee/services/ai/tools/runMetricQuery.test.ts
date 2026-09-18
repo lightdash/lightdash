@@ -6,7 +6,6 @@ import {
 } from '../../../../services/ProjectService/ProjectService.mock';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type { RunAsyncQueryFn } from '../types/aiAgentDependencies';
-import { AgentContext } from '../utils/AgentContext';
 import { getRunMetricQuery } from './runMetricQuery';
 
 vi.mock('@sentry/node', async (importOriginal) => {
@@ -36,14 +35,18 @@ const executeTool = async (
     runAsyncQuery: RunAsyncQueryFn,
     input: typeof toolInput = toolInput,
 ) => {
-    const metricQueryTool = getRunMetricQuery({ runAsyncQuery, maxLimit: 500 });
+    const metricQueryTool = getRunMetricQuery({
+        availableExplores: [validExplore],
+        runAsyncQuery,
+        maxLimit: 500,
+    });
     if (metricQueryTool.execute === undefined) {
         throw new Error('Expected the tool to define execute');
     }
     const output = await metricQueryTool.execute(input, {
         messages: [],
         toolCallId: 'tool-call-1',
-        experimental_context: new AgentContext([validExplore]),
+        context: {},
     });
     if (Symbol.asyncIterator in output) {
         throw new Error('Expected a non-streaming tool result');

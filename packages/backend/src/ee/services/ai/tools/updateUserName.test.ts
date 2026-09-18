@@ -17,7 +17,11 @@ vi.mock('../../../../logging/logger', () => ({
     default: { error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-const options: ToolExecutionOptions = { toolCallId: 'call', messages: [] };
+const options: ToolExecutionOptions<Record<string, unknown>> = {
+    toolCallId: 'call',
+    messages: [],
+    context: {},
+};
 
 const run = async (
     updateUserName: UpdateUserNameFn,

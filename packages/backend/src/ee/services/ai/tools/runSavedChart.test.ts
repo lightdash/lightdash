@@ -106,7 +106,7 @@ const executeTool = async ({
     }
     const output = await execute(
         { chartUuid },
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     );
     if (Symbol.asyncIterator in output) {
         throw new Error('Expected a non-streaming tool result');

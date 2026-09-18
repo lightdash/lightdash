@@ -25,7 +25,7 @@ const execute = async (
     if (!tool.execute) throw new Error('readPinnedThread has no execute');
     const output = await tool.execute(
         { threadUuid },
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     );
     const parsed = toolReadPinnedThreadOutputSchema.safeParse(output);
     expect(parsed.success).toBe(true);

@@ -23,7 +23,6 @@ import type {
     RunAsyncQueryFn,
     SendFileFn,
 } from '../types/aiAgentDependencies';
-import { AgentContext } from '../utils/AgentContext';
 import { renderEcharts } from '../utils/renderEcharts';
 import { mockOrdersExplore } from '../utils/validationExplore.mock';
 import { getRunQuery } from './runQuery';
@@ -144,6 +143,7 @@ const executeTool = async (
     slackLinksOnly = false,
 ) => {
     const queryTool = getRunQuery({
+        availableExplores: [validExplore],
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runAsyncQuery,
         runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
@@ -165,7 +165,7 @@ const executeTool = async (
     const output = await queryTool.execute!(toolInput, {
         messages: [],
         toolCallId: 'tool-call-1',
-        experimental_context: new AgentContext([validExplore]),
+        context: {},
     });
     if (Symbol.asyncIterator in output) {
         throw new Error('Expected a non-streaming tool result');
@@ -187,6 +187,7 @@ describe('getRunQuery', () => {
             });
         const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
         const queryTool = getRunQuery({
+            availableExplores: [validExplore],
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
             runAsyncMergeQuery,
@@ -207,7 +208,7 @@ describe('getRunQuery', () => {
         const output = await queryTool.execute!(mergeInput, {
             messages: [],
             toolCallId: 'tool-call-1',
-            experimental_context: new AgentContext([validExplore]),
+            context: {},
         });
         if (Symbol.asyncIterator in output) {
             throw new Error('Expected a non-streaming tool result');
@@ -271,6 +272,7 @@ describe('getRunQuery', () => {
             });
         const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
         const queryTool = getRunQuery({
+            availableExplores: [validExplore],
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery: vi.fn() as RunAsyncQueryFn,
             runAsyncMergeQuery,
@@ -319,7 +321,7 @@ describe('getRunQuery', () => {
         const output = await queryTool.execute!(expressionMergeInput, {
             messages: [],
             toolCallId: 'tool-call-1',
-            experimental_context: new AgentContext([validExplore]),
+            context: {},
         });
         if (Symbol.asyncIterator in output) {
             throw new Error('Expected a non-streaming tool result');
@@ -374,6 +376,7 @@ describe('getRunQuery', () => {
             fields: {},
         });
         const queryTool = getRunQuery({
+            availableExplores: [validExplore],
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
             runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
@@ -395,7 +398,7 @@ describe('getRunQuery', () => {
         await queryTool.execute!(toolInput, {
             messages: [],
             toolCallId: 'tool-call-1',
-            experimental_context: new AgentContext([validExplore]),
+            context: {},
         });
 
         expect(createOrUpdateArtifact).toHaveBeenCalledWith(
@@ -417,6 +420,7 @@ describe('getRunQuery', () => {
             fields: {},
         });
         const queryTool = getRunQuery({
+            availableExplores: [validExplore],
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
             runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
@@ -449,7 +453,7 @@ describe('getRunQuery', () => {
         const output = await queryTool.execute!(expressionInput, {
             messages: [],
             toolCallId: 'tool-call-1',
-            experimental_context: new AgentContext([validExplore]),
+            context: {},
         });
         if (Symbol.asyncIterator in output) {
             throw new Error('Expected a non-streaming tool result');
@@ -525,6 +529,7 @@ describe('getRunQuery', () => {
             fields: {},
         });
         const queryTool = getRunQuery({
+            availableExplores: [popExplore],
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
             runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
@@ -575,7 +580,7 @@ describe('getRunQuery', () => {
         await queryTool.execute!(expressionInput, {
             messages: [],
             toolCallId: 'tool-call-1',
-            experimental_context: new AgentContext([popExplore]),
+            context: {},
         });
 
         expect(createOrUpdateArtifact).toHaveBeenCalledWith(
@@ -600,6 +605,7 @@ describe('getRunQuery', () => {
         const runAsyncQuery = vi.fn() as RunAsyncQueryFn;
         const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
         const queryTool = getRunQuery({
+            availableExplores: [validExplore],
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
             runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
@@ -633,7 +639,7 @@ describe('getRunQuery', () => {
             {
                 messages: [],
                 toolCallId: 'tool-call-1',
-                experimental_context: new AgentContext([validExplore]),
+                context: {},
             },
         );
         if (Symbol.asyncIterator in output) {
@@ -660,6 +666,7 @@ describe('getRunQuery', () => {
         const runAsyncQuery = vi.fn<RunAsyncQueryFn>();
         const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
         const queryTool = getRunQuery({
+            availableExplores: [validExplore],
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
             runAsyncMergeQuery: vi.fn<RunAsyncMergeQueryFn>(),
@@ -703,7 +710,7 @@ describe('getRunQuery', () => {
             {
                 messages: [],
                 toolCallId: 'tool-call-1',
-                experimental_context: new AgentContext([validExplore]),
+                context: {},
             },
         );
         if (Symbol.asyncIterator in output) {
@@ -850,6 +857,7 @@ describe('getRunQuery custom chart types', () => {
     }) => {
         const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
         const queryTool = getRunQuery({
+            availableExplores: [validExplore],
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
             runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
@@ -884,7 +892,7 @@ describe('getRunQuery custom chart types', () => {
         const output = await queryTool.execute!(input, {
             messages: [],
             toolCallId: 'tool-call-1',
-            experimental_context: new AgentContext([validExplore]),
+            context: {},
         });
         if (Symbol.asyncIterator in output) {
             throw new Error('Expected a non-streaming tool result');
@@ -1084,6 +1092,7 @@ describe('getRunQuery custom chart types', () => {
         const runAsyncQuery = vi.fn() as RunAsyncQueryFn;
         const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
         const queryTool = getRunQuery({
+            availableExplores: [validExplore],
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
             runAsyncMergeQuery,
@@ -1145,7 +1154,7 @@ describe('getRunQuery custom chart types', () => {
         const output = await queryTool.execute!(mergeCustomInput, {
             messages: [],
             toolCallId: 'tool-call-1',
-            experimental_context: new AgentContext([validExplore]),
+            context: {},
         });
         if (Symbol.asyncIterator in output) {
             throw new Error('Expected a non-streaming tool result');
@@ -1195,6 +1204,7 @@ describe('getRunQuery custom chart types', () => {
             sendFile?: SendFileFn;
         }) => {
             const queryTool = getRunQuery({
+                availableExplores: [validExplore],
                 updateProgress: vi.fn().mockResolvedValue(undefined),
                 runAsyncQuery: vi
                     .fn()
@@ -1223,7 +1233,7 @@ describe('getRunQuery custom chart types', () => {
                 {
                     messages: [],
                     toolCallId: 'tool-call-1',
-                    experimental_context: new AgentContext([validExplore]),
+                    context: {},
                 },
             );
             if (Symbol.asyncIterator in output) {
@@ -1411,6 +1421,7 @@ describe('getRunQuery parameters', () => {
         runAsyncQuery: RunAsyncQueryFn,
     ) => {
         const queryTool = getRunQuery({
+            availableExplores: [parameterizedExplore],
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
             runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
@@ -1436,7 +1447,7 @@ describe('getRunQuery parameters', () => {
             {
                 messages: [],
                 toolCallId: 'tool-call-1',
-                experimental_context: new AgentContext([parameterizedExplore]),
+                context: {},
             },
         );
         if (Symbol.asyncIterator in output) {
@@ -1552,6 +1563,7 @@ describe('getRunQuery parameters', () => {
             .fn()
             .mockResolvedValue(makeQueryResults());
         const queryTool = getRunQuery({
+            availableExplores: [noDefaultExplore],
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
             runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
@@ -1577,7 +1589,7 @@ describe('getRunQuery parameters', () => {
             {
                 messages: [],
                 toolCallId: 'tool-call-1',
-                experimental_context: new AgentContext([noDefaultExplore]),
+                context: {},
             },
         );
         if (Symbol.asyncIterator in output) {
@@ -1630,6 +1642,7 @@ describe('getRunQuery Slack links only', () => {
             versionUuid: 'version-uuid',
         });
         const queryTool = getRunQuery({
+            availableExplores: [validExplore],
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
             runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
@@ -1650,7 +1663,7 @@ describe('getRunQuery Slack links only', () => {
         const output = await queryTool.execute!(toolInput, {
             messages: [],
             toolCallId: 'tool-call-1',
-            experimental_context: new AgentContext([validExplore]),
+            context: {},
         });
         if (Symbol.asyncIterator in output) {
             throw new Error('Expected a non-streaming tool result');
@@ -1740,6 +1753,7 @@ describe('getRunQuery structured content', () => {
         input?: ToolRunQueryArgs;
     } = {}) => {
         const queryTool = getRunQuery({
+            availableExplores: [validExplore],
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery: vi.fn().mockResolvedValue({
                 queryUuid: '11111111-1111-4111-8111-111111111111',
@@ -1765,7 +1779,7 @@ describe('getRunQuery structured content', () => {
         const output = await queryTool.execute!(input, {
             messages: [],
             toolCallId: 'tool-call-1',
-            experimental_context: new AgentContext([validExplore]),
+            context: {},
         });
         if (Symbol.asyncIterator in output) {
             throw new Error('Expected a non-streaming tool result');

@@ -24,6 +24,7 @@ const execute = async (
     const output = await tool.execute(args, {
         messages: [],
         toolCallId: 'tool-call-1',
+        context: {},
     });
     const parsed = toolListContentOutputSchema.safeParse(output);
     expect(parsed.success).toBe(true);

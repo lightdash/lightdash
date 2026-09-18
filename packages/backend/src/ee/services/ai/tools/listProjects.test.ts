@@ -18,7 +18,7 @@ const execute = async (tool: ReturnType<typeof getListProjects>) => {
     }
     const output = await tool.execute(
         {},
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     );
     if (Symbol.asyncIterator in output) {
         throw new Error('listProjects tool must not stream its output');

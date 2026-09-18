@@ -9,7 +9,11 @@ vi.mock('@sentry/node', () => ({
     getActiveSpan: vi.fn(),
 }));
 
-const options: ToolExecutionOptions = { toolCallId: 'call', messages: [] };
+const options: ToolExecutionOptions<Record<string, unknown>> = {
+    toolCallId: 'call',
+    messages: [],
+    context: {},
+};
 
 const execute = async (
     describeWarehouseTable: DescribeWarehouseTableFn,

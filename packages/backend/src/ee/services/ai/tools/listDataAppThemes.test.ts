@@ -16,7 +16,7 @@ const execute = async (tool: ReturnType<typeof getListDataAppThemes>) => {
     if (!tool.execute) throw new Error('tool has no execute');
     const output = await tool.execute(
         {},
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     );
     expect(toolListDataAppThemesOutputSchema.safeParse(output).success).toBe(
         true,

@@ -32,6 +32,7 @@ const executeRunSql = async (
             {
                 messages: [],
                 toolCallId,
+                context: {},
             },
         ),
     );
@@ -221,6 +222,7 @@ describe('getRunSql', () => {
             {
                 messages: [],
                 toolCallId: 'tool-call-1',
+                context: {},
             },
         );
 
@@ -365,7 +367,7 @@ describe('getRunSql', () => {
 
         const raw = await tool.execute!(
             { sql: 'select 1 as answer', limit: 500 },
-            { messages: [], toolCallId: 'tool-call-1' },
+            { messages: [], toolCallId: 'tool-call-1', context: {} },
         );
 
         expect(toolRunSqlOutputSchema.safeParse(raw).success).toBe(true);
@@ -377,7 +379,7 @@ describe('getRunSql', () => {
 
         const raw = await tool.execute!(
             { sql: 'select 1 as answer', limit: 500 },
-            { messages: [], toolCallId: 'tool-call-1' },
+            { messages: [], toolCallId: 'tool-call-1', context: {} },
         );
 
         expect(toolRunSqlOutputSchema.safeParse(raw).success).toBe(true);

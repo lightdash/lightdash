@@ -36,6 +36,7 @@ export async function generateThreadTitle(
         providerOptions: modelOptions.providerOptions,
         experimental_telemetry: telemetry,
         schema: TitleSchema,
+        allowSystemInMessages: true,
         messages: [
             {
                 role: 'system',

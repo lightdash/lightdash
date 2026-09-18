@@ -41,6 +41,7 @@ const execute = async (
     const raw = await tool.execute(input, {
         messages: [],
         toolCallId: 'tool-call-1',
+        context: {},
     });
     const parsed = toolCreateScheduledDeliveryOutputSchema.safeParse(raw);
     expect(parsed.success).toBe(true);

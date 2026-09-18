@@ -17,6 +17,7 @@ const execute = async (
     const output = await tool.execute!(args, {
         messages: [],
         toolCallId: 'tool-call-1',
+        context: {},
     });
     if (Symbol.asyncIterator in output) {
         throw new Error('Expected a non-streaming tool result');

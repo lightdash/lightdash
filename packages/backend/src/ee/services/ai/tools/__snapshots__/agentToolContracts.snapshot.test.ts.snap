@@ -1656,7 +1656,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                   "additionalProperties": false,
                   "properties": {
                     "content": {
-                      "additionalProperties": false,
+                      "additionalProperties": {},
                       "description": "The persisted content as code, as shown in \`result\`.",
                       "propertyNames": {
                         "type": "string",
@@ -1705,7 +1705,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                   "additionalProperties": false,
                   "properties": {
                     "content": {
-                      "additionalProperties": false,
+                      "additionalProperties": {},
                       "description": "The persisted content as code, as shown in \`result\`.",
                       "propertyNames": {
                         "type": "string",
@@ -1754,7 +1754,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                   "additionalProperties": false,
                   "properties": {
                     "content": {
-                      "additionalProperties": false,
+                      "additionalProperties": {},
                       "description": "The persisted content as code, as shown in \`result\`.",
                       "propertyNames": {
                         "type": "string",
@@ -2444,7 +2444,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                   "additionalProperties": false,
                   "properties": {
                     "content": {
-                      "additionalProperties": false,
+                      "additionalProperties": {},
                       "description": "The dashboard or chart as code after the edit",
                       "propertyNames": {
                         "type": "string",
@@ -2482,7 +2482,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                   "additionalProperties": false,
                   "properties": {
                     "content": {
-                      "additionalProperties": false,
+                      "additionalProperties": {},
                       "description": "The Document as code after the edit",
                       "propertyNames": {
                         "type": "string",
@@ -9919,7 +9919,7 @@ Parameters:
                   "additionalProperties": false,
                   "properties": {
                     "content": {
-                      "additionalProperties": false,
+                      "additionalProperties": {},
                       "description": "Dashboard as code JSON, exactly as shown in \`result\`.",
                       "propertyNames": {
                         "type": "string",
@@ -9956,7 +9956,7 @@ Parameters:
                   "additionalProperties": false,
                   "properties": {
                     "content": {
-                      "additionalProperties": false,
+                      "additionalProperties": {},
                       "description": "Chart as code JSON, exactly as shown in \`result\`.",
                       "propertyNames": {
                         "type": "string",
@@ -9993,7 +9993,7 @@ Parameters:
                   "additionalProperties": false,
                   "properties": {
                     "content": {
-                      "additionalProperties": false,
+                      "additionalProperties": {},
                       "description": "Read-only data app JSON (no code), exactly as shown in \`result\`.",
                       "propertyNames": {
                         "type": "string",
@@ -10030,7 +10030,7 @@ Parameters:
                   "additionalProperties": false,
                   "properties": {
                     "content": {
-                      "additionalProperties": false,
+                      "additionalProperties": {},
                       "description": "Document as code JSON (schema version 1), exactly as shown in \`result\`.",
                       "propertyNames": {
                         "type": "string",
@@ -10303,7 +10303,7 @@ Input modes:
                               "type": "string",
                             },
                             "filters": {
-                              "additionalProperties": false,
+                              "additionalProperties": {},
                               "description": "The saved chart filters, as stored.",
                               "propertyNames": {
                                 "type": "string",
@@ -10405,7 +10405,7 @@ Input modes:
                     "rows": {
                       "description": "Result rows keyed by field id.",
                       "items": {
-                        "additionalProperties": false,
+                        "additionalProperties": {},
                         "propertyNames": {
                           "type": "string",
                         },
@@ -15466,7 +15466,28 @@ Use them whenever the question needs math the metric query alone can't express: 
                           "description": "The parameter state the query ran with.",
                           "properties": {
                             "applied": {
-                              "additionalProperties": false,
+                              "additionalProperties": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "number",
+                                    },
+                                    "type": "array",
+                                  },
+                                ],
+                              },
                               "description": "Parameter values set explicitly in the tool call.",
                               "propertyNames": {
                                 "type": "string",
@@ -15474,7 +15495,28 @@ Use them whenever the question needs math the metric query alone can't express: 
                               "type": "object",
                             },
                             "defaulted": {
-                              "additionalProperties": false,
+                              "additionalProperties": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "number",
+                                    },
+                                    "type": "array",
+                                  },
+                                ],
+                              },
                               "description": "Referenced parameters the tool call left unset, with the default value they resolved to.",
                               "propertyNames": {
                                 "type": "string",
@@ -18531,7 +18573,7 @@ Use them whenever the question needs math the metric query alone can't express: 
                             "rows": {
                               "description": "The rows shown to the model. Fewer than rowCount means the rest were withheld to keep the conversation small; the query itself returned all rowCount rows.",
                               "items": {
-                                "additionalProperties": false,
+                                "additionalProperties": {},
                                 "propertyNames": {
                                   "type": "string",
                                 },
@@ -18703,7 +18745,28 @@ Use them whenever the question needs math the metric query alone can't express: 
                           "description": "The parameter state the query ran with.",
                           "properties": {
                             "applied": {
-                              "additionalProperties": false,
+                              "additionalProperties": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "number",
+                                    },
+                                    "type": "array",
+                                  },
+                                ],
+                              },
                               "description": "Parameter values set explicitly in the tool call.",
                               "propertyNames": {
                                 "type": "string",
@@ -18711,7 +18774,28 @@ Use them whenever the question needs math the metric query alone can't express: 
                               "type": "object",
                             },
                             "defaulted": {
-                              "additionalProperties": false,
+                              "additionalProperties": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "number",
+                                    },
+                                    "type": "array",
+                                  },
+                                ],
+                              },
                               "description": "Referenced parameters the tool call left unset, with the default value they resolved to.",
                               "propertyNames": {
                                 "type": "string",
@@ -21883,7 +21967,7 @@ custom metrics are applied automatically.
                           "type": "string",
                         },
                         "filters": {
-                          "additionalProperties": false,
+                          "additionalProperties": {},
                           "description": "The saved Filters object: dimensions / metrics / tableCalculations filter groups",
                           "propertyNames": {
                             "type": "string",
@@ -21976,7 +22060,7 @@ custom metrics are applied automatically.
                     "rows": {
                       "description": "Row cells keyed by column fieldId",
                       "items": {
-                        "additionalProperties": false,
+                        "additionalProperties": {},
                         "propertyNames": {
                           "type": "string",
                         },
@@ -22185,7 +22269,7 @@ Do not invent SQL Runner links.",
                     {
                       "description": "Result rows. Each row is an object keyed by column name. Values come from the warehouse as JSON-serializable primitives (numbers, strings, booleans, ISO date strings, or null).",
                       "items": {
-                        "additionalProperties": false,
+                        "additionalProperties": {},
                         "propertyNames": {
                           "type": "string",
                         },
@@ -22425,7 +22509,9 @@ Returns the terminal node's result columns and a CSV preview of its rows, plus p
                         "type": "array",
                       },
                       {
-                        "additionalProperties": false,
+                        "additionalProperties": {
+                          "type": "string",
+                        },
                         "propertyNames": {
                           "type": "string",
                         },
@@ -22483,7 +22569,9 @@ Returns the terminal node's result columns and a CSV preview of its rows, plus p
                         "type": "array",
                       },
                       {
-                        "additionalProperties": false,
+                        "additionalProperties": {
+                          "type": "string",
+                        },
                         "propertyNames": {
                           "type": "string",
                         },
@@ -22604,7 +22692,7 @@ Returns the terminal node's result columns and a CSV preview of its rows, plus p
                         "rows": {
                           "description": "Terminal rows keyed by column reference, capped to the first rows of the result.",
                           "items": {
-                            "additionalProperties": false,
+                            "additionalProperties": {},
                             "propertyNames": {
                               "type": "string",
                             },
@@ -27922,7 +28010,28 @@ Use them whenever the question needs math the metric query alone can't express: 
                         "description": "The parameter state the query ran with.",
                         "properties": {
                           "applied": {
-                            "additionalProperties": false,
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "number",
+                                },
+                                {
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                {
+                                  "items": {
+                                    "type": "number",
+                                  },
+                                  "type": "array",
+                                },
+                              ],
+                            },
                             "description": "Parameter values set explicitly in the tool call.",
                             "propertyNames": {
                               "type": "string",
@@ -27930,7 +28039,28 @@ Use them whenever the question needs math the metric query alone can't express: 
                             "type": "object",
                           },
                           "defaulted": {
-                            "additionalProperties": false,
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "number",
+                                },
+                                {
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                {
+                                  "items": {
+                                    "type": "number",
+                                  },
+                                  "type": "array",
+                                },
+                              ],
+                            },
                             "description": "Referenced parameters the tool call left unset, with the default value they resolved to.",
                             "propertyNames": {
                               "type": "string",
@@ -30987,7 +31117,7 @@ Use them whenever the question needs math the metric query alone can't express: 
                           "rows": {
                             "description": "The rows shown to the model. Fewer than rowCount means the rest were withheld to keep the conversation small; the query itself returned all rowCount rows.",
                             "items": {
-                              "additionalProperties": false,
+                              "additionalProperties": {},
                               "propertyNames": {
                                 "type": "string",
                               },
@@ -31159,7 +31289,28 @@ Use them whenever the question needs math the metric query alone can't express: 
                         "description": "The parameter state the query ran with.",
                         "properties": {
                           "applied": {
-                            "additionalProperties": false,
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "number",
+                                },
+                                {
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                {
+                                  "items": {
+                                    "type": "number",
+                                  },
+                                  "type": "array",
+                                },
+                              ],
+                            },
                             "description": "Parameter values set explicitly in the tool call.",
                             "propertyNames": {
                               "type": "string",
@@ -31167,7 +31318,28 @@ Use them whenever the question needs math the metric query alone can't express: 
                             "type": "object",
                           },
                           "defaulted": {
-                            "additionalProperties": false,
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "number",
+                                },
+                                {
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                {
+                                  "items": {
+                                    "type": "number",
+                                  },
+                                  "type": "array",
+                                },
+                              ],
+                            },
                             "description": "Referenced parameters the tool call left unset, with the default value they resolved to.",
                             "propertyNames": {
                               "type": "string",

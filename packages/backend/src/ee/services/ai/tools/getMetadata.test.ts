@@ -65,9 +65,10 @@ const makeExplore = (overrides: {
     },
 });
 
-const toolCallOptions: ToolExecutionOptions = {
+const toolCallOptions: ToolExecutionOptions<Record<string, unknown>> = {
     toolCallId: 'test',
     messages: [],
+    context: {},
 };
 
 // Runs the real tool and checks every path against the tool's output schema.

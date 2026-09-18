@@ -26,6 +26,7 @@ export async function generateCompactionSummary(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         experimental_telemetry: telemetry,
+        allowSystemInMessages: true,
         messages: [
             {
                 role: 'system',

@@ -705,6 +705,7 @@ export class AiService extends BaseService {
                 'generateDeliverySummary',
                 'delivery-summary',
             ),
+            allowSystemInMessages: true,
             messages: [
                 {
                     role: 'system',

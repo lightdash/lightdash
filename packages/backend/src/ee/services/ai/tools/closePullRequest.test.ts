@@ -27,7 +27,7 @@ const executeClosePullRequest = async (
     if (!tool.execute) throw new Error('tool has no execute');
     const output = await tool.execute(
         { prUrl },
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     );
     if (Symbol.asyncIterator in output) {
         throw new Error('expected a single tool output, got a stream');

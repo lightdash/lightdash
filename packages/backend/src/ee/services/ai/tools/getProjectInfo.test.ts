@@ -41,7 +41,7 @@ const gitProjectInfo: ProjectInfo = {
 const execute = async (getProjectInfo: GetProjectInfoFn) => {
     const { execute: run } = getGetProjectInfo({ getProjectInfo });
     if (!run) throw new Error('getProjectInfo tool has no execute');
-    return run({}, { messages: [], toolCallId: 'tool-call-1' });
+    return run({}, { messages: [], toolCallId: 'tool-call-1', context: {} });
 };
 
 describe('getGetProjectInfo', () => {

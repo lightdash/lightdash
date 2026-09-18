@@ -6,7 +6,6 @@ import {
     metricQueryMock,
     validExplore,
 } from '../../../../services/ProjectService/ProjectService.mock';
-import { AgentContext } from '../utils/AgentContext';
 import { getGenerateDashboardV2 } from './generateDashboardV2';
 
 vi.mock('@sentry/node', async (importOriginal) => {
@@ -78,6 +77,7 @@ const executeTool = async (
     deps: Partial<Parameters<typeof getGenerateDashboardV2>[0]> = {},
 ) => {
     const generateDashboard = getGenerateDashboardV2({
+        availableExplores: [validExplore],
         getPrompt: vi.fn().mockResolvedValue(prompt),
         createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
         ...deps,
@@ -94,7 +94,7 @@ const executeTool = async (
         {
             messages: [],
             toolCallId: 'tool-call-1',
-            experimental_context: new AgentContext([validExplore]),
+            context: {},
         },
     );
     if (Symbol.asyncIterator in output) {

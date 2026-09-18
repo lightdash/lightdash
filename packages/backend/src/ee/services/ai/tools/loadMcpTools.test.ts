@@ -6,7 +6,11 @@ import type { ToolExecutionOptions } from 'ai';
 import { describe, expect, it } from 'vitest';
 import { getLoadMcpTools } from './loadMcpTools';
 
-const options: ToolExecutionOptions = { toolCallId: 'call', messages: [] };
+const options: ToolExecutionOptions<Record<string, unknown>> = {
+    toolCallId: 'call',
+    messages: [],
+    context: {},
+};
 
 const execute = async (names: string[]) => {
     const tool = getLoadMcpTools([

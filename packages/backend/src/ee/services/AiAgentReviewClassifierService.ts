@@ -1572,6 +1572,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             // growing it breaks EVERY judge call silently ("compiled grammar is too
             // large"). Put new fields in a follow-up call like emitProjectContextEntry.
             schema: aiAgentReviewClassifierJudgeCallOutputSchema,
+            allowSystemInMessages: true,
             messages: [
                 {
                     role: 'system',

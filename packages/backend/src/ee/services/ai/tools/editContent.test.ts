@@ -14,7 +14,11 @@ import type {
 } from '../types/aiAgentDependencies';
 import { getEditContent } from './editContent';
 
-const options: ToolExecutionOptions = { toolCallId: 'call', messages: [] };
+const options: ToolExecutionOptions<Record<string, unknown>> = {
+    toolCallId: 'call',
+    messages: [],
+    context: {},
+};
 
 const chart: ChartAsCode = {
     name: 'Orders by status',

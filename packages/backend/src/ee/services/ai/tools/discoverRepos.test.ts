@@ -18,7 +18,10 @@ vi.mock('../../../../logging/logger', () => ({
 const executeDiscoverRepos = async (discoverRepos: DiscoverReposFn) => {
     const { execute } = getDiscoverRepos({ discoverRepos });
     if (!execute) throw new Error('discoverRepos tool has no execute');
-    const output = await execute({}, { messages: [], toolCallId: 'call-1' });
+    const output = await execute(
+        {},
+        { messages: [], toolCallId: 'call-1', context: {} },
+    );
     if (!('result' in output)) throw new Error('unexpected streamed output');
     return output;
 };

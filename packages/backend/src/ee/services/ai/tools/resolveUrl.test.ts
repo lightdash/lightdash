@@ -17,7 +17,7 @@ const execute = async (tool: ReturnType<typeof getResolveUrl>, url: string) => {
     if (!tool.execute) throw new Error('tool has no execute');
     const output = await tool.execute(
         { url },
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     );
     if (Symbol.asyncIterator in output) {
         throw new Error('Expected a non-streaming tool result');

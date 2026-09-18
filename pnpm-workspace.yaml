@@ -40,6 +40,22 @@ overrides:
 
 minimumReleaseAge: 4320 # 3 days — supply chain protection (matches .npmrc min-release-age)
 minimumReleaseAgeExclude:
+  # AI SDK 7 tool search + code mode (agent tool-search / code-mode feature flags).
+  # toolSearch() only exists from ai@7.0.104 (published 2026-09-16); the whole
+  # 7.0.106 release train is pinned together. Remove once older than 3 days
+  # (after 2026-09-21).
+  - ai@7.0.106
+  - "@ai-sdk/provider@4.0.17"
+  - "@ai-sdk/provider-utils@5.0.44"
+  - "@ai-sdk/gateway@4.0.86"
+  - "@ai-sdk/otel@1.0.106"
+  - "@ai-sdk/anthropic@4.0.57"
+  - "@ai-sdk/openai@4.0.70"
+  - "@ai-sdk/google@4.0.75"
+  - "@ai-sdk/azure@4.0.74"
+  - "@ai-sdk/amazon-bedrock@5.0.87"
+  - "@ai-sdk/mcp@2.0.53"
+  - "@ai-sdk/deepseek@3.0.48"
   # Renovate security update: hono@4.12.18 || 4.12.21 || 4.12.25 || 4.12.27 || 4.13.5
   - hono@4.12.18 || 4.12.21 || 4.12.25 || 4.12.27 || 4.13.5
   # Renovate security update: nunjucks@3.2.4

@@ -62,7 +62,7 @@ const execute = async (findExplores: FindExploresFn) => {
     }
     return tool.execute(
         { searchQuery: 'revenue' },
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     );
 };
 

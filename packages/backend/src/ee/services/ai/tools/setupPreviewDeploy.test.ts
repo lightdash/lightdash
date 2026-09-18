@@ -37,7 +37,10 @@ const setup: PreviewDeploySetupResult = {
 
 const execute = async (tool: ReturnType<typeof getSetupPreviewDeploy>) => {
     if (!tool.execute) throw new Error('tool has no execute');
-    return tool.execute({}, { messages: [], toolCallId: 'tool-call-1' });
+    return tool.execute(
+        {},
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
+    );
 };
 
 describe('getSetupPreviewDeploy', () => {

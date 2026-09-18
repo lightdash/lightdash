@@ -355,6 +355,7 @@ export async function generateFormulaTableCalculation(
             providerOptions: modelOptions.providerOptions,
             experimental_telemetry: telemetry,
             schema: FormulaTableCalculationSchema,
+            allowSystemInMessages: true,
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userContent },

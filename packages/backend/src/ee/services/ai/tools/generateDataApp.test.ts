@@ -34,7 +34,7 @@ const executeGenerateDataApp = async (tool: GenerateDataAppTool) => {
             chartSlugs: ['revenue-by-month'],
             themeSlug: null,
         },
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     );
     const parsed = toolGenerateDataAppOutputSchema.safeParse(output);
     expect(parsed.success).toBe(true);

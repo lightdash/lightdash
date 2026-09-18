@@ -34,7 +34,7 @@ const executeIterateDataApp = async (tool: IterateDataAppTool) => {
             chartSlugs: ['orders-by-status'],
             themeSlug: null,
         },
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     );
     expect(toolIterateDataAppOutputSchema.safeParse(output).success).toBe(true);
     return toolIterateDataAppOutputSchema.parse(output);

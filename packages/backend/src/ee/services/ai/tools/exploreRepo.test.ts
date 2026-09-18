@@ -20,7 +20,11 @@ vi.mock('../../../../logging/logger', () => ({
 const captureException = vi.mocked(Sentry.captureException);
 const loggerError = vi.mocked(Logger.error);
 
-const options: ToolExecutionOptions = { toolCallId: 'call', messages: [] };
+const options: ToolExecutionOptions<Record<string, unknown>> = {
+    toolCallId: 'call',
+    messages: [],
+    context: {},
+};
 
 const execute = async (exploreRepo: Mock) => {
     const exploreRepoTool = getExploreRepo({ exploreRepo });

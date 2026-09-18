@@ -80,7 +80,7 @@ const run = async (
     if (!tool.execute) throw new Error('tool has no execute');
     const output = await tool.execute(
         { patterns },
-        { toolCallId: 'tool-call', messages: [] },
+        { toolCallId: 'tool-call', messages: [], context: {} },
     );
     if (Symbol.asyncIterator in output) {
         throw new Error('tool output is a stream');

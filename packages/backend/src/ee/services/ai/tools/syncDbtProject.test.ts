@@ -16,6 +16,7 @@ const executeSyncDbtProject = async (
         {
             messages: [],
             toolCallId: 'tool-call-1',
+            context: {},
         },
     );
     if (Symbol.asyncIterator in output) {

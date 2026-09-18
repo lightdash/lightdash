@@ -24,7 +24,10 @@ const execute = async (
 ) => {
     const { execute: run } = tool;
     if (!run) throw new Error('analyzeFieldImpact tool has no execute');
-    return run({ fieldId }, { messages: [], toolCallId: 'tool-call-1' });
+    return run(
+        { fieldId },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
+    );
 };
 
 const emptyReport: FieldImpactReport = {

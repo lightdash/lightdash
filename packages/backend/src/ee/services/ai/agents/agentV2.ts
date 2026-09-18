@@ -19,6 +19,7 @@ import {
     type LanguageModelUsage,
     type ModelMessage,
     type Output,
+    type TextStreamPart,
     type ToolSet,
 } from 'ai';
 import {
@@ -103,7 +104,6 @@ import type {
     AiStreamAgentResponseArgs,
     UnavailableMcpServer,
 } from '../types/aiAgent';
-import { AgentContext } from '../utils/AgentContext';
 import {
     AiAgentEmptyResponseError,
     AiAgentStepCapReachedError,
@@ -634,6 +634,42 @@ export const storeInvalidAgentToolCall = async ({
 
 const QUERY_RETRY_CAP_TOOL_NAME = '__query_retry_cap';
 
+export type AgentStreamTextResult = StreamTextResult<
+    ToolSet,
+    Record<string, unknown>,
+    Output.Output
+>;
+
+// AI SDK 7 forwards every stream part to onChunk; keep the v6 subset so
+// first-chunk timing and persistence semantics are unchanged.
+const CONTENT_STREAM_CHUNK_TYPES = new Set<TextStreamPart<ToolSet>['type']>([
+    'text-delta',
+    'reasoning-delta',
+    'source',
+    'tool-call',
+    'tool-input-start',
+    'tool-input-delta',
+    'tool-result',
+    'raw',
+]);
+type ContentStreamChunk = Extract<
+    TextStreamPart<ToolSet>,
+    {
+        type:
+            | 'text-delta'
+            | 'reasoning-delta'
+            | 'source'
+            | 'tool-call'
+            | 'tool-input-start'
+            | 'tool-input-delta'
+            | 'tool-result'
+            | 'raw';
+    }
+>;
+const isContentStreamChunk = (
+    chunk: TextStreamPart<ToolSet>,
+): chunk is ContentStreamChunk => CONTENT_STREAM_CHUNK_TYPES.has(chunk.type);
+
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
     stopWhen: stepCountIs(DEFAULT_AGENT_MAX_STEPS),
@@ -946,6 +982,7 @@ export const getAgentTools = (
     });
 
     const generateVisualization = getGenerateVisualization({
+        availableExplores,
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: dependencies.runAsyncQuery,
         runAsyncMergeQuery: dependencies.runAsyncMergeQuery,
@@ -1030,6 +1067,7 @@ export const getAgentTools = (
 
     const generateDashboard = args.canCreateDashboards
         ? getGenerateDashboardV2({
+              availableExplores,
               getPrompt: dependencies.getPrompt,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
           })
@@ -1780,8 +1818,8 @@ export const generateAgentResponse = async ({
             providerOptions: args.providerOptions,
             model: args.model,
             tools,
+            allowSystemInMessages: true,
             messages,
-            experimental_context: new AgentContext(availableExplores),
             onStepFinish: async (step) => {
                 const stepUsage = await recordAgentStepUsage({
                     usage: step.usage,
@@ -2063,7 +2101,7 @@ export const streamAgentResponse = async ({
     args: AiStreamAgentResponseArgs;
     dependencies: AiAgentDependencies;
     mcpToolSetup: AgentMcpToolSetup;
-}): Promise<StreamTextResult<ToolSet, Output.Output>> => {
+}): Promise<AgentStreamTextResult> => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
         'Stream Agent Response',
@@ -2161,9 +2199,10 @@ export const streamAgentResponse = async ({
             providerOptions: args.providerOptions,
             model: args.model,
             tools,
+            allowSystemInMessages: true,
             messages,
-            experimental_context: new AgentContext(availableExplores),
             onChunk: (event) => {
+                if (!isContentStreamChunk(event.chunk)) return;
                 timing.recordChunk();
                 // Track time to first chunk (any type) - only once
                 if (firstChunkTime === null) {

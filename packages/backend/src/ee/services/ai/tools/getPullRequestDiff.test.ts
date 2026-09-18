@@ -26,7 +26,7 @@ const execute = async (getPullRequestDiff: import('vitest').Mock) => {
     }
     const output = await prTool.execute(
         { prUrl },
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     );
     // Parsing with the tool's own output schema is the assertion that the
     // envelope matches the contract, and it narrows the output for the tests.

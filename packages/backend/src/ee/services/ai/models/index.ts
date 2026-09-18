@@ -347,11 +347,6 @@ export const applyStreamingCapability = <P extends AiProvider>(
         return modelProperties;
     }
     const { model } = modelProperties;
-    if (model.specificationVersion !== 'v3') {
-        throw new ParameterError(
-            `Provider model "${model.modelId}" does not support disabling streaming`,
-        );
-    }
     Logger.debug(
         `Provider does not support streaming: serving "${model.modelId}" calls as non-streaming requests via simulated streaming`,
     );

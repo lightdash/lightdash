@@ -2132,12 +2132,11 @@ export class ManagedAgentService extends BaseService {
             providerOptions,
             keyManagement,
         } = resolvedModel;
-        const { tools: dataTools, availableExplores } =
-            await this.buildAutopilotDataTools(
-                actor,
-                projectUuid,
-                organizationUuid,
-            );
+        const { tools: dataTools } = await this.buildAutopilotDataTools(
+            actor,
+            projectUuid,
+            organizationUuid,
+        );
         const telemetry = getAiCallTelemetry({
             functionId: 'autopilotHeartbeat',
             extra: { runUuid },
@@ -2158,7 +2157,6 @@ export class ManagedAgentService extends BaseService {
             providerOptions,
             agent,
             dataTools,
-            availableExplores,
             executeTool: (name, input, signal) =>
                 onToolCall(
                     name,
@@ -2278,6 +2276,7 @@ export class ManagedAgentService extends BaseService {
                 pageSize: 20,
             }),
             runMetricQuery: getRunMetricQuery({
+                availableExplores,
                 runAsyncQuery: runtime.runAsyncQuery,
                 maxLimit: maxQueryLimit,
             }),

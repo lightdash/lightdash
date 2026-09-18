@@ -39,7 +39,11 @@ const match: CustomChartType = {
     },
 };
 
-const options: ToolExecutionOptions = { toolCallId: 'call', messages: [] };
+const options: ToolExecutionOptions<Record<string, unknown>> = {
+    toolCallId: 'call',
+    messages: [],
+    context: {},
+};
 
 const executeTool = async (
     findCustomChartTypes: FindCustomChartTypesFn,
