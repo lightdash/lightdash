@@ -9,9 +9,10 @@ model, and every prompt adds a version.
 
 Three different agents touch data apps. Name them precisely when more than
 one is in scope: the **coding agent** writes them, the **AI agent** finds,
-reads, and starts builds of them, an **external agent** reads them through
-MCP or edits their source through the CLI. Only the coding agent writes a
-data app's source; the AI agent can start a build, never write the app.
+reads, and starts builds of them, an **external agent** finds, reads, and
+starts builds of them through MCP or edits their source through the CLI.
+Only the coding agent writes a data app's source; the AI agent and an
+external agent can start a build, never write the app.
 
 ## Language
 

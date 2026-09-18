@@ -39,7 +39,7 @@ _Avoid_: theme setting, thread theme, design pick
 The agent tool (`listDataAppThemes`) that returns the organization's data app
 themes — slug, name, default flag, description — so a theme named in prose
 ("our brand", "the dark theme") resolves to a slug. Offered only where the
-agent can start data app builds, and only in threads, never over MCP. A theme
+agent can start data app builds, in threads and over MCP alike. A theme
 pick on the prompt makes the listing unnecessary; when nothing matches, the
 agent asks rather than guessing. Slack-started threads have no composer, so
 this is their only path to a theme.
