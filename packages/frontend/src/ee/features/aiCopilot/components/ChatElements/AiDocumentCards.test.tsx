@@ -218,6 +218,12 @@ describe('native Document result cards', () => {
                                 after: 'version-2',
                             },
                         },
+                        structuredContent: {
+                            type: 'dashboard',
+                            href: DOCUMENT_HREF,
+                            content: {},
+                            warnings: [],
+                        },
                     },
                 },
             ],
