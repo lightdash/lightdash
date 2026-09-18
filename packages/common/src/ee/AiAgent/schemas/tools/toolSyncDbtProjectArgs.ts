@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_SYNC_DBT_PROJECT_DESCRIPTION = `Tool: syncDbtProject
@@ -38,15 +41,28 @@ export const toolSyncDbtProjectArgsSchema = createToolSchema()
     })
     .build();
 
-export const toolSyncDbtProjectOutputSchema = z.object({
-    result: z.string(),
+export const toolSyncDbtProjectStructuredContentSchema = z.object({
+    status: z
+        .enum(['success', 'in_progress'])
+        .describe(
+            '"success" once the compile finished and the new fields are live; "in_progress" when the compile was still running at the wait timeout, so retry shortly.',
+        ),
+    jobUuid: z.string().describe('UUID of the compile job that was triggered.'),
+    message: z.string().describe('Human-readable outcome of the sync.'),
+});
+
+export const toolSyncDbtProjectOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema,
+    structuredContent: toolSyncDbtProjectStructuredContentSchema,
 });
 
 export type ToolSyncDbtProjectArgs = z.infer<
     typeof toolSyncDbtProjectArgsSchema
 >;
 export type ToolSyncDbtProjectArgsTransformed = ToolSyncDbtProjectArgs;
+export type ToolSyncDbtProjectStructuredContent = z.infer<
+    typeof toolSyncDbtProjectStructuredContentSchema
+>;
 export type ToolSyncDbtProjectOutput = z.infer<
     typeof toolSyncDbtProjectOutputSchema
 >;
