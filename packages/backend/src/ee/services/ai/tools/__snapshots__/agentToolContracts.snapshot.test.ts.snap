@@ -6361,10 +6361,147 @@ Usage tips:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "charts": {
+                  "description": "Charts on this page, verified charts first.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "chartType": {
+                        "enum": [
+                          "line",
+                          "horizontal_bar",
+                          "vertical_bar",
+                          "scatter",
+                          "area",
+                          "mixed",
+                          "pie",
+                          "table",
+                          "big_number",
+                          "funnel",
+                          "custom",
+                          "treemap",
+                          "gauge",
+                          "map",
+                          "sankey",
+                          "data_app_viz",
+                        ],
+                        "type": "string",
+                      },
+                      "description": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "uuid": {
+                        "type": "string",
+                      },
+                      "verification": {
+                        "anyOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "verifiedAt": {
+                                "description": "When the chart was verified, as an ISO 8601 date.",
+                                "type": "string",
+                              },
+                              "verifiedBy": {
+                                "description": "Full name of the user who verified the chart.",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "verifiedBy",
+                              "verifiedAt",
+                            ],
+                            "type": "object",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "Null when the chart is not verified.",
+                      },
+                      "viewsCount": {
+                        "type": "number",
+                      },
+                    },
+                    "required": [
+                      "uuid",
+                      "name",
+                      "description",
+                      "chartType",
+                      "viewsCount",
+                      "verification",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "dashboardName": {
+                  "type": "string",
+                },
+                "dashboardUuid": {
+                  "type": "string",
+                },
+                "page": {
+                  "description": "The page of charts returned, starting at 1.",
+                  "type": "number",
+                },
+                "pageSize": {
+                  "type": "number",
+                },
+                "totalPageCount": {
+                  "type": "number",
+                },
+                "totalResults": {
+                  "description": "Total number of charts in the dashboard across all pages.",
+                  "type": "number",
+                },
+              },
+              "required": [
+                "dashboardUuid",
+                "dashboardName",
+                "page",
+                "pageSize",
+                "totalPageCount",
+                "totalResults",
+                "charts",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },

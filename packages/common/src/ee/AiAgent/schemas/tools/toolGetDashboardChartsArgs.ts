@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import { ChartKind } from '../../../../types/savedCharts';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_GET_DASHBOARD_CHARTS_DESCRIPTION = `Tool: "getDashboardCharts"
@@ -32,15 +36,51 @@ export const toolGetDashboardChartsArgsSchema = createToolSchema()
 export const toolGetDashboardChartsArgsSchemaTransformed =
     toolGetDashboardChartsArgsSchema;
 
-export const toolGetDashboardChartsOutputSchema = z.object({
-    result: z.string(),
+const dashboardChartSchema = z.object({
+    uuid: z.string(),
+    name: z.string(),
+    description: z.string().nullable(),
+    chartType: z.enum(ChartKind),
+    viewsCount: z.number(),
+    verification: z
+        .object({
+            verifiedBy: z
+                .string()
+                .describe('Full name of the user who verified the chart.'),
+            verifiedAt: z
+                .string()
+                .describe('When the chart was verified, as an ISO 8601 date.'),
+        })
+        .nullable()
+        .describe('Null when the chart is not verified.'),
+});
+
+export const toolGetDashboardChartsStructuredContentSchema = z.object({
+    dashboardUuid: z.string(),
+    dashboardName: z.string(),
+    page: z.number().describe('The page of charts returned, starting at 1.'),
+    pageSize: z.number(),
+    totalPageCount: z.number(),
+    totalResults: z
+        .number()
+        .describe('Total number of charts in the dashboard across all pages.'),
+    charts: z
+        .array(dashboardChartSchema)
+        .describe('Charts on this page, verified charts first.'),
+});
+
+export const toolGetDashboardChartsOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema,
+    structuredContent: toolGetDashboardChartsStructuredContentSchema,
 });
 
 export type ToolGetDashboardChartsArgs = z.infer<
     typeof toolGetDashboardChartsArgsSchema
 >;
 export type ToolGetDashboardChartsArgsTransformed = ToolGetDashboardChartsArgs;
+export type ToolGetDashboardChartsStructuredContent = z.infer<
+    typeof toolGetDashboardChartsStructuredContentSchema
+>;
 export type ToolGetDashboardChartsOutput = z.infer<
     typeof toolGetDashboardChartsOutputSchema
 >;
