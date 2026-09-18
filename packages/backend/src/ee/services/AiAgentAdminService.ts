@@ -56,6 +56,7 @@ import {
     MissingConfigError,
     NotFoundError,
     ParameterError,
+    persistedToolOutputSchema,
     PullRequestProvider,
     PullRequestSource,
     RequestMethod,
@@ -2647,7 +2648,11 @@ export class AiAgentAdminService extends BaseService {
         if (!latestWritebackResult) {
             return { type: 'not_started' };
         }
-        const parsed = toolEditDbtProjectOutputSchema.safeParse({
+        // Stored tool results keep only the text and the metadata, so the
+        // structured content the tool returns is not part of the row.
+        const parsed = persistedToolOutputSchema(
+            toolEditDbtProjectOutputSchema,
+        ).safeParse({
             result: latestWritebackResult.result,
             metadata: latestWritebackResult.metadata,
         });
