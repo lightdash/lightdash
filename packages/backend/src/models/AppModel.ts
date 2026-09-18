@@ -891,6 +891,36 @@ export class AppModel {
         return cancelled !== undefined;
     }
 
+    // Whether a version other than `excludeVersion` ran the agent in this thread.
+    // Thread 1 predates narration, so any other version counts there.
+    async threadHasVersionThatReachedCodingAgent(
+        appThreadUuid: string,
+        excludeVersion: number | null,
+    ): Promise<boolean> {
+        const thread = await this.findThreadByUuid(appThreadUuid);
+        if (!thread) return false;
+        const isThreadOne = thread.thread_number === 1;
+        const row = await this.database(AppVersionsTableName)
+            .where('app_id', thread.app_id)
+            .andWhere((q) => {
+                void q.where('app_thread_uuid', appThreadUuid);
+                if (isThreadOne) void q.orWhereNull('app_thread_uuid');
+            })
+            .modify((q) => {
+                if (excludeVersion !== null) {
+                    void q.whereNot('version', excludeVersion);
+                }
+                if (!isThreadOne) {
+                    void q.whereRaw(
+                        `(status_history @> '[{"kind":"thinking"}]'::jsonb OR status_history @> '[{"kind":"tool"}]'::jsonb)`,
+                    );
+                }
+            })
+            .select('version')
+            .first();
+        return row !== undefined;
+    }
+
     async appImageExists(appId: string, imageId: string): Promise<boolean> {
         const row = await this.database(AppVersionsTableName)
             .where('app_id', appId)

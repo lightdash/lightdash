@@ -1970,6 +1970,17 @@ export type DataAppVersionRestoredEvent = BaseTrack & {
     };
 };
 
+export type DataAppThreadClearedEvent = BaseTrack & {
+    event: 'data_app.thread.cleared';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        threadNumber: number;
+    };
+};
+
 export type DataAppDuplicatedEvent = BaseTrack & {
     event: 'data_app.duplicated';
     userId: string;
@@ -2110,6 +2121,7 @@ export type DataAppEvent =
     | DataAppFileUploadedEvent
     | DataAppViewedEvent
     | DataAppVersionRestoredEvent
+    | DataAppThreadClearedEvent
     | DataAppDuplicatedEvent
     | DataAppDeletedEvent
     | DataAppPromotedEvent

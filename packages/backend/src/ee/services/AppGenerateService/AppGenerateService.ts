@@ -70,6 +70,7 @@ import {
     type Account,
     type AnonymousAccount,
     type ApiDuplicateAppResponse,
+    type ApiGetAppResponse,
     type ApiOrganizationDesign,
     type AppBuildFromSourceJobPayload,
     type AppChartReference,
@@ -305,6 +306,11 @@ import {
     PREPARE_CODEX_SKILLS_COMMAND,
 } from './codexCodeEnv';
 import { CodexStreamProcessor } from './CodexStreamProcessor';
+import {
+    codingAgentSessionFlags,
+    decideCodingAgentSessionStart,
+    type CodingAgentSessionStart,
+} from './codingAgentSession';
 import {
     buildDashboardBlueprint,
     DASHBOARD_BLUEPRINT_PATH,
@@ -3880,7 +3886,7 @@ export class AppGenerateService extends BaseService {
         sandbox: SandboxHandle,
         appUuid: string,
         version: number,
-        continueSession: boolean,
+        sessionStart: CodingAgentSessionStart,
         claudeCodeEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
         claudeEffort: DataAppClaudeEffort,
@@ -3921,9 +3927,8 @@ export class AppGenerateService extends BaseService {
 
         const effortFlag = `--effort ${claudeEffort} `;
 
-        // When the sandbox was resumed from a previous iteration, use
-        // --continue so Claude has the full conversation history of what
-        // it built before. For fresh sandboxes, start a new session.
+        // `sessionStart` (see codingAgentSession.ts) says whether the thread's
+        // transcript on disk is continued or a new session is started.
         // On retry we promote to --continue if the failed attempt
         // produced *any* stream event — that means a session exists on
         // disk and we want to resume rather than throw away the work
@@ -3949,8 +3954,9 @@ export class AppGenerateService extends BaseService {
                 );
             }
             const attemptStartedAfterMs = AppGenerateService.elapsed(start);
-            const sessionFlags =
-                continueSession || forceContinue ? '--continue -p' : '-p';
+            const sessionFlags = codingAgentSessionFlags(
+                forceContinue ? { kind: 'continue' } : sessionStart,
+            );
             const processor = new ClaudeStreamProcessor();
             let responseText: string | null = null;
             let structuredOutput: unknown = null;
@@ -4377,7 +4383,7 @@ export class AppGenerateService extends BaseService {
         sandbox: SandboxHandle,
         appUuid: string,
         version: number,
-        continueSession: boolean,
+        sessionStart: CodingAgentSessionStart,
         codingAgentEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
         reasoningEffort: DataAppClaudeEffort,
@@ -4399,7 +4405,7 @@ export class AppGenerateService extends BaseService {
             sandbox,
             appUuid,
             version,
-            continueSession,
+            sessionStart,
             codingAgentEnv,
             claudeModel,
             reasoningEffort,
@@ -4707,7 +4713,7 @@ export class AppGenerateService extends BaseService {
                 sandbox,
                 appUuid,
                 version,
-                true, // --continue: keep conversation context from generation
+                { kind: 'continue' }, // keep thread context from generation
                 codingAgentEnv,
                 claudeModel,
                 claudeEffort,
@@ -4944,6 +4950,32 @@ export class AppGenerateService extends BaseService {
             );
         }
         return updated;
+    }
+
+    /** Session rule input for the thread `version` belongs to. */
+    private async resolveCodingAgentSessionStart(
+        appUuid: string,
+        version: number,
+        wasResumed: boolean,
+    ): Promise<CodingAgentSessionStart> {
+        const built = await this.appModel.getVersion(appUuid, version);
+        if (!built) {
+            throw new NotFoundError(
+                `App version not found: ${appUuid} v${version}`,
+            );
+        }
+        const thread = await this.appModel.findThreadByUuid(
+            built.app_thread_uuid,
+        );
+        return decideCodingAgentSessionStart({
+            sandboxWasResumed: wasResumed,
+            threadHasVersionThatReachedAgent:
+                await this.appModel.threadHasVersionThatReachedCodingAgent(
+                    built.app_thread_uuid,
+                    version,
+                ),
+            codingAgentSessionId: thread?.coding_agent_session_id ?? null,
+        });
     }
 
     /**
@@ -5488,6 +5520,14 @@ export class AppGenerateService extends BaseService {
                 : {}),
         });
 
+        // Whether this version's thread continues the agent transcript on
+        // disk or starts a new session; also gates the cancelled-prompt notice.
+        const sessionStart = await this.resolveCodingAgentSessionStart(
+            appUuid,
+            version,
+            wasResumed,
+        );
+
         // --- Stage: catalog ---
         if (shouldRun('catalog')) {
             try {
@@ -5500,12 +5540,11 @@ export class AppGenerateService extends BaseService {
                 if (!advanced) {
                     return;
                 }
-                // A resumed sandbox's Claude session may still end with a
-                // prompt the user cancelled mid-run — disavow it so Claude
-                // doesn't treat it as outstanding work. Fresh sandboxes get
-                // a new session (no --continue), so no notice is needed.
+                // A continued Claude session may still end with a prompt the
+                // user cancelled mid-run — disavow it so Claude doesn't treat
+                // it as outstanding work. New sessions need no notice.
                 const previousPromptCancelled =
-                    wasResumed &&
+                    sessionStart.kind === 'continue' &&
                     (await this.appModel.hasCancelledVersionSinceLastReady(
                         appUuid,
                         version,
@@ -5581,16 +5620,15 @@ export class AppGenerateService extends BaseService {
                 if (!advanced) {
                     return;
                 }
-                // On retry (currentStatus === 'generating') or iteration
-                // with resumed sandbox, use --continue so Claude picks up
-                // the conversation where it left off.
-                const continueSession =
-                    currentStatus === 'generating' || wasResumed;
+                // On retry (currentStatus === 'generating') this version's
+                // own session is on disk, so always continue it.
                 const generation = await this.runCodingAgentGeneration(
                     sandbox,
                     appUuid,
                     version,
-                    continueSession,
+                    currentStatus === 'generating'
+                        ? { kind: 'continue' }
+                        : sessionStart,
                     codingAgentEnv,
                     claudeModel,
                     claudeEffort,
@@ -7451,6 +7489,9 @@ export class AppGenerateService extends BaseService {
         }
 
         const newVersion = (latestVersion?.version ?? 0) + 1;
+        // The restored version joins the newest thread, whichever thread the
+        // source version came from.
+        const currentThread = await this.appModel.getCurrentThread(appUuid);
         const { client: s3Client, bucket } = this.getS3Client();
 
         // 1. Copy every S3 object under the source version's prefix.
@@ -7489,12 +7530,26 @@ export class AppGenerateService extends BaseService {
                 // the working tree was reset and doesn't try to diff
                 // against code we've undone. Failures here don't fail the
                 // restore — worst case the next reply is mildly confused.
-                if (this.dataAppCodingAgent === 'claude') {
+                // Skipped when the thread would start a new session anyway.
+                const sessionStart = decideCodingAgentSessionStart({
+                    sandboxWasResumed: true,
+                    threadHasVersionThatReachedAgent:
+                        await this.appModel.threadHasVersionThatReachedCodingAgent(
+                            currentThread.app_thread_uuid,
+                            null,
+                        ),
+                    codingAgentSessionId: currentThread.coding_agent_session_id,
+                });
+                if (
+                    this.dataAppCodingAgent === 'claude' &&
+                    sessionStart.kind === 'continue'
+                ) {
                     await this.notifyClaudeOfRestore(
                         sandbox,
                         appUuid,
                         sourceVersion,
                         copilot,
+                        sessionStart,
                     );
                 }
             } catch (error) {
@@ -7536,7 +7591,10 @@ export class AppGenerateService extends BaseService {
             // declares a schema, so dropping it here delists the viz and
             // strips the contract from every chart bound to it.
             source.viz_schema ?? undefined,
-            { registryVersion: source.registry_version ?? undefined },
+            {
+                registryVersion: source.registry_version ?? undefined,
+                appThreadUuid: currentThread.app_thread_uuid,
+            },
         );
         await this.unverifyAppIfNotPreserved({
             user,
@@ -7573,6 +7631,59 @@ export class AppGenerateService extends BaseService {
         );
 
         return { appUuid, version: newVersion };
+    }
+
+    /**
+     * Start a fresh thread on the app: the coding agent forgets the current
+     * thread; the app, its versions and its sandbox are unchanged.
+     */
+    async clearAgentContext(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<ApiGetAppResponse['results']> {
+        await this.assertDataAppsEnabled(user);
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to modify data apps',
+        );
+        AppGenerateService.assertNotRegistryManaged(app, 'edited');
+
+        const latestVersion = await this.appModel.getLatestVersion(appUuid);
+        if (
+            latestVersion?.status &&
+            isAppVersionInProgress(latestVersion.status)
+        ) {
+            throw new ParameterError(
+                'A version is already building for this app',
+            );
+        }
+
+        const thread = await this.appModel.createThread({
+            appUuid,
+            origin: 'builder',
+            aiThreadUuid: null,
+            createdByUserUuid: user.userUuid,
+        });
+
+        this.analytics.track({
+            event: 'data_app.thread.cleared',
+            userId: user.userUuid,
+            properties: {
+                organizationId: app.organization_uuid,
+                projectId: projectUuid,
+                appUuid,
+                threadNumber: thread.thread_number,
+            },
+        });
+        this.logger.info(
+            `App ${appUuid}: agent context cleared (thread=${thread.thread_number}, user=${user.userUuid})`,
+        );
+
+        return this.getAppVersions(user, projectUuid, appUuid, {});
     }
 
     /**
@@ -7711,6 +7822,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         sourceVersion: number,
         copilot: CopilotConfig,
+        sessionStart: CodingAgentSessionStart,
     ): Promise<void> {
         let claudeCodeEnv: Record<string, string>;
         try {
@@ -7736,7 +7848,7 @@ export class AppGenerateService extends BaseService {
             });
             await sandbox.files.write(noticePath, notice);
             const result = await sandbox.commands.run(
-                `cat ${noticePath} | claude --continue -p --model sonnet; rm -f ${noticePath}`,
+                `cat ${noticePath} | claude ${codingAgentSessionFlags(sessionStart)} --model sonnet; rm -f ${noticePath}`,
                 {
                     cwd: '/app',
                     timeoutMs: 60_000,
@@ -9380,7 +9492,10 @@ export class AppGenerateService extends BaseService {
                     undefined,
                     undefined,
                     vizSchema,
-                    { registryVersion: entry.version },
+                    {
+                        registryVersion: entry.version,
+                        thread: { origin: 'import', aiThreadUuid: null },
+                    },
                 );
             }
         } catch (e) {
@@ -12688,7 +12803,10 @@ export class AppGenerateService extends BaseService {
                     : undefined,
                 // Verbatim slug + loud conflict, so re-uploads stay
                 // idempotent (never silently minting suffixed duplicates).
-                { forceSlug: true },
+                {
+                    forceSlug: true,
+                    thread: { origin: 'import', aiThreadUuid: null },
+                },
             );
             newAppUuid = app.app_id;
             newAppSlug = app.slug;

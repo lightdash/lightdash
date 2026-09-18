@@ -661,6 +661,34 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * Clear the coding agent's context by starting a new thread on the app.
+     * The next prompt starts a fresh agent session; versions and the sandbox
+     * are unchanged. Refused while a version is building.
+     * @summary Clear agent context
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/threads')
+    @OperationId('clearAppAgentContext')
+    async clearAppAgentContext(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() appUuid: UUID,
+    ): Promise<ApiGetAppResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const result = await this.getAppGenerateService().clearAgentContext(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+        );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
      * Cancel a building version, killing the sandbox and marking it as cancelled.
      * @summary Cancel app version
      */
