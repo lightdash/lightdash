@@ -12,6 +12,19 @@ const mocks = vi.hoisted(() => ({
     navigate: vi.fn(),
     copy: vi.fn(),
     codeModal: vi.fn(),
+    canDuplicate: false,
+    duplicateModal: vi.fn(),
+}));
+vi.mock('./useDocumentCreationSpaces', () => ({
+    useDocumentCreationSpaces: () => ({
+        writableSpaces: mocks.canDuplicate ? [{ uuid: 'destination' }] : [],
+    }),
+}));
+vi.mock('./DocumentDuplicateModal', () => ({
+    default: (props: unknown) => {
+        mocks.duplicateModal(props);
+        return <div>Duplicate document form</div>;
+    },
 }));
 vi.mock('./DocumentAsCodeModal', () => ({
     default: (props: unknown) => {
@@ -86,6 +99,8 @@ describe('Document actions', () => {
         mocks.navigate.mockReset();
         mocks.copy.mockReset();
         mocks.codeModal.mockReset();
+        mocks.canDuplicate = false;
+        mocks.duplicateModal.mockReset();
     });
     const renderActions = () =>
         render(
@@ -166,6 +181,27 @@ describe('Document actions', () => {
         expect(mocks.deleteModal).not.toHaveBeenCalled();
         expect(mocks.codeModal).toHaveBeenCalledWith(
             expect.objectContaining({ document, opened: true }),
+        );
+    });
+
+    it('lets a reader duplicate into an authorized destination without source update rights', async () => {
+        mocks.canManage = false;
+        mocks.canDuplicate = true;
+        renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        fireEvent.click(
+            await screen.findByRole('menuitem', { name: 'Duplicate' }),
+        );
+        expect(
+            await screen.findByText('Duplicate document form'),
+        ).toBeInTheDocument();
+        expect(mocks.duplicateModal).toHaveBeenCalledWith(
+            expect.objectContaining({
+                documentUuid: document.documentUuid,
+                projectUuid: document.projectUuid,
+            }),
         );
     });
 

@@ -15,6 +15,7 @@ import {
     type DocumentAsCode,
     type DocumentContent,
     type DocumentList,
+    type DuplicateDocumentRequest,
     type MetricQuery,
     type ParametersValuesMap,
     type RegisteredAccount,
@@ -257,6 +258,26 @@ export class DocumentService extends BaseService {
             createdByUserUuid: account.user.userUuid,
         });
         return this.authorizeDocument(account, created);
+    }
+
+    async duplicate(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        documentUuidOrSlug: UuidOrSlug,
+        input: DuplicateDocumentRequest,
+    ): Promise<Document> {
+        const source = await this.getByIdOrSlug(
+            account,
+            projectUuid,
+            documentUuidOrSlug,
+        );
+        return this.create(account, projectUuid, {
+            name: input.name,
+            description: input.description ?? source.description,
+            spaceUuid: input.spaceUuid,
+            schemaVersion: source.version.schemaVersion,
+            content: source.version.content,
+        });
     }
 
     async updateMetadata(
