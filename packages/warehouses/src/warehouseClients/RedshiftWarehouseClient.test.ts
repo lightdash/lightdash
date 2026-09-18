@@ -140,8 +140,9 @@ describe('RedshiftWarehouseClient', () => {
         );
 
         const [query, , , values] = runQuery.mock.calls[1];
-        expect(query).toContain('FROM svv_columns');
-        expect(query).toContain('svv_all_tables');
+        expect(query).toContain('FROM svv_columns c');
+        expect(query).toContain('JOIN svv_all_tables');
+        expect(query).not.toContain('EXISTS');
         expect(values).toEqual(['orders_lbv', 'public', 'warehouse']);
         expect(fields).toEqual({
             warehouse: {

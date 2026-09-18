@@ -170,22 +170,20 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
             database,
         );
         const query = `
-            SELECT table_catalog,
-                   table_schema,
-                   table_name,
-                   column_name,
-                   data_type
-            FROM svv_columns
-            WHERE table_name = $1
-            ${schemaParam ? `AND table_schema = ${schemaParam}` : ''}
-            ${databaseParam ? `AND table_catalog = ${databaseParam}` : ''}
-                AND EXISTS (
-                    SELECT 1 FROM svv_all_tables t
-                    WHERE t.database_name = svv_columns.table_catalog
-                        AND t.schema_name = svv_columns.table_schema
-                        AND t.table_name = svv_columns.table_name
-                )
-            ORDER BY ordinal_position
+            SELECT c.table_catalog,
+                   c.table_schema,
+                   c.table_name,
+                   c.column_name,
+                   c.data_type
+            FROM svv_columns c
+            JOIN svv_all_tables t
+                ON t.database_name = c.table_catalog
+                AND t.schema_name = c.table_schema
+                AND t.table_name = c.table_name
+            WHERE c.table_name = $1
+            ${schemaParam ? `AND c.table_schema = ${schemaParam}` : ''}
+            ${databaseParam ? `AND c.table_catalog = ${databaseParam}` : ''}
+            ORDER BY c.ordinal_position
         `;
         const { rows } = await this.runQuery(query, tags, undefined, values);
         return this.parsePostgresCatalog(rows);
