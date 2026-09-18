@@ -2,9 +2,11 @@ import { Ability } from '@casl/ability';
 import {
     DimensionType,
     FieldType,
+    MetricTotalComparisonType,
     MetricType,
     OrganizationMemberRole,
     TimeFrames,
+    WarehouseTypes,
     type CompiledDimension,
     type ItemsMap,
     type MetricQuery,
@@ -80,6 +82,8 @@ const groupByDimension: CompiledDimension = {
     hidden: false,
 };
 
+const CONNECTION_UUID = 'connection-uuid';
+
 const buildService = () => {
     const executeMetricQueryAndGetResults = vi.fn(
         async (_args: { metricQuery: MetricQuery }) => ({
@@ -103,14 +107,29 @@ const buildService = () => {
         executeMetricQueryAndGetResults,
     } as unknown as AsyncQueryService;
 
+    const getExploreConnectionUuid = vi.fn(async () => CONNECTION_UUID);
+    const getWarehouseCredentialsForProject = vi.fn(async () => ({
+        type: WarehouseTypes.POSTGRES,
+    }));
+    const projectModel = {
+        getExploreConnectionUuid,
+        getWarehouseCredentialsForProject,
+    } as unknown as ProjectModel;
+
     const service = new MetricsExplorerService({
-        projectModel: {} as ProjectModel,
+        projectModel,
         projectService: {} as ProjectService,
         catalogService,
         asyncQueryService,
     });
 
-    return { service, catalogService, executeMetricQueryAndGetResults };
+    return {
+        service,
+        catalogService,
+        executeMetricQueryAndGetResults,
+        getExploreConnectionUuid,
+        getWarehouseCredentialsForProject,
+    };
 };
 
 describe('MetricsExplorerService.getMetricSeries', () => {
@@ -187,5 +206,41 @@ describe('MetricsExplorerService.getMetricSeries', () => {
                 '2026-01-31',
             ),
         ).rejects.toThrow('does not have a valid time dimension');
+    });
+});
+
+describe('MetricsExplorerService rolling comparisons', () => {
+    test('reads the dialect from the connection the explore runs on', async () => {
+        const {
+            service,
+            getExploreConnectionUuid,
+            getWarehouseCredentialsForProject,
+            executeMetricQueryAndGetResults,
+        } = buildService();
+
+        await service.getMetricTotal(
+            user,
+            PROJECT_UUID,
+            EXPLORE_NAME,
+            METRIC_NAME,
+            TimeFrames.DAY,
+            TimeFrames.DAY,
+            '2026-08-01',
+            '2026-09-01',
+            MetricTotalComparisonType.ROLLING_DAYS,
+            30,
+        );
+
+        expect(getExploreConnectionUuid).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            EXPLORE_NAME,
+        );
+        expect(getWarehouseCredentialsForProject).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            CONNECTION_UUID,
+        );
+        const { metricQuery } =
+            executeMetricQueryAndGetResults.mock.calls[0][0];
+        expect(metricQuery.customDimensions).toHaveLength(1);
     });
 });

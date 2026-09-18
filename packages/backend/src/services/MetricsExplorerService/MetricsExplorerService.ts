@@ -427,9 +427,16 @@ export class MetricsExplorerService extends BaseService {
             throw new Error('Time dimension not found');
         }
 
+        // The period bucket compiles to warehouse SQL, so read the dialect from
+        // the connection the explore runs on, not from a sole project connection.
+        const connectionUuid = await this.projectModel.getExploreConnectionUuid(
+            projectUuid,
+            exploreName,
+        );
         const credentials =
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
+                connectionUuid,
             );
         const adapterType = credentials.type;
 
