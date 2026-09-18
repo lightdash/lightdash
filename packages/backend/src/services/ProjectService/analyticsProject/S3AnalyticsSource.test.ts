@@ -131,6 +131,8 @@ describe('signed analytics file manifests', () => {
                 { Key: `${prefix}dim=charts/old.parquet` },
                 { Key: `${prefix}dim=users/users.parquet` },
                 { Key: `${prefix}dim=users/backup/users.parquet` },
+                { Key: `${prefix}dim=agents/agents.parquet` },
+                { Key: `${prefix}dim=agents/old.parquet` },
             ],
         });
         const source = await createS3AnalyticsSourceResolver(config)();
@@ -138,11 +140,12 @@ describe('signed analytics file manifests', () => {
             'query_events',
             'lightdash_charts',
             'lightdash_users',
+            'lightdash_agents',
         ]);
         expect(source.emptyTables?.map(({ name }) => name)).toEqual([
             'lightdash_dashboards',
         ]);
-        expect(getSignedUrl).toHaveBeenCalledTimes(3);
+        expect(getSignedUrl).toHaveBeenCalledTimes(4);
     });
 
     it('does not treat dimension-only storage as captured event data', async () => {
