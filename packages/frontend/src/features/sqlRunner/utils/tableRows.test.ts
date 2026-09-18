@@ -77,6 +77,7 @@ const connection = (
         limit?: number;
         isActive?: boolean;
         listingStatus?: TreeConnection['listingStatus'];
+        listingForbidden?: boolean;
     } = {},
 ): TreeConnection => ({
     connectionId: CONNECTION_ID,
@@ -86,6 +87,9 @@ const connection = (
     listingStatus: options.listingStatus ?? 'loaded',
     truncated: options.truncated ?? false,
     limit: options.limit ?? 100,
+    ...(options.listingForbidden === undefined
+        ? {}
+        : { listingForbidden: options.listingForbidden }),
 });
 
 const loaded = (catalog: WarehouseTablesCatalog): TableUnitState => ({
@@ -675,5 +679,40 @@ describe('the connection level on first load', () => {
         const rows = build({ connections: [finance] });
 
         expect(rows.some((row) => row.type === 'connection')).toBe(false);
+    });
+
+    it('marks a refused connection listing as forbidden', () => {
+        const rows = build({
+            connections: [
+                connection([], {
+                    listingStatus: 'error',
+                    listingForbidden: true,
+                }),
+                {
+                    ...connection([], { listingStatus: 'error' }),
+                    connectionId: 'connection-2',
+                    connectionName: 'Other',
+                    isActive: false,
+                },
+            ],
+            expanded: [`connection:${CONNECTION_ID}`],
+        });
+
+        const errorRows = rows.filter((row) => row.type === 'error');
+        expect(errorRows).toHaveLength(1);
+        expect(errorRows[0]).toMatchObject({
+            connectionId: CONNECTION_ID,
+            forbidden: true,
+        });
+    });
+
+    it('leaves an ordinary listing failure retryable', () => {
+        const rows = build({
+            connections: [connection([], { listingStatus: 'error' })],
+            expanded: [`connection:${CONNECTION_ID}`],
+        });
+
+        const errorRows = rows.filter((row) => row.type === 'error');
+        expect(errorRows[0]).toMatchObject({ forbidden: false });
     });
 });

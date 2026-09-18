@@ -31,6 +31,7 @@ import {
     IconEyeTable,
     IconFolder,
     IconList,
+    IconLock,
     IconPlugConnected,
     IconSearch,
     IconTable,
@@ -280,26 +281,41 @@ const LoadingItem: FC<{ depth: number }> = ({ depth }) => (
     </Group>
 );
 
+const CANNOT_BROWSE_MESSAGE = 'You cannot browse this connection';
+
 const ErrorItem: FC<{
     depth: number;
     message: string;
+    forbidden?: boolean;
     onRetry: () => void;
-}> = ({ depth, message, onRetry }) => (
+}> = ({ depth, message, forbidden = false, onRetry }) => (
     <Group
         gap="xs"
         wrap="nowrap"
         className={styles.messageRow}
         style={depthStyle(depth)}
     >
-        <MantineIcon icon={IconAlertTriangle} size="sm" color="red" />
-        <Tooltip label={message} maw={300} multiline>
+        <MantineIcon
+            icon={forbidden ? IconLock : IconAlertTriangle}
+            size="sm"
+            color={forbidden ? 'gray' : 'red'}
+        />
+        {forbidden ? (
             <Text fz="xs" c="dimmed" truncate>
-                Could not load tables
+                {CANNOT_BROWSE_MESSAGE}
             </Text>
-        </Tooltip>
-        <Button variant="subtle" size="compact-xs" onClick={onRetry}>
-            Retry
-        </Button>
+        ) : (
+            <>
+                <Tooltip label={message} maw={300} multiline>
+                    <Text fz="xs" c="dimmed" truncate>
+                        Could not load tables
+                    </Text>
+                </Tooltip>
+                <Button variant="subtle" size="compact-xs" onClick={onRetry}>
+                    Retry
+                </Button>
+            </>
+        )}
     </Group>
 );
 
@@ -455,6 +471,7 @@ const VirtualRow: FC<{
                 <ErrorItem
                     depth={row.depth}
                     message={row.message}
+                    forbidden={row.forbidden}
                     onRetry={() =>
                         onRetry({
                             connectionId: row.connectionId,
@@ -571,8 +588,15 @@ const TablesStatus: FC<{
     needsConnectionChoice: boolean;
     isLoading: boolean;
     errorMessage: string | undefined;
+    isForbidden: boolean;
     isEmpty: boolean;
-}> = ({ needsConnectionChoice, isLoading, errorMessage, isEmpty }) => {
+}> = ({
+    needsConnectionChoice,
+    isLoading,
+    errorMessage,
+    isForbidden,
+    isEmpty,
+}) => {
     if (needsConnectionChoice) {
         return (
             <Center p="sm">
@@ -586,6 +610,15 @@ const TablesStatus: FC<{
         return (
             <Center p="sm">
                 <Loader size="sm" />
+            </Center>
+        );
+    }
+    if (isForbidden) {
+        return (
+            <Center p="sm">
+                <Text c="dimmed" fz="sm" ta="center">
+                    {CANNOT_BROWSE_MESSAGE}
+                </Text>
             </Center>
         );
     }
@@ -665,6 +698,7 @@ export const Tables: FC = () => {
         onConnectionExpanded,
         isLoading,
         listingError,
+        listingForbidden,
         isSuccess,
     } = useWarehouseTree({
         projectUuid,
@@ -891,6 +925,7 @@ export const Tables: FC = () => {
                 }
                 isLoading={isLoading && isConnectionSettled}
                 errorMessage={listingError?.error.message}
+                isForbidden={listingForbidden && isConnectionSettled}
                 isEmpty={isSuccess && isConnectionSettled && rows.length === 0}
             />
         </>

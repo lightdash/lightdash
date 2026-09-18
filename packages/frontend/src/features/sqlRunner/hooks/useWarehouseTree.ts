@@ -13,6 +13,13 @@ import { useConnectionDatabases, useTableUnits } from './useTables';
 
 const IDLE_UNIT: TableUnitState = { status: 'idle' };
 
+/**
+ * A role that may not browse a connection gets the same refusal every time,
+ * so the tree offers no retry for it.
+ */
+const isForbiddenCatalogError = (error: ApiError | null): boolean =>
+    error?.error.statusCode === 403 || error?.error.name === 'ForbiddenError';
+
 export type WarehouseTree = {
     connections: TreeConnection[];
     getUnitState: (unit: TableUnitKey) => TableUnitState;
@@ -22,6 +29,7 @@ export type WarehouseTree = {
     onConnectionExpanded: (connectionId: string) => void;
     isLoading: boolean;
     listingError: ApiError | null;
+    listingForbidden: boolean;
     isSuccess: boolean;
 };
 
@@ -117,7 +125,12 @@ export const useWarehouseTree = ({
                         : error
                           ? ('error' as const)
                           : ('loading' as const),
-                    ...(error ? { listingError: error.error.message } : {}),
+                    ...(error
+                        ? {
+                              listingError: error.error.message,
+                              listingForbidden: isForbiddenCatalogError(error),
+                          }
+                        : {}),
                     truncated: listing?.truncated ?? false,
                     limit: listing?.limit ?? 0,
                 };
@@ -197,6 +210,7 @@ export const useWarehouseTree = ({
         onConnectionExpanded,
         isLoading,
         listingError,
+        listingForbidden: isForbiddenCatalogError(listingError),
         isSuccess,
     };
 };
