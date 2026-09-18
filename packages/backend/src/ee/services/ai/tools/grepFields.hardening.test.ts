@@ -2,11 +2,24 @@ import {
     DimensionType,
     FieldType,
     SupportedDbtAdapter,
+    toolGrepFieldsOutputSchema,
     type Explore,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
+import Logger from '../../../../logging/logger';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { getGrepFields } from './grepFields';
+
+vi.mock('@sentry/node', () => ({
+    captureException: vi.fn(),
+    addBreadcrumb: vi.fn(),
+    getActiveSpan: vi.fn(),
+}));
+
+vi.mock('../../../../logging/logger', () => ({
+    __esModule: true,
+    default: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}));
 
 type FieldSpec = {
     name: string;
@@ -97,6 +110,7 @@ type ExecuteResult = {
             matchedAllFields: boolean;
         }>;
     };
+    structuredContent: unknown;
 };
 
 const ftsField = (name: string, tableName: string) => ({
@@ -282,5 +296,109 @@ describe('grepFields pattern stats metadata', () => {
             scopeSize: 30,
             matchedAllFields: true,
         });
+    });
+});
+
+describe('grepFields output envelope', () => {
+    const explore = makeExplore({
+        name: 'orders',
+        fields: [
+            { name: 'status', label: 'Status', description: 'Order status.' },
+            { name: 'amount', label: 'Amount' },
+        ],
+    });
+
+    it('returns structuredContent that parses and carries the facts the text shows', async () => {
+        const findExplores = vi.fn(async () => ({
+            topMatchingFields: [ftsField('payment_state', 'payments')],
+        })) as unknown as FindExploresFn;
+        const tool = getGrepFields({
+            availableExplores: [explore],
+            findExplores,
+            verifiedFieldUsage: new Map(),
+        });
+
+        const output = await execute(tool, {
+            patterns: ['status', 'nomatchxyz'],
+            exploreName: null,
+        });
+
+        const parsed = toolGrepFieldsOutputSchema.parse(output);
+        expect(parsed.metadata.status).toBe('success');
+        if ('error' in parsed.structuredContent) {
+            throw new Error('expected success structuredContent');
+        }
+        const { patterns, fuzzyMatches, exploreName } =
+            parsed.structuredContent;
+        expect(exploreName).toBeNull();
+        expect(patterns.map((p) => [p.pattern, p.status])).toEqual([
+            ['status', 'matches'],
+            ['nomatchxyz', 'no_matches'],
+        ]);
+        expect(patterns[0]?.matchCount).toBe(1);
+        expect(patterns[0]?.resultsByExplore[0]?.fields[0]).toMatchObject({
+            path: 'orders/orders_status',
+            fieldId: 'orders_status',
+            label: 'Status',
+            description: 'Order status.',
+        });
+        expect(output.result).toContain('/status/ — 1 match:');
+        expect(output.result).toContain('orders/orders_status');
+        expect(output.result).toContain('/nomatchxyz/ — no matches.');
+        expect(fuzzyMatches.map((f) => f.fieldId)).toEqual([
+            'payments_payment_state',
+        ]);
+        expect(output.result).toContain('payments_payment_state');
+    });
+
+    it('reports an unknown explore as an empty result that still parses', async () => {
+        const tool = getGrepFields({
+            availableExplores: [explore],
+            findExplores: vi.fn() as unknown as FindExploresFn,
+            verifiedFieldUsage: new Map(),
+        });
+
+        const output = await execute(tool, {
+            patterns: ['status'],
+            exploreName: 'typo',
+        });
+
+        const parsed = toolGrepFieldsOutputSchema.parse(output);
+        expect(output.result).toContain('Explore "typo" not found');
+        expect(parsed.structuredContent).toEqual({
+            description: output.result,
+            exploreName: 'typo',
+            patterns: [],
+            fuzzyMatches: [],
+        });
+    });
+
+    it('mirrors the error text as structuredContent.error when execution throws', async () => {
+        vi.mocked(Logger.warn).mockImplementationOnce(() => {
+            throw new Error('logger down');
+        });
+        const broadExplore = makeExplore({
+            name: 'orders',
+            fields: Array.from({ length: 30 }, (_, i) => ({
+                name: `order_attr_${i}`,
+                label: `Order Attr ${i}`,
+            })),
+        });
+        const tool = getGrepFields({
+            availableExplores: [broadExplore],
+            findExplores: vi.fn() as unknown as FindExploresFn,
+            verifiedFieldUsage: new Map(),
+        });
+
+        const output = await execute(tool, {
+            patterns: ['order'],
+            exploreName: 'orders',
+        });
+
+        expect(toolGrepFieldsOutputSchema.safeParse(output).success).toBe(true);
+        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.result).toContain('Error grepping fields');
+        expect(output.result).toContain('logger down');
+        expect(output.structuredContent).toEqual({ error: output.result });
     });
 });

@@ -1476,6 +1476,7 @@
                 "additionalProperties": false,
                 "properties": {
                     "description": {
+                        "description": "How to read `patterns` and `fuzzyMatches`.",
                         "type": "string"
                     },
                     "exploreName": {
@@ -1486,9 +1487,11 @@
                             {
                                 "type": "null"
                             }
-                        ]
+                        ],
+                        "description": "The explore the grep was scoped to, or null for all."
                     },
                     "fuzzyMatches": {
+                        "description": "Catalog-search near matches not already surfaced by the grep.",
                         "items": {
                             "additionalProperties": false,
                             "properties": {
@@ -1522,7 +1525,8 @@
                                         {
                                             "type": "null"
                                         }
-                                    ]
+                                    ],
+                                    "description": "Full-text search rank; higher is better."
                                 },
                                 "usageInCharts": {
                                     "type": "number"
@@ -1546,16 +1550,19 @@
                         "type": "array"
                     },
                     "patterns": {
+                        "description": "One entry per input pattern, in input order.",
                         "items": {
                             "additionalProperties": false,
                             "properties": {
                                 "matchCount": {
+                                    "description": "Fields matched before the display cap.",
                                     "type": "number"
                                 },
                                 "matchedAllFields": {
                                     "type": "boolean"
                                 },
                                 "matchingExploresByName": {
+                                    "description": "Explores whose own name/label/hint matched but had no field matches.",
                                     "items": {
                                         "additionalProperties": false,
                                         "properties": {
@@ -1582,15 +1589,18 @@
                                         {
                                             "type": "null"
                                         }
-                                    ]
+                                    ],
+                                    "description": "Warning when similarly named metrics could be confused."
                                 },
                                 "note": {
+                                    "description": "The per-pattern summary line.",
                                     "type": "string"
                                 },
                                 "pattern": {
                                     "type": "string"
                                 },
                                 "resultsByExplore": {
+                                    "description": "Matched fields grouped by explore, best matches first.",
                                     "items": {
                                         "additionalProperties": false,
                                         "properties": {
@@ -1612,7 +1622,8 @@
                                                                 {
                                                                     "type": "null"
                                                                 }
-                                                            ]
+                                                            ],
+                                                            "description": "Time dimension the metric defaults to, if configured."
                                                         },
                                                         "defaultTimeDimensionGranularity": {
                                                             "anyOf": [
@@ -1641,6 +1652,7 @@
                                                             "type": "string"
                                                         },
                                                         "fieldId": {
+                                                            "description": "Field id to use in queries.",
                                                             "type": "string"
                                                         },
                                                         "fieldType": {
@@ -1654,7 +1666,8 @@
                                                                 {
                                                                     "type": "null"
                                                                 }
-                                                            ]
+                                                            ],
+                                                            "description": "The field aiHint, if any."
                                                         },
                                                         "kind": {
                                                             "enum": [
@@ -1667,6 +1680,7 @@
                                                             "type": "string"
                                                         },
                                                         "matchLocality": {
+                                                            "description": "Which slice of the field the pattern matched, most specific first.",
                                                             "enum": [
                                                                 "name",
                                                                 "description",
@@ -1676,15 +1690,18 @@
                                                             "type": "string"
                                                         },
                                                         "path": {
+                                                            "description": "`exploreName/fieldId`, as printed in `result`.",
                                                             "type": "string"
                                                         },
                                                         "requiredParameters": {
+                                                            "description": "Lightdash parameters this field depends on.",
                                                             "items": {
                                                                 "type": "string"
                                                             },
                                                             "type": "array"
                                                         },
                                                         "usageInVerifiedCharts": {
+                                                            "description": "How many verified saved charts use this field.",
                                                             "type": "number"
                                                         }
                                                     },
@@ -1709,6 +1726,7 @@
                                                 "type": "array"
                                             },
                                             "requiredFilters": {
+                                                "description": "Filters that must be set when querying this explore.",
                                                 "items": {
                                                     "additionalProperties": false,
                                                     "properties": {
@@ -1756,9 +1774,11 @@
                                     "type": "array"
                                 },
                                 "scopeSize": {
+                                    "description": "Fields the pattern was run against.",
                                     "type": "number"
                                 },
                                 "status": {
+                                    "description": "`no_signal` means the pattern matched every field in scope and was discarded.",
                                     "enum": [
                                         "matches",
                                         "no_matches",
