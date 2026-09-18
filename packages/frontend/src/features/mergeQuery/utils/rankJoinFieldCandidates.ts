@@ -33,6 +33,7 @@ const isJoinableWith = (
         return false;
     }
     if (isTemporal(candidateType)) {
+        // Date and timestamp are one class to the validator; only the grain must match.
         return grainOf(candidate) === grainOf(counterpart);
     }
     return candidateType === counterpartType;
