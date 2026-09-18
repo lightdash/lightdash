@@ -7,11 +7,13 @@ import {
     generateSlug,
     NotFoundError,
     ProjectType,
+    type AppThreadOrigin,
     type AppVersionDependencies,
     type AppVersionResources,
     type AppVersionStatusHistoryEntryKind,
     type ChartConfig,
     type DataAppActivityFilters,
+    type DataAppCodingAgent,
     type DataAppGenerationUsage,
     type DataAppVizSchema,
     type DataAppVizsFilter,
@@ -25,12 +27,15 @@ import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import {
     APP_VERSION_TERMINAL_STATUSES,
     AppsTableName,
+    AppThreadsTableName,
     AppVersionsTableName,
     isAppVersionInProgress,
     type AppVersionStatus,
     type DbApp,
     type DbAppActivityRow,
+    type DbAppThread,
     type DbAppVersion,
+    type DbAppVersionWithThread,
 } from '../database/entities/apps';
 import {
     DashboardsTableName,
@@ -56,7 +61,46 @@ import { getFullTextSearchFilterSql } from './SearchModel/utils/search';
 
 type AppModelArguments = {
     database: Knex;
+    // Coding agent stamped on new threads; deployment-wide setting.
+    dataAppCodingAgent?: DataAppCodingAgent;
 };
+
+export type CreateAppThreadArgs = {
+    appUuid: string;
+    origin: AppThreadOrigin;
+    // Ask AI thread the app was created from; null for every other origin.
+    aiThreadUuid: string | null;
+    createdByUserUuid: string;
+};
+
+// Extra columns `joinVersionThreads` selects to resolve a version's thread.
+type ThreadJoinColumns = {
+    version_thread_number: number | null;
+    first_thread_uuid: string | null;
+};
+
+type VersionRowWithThreadJoin = Pick<
+    DbAppVersion,
+    'app_id' | 'app_thread_uuid'
+> &
+    ThreadJoinColumns;
+
+/** A null `app_thread_uuid` reads back as thread 1; `threadOneUuid` covers an app with no thread row yet. */
+const resolveVersionThread = <T extends VersionRowWithThreadJoin>(
+    {
+        version_thread_number: versionThreadNumber,
+        first_thread_uuid: firstThreadUuid,
+        ...row
+    }: T,
+    threadOneUuid: string,
+): Omit<T, keyof ThreadJoinColumns> & {
+    app_thread_uuid: string;
+    thread_number: number;
+} => ({
+    ...row,
+    app_thread_uuid: row.app_thread_uuid ?? firstThreadUuid ?? threadOneUuid,
+    thread_number: versionThreadNumber ?? 1,
+});
 
 export type PreviewChartVizBindingMapping = {
     sourceAppUuid: string;
@@ -75,8 +119,11 @@ type AppWithOrgAndPin = DbApp & {
 export class AppModel {
     private readonly database: Knex;
 
-    constructor({ database }: AppModelArguments) {
+    private readonly dataAppCodingAgent: DataAppCodingAgent;
+
+    constructor({ database, dataAppCodingAgent }: AppModelArguments) {
         this.database = database;
+        this.dataAppCodingAgent = dataAppCodingAgent ?? 'claude';
     }
 
     async createWithVersion(
@@ -108,8 +155,13 @@ export class AppModel {
         // silently minting suffixed duplicates. Default: app.slug is a base
         // hint — normalized and dedupe-suffixed (duplication derives copies'
         // slugs from the source slug this way).
-        opts?: { forceSlug?: boolean; registryVersion?: string },
-    ): Promise<{ app: DbApp; version: DbAppVersion }> {
+        opts?: {
+            forceSlug?: boolean;
+            registryVersion?: string;
+            // Defaults to a builder-originated thread 1.
+            thread?: Pick<CreateAppThreadArgs, 'origin' | 'aiThreadUuid'>;
+        },
+    ): Promise<{ app: DbApp; version: DbAppVersion; thread: DbAppThread }> {
         return this.database.transaction(async (trx) => {
             const appId = app.app_id ?? uuidv4();
             let slug: string;
@@ -157,10 +209,18 @@ export class AppModel {
                     slug,
                 })
                 .returning('*');
+            const thread = await this.insertThread(trx, {
+                appUuid: appRow.app_id,
+                origin: opts?.thread?.origin ?? 'builder',
+                aiThreadUuid: opts?.thread?.aiThreadUuid ?? null,
+                createdByUserUuid: appRow.created_by_user_uuid,
+                threadNumber: 1,
+            });
             const [versionRow] = await trx(AppVersionsTableName)
                 .insert({
                     ...version,
                     app_id: appRow.app_id,
+                    app_thread_uuid: thread.app_thread_uuid,
                     status,
                     created_by_user_uuid: appRow.created_by_user_uuid,
                     ...(resources
@@ -187,8 +247,135 @@ export class AppModel {
                     registry_version: opts?.registryVersion ?? null,
                 })
                 .returning('*');
-            return { app: appRow, version: versionRow };
+            return { app: appRow, version: versionRow, thread };
         });
+    }
+
+    private async lockApp(trx: Knex, appUuid: string): Promise<DbApp> {
+        const app = await trx(AppsTableName)
+            .where({ app_id: appUuid })
+            .forUpdate()
+            .first();
+        if (!app) {
+            throw new NotFoundError(`App not found: ${appUuid}`);
+        }
+        return app;
+    }
+
+    private async insertThread(
+        trx: Knex,
+        thread: CreateAppThreadArgs & { threadNumber: number },
+    ): Promise<DbAppThread> {
+        const [row] = await trx(AppThreadsTableName)
+            .insert({
+                app_id: thread.appUuid,
+                thread_number: thread.threadNumber,
+                origin: thread.origin,
+                ai_thread_uuid: thread.aiThreadUuid,
+                coding_agent: this.dataAppCodingAgent,
+                created_by_user_uuid: thread.createdByUserUuid,
+            })
+            .returning('*');
+        return row;
+    }
+
+    // Locks the app row so concurrent calls never share a thread number.
+    async createThread(
+        thread: CreateAppThreadArgs,
+        trx?: Knex,
+    ): Promise<DbAppThread> {
+        return (trx ?? this.database).transaction(async (t) => {
+            await this.lockApp(t, thread.appUuid);
+            const max = await t(AppThreadsTableName)
+                .where({ app_id: thread.appUuid })
+                .max('thread_number as thread_number')
+                .first<{ thread_number: number | null }>();
+            return this.insertThread(t, {
+                ...thread,
+                threadNumber: (max?.thread_number ?? 0) + 1,
+            });
+        });
+    }
+
+    // Newest thread; an app written by a pod predating threads gets thread 1 here.
+    async getCurrentThread(appUuid: string, trx?: Knex): Promise<DbAppThread> {
+        const db = trx ?? this.database;
+        const newestThread = (conn: Knex) =>
+            conn(AppThreadsTableName)
+                .where({ app_id: appUuid })
+                .orderBy('thread_number', 'desc')
+                .first();
+        const current = await newestThread(db);
+        if (current) return current;
+        return db.transaction(async (t) => {
+            const app = await this.lockApp(t, appUuid);
+            const raced = await newestThread(t);
+            if (raced) return raced;
+            return this.insertThread(t, {
+                appUuid,
+                origin: 'builder',
+                aiThreadUuid: null,
+                createdByUserUuid: app.created_by_user_uuid,
+                threadNumber: 1,
+            });
+        });
+    }
+
+    async findThreadByUuid(appThreadUuid: string): Promise<DbAppThread | null> {
+        const row = await this.database(AppThreadsTableName)
+            .where({ app_thread_uuid: appThreadUuid })
+            .first();
+        return row ?? null;
+    }
+
+    // Joins a version's own thread and the app's thread 1 (`appIdColumn` names the app).
+    private static joinVersionThreads(
+        query: Knex.QueryBuilder,
+        appIdColumn: string,
+    ): Knex.QueryBuilder {
+        return query
+            .leftJoin(
+                { version_thread: AppThreadsTableName },
+                'version_thread.app_thread_uuid',
+                `${AppVersionsTableName}.app_thread_uuid`,
+            )
+            .leftJoin(
+                { first_thread: AppThreadsTableName },
+                function firstThreadJoin() {
+                    void this.on(
+                        'first_thread.app_id',
+                        '=',
+                        appIdColumn,
+                    ).andOnVal('first_thread.thread_number', '=', 1);
+                },
+            )
+            .select(
+                `${AppVersionsTableName}.*`,
+                'version_thread.thread_number as version_thread_number',
+                'first_thread.app_thread_uuid as first_thread_uuid',
+            );
+    }
+
+    // Callers must qualify version columns in `where` clauses.
+    private versionsWithThread(): Knex.QueryBuilder {
+        return AppModel.joinVersionThreads(
+            this.database(AppVersionsTableName),
+            `${AppVersionsTableName}.app_id`,
+        );
+    }
+
+    private async firstVersionWithThread(
+        query: Knex.QueryBuilder,
+    ): Promise<DbAppVersionWithThread | null> {
+        const row: (DbAppVersion & ThreadJoinColumns) | undefined =
+            await query.first();
+        if (!row) return null;
+        // An app with no thread row yet gets its thread 1 created here.
+        const threadOneUuid =
+            row.app_thread_uuid ??
+            row.first_thread_uuid ??
+            (await this.getCurrentThread(row.app_id)).app_thread_uuid;
+        return resolveVersionThread(row, threadOneUuid);
     }
 
     /**
@@ -601,19 +788,23 @@ export class AppModel {
     async getVersion(
         appId: string,
         version: number,
-    ): Promise<DbAppVersion | null> {
-        const row = await this.database(AppVersionsTableName)
-            .where({ app_id: appId, version })
-            .first();
-        return row ?? null;
+    ): Promise<DbAppVersionWithThread | null> {
+        return this.firstVersionWithThread(
+            this.versionsWithThread().where({
+                [`${AppVersionsTableName}.app_id`]: appId,
+                [`${AppVersionsTableName}.version`]: version,
+            }),
+        );
     }
 
-    async getLatestVersion(appId: string): Promise<DbAppVersion | null> {
-        const row = await this.database(AppVersionsTableName)
-            .where({ app_id: appId })
-            .orderBy('version', 'desc')
-            .first();
-        return row ?? null;
+    async getLatestVersion(
+        appId: string,
+    ): Promise<DbAppVersionWithThread | null> {
+        return this.firstVersionWithThread(
+            this.versionsWithThread()
+                .where(`${AppVersionsTableName}.app_id`, appId)
+                .orderBy(`${AppVersionsTableName}.version`, 'desc'),
+        );
     }
 
     async countVersions(appId: string): Promise<number> {
@@ -645,23 +836,31 @@ export class AppModel {
         return row ?? null;
     }
 
-    async getLatestReadyVersion(appId: string): Promise<DbAppVersion | null> {
-        const row = await this.database(AppVersionsTableName)
-            .where({ app_id: appId, status: 'ready' })
-            .orderBy('version', 'desc')
-            .first();
-        return row ?? null;
+    async getLatestReadyVersion(
+        appId: string,
+    ): Promise<DbAppVersionWithThread | null> {
+        return this.firstVersionWithThread(
+            this.versionsWithThread()
+                .where({
+                    [`${AppVersionsTableName}.app_id`]: appId,
+                    [`${AppVersionsTableName}.status`]: 'ready',
+                })
+                .orderBy(`${AppVersionsTableName}.version`, 'desc'),
+        );
     }
 
     async getLatestRenderableDataAppVizVersion(
         appId: string,
-    ): Promise<DbAppVersion | null> {
-        const row = await this.database(AppVersionsTableName)
-            .where({ app_id: appId, status: 'ready' })
-            .whereNotNull('viz_schema')
-            .orderBy('version', 'desc')
-            .first();
-        return row ?? null;
+    ): Promise<DbAppVersionWithThread | null> {
+        return this.firstVersionWithThread(
+            this.versionsWithThread()
+                .where({
+                    [`${AppVersionsTableName}.app_id`]: appId,
+                    [`${AppVersionsTableName}.status`]: 'ready',
+                })
+                .whereNotNull(`${AppVersionsTableName}.viz_schema`)
+                .orderBy(`${AppVersionsTableName}.version`, 'desc'),
+        );
     }
 
     /**
@@ -703,6 +902,7 @@ export class AppModel {
         return !!row;
     }
 
+    /** Appends to the app's current thread unless `appThreadUuid` is given. */
     async createVersion(
         appId: string,
         version: Pick<DbAppVersion, 'version' | 'prompt'>,
@@ -711,12 +911,16 @@ export class AppModel {
         resources?: AppVersionResources,
         dependencies?: AppVersionDependencies,
         vizSchema?: DataAppVizSchema,
-        opts?: { registryVersion?: string },
+        opts?: { registryVersion?: string; appThreadUuid?: string },
     ): Promise<DbAppVersion> {
+        const appThreadUuid =
+            opts?.appThreadUuid ??
+            (await this.getCurrentThread(appId)).app_thread_uuid;
         const [row] = await this.database(AppVersionsTableName)
             .insert({
                 ...version,
                 app_id: appId,
+                app_thread_uuid: appThreadUuid,
                 status,
                 created_by_user_uuid: createdByUserUuid,
                 registry_version: opts?.registryVersion ?? null,
@@ -763,7 +967,8 @@ export class AppModel {
         pinnedListOrder: number | null;
         slug: string;
         viewsCount: number;
-        versions: (DbAppVersion & {
+        currentThread: DbAppThread;
+        versions: (DbAppVersionWithThread & {
             created_by_user_first_name: string | null;
             created_by_user_last_name: string | null;
         })[];
@@ -771,6 +976,7 @@ export class AppModel {
         registrySlug: string | null;
     }> {
         const limit = opts.limit ?? 20;
+        const currentThread = await this.getCurrentThread(appId);
         const query = this.database(AppsTableName)
             .innerJoin(
                 ProjectTableName,
@@ -797,6 +1003,9 @@ export class AppModel {
                 `${UserTableName}.user_uuid`,
                 `${AppVersionsTableName}.created_by_user_uuid`,
             )
+            .modify((q) =>
+                AppModel.joinVersionThreads(q, `${AppsTableName}.app_id`),
+            )
             .leftJoin(
                 PinnedAppTableName,
                 `${PinnedAppTableName}.app_uuid`,
@@ -813,7 +1022,6 @@ export class AppModel {
             .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
             .select(
-                `${AppVersionsTableName}.*`,
                 `${AppsTableName}.name`,
                 `${AppsTableName}.description`,
                 `${AppsTableName}.icon`,
@@ -841,23 +1049,24 @@ export class AppModel {
             );
         }
 
-        const rows: ((DbAppVersion | Record<string, null>) & {
-            name: string;
-            description: string;
-            icon: string | null;
-            created_by_user_uuid: string;
-            space_uuid: string | null;
-            space_name: string | null;
-            template: DbApp['template'];
-            slug: string;
-            views_count: number;
-            registry_slug: string | null;
-            organization_uuid: string;
-            pinned_list_uuid: string | null;
-            pinned_list_order: number | null;
-            created_by_user_first_name: string | null;
-            created_by_user_last_name: string | null;
-        })[] = await query;
+        const rows: ((DbAppVersion | Record<string, null>) &
+            ThreadJoinColumns & {
+                name: string;
+                description: string;
+                icon: string | null;
+                created_by_user_uuid: string;
+                space_uuid: string | null;
+                space_name: string | null;
+                template: DbApp['template'];
+                slug: string;
+                views_count: number;
+                registry_slug: string | null;
+                organization_uuid: string;
+                pinned_list_uuid: string | null;
+                pinned_list_order: number | null;
+                created_by_user_first_name: string | null;
+                created_by_user_last_name: string | null;
+            })[] = await query;
 
         // Left join: if app doesn't exist, zero rows → 404
         if (rows.length === 0) {
@@ -885,23 +1094,24 @@ export class AppModel {
         const versions = rows.filter(
             (
                 r,
-            ): r is DbAppVersion & {
-                name: string;
-                description: string;
-                icon: string | null;
-                created_by_user_uuid: string;
-                space_uuid: string | null;
-                space_name: string | null;
-                template: DbApp['template'];
-                slug: string;
-                views_count: number;
-                registry_slug: string | null;
-                organization_uuid: string;
-                pinned_list_uuid: string | null;
-                pinned_list_order: number | null;
-                created_by_user_first_name: string | null;
-                created_by_user_last_name: string | null;
-            } => r.version !== null,
+            ): r is DbAppVersion &
+                ThreadJoinColumns & {
+                    name: string;
+                    description: string;
+                    icon: string | null;
+                    created_by_user_uuid: string;
+                    space_uuid: string | null;
+                    space_name: string | null;
+                    template: DbApp['template'];
+                    slug: string;
+                    views_count: number;
+                    registry_slug: string | null;
+                    organization_uuid: string;
+                    pinned_list_uuid: string | null;
+                    pinned_list_order: number | null;
+                    created_by_user_first_name: string | null;
+                    created_by_user_last_name: string | null;
+                } => r.version !== null,
         );
         const hasMore = versions.length > limit;
         return {
@@ -917,7 +1127,13 @@ export class AppModel {
             viewsCount,
             pinnedListUuid,
             pinnedListOrder,
-            versions: versions.slice(0, limit),
+            currentThread,
+            // getCurrentThread above created thread 1 if it was missing.
+            versions: versions
+                .slice(0, limit)
+                .map((v) =>
+                    resolveVersionThread(v, currentThread.app_thread_uuid),
+                ),
             hasMore,
             registrySlug,
         };

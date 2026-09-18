@@ -498,8 +498,24 @@ export type AppVersionStatusHistoryEntry = {
     kind: AppVersionStatusHistoryEntryKind;
 };
 
+/** What started a data app thread. */
+export const APP_THREAD_ORIGINS = ['builder', 'ai_thread', 'import'] as const;
+export type AppThreadOrigin = (typeof APP_THREAD_ORIGINS)[number];
+
+/** One conversation between the user and the coding agent on a data app. */
+export type AppThread = {
+    uuid: string;
+    // 1-based, unique per app; the highest number is the current thread.
+    number: number;
+    createdAt: Date;
+};
+
 export type ApiAppVersionSummary = {
     version: number;
+    // Thread the version's prompt was made in. Versions predating threads
+    // read back under thread 1.
+    threadUuid: string;
+    threadNumber: number;
     prompt: string;
     status: AppVersionStatus;
     statusMessage: string | null;
@@ -542,6 +558,8 @@ export type ApiGetAppResponse = ApiSuccess<{
     pinnedListOrder: number | null;
     slug: string;
     views: number;
+    // The app's newest thread; new prompts land here.
+    currentThread: AppThread;
     versions: ApiAppVersionSummary[];
     hasMore: boolean;
     // Latest ready version across ALL versions, not just the returned page.

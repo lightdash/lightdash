@@ -1241,6 +1241,8 @@ describe('AppGenerateService data app vizs', () => {
             created_by_user_uuid: 'user-1',
             created_by_user_first_name: 'A',
             created_by_user_last_name: 'B',
+            app_thread_uuid: 'thread-1',
+            thread_number: 1,
             ...overrides,
         });
         const appModel = {
@@ -1255,6 +1257,11 @@ describe('AppGenerateService data app vizs', () => {
                 template: DATA_APP_VIZ_TEMPLATE,
                 pinnedListUuid: null,
                 pinnedListOrder: null,
+                currentThread: {
+                    app_thread_uuid: 'thread-1',
+                    thread_number: 1,
+                    created_at: new Date('2026-06-30'),
+                },
                 hasMore: false,
                 versions: [
                     makeVersion({ version: 2, viz_schema: vizSchema }),
