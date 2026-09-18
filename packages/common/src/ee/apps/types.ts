@@ -42,12 +42,14 @@ export type {
  * Ordered pipeline stages. Index position determines progression — used to
  * skip completed stages when a build is retried after a worker crash.
  * 'ready' is included as the final stage; 'error' is terminal but not a
- * stage (not reachable through normal progression).
+ * stage (not reachable through normal progression). 'compact' is optional —
+ * most builds go straight from 'catalog' to 'generating'.
  */
 export const APP_VERSION_STAGE_ORDER = [
     'pending',
     'sandbox',
     'catalog',
+    'compact',
     'generating',
     'building',
     'packaging',
