@@ -1,3 +1,4 @@
+import { assertUnreachable } from '@lightdash/common';
 import { getRecentQueryFieldIds } from '../ai/agents/agentV2';
 import { AiAgentService } from './AiAgentService';
 
@@ -17,6 +18,19 @@ const result = (toolCallId: string, value: string) =>
         result: value,
         metadata: {},
     }) as Row['toolResult'];
+
+const metadataFor = (
+    status: 'success' | 'error',
+): { status: 'success' } | { status: 'error' } => {
+    switch (status) {
+        case 'success':
+            return { status: 'success' };
+        case 'error':
+            return { status: 'error' };
+        default:
+            return assertUnreachable(status, 'Unknown tool status');
+    }
+};
 
 const content = (msg: { content: unknown }) => msg.content as Array<AnyType>;
 
@@ -38,7 +52,7 @@ describe('AiAgentService SQL-approval history reconstruction', () => {
                         },
                         toolResult: {
                             ...result('tc1', 'output')!,
-                            metadata: { status },
+                            metadata: metadataFor(status),
                         },
                         approvalDecision: null,
                     },
