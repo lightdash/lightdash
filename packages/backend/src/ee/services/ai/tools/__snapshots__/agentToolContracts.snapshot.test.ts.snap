@@ -7387,10 +7387,105 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "filters": {
+                  "additionalProperties": false,
+                  "description": "Filters applied to the catalog; null when not given.",
+                  "properties": {
+                    "schema": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                    "search": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "required": [
+                    "schema",
+                    "search",
+                  ],
+                  "type": "object",
+                },
+                "matchCount": {
+                  "description": "Number of tables matched; 0 when nothing matched.",
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "tables": {
+                  "description": "Matched tables, in catalog order; empty when none matched.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "database": {
+                        "type": "string",
+                      },
+                      "qualifiedName": {
+                        "description": ""database.schema.table", ready to use in SQL.",
+                        "type": "string",
+                      },
+                      "schema": {
+                        "type": "string",
+                      },
+                      "table": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "database",
+                      "schema",
+                      "table",
+                      "qualifiedName",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "matchCount",
+                "filters",
+                "tables",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
