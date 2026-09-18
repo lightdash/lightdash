@@ -3,7 +3,10 @@ import {
     ConflictError,
     FeatureFlags,
     ForbiddenError,
+    ParameterError,
     WarehouseTypes,
+    type ApiCreateConnectionRequest,
+    type ApiUpdateConnectionRequest,
     type CreatePostgresCredentials,
     type CreateRedshiftCredentials,
     type PossibleAbilities,
@@ -15,7 +18,6 @@ import { defaultSessionUser } from '../../auth/account/account.mock';
 import {
     type ConnectionBoundContent,
     type ConnectionModel,
-    type ConnectionWriteInput,
 } from '../../models/ConnectionModel/ConnectionModel';
 import { ConnectionService } from './ConnectionService';
 
@@ -54,7 +56,7 @@ const otherWarehouseConnection: CreateRedshiftCredentials = {
     ...warehouseConnection,
     type: WarehouseTypes.REDSHIFT,
 };
-const createInput: ConnectionWriteInput = {
+const createInput: ApiCreateConnectionRequest = {
     name: 'Analytics',
     warehouseConnection,
 };
@@ -86,6 +88,8 @@ const connectionModel = {
     contractApplied: vi.fn(),
     create: vi.fn(),
     getByUuid: vi.fn(),
+    getCredentials: vi.fn(),
+    getOrganizationCredentialsForProject: vi.fn(),
     update: vi.fn(),
     rename: vi.fn(),
     hasBoundContent: vi.fn(),
@@ -100,6 +104,7 @@ const licenseService = {
 const projectModel = {
     getSummary: vi.fn(),
 };
+const testWarehouseConnection = vi.fn();
 
 const getService = () =>
     new ConnectionService({
@@ -107,6 +112,7 @@ const getService = () =>
         featureFlagService: featureFlagService as never,
         licenseService: licenseService as never,
         projectModel: projectModel as never,
+        testWarehouseConnection,
     });
 
 const duplicateNameError = () => {
@@ -131,6 +137,14 @@ describe('ConnectionService', () => {
         connectionModel.contractApplied.mockResolvedValue(true);
         connectionModel.create.mockResolvedValue(secondConnection);
         connectionModel.getByUuid.mockResolvedValue(firstConnection);
+        connectionModel.getCredentials.mockResolvedValue({
+            ...warehouseConnection,
+            listAllDatabases: false,
+            additionalDatabases: [],
+        });
+        connectionModel.getOrganizationCredentialsForProject.mockResolvedValue(
+            warehouseConnection,
+        );
         connectionModel.update.mockResolvedValue(firstConnection);
         connectionModel.rename.mockResolvedValue(firstConnection);
         connectionModel.hasBoundContent.mockResolvedValue(noBoundContent);
@@ -144,6 +158,10 @@ describe('ConnectionService', () => {
             organizationUuid,
             projectUuid,
             name: 'Project',
+        });
+        testWarehouseConnection.mockResolvedValue({
+            ok: true,
+            hops: [{ stage: 'database', status: 'ok', message: null }],
         });
     });
 
@@ -174,7 +192,7 @@ describe('ConnectionService', () => {
             user: { organizationUuid },
             featureFlagId: FeatureFlags.MultiConnectionProjects,
         });
-        expect(connectionModel.contractApplied).toHaveBeenCalledOnce();
+        expect(connectionModel.contractApplied).toHaveBeenCalledTimes(2);
         expect(connectionModel.create).toHaveBeenCalledWith(
             projectUuid,
             createInput,
@@ -191,6 +209,7 @@ describe('ConnectionService', () => {
                 'This project can hold one connection. A second connection needs the Enterprise multi-connection add-on.',
             ),
         );
+        expect(testWarehouseConnection).not.toHaveBeenCalled();
     });
 
     it('refuses a second connection without the rollout flag', async () => {
@@ -220,6 +239,70 @@ describe('ConnectionService', () => {
         );
     });
 
+    it('refuses a second connection on an unsupported warehouse type', async () => {
+        connectionModel.listByProject.mockResolvedValue([
+            { ...firstConnection, warehouseType: WarehouseTypes.SNOWFLAKE },
+        ]);
+
+        await expect(
+            getService().create(adminAccount, projectUuid, {
+                ...createInput,
+                warehouseConnection: {
+                    ...warehouseConnection,
+                    type: WarehouseTypes.SNOWFLAKE,
+                } as never,
+            }),
+        ).rejects.toEqual(
+            new ForbiddenError(
+                'Several connections are supported for Postgres and Athena projects only.',
+            ),
+        );
+        // The scope limit is read before the paid and rollout gates
+        expect(
+            licenseService.canHoldMultipleConnections,
+        ).not.toHaveBeenCalled();
+        expect(featureFlagService.get).not.toHaveBeenCalled();
+        expect(testWarehouseConnection).not.toHaveBeenCalled();
+    });
+
+    it('creates a second connection on an Athena project', async () => {
+        const athenaConnection = {
+            ...secondConnection,
+            warehouseType: WarehouseTypes.ATHENA,
+        };
+        connectionModel.listByProject.mockResolvedValue([
+            { ...firstConnection, warehouseType: WarehouseTypes.ATHENA },
+        ]);
+        connectionModel.create.mockResolvedValue(athenaConnection);
+
+        await expect(
+            getService().create(adminAccount, projectUuid, {
+                ...createInput,
+                warehouseConnection: {
+                    type: WarehouseTypes.ATHENA,
+                    region: 'eu-west-1',
+                    database: 'AwsDataCatalog',
+                    schema: 'analytics',
+                    s3StagingDir: 's3://query-results',
+                } as never,
+            }),
+        ).resolves.toEqual(athenaConnection);
+    });
+
+    it('keeps the first connection free of the warehouse type gate', async () => {
+        connectionModel.listByProject.mockResolvedValue([]);
+
+        await expect(
+            getService().create(adminAccount, projectUuid, {
+                ...createInput,
+                warehouseConnection: {
+                    ...warehouseConnection,
+                    type: WarehouseTypes.SNOWFLAKE,
+                } as never,
+            }),
+        ).resolves.toEqual(secondConnection);
+    });
+
     it('refuses a connection with a different warehouse type', async () => {
         await expect(
             getService().create(adminAccount, projectUuid, {
@@ -246,6 +329,10 @@ describe('ConnectionService', () => {
     });
 
     it('refuses deletion and lists every bound content count', async () => {
+        connectionModel.listByProject.mockResolvedValue([
+            firstConnection,
+            secondConnection,
+        ]);
         connectionModel.hasBoundContent.mockResolvedValue({
             cached_explore: 2,
             saved_sql_versions: 1,
@@ -268,6 +355,10 @@ describe('ConnectionService', () => {
         const service = getService();
 
         await service.create(adminAccount, projectUuid, createInput);
+        connectionModel.listByProject.mockResolvedValue([
+            firstConnection,
+            secondConnection,
+        ]);
         await service.delete(adminAccount, projectUuid, connectionUuid);
 
         expect(connectionModel.lockProject).toHaveBeenNthCalledWith(
@@ -316,5 +407,160 @@ describe('ConnectionService', () => {
         expect(connectionModel.transaction).not.toHaveBeenCalled();
         expect(connectionModel.listByProject).not.toHaveBeenCalled();
         expect(connectionModel.rename).not.toHaveBeenCalled();
+    });
+
+    it('returns the list with the reason that blocks another connection', async () => {
+        licenseService.canHoldMultipleConnections.mockReturnValue(false);
+
+        await expect(
+            getService().listWithCapabilities(adminAccount, projectUuid),
+        ).resolves.toEqual({
+            connections: [firstConnection],
+            capabilities: {
+                canAddConnection: false,
+                reason: 'This project can hold one connection. A second connection needs the Enterprise multi-connection add-on.',
+            },
+        });
+    });
+
+    it('names the warehouse type as the reason on an unsupported project', async () => {
+        const snowflakeConnection = {
+            ...firstConnection,
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+        };
+        connectionModel.listByProject.mockResolvedValue([snowflakeConnection]);
+
+        await expect(
+            getService().listWithCapabilities(adminAccount, projectUuid),
+        ).resolves.toEqual({
+            connections: [snowflakeConnection],
+            capabilities: {
+                canAddConnection: false,
+                reason: 'Several connections are supported for Postgres and Athena projects only.',
+            },
+        });
+    });
+
+    it('allows another connection on a Postgres project', async () => {
+        await expect(
+            getService().listWithCapabilities(adminAccount, projectUuid),
+        ).resolves.toEqual({
+            connections: [firstConnection],
+            capabilities: { canAddConnection: true },
+        });
+    });
+
+    it('tests credentials before saving them', async () => {
+        testWarehouseConnection.mockResolvedValue({
+            ok: false,
+            hops: [
+                {
+                    stage: 'database',
+                    status: 'failed',
+                    message: 'Login failed',
+                },
+            ],
+        });
+
+        await expect(
+            getService().create(adminAccount, projectUuid, createInput),
+        ).rejects.toEqual(
+            new ParameterError(
+                'Warehouse connection test failed: Login failed',
+            ),
+        );
+        expect(connectionModel.create).not.toHaveBeenCalled();
+    });
+
+    it('loads an organization credential owned by the project organization', async () => {
+        const organizationWarehouseCredentialsUuid =
+            'organization-credentials-uuid';
+
+        await getService().create(adminAccount, projectUuid, {
+            name: 'Shared',
+            organizationWarehouseCredentialsUuid,
+        });
+
+        expect(
+            connectionModel.getOrganizationCredentialsForProject,
+        ).toHaveBeenCalledWith(
+            projectUuid,
+            organizationWarehouseCredentialsUuid,
+        );
+        expect(connectionModel.create).toHaveBeenCalledWith(projectUuid, {
+            name: 'Shared',
+            organizationWarehouseCredentialsUuid,
+            warehouseConnection: {
+                ...warehouseConnection,
+                listAllDatabases: false,
+                additionalDatabases: [],
+            },
+        });
+    });
+
+    it('returns scrubbed credentials for one connection', async () => {
+        await expect(
+            getService().get(adminAccount, projectUuid, connectionUuid),
+        ).resolves.toEqual({
+            ...firstConnection,
+            warehouseConnection: {
+                type: WarehouseTypes.POSTGRES,
+                host: 'localhost',
+                port: 5432,
+                dbname: 'analytics',
+                schema: 'public',
+                listAllDatabases: false,
+                additionalDatabases: [],
+            },
+        });
+    });
+
+    it('merges omitted secrets before it tests and updates a project credential', async () => {
+        const request: ApiUpdateConnectionRequest = {
+            warehouseConnection: {
+                ...warehouseConnection,
+                password: undefined,
+            },
+        };
+
+        await getService().update(
+            adminAccount,
+            projectUuid,
+            connectionUuid,
+            request,
+        );
+
+        expect(testWarehouseConnection).toHaveBeenCalledWith(
+            adminAccount,
+            projectUuid,
+            {
+                ...warehouseConnection,
+                listAllDatabases: false,
+                additionalDatabases: [],
+            },
+        );
+        expect(connectionModel.update).toHaveBeenCalledWith(
+            projectUuid,
+            connectionUuid,
+            {
+                organizationWarehouseCredentialsUuid: null,
+                warehouseConnection: {
+                    ...warehouseConnection,
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                },
+            },
+        );
+    });
+
+    it('refuses deletion of the last connection', async () => {
+        await expect(
+            getService().delete(adminAccount, projectUuid, connectionUuid),
+        ).rejects.toEqual(
+            new ConflictError(
+                'The last connection in a project cannot be deleted.',
+            ),
+        );
+        expect(connectionModel.delete).not.toHaveBeenCalled();
     });
 });

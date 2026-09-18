@@ -2,6 +2,7 @@ import {
     MultipleConnectionsError,
     NotFoundError,
     WarehouseTypes,
+    type CreatePostgresCredentials,
 } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
@@ -10,7 +11,7 @@ import { ConnectionModel } from './ConnectionModel';
 
 const projectUuid = 'project-uuid';
 const connectionUuid = 'connection-uuid';
-const credentials = {
+const credentials: CreatePostgresCredentials = {
     type: WarehouseTypes.POSTGRES,
     host: 'localhost',
     user: 'postgres',
@@ -133,6 +134,25 @@ describe('ConnectionModel', () => {
                 'organization-uuid',
             ]),
         );
+    });
+
+    test('clears project ciphertext when an organization credential is attached', async () => {
+        tracker.on.select(connectionQuery).response([connectionRow]);
+        tracker.on
+            .select(/organization_warehouse_credentials/)
+            .response([{ warehouse_connection: encryptedCredentials }]);
+        tracker.on.update(/warehouse_credentials/).response(1);
+
+        await model.update(projectUuid, connectionUuid, {
+            warehouseConnection: credentials,
+            organizationWarehouseCredentialsUuid:
+                'organization-credentials-uuid',
+        });
+
+        expect(tracker.history.update[0].sql).toContain(
+            '"encrypted_credentials" = $5',
+        );
+        expect(tracker.history.update[0].bindings).toContain(null);
     });
 
     test('resolves one live connection', async () => {

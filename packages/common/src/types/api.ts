@@ -330,6 +330,9 @@ import { type ProjectMemberProfile } from './projectMemberProfile';
 import { type ProjectMemberRole } from './projectMemberRole';
 import {
     DbtProjectType,
+    type ApiConnectionResponse,
+    type ApiConnectionsResponse,
+    type ApiConnectionWithCredentialsResponse,
     type CreateTrainingPreviewResults,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
@@ -947,8 +950,9 @@ export type UpdateProject = Omit<
     | 'expiresAt'
     | 'agentSqlScope'
     | 'connections'
+    | 'warehouseConnection'
 > & {
-    warehouseConnection: CreateWarehouseCredentials;
+    warehouseConnection?: CreateWarehouseCredentials;
 };
 
 export type CacheMetadata = {
@@ -1275,6 +1279,9 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ApiConnectionsResponse['results']
+    | ApiConnectionResponse['results']
+    | ApiConnectionWithCredentialsResponse['results']
     | Document
     | DocumentList
     | ContentReviewRequest

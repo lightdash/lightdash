@@ -75,11 +75,24 @@ const createMockService = (overrides: AnyType = {}) => {
         ...overrides.organizationModel,
     };
 
+    const getWithSensitiveFields =
+        overrides.projectModel?.getWithSensitiveFields ?? vi.fn();
     const projectModel = {
         getDefaultProjectUuids: vi.fn(),
         getDefaultProjectUuidsByName: vi.fn(),
         getSummary: vi.fn(),
-        getWithSensitiveFields: vi.fn(),
+        getWithSensitiveFields,
+        getWarehouseCredentialsForProject: vi.fn(
+            async (projectUuid: string) => {
+                const project = await getWithSensitiveFields(projectUuid);
+                if (!project?.warehouseConnection) {
+                    throw new ParameterError(
+                        `Project ${projectUuid} has no warehouse connection`,
+                    );
+                }
+                return project.warehouseConnection;
+            },
+        ),
         update: vi.fn(),
         ...overrides.projectModel,
     };
@@ -378,7 +391,11 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                     getDefaultProjectUuids: vi
                         .fn()
                         .mockResolvedValue([mockProjectUuid]),
-                    getWithSensitiveFields: vi
+                    getWithSensitiveFields: vi.fn().mockResolvedValue({
+                        ...mockProject,
+                        warehouseConnection: undefined,
+                    }),
+                    getWarehouseCredentialsForProject: vi
                         .fn()
                         .mockRejectedValue(new MultipleConnectionsError()),
                 },

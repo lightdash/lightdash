@@ -99,6 +99,21 @@ export const supportsDatabaseListing = (
     !!warehouseType &&
     WAREHOUSE_TYPES_WITH_DATABASE_LISTING.includes(warehouseType);
 
+/**
+ * Warehouse types a project may hold several connections on. The gate is on
+ * adding a connection, not on using one: a project of another type that
+ * already holds several keeps working.
+ */
+export const MULTI_CONNECTION_WAREHOUSE_TYPES: WarehouseTypes[] = [
+    WarehouseTypes.POSTGRES,
+    WarehouseTypes.ATHENA,
+];
+
+export const supportsMultipleConnections = (
+    warehouseType: WarehouseTypes | undefined,
+): boolean =>
+    !!warehouseType && MULTI_CONNECTION_WAREHOUSE_TYPES.includes(warehouseType);
+
 export enum BigqueryAuthenticationType {
     SSO = 'sso',
     PRIVATE_KEY = 'private_key',
@@ -1368,9 +1383,55 @@ export type Connection = {
     createdAt: Date;
 };
 
+/**
+ * Raised when a connection name is already taken in the project. Shared so the
+ * client can put the conflict on the Name field instead of a toast.
+ */
+export const CONNECTION_NAME_CONFLICT_MESSAGE =
+    'A connection with this name already exists in this project.';
+
+export type ConnectionCapabilities = {
+    canAddConnection: boolean;
+    reason?: string;
+};
+
+export type ConnectionWithCredentials = Connection & {
+    warehouseConnection: WarehouseCredentials;
+};
+
 export type ApiConnectionsResponse = {
     status: 'ok';
-    results: Connection[];
+    results: {
+        connections: Connection[];
+        capabilities: ConnectionCapabilities;
+    };
+};
+
+export type ApiConnectionResponse = {
+    status: 'ok';
+    results: Connection;
+};
+
+export type ApiConnectionWithCredentialsResponse = {
+    status: 'ok';
+    results: ConnectionWithCredentials;
+};
+
+export type ApiCreateConnectionRequest = {
+    name: string;
+    warehouseConnection?: CreateWarehouseCredentials;
+    organizationWarehouseCredentialsUuid?: string;
+};
+
+export type ApiUpdateConnectionRequest = {
+    warehouseConnection?: CreateWarehouseCredentialsWithOptionalSecrets;
+    organizationWarehouseCredentialsUuid?: string | null;
+    listAllDatabases?: boolean;
+    additionalDatabases?: string[];
+};
+
+export type ApiRenameConnectionRequest = {
+    name: string;
 };
 
 export type Project = {
