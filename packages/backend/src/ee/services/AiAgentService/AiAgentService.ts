@@ -11321,11 +11321,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 user,
                 featureFlagId: FeatureFlags.AiFilterExpressions,
             });
-        const { enabled: toolSearchEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiAgentToolSearch,
-            });
+        const [{ enabled: toolSearchEnabled }, { enabled: codeModeEnabled }] =
+            await Promise.all([
+                this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.AiAgentToolSearch,
+                }),
+                this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.AiAgentCodeMode,
+                }),
+            ]);
         let aiWritebackEnabled = hasTrustedPromptUserIdentity;
         if (!aiWritebackEnabled) {
             this.logger.info(
@@ -11689,6 +11695,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             enableMergeQueries: mergeQueriesEnabled,
             enableFilterExpressions: filterExpressionsEnabled,
             enableToolSearch: toolSearchEnabled,
+            enableCodeMode: codeModeEnabled,
             repoFsRoot,
             repoFsSupportsCodeSearch,
             canRunSql,
@@ -13244,6 +13251,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     return 'Reviewing the project context...';
                 case 'searchTools':
                     return 'Finding the right tools...';
+                case 'runCode':
+                    return 'Combining the results...';
                 case 'findContent':
                 case 'findCharts':
                 case 'findCustomChartTypes':

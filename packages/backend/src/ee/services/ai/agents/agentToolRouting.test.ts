@@ -1,8 +1,14 @@
+import { experimental_codeModeTool as codeModeTool } from '@ai-sdk/code-mode';
 import { tool, type ModelMessage, type ToolSet } from 'ai';
 import { z } from 'zod';
 import type { AiAgentArgs } from '../types/aiAgent';
 import {
     ALWAYS_LOADED_TOOL_NAMES,
+    CODE_MODE_TOOL_NAME,
+    CODE_MODE_TOOL_NAMES,
+    copyToolCaller,
+    getAgentToolRouting,
+    isToolCallerTool,
     isToolRoutingEnabled,
     TOOL_SEARCH_TOOL_NAME,
     withToolSearch,
@@ -121,5 +127,80 @@ describe('withToolSearch', () => {
         for (const name of ALWAYS_LOADED_TOOL_NAMES) {
             expect(tools[name].deferLoading).toBeUndefined();
         }
+    });
+});
+
+describe('getAgentToolRouting', () => {
+    it('leaves the tool set alone when code mode is off', () => {
+        const tools = stubTools(['grepFields']);
+
+        expect(
+            getAgentToolRouting(tools, {
+                enableCodeMode: false,
+                execution: standardExecution,
+            }),
+        ).toEqual({ tools, toolCallers: undefined });
+    });
+
+    it('adds the code tool and routes read-only tools through it', () => {
+        const routing = getAgentToolRouting(
+            {
+                ...stubTools([
+                    'grepFields',
+                    'generateVisualization',
+                    'runSql',
+                    TOOL_SEARCH_TOOL_NAME,
+                ]),
+            },
+            { enableCodeMode: true, execution: standardExecution },
+        );
+
+        expect(isToolCallerTool(routing.tools[CODE_MODE_TOOL_NAME])).toBe(true);
+        expect(routing.toolCallers).toEqual({
+            grepFields: [CODE_MODE_TOOL_NAME, 'AI_SDK_DIRECT_TOOL_CALL'],
+            [TOOL_SEARCH_TOOL_NAME]: [
+                CODE_MODE_TOOL_NAME,
+                'AI_SDK_DIRECT_TOOL_CALL',
+            ],
+        });
+    });
+
+    it('keeps tools with side effects or approvals direct-only', () => {
+        for (const name of [
+            'generateVisualization',
+            'runSql',
+            'createContent',
+            'editDbtProject',
+            'editRepo',
+            'generateDataApp',
+            'createScheduledDelivery',
+            'exploreRepo',
+        ]) {
+            expect(CODE_MODE_TOOL_NAMES.has(name)).toBe(false);
+        }
+    });
+
+    it('skips code mode for allowlisted runs', () => {
+        const tools = stubTools(['grepFields']);
+        const routing = getAgentToolRouting(tools, {
+            enableCodeMode: true,
+            execution: {
+                ...standardExecution,
+                toolAllowlist: new Set(['grepFields']),
+            },
+        });
+
+        expect(routing.toolCallers).toBeUndefined();
+        expect(CODE_MODE_TOOL_NAME in routing.tools).toBe(false);
+    });
+});
+
+describe('copyToolCaller', () => {
+    it('carries the tool caller marker over to a derived tool', () => {
+        const code = codeModeTool({ toolDiscovery: 'conversation' });
+        const derived = copyToolCaller(code, { ...code });
+
+        expect(isToolCallerTool({ ...code })).toBe(false);
+        expect(isToolCallerTool(derived)).toBe(true);
     });
 });

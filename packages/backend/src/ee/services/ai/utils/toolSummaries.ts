@@ -27,6 +27,8 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
     switch (toolName) {
         case 'searchTools':
             return quoted(readString(input, ['query'])) ?? 'Searching tools';
+        case 'runCode':
+            return 'Running code';
         case 'runSql':
             return 'Checking query';
         case 'repoShell':

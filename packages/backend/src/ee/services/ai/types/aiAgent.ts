@@ -239,6 +239,8 @@ export type AiAgentArgs = AnyAiModel & {
     enableFilterExpressions: boolean;
     // AI SDK tool search: non-core tools are deferred and found via searchTools.
     enableToolSearch: boolean;
+    // AI SDK code mode: the runCode tool orchestrates read-only tools.
+    enableCodeMode: boolean;
     // Whether the general-purpose coding agent (`editRepo`) is available — the
     // CodingAgent flag, the org has a writable Git installation, and (in Slack)
     // a trusted prompt identity. Independent of enableAiWriteback.

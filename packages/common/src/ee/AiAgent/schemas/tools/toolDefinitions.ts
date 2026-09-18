@@ -1357,9 +1357,9 @@ export const readPinnedThreadToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolReadPinnedThreadOutputSchema },
 });
 
-// Mirror of the AI SDK's own `toolSearch()` tool. The SDK builds the tool the
-// model sees; this definition only lets its calls persist and render like a
-// built-in tool.
+// Mirrors of the AI SDK's own tools (`toolSearch()` and
+// `@ai-sdk/code-mode`). The SDK builds the tools the model sees; these
+// definitions only let their calls persist and render like built-in tools.
 export const toolSearchToolsArgsSchema = z.object({
     query: z.string(),
 });
@@ -1383,6 +1383,28 @@ export const searchToolsToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolSearchToolsArgsSchema,
     agent: { outputSchema: toolSearchToolsOutputSchema },
+});
+
+export const toolRunCodeArgsSchema = z.object({
+    js: z.string(),
+});
+
+// A program returns whatever JSON it built.
+export const toolRunCodeOutputSchema = z.unknown();
+
+export const runCodeToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'runCode',
+    typeof toolRunCodeArgsSchema,
+    typeof toolRunCodeArgsSchema,
+    typeof toolRunCodeOutputSchema
+> = defineTool({
+    name: 'runCode',
+    title: 'Run code',
+    description:
+        'Run a sandboxed JavaScript program that calls the available tools through the global `tools` object and returns JSON.',
+    availability: ['agent'],
+    inputSchema: toolRunCodeArgsSchema,
+    agent: { outputSchema: toolRunCodeOutputSchema },
 });
 
 const submitResearchReportOutputSchema = z.object({
@@ -1800,6 +1822,7 @@ type AgentToolDefinitionsByName = {
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
     readPinnedThread: typeof readPinnedThreadToolDefinition;
     searchTools: typeof searchToolsToolDefinition;
+    runCode: typeof runCodeToolDefinition;
     submitResearchReport: typeof submitResearchReportToolDefinition;
     delegateResearchTask: typeof delegateResearchTaskToolDefinition;
     submitWorkerFindings: typeof submitWorkerFindingsToolDefinition;
@@ -1859,6 +1882,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
     readPinnedThread: readPinnedThreadToolDefinition,
     searchTools: searchToolsToolDefinition,
+    runCode: runCodeToolDefinition,
     submitResearchReport: submitResearchReportToolDefinition,
     delegateResearchTask: delegateResearchTaskToolDefinition,
     submitWorkerFindings: submitWorkerFindingsToolDefinition,
@@ -1925,6 +1949,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getKnowledgeDocumentContentToolDefinition,
     readPinnedThreadToolDefinition,
     searchToolsToolDefinition,
+    runCodeToolDefinition,
     submitResearchReportToolDefinition,
     delegateResearchTaskToolDefinition,
     submitWorkerFindingsToolDefinition,

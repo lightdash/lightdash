@@ -116,7 +116,12 @@ import {
     summarizeToolCall,
     summarizeToolResult,
 } from '../utils/toolSummaries';
-import { isToolRoutingEnabled, withToolSearch } from './agentToolRouting';
+import {
+    copyToolCaller,
+    getAgentToolRouting,
+    isToolRoutingEnabled,
+    withToolSearch,
+} from './agentToolRouting';
 import { getMcpActiveTools } from './mcpToolGating';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
@@ -1450,7 +1455,7 @@ export const withEarlyToolProgress = (
             }
             return [
                 toolName,
-                {
+                copyToolCaller(toolDef, {
                     ...toolDef,
                     execute: (input: AnyType, options: AnyType) => {
                         const progress = updateProgress(
@@ -1476,7 +1481,7 @@ export const withEarlyToolProgress = (
                         });
                         return originalExecute(input, options);
                     },
-                },
+                }),
             ];
         }),
     ) as ToolSet;
@@ -1670,6 +1675,8 @@ export const getAgentMessages = (
         enableMergeQueries: args.enableMergeQueries,
         enableToolSearch:
             args.enableToolSearch && isToolRoutingEnabled(args.execution),
+        enableCodeMode:
+            args.enableCodeMode && isToolRoutingEnabled(args.execution),
         warehouseType: args.warehouseType,
         warehouseSchema: args.warehouseSchema,
         sqlScope: args.sqlScope,
@@ -1784,6 +1791,7 @@ export const generateAgentResponse = async ({
             dependencies.updateProgress,
             args.execution.mode === 'deep_research',
         );
+        const routing = getAgentToolRouting(tools, args);
         await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
         const messages = getAgentMessages(
             args,
@@ -1802,7 +1810,7 @@ export const generateAgentResponse = async ({
         const prepareStep = buildPrepareStep({
             args,
             dependencies,
-            tools,
+            tools: routing.tools,
             mcpToolNames: Object.keys(mcpToolSetup.tools).filter(
                 (name) => name in tools,
             ),
@@ -1830,7 +1838,8 @@ export const generateAgentResponse = async ({
             abortSignal,
             providerOptions: args.providerOptions,
             model: args.model,
-            tools,
+            tools: routing.tools,
+            experimental_toolCallers: routing.toolCallers,
             allowSystemInMessages: true,
             messages,
             onStepFinish: async (step) => {
@@ -2170,6 +2179,7 @@ export const streamAgentResponse = async ({
             projectParameterDefinitions,
             customChartTypeLibrary,
         );
+        const routing = getAgentToolRouting(tools, args);
         await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
         const messages = getAgentMessages(
             args,
@@ -2188,7 +2198,7 @@ export const streamAgentResponse = async ({
         const prepareStep = buildPrepareStep({
             args,
             dependencies,
-            tools,
+            tools: routing.tools,
             mcpToolNames: Object.keys(mcpToolSetup.tools).filter(
                 (name) => name in tools,
             ),
@@ -2211,7 +2221,8 @@ export const streamAgentResponse = async ({
             ],
             providerOptions: args.providerOptions,
             model: args.model,
-            tools,
+            tools: routing.tools,
+            experimental_toolCallers: routing.toolCallers,
             allowSystemInMessages: true,
             messages,
             onChunk: (event) => {
