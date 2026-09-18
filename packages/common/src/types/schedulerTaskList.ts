@@ -28,6 +28,7 @@ import { type RenameResourcesPayload } from './rename';
 import {
     type BackfillDefaultUserSpacesPayload,
     type CompileProjectPayload,
+    type CopyPreviewContentPayload,
     type CreateReviewJiraIssuePayload,
     type CreateReviewLinearIssuePayload,
     type DownloadAsyncQueryResultsPayload,
@@ -231,6 +232,7 @@ export const SCHEDULER_TASKS = {
     UPLOAD_GSHEET_FROM_QUERY: 'uploadGsheetFromQuery',
     VALIDATE_PROJECT: 'validateProject',
     COMPILE_PROJECT: 'compileProject',
+    COPY_PREVIEW_CONTENT: 'copyPreviewContent',
     CREATE_PROJECT_WITH_COMPILE: 'createProjectWithCompile',
     TEST_AND_COMPILE_PROJECT: 'testAndCompileProject',
     SQL_RUNNER: 'sqlRunner',
@@ -278,6 +280,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY]: UploadGsheetPayload;
     [SCHEDULER_TASKS.VALIDATE_PROJECT]: ValidateProjectPayload;
     [SCHEDULER_TASKS.COMPILE_PROJECT]: CompileProjectPayload;
+    [SCHEDULER_TASKS.COPY_PREVIEW_CONTENT]: CopyPreviewContentPayload;
     [SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE]: SchedulerCreateProjectWithCompilePayload;
     [SCHEDULER_TASKS.TEST_AND_COMPILE_PROJECT]: CompileProjectPayload;
     [SCHEDULER_TASKS.SQL_RUNNER]: SqlRunnerPayload;

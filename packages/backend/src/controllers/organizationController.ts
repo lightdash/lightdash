@@ -835,6 +835,10 @@ export class OrganizationController extends BaseController {
                 toSessionUser(req.account),
                 body,
                 getRequestMethod(req.header(LightdashRequestMethodHeader)),
+                undefined,
+                body.asyncCopyContent
+                    ? { mode: 'async', compile: null }
+                    : { mode: 'sync' },
             );
 
         return {

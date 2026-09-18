@@ -2,6 +2,7 @@ import {
     AnyType,
     BackfillDefaultUserSpacesPayload,
     CompileProjectPayload,
+    CopyPreviewContentPayload,
     CreateSchedulerTarget,
     EmailBatchNotificationPayload,
     EmailNotificationPayload,
@@ -1333,6 +1334,18 @@ export class SchedulerClient {
         });
 
         return jobId;
+    }
+
+    async copyPreviewContent(payload: CopyPreviewContentPayload) {
+        const graphileClient = await this.graphileUtils;
+        return SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.COPY_PREVIEW_CONTENT,
+            payload,
+            new Date(),
+            JobPriority.HIGH,
+            1, // Content duplication is not safe to retry.
+        );
     }
 
     async compileProject(payload: CompileProjectPayload) {
