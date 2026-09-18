@@ -28,6 +28,7 @@ import {
     IdContentMapping,
     isExploreError,
     isUserManagedExplore,
+    MultipleConnectionsError,
     normalizeWarehouseCredentials,
     NotFoundError,
     OrganizationMemberRole,
@@ -840,15 +841,22 @@ export class ProjectModel {
             warehouseConnection: data,
             organizationWarehouseCredentialsUuid,
         };
-        const connections = await connectionModel.listByProject(projectUuid);
-        if (connections.length === 0) {
+        // A project can hold several connections, so there is no project_id
+        // uniqueness to conflict on. Target the live row explicitly, from one
+        // read: re-resolving would let the set change underneath this write.
+        const liveConnections =
+            await connectionModel.listByProject(projectUuid);
+        if (liveConnections.length > 1) {
+            throw new MultipleConnectionsError();
+        }
+        const [liveConnection] = liveConnections;
+        if (liveConnection === undefined) {
             await connectionModel.create(projectUuid, input);
             return;
         }
-        const connection = await connectionModel.resolveSole(projectUuid);
         await connectionModel.update(
             projectUuid,
-            connection.connectionUuid,
+            liveConnection.connectionUuid,
             input,
         );
     }

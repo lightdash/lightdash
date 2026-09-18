@@ -53,6 +53,20 @@ describe('ConnectionModel', () => {
         vi.clearAllMocks();
     });
 
+    test('reports the connection contract as applied when project uniqueness is absent', async () => {
+        tracker.on.select('pg_constraint').response([]);
+
+        await expect(model.contractApplied()).resolves.toBe(true);
+    });
+
+    test('reports the connection contract as pending while project uniqueness remains', async () => {
+        tracker.on
+            .select('pg_constraint')
+            .response([{ conname: 'warehouse_credentials_project_id_unique' }]);
+
+        await expect(model.contractApplied()).resolves.toBe(false);
+    });
+
     test('lists live connections without credentials', async () => {
         tracker.on.select(connectionQuery).response([connectionRow]);
 

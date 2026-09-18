@@ -64,6 +64,14 @@ export class ConnectionModel {
         this.encryptionUtil = encryptionUtil;
     }
 
+    async contractApplied(): Promise<boolean> {
+        const constraint = await this.database('pg_constraint')
+            .where('conname', 'warehouse_credentials_project_id_unique')
+            .whereRaw(`conrelid = '${WarehouseCredentialTableName}'::regclass`)
+            .first('conname');
+        return constraint === undefined;
+    }
+
     private baseQuery() {
         return this.database(WarehouseCredentialTableName)
             .innerJoin(
