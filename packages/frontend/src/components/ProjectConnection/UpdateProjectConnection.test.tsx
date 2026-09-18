@@ -161,6 +161,13 @@ const submit = async () => {
     await user.click(screen.getByRole('button', { name: 'Save and test' }));
 };
 
+const deploy = async () => {
+    const user = userEvent.setup();
+    await user.click(
+        screen.getByRole('button', { name: 'Test & deploy project' }),
+    );
+};
+
 const updateBody = (calls: ApiCall[]) => {
     const call = calls.find(
         ({ url, method }) => url === PROJECT_URL && method === 'PATCH',
@@ -190,6 +197,26 @@ describe('UpdateProjectConnection warehouse ownership', () => {
             screen.getByRole('button', { name: 'Save credentials' }),
         ).toBeVisible();
         expect(screen.queryByText('Connections')).not.toBeInTheDocument();
+    });
+
+    it('keeps the local dbt target while the single card owns the connection', async () => {
+        routeApi({
+            project: buildProject({
+                dbtConnection: {
+                    type: DbtProjectType.DBT,
+                    target: 'prod',
+                    environment: [],
+                    selector: '',
+                },
+            }),
+            connections: [primaryConnection],
+            canAddConnection: false,
+        });
+
+        renderPage();
+
+        await screen.findByText('Warehouse connection');
+        expect(screen.getByLabelText('Target name')).toBeVisible();
     });
 
     it('hands warehouse editing to the connections list once another connection is allowed', async () => {
@@ -308,5 +335,42 @@ describe('UpdateProjectConnection submit payload', () => {
 
         await waitFor(() => expect(updateBody(calls)).toBeDefined());
         expect(updateBody(calls)).not.toHaveProperty('warehouseConnection');
+    });
+
+    it('deploys local dbt settings without hidden warehouse fields', async () => {
+        const calls = routeApi({
+            project: buildProject({
+                dbtConnection: {
+                    type: DbtProjectType.DBT,
+                    target: 'prod',
+                    environment: [],
+                    selector: '',
+                },
+                warehouseConnection: undefined,
+                connections: [primaryConnection, secondConnection],
+                requireUserCredentials: true,
+            }),
+            connections: [primaryConnection, secondConnection],
+            canAddConnection: false,
+        });
+
+        renderPage();
+
+        await screen.findByText('Connections');
+        expect(screen.queryByLabelText('Schema')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Target name')).not.toBeInTheDocument();
+        await deploy();
+
+        await waitFor(() => expect(updateBody(calls)).toBeDefined());
+        const body = updateBody(calls)!;
+        expect(body).not.toHaveProperty('warehouseConnection');
+        expect(body).toMatchObject({
+            name: 'Jaffle shop',
+            dbtConnection: {
+                type: DbtProjectType.DBT,
+                target: 'prod',
+            },
+            requireUserCredentials: true,
+        });
     });
 });
