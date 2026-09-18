@@ -48,6 +48,7 @@ export * from './coder';
 export * from './composerArtifact';
 export * from './dashboardContext';
 export * from './aiAgentReviewClassifierTypes';
+export * from './documentGuidance';
 export * from './documentTypes';
 export * from './filterExploreByTags';
 export * from './projectContext';

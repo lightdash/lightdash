@@ -286,6 +286,20 @@ describe('AI Agent Document authoring', () => {
                     'Include every cell to retain',
                 );
                 expect(prompt.content).toContain('Use H1 for sections');
+                expect(prompt.content).toContain(
+                    'questions explored, evidence and findings, follow-up questions, and conclusions and limitations',
+                );
+                expect(prompt.content).toContain(
+                    'Explicit user scope and format instructions take precedence',
+                );
+                expect(prompt.content).toContain(
+                    'not private model reasoning or a verbatim transcript',
+                );
+                expect(prompt.content).toContain(
+                    'do not invent findings or research steps',
+                );
+            } else {
+                expect(prompt.content).not.toContain('research journey');
             }
         },
     );
