@@ -15,6 +15,7 @@ import {
     type DataAppVizContext,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Badge,
     Box,
     Button,
@@ -29,6 +30,7 @@ import {
     Tooltip,
     useMatches,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
     IconAppsOff,
     IconAppWindow,
@@ -38,6 +40,7 @@ import {
     IconExternalLink,
     IconArrowBackUp,
     IconFileDescription,
+    IconHistory,
     IconLayoutDashboard,
     IconLink,
     IconPackage,
@@ -97,6 +100,7 @@ import ChatMessageContent from '../features/apps/ChatMessageContent';
 import AppBuilderSidebarToggle from '../features/apps/components/AppBuilderSidebarToggle';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
+import AppHistoryDrawer from '../features/apps/components/AppHistoryDrawer';
 import AppPreview from '../features/apps/components/AppPreview';
 import AppVersionNarration from '../features/apps/components/AppVersionNarration';
 import ClarificationQuestionList from '../features/apps/components/ClarificationQuestionList';
@@ -153,6 +157,7 @@ import {
     elementRefKey,
     refToWireString,
 } from '../features/apps/utils/elementRefs';
+import { getHistoryLiveBuild } from '../features/apps/utils/historyLiveBuild';
 import { getVersionNarration } from '../features/apps/utils/versionNarration';
 import { versionsToChatMessages } from '../features/apps/utils/versionsToChatMessages';
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
@@ -668,6 +673,10 @@ const AppGenerate: FC = () => {
     const [restoreTargetVersion, setRestoreTargetVersion] = useState<
         number | null
     >(null);
+    // Project history drawer over the chat; `openHistory` is also the target
+    // of the thread divider's CTA in the chat.
+    const [isHistoryOpen, { open: openHistory, close: closeHistory }] =
+        useDisclosure(false);
     const { mutateAsync: uploadFile } = useAppFileUpload();
     const { showToastError, showToastWarning } = useToaster();
     const { mutateAsync: uploadThumbnail } = useAppThumbnailUpload();
@@ -793,6 +802,15 @@ const AppGenerate: FC = () => {
     // question UI, not a placeholder).
     const isAgentWorking =
         isGenerating || isIterating || isBuilding || isClarifying;
+    // Shown on top of history until the poller brings the building version.
+    const historyLiveBuild = useMemo(
+        () =>
+            getHistoryLiveBuild(
+                localMessages,
+                (isGenerating || isIterating) && !isBuilding,
+            ),
+        [localMessages, isGenerating, isIterating, isBuilding],
+    );
     const isLoading = isSubmitting || isAgentWorking || hasPendingClarification;
 
     // OS notification when a build finishes (only fires when tab is in background)
@@ -888,7 +906,7 @@ const AppGenerate: FC = () => {
     // 1-indexed and contiguous, so seeing version 1 means we've loaded
     // everything and the "Load earlier messages" button is misleading.
     const hasUnloadedEarlierVersions =
-        hasNextPage && !allVersions.some((v) => v.version === 1);
+        hasNextPage === true && !allVersions.some((v) => v.version === 1);
 
     // Latest ready version for this app. Updates as new versions finish
     // building — preview defaults to this unless the user pins an older one.
@@ -1875,6 +1893,22 @@ const AppGenerate: FC = () => {
                                     collapsed={isChatPanelCollapsed}
                                     onToggle={handleToggleChatPanel}
                                 />
+                                {activeAppUuid && (
+                                    <Tooltip label="Show project history">
+                                        <ActionIcon
+                                            size="md"
+                                            className={classes.sidebarHistory}
+                                            onClick={openHistory}
+                                            aria-label="Show project history"
+                                        >
+                                            <MantineIcon
+                                                icon={IconHistory}
+                                                size={16}
+                                                stroke={1.7}
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                )}
                             </Box>
                         )}
                         {newAppLanding && (
@@ -3213,6 +3247,31 @@ const AppGenerate: FC = () => {
                                             }
                                             askAiItem={null}
                                         />
+                                    }
+                                />
+                            )}
+                            {activeAppUuid && (
+                                <AppHistoryDrawer
+                                    opened={isHistoryOpen}
+                                    onClose={closeHistory}
+                                    versions={allVersions}
+                                    latestReadyVersion={
+                                        latestReadyVersion?.version ?? null
+                                    }
+                                    viewedVersion={effectivePinnedVersion}
+                                    onView={(version) =>
+                                        version === null
+                                            ? setPin(null)
+                                            : pinPreviewToVersion(version)
+                                    }
+                                    onRestore={setRestoreTargetVersion}
+                                    liveBuild={historyLiveBuild}
+                                    hasEarlier={hasUnloadedEarlierVersions}
+                                    isFetchingEarlier={isFetchingNextPage}
+                                    fetchEarlier={loadEarlierMessages}
+                                    currentThreadNumber={
+                                        appData?.pages?.[0]?.currentThread
+                                            .number ?? null
                                     }
                                 />
                             )}
