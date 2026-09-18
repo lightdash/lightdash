@@ -237,6 +237,7 @@ export {
     stripDucklakeNestedSensitive,
     SupportedDbtVersions,
     supportsOptionalUserCredentials,
+    allowsOptionalUserCredentials,
     WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS,
     WarehouseTypes,
 } from './types/projects';

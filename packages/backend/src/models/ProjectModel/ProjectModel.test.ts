@@ -1,9 +1,11 @@
 import {
     AnyType,
     AthenaAuthenticationType,
+    BigqueryAuthenticationType,
     CompiledDimension,
     CompiledMetric,
     CreateAthenaCredentials,
+    CreateBigqueryCredentials,
     CreateDatabricksCredentials,
     CreateDuckdbMotherduckCredentials,
     CreatePostgresCredentials,
@@ -2042,6 +2044,52 @@ describe('ProjectModel', () => {
                 ),
             ).toHaveLength(0);
         });
+    });
+
+    describe('mergeMissingProjectConfigSecrets', () => {
+        test.each([
+            [true, undefined, true],
+            [false, undefined, false],
+            [undefined, undefined, undefined],
+            [true, false, false],
+            [false, true, true],
+        ])(
+            'preserves BigQuery opt-in unless explicitly changed (%s, %s -> %s)',
+            (savedValue, incomingValue, expectedValue) => {
+                const connection: CreateBigqueryCredentials = {
+                    type: WarehouseTypes.BIGQUERY,
+                    authenticationType: BigqueryAuthenticationType.ADC,
+                    project: 'project',
+                    dataset: 'dataset',
+                    keyfileContents: {},
+                    timeoutSeconds: undefined,
+                    priority: undefined,
+                    retries: undefined,
+                    location: undefined,
+                    maximumBytesBilled: undefined,
+                };
+                const result = ProjectModel.mergeMissingProjectConfigSecrets(
+                    {
+                        ...expectedProject,
+                        warehouseConnection: {
+                            ...connection,
+                            allowUserCredentials: incomingValue,
+                        },
+                    },
+                    {
+                        ...expectedProject,
+                        warehouseConnection: {
+                            ...connection,
+                            allowUserCredentials: savedValue,
+                        },
+                    },
+                );
+
+                expect(result.warehouseConnection).toMatchObject({
+                    allowUserCredentials: expectedValue,
+                });
+            },
+        );
     });
 
     describe('mergeMissingWarehouseSecrets', () => {

@@ -3133,6 +3133,7 @@ describe('ProjectService', () => {
                     private_key: 'project-private-key',
                 },
                 requireUserCredentials: false,
+                allowUserCredentials: true,
             };
             const personalCredentials = {
                 uuid: 'personal-bigquery-credentials',
@@ -3184,6 +3185,28 @@ describe('ProjectService', () => {
                 ).userWarehouseCredentialsModel.findForProjectWithSecrets =
                     findPersonalCredentials;
             });
+
+            test.each([undefined, false])(
+                'uses the shared connection when personal credentials are not enabled (%s)',
+                async (allowUserCredentials) => {
+                    const sharedCredentials = {
+                        ...projectCredentials,
+                        allowUserCredentials,
+                    };
+                    vi.mocked(
+                        projectModel.getWarehouseCredentialsForProject,
+                    ).mockResolvedValueOnce(sharedCredentials);
+                    findPersonalCredentials.mockResolvedValue(
+                        personalCredentials,
+                    );
+
+                    expect(await getCredentials()).toEqual({
+                        ...sharedCredentials,
+                        userWarehouseCredentialsUuid: undefined,
+                    });
+                    expect(findPersonalCredentials).not.toHaveBeenCalled();
+                },
+            );
 
             test.each([
                 BigqueryAuthenticationType.PRIVATE_KEY,
@@ -3250,6 +3273,7 @@ describe('ProjectService', () => {
                 ).mockResolvedValueOnce({
                     ...projectCredentials,
                     requireUserCredentials: true,
+                    allowUserCredentials: false,
                 });
 
                 await expect(getCredentials()).rejects.toThrow(
@@ -3263,6 +3287,7 @@ describe('ProjectService', () => {
                 ).mockResolvedValueOnce({
                     ...projectCredentials,
                     requireUserCredentials: true,
+                    allowUserCredentials: false,
                 });
                 findPersonalCredentials.mockResolvedValue(personalCredentials);
 
