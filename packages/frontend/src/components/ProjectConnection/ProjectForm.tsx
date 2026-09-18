@@ -182,6 +182,7 @@ export const ProjectForm: FC<Props> = ({
                         <DbtSettingsForm
                             disabled={connectionSettingsDisabled}
                             defaultType={defaultType}
+                            showWarehouseFields={!showConnectionsPanel}
                         />
                     </div>
                 </SettingsGridCard>
