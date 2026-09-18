@@ -29,7 +29,7 @@ import {
 } from '@lightdash/common';
 import crypto from 'crypto';
 import { Knex } from 'knex';
-import { customAlphabet, nanoid } from 'nanoid';
+import { customAlphabet } from 'nanoid';
 import { setTimeout as abortableSleep } from 'node:timers/promises';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import {
@@ -101,8 +101,9 @@ function getQueryTriggerSafe(context: QueryExecutionContext): QueryTrigger {
 export class QueryHistoryModel {
     readonly database: Knex;
 
-    // Alphanumeric-only nanoid to avoid '--' sequences that break SQL comment stripping in DuckDB
-    private static readonly sqlSafeNanoid = customAlphabet(
+    // Alphanumeric only: a results file is read by name from SQL, and a
+    // '--' in a nanoid would read as a comment to a naive stripper
+    private static readonly resultsFileNanoid = customAlphabet(
         '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
     );
 
@@ -153,11 +154,8 @@ export class QueryHistoryModel {
         return crypto.createHash('sha256').update(queryHashKey).digest('hex');
     }
 
-    static createUniqueResultsFileName(
-        cacheKey: string,
-        options?: { sqlSafe: boolean },
-    ) {
-        return `${cacheKey}-${options?.sqlSafe ? QueryHistoryModel.sqlSafeNanoid() : nanoid()}`;
+    static createUniqueResultsFileName(cacheKey: string) {
+        return `${cacheKey}-${QueryHistoryModel.resultsFileNanoid()}`;
     }
 
     async create(
