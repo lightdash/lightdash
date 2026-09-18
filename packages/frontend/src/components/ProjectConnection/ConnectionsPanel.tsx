@@ -4,6 +4,7 @@ import {
     omitEmptySecrets,
     type Connection,
     type CreateWarehouseCredentials,
+    type Project,
     type WarehouseTypes,
 } from '@lightdash/common';
 import {
@@ -29,7 +30,7 @@ import {
     IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useRef, useState, type FC } from 'react';
 import {
     useConnection,
     useConnections,
@@ -135,14 +136,20 @@ const ConnectionFields: FC<{
     intro: string;
     projectUuid: string;
     warehouseType: WarehouseTypes;
-}> = ({ form, intro, projectUuid, warehouseType }) => (
+    nameRef?: React.Ref<HTMLInputElement>;
+    savedProject?: Project;
+}> = ({ form, intro, projectUuid, warehouseType, nameRef, savedProject }) => (
     <FormProvider form={form}>
-        <ProjectFormProvider projectUuid={projectUuid}>
+        <ProjectFormProvider
+            projectUuid={projectUuid}
+            savedProject={savedProject}
+        >
             <Stack gap="md">
                 <Text size="sm" c="dimmed">
                     {intro}
                 </Text>
                 <TextInput
+                    ref={nameRef}
                     label="Name"
                     description="Shown wherever this connection is picked."
                     placeholder="e.g. Analytics warehouse"
@@ -213,12 +220,17 @@ const AddConnectionModal: FC<{
         validateInputOnBlur: true,
     });
 
+    const nameRef = useRef<HTMLInputElement>(null);
     const handleClose = () => {
         form.reset();
         onClose();
     };
     const createMutation = useCreateConnection(projectUuid, {
         onSuccess: handleClose,
+        onNameConflict: (message) => {
+            form.setFieldError('name', message);
+            nameRef.current?.focus();
+        },
     });
 
     const handleSubmit = () => {
@@ -244,6 +256,7 @@ const AddConnectionModal: FC<{
             <Stack gap="md">
                 <ConnectionFields
                     form={form}
+                    nameRef={nameRef}
                     projectUuid={projectUuid}
                     warehouseType={warehouseType}
                     intro="Add another warehouse connection to this project. It uses the project's warehouse type, and its name is how people pick it in the SQL runner."
@@ -260,6 +273,9 @@ const EditConnectionModalInner: FC<{
     credentials: CreateWarehouseCredentials;
     onClose: () => void;
 }> = ({ projectUuid, connection, credentials, onClose }) => {
+    // The warehouse forms read the stored connection to decide whether a
+    // secret must be typed again. Only its credentials matter here.
+    const savedProject = { warehouseConnection: credentials } as Project;
     const updateMutation = useUpdateConnection(projectUuid, {
         onSuccess: onClose,
     });
@@ -308,6 +324,7 @@ const EditConnectionModalInner: FC<{
                     form={form}
                     projectUuid={projectUuid}
                     warehouseType={connection.warehouseType}
+                    savedProject={savedProject}
                     intro="Update this connection. Leave a secret blank to keep the saved one."
                 />
                 <TestConnectionAction projectUuid={projectUuid} form={form} />
@@ -362,12 +379,17 @@ const RenameConnectionModal: FC<{
     connection: Connection | null;
     onClose: () => void;
 }> = ({ projectUuid, connection, onClose }) => {
-    const renameMutation = useRenameConnection(projectUuid, {
-        onSuccess: onClose,
-    });
+    const nameRef = useRef<HTMLInputElement>(null);
     const form = useMantineForm({
         initialValues: { name: connection?.name ?? '' },
         validate: { name: validateName },
+    });
+    const renameMutation = useRenameConnection(projectUuid, {
+        onSuccess: onClose,
+        onNameConflict: (message) => {
+            form.setFieldError('name', message);
+            nameRef.current?.focus();
+        },
     });
 
     if (!connection) return null;
@@ -393,6 +415,7 @@ const RenameConnectionModal: FC<{
         >
             <Stack gap="md">
                 <TextInput
+                    ref={nameRef}
                     label="Name"
                     required
                     maxLength={NAME_MAX_LENGTH}
