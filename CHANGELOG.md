@@ -1,3 +1,10 @@
+# [2.260.0](https://github.com/lightdash/lightdash/compare/2.259.3...2.260.0) (2026-09-18)
+
+
+### Features
+
+* **merge-queries:** start a merged chart's second source on the right y-axis ([#29398](https://github.com/lightdash/lightdash/issues/29398)) ([3fe9721](https://github.com/lightdash/lightdash/commit/3fe9721db9e50a8803ec63f29a00f15678d9994a))
+
 ## [2.259.3](https://github.com/lightdash/lightdash/compare/2.259.2...2.259.3) (2026-09-18)
 
 
