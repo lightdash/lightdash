@@ -487,7 +487,10 @@ describe('AppGenerateService.installRegistryChartType', () => {
         expect(versionArg).toEqual({ version: 1, prompt: expect.any(String) });
         expect(statusArg).toBe('ready');
         expect(vizSchemaArg).toEqual(PARSED_VIZ_SCHEMA);
-        expect(optsArg).toEqual({ registryVersion: '1.3.0' });
+        expect(optsArg).toEqual({
+            registryVersion: '1.3.0',
+            thread: { origin: 'import', aiThreadUuid: null },
+        });
     });
 
     it('fresh install: passes the registry entry icon onto the created app', async () => {
