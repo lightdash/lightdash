@@ -21,6 +21,7 @@ jobs:
     outputs:
       image-digest: ${{ steps.build-and-push.outputs.digest }}
     runs-on: depot-ubuntu-24.04-4
+    timeout-minutes: 55
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -129,6 +130,7 @@ jobs:
     if: vars.STATIC_ASSETS_RETENTION_ENABLED == 'true'
     needs: build-and-push-images
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -181,6 +183,7 @@ jobs:
   qa-blast-radius:
     name: Generate QA Blast Radius
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     continue-on-error: true
     permissions:
       contents: write
@@ -235,6 +238,7 @@ jobs:
   check-cli-changes:
     name: Check if CLI files changed
     runs-on: depot-ubuntu-24.04-4
+    timeout-minutes: 15
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
     steps:
@@ -278,6 +282,7 @@ jobs:
     needs: check-cli-changes
     if: needs.check-cli-changes.outputs.should_build == 'true'
     runs-on: macos-latest
+    timeout-minutes: 90
     permissions:
       contents: write
     steps:
@@ -426,6 +431,7 @@ jobs:
     needs: check-cli-changes
     if: needs.check-cli-changes.outputs.should_build == 'true'
     runs-on: depot-ubuntu-24.04-4
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
@@ -538,6 +544,7 @@ jobs:
     name: Update Homebrew Formula
     needs: build-macos-binaries
     runs-on: depot-ubuntu-24.04-4
+    timeout-minutes: 15
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -645,6 +652,7 @@ jobs:
     name: Update Helm Chart Version
     needs: build-and-push-images
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     continue-on-error: true
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4

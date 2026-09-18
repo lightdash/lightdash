@@ -15,6 +15,7 @@ jobs:
     if: ${{ github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore(release):') }}
     name: Build & Test
     runs-on: depot-ubuntu-24.04-8
+    timeout-minutes: 15
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
@@ -133,6 +134,7 @@ jobs:
   publish-npm-packages:
     name: Publish npm Packages
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       id-token: write
       contents: read
