@@ -717,7 +717,6 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                     }),
                     {
                         stage: 'run',
-                        runtime: 'ai-sdk',
                         organizationUuid: expect.any(String),
                         projectUuid: PROJECT_UUID,
                         runUuid: 'run-uuid',
