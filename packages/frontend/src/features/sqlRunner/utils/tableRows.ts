@@ -26,7 +26,10 @@ export type TreeConnection = {
     connectionId: string;
     connectionName: string;
     isActive: boolean;
+    /** Empty until this connection's databases call returns. */
     databases: WarehouseListedDatabase[];
+    listingStatus: 'loading' | 'error' | 'loaded';
+    listingError?: string;
     truncated: boolean;
     limit: number;
 };
@@ -552,9 +555,34 @@ export const buildWarehouseTreeRows = ({
         const isConnectionExpanded = showConnectionLevel
             ? isRowExpanded(rowId, true)
             : true;
-        const databaseRows = isConnectionExpanded
-            ? groups.flatMap((group) => buildDatabaseRows(connection, group))
-            : [];
+        // A connection whose databases have not arrived says so rather than
+        // opening on nothing.
+        const pendingListingRows: WarehouseTreeRow[] =
+            connection.listingStatus === 'error'
+                ? [
+                      {
+                          type: 'error',
+                          id: `error:${rowId}`,
+                          depth: baseDepth,
+                          connectionId,
+                          listedDatabase: '',
+                          message:
+                              connection.listingError ??
+                              'Failed to load databases',
+                      },
+                  ]
+                : [
+                      {
+                          type: 'loading',
+                          id: `loading:${rowId}`,
+                          depth: baseDepth,
+                      },
+                  ];
+        const databaseRows = !isConnectionExpanded
+            ? []
+            : connection.listingStatus === 'loaded'
+              ? groups.flatMap((group) => buildDatabaseRows(connection, group))
+              : pendingListingRows;
         const truncationRows: WarehouseTreeRow[] =
             connection.truncated && (!isFiltering || databaseRows.length > 0)
                 ? [
