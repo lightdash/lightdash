@@ -18,7 +18,9 @@ const WarehouseSchemaInput: FC<{
     const description = warehouseOnly
         ? warehouseType === WarehouseTypes.BIGQUERY
             ? "We'll start with this dataset — you can add more later."
-            : "We'll start with this schema — you can add more later."
+            : warehouseType === WarehouseTypes.ATHENA
+              ? 'The Athena database inside the data catalog.'
+              : "We'll start with this schema — you can add more later."
         : undefined;
 
     switch (warehouseType) {
