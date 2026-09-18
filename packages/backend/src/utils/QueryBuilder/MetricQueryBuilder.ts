@@ -47,6 +47,7 @@ import {
     isNonAggregateMetric,
     isPeriodOverPeriodAdditionalMetric,
     isPostCalculationMetric,
+    isRelativeDateFilterOperator,
     isTimezoneRoundTripNoOp,
     ItemsMap,
     lightdashVariablePattern,
@@ -72,6 +73,7 @@ import {
     TimeFrames,
     truncatableTimeFrames,
     UserAttributeValueMap,
+    type CompiledMetricSqlTemplate,
     type FieldsContext,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -87,6 +89,10 @@ import {
     compilePostCalculationMetric,
 } from '../../queryCompiler';
 import { reportMalformedFilterValues } from './malformedFilterValueReporter';
+import {
+    type MaterializationFingerprintCollector,
+    type RelativeDateFilterOwner,
+} from './materializationFingerprint';
 import {
     safeReplaceParametersWithTypes,
     unsafeReplaceParametersAsRaw,
@@ -176,6 +182,8 @@ export type BuildQueryProps = {
      *  timezone. */
     dataTimezone?: string;
     queryExecutionContext?: QueryExecutionContext;
+    referenceTime?: Date;
+    materializationFingerprint?: MaterializationFingerprintCollector;
     /**
      * Turns this into a totals query: the builder collapses
      * `compiledMetricQuery` + `pivotConfiguration` to the requested grain (via
@@ -1021,6 +1029,7 @@ export class MetricQueryBuilder {
         const baseSql = this.swapRelativeDateMetricFilters(
             metric,
             metric.compiledSql,
+            metric.compiledSqlTemplate,
         );
         return this.applyTimezoneAwareMetricSql(
             metricId,
@@ -1043,7 +1052,66 @@ export class MetricQueryBuilder {
     private swapRelativeDateMetricFilters(
         metric: CompiledMetric,
         baseSql: string,
+        template?: CompiledMetricSqlTemplate,
     ): string {
+        if (template) {
+            const bakedSql = template
+                .map((part) =>
+                    part.type === 'sql' ? part.sql : part.compiledSql,
+                )
+                .join('');
+            if (bakedSql === baseSql) {
+                return template
+                    .map((part, occurrence) => {
+                        if (part.type === 'sql') return part.sql;
+                        const dimension =
+                            this.originalExploreDimensions[part.fieldId] ??
+                            this.exploreDimensions[part.fieldId];
+                        const relative = isRelativeDateFilterOperator(
+                            part.filter.operator,
+                        );
+                        if (!dimension) {
+                            if (relative)
+                                this.args.materializationFingerprint?.reasons.add(
+                                    `Relative metric filter dimension is unavailable: ${part.metricId}:${part.position}`,
+                                );
+                            return part.compiledSql;
+                        }
+                        if (
+                            !relative &&
+                            this.resolveFilterTimestampDomain(dimension) ===
+                                undefined
+                        )
+                            return part.compiledSql;
+                        const predicate = this.getFilterRuleSQL(
+                            {
+                                ...part.filter,
+                                target: { fieldId: part.fieldId },
+                            },
+                            FieldType.DIMENSION,
+                            {
+                                type: 'metric',
+                                metricId: part.metricId,
+                                position: part.position,
+                                occurrence,
+                            },
+                        );
+                        if (predicate === undefined && relative)
+                            this.args.materializationFingerprint?.reasons.add(
+                                `Relative metric filter could not be rendered: ${part.metricId}:${part.position}`,
+                            );
+                        return predicate ?? part.compiledSql;
+                    })
+                    .join('');
+            }
+            this.args.materializationFingerprint?.reasons.add(
+                `Metric filter template does not match SQL: ${getItemId(metric)}`,
+            );
+        } else if (this.hasRelativeMetricFilters(metric)) {
+            this.args.materializationFingerprint?.reasons.add(
+                `Relative metric filter provenance is missing: ${getItemId(metric)}`,
+            );
+        }
         // getFilterRuleSQL resolves dimension filters against the
         // access-filtered explore, so a target restricted away from this user
         // cannot be re-rendered — leave its baked predicate untouched.
@@ -1113,6 +1181,38 @@ export class MetricQueryBuilder {
      * carries their filter records, but the rules live on the referenced
      * metric definitions — resolve a record's rule across the explore metrics.
      */
+    private hasRelativeMetricFilters(
+        metric: CompiledMetric,
+        visited = new Set<string>(),
+    ): boolean {
+        const metricId = getItemId(metric);
+        if (visited.has(metricId)) return false;
+        visited.add(metricId);
+        if (
+            metric.compiledRelativeDateFilters?.length ||
+            metric.filters?.some(
+                (filter) =>
+                    !filter.disabled &&
+                    isRelativeDateFilterOperator(filter.operator),
+            )
+        )
+            return true;
+        return [...(metric.sql ?? '').matchAll(lightdashVariablePattern)].some(
+            (match) => {
+                const { refTable, refName } = getParsedReference(
+                    match[1],
+                    metric.table,
+                );
+                const referenced =
+                    this.availableMetrics[`${refTable}_${refName}`];
+                return (
+                    referenced !== undefined &&
+                    this.hasRelativeMetricFilters(referenced, visited)
+                );
+            },
+        );
+    }
+
     private findReferencedMetricFilterRule(
         filterId: string,
     ): MetricFilterRule | undefined {
@@ -2030,7 +2130,7 @@ export class MetricQueryBuilder {
         if (!modelFilterRules) return undefined;
 
         const reducedRules: string[] = modelFilterRules.reduce<string[]>(
-            (acc, filter) => {
+            (acc, filter, index) => {
                 let dimension: CompiledDimension | undefined;
 
                 // This function already takes care of falling back to the base table if the fieldRef doesn't have 2 parts (falls back to base table name)
@@ -2068,6 +2168,11 @@ export class MetricQueryBuilder {
                 const filterString = `( ${this.getFilterRuleSQL(
                     filterRule,
                     FieldType.DIMENSION,
+                    {
+                        type: 'query',
+                        fieldId: filterRule.target.fieldId,
+                        position: `required:${table.name}[${index}]`,
+                    },
                 )} )`;
                 return [...acc, filterString];
             },
@@ -2080,6 +2185,7 @@ export class MetricQueryBuilder {
     private getNestedFilterSQLFromGroup(
         filterGroup: FilterGroup | undefined,
         fieldType?: FieldType,
+        position: string = fieldType ?? 'filter',
     ): string | undefined {
         if (filterGroup) {
             const operator = isAndFilterGroup(filterGroup) ? 'AND' : 'OR';
@@ -2088,10 +2194,14 @@ export class MetricQueryBuilder {
                 : filterGroup.or;
             if (items.length === 0) return undefined;
             const filterRules: string[] = items.reduce<string[]>(
-                (sum, item) => {
+                (sum, item, index) => {
                     const filterSql: string | undefined = isFilterGroup(item)
-                        ? this.getNestedFilterSQLFromGroup(item, fieldType)
-                        : `(\n  ${this.getFilterRuleSQL(item, fieldType)}\n)`;
+                        ? this.getNestedFilterSQLFromGroup(
+                              item,
+                              fieldType,
+                              `${position}.${operator}[${index}]`,
+                          )
+                        : `(\n  ${this.getFilterRuleSQL(item, fieldType, { type: 'query', fieldId: item.target.fieldId, position: `${position}.${operator}[${index}]` })}\n)`;
                     return filterSql ? [...sum, filterSql] : sum;
                 },
                 [],
@@ -2103,7 +2213,15 @@ export class MetricQueryBuilder {
         return undefined;
     }
 
-    private getFilterRuleSQL(filter: FilterRule, fieldType?: FieldType) {
+    private getFilterRuleSQL(
+        filter: FilterRule,
+        fieldType?: FieldType,
+        owner: RelativeDateFilterOwner = {
+            type: 'query',
+            fieldId: filter.target.fieldId,
+            position: fieldType ?? 'filter',
+        },
+    ) {
         const { explore, compiledMetricQuery, warehouseSqlBuilder, timezone } =
             this.args;
         const adapterType: SupportedDbtAdapter =
@@ -2287,6 +2405,15 @@ export class MetricQueryBuilder {
                 baseDimensionSql,
                 this.args.useTimezoneAwareDateTrunc,
                 resolvedFilterDimension?.timestampFilterContext,
+                {
+                    referenceTime: this.args.referenceTime,
+                    onRelativeDateFilter: this.args.materializationFingerprint
+                        ? (descriptor) =>
+                              this.args.materializationFingerprint?.filters.push(
+                                  { owner, filter: descriptor },
+                              )
+                        : undefined,
+                },
             );
         });
 
@@ -3659,6 +3786,7 @@ export class MetricQueryBuilder {
                     this.swapRelativeDateMetricFilters(
                         metric,
                         metric.compiledValueSql,
+                        metric.compiledValueSqlTemplate,
                     ),
                 );
 

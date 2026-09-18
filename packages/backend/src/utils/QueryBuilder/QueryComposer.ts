@@ -21,11 +21,21 @@ import {
 import { compileMetricQuery } from '../../queryCompiler';
 import { wrapSentryTransactionSync } from '../../utils';
 import { updateExploreWithDateZoom } from './dateZoom';
+import {
+    MATERIALIZATION_FINGERPRINT_REFERENCE_TIME,
+    type MaterializationFingerprintCollector,
+    type MaterializationQueryFingerprint,
+} from './materializationFingerprint';
 import { CompiledQuery, MetricQueryBuilder } from './MetricQueryBuilder';
 import { PivotQueryBuilder } from './PivotQueryBuilder';
 import { TotalConfiguration } from './utils';
 
 export type { TotalConfiguration } from './utils';
+export {
+    MATERIALIZATION_FINGERPRINT_REFERENCE_TIME,
+    type MaterializationQueryFingerprint,
+    type RelativeDateFilterFingerprint,
+} from './materializationFingerprint';
 
 /** What to compile: the metric query and, optionally, how to pivot it. */
 export type QueryComposerDefinition = {
@@ -70,6 +80,8 @@ export type QueryComposerContext = {
     dataTimezone?: string;
     applyDateZoomToFilters?: boolean;
     queryExecutionContext?: QueryExecutionContext;
+    /** One instant for all compiler-generated relative date boundaries. */
+    referenceTime?: Date;
     /**
      * Flag-gated timezone echoed to clients and persisted with the query.
      * Not a compile input — `timezone` drives SQL. SQL charts set it to null.
@@ -93,6 +105,10 @@ export class QueryComposer {
     protected compiledQuery: CompiledQuery | undefined;
 
     private queryBuilder: MetricQueryBuilder | undefined;
+
+    private fingerprintCollector:
+        | MaterializationFingerprintCollector
+        | undefined;
 
     constructor(
         definition: QueryComposerDefinition,
@@ -132,6 +148,7 @@ export class QueryComposer {
             dataTimezone,
             applyDateZoomToFilters,
             queryExecutionContext,
+            referenceTime,
         } = this.context;
 
         // Fold reserved definitions in so custom SQL referencing them compiles; a
@@ -195,6 +212,8 @@ export class QueryComposer {
             dataTimezone,
             totalConfiguration,
             queryExecutionContext,
+            referenceTime,
+            materializationFingerprint: this.fingerprintCollector,
         });
         return this.queryBuilder;
     }
@@ -303,6 +322,45 @@ export class QueryComposer {
 
     getMissingParameterReferences(): string[] {
         return Array.from(this.compile().missingParameterReferences);
+    }
+
+    /** Comparison SQL is never executed; actual runs use their own referenceTime. */
+    getMaterializationFingerprint({
+        columnLimit,
+    }: {
+        columnLimit: number;
+    }): MaterializationQueryFingerprint {
+        const comparison = new QueryComposer(this.definition, {
+            ...this.context,
+            referenceTime: new Date(MATERIALIZATION_FINGERPRINT_REFERENCE_TIME),
+        });
+        const collector: MaterializationFingerprintCollector = {
+            filters: [],
+            reasons: new Set(),
+        };
+        comparison.fingerprintCollector = collector;
+        const comparisonSql = comparison.getSql({ columnLimit });
+        comparison
+            .compile()
+            .compilationErrors.forEach((reason) =>
+                collector.reasons.add(reason),
+            );
+        if (collector.reasons.size > 0) {
+            return {
+                status: 'non-reusable',
+                reasons: [...collector.reasons].sort(),
+            };
+        }
+        const filtersByKey = new Map(
+            collector.filters.map((filter) => [JSON.stringify(filter), filter]),
+        );
+        return {
+            status: 'reusable',
+            comparisonSql,
+            relativeDateFilters: [...filtersByKey.entries()]
+                .sort(([left], [right]) => left.localeCompare(right))
+                .map(([, filter]) => filter),
+        };
     }
 
     /** Compile to base SQL, memoized. Delegates to the overridable seam. */

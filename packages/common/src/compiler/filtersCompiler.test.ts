@@ -3770,3 +3770,149 @@ describe('resolveTimestampFilterContext', () => {
         );
     });
 });
+
+describe('explicit relative-date reference time', () => {
+    const operators = [
+        FilterOperator.IN_THE_PAST,
+        FilterOperator.NOT_IN_THE_PAST,
+        FilterOperator.IN_THE_NEXT,
+        FilterOperator.IN_THE_CURRENT,
+        FilterOperator.NOT_IN_THE_CURRENT,
+        FilterOperator.IN_PERIOD_TO_DATE,
+    ];
+
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    test.each(operators)(
+        '%s uses the supplied instant for every boundary',
+        (operator) => {
+            const render = () =>
+                renderDateFilterSql({
+                    dimensionSql: 'orders.created_at',
+                    filter: {
+                        id: 'filter',
+                        target: { fieldId: 'orders_created_at' },
+                        operator,
+                        values: [7],
+                        settings: {
+                            unitOfTime: UnitOfTime.weeks,
+                            completed: true,
+                        },
+                    },
+                    adapterType: SupportedDbtAdapter.BIGQUERY,
+                    timezone: 'America/New_York',
+                    boundaryDateFormatter:
+                        createBoundaryDateFormatter('America/New_York'),
+                    relativeDateRendering: {
+                        referenceTime: new Date('2026-03-09T01:30:00Z'),
+                    },
+                });
+            vi.setSystemTime(new Date('2026-04-01T00:00:00Z'));
+            const first = render();
+            vi.setSystemTime(new Date('2026-08-15T00:00:00Z'));
+            expect(render()).toBe(first);
+        },
+    );
+
+    test('absolute date values ignore the reference clock', () => {
+        const onRelativeDateFilter = vi.fn();
+        const sql = renderDateFilterSql({
+            dimensionSql: 'orders.created_at',
+            filter: {
+                id: 'filter',
+                target: { fieldId: 'orders_created_at' },
+                operator: FilterOperator.EQUALS,
+                values: ['2026-09-01'],
+            },
+            adapterType: SupportedDbtAdapter.POSTGRES,
+            timezone: 'UTC',
+            relativeDateRendering: {
+                referenceTime: new Date('2000-06-15T12:00:00Z'),
+                onRelativeDateFilter,
+            },
+        });
+        expect(sql).toContain('2026-09-01');
+        expect(onRelativeDateFilter).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        {
+            unitOfTime: UnitOfTime.weeks,
+            expression:
+                "EXTRACT(DAY FROM orders.created_at - DATE_TRUNC('WEEK', orders.created_at))",
+            cutoff: 3,
+        },
+        {
+            unitOfTime: UnitOfTime.months,
+            expression: 'EXTRACT(DAY FROM orders.created_at)',
+            cutoff: 15,
+        },
+        {
+            unitOfTime: UnitOfTime.quarters,
+            expression:
+                "EXTRACT(DAY FROM orders.created_at - DATE_TRUNC('QUARTER', orders.created_at))",
+            cutoff: 75,
+        },
+        {
+            unitOfTime: UnitOfTime.years,
+            expression: 'EXTRACT(DOY FROM orders.created_at)',
+            cutoff: 167,
+        },
+    ])(
+        'period-to-date $unitOfTime uses the reference numeric cutoff and raw base field',
+        ({ unitOfTime, expression, cutoff }) => {
+            const render = () =>
+                renderDateFilterSql({
+                    dimensionSql: "DATE_TRUNC('YEAR', orders.created_at)",
+                    baseDimensionSql: 'orders.created_at',
+                    filter: {
+                        id: 'period-to-date',
+                        target: { fieldId: 'orders_created_at_year' },
+                        operator: FilterOperator.IN_PERIOD_TO_DATE,
+                        settings: { unitOfTime },
+                    },
+                    adapterType: SupportedDbtAdapter.POSTGRES,
+                    timezone: 'America/New_York',
+                    startOfWeek: WeekDay.MONDAY,
+                    relativeDateRendering: {
+                        referenceTime: new Date('2000-06-15T12:00:00Z'),
+                    },
+                });
+            vi.setSystemTime(new Date('2026-12-31T23:59:59Z'));
+            expect(render()).toBe(`(${expression} <= ${cutoff})`);
+            vi.setSystemTime(new Date('2027-01-04T05:00:00Z'));
+            expect(render()).toBe(`(${expression} <= ${cutoff})`);
+        },
+    );
+
+    test('records effective defaults and does not include random filter IDs', () => {
+        const onRelativeDateFilter = vi.fn();
+        renderDateFilterSql({
+            dimensionSql: 'orders.created_at',
+            filter: {
+                id: 'random-id',
+                target: { fieldId: 'orders_created_at' },
+                operator: FilterOperator.IN_THE_PAST,
+                values: ['7'],
+            },
+            adapterType: SupportedDbtAdapter.POSTGRES,
+            timezone: 'UTC',
+            relativeDateRendering: {
+                referenceTime: new Date('2000-06-15T12:00:00Z'),
+                onRelativeDateFilter,
+            },
+        });
+        expect(onRelativeDateFilter).toHaveBeenCalledWith(
+            expect.objectContaining({
+                count: 7,
+                unitOfTime: UnitOfTime.days,
+                completed: false,
+                startOfWeek: WeekDay.MONDAY,
+            }),
+        );
+        expect(JSON.stringify(onRelativeDateFilter.mock.calls)).not.toContain(
+            'random-id',
+        );
+    });
+});
