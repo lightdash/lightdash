@@ -6909,10 +6909,205 @@ Usage tips:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "items": {
+                  "description": "Direct children of the listed space on this page; empty when nothing is accessible.",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "appCount": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer",
+                          },
+                          "chartCount": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer",
+                          },
+                          "childSpaceCount": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer",
+                          },
+                          "contentType": {
+                            "const": "space",
+                            "type": "string",
+                          },
+                          "dashboardCount": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer",
+                          },
+                          "directAccess": {
+                            "description": "Whether the caller was granted access to this space directly.",
+                            "type": "boolean",
+                          },
+                          "href": {
+                            "description": "Relative Lightdash URL of the item.",
+                            "type": "string",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "slug": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "contentType",
+                          "name",
+                          "slug",
+                          "href",
+                          "chartCount",
+                          "dashboardCount",
+                          "childSpaceCount",
+                          "appCount",
+                          "directAccess",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "contentType": {
+                            "const": "document",
+                            "type": "string",
+                          },
+                          "href": {
+                            "description": "Relative Lightdash URL of the item.",
+                            "type": "string",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "slug": {
+                            "type": "string",
+                          },
+                          "uuid": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "contentType",
+                          "uuid",
+                          "name",
+                          "slug",
+                          "href",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "contentType": {
+                            "enum": [
+                              "chart",
+                              "dashboard",
+                              "data_app",
+                            ],
+                            "type": "string",
+                          },
+                          "href": {
+                            "description": "Relative Lightdash URL of the item.",
+                            "type": "string",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "slug": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "contentType",
+                          "name",
+                          "slug",
+                          "href",
+                        ],
+                        "type": "object",
+                      },
+                    ],
+                  },
+                  "type": "array",
+                },
+                "pagination": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "page": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    "pageSize": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    "totalPageCount": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    "totalResults": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                  },
+                  "required": [
+                    "page",
+                    "pageSize",
+                    "totalResults",
+                    "totalPageCount",
+                  ],
+                  "type": "object",
+                },
+                "spaceSlug": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Slug of the listed space; null when listing root-level spaces.",
+                },
+              },
+              "required": [
+                "spaceSlug",
+                "pagination",
+                "items",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
