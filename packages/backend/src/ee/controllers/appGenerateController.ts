@@ -104,6 +104,8 @@ export class AppGenerateController extends BaseController {
             body.spaceUuid,
             body.claudeModel,
             {
+                // The builder creates unnamed; the auto-namer fills it mid-build.
+                name: null,
                 creationExperience: body.creationExperience,
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,

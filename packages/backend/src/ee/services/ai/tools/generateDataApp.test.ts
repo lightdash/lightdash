@@ -22,6 +22,7 @@ type GenerateDataAppOutput = {
         status: string;
         appUuid?: string;
         version?: number;
+        name?: string;
         message?: string;
     };
 };
@@ -29,6 +30,7 @@ type GenerateDataAppOutput = {
 const executeGenerateDataApp = (tool: GenerateDataAppTool) =>
     tool.execute!(
         {
+            name: 'Revenue Overview',
             prompt: 'Build a revenue app',
             template: 'dashboard',
             dashboardSlug: null,
@@ -53,6 +55,7 @@ describe('getGenerateDataApp', () => {
         );
 
         expect(generateDataApp).toHaveBeenCalledWith({
+            name: 'Revenue Overview',
             prompt: 'Build a revenue app',
             template: 'dashboard',
             dashboardSlug: null,
@@ -64,6 +67,7 @@ describe('getGenerateDataApp', () => {
             status: 'pending',
             appUuid: 'app-1',
             version: 1,
+            name: 'Revenue Overview',
         });
     });
 

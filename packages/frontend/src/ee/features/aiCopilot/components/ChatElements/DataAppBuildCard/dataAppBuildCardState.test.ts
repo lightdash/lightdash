@@ -70,7 +70,16 @@ describe('getDataAppBuildCardState', () => {
         it('is queued before the app has loaded', () => {
             expect(
                 getDataAppBuildCardState(pending, { kind: 'loading' }),
-            ).toEqual({ kind: 'queued' });
+            ).toEqual({ kind: 'queued', name: null });
+        });
+
+        it('names the app from the tool result before the app has loaded', () => {
+            expect(
+                getDataAppBuildCardState(
+                    { ...pending, name: 'Revenue Overview' },
+                    { kind: 'loading' },
+                ),
+            ).toEqual({ kind: 'queued', name: 'Revenue Overview' });
         });
 
         it('is queued while the version is pending', () => {
@@ -79,19 +88,20 @@ describe('getDataAppBuildCardState', () => {
                     pending,
                     loaded([version({ status: 'pending' })]),
                 ),
-            ).toEqual({ kind: 'queued' });
+            ).toEqual({ kind: 'queued', name: 'Revenue app' });
         });
 
         it('is queued when the version is not in the fetched page', () => {
             expect(getDataAppBuildCardState(pending, loaded([]))).toEqual({
                 kind: 'queued',
+                name: 'Revenue app',
             });
         });
 
         it('stays queued on a transient fetch error so polling continues', () => {
             expect(
                 getDataAppBuildCardState(pending, { kind: 'error' }),
-            ).toEqual({ kind: 'queued' });
+            ).toEqual({ kind: 'queued', name: null });
         });
 
         it('is building with the status message and narration mid-build', () => {
@@ -119,6 +129,7 @@ describe('getDataAppBuildCardState', () => {
                 ),
             ).toEqual({
                 kind: 'building',
+                name: 'Revenue app',
                 statusMessage: 'Generating your app',
                 narration: {
                     reasoning: ['Weekly totals by region'],

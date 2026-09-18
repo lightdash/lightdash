@@ -1,5 +1,8 @@
 import { APP_VERSION_CANCELLED_BY_USER } from '../../../apps/types';
-import { getGenerateDataAppBuildOutcome } from './toolGenerateDataAppArgs';
+import {
+    getGenerateDataAppBuildOutcome,
+    toolGenerateDataAppArgsSchema,
+} from './toolGenerateDataAppArgs';
 
 const base = {
     siteUrl: 'https://ld.example.com',
@@ -82,5 +85,24 @@ describe('getGenerateDataAppBuildOutcome', () => {
             reason: 'cancelled',
             message: 'The build was cancelled.',
         });
+    });
+});
+
+describe('toolGenerateDataAppArgsSchema', () => {
+    it('rejects a call that leaves the app unnamed', () => {
+        expect(
+            toolGenerateDataAppArgsSchema.safeParse({
+                prompt: 'Build a revenue app',
+            }).success,
+        ).toBe(false);
+    });
+
+    it('accepts a call that names the app', () => {
+        expect(
+            toolGenerateDataAppArgsSchema.safeParse({
+                name: 'Revenue Overview',
+                prompt: 'Build a revenue app',
+            }).success,
+        ).toBe(true);
     });
 });

@@ -449,12 +449,9 @@ export type DataAppReadSource = {
     dataReferences: PersistedDataAppDataReferences | null;
 };
 
-type GenerateAppOptions = {
+type AppBuildOptions = {
     creationExperience?: DataAppCreationExperience;
     designUuidInput?: string | null;
-    // Iterate with designUuidInput: 'replace' swaps the prompt for a
-    // style-only restyle; 'append' adds the restyle to the prompt's change.
-    themeChangePrompt?: 'replace' | 'append';
     externalConnections?: AppExternalConnectionReference[];
     codexModelInput?: DataAppCodexModel;
     /** Context for one chart-type build; never persisted with the version. */
@@ -462,8 +459,20 @@ type GenerateAppOptions = {
     // The AI agent tool call that started the build; travels on the job so
     // the worker can patch its pending result when the build ends.
     aiAgentToolCall?: AppGeneratePipelineJobPayload['aiAgentToolCall'];
+};
+
+type GenerateAppOptions = AppBuildOptions & {
+    // Caller-supplied app name: the slug is derived from it at creation, so
+    // the auto-namer leaves both alone. `null` leaves the app unnamed.
+    name: string | null;
     // Thread 1 of the new app; defaults to a builder-originated thread.
     thread?: Pick<CreateAppThreadArgs, 'origin' | 'aiThreadUuid'>;
+};
+
+type IterateAppOptions = AppBuildOptions & {
+    // Iterate with designUuidInput: 'replace' swaps the prompt for a
+    // style-only restyle; 'append' adds the restyle to the prompt's change.
+    themeChangePrompt?: 'replace' | 'append';
 };
 
 const appendVizBuildContext = (
@@ -6762,9 +6771,10 @@ export class AppGenerateService extends BaseService {
         clarifications?: AppClarification[],
         spaceUuid?: string,
         claudeModelInput?: DataAppClaudeModel,
-        options: GenerateAppOptions = {},
+        options: GenerateAppOptions = { name: null },
     ): Promise<GenerateAppResult> {
         const {
+            name,
             creationExperience,
             designUuidInput,
             externalConnections,
@@ -6933,6 +6943,8 @@ export class AppGenerateService extends BaseService {
                     template: persistedTemplate,
                     space_uuid: spaceUuid ?? null,
                     design_uuid: resolvedDesignUuid,
+                    // Unset lets the model derive a slug and the auto-namer run.
+                    ...(name !== null && name.trim() !== '' ? { name } : {}),
                 },
                 { version, prompt },
                 'pending',
@@ -7010,7 +7022,7 @@ export class AppGenerateService extends BaseService {
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
         claudeModelInput?: DataAppClaudeModel,
-        options: GenerateAppOptions = {},
+        options: IterateAppOptions = {},
     ): Promise<GenerateAppResult> {
         const {
             creationExperience,
