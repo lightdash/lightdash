@@ -397,7 +397,7 @@ describe('LearnPage unsupported modules', () => {
         const card = container.querySelector(
             '[data-learn-module="view:Analytics"]',
         )!;
-        expect(card.textContent).toContain('Coming Soon');
+        expect(card.textContent?.match(/Coming Soon/g)).toHaveLength(1);
         expect(card.querySelector('button')).toBeDisabled();
         expect(card.textContent).not.toContain('Complete');
         expect(learnActions.markScopeStarted).not.toHaveBeenCalled();
