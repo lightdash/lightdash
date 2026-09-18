@@ -16,7 +16,8 @@
  * prints the comment body.
  *
  * CLI:  pnpm exec tsx scripts/release-safety-pr-comment.ts --marker /tmp/rs.json [--base main]
- *         [--rest-status ran|skipped|failed] [--out /tmp/body.md]
+ *         [--rest-status ran|skipped|gate-skipped|failed]
+ *         [--mcp-status ran|skipped|gate-skipped|failed] [--out /tmp/body.md]
  */
 import * as fs from 'fs';
 import type {
@@ -51,7 +52,8 @@ export interface RenderOpts {
      * skipped (nothing on the API surface changed) or failed to produce the
      * OpenAPI specs it needed — the second is a broken check, not a clean bill.
      */
-    restStatus?: 'ran' | 'skipped' | 'failed';
+    restStatus?: 'ran' | 'skipped' | 'gate-skipped' | 'failed';
+    mcpStatus?: 'ran' | 'skipped' | 'gate-skipped' | 'failed';
     declarationGateFailed?: boolean;
     /**
      * The revision this verdict describes. Stamped into the comment so a later
@@ -226,10 +228,20 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
             : 'no breaking changes';
     };
     const restUncheckedReason =
-        opts.restStatus === 'skipped'
+        opts.restStatus === 'gate-skipped'
+            ? 'skipped by the Jev gate'
+            : opts.restStatus === 'skipped'
             ? 'nothing on the API surface changed'
             : opts.restStatus === 'failed'
             ? 'the OpenAPI specs could not be generated'
+            : undefined;
+    const mcpUncheckedReason =
+        opts.mcpStatus === 'gate-skipped'
+            ? 'skipped by the Jev gate'
+            : opts.mcpStatus === 'skipped'
+            ? 'nothing on the MCP surface changed'
+            : opts.mcpStatus === 'failed'
+            ? 'the MCP snapshots could not be generated'
             : undefined;
     const notesResult = requiredStop
         ? 'can’t be skipped'
@@ -246,7 +258,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         '|---|---|',
         `| Database changes | ${dbResult} |`,
         `| REST API | ${apiResult(marker.api.rest, restUncheckedReason)} |`,
-        `| MCP tools | ${apiResult(marker.api.mcp)} |`,
+        `| MCP tools | ${apiResult(marker.api.mcp, mcpUncheckedReason)} |`,
         `| Config / environment | ${configResult} |`,
         `| Declared breaking changes | ${renderDeclaredBreaksCell(marker)} |`,
         `| Upgrade notes | ${notesResult} |`,
@@ -337,12 +349,18 @@ function main(): void {
     if (!markerPath) throw new Error('--marker <path> is required');
     const marker = JSON.parse(fs.readFileSync(markerPath, 'utf-8')) as Marker;
     const restStatus = arg('rest-status');
-    if (restStatus && !['ran', 'skipped', 'failed'].includes(restStatus)) {
-        throw new Error(`--rest-status must be one of ran|skipped|failed (got "${restStatus}")`);
+    const statuses = ['ran', 'skipped', 'gate-skipped', 'failed'];
+    if (restStatus && !statuses.includes(restStatus)) {
+        throw new Error(`--rest-status must be one of ${statuses.join('|')} (got "${restStatus}")`);
+    }
+    const mcpStatus = arg('mcp-status');
+    if (mcpStatus && !statuses.includes(mcpStatus)) {
+        throw new Error(`--mcp-status must be one of ${statuses.join('|')} (got "${mcpStatus}")`);
     }
     const body = renderPrComment(marker, {
         baseLabel: arg('base'),
         restStatus: restStatus as RenderOpts['restStatus'],
+        mcpStatus: mcpStatus as RenderOpts['mcpStatus'],
         declarationGateFailed: process.argv.includes('--declaration-gate-failed'),
         headSha: arg('head-sha'),
         baseSha: arg('base-sha'),

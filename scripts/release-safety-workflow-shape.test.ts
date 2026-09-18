@@ -43,6 +43,7 @@ for (const required of [
     'scripts/release-safety-declarations.ts',
     'scripts/release-safety-declarations.schema.json',
     'scripts/release-safety-pr-gate.ts',
+    'scripts/release-safety-jev-gate.ts',
     'scripts/gen-release-safety.ts',
     'packages/backend/**',
     'packages/common/**',
@@ -189,5 +190,44 @@ assert.ok(
     setupStep && /cache:\s*true/.test(setupStep[1]),
     "the preview job's pnpm setup must cache the store (SPK-1021)",
 );
+
+const gateStep = configOnly.slice(
+    configOnly.indexOf('- name: Jev gate'),
+    configOnly.indexOf('- name: Upload the Jev gate record'),
+);
+assert.ok(gateStep.length > 0, 'the changes job must run the Jev gate');
+assert.ok(
+    gateStep.includes("steps.watched.outputs.watched == 'true'") &&
+        gateStep.includes("steps.typesafe.outputs.available == 'true'"),
+    'the Jev gate must run only for watched changes',
+);
+assert.ok(
+    gateStep.includes("TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}"),
+    'the Jev gate must receive its API key from Actions secrets',
+);
+
+for (const output of ['gate_rest_api', 'gate_db_schema', 'gate_mcp_tools']) {
+    const expected = `${output}: \${{ steps.jev-gate.outputs.${output} || 'run' }}`;
+    assert.ok(
+        workflow.includes(expected),
+        `${output} must default to run when the gate step does not produce an output`,
+    );
+}
+
+const openapiJob = configOnly.slice(
+    configOnly.indexOf('\n  openapi-specs:'),
+    configOnly.indexOf('\n  preview:'),
+);
+assert.ok(
+    openapiJob.includes("needs.changes.outputs.gate_rest_api != 'skip'") &&
+        openapiJob.includes("needs.changes.outputs.gate_mcp_tools != 'skip'"),
+    'API snapshot generation must reference both API gate outputs',
+);
+for (const output of ['gate_rest_api', 'gate_mcp_tools']) {
+    assert.ok(
+        previewJob.includes(`needs.changes.outputs.${output}`),
+        `the preview job must reference ${output}`,
+    );
+}
 
 process.stdout.write('release-safety workflow shape tests passed\n');

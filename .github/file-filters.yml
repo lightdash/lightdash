@@ -49,6 +49,7 @@ release_safety_api:
   - "scripts/mcp-tools-diff.ts"
   - "scripts/breaking-change-declarations.ts"
   - "scripts/release-safety-pr-gate.ts"
+  - "scripts/release-safety-jev-gate.ts"
   - "scripts/rest-api-diff.ts"
   - *openapi_surface
 
