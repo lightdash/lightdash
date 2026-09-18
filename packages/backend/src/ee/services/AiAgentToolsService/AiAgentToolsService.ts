@@ -1705,11 +1705,8 @@ export class AiAgentToolsService extends BaseService {
         }
     }
 
-    /**
-     * Data apps enabled and the user may create them in the project. Without a
-     * project it falls back to a coarse check, so an MCP tools/list does not
-     * vary as a side effect of set_project.
-     */
+    // Data apps enabled and the user may create them in the project. Without a
+    // project a coarse check keeps tools/list stable across set_project.
     async canGenerateDataApp(context: {
         user: SessionUser;
         projectUuid: string | undefined;

@@ -136,7 +136,12 @@ const createServerWithBuildStatus = async (
     const getDataAppBuildStatus = vi.fn().mockResolvedValue(source);
     const mcpService = makeMcpService(() => ({ getDataAppBuildStatus }));
     mockRegisteredMcpTools.clear();
-    await mcpService.createServer(makeMcpServerOptions(featureAvailability));
+    await mcpService.createServer(
+        makeMcpServerOptions({
+            dataAppBuildsEnabled: true,
+            ...featureAvailability,
+        }),
+    );
     return { getDataAppBuildStatus };
 };
 
@@ -280,7 +285,9 @@ describe('McpService get_data_app_build_status', () => {
                     ),
             }));
             mockRegisteredMcpTools.clear();
-            await mcpService.createServer(makeMcpServerOptions());
+            await mcpService.createServer(
+                makeMcpServerOptions({ dataAppBuildsEnabled: true }),
+            );
 
             const result = await callBuildStatus({ appSlug: 'missing' });
 

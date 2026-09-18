@@ -5,16 +5,13 @@ import {
     getAppDisplayName,
     type AppVersionStatus,
 } from '../../../apps/types';
-import { getDataAppBuilderPath } from './toolGenerateDataAppArgs';
+import {
+    DATA_APP_BUILD_POLL_INTERVAL_MS,
+    getDataAppBuilderPath,
+} from './toolGenerateDataAppArgs';
 
-/** Suggested gap between polls; a build runs minutes, not seconds. */
-export const DATA_APP_BUILD_POLL_INTERVAL_MS = 15_000;
-
-/**
- * Statuses at the tool surface. The pipeline has no 'cancelled' status — it is
- * an 'error' row carrying {@link APP_VERSION_CANCELLED_BY_USER} — so the tool
- * reports it as its own value rather than making callers match on prose.
- */
+// The pipeline has no 'cancelled' status — it is an 'error' row carrying
+// APP_VERSION_CANCELLED_BY_USER — so the tool reports it as its own value.
 export const DATA_APP_BUILD_STATUSES = [
     ...APP_VERSION_STAGE_ORDER,
     'error',
@@ -39,7 +36,9 @@ Purpose:
 Check how a data app build is going, and get the app's URL once it is ready. A data app is an interactive application generated from a brief on top of a Lightdash project's semantic layer; each build produces one version of it.
 
 Important:
-- Poll every 15 seconds — "nextPollAfterMs" in the response carries the same number in milliseconds. A build usually takes several minutes.
+- Poll every ${
+    DATA_APP_BUILD_POLL_INTERVAL_MS / 1000
+} seconds — "nextPollAfterMs" in the response carries the same number in milliseconds. A build usually takes several minutes.
 - Stop polling once "status" is "ready", "error", or "cancelled". Those are terminal; the version never changes again.
 - "slug" is the app's permanent identifier and never changes, even when the app is renamed. Keep using the slug you started the build with.
 - An agent-scoped session restricted to specific spaces cannot read a personal app, which is what a build started over MCP creates. Call this tool without agentUuid to poll a build you started.
@@ -113,10 +112,7 @@ export type DataAppBuildStatusResponse = z.infer<
     typeof mcpGetDataAppBuildStatusStructuredOutputSchema
 >;
 
-/**
- * Version row -> the status a caller polls for. Pure: the row and the site URL
- * are everything it needs.
- */
+/** Version row -> the status a caller polls for. */
 export const getDataAppBuildStatusResponse = ({
     siteUrl,
     projectUuid,
