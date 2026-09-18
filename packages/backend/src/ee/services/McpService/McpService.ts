@@ -31,6 +31,8 @@ import {
     getContextToolDefinition,
     getCurrentAgentToolDefinition,
     getCurrentProjectToolDefinition,
+    getDataAppBuildStatusResponse,
+    getDataAppBuildStatusToolDefinition,
     getErrorMessage,
     getItemLabelWithoutTableName,
     getItemMap,
@@ -221,6 +223,7 @@ export enum McpToolName {
     LIST_VERIFIED_CONTENT = 'list_verified_content',
     RUN_AI_WRITEBACK = 'run_ai_writeback',
     GET_AI_WRITEBACK_STATUS = 'get_ai_writeback_status',
+    GET_DATA_APP_BUILD_STATUS = 'get_data_app_build_status',
     LIST_SKILLS = 'list_skills',
     READ_SKILL = 'read_skill',
     READ_SKILL_RESOURCE = 'read_skill_resource',
@@ -284,6 +287,9 @@ const mcpRunAiWritebackTool = withProjectUuidInput(
 );
 const mcpGetAiWritebackStatusTool = withProjectUuidInput(
     getAiWritebackStatusToolDefinition.for('mcp'),
+);
+const mcpGetDataAppBuildStatusTool = withProjectScopeInput(
+    getDataAppBuildStatusToolDefinition.for('mcp'),
 );
 const mcpGetLightdashVersionTool = getLightdashVersionToolDefinition.for('mcp');
 const mcpGenerateHashesTool = generateHashesToolDefinition.for('mcp');
@@ -470,6 +476,7 @@ export type McpServerToolOptions = {
         runMetricQueryEnabled: boolean;
         filterExpressionsEnabled: boolean;
         documentsEnabled: boolean;
+        dataAppBuildsEnabled: boolean;
     };
 };
 
@@ -1497,6 +1504,83 @@ export class McpService extends BaseService {
         );
     }
 
+    /** Data app build tools; gated together so tools/list stays stable. */
+    private registerDataAppBuildTools(): void {
+        this.registerTrackedTool(
+            mcpGetDataAppBuildStatusTool.name,
+            {
+                title: mcpGetDataAppBuildStatusTool.title,
+                description: mcpGetDataAppBuildStatusTool.description,
+                inputSchema: mcpGetDataAppBuildStatusTool.inputSchema.shape,
+                outputSchema: mcpGetDataAppBuildStatusTool.outputSchema.shape,
+                annotations: mcpGetDataAppBuildStatusTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const projectUuid = await this.resolveToolProjectUuid(
+                    ctx,
+                    args.projectUuid,
+                );
+
+                try {
+                    const toolsRuntime = await this.getToolsRuntime(
+                        ctx,
+                        projectUuid,
+                        args.agentUuid,
+                    );
+                    const { app, version } =
+                        await toolsRuntime.getDataAppBuildStatus({
+                            appSlug: args.appSlug,
+                            version: args.version,
+                        });
+
+                    const response = getDataAppBuildStatusResponse({
+                        siteUrl: this.lightdashConfig.siteUrl,
+                        projectUuid,
+                        appUuid: app.uuid,
+                        name: app.name,
+                        slug: app.slug,
+                        version: version.version,
+                        status: version.status,
+                        error: version.error,
+                        statusMessage: version.statusMessage,
+                    });
+
+                    const summary =
+                        response.status === 'ready'
+                            ? `${response.statusMessage} Open it at ${response.href}`
+                            : `${response.statusMessage}${
+                                  response.errorMessage
+                                      ? ` ${response.errorMessage}`
+                                      : ''
+                              }`;
+
+                    return await this.buildScopedResponse(
+                        ctx,
+                        summary,
+                        response,
+                        projectUuid,
+                        args.agentUuid,
+                    );
+                } catch (e) {
+                    const errorMessage = getErrorMessage(e);
+                    this.logger.error(
+                        `[McpService] Error in get_data_app_build_status tool: ${errorMessage}`,
+                    );
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: `Error getting data app build status: ${errorMessage}`,
+                            },
+                        ],
+                        isError: true,
+                    };
+                }
+            },
+        );
+    }
+
     private registerGetAiWritebackStatusTool(): void {
         this.registerTrackedTool(
             mcpGetAiWritebackStatusTool.name,
@@ -1994,6 +2078,7 @@ export class McpService extends BaseService {
                 runMetricQueryEnabled: true,
                 filterExpressionsEnabled: false,
                 documentsEnabled: false,
+                dataAppBuildsEnabled: false,
             },
         },
     ): void {
@@ -3723,6 +3808,10 @@ export class McpService extends BaseService {
         this.registerGetAiWritebackStatusTool();
         this.registerAiWritebackTaskHandlers();
 
+        if (options.dataAppBuildsEnabled) {
+            this.registerDataAppBuildTools();
+        }
+
         this.mcpServer.registerPrompt(
             'lightdash-analyst',
             {
@@ -4382,6 +4471,22 @@ export class McpService extends BaseService {
             featureFlagId: FeatureFlags.Documents,
         });
         return enabled;
+    }
+
+    /**
+     * Whether the data app build tools should be registered for this caller:
+     * data apps enabled and the caller may create them. A project-pinned
+     * endpoint checks that concrete project; the unpinned endpoint uses a
+     * coarse check because tools/list must not vary with set_project.
+     */
+    public async isDataAppBuildsEnabled(
+        user: SessionUser,
+        headerProjectUuid?: string,
+    ): Promise<boolean> {
+        return this.aiAgentToolsService.canGenerateDataApp({
+            user,
+            projectUuid: headerProjectUuid,
+        });
     }
 
     public async isFilterExpressionsEnabled(

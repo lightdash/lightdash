@@ -387,6 +387,7 @@ mcpRouter.all(
                     runMetricQueryEnabled,
                     filterExpressionsEnabled,
                     documentsEnabled,
+                    dataAppBuildsEnabled,
                 ] = await Promise.all([
                     mcpService.isContentToolsEnabled(req.user!),
                     mcpService.isCreateScheduledDeliveryEnabled(req.user!),
@@ -397,6 +398,10 @@ mcpRouter.all(
                     ),
                     mcpService.isFilterExpressionsEnabled(req.user!),
                     mcpService.isDocumentsEnabled(req.user!),
+                    mcpService.isDataAppBuildsEnabled(
+                        req.user!,
+                        pinnedProjectUuid,
+                    ),
                 ]);
                 const toolOptions: McpServerToolOptions = {
                     req: { pinnedProjectUuid },
@@ -407,6 +412,7 @@ mcpRouter.all(
                         runMetricQueryEnabled,
                         filterExpressionsEnabled,
                         documentsEnabled,
+                        dataAppBuildsEnabled,
                     },
                 };
                 const mcpServer = await mcpService.createServer(toolOptions);
