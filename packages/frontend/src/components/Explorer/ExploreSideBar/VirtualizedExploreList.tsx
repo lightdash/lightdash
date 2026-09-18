@@ -35,7 +35,7 @@ export type VirtualListItem =
           isExpanded: boolean;
       };
 
-interface VirtualizedExploreListProps {
+export interface VirtualizedExploreListProps {
     groupedExploreTree: ExploreNode[];
     defaultUngroupedExplores: SummaryExplore[];
     customUngroupedExplores: SummaryExplore[];
