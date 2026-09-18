@@ -1,4 +1,7 @@
-import { APP_VERSION_CANCELLED_BY_USER } from '@lightdash/common';
+import {
+    APP_VERSION_CANCELLED_BY_USER,
+    ParameterError,
+} from '@lightdash/common';
 import { McpService, McpToolName } from './McpService';
 import { makeMcpServerOptions } from './McpService.mock';
 
@@ -441,5 +444,99 @@ describe('McpService list_data_app_themes', () => {
         const result = await callTool(McpToolName.LIST_DATA_APP_THEMES, {});
 
         expect(result.structuredContent).toEqual({ themes: [] });
+    });
+});
+
+describe('McpService iterate_data_app', () => {
+    const iterateArgs = {
+        appSlug: 'quarterly-review',
+        prompt: 'Add a churn section',
+    };
+
+    it('registers the tool when the caller may create data apps', async () => {
+        await createServerWithRuntime({ iterateDataApp: vi.fn() });
+
+        expect(mockRegisteredMcpTools.has(McpToolName.ITERATE_DATA_APP)).toBe(
+            true,
+        );
+    });
+
+    it('omits the tool when data app builds are unavailable', async () => {
+        await createServerWithRuntime(
+            { iterateDataApp: vi.fn() },
+            { dataAppBuildsEnabled: false },
+        );
+
+        expect(mockRegisteredMcpTools.has(McpToolName.ITERATE_DATA_APP)).toBe(
+            false,
+        );
+    });
+
+    it('returns the slug and version the runtime produced, without the uuid', async () => {
+        await createServerWithRuntime({
+            iterateDataApp: vi.fn().mockResolvedValue({
+                appUuid,
+                slug: 'quarterly-review',
+                version: 4,
+            }),
+        });
+
+        const result = await callTool(
+            McpToolName.ITERATE_DATA_APP,
+            iterateArgs,
+        );
+
+        expect(result.structuredContent).toEqual({
+            slug: 'quarterly-review',
+            version: 4,
+        });
+    });
+
+    it('adds the version with no agent tool-call reference', async () => {
+        const iterateDataApp = vi.fn().mockResolvedValue({
+            appUuid,
+            slug: 'quarterly-review',
+            version: 2,
+        });
+        await createServerWithRuntime({ iterateDataApp });
+
+        await callTool(McpToolName.ITERATE_DATA_APP, {
+            ...iterateArgs,
+            themeSlug: 'brand',
+        });
+
+        expect(iterateDataApp).toHaveBeenCalledWith({
+            appSlug: 'quarterly-review',
+            prompt: 'Add a churn section',
+            dashboardSlug: null,
+            chartSlugs: null,
+            themeSlug: 'brand',
+            toolCallId: null,
+        });
+    });
+
+    it('surfaces the already-building error to the caller', async () => {
+        await createServerWithRuntime({
+            iterateDataApp: vi
+                .fn()
+                .mockRejectedValue(
+                    new ParameterError(
+                        'A version is already building for this app',
+                    ),
+                ),
+        });
+
+        const result = await callTool(
+            McpToolName.ITERATE_DATA_APP,
+            iterateArgs,
+        );
+
+        expect(result.isError).toBe(true);
+        expect(result.content).toEqual([
+            {
+                type: 'text',
+                text: 'A version is already building for this app',
+            },
+        ]);
     });
 });

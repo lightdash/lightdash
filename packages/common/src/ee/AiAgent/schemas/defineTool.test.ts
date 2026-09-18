@@ -360,6 +360,7 @@ describe('defineTool', () => {
             'get_metadata',
             'get_query_result',
             'grep_fields',
+            'iterate_data_app',
             'list_data_app_themes',
             'list_skills',
             'read_skill',
