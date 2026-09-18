@@ -25,6 +25,8 @@ const readString = (input: AnyType, keys: string[]) => {
 export const summarizeToolCall = (toolName: string, input: AnyType) => {
     const quoted = (text?: string) => (text ? `“${oneLine(text)}”` : undefined);
     switch (toolName) {
+        case 'searchTools':
+            return quoted(readString(input, ['query'])) ?? 'Searching tools';
         case 'runSql':
             return 'Checking query';
         case 'repoShell':

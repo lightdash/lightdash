@@ -44,6 +44,7 @@ import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
 import { getSlackLinksOnlySection } from './systemV2SlackLinksOnly';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
+import { TOOL_SEARCH_SECTION } from './systemV2ToolRouting';
 
 const getDataAccessSection = (
     enableDataAccess: boolean,
@@ -98,6 +99,8 @@ export const getSystemPromptV2 = (args: {
     runSqlMaxLimit?: number;
     unauthenticatedMcpServerNames?: string[];
     mcpServers?: Array<{ name: string; toolNames: string[] }>;
+    // Non-core tools are hidden until the model finds them with searchTools.
+    enableToolSearch?: boolean;
 }): SystemModelMessage => {
     const {
         instructions,
@@ -128,6 +131,7 @@ export const getSystemPromptV2 = (args: {
         runSqlMaxLimit,
         unauthenticatedMcpServerNames = [],
         mcpServers = [],
+        enableToolSearch = false,
     } = args;
 
     let crossExploreJoinRule: string;
@@ -418,6 +422,7 @@ export const getSystemPromptV2 = (args: {
         content,
         deepResearchContent,
         grepFieldsSection,
+        enableToolSearch ? TOOL_SEARCH_SECTION : '',
         mcpToolsSection,
         mcpConnectionsSection,
         skillsSection,

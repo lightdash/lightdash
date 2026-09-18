@@ -1357,6 +1357,34 @@ export const readPinnedThreadToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolReadPinnedThreadOutputSchema },
 });
 
+// Mirror of the AI SDK's own `toolSearch()` tool. The SDK builds the tool the
+// model sees; this definition only lets its calls persist and render like a
+// built-in tool.
+export const toolSearchToolsArgsSchema = z.object({
+    query: z.string(),
+});
+
+export const toolSearchToolsOutputSchema = z.object({
+    tools: z.array(
+        z.object({ name: z.string(), description: z.string().optional() }),
+    ),
+});
+
+export const searchToolsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'searchTools',
+    typeof toolSearchToolsArgsSchema,
+    typeof toolSearchToolsArgsSchema,
+    typeof toolSearchToolsOutputSchema
+> = defineTool({
+    name: 'searchTools',
+    title: 'Search tools',
+    description:
+        'Search deferred tools by name and description. Matches become callable on the next step.',
+    availability: ['agent'],
+    inputSchema: toolSearchToolsArgsSchema,
+    agent: { outputSchema: toolSearchToolsOutputSchema },
+});
+
 const submitResearchReportOutputSchema = z.object({
     result: z.string(),
     metadata: z.object({ status: z.enum(['success', 'error']) }),
@@ -1771,6 +1799,7 @@ type AgentToolDefinitionsByName = {
     listKnowledgeDocuments: typeof listKnowledgeDocumentsToolDefinition;
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
     readPinnedThread: typeof readPinnedThreadToolDefinition;
+    searchTools: typeof searchToolsToolDefinition;
     submitResearchReport: typeof submitResearchReportToolDefinition;
     delegateResearchTask: typeof delegateResearchTaskToolDefinition;
     submitWorkerFindings: typeof submitWorkerFindingsToolDefinition;
@@ -1829,6 +1858,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listKnowledgeDocuments: listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
     readPinnedThread: readPinnedThreadToolDefinition,
+    searchTools: searchToolsToolDefinition,
     submitResearchReport: submitResearchReportToolDefinition,
     delegateResearchTask: delegateResearchTaskToolDefinition,
     submitWorkerFindings: submitWorkerFindingsToolDefinition,
@@ -1894,6 +1924,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContentToolDefinition,
     readPinnedThreadToolDefinition,
+    searchToolsToolDefinition,
     submitResearchReportToolDefinition,
     delegateResearchTaskToolDefinition,
     submitWorkerFindingsToolDefinition,

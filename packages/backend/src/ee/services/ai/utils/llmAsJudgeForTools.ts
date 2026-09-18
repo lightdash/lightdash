@@ -56,6 +56,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     listKnowledgeDocuments: 'list_knowledge_documents',
     getKnowledgeDocumentContent: 'get_knowledge_document_content',
     readPinnedThread: 'read_pinned_thread',
+    searchTools: 'search_tools',
     generateDashboard: 'generate_dashboard',
     listProjects: 'list_projects',
     getProjectInfo: 'get_project_info',

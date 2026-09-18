@@ -1,7 +1,7 @@
 import { toolLoadMcpToolsArgsSchema } from '@lightdash/common';
 import type { ModelMessage } from 'ai';
 
-const getToolCalls = (messages: ModelMessage[]) =>
+export const getToolCalls = (messages: ModelMessage[]) =>
     messages.flatMap((message) =>
         message.role === 'assistant' && Array.isArray(message.content)
             ? message.content.filter((part) => part.type === 'tool-call')
