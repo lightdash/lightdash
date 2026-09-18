@@ -144,6 +144,9 @@ describe('ProjectModel', () => {
         listByProject: (
             targetProjectUuid: string,
         ) => Promise<typeof expectedProject.connections>;
+        resolveSole: (
+            targetProjectUuid: string,
+        ) => Promise<(typeof expectedProject.connections)[number]>;
         getCredentials: (
             targetProjectUuid: string,
             connectionUuid: string,
@@ -217,18 +220,19 @@ describe('ProjectModel', () => {
         );
         expect(tracker.history.update[0].bindings).toContain(true);
     });
-    test('gets a project with several connections without resolving credentials', async () => {
+    test('gets a two-live-connection project without choosing credentials', async () => {
         const connectionModel = getConnectionModel();
         const secondConnection = {
             ...projectConnection,
             connectionUuid: secondCompileConnectionUuid,
-            name: 'Second',
+            name: 'Secondary warehouse',
         };
         vi.spyOn(connectionModel, 'listByProject').mockResolvedValue([
             projectConnection,
             secondConnection,
         ]);
         const getCredentials = vi.spyOn(connectionModel, 'getCredentials');
+        const resolveSole = vi.spyOn(connectionModel, 'resolveSole');
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
             .response([projectMock]);
@@ -242,6 +246,7 @@ describe('ProjectModel', () => {
         expect(project.warehouseConnection).toBeUndefined();
         expect(project.requireUserCredentials).toBe(false);
         expect(getCredentials).not.toHaveBeenCalled();
+        expect(resolveSole).not.toHaveBeenCalled();
     });
     test('gets a project without connections or legacy credentials', async () => {
         const connectionModel = getConnectionModel();
@@ -257,6 +262,49 @@ describe('ProjectModel', () => {
         expect(project.warehouseConnection).toBeUndefined();
         expect(project.requireUserCredentials).toBe(false);
         expect(getCredentials).not.toHaveBeenCalled();
+    });
+    test('lists each organization project once and omits an ambiguous connection type', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes('from "organizations"'))
+            .response([{ organization_id: 7 }]);
+        tracker.on
+            .select(({ sql }) =>
+                sql.includes('agg_project_group_access_counts'),
+            )
+            .response([
+                {
+                    project_uuid: projectUuid,
+                    slug: 'my-project',
+                    name: 'My project',
+                    project_type: 'DEFAULT',
+                    created_at: new Date('2026-09-17T12:00:00Z'),
+                    copied_from_project_uuid: null,
+                    created_by_user_uuid: null,
+                    created_by_user_name: null,
+                    warehouse_type: null,
+                    expires_at: null,
+                    provisioning_source: null,
+                },
+            ]);
+
+        await expect(
+            model.getAllByOrganizationUuid('organization-uuid'),
+        ).resolves.toEqual([
+            expect.objectContaining({
+                projectUuid,
+                warehouseType: undefined,
+            }),
+        ]);
+        expect(tracker.history.select).toHaveLength(2);
+        expect(tracker.history.select[1].sql).toContain(
+            'CASE WHEN COUNT(*) = 1 THEN MIN(warehouse_type::text) ELSE NULL END AS warehouse_type',
+        );
+        expect(tracker.history.select[1].sql).toContain(
+            '"superseded_at" is null',
+        );
+        expect(tracker.history.select[1].sql).toContain(
+            'group by "project_id"',
+        );
     });
     test('gets compile project metadata without resolving warehouse credentials', async () => {
         tracker.on
@@ -454,7 +502,10 @@ describe('ProjectModel', () => {
     test('does not infer project policy from one selected connection in a multi-connection project', async () => {
         const connectionModel = getConnectionModel();
         vi.spyOn(connectionModel, 'listByProject').mockResolvedValue([
-            projectConnection,
+            {
+                ...projectConnection,
+                connectionUuid: compileConnectionUuid,
+            },
             {
                 ...projectConnection,
                 connectionUuid: secondCompileConnectionUuid,
@@ -482,7 +533,8 @@ describe('ProjectModel', () => {
         );
     });
     test('keeps unscoped getWithSensitiveFields on its legacy credential path', async () => {
-        mockSoleProjectConnection();
+        const connectionModel = mockSoleProjectConnection();
+        const resolveSole = vi.spyOn(connectionModel, 'resolveSole');
         tracker.on
             .select(({ sql }) => sql.includes(`from "${ProjectTableName}"`))
             .response([
@@ -511,25 +563,34 @@ describe('ProjectModel', () => {
             }),
         });
         expect(tracker.history.select).toHaveLength(1);
+        expect(resolveSole).not.toHaveBeenCalled();
     });
-    test('refuses unscoped sensitive fields for several live connections', async () => {
+    test('returns two-live project metadata without choosing warehouse credentials', async () => {
+        const connectionModel = getConnectionModel();
+        const secondConnection = {
+            ...projectConnection,
+            connectionUuid: secondCompileConnectionUuid,
+            name: 'Secondary warehouse',
+        };
+        vi.spyOn(connectionModel, 'listByProject').mockResolvedValue([
+            projectConnection,
+            secondConnection,
+        ]);
+        const getCredentials = vi.spyOn(connectionModel, 'getCredentials');
+        const resolveSole = vi.spyOn(connectionModel, 'resolveSole');
         tracker.on
             .select(({ sql }) => sql.includes(`from "${ProjectTableName}"`))
-            .response([
-                {
-                    ...projectMock,
-                    connection_uuid: compileConnectionUuid,
-                },
-                {
-                    ...projectMock,
-                    connection_uuid: secondCompileConnectionUuid,
-                },
-            ]);
+            .response([projectMock]);
 
-        await expect(
-            model.getWithSensitiveFields(projectUuid),
-        ).rejects.toBeInstanceOf(MultipleConnectionsError);
-        expect(encryptionUtilMock.decrypt).not.toHaveBeenCalled();
+        const project = await model.getWithSensitiveFields(projectUuid);
+
+        expect(project.connections).toEqual([
+            projectConnection,
+            secondConnection,
+        ]);
+        expect(project.warehouseConnection).toBeUndefined();
+        expect(getCredentials).not.toHaveBeenCalled();
+        expect(resolveSole).not.toHaveBeenCalled();
     });
     test('rejects a connection outside the selected project', async () => {
         tracker.on

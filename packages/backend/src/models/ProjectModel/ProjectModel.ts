@@ -275,19 +275,6 @@ const stampExploreConnectionUuid = (
     }
 };
 
-const mergeConnectionListingFields = <T extends CreateWarehouseCredentials>(
-    credentials: T,
-    row: {
-        list_all_databases: boolean | null;
-        additional_databases: string[] | null;
-    },
-): T =>
-    ({
-        ...credentials,
-        listAllDatabases: row.list_all_databases ?? false,
-        additionalDatabases: row.additional_databases ?? [],
-    }) as T;
-
 async function chunkedInsertReturning<T extends Record<string, unknown>>(
     trx: Transaction,
     tableName: string,
@@ -874,6 +861,19 @@ export class ProjectModel {
 
         const organizationId = orgs[0].organization_id;
 
+        const liveProjectConnections = this.database(
+            WarehouseCredentialTableName,
+        )
+            .select(
+                'project_id',
+                this.database.raw(
+                    'CASE WHEN COUNT(*) = 1 THEN MIN(warehouse_type::text) ELSE NULL END AS warehouse_type',
+                ),
+            )
+            .whereNull('superseded_at')
+            .groupBy('project_id')
+            .as('live_project_connections');
+
         const projects = await this.database
             .with('agg_project_group_access_counts', (q) => {
                 void q
@@ -916,9 +916,9 @@ export class ProjectModel {
             })
             .from('projects')
             .leftJoin(
-                WarehouseCredentialTableName,
+                liveProjectConnections,
                 'projects.project_id',
-                `${WarehouseCredentialTableName}.project_id`,
+                'live_project_connections.project_id',
             )
             .leftJoin(
                 'users',
@@ -935,7 +935,7 @@ export class ProjectModel {
                 `projects.created_by_user_uuid`,
                 'projects.expires_at',
                 'projects.provisioning_source',
-                `${WarehouseCredentialTableName}.warehouse_type`,
+                'live_project_connections.warehouse_type',
                 this.database.raw(
                     "TRIM(CONCAT(users.first_name, ' ', users.last_name)) as created_by_user_name",
                 ),
@@ -1985,9 +1985,6 @@ export class ProjectModel {
                         `Cannot find project with id: ${projectUuid}`,
                     );
                 }
-                if (!connectionUuid && projects.length > 1) {
-                    throw new MultipleConnectionsError();
-                }
                 const [project] = projects;
                 if (!project.dbt_connection) {
                     throw new NotFoundError(
@@ -2007,21 +2004,24 @@ export class ProjectModel {
 
                 const connections =
                     await this.connectionModel.listByProject(projectUuid);
-                let warehouseConnection: CreateWarehouseCredentials | undefined;
+                let selectedConnection: Connection | undefined;
                 if (connectionUuid) {
-                    warehouseConnection =
-                        await this.connectionModel.getCredentials(
-                            projectUuid,
-                            connectionUuid,
-                        );
+                    selectedConnection = connections.find(
+                        (connection) =>
+                            connection.connectionUuid === connectionUuid,
+                    );
                 } else if (connections.length === 1) {
-                    warehouseConnection =
-                        await this.connectionModel.getCredentials(
-                            projectUuid,
-                            connections[0].connectionUuid,
-                        );
+                    [selectedConnection] = connections;
                 }
-
+                if (connectionUuid && !selectedConnection) {
+                    throw new NotFoundError('Connection not found');
+                }
+                const warehouseConnection = selectedConnection
+                    ? await this.connectionModel.getCredentials(
+                          projectUuid,
+                          selectedConnection.connectionUuid,
+                      )
+                    : undefined;
                 const result: Omit<Project, 'warehouseConnection'> = {
                     organizationUuid: project.organization_uuid,
                     projectUuid,
@@ -2214,41 +2214,6 @@ export class ProjectModel {
             sensitiveCredentials,
             scrubbedCredentials,
         ) as WarehouseCredentials;
-    }
-
-    private async getOrganizationWarehouseCredentials(
-        organizationWarehouseCredentialsUuid: string,
-        organizationUuid: string, // Extra filter value to ensure we are getting the credentials from the correct organization
-    ): Promise<CreateWarehouseCredentials> {
-        const [orgCredentials] = await this.database(
-            'organization_warehouse_credentials',
-        )
-            .where(
-                'organization_warehouse_credentials_uuid',
-                organizationWarehouseCredentialsUuid,
-            )
-            .andWhere('organization_uuid', organizationUuid)
-            .select('warehouse_connection');
-
-        if (!orgCredentials) {
-            throw new NotFoundError(
-                'Organization warehouse credentials not found',
-            );
-        }
-
-        try {
-            return normalizeWarehouseCredentials(
-                JSON.parse(
-                    this.encryptionUtil.decrypt(
-                        orgCredentials.warehouse_connection,
-                    ),
-                ) as CreateWarehouseCredentials,
-            );
-        } catch (e) {
-            throw new UnexpectedServerError(
-                'Failed to load organization warehouse credentials',
-            );
-        }
     }
 
     async get(projectUuid: string): Promise<Project> {

@@ -135,6 +135,27 @@ export class ConnectionModel {
         organizationWarehouseCredentialsUuid: string,
         organizationUuid: string,
     ): Promise<CreateWarehouseCredentials> {
+        const warehouseConnection = await this.getOrganizationCredentialsRow(
+            organizationWarehouseCredentialsUuid,
+            organizationUuid,
+        );
+        try {
+            return normalizeWarehouseCredentials(
+                JSON.parse(
+                    this.encryptionUtil.decrypt(warehouseConnection),
+                ) as CreateWarehouseCredentials,
+            );
+        } catch {
+            throw new UnexpectedServerError(
+                'Failed to load organization warehouse credentials',
+            );
+        }
+    }
+
+    private async getOrganizationCredentialsRow(
+        organizationWarehouseCredentialsUuid: string,
+        organizationUuid: string,
+    ): Promise<Buffer> {
         const row = await this.database('organization_warehouse_credentials')
             .where(
                 'organization_warehouse_credentials_uuid',
@@ -148,15 +169,26 @@ export class ConnectionModel {
                 'Organization warehouse credentials not found',
             );
         }
-        try {
-            return normalizeWarehouseCredentials(
-                JSON.parse(
-                    this.encryptionUtil.decrypt(row.warehouse_connection),
-                ) as CreateWarehouseCredentials,
-            );
-        } catch {
-            throw new UnexpectedServerError(
-                'Failed to load organization warehouse credentials',
+        return row.warehouse_connection;
+    }
+
+    private async validateOrganizationCredentialOwnership(
+        row: ConnectionRow,
+    ): Promise<void> {
+        if (!row.organization_warehouse_credentials_uuid) return;
+        const organizationCredentials = await this.database(
+            'organization_warehouse_credentials',
+        )
+            .where(
+                'organization_warehouse_credentials_uuid',
+                row.organization_warehouse_credentials_uuid,
+            )
+            .where('organization_uuid', row.organization_uuid)
+            .select('organization_warehouse_credentials_uuid')
+            .first();
+        if (!organizationCredentials) {
+            throw new NotFoundError(
+                'Organization warehouse credentials not found',
             );
         }
     }
@@ -220,7 +252,9 @@ export class ConnectionModel {
         projectUuid: string,
         connectionUuid: string,
     ): Promise<Connection> {
-        return toConnection(await this.getRow(projectUuid, connectionUuid));
+        const row = await this.getRow(projectUuid, connectionUuid);
+        await this.validateOrganizationCredentialOwnership(row);
+        return toConnection(row);
     }
 
     async getCredentials(
@@ -276,13 +310,25 @@ export class ConnectionModel {
         projectUuid: string,
         connectionUuid: string,
     ): Promise<string> {
-        const credentials = await this.getCredentials(
-            projectUuid,
-            connectionUuid,
-        );
+        const row = await this.getRow(projectUuid, connectionUuid);
+        const credentialPayload = row.organization_warehouse_credentials_uuid
+            ? await this.getOrganizationCredentialsRow(
+                  row.organization_warehouse_credentials_uuid,
+                  row.organization_uuid,
+              )
+            : row.encrypted_credentials;
+        if (!credentialPayload) {
+            throw new UnexpectedServerError(
+                'Unexpected error: warehouse credentials are missing',
+            );
+        }
         return crypto
             .createHash('sha256')
-            .update(JSON.stringify(credentials))
+            .update(credentialPayload)
+            .update(row.organization_warehouse_credentials_uuid ?? '')
+            .update(row.warehouse_type)
+            .update(row.list_all_databases ? '1' : '0')
+            .update(JSON.stringify(row.additional_databases))
             .digest('hex');
     }
 
@@ -296,7 +342,7 @@ export class ConnectionModel {
         if (connections.length > 1) {
             throw new MultipleConnectionsError();
         }
-        return connections[0];
+        return this.getByUuid(projectUuid, connections[0].connectionUuid);
     }
 
     async create(

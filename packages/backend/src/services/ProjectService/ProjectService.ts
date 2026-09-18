@@ -12473,19 +12473,22 @@ export class ProjectService extends BaseService {
         if (auditedAbility.cannot('view', subject('Project', project))) {
             throw new ForbiddenError();
         }
-        const connection = await this.projectModel.resolveConnection(
-            projectUuid,
-            connectionUuid,
-        );
-        const credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
+        let connection: Connection;
+        try {
+            connection = await this.projectModel.resolveConnection(
                 projectUuid,
-                connection.connectionUuid,
+                connectionUuid,
             );
+        } catch (error) {
+            if (!connectionUuid && error instanceof MultipleConnectionsError) {
+                return undefined;
+            }
+            throw error;
+        }
         return this.userWarehouseCredentialsModel.findForProject(
             project.projectUuid,
             user.userUuid,
-            credentials.type,
+            connection.warehouseType,
             connection.connectionUuid,
         );
     }
