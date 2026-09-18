@@ -1,11 +1,17 @@
-import { syncDbtProjectToolDefinition } from '@lightdash/common';
+import {
+    assertUnreachable,
+    syncDbtProjectToolDefinition,
+    type ToolSyncDbtProjectOutput,
+    type ToolSyncDbtProjectStructuredContent,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     SyncDbtProjectFn,
+    SyncDbtProjectResult,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
@@ -15,7 +21,7 @@ type Dependencies = {
 
 const toolDefinition = syncDbtProjectToolDefinition.for('agent');
 
-const generateResponse = (result: Awaited<ReturnType<SyncDbtProjectFn>>) => (
+const generateResponse = (result: SyncDbtProjectResult) => (
     <syncDbtProject status={result.status} jobUuid={result.jobUuid}>
         <message>{result.message}</message>
         {result.status === 'success' && (
@@ -35,36 +41,51 @@ const generateResponse = (result: Awaited<ReturnType<SyncDbtProjectFn>>) => (
     </syncDbtProject>
 );
 
+const toStructuredContent = (
+    result: SyncDbtProjectResult,
+    text: string,
+): ToolSyncDbtProjectOutput['structuredContent'] => {
+    switch (result.status) {
+        case 'success':
+        case 'in_progress': {
+            const content: ToolSyncDbtProjectStructuredContent = {
+                status: result.status,
+                jobUuid: result.jobUuid,
+                message: result.message,
+            };
+            return content;
+        }
+        case 'error':
+            return { error: text };
+        default:
+            return assertUnreachable(result.status, 'Unknown sync status');
+    }
+};
+
 export const getSyncDbtProject = ({
     syncDbtProject,
     updateProgress,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (args) => {
+        execute: async (args): Promise<ToolSyncDbtProjectOutput> => {
             try {
                 await updateProgress('Syncing the dbt project...');
 
                 const result = await syncDbtProject({
                     reason: args.reason,
                 });
+                const text = generateResponse(result).toString();
 
                 return {
-                    result: generateResponse(result).toString(),
+                    result: text,
                     metadata: {
                         status: result.status === 'error' ? 'error' : 'success',
                     },
+                    structuredContent: toStructuredContent(result, text),
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(
-                        error,
-                        'Error syncing the dbt project.',
-                    ),
-                    metadata: {
-                        status: 'error',
-                    },
-                };
+                return toolErrorOutput(error, 'Error syncing the dbt project.');
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
