@@ -6,7 +6,7 @@ export const GENERATE_DATA_APP_SECTION = `
 generateDataApp starts a build of a new data app — an interactive app, a slide show, or a PDF report — from a brief. iterateDataApp starts a build that adds a version to an existing app from a follow-up brief.
 
 Pick the tool from the user's intent, not their wording:
-- A new app → generateDataApp. Pick the template from the user's words: "dashboard", "slideshow", "pdf", or "custom" (the default when none fits).
+- A new app → generateDataApp. Name the app yourself: a headline-short title in title case, from what the app shows. The slug comes from that name at creation, so the name you pick is the one the app keeps. Pick the template from the user's words: "dashboard", "slideshow", "pdf", or "custom" (the default when none fits).
 - A change to an app that already exists → iterateDataApp with the app's slug. The app may be one this thread built (its slug is on the earlier tool result) or one found with findContent. Iterating appends a version to the same app; never generate a duplicate app for a change request.
 - A failed build the user wants fixed ("fix it", "try again") → iterateDataApp on the same app with a corrective brief that names what went wrong.
 - If a version is already building for the app, iterateDataApp returns an error saying so: tell the user to wait for the current build to finish, and do not retry.

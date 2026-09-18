@@ -3044,6 +3044,7 @@ describe('AiAgentToolsService generateDataApp', () => {
         > = {},
     ) =>
         service.createRuntime(context).generateDataApp({
+            name: 'Revenue Overview',
             prompt: 'Build a revenue app',
             template: null,
             dashboardSlug: null,
@@ -3102,6 +3103,7 @@ describe('AiAgentToolsService generateDataApp', () => {
         expect(prompt).toBe('Build a revenue app');
         expect(template).toBe('slideshow');
         expect(opts).toEqual({
+            name: 'Revenue Overview',
             creationExperience: 'ai_agent',
             aiAgentToolCall: {
                 promptUuid: 'prompt-uuid',
@@ -3273,6 +3275,7 @@ describe('AiAgentToolsService generateDataApp', () => {
             ).not.toHaveBeenCalled();
             const opts = generateAppOptions(appGenerateService);
             expect(opts).toEqual({
+                name: 'Revenue Overview',
                 creationExperience: 'ai_agent',
                 aiAgentToolCall: {
                     promptUuid: 'prompt-uuid',

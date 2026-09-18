@@ -450,6 +450,9 @@ export type DataAppReadSource = {
 };
 
 type GenerateAppOptions = {
+    // Caller-supplied app name: the slug is derived from it at creation, so
+    // the auto-namer leaves both alone. Builder creates leave it unset.
+    name?: string;
     creationExperience?: DataAppCreationExperience;
     designUuidInput?: string | null;
     // Iterate with designUuidInput: 'replace' swaps the prompt for a
@@ -6765,6 +6768,7 @@ export class AppGenerateService extends BaseService {
         options: GenerateAppOptions = {},
     ): Promise<GenerateAppResult> {
         const {
+            name,
             creationExperience,
             designUuidInput,
             externalConnections,
@@ -6933,6 +6937,7 @@ export class AppGenerateService extends BaseService {
                     template: persistedTemplate,
                     space_uuid: spaceUuid ?? null,
                     design_uuid: resolvedDesignUuid,
+                    ...(name ? { name } : {}),
                 },
                 { version, prompt },
                 'pending',

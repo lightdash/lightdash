@@ -1756,6 +1756,7 @@ export class AiAgentToolsService extends BaseService {
     private generateDataApp(
         context: AiAgentToolsRuntimeContext,
         {
+            name,
             prompt,
             template,
             dashboardSlug,
@@ -1822,6 +1823,7 @@ export class AiAgentToolsService extends BaseService {
                     undefined,
                     undefined,
                     {
+                        name,
                         creationExperience: 'ai_agent',
                         aiAgentToolCall: { promptUuid, toolCallId },
                         thread: {
