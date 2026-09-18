@@ -28,7 +28,9 @@ _Avoid_: sub-query, branch, child query
 
 **Join key**:
 The field, or fields, whose values are matched across sources. Each part names
-one field per source, which may be differently named on each side.
+one field per source, which may be differently named on each side. A key may
+be any dimension of the source's explore, selected or not: the leg groups by
+it, and the merged result shows it once, as the key column.
 _Avoid_: merge key, join column, linking field
 
 **Join type**:

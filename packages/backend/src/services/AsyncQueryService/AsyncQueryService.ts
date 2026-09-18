@@ -9312,10 +9312,19 @@ export class AsyncQueryService extends ProjectService {
         const legNodeIdBySourceId = Object.fromEntries(
             metricSources.map((source, index) => [source.id, `leg_${index}`]),
         );
+        // A leg runs the query the compile resolved, not the one submitted:
+        // the compile widens a source by a join key it did not select, and
+        // the join statement expects that column in the leg's results.
+        const compiledLegQueryBySourceId = Object.fromEntries(
+            compiledMerge.legs.flatMap((leg) =>
+                leg.metricQuery ? [[leg.sourceId, leg.metricQuery]] : [],
+            ),
+        );
         const legNodes = metricSources.map((source) =>
             buildMergeLegNode({
                 nodeId: legNodeIdBySourceId[source.id],
-                metricQuery: source.metricQuery,
+                metricQuery:
+                    compiledLegQueryBySourceId[source.id] ?? source.metricQuery,
                 sourceRowCap,
             }),
         );

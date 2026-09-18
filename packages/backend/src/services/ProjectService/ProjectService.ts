@@ -157,6 +157,7 @@ import {
     MERGE_TABLE_NAME,
     mergeCalculationReferencePattern,
     MergeFieldTypes,
+    MergeJoinKeyPart,
     MergeQuery,
     MergeQueryColumns,
     MergeQueryError,
@@ -6312,6 +6313,39 @@ export class ProjectService extends BaseService {
      * running total would be frozen at its pre-merge value and a pivot-function
      * calc compiles to a literal null column.
      */
+    /**
+     * A join key may name a dimension of the source's explore that the query
+     * does not select: the leg groups by it, so the join has the column, and
+     * the merged result shows it once, as the key. Only the explore's own
+     * dimensions qualify; a custom dimension exists only where the query
+     * defines it, and a key the explore lacks is left for the validator.
+     */
+    private static selectJoinKeyDimensions(
+        source: MergeQueryMetricSource,
+        joinKey: MergeJoinKeyPart[],
+        itemMap: ItemsMap,
+    ): MetricQuery {
+        const missing = joinKey.flatMap((part) => {
+            const fieldId = part.fieldIdBySourceId[source.id];
+            if (
+                fieldId === undefined ||
+                source.metricQuery.dimensions.includes(fieldId)
+            ) {
+                return [];
+            }
+            const item = itemMap[fieldId];
+            return item && isDimension(item) ? [fieldId] : [];
+        });
+        if (missing.length === 0) return source.metricQuery;
+        return {
+            ...source.metricQuery,
+            dimensions: [
+                ...source.metricQuery.dimensions,
+                ...missing.filter((id, index) => missing.indexOf(id) === index),
+            ],
+        };
+    }
+
     private static getUnsupportedTableCalculations(
         source: MergeQueryMetricSource,
     ): string[] {
@@ -6403,15 +6437,20 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     source.metricQuery.exploreName,
                 );
+                const itemMap = getItemMap(
+                    explore,
+                    source.metricQuery.additionalMetrics,
+                    source.metricQuery.tableCalculations,
+                    source.metricQuery.customDimensions,
+                );
                 return {
                     id: source.id,
-                    metricQuery: source.metricQuery,
-                    itemMap: getItemMap(
-                        explore,
-                        source.metricQuery.additionalMetrics,
-                        source.metricQuery.tableCalculations,
-                        source.metricQuery.customDimensions,
+                    metricQuery: ProjectService.selectJoinKeyDimensions(
+                        source,
+                        mergeQuery.joinKey,
+                        itemMap,
                     ),
+                    itemMap,
                     explore,
                 };
             }),
@@ -6531,7 +6570,7 @@ export class ProjectService extends BaseService {
 
         const sources = await Promise.all(
             mergeQuery.sources.map(async (source) => {
-                const resolvedMetricQuery =
+                const resolvedMetricQuery: MetricQuery =
                     resolvedMetricQueryBySourceId[source.id];
                 const valueColumns = [
                     ...resolvedMetricQuery.metrics,
@@ -6549,6 +6588,7 @@ export class ProjectService extends BaseService {
                     return {
                         id: source.id,
                         sql: null,
+                        metricQuery: null,
                         valueColumns,
                         missingParameters: [],
                         parameterReferences: [],
@@ -6566,9 +6606,9 @@ export class ProjectService extends BaseService {
                     documentQueryContext: args.documentQueryContext,
                     account,
                     projectUuid,
-                    exploreName: source.metricQuery.exploreName,
+                    exploreName: resolvedMetricQuery.exploreName,
                     body: {
-                        ...source.metricQuery,
+                        ...resolvedMetricQuery,
                         sorts: [],
                         limit: sourceRowCap,
                         parameters,
@@ -6586,6 +6626,7 @@ export class ProjectService extends BaseService {
                 return {
                     id: source.id,
                     sql: compiled.query,
+                    metricQuery: resolvedMetricQuery,
                     valueColumns,
                     missingParameters: Array.from(
                         compiled.missingParameterReferences,
@@ -6623,6 +6664,7 @@ export class ProjectService extends BaseService {
         const legs: MergeCompiledLeg[] = sources.map((source) => ({
             sourceId: source.id,
             sql: source.sql,
+            metricQuery: source.metricQuery,
         }));
         if (parameterErrors.length > 0) {
             return {

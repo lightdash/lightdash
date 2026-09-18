@@ -310,10 +310,10 @@ export const useMergeSetup = () => {
         [additionalItemMap, additionalSource.dimensions],
     );
 
-    // Join keys are dimensions, but they do not need to be selected before
-    // opening this editor. The picker can add a dimension to its query and use
-    // it as the key in one action. Custom dimensions remain limited to ones
-    // already present in the query because they cannot be recreated by id.
+    // A join key is any dimension of the source's explore, selected or not:
+    // the leg groups by it and the merged result shows it once, as the key.
+    // Custom dimensions remain limited to ones already present in the query
+    // because they cannot be recreated by id.
     const availablePrimaryJoinItems = useMemo(
         () =>
             Object.entries(primaryItemMap).flatMap(([id, item]) =>
@@ -535,13 +535,7 @@ export const useMergeSetup = () => {
           : !effectiveParts.every(
                   (part) =>
                       part.fieldIdBySourceId[PRIMARY_SOURCE_ID] &&
-                      part.fieldIdBySourceId[additionalSourceId] &&
-                      metricQuery.dimensions.includes(
-                          part.fieldIdBySourceId[PRIMARY_SOURCE_ID] as string,
-                      ) &&
-                      additionalSource.dimensions.includes(
-                          part.fieldIdBySourceId[additionalSourceId] as string,
-                      ),
+                      part.fieldIdBySourceId[additionalSourceId],
               )
             ? 'Pick a field from each query to join on'
             : null;
