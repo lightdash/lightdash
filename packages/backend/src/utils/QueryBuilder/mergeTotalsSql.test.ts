@@ -1,78 +1,76 @@
-import {
-    DimensionType,
-    FieldType,
-    MetricType,
-    type ItemsMap,
-} from '@lightdash/common';
+import { type MergeColumnTotal } from '@lightdash/common';
 import { buildMergeTotalsSql } from './mergeTotalsSql';
 
-const field = (
-    fieldType: FieldType,
-    type: MetricType | DimensionType,
-): ItemsMap[string] =>
-    ({
-        fieldType,
-        type,
-        name: 'x',
-        label: 'X',
-        table: 'a',
-        tableLabel: 'A',
-        sql: '',
-        hidden: false,
-    }) as ItemsMap[string];
-
-const itemsMap: ItemsMap = {
-    merge_join_key_0: field(FieldType.DIMENSION, DimensionType.STRING),
-    a_orders_total: field(FieldType.METRIC, MetricType.SUM),
-    a_orders_count: field(FieldType.METRIC, MetricType.COUNT),
-    b_payments_unique: field(FieldType.METRIC, MetricType.COUNT_DISTINCT),
-    b_payments_max: field(FieldType.METRIC, MetricType.MAX),
+const columnTotals: Record<string, MergeColumnTotal> = {
+    a_orders_total: { from: 'mergedRows', aggregation: 'sum' },
+    a_orders_count: { from: 'mergedRows', aggregation: 'sum' },
+    b_payments_unique: {
+        from: 'sourceQuery',
+        sourceId: 'b',
+        sourceFieldId: 'payments_unique',
+        sourceLabel: 'Payments',
+    },
+    b_payments_max: { from: 'mergedRows', aggregation: 'max' },
+    b_payments_average: { from: null, reason: 'no' },
 };
 
 describe('buildMergeTotalsSql', () => {
-    it('aggregates only the columns that are exact over merged rows, aliased by field id', () => {
-        const statement = buildMergeTotalsSql(
-            [
+    it('aggregates over the merged rows and reads each source total from its table, in column order', () => {
+        const statement = buildMergeTotalsSql({
+            fieldIds: [
                 'merge_join_key_0',
                 'a_orders_total',
                 'a_orders_count',
                 'b_payments_unique',
                 'b_payments_max',
+                'b_payments_average',
             ],
-            itemsMap,
-        );
+            columnTotals,
+            sourceTotalTables: [
+                {
+                    sourceId: 'b',
+                    table: 'source_total_1',
+                    sourceFieldIds: ['payments_unique'],
+                },
+            ],
+        });
 
         expect(statement?.fieldIds).toEqual([
             'a_orders_total',
             'a_orders_count',
+            'b_payments_unique',
             'b_payments_max',
         ]);
         expect(statement?.sql).toBe(
             [
                 'SELECT SUM("a_orders_total") AS "a_orders_total",',
                 '       SUM("a_orders_count") AS "a_orders_count",',
+                '       (SELECT "payments_unique" FROM "source_total_1") AS "b_payments_unique",',
                 '       MAX("b_payments_max") AS "b_payments_max"',
                 'FROM "merged_result"',
             ].join('\n'),
         );
     });
 
-    it('leaves out the columns of a source that repeats its values', () => {
-        const statement = buildMergeTotalsSql(
-            ['merge_join_key_0', 'a_orders_total', 'b_payments_max'],
-            itemsMap,
-            ['b_payments_max'],
-        );
+    // A source total the legs could not run (say, a period-over-period
+    // metric) leaves its column out rather than reading a missing table.
+    it('leaves out a source total no leg carries', () => {
+        const statement = buildMergeTotalsSql({
+            fieldIds: ['a_orders_total', 'b_payments_unique'],
+            columnTotals,
+            sourceTotalTables: [],
+        });
 
         expect(statement?.fieldIds).toEqual(['a_orders_total']);
     });
 
-    it('has nothing to run when no column can be totalled exactly', () => {
+    it('has nothing to run when no column has a total', () => {
         expect(
-            buildMergeTotalsSql(
-                ['merge_join_key_0', 'b_payments_unique'],
-                itemsMap,
-            ),
+            buildMergeTotalsSql({
+                fieldIds: ['merge_join_key_0', 'b_payments_average'],
+                columnTotals,
+                sourceTotalTables: [],
+            }),
         ).toBeNull();
     });
 });
