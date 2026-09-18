@@ -959,34 +959,163 @@ Parameters:
     "name": "describeWarehouseTable",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
+      "anyOf": [
+        {
           "additionalProperties": false,
           "properties": {
-            "status": {
-              "enum": [
-                "success",
-                "not_found",
-                "error",
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "not_found",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "not_found",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
               ],
+            },
+            "result": {
               "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "columnCount": {
+                  "description": "Number of columns returned.",
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "columns": {
+                  "description": "Column names and warehouse types; empty when the table was not found or has no cached metadata.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                      },
+                      "type": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "name",
+                      "type",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "qualifiedName": {
+                  "description": "Table name as resolved in the warehouse, e.g. "database.schema.table"; the schema part is "(default schema)" when none was given or resolved.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "qualifiedName",
+                "columnCount",
+                "columns",
+              ],
+              "type": "object",
             },
           },
           "required": [
-            "status",
+            "result",
+            "metadata",
+            "structuredContent",
           ],
           "type": "object",
         },
-        "result": {
-          "type": "string",
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "not_found",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
         },
-      },
-      "required": [
-        "result",
-        "metadata",
       ],
-      "type": "object",
     },
   },
   {
