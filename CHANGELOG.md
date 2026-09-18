@@ -1,3 +1,10 @@
+## [2.259.3](https://github.com/lightdash/lightdash/compare/2.259.2...2.259.3) (2026-09-18)
+
+
+### Bug Fixes
+
+* declare usage analytics dimension primary keys ([#29496](https://github.com/lightdash/lightdash/issues/29496)) ([58898ad](https://github.com/lightdash/lightdash/commit/58898ad703270932923ea6cc24b4e3a372020a90))
+
 ## [2.259.2](https://github.com/lightdash/lightdash/compare/2.259.1...2.259.2) (2026-09-18)
 
 
