@@ -38,6 +38,7 @@ interface FieldSelectItem extends ComboboxItem {
 }
 
 const ADD_TO_QUERY_GROUP_LABEL = 'Add to query';
+const SUGGESTED_GROUP_LABEL = 'Suggested';
 
 // Mantine's default filter only sees `label`, which no longer carries the
 // table name for "Add to query" options — match the prefix too, so searching
@@ -81,6 +82,9 @@ type FieldSelectProps<T extends Item = Item> = Omit<
     /** Fields not in the query yet, offered under an "Add to query" group.
      *  Picking one reaches `onChange` like any other item. */
     addItems?: T[];
+    /** Items from `items` to lift into a leading "Suggested" group, in the
+     *  order given; they leave their table group so each is listed once. */
+    suggestedItems?: T[];
     /** Shows a spinner while the slot waits on a query run, replacing any
      *  `rightSection` for the duration. */
     loading?: boolean;
@@ -102,6 +106,7 @@ const FieldSelectComponent = <T extends Item = Item>({
     item,
     items,
     addItems,
+    suggestedItems,
     loading = false,
     onChange,
     onClosed,
@@ -198,6 +203,10 @@ const FieldSelectComponent = <T extends Item = Item>({
         const dedupedAddItems = (addItems ?? []).filter(
             (i) => !itemIds.has(getItemId(i)),
         );
+        const suggestedIds = new Set((suggestedItems ?? []).map(getItemId));
+        const groupedItems = items.filter(
+            (i) => !suggestedIds.has(getItemId(i)),
+        );
 
         [...items, ...dedupedAddItems].forEach((i) => {
             if (
@@ -210,8 +219,8 @@ const FieldSelectComponent = <T extends Item = Item>({
             }
         });
 
-        return [map, [...items].sort(compare), dedupedAddItems.sort(compare)];
-    }, [items, addItems, baseTable, hasGrouping]);
+        return [map, groupedItems.sort(compare), dedupedAddItems.sort(compare)];
+    }, [items, addItems, suggestedItems, baseTable, hasGrouping]);
 
     const selectedItemId = useMemo(() => {
         return item ? getItemId(item) : null;
@@ -289,7 +298,33 @@ const FieldSelectComponent = <T extends Item = Item>({
             disabled: inactiveItemIds.includes(getItemId(i)),
         }));
 
+        // Suggested fields lead, in the order the caller ranked them, and
+        // keep their table as a prefix since they left its group.
+        const itemById = new Map(items.map((i) => [getItemId(i), i]));
+        const suggestedEntries: FieldSelectItem[] = (suggestedItems ?? [])
+            .flatMap((i) => {
+                const known = itemById.get(getItemId(i));
+                return known ? [known] : [];
+            })
+            .map((i) => ({
+                item: i,
+                value: getItemId(i),
+                label: getLabel(i, hasGrouping),
+                tablePrefix: hasGrouping
+                    ? isField(i) && !isCustomDimension(i)
+                        ? i.tableLabel
+                        : isCustomDimension(i)
+                          ? tableLabelMap.get(i.table)
+                          : undefined
+                    : undefined,
+                description: isField(i) ? i.description : undefined,
+                disabled: inactiveItemIds.includes(getItemId(i)),
+            }));
+
         return [
+            ...(suggestedEntries.length > 0
+                ? [{ group: SUGGESTED_GROUP_LABEL, items: suggestedEntries }]
+                : []),
             ...ungrouped,
             ...groupedData,
             ...(addEntries.length > 0
@@ -297,6 +332,8 @@ const FieldSelectComponent = <T extends Item = Item>({
                 : []),
         ];
     }, [
+        items,
+        suggestedItems,
         sortedItems,
         sortedAddItems,
         hasGrouping,

@@ -61,6 +61,13 @@ const state = vi.hoisted(() => ({
         availablePrimaryJoinItems: [] as TestItem[],
         availableAdditionalJoinItems: [] as TestItem[],
         suggestedAvailablePair: null as Record<string, string> | null,
+        getJoinCandidates: (
+            _side: 'primary' | 'additional',
+            _counterpartFieldId: string | null,
+        ): { suggested: TestItem[]; incompatible: TestItem[] } => ({
+            suggested: [],
+            incompatible: [],
+        }),
         primaryExploreLabel: 'Orders',
         additionalExploreLabel: 'Customers',
         additionalSourceId: 'b',
@@ -105,15 +112,26 @@ vi.mock('../../../components/common/FieldSelect', () => ({
         'aria-label': ariaLabel,
         item,
         items,
+        suggestedItems = [],
+        inactiveItemIds = [],
         onChange,
     }: {
         'aria-label': string;
         item?: TestItem;
         items: TestItem[];
+        suggestedItems?: TestItem[];
+        inactiveItemIds?: string[];
         onChange: (item: TestItem | undefined) => void;
     }) => {
         const itemId = (candidate: TestItem) =>
             `${candidate.table}_${candidate.name}`;
+        const suggestedIds = suggestedItems.map(itemId);
+        const ordered = [
+            ...suggestedItems,
+            ...items.filter(
+                (candidate) => !suggestedIds.includes(itemId(candidate)),
+            ),
+        ];
         return (
             <select
                 aria-label={ariaLabel}
@@ -128,8 +146,12 @@ vi.mock('../../../components/common/FieldSelect', () => ({
                 }
             >
                 <option value="">Choose a field</option>
-                {items.map((candidate) => (
-                    <option key={itemId(candidate)} value={itemId(candidate)}>
+                {ordered.map((candidate) => (
+                    <option
+                        key={itemId(candidate)}
+                        value={itemId(candidate)}
+                        disabled={inactiveItemIds.includes(itemId(candidate))}
+                    >
                         {candidate.label}
                     </option>
                 ))}
@@ -163,6 +185,10 @@ const resetState = () => {
     state.setup.availablePrimaryJoinItems = primaryItems;
     state.setup.availableAdditionalJoinItems = additionalItems;
     state.setup.suggestedAvailablePair = null;
+    state.setup.getJoinCandidates = () => ({
+        suggested: [],
+        incompatible: [],
+    });
     state.setup.isIncomplete = false;
 };
 
@@ -245,6 +271,29 @@ describe('MergeJoinBar', () => {
             ),
         ).toBeInTheDocument();
         state.merge.mergeResults = undefined;
+    });
+
+    it("lists the other side's recommended fields first and rules out the rest", () => {
+        state.setup.getJoinCandidates = (side) =>
+            side === 'additional'
+                ? {
+                      suggested: [additionalItems[1]],
+                      incompatible: [additionalItems[0]],
+                  }
+                : { suggested: [], incompatible: [] };
+
+        renderWithProviders(<MergeJoinBar guided />);
+
+        const options = Array.from(
+            screen
+                .getByRole('combobox', { name: 'Customers join field' })
+                .querySelectorAll('option'),
+        ).slice(1);
+        expect(options.map((option) => option.textContent)).toEqual([
+            'Account key',
+            'ID',
+        ]);
+        expect(options.map((option) => option.disabled)).toEqual([false, true]);
     });
 
     it('shows AND between clauses and keeps remove actions visible', async () => {
