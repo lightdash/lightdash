@@ -1,3 +1,10 @@
+## [2.263.1](https://github.com/lightdash/lightdash/compare/2.263.0...2.263.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* enforce project access on parameters and pre-aggregate endpoints ([#29511](https://github.com/lightdash/lightdash/issues/29511)) ([29934de](https://github.com/lightdash/lightdash/commit/29934de4b9fa1712ac46ac624e168e8b873ff728))
+
 # [2.263.0](https://github.com/lightdash/lightdash/compare/2.262.0...2.263.0) (2026-09-18)
 
 
