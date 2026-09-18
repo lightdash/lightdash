@@ -1,3 +1,15 @@
+# [2.263.0](https://github.com/lightdash/lightdash/compare/2.262.0...2.263.0) (2026-09-18)
+
+
+### Bug Fixes
+
+* anchor custom chart action menus at the cursor ([#29504](https://github.com/lightdash/lightdash/issues/29504)) ([29604b0](https://github.com/lightdash/lightdash/commit/29604b0035bd9776ca3191c1f933e65b5b96f195))
+
+
+### Features
+
+* **apps:** author avatar under each prompt in the version history ([#29516](https://github.com/lightdash/lightdash/issues/29516)) ([01f54b0](https://github.com/lightdash/lightdash/commit/01f54b0f1995c5ffcd9a30bedfcb4f300102ae74))
+
 # [2.262.0](https://github.com/lightdash/lightdash/compare/2.261.0...2.262.0) (2026-09-18)
 
 

@@ -1,29 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.262.0",
-  "previousVersion": "2.261.0",
-  "releaseDate": "2026-09-18T10:46:49.647Z",
+  "version": "2.263.0",
+  "previousVersion": "2.262.0",
+  "releaseDate": "2026-09-18T10:54:40.275Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260917100000_create_app_threads.ts",
-        "edition": "core",
-        "tables": [
-          "app_threads",
-          "app_versions",
-          "apps"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
