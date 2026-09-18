@@ -1,3 +1,24 @@
+# [2.262.0](https://github.com/lightdash/lightdash/compare/2.261.0...2.262.0) (2026-09-18)
+
+
+### Bug Fixes
+
+* soften roadmap follow modal disclosure ([#29512](https://github.com/lightdash/lightdash/issues/29512)) ([f63a01a](https://github.com/lightdash/lightdash/commit/f63a01aa5cdc1b855743776289cb77ddc8b22859))
+
+
+### Features
+
+* **apps:** clear agent context and thread-scoped chat in the data app builder ([#29437](https://github.com/lightdash/lightdash/issues/29437)) ([022fbdf](https://github.com/lightdash/lightdash/commit/022fbdf17250443c02164838a7ad6b05caa06d89))
+* **apps:** project history drawer in the data app builder ([#29435](https://github.com/lightdash/lightdash/issues/29435)) ([9a39ddf](https://github.com/lightdash/lightdash/commit/9a39ddf774a3006d3eab96af00da1489696c83b1))
+* **apps:** thread UI components and history panel in Storybook ([#29432](https://github.com/lightdash/lightdash/issues/29432)) ([310a5a7](https://github.com/lightdash/lightdash/commit/310a5a7cac1dbf304e5b94dd932ebff967fba9e7))
+* **autopilot:** qualify newer Claude and GPT models for cleanup ([#29507](https://github.com/lightdash/lightdash/issues/29507)) ([6daa34a](https://github.com/lightdash/lightdash/commit/6daa34a7e415bdd25fd0dfa81ae77f6096b4f218))
+* **chart-types:** clear agent context in the chart type builder ([#29436](https://github.com/lightdash/lightdash/issues/29436)) ([7e12646](https://github.com/lightdash/lightdash/commit/7e12646303608b951aa8be0197adbaf17f7793dc))
+* **data-apps:** app threads schema, backfill, model and read API ([#29431](https://github.com/lightdash/lightdash/issues/29431)) ([979f350](https://github.com/lightdash/lightdash/commit/979f350383ef0a0be024213d2ad1abdd04da57ca))
+* **data-apps:** clear agent context endpoint, version routing and per-thread session ([#29433](https://github.com/lightdash/lightdash/issues/29433)) ([ce88068](https://github.com/lightdash/lightdash/commit/ce88068b65956b6d44b76591f69166073f90f3a7))
+* **data-apps:** record the Ask AI thread on AI-agent-generated apps ([#29415](https://github.com/lightdash/lightdash/issues/29415)) ([6a3766e](https://github.com/lightdash/lightdash/commit/6a3766e9abf6d58141d8ecf5eec98f018174435c))
+* **data-apps:** resume the coding agent session by id ([#29434](https://github.com/lightdash/lightdash/issues/29434)) ([a31e74d](https://github.com/lightdash/lightdash/commit/a31e74d996e6a9d2a1915450d35147c613d22026))
+* **merge-queries:** rank join-field candidates and pre-fill the one recommended match ([#29400](https://github.com/lightdash/lightdash/issues/29400)) ([4ff10b8](https://github.com/lightdash/lightdash/commit/4ff10b8859246673a386f6cb4760fbb4cc1eaf07))
+
 # [2.261.0](https://github.com/lightdash/lightdash/compare/2.260.0...2.261.0) (2026-09-18)
 
 

@@ -21249,6 +21249,24 @@
             "ApiGetDataAppAuthoringContextResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppContext_"
             },
+            "AppThread": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "number": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["createdAt", "number", "uuid"],
+                "type": "object",
+                "description": "One conversation between the user and the coding agent on a data app."
+            },
             "AppVersionStatus": {
                 "type": "string",
                 "enum": [
@@ -21510,6 +21528,13 @@
                     "prompt": {
                         "type": "string"
                     },
+                    "threadNumber": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -21525,11 +21550,13 @@
                     "statusMessage",
                     "status",
                     "prompt",
+                    "threadNumber",
+                    "threadUuid",
                     "version"
                 ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -21566,6 +21593,9 @@
                                     "$ref": "#/components/schemas/ApiAppVersionSummary"
                                 },
                                 "type": "array"
+                            },
+                            "currentThread": {
+                                "$ref": "#/components/schemas/AppThread"
                             },
                             "views": {
                                 "type": "number",
@@ -21619,6 +21649,7 @@
                             "latestReadyVersion",
                             "hasMore",
                             "versions",
+                            "currentThread",
                             "views",
                             "slug",
                             "pinnedListOrder",
@@ -21643,7 +21674,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__"
             },
             "UuidOrSlug": {
                 "type": "string",
@@ -63644,7 +63675,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.261.0",
+        "version": "2.262.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

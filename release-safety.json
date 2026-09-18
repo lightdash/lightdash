@@ -1,21 +1,21 @@
 {
   "schemaVersion": "2",
-  "version": "2.261.0",
-  "previousVersion": "2.260.0",
-  "releaseDate": "2026-09-18T10:21:53.346Z",
+  "version": "2.262.0",
+  "previousVersion": "2.261.0",
+  "releaseDate": "2026-09-18T10:46:49.647Z",
   "migrations": {
     "present": true,
     "count": 1,
-    "coreCount": 0,
-    "eeCount": 1,
+    "coreCount": 1,
+    "eeCount": 0,
     "files": [
       {
-        "name": "20260917120304_add_reuse_columns_to_data_app_analyses.ts",
-        "edition": "ee",
+        "name": "20260917100000_create_app_threads.ts",
+        "edition": "core",
         "tables": [
-          "data_app_analyses",
-          "pg_class",
-          "pg_index"
+          "app_threads",
+          "app_versions",
+          "apps"
         ],
         "heaviness": {
           "locksTable": true,
