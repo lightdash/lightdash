@@ -57,6 +57,20 @@ pnpm run dev
 pnpm run build
 ```
 
+## Testing template interactions
+
+From `sandboxes/data-apps`, run `sfw pnpm install --frozen-lockfile` then
+`pnpm run test:unit`. These tests exercise the custom chart type menu helper
+in `template/src/lib/viz-actions.tsx`, including keyboard focus, permission
+changes, tooltip visibility, and the row/metric sent to the host. Tests live
+outside the template and are not included in generated apps.
+
+The `reusable-visualization` skill owns the custom chart type contract and the
+helper's integration example. Conditional pivot guidance lives under its
+`references/` directory. Regular data apps continue to use `template/skill.md`.
+When changing these instructions, also build a personal dev template and test
+fresh generations of a custom chart type and a regular data app.
+
 ## E2B template name and tag
 
 The build script (`build-sandbox.ts`) and the backend (`AppGenerateService`) both target the

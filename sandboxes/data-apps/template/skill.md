@@ -43,6 +43,7 @@ Available at `@/components/ui/<name>`:
 | `@/lib/format` | `formatField`, `formatDate`, `formatTimestamp`, `formatNumber`, `getColumn` (+ types `FormatVariant`, `FormatDateOptions`) | Formatting |
 | `@/lib/filters` | `useGlobalFilters()`, type `ScopedFilter`; `FilterProvider` is already mounted at the root | Global filters |
 | `@/lib/floating` | `ChartTooltipSurface` — required wrapper for custom Recharts tooltips | Floating surfaces |
+| `@/lib/viz-actions` | `useVizActions` — data-point menus for custom chart types only | `reusable-visualization` skill |
 | `@/lib/ErrorBoundary` | `ErrorBoundary` — wrap each data-driven card so one render error can't blank the app | — |
 | `src/main.jsx` | SDK client + providers already wired; renders the default export of `src/App` | Environment Constraints |
 | `src/index.css`, `src/chart-overrides.css` | Template-managed styles and floating-surface chrome | Floating surfaces |

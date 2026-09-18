@@ -1,6 +1,9 @@
 packages: []
 # pnpm 11 reads settings from here; the .npmrc copy remains for pnpm <=10.
 ignoreWorkspaceRootCheck: true
+# Dependencies are installed explicitly with a frozen lockfile before scripts run.
+# Avoid pnpm 11's implicit reinstall when running the standalone test command.
+verifyDepsBeforeRun: false
 # esbuild ships its platform binary via optionalDependencies; its install
 # script is a fallback we have never run (pnpm 10 ignored it with a warning).
 # pnpm 11 errors on unreviewed build scripts, so record the decision here.

@@ -184,6 +184,7 @@ describe('loadVendoredStarterSource', () => {
                 'src/App.jsx',
                 'src/main.jsx',
                 'src/index.css',
+                'src/lib/viz-actions.tsx',
             ]),
         );
         expect(files.every((file) => file.path.startsWith('src/'))).toBe(true);

@@ -1,9 +1,11 @@
 {
     "private": true,
     "type": "module",
+    "packageManager": "pnpm@11.17.0",
     "scripts": {
         "build": "tsx build-sandbox.ts",
         "test": "tsx test-generate.ts",
+        "test:unit": "vitest run",
         "bench": "tsx benchmark/run.ts",
         "bench:render": "tsx benchmark/renderGate.ts",
         "bench:gallery": "tsx benchmark/gallery.ts"
@@ -13,7 +15,16 @@
         "tsx": "4.0.0"
     },
     "devDependencies": {
+        "@radix-ui/react-dropdown-menu": "2.1.20",
+        "@testing-library/jest-dom": "6.9.1",
+        "@testing-library/react": "16.3.3",
+        "@types/react": "19.2.14",
+        "@types/react-dom": "19.2.3",
+        "jsdom": "26.1.0",
         "playwright": "1.57.0",
+        "react": "19.2.5",
+        "react-dom": "19.2.5",
+        "vitest": "4.1.11",
         "yaml": "2.8.3"
     }
 }
