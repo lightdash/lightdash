@@ -287,6 +287,19 @@ describe('MCP tool contracts', () => {
                 expect(tool.config.description.includes('Document')).toBe(
                     documentsEnabled,
                 );
+                if (name === 'create_content') {
+                    expect(
+                        tool.config.description.includes('research journey'),
+                    ).toBe(documentsEnabled);
+                    if (documentsEnabled) {
+                        expect(tool.config.description).toContain(
+                            'Explicit user scope and format instructions take precedence',
+                        );
+                        expect(tool.config.description).toContain(
+                            'do not invent findings or research steps',
+                        );
+                    }
+                }
                 expect(
                     z.safeParse(tool.config.inputSchema.type, 'document')
                         .success,
