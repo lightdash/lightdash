@@ -98,6 +98,7 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
     // Only relevant when the project's code lives in a Git provider, since the
     // section lists PRs opened against that repo.
     const isGitProject = useIsGitProject(projectUuid ?? '');
+    const hasAgentSqlScope = !!project?.agentSqlScope;
 
     const { data: dataAppsFlag, isLoading: isDataAppsFlagLoading } =
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
@@ -321,9 +322,10 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
                     </ProjectSettingsPage>
                 ),
             },
-            // Only registered when the instance has AI agents at all — same
-            // gate as the AI agents navigation section.
-            ...(isAiCopilotEnabledOrTrial
+            // Only registered when the instance has AI agents at all and this
+            // project already has a scope — the page edits an existing scope,
+            // it no longer creates one.
+            ...(isAiCopilotEnabledOrTrial && hasAgentSqlScope
                 ? [
                       {
                           path: `/agentDataScope`,
@@ -539,6 +541,7 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
         canManageExternalSources,
         canViewContentReviewSettings,
         isAiCopilotEnabledOrTrial,
+        hasAgentSqlScope,
     ]);
     const routesElements = useRoutes(routes);
 
