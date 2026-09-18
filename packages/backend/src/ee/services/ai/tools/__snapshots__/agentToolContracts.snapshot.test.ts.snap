@@ -13075,49 +13075,461 @@ Use them whenever the question needs math the metric query alone can't express: 
     "name": "generateVisualization",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
+      "anyOf": [
+        {
           "additionalProperties": false,
           "properties": {
-            "chartImageUrl": {
-              "anyOf": [
+            "metadata": {
+              "allOf": [
                 {
-                  "type": "string",
+                  "additionalProperties": false,
+                  "properties": {
+                    "chartImageUrl": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                    "queryCacheHit": {
+                      "type": "boolean",
+                    },
+                    "queryReuseHit": {
+                      "type": "boolean",
+                    },
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
                 },
                 {
-                  "type": "null",
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
                 },
               ],
             },
-            "queryCacheHit": {
-              "type": "boolean",
-            },
-            "queryReuseHit": {
-              "type": "boolean",
-            },
-            "status": {
-              "enum": [
-                "success",
-                "error",
-              ],
+            "result": {
               "type": "string",
+            },
+            "structuredContent": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "outcome": {
+                      "const": "chartOnly",
+                      "description": "Data access is disabled, so the query was not run; the query definition was recorded as a new version of the thread's chart artifact (created on first use). Nothing is saved to the project.",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "outcome",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "outcome": {
+                      "const": "noResults",
+                      "description": "The query ran and returned no rows.",
+                      "type": "string",
+                    },
+                    "parameters": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "description": "The parameter state the query ran with.",
+                          "properties": {
+                            "applied": {
+                              "additionalProperties": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "number",
+                                    },
+                                    "type": "array",
+                                  },
+                                ],
+                              },
+                              "description": "Parameter values set explicitly in the tool call.",
+                              "propertyNames": {
+                                "type": "string",
+                              },
+                              "type": "object",
+                            },
+                            "defaulted": {
+                              "additionalProperties": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "number",
+                                    },
+                                    "type": "array",
+                                  },
+                                ],
+                              },
+                              "description": "Referenced parameters the tool call left unset, with the default value they resolved to.",
+                              "propertyNames": {
+                                "type": "string",
+                              },
+                              "type": "object",
+                            },
+                            "unset": {
+                              "description": "Referenced parameters with neither a value in the tool call nor a default.",
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                          },
+                          "required": [
+                            "applied",
+                            "defaulted",
+                            "unset",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "null when the explore references no parameters or the query was a merge.",
+                    },
+                    "rowCount": {
+                      "const": 0,
+                      "type": "number",
+                    },
+                  },
+                  "required": [
+                    "outcome",
+                    "rowCount",
+                    "parameters",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "columns": {
+                              "description": "Ordered field ids matching the keys of each row.",
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            "rows": {
+                              "description": "The rows shown to the model. Fewer than rowCount means the rest were withheld to keep the conversation small; the query itself returned all rowCount rows.",
+                              "items": {
+                                "additionalProperties": {},
+                                "propertyNames": {
+                                  "type": "string",
+                                },
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                          },
+                          "required": [
+                            "columns",
+                            "rows",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "The result rows the model was shown; null when the agent has no data access and no rows were shown.",
+                    },
+                    "limit": {
+                      "additionalProperties": false,
+                      "description": "The row limit behind rowCount.",
+                      "properties": {
+                        "effective": {
+                          "description": "The limit applied after resolving null and capping to \`max\`. A rowCount equal to this means the limit was reached and more rows may exist.",
+                          "type": "number",
+                        },
+                        "max": {
+                          "description": "This tool's maximum row limit.",
+                          "type": "number",
+                        },
+                        "requested": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "requested",
+                        "effective",
+                        "max",
+                      ],
+                      "type": "object",
+                    },
+                    "outcome": {
+                      "const": "results",
+                      "description": "The query ran and returned rows, and they were recorded as a new version of the thread's chart artifact (the artifact is created on first use).",
+                      "type": "string",
+                    },
+                    "parameters": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "description": "The parameter state the query ran with.",
+                          "properties": {
+                            "applied": {
+                              "additionalProperties": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "number",
+                                    },
+                                    "type": "array",
+                                  },
+                                ],
+                              },
+                              "description": "Parameter values set explicitly in the tool call.",
+                              "propertyNames": {
+                                "type": "string",
+                              },
+                              "type": "object",
+                            },
+                            "defaulted": {
+                              "additionalProperties": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
+                                  {
+                                    "items": {
+                                      "type": "number",
+                                    },
+                                    "type": "array",
+                                  },
+                                ],
+                              },
+                              "description": "Referenced parameters the tool call left unset, with the default value they resolved to.",
+                              "propertyNames": {
+                                "type": "string",
+                              },
+                              "type": "object",
+                            },
+                            "unset": {
+                              "description": "Referenced parameters with neither a value in the tool call nor a default.",
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                          },
+                          "required": [
+                            "applied",
+                            "defaulted",
+                            "unset",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "null when the explore references no parameters or the query was a merge.",
+                    },
+                    "queryUuid": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "The uuid of this execution, when the run exposes it for citation; null otherwise.",
+                    },
+                    "rowCount": {
+                      "description": "Total rows the query returned.",
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer",
+                    },
+                  },
+                  "required": [
+                    "outcome",
+                    "queryUuid",
+                    "rowCount",
+                    "limit",
+                    "parameters",
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              ],
             },
           },
           "required": [
-            "status",
+            "result",
+            "metadata",
+            "structuredContent",
           ],
           "type": "object",
         },
-        "result": {
-          "type": "string",
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "chartImageUrl": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                    "queryCacheHit": {
+                      "type": "boolean",
+                    },
+                    "queryReuseHit": {
+                      "type": "boolean",
+                    },
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
         },
-      },
-      "required": [
-        "result",
-        "metadata",
       ],
-      "type": "object",
     },
   },
   {
@@ -15717,49 +16129,461 @@ Use them whenever the question needs math the metric query alone can't express: 
   "name": "generateVisualization",
   "outputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "additionalProperties": false,
-    "properties": {
-      "metadata": {
+    "anyOf": [
+      {
         "additionalProperties": false,
         "properties": {
-          "chartImageUrl": {
-            "anyOf": [
+          "metadata": {
+            "allOf": [
               {
-                "type": "string",
+                "additionalProperties": false,
+                "properties": {
+                  "chartImageUrl": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "queryCacheHit": {
+                    "type": "boolean",
+                  },
+                  "queryReuseHit": {
+                    "type": "boolean",
+                  },
+                  "status": {
+                    "enum": [
+                      "success",
+                      "error",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                ],
+                "type": "object",
               },
               {
-                "type": "null",
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "success",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                ],
+                "type": "object",
               },
             ],
           },
-          "queryCacheHit": {
-            "type": "boolean",
-          },
-          "queryReuseHit": {
-            "type": "boolean",
-          },
-          "status": {
-            "enum": [
-              "success",
-              "error",
-            ],
+          "result": {
             "type": "string",
+          },
+          "structuredContent": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "outcome": {
+                    "const": "chartOnly",
+                    "description": "Data access is disabled, so the query was not run; the query definition was recorded as a new version of the thread's chart artifact (created on first use). Nothing is saved to the project.",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "outcome",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "outcome": {
+                    "const": "noResults",
+                    "description": "The query ran and returned no rows.",
+                    "type": "string",
+                  },
+                  "parameters": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "description": "The parameter state the query ran with.",
+                        "properties": {
+                          "applied": {
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "number",
+                                },
+                                {
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                {
+                                  "items": {
+                                    "type": "number",
+                                  },
+                                  "type": "array",
+                                },
+                              ],
+                            },
+                            "description": "Parameter values set explicitly in the tool call.",
+                            "propertyNames": {
+                              "type": "string",
+                            },
+                            "type": "object",
+                          },
+                          "defaulted": {
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "number",
+                                },
+                                {
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                {
+                                  "items": {
+                                    "type": "number",
+                                  },
+                                  "type": "array",
+                                },
+                              ],
+                            },
+                            "description": "Referenced parameters the tool call left unset, with the default value they resolved to.",
+                            "propertyNames": {
+                              "type": "string",
+                            },
+                            "type": "object",
+                          },
+                          "unset": {
+                            "description": "Referenced parameters with neither a value in the tool call nor a default.",
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                        },
+                        "required": [
+                          "applied",
+                          "defaulted",
+                          "unset",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "null when the explore references no parameters or the query was a merge.",
+                  },
+                  "rowCount": {
+                    "const": 0,
+                    "type": "number",
+                  },
+                },
+                "required": [
+                  "outcome",
+                  "rowCount",
+                  "parameters",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "columns": {
+                            "description": "Ordered field ids matching the keys of each row.",
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          "rows": {
+                            "description": "The rows shown to the model. Fewer than rowCount means the rest were withheld to keep the conversation small; the query itself returned all rowCount rows.",
+                            "items": {
+                              "additionalProperties": {},
+                              "propertyNames": {
+                                "type": "string",
+                              },
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                        },
+                        "required": [
+                          "columns",
+                          "rows",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "The result rows the model was shown; null when the agent has no data access and no rows were shown.",
+                  },
+                  "limit": {
+                    "additionalProperties": false,
+                    "description": "The row limit behind rowCount.",
+                    "properties": {
+                      "effective": {
+                        "description": "The limit applied after resolving null and capping to \`max\`. A rowCount equal to this means the limit was reached and more rows may exist.",
+                        "type": "number",
+                      },
+                      "max": {
+                        "description": "This tool's maximum row limit.",
+                        "type": "number",
+                      },
+                      "requested": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                    },
+                    "required": [
+                      "requested",
+                      "effective",
+                      "max",
+                    ],
+                    "type": "object",
+                  },
+                  "outcome": {
+                    "const": "results",
+                    "description": "The query ran and returned rows, and they were recorded as a new version of the thread's chart artifact (the artifact is created on first use).",
+                    "type": "string",
+                  },
+                  "parameters": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "description": "The parameter state the query ran with.",
+                        "properties": {
+                          "applied": {
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "number",
+                                },
+                                {
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                {
+                                  "items": {
+                                    "type": "number",
+                                  },
+                                  "type": "array",
+                                },
+                              ],
+                            },
+                            "description": "Parameter values set explicitly in the tool call.",
+                            "propertyNames": {
+                              "type": "string",
+                            },
+                            "type": "object",
+                          },
+                          "defaulted": {
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                },
+                                {
+                                  "type": "number",
+                                },
+                                {
+                                  "items": {
+                                    "type": "string",
+                                  },
+                                  "type": "array",
+                                },
+                                {
+                                  "items": {
+                                    "type": "number",
+                                  },
+                                  "type": "array",
+                                },
+                              ],
+                            },
+                            "description": "Referenced parameters the tool call left unset, with the default value they resolved to.",
+                            "propertyNames": {
+                              "type": "string",
+                            },
+                            "type": "object",
+                          },
+                          "unset": {
+                            "description": "Referenced parameters with neither a value in the tool call nor a default.",
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                        },
+                        "required": [
+                          "applied",
+                          "defaulted",
+                          "unset",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "null when the explore references no parameters or the query was a merge.",
+                  },
+                  "queryUuid": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "description": "The uuid of this execution, when the run exposes it for citation; null otherwise.",
+                  },
+                  "rowCount": {
+                    "description": "Total rows the query returned.",
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer",
+                  },
+                },
+                "required": [
+                  "outcome",
+                  "queryUuid",
+                  "rowCount",
+                  "limit",
+                  "parameters",
+                  "data",
+                ],
+                "type": "object",
+              },
+            ],
           },
         },
         "required": [
-          "status",
+          "result",
+          "metadata",
+          "structuredContent",
         ],
         "type": "object",
       },
-      "result": {
-        "type": "string",
+      {
+        "additionalProperties": false,
+        "properties": {
+          "metadata": {
+            "allOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "chartImageUrl": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
+                  "queryCacheHit": {
+                    "type": "boolean",
+                  },
+                  "queryReuseHit": {
+                    "type": "boolean",
+                  },
+                  "status": {
+                    "enum": [
+                      "success",
+                      "error",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "error",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "status",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "result": {
+            "type": "string",
+          },
+          "structuredContent": {
+            "additionalProperties": false,
+            "properties": {
+              "error": {
+                "description": "Why the tool call failed; the same message as \`result\`.",
+                "type": "string",
+              },
+            },
+            "required": [
+              "error",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "result",
+          "metadata",
+          "structuredContent",
+        ],
+        "type": "object",
       },
-    },
-    "required": [
-      "result",
-      "metadata",
     ],
-    "type": "object",
   },
 }
 `;
