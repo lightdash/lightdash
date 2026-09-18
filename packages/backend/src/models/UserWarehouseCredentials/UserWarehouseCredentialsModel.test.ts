@@ -236,6 +236,24 @@ describe('UserWarehouseCredentialsModel', () => {
     });
 
     describe('findForProjectWithSecrets', () => {
+        test('does not infer a connection preference from fallback credentials', async () => {
+            const model = createModel({
+                preferredRow: undefined,
+                fallbackRows: [
+                    makeRow('newest-credential', validBigqueryCredentials),
+                ],
+            });
+
+            await expect(
+                model.findForProject(
+                    'project-1',
+                    'user-1',
+                    WarehouseTypes.BIGQUERY,
+                    'connection-1',
+                ),
+            ).resolves.toBeUndefined();
+        });
+
         test.each(['connection-1', 'connection-2'])(
             'scopes preference and fallback queries to %s',
             async (connectionUuid) => {
