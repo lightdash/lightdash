@@ -1633,17 +1633,34 @@ export class AiAgentController extends BaseController {
         @Path() messageUuid: string,
         @Body() body: { humanScore: number; humanFeedback?: string | null },
     ): Promise<ApiSuccessEmpty> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
-        await this.getAiAgentService().updateHumanScoreForMessage(
-            toSessionUser(req.account),
-            projectUuid,
-            agentUuid,
-            threadUuid,
-            messageUuid,
-            body.humanScore,
-            body.humanFeedback,
-        );
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            await this.getAiAgentService().updateEmbedHumanScoreForMessage(
+                req.account,
+                projectUuid,
+                {
+                    agentUuid,
+                    threadUuid,
+                    messageUuid,
+                    humanScore: body.humanScore,
+                    humanFeedback: body.humanFeedback,
+                },
+            );
+        } else {
+            assertRegisteredAccount(req.account);
+            await this.getAiAgentService().updateHumanScoreForMessage(
+                toSessionUser(req.account),
+                projectUuid,
+                agentUuid,
+                threadUuid,
+                messageUuid,
+                body.humanScore,
+                body.humanFeedback,
+            );
+        }
+
         return {
             status: 'ok',
             results: undefined,
