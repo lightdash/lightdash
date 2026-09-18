@@ -110,6 +110,14 @@ export enum FeatureFlags {
     EnableDataAppAnalysis = 'enable-data-app-analysis',
 
     /**
+     * Per-organization gate for running the data apps coding agent with a
+     * 1-hour prompt cache instead of the 5-minute default. Claude Code on the
+     * Anthropic API only; Bedrock and Codex builds ignore it. Disabled by
+     * default; read once per build so a flip applies to the next build.
+     */
+    DataAppPromptCache1h = 'data-app-prompt-cache-1h',
+
+    /**
      * Enable Autopilot project health agent.
      */
     AiAutopilot = 'ai-autopilot',
