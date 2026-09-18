@@ -6272,10 +6272,59 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "content": {
+                  "description": "The entry sentence written to the project context.",
+                  "type": "string",
+                },
+                "op": {
+                  "description": "Whether the pull request adds a new project-context entry or updates an existing one.",
+                  "enum": [
+                    "create",
+                    "update",
+                  ],
+                  "type": "string",
+                },
+                "prAction": {
+                  "description": "Whether a new pull request was opened or the existing one was updated.",
+                  "enum": [
+                    "opened",
+                    "updated",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "prAction",
+                "op",
+                "content",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
