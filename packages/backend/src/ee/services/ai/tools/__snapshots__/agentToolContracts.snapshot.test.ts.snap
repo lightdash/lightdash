@@ -2273,10 +2273,41 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "fullName": {
+                  "description": "The saved name as "<firstName> <lastName>", trimmed.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "fullName",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
