@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { baseOutputMetadataSchema } from '../outputMetadata';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
 
 export const TOOL_CLOSE_PULL_REQUEST_DESCRIPTION = [
     'Close (without merging) a pull request this conversation opened with editRepo or editDbtProject.',
@@ -19,9 +22,20 @@ export type ToolClosePullRequestArgs = z.infer<
     typeof toolClosePullRequestArgsSchema
 >;
 
-export const toolClosePullRequestOutputSchema = z.object({
-    result: z.string(),
+export const toolClosePullRequestStructuredContentSchema = z.object({
+    prUrl: z.string().describe('URL of the pull request that was closed.'),
+    state: z
+        .literal('closed')
+        .describe('State of the pull request on the provider after the call.'),
+});
+
+export type ToolClosePullRequestStructuredContent = z.infer<
+    typeof toolClosePullRequestStructuredContentSchema
+>;
+
+export const toolClosePullRequestOutputSchema = structuredToolOutputSchema({
     metadata: baseOutputMetadataSchema,
+    structuredContent: toolClosePullRequestStructuredContentSchema,
 });
 
 export type ToolClosePullRequestOutput = z.infer<
