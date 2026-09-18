@@ -378,6 +378,20 @@ describe('aiAgentThreadStreamSlice', () => {
                         toolResult: {
                             result: '<searchResults />',
                             metadata: { status: 'success' },
+                            structuredContent: {
+                                searchQuery: 'orders',
+                                description: '',
+                                searchResults: {
+                                    count: 0,
+                                    note: '',
+                                    results: [],
+                                },
+                                topMatchingFields: {
+                                    count: 0,
+                                    note: '',
+                                    fields: [],
+                                },
+                            },
                         },
                         isPreliminary: false,
                     },
@@ -396,6 +410,12 @@ describe('aiAgentThreadStreamSlice', () => {
                 toolResult: {
                     result: '<searchResults />',
                     metadata: { status: 'success' },
+                    structuredContent: {
+                        searchQuery: 'orders',
+                        description: '',
+                        searchResults: { count: 0, note: '', results: [] },
+                        topMatchingFields: { count: 0, note: '', fields: [] },
+                    },
                 },
                 isPreliminary: false,
             },
