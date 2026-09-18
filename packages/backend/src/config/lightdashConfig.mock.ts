@@ -393,9 +393,6 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     managedAgent: {
         validatedModels: [],
-        runtime: 'ai-sdk',
-        anthropicApiKey: null,
-        skillIds: [],
         schedule: '0 0 * * *',
         sessionTimeoutMs: 300000,
         maxSteps: 120,
