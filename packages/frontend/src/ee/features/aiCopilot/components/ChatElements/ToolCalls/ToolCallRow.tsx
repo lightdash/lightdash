@@ -203,7 +203,7 @@ export const ToolCallRow: FC<Props> = ({
                 mcpServer={mcpServer}
                 data-status={status}
             />
-            {label ? (
+            {label !== null ? (
                 <Text size="xs" className={styles.label}>
                     {label}
                 </Text>
