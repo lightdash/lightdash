@@ -7539,10 +7539,113 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "body": {
+                      "description": "The skill instructions.",
+                      "type": "string",
+                    },
+                    "kind": {
+                      "const": "skill",
+                      "type": "string",
+                    },
+                    "resources": {
+                      "description": "Sub-resources the skill offers; empty when it has none.",
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "description": {
+                            "type": "string",
+                          },
+                          "name": {
+                            "description": "Resource name to pass as \`resourceName\` to load it.",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "name",
+                          "description",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "skill": {
+                      "description": "Name of the loaded skill.",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "kind",
+                    "skill",
+                    "body",
+                    "resources",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "const": "resource",
+                      "type": "string",
+                    },
+                    "resource": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "content": {
+                          "description": "The resource file contents.",
+                          "type": "string",
+                        },
+                        "name": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "name",
+                        "content",
+                      ],
+                      "type": "object",
+                    },
+                    "skill": {
+                      "description": "Name of the skill the resource belongs to.",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "kind",
+                    "skill",
+                    "resource",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
