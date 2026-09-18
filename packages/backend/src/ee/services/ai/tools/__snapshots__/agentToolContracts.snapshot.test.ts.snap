@@ -23547,10 +23547,66 @@ Usage Tips:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "note": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Guidance about the returned values, e.g. that they come from curated field metadata or that value suggestions are disabled for the field. Null when there is none.",
+                },
+                "results": {
+                  "description": "Unique field values matching the query, at most 100. Empty when nothing matched.",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                      },
+                      {
+                        "type": "number",
+                      },
+                      {
+                        "type": "boolean",
+                      },
+                    ],
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "results",
+                "note",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
@@ -23634,10 +23690,66 @@ Usage Tips:
       "result": {
         "type": "string",
       },
+      "structuredContent": {
+        "anyOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "note": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "description": "Guidance about the returned values, e.g. that they come from curated field metadata or that value suggestions are disabled for the field. Null when there is none.",
+              },
+              "results": {
+                "description": "Unique field values matching the query, at most 100. Empty when nothing matched.",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "number",
+                    },
+                    {
+                      "type": "boolean",
+                    },
+                  ],
+                },
+                "type": "array",
+              },
+            },
+            "required": [
+              "results",
+              "note",
+            ],
+            "type": "object",
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "error": {
+                "description": "Why the tool call failed; the same message as \`result\`.",
+                "type": "string",
+              },
+            },
+            "required": [
+              "error",
+            ],
+            "type": "object",
+          },
+        ],
+      },
     },
     "required": [
       "result",
       "metadata",
+      "structuredContent",
     ],
     "type": "object",
   },

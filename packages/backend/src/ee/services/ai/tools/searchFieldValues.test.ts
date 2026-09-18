@@ -3,6 +3,7 @@ import {
     FilterOperator,
     FilterType,
     toolSearchFieldValuesExpressionArgsSchema,
+    toolSearchFieldValuesOutputSchema,
     type Explore,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
@@ -53,6 +54,13 @@ describe('getSearchFieldValues', () => {
         });
 
         expect(output.metadata.status).toBe('success');
+        expect(output.structuredContent).toEqual({
+            results: ['completed'],
+            note: null,
+        });
+        expect(
+            toolSearchFieldValuesOutputSchema.safeParse(output).success,
+        ).toBe(true);
         expect(searchFieldValues).toHaveBeenCalledWith(
             expect.objectContaining({
                 filters: expect.objectContaining({
@@ -147,9 +155,105 @@ describe('getSearchFieldValues', () => {
           Location: line 1, column 38
           Problem: Field-value search filter rules are always combined with AND and cannot use OR.
           How to fix: Keep only dimension rules that should all scope the value search, joined with AND.",
+            "structuredContent": {
+              "error": "[FILTER_EXPRESSION_SEARCH_FIELD_VALUES_OR]
+          Invalid dimension filter expression.
+
+          Location: line 1, column 38
+          Problem: Field-value search filter rules are always combined with AND and cannot use OR.
+          How to fix: Keep only dimension rules that should all scope the value search, joined with AND.",
+            },
           }
         `);
+        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(
+            toolSearchFieldValuesOutputSchema.safeParse(output).success,
+        ).toBe(true);
         expect(searchFieldValues).not.toHaveBeenCalled();
+    });
+
+    it('mirrors search failures as an error envelope', async () => {
+        const tool = getSearchFieldValues({
+            searchFieldValues: vi
+                .fn()
+                .mockRejectedValue(new Error('warehouse unavailable')),
+            getExplore: vi.fn(),
+            enableFilterExpressions: false,
+        });
+
+        const output = await execute(tool, {
+            table: 'orders',
+            fieldId: 'orders_status',
+            query: 'complete',
+            filters: null,
+        });
+
+        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.result).toContain('Error searching field values.');
+        expect(output.result).toContain('warehouse unavailable');
+        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(
+            toolSearchFieldValuesOutputSchema.safeParse(output).success,
+        ).toBe(true);
+    });
+
+    it('carries the note alongside the values when the search returns one', async () => {
+        const note = 'Values come from curated field metadata.';
+        const tool = getSearchFieldValues({
+            searchFieldValues: vi
+                .fn()
+                .mockResolvedValue({ results: ['shipped', 42, true], note }),
+            getExplore: vi.fn(),
+            enableFilterExpressions: false,
+        });
+
+        const output = await execute(tool, {
+            table: 'orders',
+            fieldId: 'orders_status',
+            query: 'ship',
+            filters: null,
+        });
+
+        expect(output).toEqual({
+            result: [
+                '```json',
+                JSON.stringify(
+                    { results: ['shipped', 42, true], note },
+                    null,
+                    2,
+                ),
+                '```',
+            ].join('\n'),
+            metadata: { status: 'success' },
+            structuredContent: { results: ['shipped', 42, true], note },
+        });
+        expect(
+            toolSearchFieldValuesOutputSchema.safeParse(output).success,
+        ).toBe(true);
+    });
+
+    it('reports no results as an empty success', async () => {
+        const tool = getSearchFieldValues({
+            searchFieldValues: vi.fn().mockResolvedValue([]),
+            getExplore: vi.fn(),
+            enableFilterExpressions: false,
+        });
+
+        const output = await execute(tool, {
+            table: 'orders',
+            fieldId: 'orders_status',
+            query: 'nothing',
+            filters: null,
+        });
+
+        expect(output).toEqual({
+            result: '```json\n[]\n```',
+            metadata: { status: 'success' },
+            structuredContent: { results: [], note: null },
+        });
+        expect(
+            toolSearchFieldValuesOutputSchema.safeParse(output).success,
+        ).toBe(true);
     });
 
     it.each([
@@ -174,9 +278,10 @@ describe('getSearchFieldValues', () => {
             });
             const output = await execute(tool, args);
 
-            expect(output).toMatchObject({
+            expect(output).toEqual({
                 result: '```json\n[\n  "shipped"\n]\n```',
                 metadata: { status: 'success' },
+                structuredContent: { results: ['shipped'], note: null },
             });
             expect(getExplore).not.toHaveBeenCalled();
             expect(searchFieldValues).toHaveBeenCalledWith({
