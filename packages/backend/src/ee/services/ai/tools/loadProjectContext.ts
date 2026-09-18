@@ -2,12 +2,18 @@ import {
     formatAiProjectContextObjectRef,
     loadProjectContextToolDefinition,
     serializeAiProjectContextObjectRef,
+    type ToolLoadProjectContextOutput,
+    type ToolLoadProjectContextStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import Logger from '../../../../logging/logger';
 import { renderMemoryBlock } from '../utils/memoryBlock';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { filterProjectContext } from './filterProjectContext';
 import type { ProjectContextSearchEntry } from './memoryProjectContext';
 
@@ -15,6 +21,26 @@ const MEMORY_AWARE_DESCRIPTION =
     'Load relevant project business context and memories. Project-context entries are authoritative over assumptions; memory entries are past-conversation reference material that must be verified against the current catalog. Pass `patterns` to load matching entries (recommended); omit to load all.';
 
 type MemoryEntry = Extract<ProjectContextSearchEntry, { source: 'memory' }>;
+
+type LoadedStructuredContent = Extract<
+    ToolLoadProjectContextStructuredContent,
+    { outcome: 'loaded' }
+>;
+type NoMatchStructuredContent = Extract<
+    ToolLoadProjectContextStructuredContent,
+    { outcome: 'no_match' }
+>;
+type SuccessMetadata = ToolLoadProjectContextOutput['metadata'] & {
+    status: 'success';
+    entryIds: string[];
+    approxTokens: number;
+};
+type LoadProjectContextResult =
+    | ExecuteStructuredToolResult<
+          ToolLoadProjectContextStructuredContent,
+          SuccessMetadata
+      >
+    | ExecuteToolErrorResult;
 
 const isMemoryEntry = (
     entry: ProjectContextSearchEntry,
@@ -65,6 +91,27 @@ const renderEntries = (entries: ProjectContextSearchEntry[]): string => {
     return [context, memoryBlock].filter(Boolean).join('\n');
 };
 
+const toLoadedEntry = (
+    entry: ProjectContextSearchEntry,
+): LoadedStructuredContent['entries'][number] =>
+    isMemoryEntry(entry)
+        ? {
+              id: entry.id,
+              source: 'memory',
+              scope: entry.memoryScope,
+              ageDays: entry.memoryAgeDays,
+              objects: entry.objects,
+              content: entry.content,
+          }
+        : {
+              id: entry.id,
+              source: 'context',
+              kind: entry.kind,
+              terms: entry.terms,
+              objects: entry.objects,
+              content: entry.content,
+          };
+
 // When patterns match nothing, list the available entries (id/kind/terms) so
 // the agent can re-grep with broader keywords or load everything — cheaper than
 // silently dumping the whole context.
@@ -90,6 +137,25 @@ const renderNoMatch = (all: ProjectContextSearchEntry[]): string => {
     return `No context entry matched your patterns. ${all.length} entries exist — re-grep with broader keywords, or call again without patterns to load all:\n${inventory}`;
 };
 
+const toAvailableEntry = (
+    entry: ProjectContextSearchEntry,
+): NoMatchStructuredContent['available'][number] =>
+    isMemoryEntry(entry)
+        ? {
+              id: entry.id,
+              source: 'memory',
+              scope: entry.memoryScope,
+              ageDays: entry.memoryAgeDays,
+              objects: entry.objects,
+              terms: entry.terms,
+          }
+        : {
+              id: entry.id,
+              source: 'context',
+              kind: entry.kind,
+              terms: entry.terms,
+          };
+
 export const getLoadProjectContext = ({
     getDocument,
     includeMemories = false,
@@ -102,7 +168,7 @@ export const getLoadProjectContext = ({
     tool({
         ...loadProjectContextToolDefinition.for('agent'),
         ...(includeMemories ? { description: MEMORY_AWARE_DESCRIPTION } : {}),
-        execute: async ({ patterns }) => {
+        execute: async ({ patterns }): Promise<LoadProjectContextResult> => {
             try {
                 const entries = await getDocument();
                 const selected = patterns?.length
@@ -115,9 +181,14 @@ export const getLoadProjectContext = ({
                     return {
                         result: renderNoMatch(entries),
                         metadata: {
-                            status: 'success' as const,
+                            status: 'success',
                             entryIds: [],
                             approxTokens: 0,
+                        },
+                        structuredContent: {
+                            outcome: 'no_match',
+                            totalEntries: entries.length,
+                            available: entries.map(toAvailableEntry),
                         },
                     };
                 }
@@ -159,19 +230,17 @@ export const getLoadProjectContext = ({
                 return {
                     result: renderEntries(selected),
                     metadata: {
-                        status: 'success' as const,
+                        status: 'success',
                         entryIds,
                         approxTokens,
                     },
+                    structuredContent: {
+                        outcome: 'loaded',
+                        entries: selected.map(toLoadedEntry),
+                    },
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(
-                        error,
-                        'Error loading project context',
-                    ),
-                    metadata: { status: 'error' as const },
-                };
+                return toolErrorOutput(error, 'Error loading project context');
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
