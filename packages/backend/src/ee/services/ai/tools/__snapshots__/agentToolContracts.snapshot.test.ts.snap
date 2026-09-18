@@ -9296,10 +9296,89 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "repoTarget": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "The "owner/repo" the list was restricted to, or null when it spans every repository.",
+                },
+                "workstreams": {
+                  "description": "Pull requests this conversation has opened; empty when none match.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "prNumber": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer",
+                      },
+                      "prUrl": {
+                        "description": "Pull request URL; pass it as the edit tool's \`prUrl\` to continue this workstream.",
+                        "type": "string",
+                      },
+                      "repository": {
+                        "description": "Repository the pull request was opened on, as "owner/repo".",
+                        "type": "string",
+                      },
+                      "summary": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "Short summary of the changes in the pull request, or null when none was recorded.",
+                      },
+                    },
+                    "required": [
+                      "repository",
+                      "prNumber",
+                      "prUrl",
+                      "summary",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "repoTarget",
+                "workstreams",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
