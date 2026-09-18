@@ -335,26 +335,6 @@ export const isFanOutAccepted = (
     );
 
 /**
- * The merged field ids of every value column a repeating source
- * contributes. Each appears once per matching row of the other sources, so
- * a sum over the merged rows would count it more than once. A result
- * source's columns are not known here and are left out.
- */
-export const getRepeatedMergeFieldIds = (
-    sources: MergeQuerySource[],
-): FieldId[] =>
-    sources.flatMap((source) =>
-        source.repeatValues === true && isMergeMetricSource(source)
-            ? [
-                  ...source.metricQuery.metrics,
-                  ...source.metricQuery.tableCalculations.map(
-                      ({ name }) => name,
-                  ),
-              ].map((name) => getItemId({ table: source.id, name }))
-            : [],
-    );
-
-/**
  * Every reason this merge would produce a wrong or unbuildable result. Empty
  * means the merge is safe to compile.
  */

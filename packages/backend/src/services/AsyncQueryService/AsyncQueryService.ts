@@ -57,11 +57,11 @@ import {
     getFieldsFromMetricQuery,
     getItemId,
     getItemMap,
+    getMergeColumnTotals,
     getMetricOverridesWithPopInheritance,
     getMetrics,
     getMetricsWithValidParameters,
     getPivotValueColumnName,
-    getRepeatedMergeFieldIds,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
     isCartesianChartConfig,
@@ -288,6 +288,7 @@ import {
     buildMergeRowCapGuard,
     getMergeResultSourceCutShortError,
     getMergeSourceLabels,
+    planMergeSourceTotalLegs,
 } from './mergeQueryExecution';
 import {
     buildMergeExecutedEvent,
@@ -3509,12 +3510,8 @@ export class AsyncQueryService extends ProjectService {
                 queryTags.query_context ===
                     QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION;
 
-            const fileName = QueryHistoryModel.createUniqueResultsFileName(
-                cacheKey,
-                {
-                    sqlSafe: isParquetMaterialization,
-                },
-            );
+            const fileName =
+                QueryHistoryModel.createUniqueResultsFileName(cacheKey);
             const resultsStorageClient = this.getResultsStorageClientForContext(
                 queryTags.query_context,
             );
@@ -5675,6 +5672,7 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 projectUuid,
                 source,
+                mergeQuery: source.requestParameters.mergeQuery,
                 kind,
                 invalidateCache,
             });
@@ -5711,24 +5709,28 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Totals over a merged result, aggregated over its rows on the compose
-     * engine. Every source value appears once per key, because fan-out is
-     * refused, so sums, counts, minimums and maximums over the rows are
-     * exact. A source that opted to repeat its values is the exception: its
-     * columns appear once per matching row and are left out. Columns with no
-     * exact aggregate are left out; the response's fields say which were
-     * totalled, and the table says why the rest were not.
+     * Totals over a merged result, on the compose engine. Every source value
+     * appears once per key, because fan-out is refused, so a sum, count,
+     * minimum or maximum over the merged rows is exact. A column with no
+     * exact aggregate over the rows, such as a distinct count or a repeated
+     * source's values, is totalled by its own query instead when the join
+     * keeps every row of that query: the query collapses to one row as a leg
+     * of the same DAG, and the totals statement reads it. The response's
+     * fields say which columns were totalled; the table says why the rest
+     * were not.
      */
     private async executeAsyncCalculateMergeTotal({
         account,
         projectUuid,
         source,
+        mergeQuery,
         kind,
         invalidateCache,
     }: {
         account: Account;
         projectUuid: string;
         source: QueryHistory;
+        mergeQuery: MergeQuery;
         kind: CalculateTotalKind;
         invalidateCache?: boolean;
     }): Promise<ApiExecuteAsyncMetricQueryResults> {
@@ -5742,41 +5744,77 @@ export class AsyncQueryService extends ProjectService {
                 'Totals over a pivoted merged result are not computed yet',
             );
         }
-        const statement = buildMergeTotalsSql(
-            source.metricQuery.metrics,
-            source.fields,
-            'mergeQuery' in source.requestParameters
-                ? getRepeatedMergeFieldIds(
-                      source.requestParameters.mergeQuery.sources,
-                  )
-                : [],
-        );
+        const fieldIds = source.metricQuery.metrics;
+        const columnTotals = getMergeColumnTotals({
+            mergeQuery,
+            fieldIds,
+            itemsMap: source.fields,
+        });
+        const sourceTotalLegs = planMergeSourceTotalLegs({
+            mergeQuery,
+            columnTotals,
+        });
+        const statement = buildMergeTotalsSql({
+            fieldIds,
+            columnTotals,
+            sourceTotalTables: sourceTotalLegs.map((leg) => ({
+                sourceId: leg.sourceId,
+                table: leg.nodeId,
+                sourceFieldIds: leg.columns.map(
+                    ({ sourceFieldId }) => sourceFieldId,
+                ),
+            })),
+        });
         if (!statement) {
             throw new NotSupportedError(
                 'None of the merged columns can be totalled exactly over the merged rows',
             );
         }
 
-        const { queryUuid } = await this.executeAsyncDuckdbSourceQuery({
+        // The statement reads the merged result by queryUuid and each source
+        // total by node id, which the DAG binds once that leg is submitted
+        const totalsNodeId = 'merge_totals';
+        const totalsNode: DuckdbSourceQuery = {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: totalsNodeId,
+            sql: statement.sql,
+            references: {
+                [MERGE_TOTALS_REFERENCE_TABLE]: source.queryUuid,
+                ...Object.fromEntries(
+                    sourceTotalLegs.map((leg) => [leg.nodeId, leg.nodeId]),
+                ),
+            },
+        };
+        const plan: DuckdbQueryPlan = {
+            columns: { mode: 'discover' },
+            engine: 'scopedToReferencedResults',
+            guard: null,
+            referenceLabels: {
+                [MERGE_TOTALS_REFERENCE_TABLE]: 'Merged result',
+                ...Object.fromEntries(
+                    sourceTotalLegs.map((leg) => [leg.nodeId, leg.label]),
+                ),
+            },
+        };
+        const { queries } = await this.getQuerySourceService().submitQueries({
             account,
             projectUuid,
-            sql: statement.sql,
             context: QueryExecutionContext.CALCULATE_TOTAL,
-            references: { [MERGE_TOTALS_REFERENCE_TABLE]: source.queryUuid },
-            parameters: source.requestParameters.parameters,
-            invalidateCache,
-            plan: {
-                columns: { mode: 'discover' },
-                engine: 'scopedToReferencedResults',
-                guard: null,
-                referenceLabels: {
-                    [MERGE_TOTALS_REFERENCE_TABLE]: 'Merged result',
-                },
-            },
+            queries: [...sourceTotalLegs.map((leg) => leg.node), totalsNode],
+            parameters: source.requestParameters.parameters ?? {},
+            userAttributeOverrides: {},
+            invalidateCache: invalidateCache ?? false,
+            plans: { [totalsNodeId]: plan },
         });
+        const totals = queries.find((query) => query.nodeId === totalsNodeId);
+        if (!totals) {
+            throw new UnexpectedServerError(
+                'The merge totals node was not submitted',
+            );
+        }
 
         return {
-            queryUuid,
+            queryUuid: totals.queryUuid,
             cacheMetadata: { cacheHit: false },
             metricQuery: {
                 ...source.metricQuery,
@@ -8701,12 +8739,9 @@ export class AsyncQueryService extends ProjectService {
                     return;
                 }
             }
-            const resolvedSql = AsyncQueryService.wrapSqlWithReferenceCtes(
-                sql,
-                bound.referenceCtes,
-            );
             const execution = await this.resolveDuckdbQueryColumns({
-                resolvedSql,
+                sql,
+                referenceCtes: bound.referenceCtes,
                 columns,
                 warehouseClient,
                 queryTags,
@@ -8954,12 +8989,14 @@ export class AsyncQueryService extends ProjectService {
      * and pivot as they are.
      */
     private async resolveDuckdbQueryColumns({
-        resolvedSql,
+        sql,
+        referenceCtes,
         columns,
         warehouseClient,
         queryTags,
     }: {
-        resolvedSql: string;
+        sql: string;
+        referenceCtes: string[];
         columns: DuckdbQueryColumns;
         warehouseClient: WarehouseClient;
         queryTags: RunQueryTags;
@@ -8967,7 +9004,10 @@ export class AsyncQueryService extends ProjectService {
         switch (columns.mode) {
             case 'supplied':
                 return {
-                    query: resolvedSql,
+                    query: AsyncQueryService.wrapSqlWithReferenceCtes(
+                        sql,
+                        referenceCtes,
+                    ),
                     fieldsMap: columns.fieldsMap,
                     usedParameters: columns.usedParameters,
                     originalColumns: columns.originalColumns,
@@ -8975,7 +9015,8 @@ export class AsyncQueryService extends ProjectService {
                 };
             case 'discover':
                 return this.discoverDuckdbQueryColumns({
-                    resolvedSql,
+                    sql,
+                    referenceCtes,
                     limit: columns.limit,
                     parameters: columns.parameters,
                     warehouseClient,
@@ -8990,13 +9031,15 @@ export class AsyncQueryService extends ProjectService {
     }
 
     private async discoverDuckdbQueryColumns({
-        resolvedSql,
+        sql,
+        referenceCtes,
         limit,
         parameters,
         warehouseClient,
         queryTags,
     }: {
-        resolvedSql: string;
+        sql: string;
+        referenceCtes: string[];
         limit: number | undefined;
         parameters: ParametersValuesMap;
         warehouseClient: WarehouseClient;
@@ -9006,7 +9049,7 @@ export class AsyncQueryService extends ProjectService {
         // parameters resolve first and a missing value refuses here
         const { replacedSql: sqlWithParameters, missingReferences } =
             safeReplaceParametersWithSqlBuilder(
-                resolvedSql,
+                sql,
                 parameters,
                 warehouseClient,
             );
@@ -9018,10 +9061,13 @@ export class AsyncQueryService extends ProjectService {
             );
         }
         const columns: { name: string; type: DimensionType }[] = [];
-        const columnDiscoverySql = applyLimitToSqlQuery({
-            sqlQuery: sqlWithParameters,
-            limit: 1,
-        });
+        // The limit is applied to the user's statement alone: the reference
+        // CTEs name result files, and the limit strips what reads as a
+        // comment even inside a string literal
+        const columnDiscoverySql = AsyncQueryService.wrapSqlWithReferenceCtes(
+            applyLimitToSqlQuery({ sqlQuery: sqlWithParameters, limit: 1 }),
+            referenceCtes,
+        );
         try {
             await warehouseClient.streamQuery(
                 columnDiscoverySql,
@@ -9043,8 +9089,11 @@ export class AsyncQueryService extends ProjectService {
             throw new WarehouseQueryError(getErrorMessage(e));
         }
 
+        // The composer sanitizes the statement it is given the way the SQL
+        // runner does, so it sees the user's statement alone; the reference
+        // CTEs wrap what it composes
         const composer = new SqlQueryComposer({
-            userSql: resolvedSql,
+            userSql: sql,
             columns,
             warehouseClient,
             pivotConfiguration: undefined,
@@ -9068,9 +9117,12 @@ export class AsyncQueryService extends ProjectService {
         }, {} as ResultColumns);
 
         return {
-            query: composer.getSql({
-                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
-            }),
+            query: AsyncQueryService.wrapSqlWithReferenceCtes(
+                composer.getSql({
+                    columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+                }),
+                referenceCtes,
+            ),
             fieldsMap: composer.getFields(),
             usedParameters: composer.getUsedParameters(),
             originalColumns,

@@ -1,8 +1,6 @@
 import {
     buildPivotRowTotalKey,
     formatItemValue,
-    getMergeTotalAggregation,
-    getMergeTotalUnavailableReason,
     getSubtotalKey,
     isCustomDimension,
     isDimension,
@@ -10,6 +8,7 @@ import {
     normalizePivotMatchRaw,
     type ItemsMap,
     type GroupedPivotRowSubtotals,
+    type MergeColumnTotal,
     type ParametersValuesMap,
     type ResultRow,
     type ResultValue,
@@ -23,6 +22,7 @@ import {
     TableHeaderRegularLabel,
 } from '../../components/common/Table/Table.styles';
 import TotalCalculationErrorCell from '../../components/common/Table/TotalCalculationErrorCell';
+import TotalFromSourceCell from '../../components/common/Table/TotalFromSourceCell';
 import TotalNotComputableCell from '../../components/common/Table/TotalNotComputableCell';
 import {
     columnHelper,
@@ -46,8 +46,8 @@ type Args = {
     totalsError?: unknown;
     /** Totals over a merged result exist only for some metric types. */
     isMergedResult?: boolean;
-    /** Merged columns a repeating source contributes; never totalled. */
-    repeatedFieldIds?: string[];
+    /** Where each merged column's total comes from, by field id. */
+    mergeColumnTotals?: Record<string, MergeColumnTotal>;
     groupedSubtotals?: Record<string, Record<string, number>[]>;
     subtotalsLoading?: boolean;
     subtotalsError?: unknown;
@@ -198,7 +198,7 @@ const getDataAndColumns = ({
     totalsLoading,
     totalsError,
     isMergedResult,
-    repeatedFieldIds = [],
+    mergeColumnTotals = {},
     groupedSubtotals,
     subtotalsLoading,
     subtotalsError,
@@ -269,29 +269,31 @@ const getDataAndColumns = ({
                     cell: (info) => getFormattedValueCell(info, parameters),
 
                     footer: () => {
+                        const mergeTotal = mergeColumnTotals[itemId];
                         if (totals?.[itemId] !== undefined) {
-                            return formatItemValue(
+                            const value = formatItemValue(
                                 item,
                                 totals[itemId],
                                 false,
                                 parameters,
                             );
+                            return mergeTotal?.from === 'sourceQuery' ? (
+                                <TotalFromSourceCell
+                                    value={value}
+                                    sourceLabel={mergeTotal.sourceLabel}
+                                />
+                            ) : (
+                                value
+                            );
                         }
                         if (
                             isMergedResult &&
-                            item !== undefined &&
                             canHaveWarehouseTotal(item) &&
-                            getMergeTotalAggregation(
-                                item,
-                                repeatedFieldIds.includes(itemId),
-                            ) === null
+                            mergeTotal?.from === null
                         ) {
                             return (
                                 <TotalNotComputableCell
-                                    reason={getMergeTotalUnavailableReason(
-                                        item,
-                                        repeatedFieldIds.includes(itemId),
-                                    )}
+                                    reason={mergeTotal.reason}
                                 />
                             );
                         }

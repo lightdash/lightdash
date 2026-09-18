@@ -3,7 +3,6 @@ import { DimensionType } from './field';
 import {
     buildMergeQueryFromSaved,
     getMergeCompiledSqlText,
-    getRepeatedMergeFieldIds,
     getUnaccountedDimensions,
     getWarehouseDefaultNullsFirst,
     MergeJoinType,
@@ -463,18 +462,6 @@ describe('result sources', () => {
 
     test('contribute no unaccounted dimensions', () => {
         expect(getUnaccountedDimensions(resultSource, dateJoinKey)).toEqual([]);
-    });
-});
-
-describe('getRepeatedMergeFieldIds', () => {
-    it('names the merged value columns of every repeating source', () => {
-        expect(
-            getRepeatedMergeFieldIds([
-                queryA(),
-                { ...queryB(), repeatValues: true },
-            ]),
-        ).toEqual(['b_follower_snapshots_total_followers']);
-        expect(getRepeatedMergeFieldIds([queryA(), queryB()])).toEqual([]);
     });
 });
 

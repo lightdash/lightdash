@@ -772,11 +772,14 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
     // Totals for a merged result are aggregated over its rows on the compose
     // engine. Every source value appears once per key, so a sum is exact;
     // a distinct count is not, and is left out rather than approximated.
-    it('totals the merged result over its rows for exact metrics only', async () => {
+    // The sum is exact over the merged rows. The distinct payment count is
+    // not, so it is totalled by the payments query itself when the join
+    // keeps every payments row, and left out when the join drops some.
+    const totalsOf = async (joinType: 'full' | 'inner') => {
         const runResp = await admin.post<
             Body<ApiExecuteAsyncMergeQueryResults>
         >(`/api/v2/projects/${projectUuid}/query/merge-query`, {
-            mergeQuery,
+            mergeQuery: { ...mergeQuery, joinType },
             context: QueryExecutionContext.EXPLORE,
         });
         expect(runResp.status).toBe(200);
@@ -800,12 +803,6 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
             { kind: 'columnTotal' },
         );
         expect(started.status).toBe(200);
-        // The sum is totalled; the distinct payment count is not exact over
-        // merged rows and is not offered.
-        expect(Object.keys(started.body.results.fields)).toEqual([
-            ORDERS_FIELD_ID,
-        ]);
-
         const totals = await pollQueryResults(
             admin,
             started.body.results.queryUuid,
@@ -816,6 +813,30 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
             expectedOrdersTotal,
             2,
         );
+        return {
+            fieldIds: Object.keys(started.body.results.fields),
+            totalsRow,
+        };
+    };
+
+    it('totals a non-additive metric from its own query when the join keeps every row of it', async () => {
+        const [paymentsGrandTotal] = await runSourceQuery({
+            ...paymentsByMonth,
+            dimensions: [],
+        });
+
+        const { fieldIds, totalsRow } = await totalsOf('full');
+
+        expect(fieldIds).toEqual([ORDERS_FIELD_ID, PAYMENTS_FIELD_ID]);
+        expect(numeric(cellOf(totalsRow, PAYMENTS_FIELD_ID).raw)).toEqual(
+            numeric(paymentsGrandTotal.payments_unique_payment_count),
+        );
+    }, 90_000);
+
+    it('leaves a non-additive metric without a total when the join drops rows of its query', async () => {
+        const { fieldIds, totalsRow } = await totalsOf('inner');
+
+        expect(fieldIds).toEqual([ORDERS_FIELD_ID]);
         expect(totalsRow[PAYMENTS_FIELD_ID]).toBeUndefined();
     }, 90_000);
 
