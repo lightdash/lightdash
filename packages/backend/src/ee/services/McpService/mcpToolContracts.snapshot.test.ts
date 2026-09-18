@@ -195,6 +195,7 @@ const MCP_CLIENT_TEXT_MAX_CHARS = 2048;
 const registrationOnlyFeatures = {
     mcpContentWritesEnabled: true,
     scheduledDeliveryEnabled: true,
+    dataAppBuildsEnabled: true,
 } satisfies Omit<
     McpServerToolOptions['featureAvailability'],
     keyof typeof defaultMcpAnalystPromptOptions
