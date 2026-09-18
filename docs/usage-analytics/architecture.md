@@ -20,7 +20,7 @@ queries. It does not require dbt or a MotherDuck account.
 | Source org             | Persisted, authorized project org; legacy local overrides ignored                               | Live shared-instance isolation verification                                 |
 | Storage authentication | Existing writer credentials retained in backend; signed GET URLs passed to DuckDB               | Verify effective IAM; read-only hardening is deferred (PROD-11103)          |
 | Models                 | Backend-owned Query Events, AI Usage, Data App Events and Export Events explores                 | Additional event coverage and named-entity lookups                          |
-| Current names          | Daily per-org charts, dashboards and users snapshots with optional ID joins                      | Other entity lookups; production-scale database load verification            |
+| Current names          | Daily per-org charts, dashboards, users and agents snapshots with optional ID joins                      | Other entity lookups; production-scale database load verification            |
 
 Historical tickets and handover proposals may describe different designs. They
 are not evidence that production rollout or final role restrictions are complete.
@@ -87,6 +87,7 @@ organization has separate files in the shared bucket:
 events/compacted/org_id=<org-uuid>/dim=charts/charts.parquet
 events/compacted/org_id=<org-uuid>/dim=dashboards/dashboards.parquet
 events/compacted/org_id=<org-uuid>/dim=users/users.parquet
+events/compacted/org_id=<org-uuid>/dim=agents/agents.parquet
 ```
 
 Every successful refresh overwrites these keys, even when the source is unchanged.
@@ -130,8 +131,9 @@ derives dimensions from the compacted schemas and metrics from
 [`systemStreamMetrics`](../../packages/backend/src/analytics/systemExplores/systemStreamMetrics.ts).
 It explicitly includes `query_events`, `ai_usage`, `data_app_events` and
 `export_events`; registering another writer stream does not expose another
-explore automatically. Query Events joins Charts, Dashboards and Users; the other
-models join Users. These optional many-to-one LEFT joins match organization and
+explore automatically. Query Events joins Charts, Dashboards and Users; AI Usage
+joins Users and Agents; the other models join Users. These optional many-to-one
+LEFT joins match organization and
 entity ID, preserving events whose lookup is missing. Compiled models
 refer to table names, not signed URLs. SQL and aggregations are generated from
 the user's Explore selections over these fixed models.

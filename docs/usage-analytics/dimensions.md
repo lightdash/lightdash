@@ -1,4 +1,4 @@
-# Current content and user dimensions
+# Current content, user and agent dimensions
 
 The existing `compactUsageEvents` Graphile job refreshes dimension snapshots
 after processing event partitions, daily at 00:30 UTC. It also refreshes on days
@@ -11,6 +11,7 @@ Each organization has one current Parquet object per dimension:
 | ---------------------------------------------- | ---------------------------------------------------------------- |
 | `dim=charts/charts.parquet`                    | org_id, chart_id, name, slug, chart_kind, space_name, is_deleted |
 | `dim=dashboards/dashboards.parquet`            | org_id, dashboard_id, name, slug, space_name, is_deleted         |
+| `dim=agents/agents.parquet`                    | org_id, agent_id, name                                           |
 | `dim=users/users.parquet`                      | org_id, user_id, name                                            |
 
 Charts include saved metric and SQL charts, including charts owned by a
@@ -57,7 +58,7 @@ An interrupted read, conversion or upload leaves the previous object available.
 Other dimensions continue; failures fail the job so Graphile can retry. Retries
 restart the job, including snapshots already published successfully; there is
 no persisted resume cursor. Scheduled runs allow up to three attempts.
-Publication is atomic per object, not across the three dimensions. Concurrent
+Publication is atomic per object, not across dimensions. Concurrent
 source edits during paging converge on the following refresh.
 Cleanup in `finally` covers handled failures. An abrupt process termination can
 leave temporary files or incomplete multipart uploads; account for these in
@@ -66,8 +67,9 @@ worker scratch-space cleanup and storage lifecycle configuration.
 ## Read path and rollout
 
 Query Events exposes Charts, Dashboards and Users as optional many-to-one LEFT
-JOINs on organization plus entity ID. AI Usage, Data App Events and Export Events
-join Users.
+JOINs on organization plus entity ID. AI Usage joins Users and Agents; Data App
+Events and Export Events join Users.
+Every lookup declares a composite primary key on organization and entity ID.
 The query builder adds joins only for selected or filtered lookup fields.
 Existing event IDs and metrics retain their names and behavior.
 
@@ -83,8 +85,9 @@ After deployment, click **Sync content** as an organization admin to compile the
 new fields in an existing project before updating managed sample dashboards.
 Re-running `POST /api/v1/org/analytics-project` also refreshes the models while
 preserving the project and saved content. New projects include them immediately.
-Existing authorization and feature-flag checks apply. No database migration or
-new configuration is required.
+Existing authorization and feature-flag checks apply. Agent snapshots add one
+concurrent index on `ai_agent (organization_uuid, ai_agent_uuid)` for bounded
+organization-scoped paging. No new configuration is required.
 
 The first dimension refresh does not have to finish before creating or updating
 an analytics project, provided supported event files already exist:
@@ -103,7 +106,14 @@ it does not refresh snapshots or verify that event data is available.
 To use the join in Explore, select **Query Events → Total queries** and
 **Users → User name**. Add **User ID** to distinguish people with identical
 display names. Chart and dashboard names are available from their joined tables.
-Agent, project, space and group lookup tables are not part of this implementation;
+In AI Usage, select **Agents → Agent name** alongside **Total AI calls**.
+Agent IDs are `ai_agent.ai_agent_uuid`, matching the event stream. Current names
+include system agents. Missing snapshots and deleted, unknown or null agent IDs
+display `Unknown agent` without dropping events or changing totals. Only
+`org_id`, `agent_id` and `name` are exported; instructions and configuration are
+excluded.
+
+Project, space and group lookup tables are not part of this implementation;
 charts and dashboards include a `space_name` attribute.
 
 ## Local verification
@@ -125,7 +135,8 @@ pnpm exec dotenv -e .env.development.local -e .env.development -- \
 
 This exercises real Postgres → JSONL → Parquet → MinIO → signed-URL DuckDB →
 Lightdash-generated JOIN SQL, including two organizations, duplicate names,
-unknown/removed users, SQL/dashboard-owned charts, renames, soft deletion,
+unknown/removed users, agent names and pagination, cross-org/null/deleted agents,
+SQL/dashboard-owned charts, renames, soft deletion,
 overwrites with unchanged source rows, missing snapshots and interrupted exports.
 The default fixture has 2,500 extra charts; the environment override enables the
 larger load check. This verifies the functional path and paging; it does not

@@ -55,6 +55,20 @@ export class UsageDimensionsModel {
         const { organization_id: orgId, organization_uuid: orgUuid } =
             organization;
         switch (dimension) {
+            case 'agents': {
+                const agents = this.database('ai_agent as a')
+                    .where('a.organization_uuid', orgUuid)
+                    .select(
+                        this.database.raw(
+                            `json_build_object(
+                        'org_id', a.organization_uuid, 'agent_id', a.ai_agent_uuid,
+                        'name', a.name
+                    )::text AS json`,
+                        ),
+                    );
+                yield* this.readPages(agents, 'a.ai_agent_uuid');
+                return;
+            }
             case 'charts': {
                 const charts = this.database('saved_queries as c')
                     .join('projects as p', 'p.project_uuid', 'c.project_uuid')
