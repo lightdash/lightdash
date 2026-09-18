@@ -6510,10 +6510,65 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "repos": {
+                  "description": "Repositories readable through the connected GitHub App installation; pass \`owner/repo\` as the exploreRepo \`target\`. Empty when none are accessible.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "defaultBranch": {
+                        "type": "string",
+                      },
+                      "owner": {
+                        "type": "string",
+                      },
+                      "private": {
+                        "type": "boolean",
+                      },
+                      "repo": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "owner",
+                      "repo",
+                      "defaultBranch",
+                      "private",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "repos",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
