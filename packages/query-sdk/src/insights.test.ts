@@ -12,6 +12,7 @@ import {
     postInsightAction,
     registerMountedQuery,
     resetInsightsState,
+    insightIsForField,
     rowMatchesInsight,
     type InsightsPayload,
 } from './insights';
@@ -205,6 +206,15 @@ describe('insights channel', () => {
                 rowKeys,
             ),
         ).toBe(true);
+    });
+
+    it('narrows a match to the metric a series plots', () => {
+        const rowKeys = { orders_total: 'total' };
+        expect(insightIsForField(anomaly, undefined)).toBe(true);
+        expect(insightIsForField(anomaly, 'orders_total')).toBe(true);
+        expect(insightIsForField(anomaly, 'total', rowKeys)).toBe(true);
+        expect(insightIsForField(anomaly, 'total')).toBe(false);
+        expect(insightIsForField(anomaly, 'orders_count', rowKeys)).toBe(false);
     });
 
     it('parses a full payload and rejects the wrong shape', () => {

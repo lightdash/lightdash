@@ -14,7 +14,7 @@ Two operations exist, both run by Lightdash:
 When the user asks for AI analysis, an executive summary, anomalies, "what changed", "flag anything unusual", or insights and gives no further detail, build **all** of this with the shipped components in `src/components/insights/` (never rewrite them):
 
 1. `<InsightsSummary />` near the top of the page.
-2. On every query-bound chart, `InsightMarker` as both `dot` and `activeDot` (lines/areas) or `insightCellProps` on each `Cell` (bars), plus the finding text in the tooltip via `insightTooltipText`.
+2. On every query-bound chart, `InsightMarker` as both `dot` and `activeDot` (lines/areas) or `insightCellProps` on each `Cell` (bars), one per series with its `dataKey` as `fieldId`, plus the finding text in the tooltip via `insightTooltipText`.
 3. `<InvestigateMenuItem />` in every data-point action menu, next to "Filter by …" and "View underlying data".
 4. `<InvestigationCard />` under the chart once an investigation starts.
 
@@ -67,7 +67,7 @@ const orders = useLightdash(ordersQuery);
 const insights = useInsights(orders);
 // insights.status           same as the view
 // insights.anomalies        the anomalies that refer to this query
-// insights.matches(row)     the anomalies whose dimension values match this row
+// insights.matches(row, fieldId?)  the anomalies on this row; fieldId narrows to one metric
 // insights.canInvestigate   false when no agent is available
 // insights.canContinue      false when the org keeps viewers at the explanation
 // insights.investigate(id)  start an investigation of one anomaly
@@ -96,7 +96,7 @@ Each anomaly:
 }
 ```
 
-Mark the flagged rows with the shipped helpers. Only `high`, `medium` and `positive` earn a marker; `info` is context for the summary and is never painted. The marker element must be both `dot` and `activeDot`, otherwise the hover dot covers it and takes the click:
+Mark the flagged rows with the shipped helpers. Only `high`, `medium` and `positive` earn a marker; `info` is context for the summary and is never painted. Every helper takes the series' `dataKey` as `fieldId`, so on a chart plotting revenue and orders a revenue anomaly marks only the revenue series. The marker element must be both `dot` and `activeDot`, otherwise the hover dot covers it and takes the click:
 
 ```tsx
 import { Line, LineChart, Tooltip } from 'recharts';
@@ -106,15 +106,18 @@ function RevenueByMonth() {
     const revenue = useLightdash(revenueQuery);
     const insights = useInsights(revenue);
     const [menu, setMenu] = useState(null);
-    const openMenu = (row, e) => setMenu({ row, x: e.clientX, y: e.clientY });
-    const dot = <InsightMarker insights={insights} onOpenMenu={openMenu} />;
+    const openMenu = (row, e, fieldId) =>
+        setMenu({ row, fieldId, x: e.clientX, y: e.clientY });
+    const dot = (
+        <InsightMarker insights={insights} fieldId="revenue" onOpenMenu={openMenu} />
+    );
 
     return (
         <LineChart data={revenue.data}>
             <Tooltip
                 content={({ payload, label }) => {
                     const row = payload?.[0]?.payload;
-                    const finding = insightTooltipText(insights, row);
+                    const finding = insightTooltipText(insights, row, 'revenue');
                     return row ? (
                         <ChartTooltipSurface>
                             <div className="font-semibold">{label}</div>
@@ -133,18 +136,18 @@ function RevenueByMonth() {
 Bar charts use `insightCellProps` on each `Cell` and open the menu from the bar's `onClick`:
 
 ```tsx
-<Bar dataKey="revenue" onClick={(d, _i, e) => openMenu(d.payload, e)}>
+<Bar dataKey="revenue" onClick={(d, _i, e) => openMenu(d.payload, e, 'revenue')}>
     {rows.map((row) => (
-        <Cell key={row.status} {...insightCellProps(insights, row)} />
+        <Cell key={row.status} {...insightCellProps(insights, row, 'revenue')} />
     ))}
 </Bar>
 ```
 
-`markerFor(insights, row)` returns the anomaly behind a marker when you need it directly, for example to open an `InvestigationCard`.
+`markerFor(insights, row, fieldId)` returns the anomaly behind a marker when you need it directly, for example to open an `InvestigationCard`.
 
 ## Investigate from the action menu
 
-Add `<InvestigateMenuItem />` to the data-point action menu next to "Filter by …" and "View underlying data". It renders only when the clicked row has a flagged anomaly, an agent is available and no investigation is running or done:
+Add `<InvestigateMenuItem />` to the data-point action menu next to "Filter by …" and "View underlying data". It renders only when the clicked row has a flagged anomaly: **Investigate with AI** starts one when an agent is available, and **View investigation** reopens the card once one is running, done or failed, so a dismissed result is never lost:
 
 ```tsx
 <DropdownMenuContent>
@@ -157,7 +160,8 @@ Add `<InvestigateMenuItem />` to the data-point action menu next to "Filter by �
     <InvestigateMenuItem
         insights={insights}
         row={menu.row}
-        onInvestigate={(anomaly) => setOpenInvestigation(anomaly.id)}
+        fieldId={menu.fieldId}
+        onOpen={(anomaly) => setOpenInvestigation(anomaly.id)}
     />
 </DropdownMenuContent>
 ```
