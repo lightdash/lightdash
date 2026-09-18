@@ -1589,10 +1589,184 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": {},
+                      "description": "The persisted content as code, as shown in \`result\`.",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical link to the created content.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "slug": {
+                      "description": "Final persisted slug; may differ from the requested slug when it was already taken.",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "dashboard",
+                      "type": "string",
+                    },
+                    "uuid": {
+                      "description": "UUID of the created content.",
+                      "type": "string",
+                    },
+                    "warnings": {
+                      "description": "Non-fatal problems with the created content, e.g. metricQuery dimensions the chart does not use.",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "href",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "content",
+                    "warnings",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": {},
+                      "description": "The persisted content as code, as shown in \`result\`.",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical link to the created content.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "slug": {
+                      "description": "Final persisted slug; may differ from the requested slug when it was already taken.",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "chart",
+                      "type": "string",
+                    },
+                    "uuid": {
+                      "description": "UUID of the created content.",
+                      "type": "string",
+                    },
+                    "warnings": {
+                      "description": "Non-fatal problems with the created content, e.g. metricQuery dimensions the chart does not use.",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "href",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "content",
+                    "warnings",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "additionalProperties": {},
+                      "description": "The persisted content as code, as shown in \`result\`.",
+                      "propertyNames": {
+                        "type": "string",
+                      },
+                      "type": "object",
+                    },
+                    "href": {
+                      "description": "Canonical link to the created content.",
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "slug": {
+                      "description": "Final persisted slug; may differ from the requested slug when it was already taken.",
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "document",
+                      "type": "string",
+                    },
+                    "uuid": {
+                      "description": "UUID of the created content.",
+                      "type": "string",
+                    },
+                    "versionUuid": {
+                      "description": "Latest Document version UUID, required for content edits.",
+                      "type": "string",
+                    },
+                    "warnings": {
+                      "description": "Non-fatal problems with the created content, e.g. metricQuery dimensions the chart does not use.",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "href",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "content",
+                    "warnings",
+                    "versionUuid",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },

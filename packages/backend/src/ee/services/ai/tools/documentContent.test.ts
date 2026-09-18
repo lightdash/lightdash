@@ -1,4 +1,7 @@
-import { ConflictError } from '@lightdash/common';
+import {
+    ConflictError,
+    toolCreateContentOutputSchema,
+} from '@lightdash/common';
 import { asSchema, type FlexibleSchema, type ToolExecutionOptions } from 'ai';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import type { DocumentContentResult } from '../types/aiAgentDependencies';
@@ -78,6 +81,9 @@ describe('AI Agent Document authoring', () => {
             { type: 'document', content: document.content },
             options,
         );
+        if (Symbol.asyncIterator in result) {
+            throw new Error('Unexpected streamed output');
+        }
         expect(createContent).toHaveBeenCalledWith({
             type: 'document',
             content: document.content,
@@ -94,6 +100,19 @@ describe('AI Agent Document authoring', () => {
             'result',
             expect.stringContaining(versionUuid),
         );
+        expect(result.structuredContent).toEqual({
+            type: 'document',
+            href: document.href,
+            uuid: documentUuid,
+            versionUuid,
+            slug: document.content.slug,
+            name: document.content.name,
+            content: document.content,
+            warnings: [],
+        });
+        expect(toolCreateContentOutputSchema.safeParse(result).success).toBe(
+            true,
+        );
     });
 
     test('rejects disabled creation even when called directly', async () => {
@@ -109,7 +128,14 @@ describe('AI Agent Document authoring', () => {
             { type: 'document', content: document.content },
             options,
         );
+        if (Symbol.asyncIterator in result) {
+            throw new Error('Unexpected streamed output');
+        }
         expect(result).toMatchObject({ metadata: { status: 'error' } });
+        expect(result.structuredContent).toEqual({ error: result.result });
+        expect(toolCreateContentOutputSchema.safeParse(result).success).toBe(
+            true,
+        );
         expect(createContent).not.toHaveBeenCalled();
     });
 
