@@ -9,12 +9,11 @@ import { isModelConfigAvailable } from '../AiOrganizationSettingsService';
 
 export type AutopilotModelChoice = { provider: AiProvider; modelName: string };
 
-// Autopilot runs unattended, so on these providers it uses the model that
-// passed the cleanup scorecard rather than the chat default, when the
-// organisation may still use it.
-const AUTOPILOT_PREFERRED_MODELS: Partial<Record<AiProvider, string>> = {
-    anthropic: 'claude-opus-4-7',
-    bedrock: 'claude-opus-4-7',
+// Autopilot runs unattended, so on these providers it prefers a cleanup-qualified
+// Opus, newest first, over the chat default when the organisation may use it.
+const AUTOPILOT_PREFERRED_MODELS: Partial<Record<AiProvider, string[]>> = {
+    anthropic: ['claude-opus-5', 'claude-opus-4-8', 'claude-opus-4-7'],
+    bedrock: ['claude-opus-5', 'claude-opus-4-7'],
 };
 
 const preferQualifiedModel = (
@@ -22,16 +21,15 @@ const preferQualifiedModel = (
     availableModels: ModelPreset<SelectableModelProvider>[],
 ): AutopilotModelChoice | null => {
     if (!choice) return null;
-    const preferred = AUTOPILOT_PREFERRED_MODELS[choice.provider];
-    const visible =
-        preferred !== undefined &&
+    const preferred = AUTOPILOT_PREFERRED_MODELS[choice.provider] ?? [];
+    if (preferred.includes(choice.modelName)) return choice;
+    const visible = preferred.find((name) =>
         availableModels.some(
             (model) =>
-                model.provider === choice.provider && model.name === preferred,
-        );
-    return visible && preferred
-        ? { provider: choice.provider, modelName: preferred }
-        : choice;
+                model.provider === choice.provider && model.name === name,
+        ),
+    );
+    return visible ? { provider: choice.provider, modelName: visible } : choice;
 };
 
 const isAiProvider = (value: string): value is AiProvider =>

@@ -11,16 +11,26 @@ const validatedModelSchema = z
 
 export type AutopilotValidatedModel = z.infer<typeof validatedModelSchema>;
 
-// Exact provider/model pairs that passed the cleanup scorecard on PROD-11224.
-// Provider ids match runtime attribution; model ids match the preset modelId.
+// Exact provider/model pairs cleared for cleanup. Provider ids match runtime
+// attribution; model ids match the preset modelId.
 export const DEFAULT_AUTOPILOT_VALIDATED_MODELS: AutopilotValidatedModel[] = [
+    { provider: 'anthropic', model: 'claude-opus-5', mode: 'cleanup' },
+    { provider: 'anthropic', model: 'claude-opus-4-8', mode: 'cleanup' },
     { provider: 'anthropic', model: 'claude-opus-4-7', mode: 'cleanup' },
+    { provider: 'anthropic', model: 'claude-sonnet-5', mode: 'cleanup' },
+    { provider: 'bedrock', model: 'anthropic.claude-opus-5', mode: 'cleanup' },
     {
         provider: 'bedrock',
         model: 'anthropic.claude-opus-4-7',
         mode: 'cleanup',
     },
-    { provider: 'anthropic', model: 'claude-sonnet-5', mode: 'cleanup' },
+    {
+        provider: 'bedrock',
+        model: 'anthropic.claude-sonnet-5',
+        mode: 'cleanup',
+    },
+    { provider: 'openai', model: 'gpt-5.6-sol', mode: 'cleanup' },
+    { provider: 'openai', model: 'gpt-5.5-2026-04-23', mode: 'cleanup' },
     { provider: 'openai', model: 'gpt-5.4-2026-03-05', mode: 'cleanup' },
 ];
 
