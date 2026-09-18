@@ -1,6 +1,7 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    clearMissingConnection,
     initialState,
     setConnectionUuid,
     setState,
@@ -196,5 +197,39 @@ describe('sqlRunnerSlice switching the active connection', () => {
         expect(seeded.connectionUuid).toBe('connection-2');
         expect(seeded.sqlRows).toHaveLength(1);
         expect(seeded.resultConnectionUuid).toBe('connection-1');
+    });
+});
+
+describe('sqlRunnerSlice clearMissingConnection', () => {
+    const withResults = {
+        ...initialState,
+        connectionUuid: 'connection-marketing',
+        resultConnectionUuid: 'connection-marketing',
+        activeTable: 'campaigns',
+        activeSchema: 'public',
+        activeDatabase: 'acc_marketing',
+        sqlColumns: [],
+        sqlRows: [{ ok: 1 }],
+        queryError: new Error('Connection not found'),
+        queryIsLoading: true,
+    } as typeof initialState;
+
+    it('drops the connection and the table it belonged to', () => {
+        const state = reducer(withResults, clearMissingConnection());
+
+        expect(state.connectionUuid).toBeUndefined();
+        expect(state.activeTable).toBeUndefined();
+        expect(state.activeSchema).toBeUndefined();
+        expect(state.activeDatabase).toBeUndefined();
+        expect(state.queryError).toBeUndefined();
+        expect(state.queryIsLoading).toBe(false);
+    });
+
+    it('keeps the results already on screen', () => {
+        const state = reducer(withResults, clearMissingConnection());
+
+        expect(state.sqlRows).toEqual([{ ok: 1 }]);
+        expect(state.sqlColumns).toEqual([]);
+        expect(state.resultConnectionUuid).toBe('connection-marketing');
     });
 });

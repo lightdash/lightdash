@@ -31,6 +31,37 @@ export const writeLastUsedConnection = (
     }
 };
 
+export const forgetLastUsedConnection = (
+    projectUuid: string,
+    connectionUuid: string,
+): void => {
+    try {
+        if (readLastUsedConnection(projectUuid) !== connectionUuid) return;
+        window.localStorage.removeItem(lastUsedStorageKey(projectUuid));
+    } catch {
+        // A viewer with storage blocked simply gets no last-used memory
+    }
+};
+
+type ErrorLike = {
+    name?: string;
+    message?: string;
+    error?: { name?: string; message?: string };
+};
+
+/**
+ * True when a run or catalog call failed because the connection it named is
+ * gone. The backend answers a removed connection with a not-found error, so
+ * the message is the only signal the frontend gets.
+ */
+export const isMissingConnectionError = (error: unknown): boolean => {
+    if (!error || typeof error !== 'object') return false;
+    const { error: detail, ...rest } = error as ErrorLike;
+    return /connection not found/i.test(
+        (detail ?? (rest as ErrorLike)).message ?? '',
+    );
+};
+
 /**
  * A saved chart opens on the connection stored with its version. A new
  * document opens on the last connection used in this project. A project with

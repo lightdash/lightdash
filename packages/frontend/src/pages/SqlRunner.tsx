@@ -13,6 +13,7 @@ import {
 import { Sidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
+import { useReconcileActiveConnection } from '../features/sqlRunner/hooks/useConnectionReconciliation';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlRunnerShareUrl } from '../features/sqlRunner/hooks/useSqlRunnerShareUrl';
 import { store } from '../features/sqlRunner/store';
@@ -69,6 +70,7 @@ const SqlRunner = ({
 
     const { data: project } = useProject(projectUuid);
     const { showToastError } = useToaster();
+    useReconcileActiveConnection();
 
     useEffect(() => {
         if (shareState.error) {
