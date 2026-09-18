@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import assertUnreachable from '../utils/assertUnreachable';
 import {
     DatabricksAuthenticationType,
     RedshiftAuthenticationType,
@@ -225,7 +226,7 @@ export const mergeUserWarehouseCredentials = (
                 token: userCredentials.token,
             };
         default:
-            return connection;
+            return assertUnreachable(connection, 'Unknown warehouse type');
     }
 };
 
