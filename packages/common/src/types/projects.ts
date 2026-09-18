@@ -99,6 +99,21 @@ export const supportsDatabaseListing = (
     !!warehouseType &&
     WAREHOUSE_TYPES_WITH_DATABASE_LISTING.includes(warehouseType);
 
+/**
+ * Warehouse types a project may hold several connections on. The gate is on
+ * adding a connection, not on using one: a project of another type that
+ * already holds several keeps working.
+ */
+export const MULTI_CONNECTION_WAREHOUSE_TYPES: WarehouseTypes[] = [
+    WarehouseTypes.POSTGRES,
+    WarehouseTypes.ATHENA,
+];
+
+export const supportsMultipleConnections = (
+    warehouseType: WarehouseTypes | undefined,
+): boolean =>
+    !!warehouseType && MULTI_CONNECTION_WAREHOUSE_TYPES.includes(warehouseType);
+
 export enum BigqueryAuthenticationType {
     SSO = 'sso',
     PRIVATE_KEY = 'private_key',
