@@ -1,3 +1,4 @@
+import { type Connection, type SummaryExplore } from '@lightdash/common';
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 const storageKey = (projectUuid: string) =>
@@ -43,4 +44,22 @@ export const writeConnectionFilter = (
     } catch {
         return;
     }
+};
+
+/**
+ * The name to put on an empty panel: a connection filter that matches nothing.
+ * A connection with no dbt source can never contribute a table, and the panel
+ * would otherwise go blank with nothing to read.
+ */
+export const emptyFilteredConnectionName = (
+    connections: Connection[],
+    connectionFilter: string | null,
+    filteredExplores: SummaryExplore[] | undefined,
+): string | undefined => {
+    if (connectionFilter === null) return undefined;
+    if (filteredExplores === undefined) return undefined;
+    if (filteredExplores.length > 0) return undefined;
+    return connections.find(
+        ({ connectionUuid }) => connectionUuid === connectionFilter,
+    )?.name;
 };

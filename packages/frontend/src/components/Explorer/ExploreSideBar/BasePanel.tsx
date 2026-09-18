@@ -45,11 +45,12 @@ import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
 import {
+    emptyFilteredConnectionName,
     readConnectionFilter,
     writeConnectionFilter,
 } from './connectionFilterStorage';
+import ExploreList from './ExploreList';
 import { buildExploreTree, sortExploreTree } from './exploreTree';
-import VirtualizedExploreList from './VirtualizedExploreList';
 
 const ALL_CONNECTIONS = 'all';
 
@@ -242,6 +243,12 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
         ];
     }, [externalSourcesFlag?.enabled, filteredExplores, tableGroupDetails]);
 
+    const emptyConnectionName = emptyFilteredConnectionName(
+        connections,
+        connectionFilter,
+        filteredExplores,
+    );
+
     const handleExploreClick = useCallback(
         (explore: SummaryExplore) => {
             startTransition(() => {
@@ -370,7 +377,7 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                             />
                         )}
 
-                        <VirtualizedExploreList
+                        <ExploreList
                             groupedExploreTree={groupedExploreTree}
                             defaultUngroupedExplores={defaultUngroupedExplores}
                             customUngroupedExplores={customUngroupedExplores}
@@ -380,6 +387,7 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                             }
                             searchQuery={debouncedSearch}
                             connections={connections}
+                            emptyConnectionName={emptyConnectionName}
                             onExploreClick={handleExploreClick}
                         />
                     </Stack>

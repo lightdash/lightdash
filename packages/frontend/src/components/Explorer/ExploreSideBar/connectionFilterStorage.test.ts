@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+    emptyFilteredConnectionName,
     readConnectionFilter,
     writeConnectionFilter,
 } from './connectionFilterStorage';
@@ -55,5 +56,58 @@ describe('explore connection filter storage', () => {
                 removeItem: vi.fn(),
             }),
         ).toBeNull();
+    });
+});
+
+describe('emptyFilteredConnectionName', () => {
+    const connections = [
+        {
+            connectionUuid: 'connection-postgres',
+            name: 'postgres',
+        },
+        {
+            connectionUuid: 'connection-marketing',
+            name: 'marketing',
+        },
+    ] as Parameters<typeof emptyFilteredConnectionName>[0];
+
+    it('names a filtered connection that has no tables', () => {
+        expect(
+            emptyFilteredConnectionName(
+                connections,
+                'connection-marketing',
+                [],
+            ),
+        ).toBe('marketing');
+    });
+
+    it('stays quiet while the explores are still loading', () => {
+        expect(
+            emptyFilteredConnectionName(
+                connections,
+                'connection-marketing',
+                undefined,
+            ),
+        ).toBeUndefined();
+    });
+
+    it('stays quiet when the filter matches tables', () => {
+        expect(
+            emptyFilteredConnectionName(connections, 'connection-postgres', [
+                {} as never,
+            ]),
+        ).toBeUndefined();
+    });
+
+    it('stays quiet when no connection is filtered', () => {
+        expect(
+            emptyFilteredConnectionName(connections, null, []),
+        ).toBeUndefined();
+    });
+
+    it('stays quiet for a filter that names no known connection', () => {
+        expect(
+            emptyFilteredConnectionName(connections, 'connection-gone', []),
+        ).toBeUndefined();
     });
 });
