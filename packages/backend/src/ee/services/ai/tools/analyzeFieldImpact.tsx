@@ -1,11 +1,19 @@
-import { analyzeFieldImpactToolDefinition } from '@lightdash/common';
+import {
+    analyzeFieldImpactToolDefinition,
+    type FieldImpactReport,
+    type ToolAnalyzeFieldImpactStructuredContent,
+} from '@lightdash/common';
 import { tool } from 'ai';
 import type {
     AnalyzeFieldImpactFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
+import type {
+    ExecuteStructuredToolResult,
+    ExecuteToolErrorResult,
+} from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
@@ -15,9 +23,41 @@ type Dependencies = {
 
 const toolDefinition = analyzeFieldImpactToolDefinition.for('agent');
 
-const generateResponse = (
-    report: Awaited<ReturnType<AnalyzeFieldImpactFn>>,
-) => (
+// Only what the model is shown: strips project/space uuids and dependent metric labels.
+const toStructuredContent = (
+    report: FieldImpactReport,
+): ToolAnalyzeFieldImpactStructuredContent => ({
+    fieldId: report.fieldId,
+    fieldType: report.fieldType,
+    severity: report.severity,
+    summary: report.summary,
+    charts: report.charts.map((chart) => ({
+        uuid: chart.uuid,
+        name: chart.name,
+        spaceName: chart.spaceName,
+        dashboardName: chart.dashboardName,
+        viewsCount: chart.viewsCount,
+    })),
+    dashboards: report.dashboards.map((dashboard) => ({
+        uuid: dashboard.uuid,
+        name: dashboard.name,
+        viaChartName: dashboard.viaChartName,
+    })),
+    dashboardFilterTargets: report.dashboardFilterTargets.map((dashboard) => ({
+        uuid: dashboard.uuid,
+        name: dashboard.name,
+    })),
+    metricTreeDependents: report.metricTreeDependents.map((metric) => ({
+        fieldId: metric.fieldId,
+    })),
+    scheduledDeliveries: report.scheduledDeliveries.map((delivery) => ({
+        name: delivery.name,
+        savedChartUuid: delivery.savedChartUuid,
+        dashboardUuid: delivery.dashboardUuid,
+    })),
+});
+
+const generateResponse = (report: ToolAnalyzeFieldImpactStructuredContent) => (
     <fieldImpact
         fieldId={report.fieldId}
         fieldType={report.fieldType ?? 'unknown'}
@@ -94,7 +134,12 @@ export const getAnalyzeFieldImpact = ({
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (args) => {
+        execute: async (
+            args,
+        ): Promise<
+            | ExecuteStructuredToolResult<ToolAnalyzeFieldImpactStructuredContent>
+            | ExecuteToolErrorResult
+        > => {
             try {
                 await updateProgress(
                     `Analyzing the impact of changing "${args.fieldId}"...`,
@@ -104,22 +149,20 @@ export const getAnalyzeFieldImpact = ({
                     fieldId: args.fieldId,
                 });
 
+                const structuredContent = toStructuredContent(report);
+
                 return {
-                    result: generateResponse(report).toString(),
+                    result: generateResponse(structuredContent).toString(),
                     metadata: {
                         status: 'success',
                     },
+                    structuredContent,
                 };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(
-                        error,
-                        `Error analyzing the impact of "${args.fieldId}".`,
-                    ),
-                    metadata: {
-                        status: 'error',
-                    },
-                };
+                return toolErrorOutput(
+                    error,
+                    `Error analyzing the impact of "${args.fieldId}".`,
+                );
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
