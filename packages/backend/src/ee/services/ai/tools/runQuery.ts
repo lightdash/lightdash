@@ -27,11 +27,13 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type SlackPrompt,
+    type ToolRunQueryAppliedParameters,
     type ToolRunQueryArgs,
     type ToolRunQueryArgsTransformed,
     type ToolRunQueryExpressionArgs,
     type ToolRunQueryExpressionResolvedArgs,
     type ToolRunQueryExpressionRuntimeArgs,
+    type ToolRunQueryStructuredContent,
 } from '@lightdash/common';
 import { tool, type Schema } from 'ai';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
@@ -67,7 +69,7 @@ import {
 import { renderEcharts } from '../utils/renderEcharts';
 import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import {
     validateAxisFields,
     validateCustomChartTypeChartConfig,
@@ -109,17 +111,18 @@ type Dependencies = {
 
 // The parameter state a query actually ran with — explicit vs
 // default-resolved vs unset-with-no-default — so results never hide it.
-export const summarizeAppliedParameters = (
+// null when the explore references no parameters.
+export const getAppliedParameters = (
     explore: Explore,
     projectParameterDefinitions: ParameterDefinitions,
     provided: ParametersValuesMap | null,
-): string => {
+): ToolRunQueryAppliedParameters | null => {
     const definitions = getReferencedExploreParameterDefinitions(
         explore,
         projectParameterDefinitions,
     );
     const referenced = Object.keys(definitions);
-    if (referenced.length === 0) return '';
+    if (referenced.length === 0) return null;
     const applied = Object.fromEntries(
         referenced.flatMap((name) => {
             const value = provided?.[name];
@@ -138,6 +141,14 @@ export const summarizeAppliedParameters = (
             provided?.[name] === undefined &&
             definitions[name].default === undefined,
     );
+    return { applied, defaulted, unset };
+};
+
+const renderAppliedParameters = (
+    parameters: ToolRunQueryAppliedParameters | null,
+): string => {
+    if (parameters === null) return '';
+    const { applied, defaulted, unset } = parameters;
     const parts = [
         Object.keys(applied).length > 0
             ? `set explicitly: ${JSON.stringify(applied)}`
@@ -150,6 +161,59 @@ export const summarizeAppliedParameters = (
     return parts.length > 0
         ? ` Parameter values this query ran with — ${parts.join('; ')}.`
         : '';
+};
+
+export const summarizeAppliedParameters = (
+    explore: Explore,
+    projectParameterDefinitions: ParameterDefinitions,
+    provided: ParametersValuesMap | null,
+): string =>
+    renderAppliedParameters(
+        getAppliedParameters(explore, projectParameterDefinitions, provided),
+    );
+
+// The query identity every structured outcome carries; filters are echoed
+// as the agent authored them.
+const describeExecutedQuery = (
+    toolArgs: RunQueryToolInput,
+    queryTool: ToolRunQueryArgsTransformed,
+): Pick<ToolRunQueryStructuredContent, 'query' | 'mergeConfig'> => ({
+    query: {
+        exploreName: queryTool.queryConfig.exploreName,
+        dimensions: queryTool.queryConfig.dimensions,
+        metrics: queryTool.queryConfig.metrics,
+        sorts: queryTool.queryConfig.sorts,
+        filters: toolArgs.queryConfig.filters,
+        limit: queryTool.queryConfig.limit,
+    },
+    mergeConfig: queryTool.mergeConfig
+        ? {
+              primarySourceId: queryTool.mergeConfig.primarySourceId,
+              additionalSources: queryTool.mergeConfig.additionalSources.map(
+                  ({ id, queryConfig }) => ({
+                      id,
+                      exploreName: queryConfig.exploreName,
+                      dimensions: queryConfig.dimensions,
+                      metrics: queryConfig.metrics,
+                  }),
+              ),
+              joinKey: queryTool.mergeConfig.joinKey,
+              joinType: queryTool.mergeConfig.joinType,
+          }
+        : null,
+});
+
+// The rows written into the conversation: the CSV block and the structured
+// `data` are rendered from this one slice.
+const selectShownRows = (
+    rows: Record<string, unknown>[],
+    maxContextRows: number,
+): NonNullable<
+    Extract<ToolRunQueryStructuredContent, { outcome: 'results' }>['data']
+> => {
+    const shown = rows.slice(0, maxContextRows);
+    const [first] = shown;
+    return { columns: first ? Object.keys(first) : [], rows: shown };
 };
 
 export const validateRunQueryTool = (
@@ -470,11 +534,13 @@ export const getRunQuery = ({
                             ctx.getExplore(exploreName),
                     });
                     if (!resolution.success) {
+                        const result = formatFilterExpressionError(
+                            resolution.error,
+                        );
                         return {
-                            result: formatFilterExpressionError(
-                                resolution.error,
-                            ),
+                            result,
                             metadata: { status: 'error' as const },
+                            structuredContent: { error: result },
                         };
                     }
 
@@ -487,6 +553,10 @@ export const getRunQuery = ({
 
                 const explore = ctx.getExplore(
                     queryTool.queryConfig.exploreName,
+                );
+                const executedQuery = describeExecutedQuery(
+                    toolArgs,
+                    queryTool,
                 );
 
                 if (!queryTool.mergeConfig) {
@@ -624,6 +694,10 @@ export const getRunQuery = ({
                         return {
                             result: 'Success',
                             metadata: { status: 'success' },
+                            structuredContent: {
+                                outcome: 'chartOnly',
+                                ...executedQuery,
+                            },
                         };
                     }
 
@@ -636,6 +710,12 @@ export const getRunQuery = ({
                         return {
                             result: NO_RESULTS_RETRY_PROMPT,
                             metadata: { status: 'success' },
+                            structuredContent: {
+                                outcome: 'noResults',
+                                ...executedQuery,
+                                rowCount: 0,
+                                parameters: null,
+                            },
                         };
                     }
 
@@ -653,16 +733,25 @@ export const getRunQuery = ({
                         });
                     }
 
+                    const mergeLimit = {
+                        requested: queryTool.queryConfig.limit,
+                        effective: mergeQuery.limit,
+                        max: maxLimit,
+                    };
                     const resultSummary = getQueryResultSummary({
                         rowCount: queryResults.rows.length,
-                        requestedLimit: queryTool.queryConfig.limit,
-                        effectiveLimit: mergeQuery.limit,
-                        maxLimit,
+                        requestedLimit: mergeLimit.requested,
+                        effectiveLimit: mergeLimit.effective,
+                        maxLimit: mergeLimit.max,
                     });
-                    const csv = convertQueryResultsToCsv(
-                        queryResults,
+                    const shownMergeRows = selectShownRows(
+                        queryResults.rows,
                         maxContextRows,
                     );
+                    const mergeCsv = convertQueryResultsToCsv({
+                        rows: shownMergeRows.rows,
+                        fields: queryResults.fields,
+                    });
                     return {
                         result: enableDataAccess
                             ? [
@@ -670,13 +759,23 @@ export const getRunQuery = ({
                                       rowCount: queryResults.rows.length,
                                       maxContextRows,
                                   })}`,
-                                  serializeData(csv, 'csv'),
+                                  serializeData(mergeCsv, 'csv'),
                               ].join('\n\n')
                             : `Success. ${resultSummary}`,
                         metadata: {
                             status: 'success',
                             chartImageUrl,
                             queryUuid: queryResults.queryUuid,
+                        },
+                        structuredContent: {
+                            outcome: 'results',
+                            ...executedQuery,
+                            // The merge text never cites the execution.
+                            queryUuid: null,
+                            rowCount: queryResults.rows.length,
+                            limit: mergeLimit,
+                            parameters: null,
+                            data: enableDataAccess ? shownMergeRows : null,
                         },
                     };
                 }
@@ -826,6 +925,10 @@ export const getRunQuery = ({
                     return {
                         result: `Success`,
                         metadata: { status: 'success' },
+                        structuredContent: {
+                            outcome: 'chartOnly',
+                            ...executedQuery,
+                        },
                     };
                 }
 
@@ -833,6 +936,11 @@ export const getRunQuery = ({
                 const effectiveLimit = getValidAiQueryLimit(
                     requestedLimit,
                     maxLimit,
+                );
+                const appliedParameters = getAppliedParameters(
+                    explore,
+                    projectParameterDefinitions,
+                    queryTool.queryConfig.parameters,
                 );
 
                 const metricQuery = {
@@ -864,12 +972,14 @@ export const getRunQuery = ({
                     return {
                         result:
                             NO_RESULTS_RETRY_PROMPT +
-                            summarizeAppliedParameters(
-                                explore,
-                                projectParameterDefinitions,
-                                queryTool.queryConfig.parameters,
-                            ),
+                            renderAppliedParameters(appliedParameters),
                         metadata: { status: 'success' },
+                        structuredContent: {
+                            outcome: 'noResults',
+                            ...executedQuery,
+                            rowCount: 0,
+                            parameters: appliedParameters,
+                        },
                     };
                 }
 
@@ -886,25 +996,29 @@ export const getRunQuery = ({
                     });
                 }
 
+                const limit = {
+                    requested: requestedLimit,
+                    effective: effectiveLimit,
+                    max: maxLimit,
+                };
                 const resultSummary =
                     getQueryResultSummary({
                         rowCount: queryResults.rows.length,
-                        requestedLimit,
-                        effectiveLimit,
-                        maxLimit,
-                    }) +
-                    summarizeAppliedParameters(
-                        explore,
-                        projectParameterDefinitions,
-                        queryTool.queryConfig.parameters,
-                    );
+                        requestedLimit: limit.requested,
+                        effectiveLimit: limit.effective,
+                        maxLimit: limit.max,
+                    }) + renderAppliedParameters(appliedParameters);
 
                 // The queryUuid otherwise lives only in metadata, which never
                 // reaches the model — leaving it unable to cite the execution
                 // a report chart is evidence of.
-                const queryReference = exposeQueryUuid
-                    ? ` This execution's queryUuid is ${queryResults.queryUuid}; use exactly this value to reference it.`
-                    : '';
+                const citedQueryUuid = exposeQueryUuid
+                    ? queryResults.queryUuid
+                    : null;
+                const queryReference =
+                    citedQueryUuid !== null
+                        ? ` This execution's queryUuid is ${citedQueryUuid}; use exactly this value to reference it.`
+                        : '';
 
                 if (!enableDataAccess) {
                     return {
@@ -914,13 +1028,26 @@ export const getRunQuery = ({
                             chartImageUrl,
                             queryUuid: queryResults.queryUuid,
                         },
+                        structuredContent: {
+                            outcome: 'results',
+                            ...executedQuery,
+                            queryUuid: citedQueryUuid,
+                            rowCount: queryResults.rows.length,
+                            limit,
+                            parameters: appliedParameters,
+                            data: null,
+                        },
                     };
                 }
 
-                const csv = convertQueryResultsToCsv(
-                    queryResults,
+                const shownRows = selectShownRows(
+                    queryResults.rows,
                     maxContextRows,
                 );
+                const csv = convertQueryResultsToCsv({
+                    rows: shownRows.rows,
+                    fields: queryResults.fields,
+                });
                 return {
                     result: [
                         `${resultSummary}${getContextTruncationNote({
@@ -934,12 +1061,18 @@ export const getRunQuery = ({
                         chartImageUrl,
                         queryUuid: queryResults.queryUuid,
                     },
+                    structuredContent: {
+                        outcome: 'results',
+                        ...executedQuery,
+                        queryUuid: citedQueryUuid,
+                        rowCount: queryResults.rows.length,
+                        limit,
+                        parameters: appliedParameters,
+                        data: shownRows,
+                    },
                 };
             } catch (e) {
-                return {
-                    result: toolErrorHandler(e, `Error running query.`),
-                    metadata: { status: 'error' },
-                };
+                return toolErrorOutput(e, `Error running query.`);
             }
         },
         toModelOutput: ({ output }) => toModelOutput(output),
