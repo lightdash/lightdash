@@ -1,6 +1,7 @@
 import {
     FilterOperator,
     type PreAggregateMaterializationRole,
+    type PreAggregateMaterializationTrigger,
     type PreAggregateMaterializationSummary,
     type PreAggregateMaterializationWarning,
 } from '@lightdash/common';
@@ -43,8 +44,9 @@ import { filterOperatorLabel } from '../common/Filters/FilterInputs/constants';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 import TruncatedText from '../common/TruncatedText';
+import { MaterializationStatusBadge, StatusBadge } from './StatusBadge';
 
-const TRIGGER_LABELS: Record<string, string> = {
+const TRIGGER_LABELS: Record<PreAggregateMaterializationTrigger, string> = {
     compile: 'Project compile',
     cron: 'Scheduled (cron)',
     manual: 'Manual',
@@ -258,9 +260,9 @@ const MaterializationDetailDrawer: FC<Props> = ({
 }) => {
     if (!summary) return null;
 
-    const { materialization } = summary;
-    const columnEntries = materialization?.columns
-        ? Object.entries(materialization.columns)
+    const { materialization, activeMaterialization } = summary;
+    const columnEntries = activeMaterialization?.columns
+        ? Object.entries(activeMaterialization.columns)
         : [];
 
     return (
@@ -301,7 +303,8 @@ const MaterializationDetailDrawer: FC<Props> = ({
                     <Callout variant="info" title="Customer managed">
                         <Text fz="xs">
                             Lightdash serves matching queries from this
-                            warehouse table, but does not build or refresh it.
+                            warehouse table, but does not materialize or refresh
+                            it.
                         </Text>
                     </Callout>
                 )}
@@ -397,6 +400,41 @@ const MaterializationDetailDrawer: FC<Props> = ({
                     </Box>
                 )}
 
+                {!summary.externalTable && (
+                    <>
+                        {!summary.refreshCron && (
+                            <Box>
+                                <DetailLabel>Refresh schedule</DetailLabel>
+                                <DetailValue>
+                                    On definition change / manual
+                                </DetailValue>
+                            </Box>
+                        )}
+                        <Text fz="xs" c="dimmed">
+                            Unchanged deploys keep a compatible current
+                            materialization. Refresh manually or through the API
+                            after source data changes
+                            {summary.refreshCron
+                                ? ', or wait for the next scheduled refresh.'
+                                : '.'}
+                        </Text>
+                        <Box>
+                            <DetailLabel>Current materialization</DetailLabel>
+                            <Stack gap="xs" mt={4}>
+                                <StatusBadge summary={summary} />
+                                {activeMaterialization?.materializedAt && (
+                                    <DetailValue>
+                                        Materialized at:{' '}
+                                        {new Date(
+                                            activeMaterialization.materializedAt,
+                                        ).toLocaleString()}
+                                    </DetailValue>
+                                )}
+                            </Stack>
+                        </Box>
+                    </>
+                )}
+
                 {summary.definitionError && (
                     <Box>
                         <DetailLabel>Definition error</DetailLabel>
@@ -462,10 +500,13 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                         fill={undefined}
                                     />
                                     <Text fw={600} fz="sm">
-                                        Last materialization
+                                        Latest attempt
                                     </Text>
+                                    <MaterializationStatusBadge
+                                        materialization={materialization}
+                                    />
                                 </Group>
-                                <Tooltip label="Rebuild this pre-aggregate">
+                                <Tooltip label="Refresh this pre-aggregate">
                                     <ActionIcon
                                         size="sm"
                                         loading={isRefreshing}
@@ -544,7 +585,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                             color="dimmed"
                                         />
                                         <Text size="sm" c="dimmed">
-                                            Build time:{' '}
+                                            Materialization time:{' '}
                                             {formatDuration(
                                                 materialization.durationMs,
                                             )}

@@ -1041,6 +1041,20 @@ export class PreAggregateModel {
                 mat_total_bytes: number | null;
                 mat_trigger: PreAggregateMaterializationTrigger | null;
                 mat_created_at: Date | null;
+                active_materialization:
+                    | (Omit<
+                          DbPreAggregateMaterialization,
+                          | 'created_at'
+                          | 'updated_at'
+                          | 'evaluated_at'
+                          | 'materialized_at'
+                      > & {
+                          created_at: string;
+                          updated_at: string;
+                          evaluated_at: string | null;
+                          materialized_at: string | null;
+                      })
+                    | null;
             };
 
         const query = this.database
@@ -1061,6 +1075,15 @@ export class PreAggregateModel {
                     `${PreAggregateDefinitionsTableName}.pre_aggregate_definition_uuid`,
                 ).andOnVal('latest_mat.rn', 1);
             })
+            .leftJoin(
+                `${PreAggregateMaterializationsTableName} as active_mat`,
+                function joinActiveMat() {
+                    this.on(
+                        'active_mat.pre_aggregate_definition_uuid',
+                        `${PreAggregateDefinitionsTableName}.pre_aggregate_definition_uuid`,
+                    ).andOnVal('active_mat.status', 'active');
+                },
+            )
             .leftJoin(
                 `${CachedExploreTableName} as source_ce`,
                 `source_ce.cached_explore_uuid`,
@@ -1083,6 +1106,9 @@ export class PreAggregateModel {
                 this.database.raw(
                     `COALESCE(preagg_ce.name, '__preagg__' || ${PreAggregateDefinitionsTableName}.source_explore_name || '__' || ${PreAggregateDefinitionsTableName}.pre_aggregate_name) as pre_agg_explore_name`,
                 ),
+                this.database.raw(
+                    'row_to_json(active_mat) as active_materialization',
+                ),
                 `${PreAggregateDefinitionsTableName}.refresh_cron`,
                 `${PreAggregateDefinitionsTableName}.materialization_query_error`,
                 `latest_mat.pre_aggregate_materialization_uuid as mat_uuid`,
@@ -1098,6 +1124,7 @@ export class PreAggregateModel {
             .orderBy(`${PreAggregateDefinitionsTableName}.created_at`, 'desc');
 
         const result = await KnexPaginate.paginate(query, paginateArgs);
+        const { phase } = await this.getReuseState();
 
         const materializations: PreAggregateMaterializationSummary[] =
             result.data.map((row) => {
@@ -1119,6 +1146,43 @@ export class PreAggregateModel {
                               totalBytes: row.mat_total_bytes,
                               errorMessage: row.mat_error_message,
                               trigger: row.mat_trigger,
+                          }
+                        : null;
+
+                const activeRow = row.active_materialization;
+                const active = activeRow
+                    ? {
+                          ...activeRow,
+                          created_at: new Date(activeRow.created_at),
+                          updated_at: new Date(activeRow.updated_at),
+                          evaluated_at: activeRow.evaluated_at
+                              ? new Date(activeRow.evaluated_at)
+                              : null,
+                          materialized_at: activeRow.materialized_at
+                              ? new Date(activeRow.materialized_at)
+                              : null,
+                      }
+                    : null;
+                const activeMaterialization =
+                    active &&
+                    toActiveMaterialization(active) &&
+                    (phase === 'compatibility' ||
+                        (active.evaluated_at !== null &&
+                            isCompatible(row, active)))
+                        ? {
+                              materializationUuid:
+                                  active.pre_aggregate_materialization_uuid,
+                              status: active.status,
+                              materializedAt: active.materialized_at,
+                              durationMs: active.materialized_at
+                                  ? active.materialized_at.getTime() -
+                                    active.created_at.getTime()
+                                  : null,
+                              rowCount: active.row_count,
+                              columns: active.columns,
+                              totalBytes: active.total_bytes,
+                              errorMessage: active.error_message,
+                              trigger: active.trigger,
                           }
                         : null;
 
@@ -1144,12 +1208,17 @@ export class PreAggregateModel {
                     resolvedMaxRows:
                         row.materialization_metric_query?.resolvedMaxRows ??
                         null,
-                    warnings: computePreAggregateWarnings(materialization, {
-                        materializationMaxRows:
-                            row.materialization_metric_query?.resolvedMaxRows ??
-                            null,
-                    }),
+                    warnings: computePreAggregateWarnings(
+                        activeMaterialization ?? materialization,
+                        {
+                            materializationMaxRows:
+                                row.materialization_metric_query
+                                    ?.resolvedMaxRows ?? null,
+                        },
+                    ),
                     materialization,
+                    activeMaterialization,
+                    preparationStatus: row.preparation_status,
                 };
             });
 
