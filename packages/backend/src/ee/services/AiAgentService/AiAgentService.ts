@@ -11171,11 +11171,22 @@ Use your existing tools to inspect them when relevant to the user's question (re
               })
             : false;
 
-        const warehouseCredentials = canRunSql
-            ? await this.projectModel.getWarehouseCredentialsForProject(
-                  prompt.projectUuid,
-              )
-            : null;
+        // The dialect hint reads a sole connection. A project with several has
+        // no single answer, and raising here would take the explore-backed
+        // tools down with it, so the hint is simply left out; the raw SQL and
+        // catalog tools say why when the model reaches for them.
+        const hasSeveralConnections =
+            (
+                await this.projectModel.getConnectionNamesByUuid(
+                    prompt.projectUuid,
+                )
+            ).size > 1;
+        const warehouseCredentials =
+            canRunSql && !hasSeveralConnections
+                ? await this.projectModel.getWarehouseCredentialsForProject(
+                      prompt.projectUuid,
+                  )
+                : null;
         const warehouseType = warehouseCredentials?.type ?? null;
         const warehouseSchema = warehouseCredentials
             ? ('schema' in warehouseCredentials &&

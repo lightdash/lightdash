@@ -179,6 +179,9 @@ const makeService = ({
             ),
             getAllByOrganizationUuid: vi.fn().mockResolvedValue([]),
             get: vi.fn(),
+            getConnectionNamesByUuid: vi.fn(
+                async () => new Map([['connection-uuid', 'postgres']]),
+            ),
             ...projectModel,
         },
         projectService: {
