@@ -23,6 +23,7 @@ import {
 } from '@tabler/icons-react';
 import { format } from 'date-fns';
 import { Fragment, type FC, type ReactNode } from 'react';
+import { LightdashUserAvatar } from '../../../components/Avatar';
 import { AiMarkdown } from '../../../components/common/AiMarkdown';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
@@ -114,6 +115,31 @@ const VersionPill: FC<{
         <Tooltip label={tooltip} multiline maw={280}>
             {pill}
         </Tooltip>
+    );
+};
+
+/** Who submitted the prompt; nothing when the user row is gone. */
+const VersionAuthor: FC<{
+    user: ApiAppVersionSummary['createdByUser'];
+}> = ({ user }) => {
+    if (user === null) return null;
+    const name = `${user.firstName} ${user.lastName}`.trim();
+    const initials =
+        `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+    return (
+        <Group gap={6} wrap="nowrap" className={classes.byline}>
+            <LightdashUserAvatar
+                size={18}
+                userUuid={user.userUuid}
+                name={name}
+                classNames={{ placeholder: classes.avatarInitials }}
+            >
+                {initials}
+            </LightdashUserAvatar>
+            <Text fz="xs" c="dimmed" truncate="end">
+                {name}
+            </Text>
+        </Group>
     );
 };
 
@@ -267,6 +293,7 @@ const AppVersionHistoryPanel: FC<AppVersionHistoryPanelProps> = ({
                         {promptText}
                     </Text>
                 )}
+                <VersionAuthor user={version.createdByUser} />
 
                 {renderEntryExtras?.(version)}
 

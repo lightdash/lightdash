@@ -191,6 +191,18 @@
     color: var(--mantine-color-text);
 }
 
+/* Author under the prompt: an 18px initials avatar and the name. */
+.byline {
+    margin-top: 2px;
+    min-width: 0;
+}
+
+.avatarInitials {
+    --avatar-placeholder-fz: 9px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
 .upgradeSummary {
     padding: var(--mantine-spacing-xs);
     border: 1px solid var(--mantine-color-default-border);
