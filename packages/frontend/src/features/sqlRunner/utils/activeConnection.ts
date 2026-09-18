@@ -77,11 +77,15 @@ export const isReplaceableSql = (sql: string): boolean => {
 };
 
 /**
- * What a table click does. A table on the active connection behaves as it
- * always has. A table on another connection replaces an empty or generated
- * editor outright, and otherwise asks before discarding what the user wrote.
+ * What a table click does. One rule decides whether the editor may be
+ * replaced, on this connection or another: only an empty editor or a select
+ * this runner generated. SQL the user wrote is never overwritten in silence.
  */
-export type TableClickOutcome = 'insert' | 'switch-and-insert' | 'prompt';
+export type TableClickOutcome =
+    | 'insert'
+    | 'select-only'
+    | 'switch-and-insert'
+    | 'prompt';
 
 export const tableClickOutcome = ({
     sql,
@@ -92,11 +96,12 @@ export const tableClickOutcome = ({
     activeConnectionUuid: string | undefined;
     tableConnectionUuid: string;
 }): TableClickOutcome => {
+    const isReplaceable = isReplaceableSql(sql);
     if (
         activeConnectionUuid === undefined ||
         tableConnectionUuid === activeConnectionUuid
     ) {
-        return 'insert';
+        return isReplaceable ? 'insert' : 'select-only';
     }
-    return isReplaceableSql(sql) ? 'switch-and-insert' : 'prompt';
+    return isReplaceable ? 'switch-and-insert' : 'prompt';
 };

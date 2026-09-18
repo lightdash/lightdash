@@ -193,14 +193,42 @@ describe('tableClickOutcome', () => {
         ).toBe('prompt');
     });
 
-    it('never asks for a table on the active connection', () => {
+    it('inserts over a replaceable editor on the active connection', () => {
+        expect(
+            tableClickOutcome({
+                sql: 'SELECT * FROM "raw"."public"."orders"',
+                activeConnectionUuid: 'connection-1',
+                tableConnectionUuid: 'connection-1',
+            }),
+        ).toBe('insert');
+    });
+
+    it('selects without touching SQL the user wrote on the active connection', () => {
         expect(
             tableClickOutcome({
                 sql: 'SELECT id, total FROM orders',
                 activeConnectionUuid: 'connection-1',
                 tableConnectionUuid: 'connection-1',
             }),
-        ).toBe('insert');
+        ).toBe('select-only');
+    });
+
+    // The loose rule replaced any editor whose text contained a select
+    it('keeps SQL that merely contains a select on the active connection', () => {
+        expect(
+            tableClickOutcome({
+                sql: 'WITH recent AS (SELECT * FROM "raw"."public"."orders") SELECT 1',
+                activeConnectionUuid: 'connection-1',
+                tableConnectionUuid: 'connection-1',
+            }),
+        ).toBe('select-only');
+        expect(
+            tableClickOutcome({
+                sql: '-- draft\nSELECT * FROM "raw"."public"."orders" LIMIT 10',
+                activeConnectionUuid: 'connection-1',
+                tableConnectionUuid: 'connection-1',
+            }),
+        ).toBe('select-only');
     });
 
     it('never asks while the project resolves no connection', () => {
@@ -210,6 +238,6 @@ describe('tableClickOutcome', () => {
                 activeConnectionUuid: undefined,
                 tableConnectionUuid: 'connection-2',
             }),
-        ).toBe('insert');
+        ).toBe('select-only');
     });
 });

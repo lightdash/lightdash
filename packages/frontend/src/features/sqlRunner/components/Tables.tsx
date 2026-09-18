@@ -676,17 +676,18 @@ export const Tables: FC = () => {
             });
 
             if (outcome === 'insert') {
-                if (!sql || sql.match(/SELECT \* FROM (.+)/)) {
-                    openTable(identity, partitionColumn);
-                } else {
-                    dispatch(
-                        toggleActiveTable({
-                            table: identity.table,
-                            schema: identity.schema,
-                            database: identity.database,
-                        }),
-                    );
-                }
+                openTable(identity, partitionColumn);
+                return;
+            }
+
+            if (outcome === 'select-only') {
+                dispatch(
+                    toggleActiveTable({
+                        table: identity.table,
+                        schema: identity.schema,
+                        database: identity.database,
+                    }),
+                );
                 return;
             }
 
