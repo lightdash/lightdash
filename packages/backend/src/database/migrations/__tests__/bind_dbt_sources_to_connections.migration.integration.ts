@@ -17,6 +17,8 @@ describe('dbt source connection binding migration', () => {
     const primaryConnectionUuid = randomUUID();
     const existingConnectionUuid = randomUUID();
     const emptyConnectionUuid = randomUUID();
+    const additionalConnectionUuid = randomUUID();
+    const thirdConnectionUuid = randomUUID();
     const additionalSourceUuid = randomUUID();
 
     beforeAll(async () => {
@@ -151,7 +153,7 @@ describe('dbt source connection binding migration', () => {
         await admin.destroy();
     });
 
-    test('materialises primary rows and survives down then up', async () => {
+    test('materialises primary rows and survives repeated up after down for a multi-connection project', async () => {
         await up(database);
 
         const firstRows = await database('project_dbt_sources')
@@ -190,19 +192,38 @@ describe('dbt source connection binding migration', () => {
             ),
         ).toBe(false);
 
-        await down(database);
-        expect(await database('project_dbt_sources').select('*')).toEqual([
-            expect.objectContaining({
-                project_dbt_source_uuid: additionalSourceUuid,
-            }),
+        const [{ project_id: primaryProjectId }] = await database('projects')
+            .select('project_id')
+            .where('project_uuid', primaryProjectUuid);
+        await database('warehouse_credentials').insert([
+            {
+                project_id: primaryProjectId,
+                warehouse_credentials_uuid: additionalConnectionUuid,
+            },
+            {
+                project_id: primaryProjectId,
+                warehouse_credentials_uuid: thirdConnectionUuid,
+            },
         ]);
+
+        await down(database);
         expect(
             await database.schema.hasColumn(
                 'project_dbt_sources',
                 'connection_uuid',
             ),
-        ).toBe(false);
+        ).toBe(true);
+        expect(
+            await database('project_dbt_sources')
+                .where('project_uuid', primaryProjectUuid)
+                .first(),
+        ).toMatchObject({
+            project_dbt_source_uuid: primarySourceUuid,
+            connection_uuid: primaryConnectionUuid,
+            namespace_prefix: '',
+        });
 
+        await up(database);
         await up(database);
         const secondRows = await database('project_dbt_sources').select('*');
         expect(secondRows).toHaveLength(3);

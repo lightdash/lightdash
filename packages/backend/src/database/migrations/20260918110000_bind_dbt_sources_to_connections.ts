@@ -269,18 +269,24 @@ export async function down(knex: Knex): Promise<void> {
             .connection(connection);
         await knex
             .raw(
-                `DELETE FROM project_dbt_sources sources
-                 USING projects
-                 WHERE sources.project_dbt_source_uuid = projects.dbt_source_uuid
-                   AND sources.project_uuid = projects.project_uuid
-                   AND sources.is_primary`,
+                `ALTER TABLE project_dbt_sources
+                 DROP CONSTRAINT IF EXISTS ${SOURCE_CONNECTION_CHECK},
+                 DROP CONSTRAINT IF EXISTS project_dbt_sources_connection_uuid_fkey`,
             )
             .connection(connection);
         await knex
             .raw(
-                `ALTER TABLE project_dbt_sources
-                 DROP COLUMN IF EXISTS connection_uuid,
-                 DROP COLUMN IF EXISTS namespace_prefix`,
+                `DO $$ BEGIN
+                    IF EXISTS (
+                        SELECT 1
+                        FROM information_schema.columns
+                        WHERE table_schema = current_schema()
+                          AND table_name = 'project_dbt_sources'
+                          AND column_name = 'connection_uuid'
+                    ) THEN
+                        ALTER TABLE project_dbt_sources ALTER COLUMN connection_uuid DROP NOT NULL;
+                    END IF;
+                END $$`,
             )
             .connection(connection);
     } finally {
