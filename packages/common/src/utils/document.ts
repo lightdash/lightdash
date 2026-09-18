@@ -4,10 +4,7 @@ import chartAsCodeSchema from '../schemas/json/chart-as-code-1.0.json';
 import type { UuidOrSlug } from '../types/api/uuid';
 import type { DocumentContent } from '../types/document';
 import { ParameterError } from '../types/errors';
-import {
-    parseSavedMergeQuery,
-    SAVED_MERGE_QUERY_SCHEMA_VERSION,
-} from '../types/mergeQuery';
+import { parseSavedMergeQuery } from '../types/mergeQuery';
 import { ChartType } from '../types/savedCharts';
 
 export const DOCUMENT_SCHEMA_VERSION = 1;
@@ -160,7 +157,7 @@ export const parseDocumentContent = (
             if (
                 merge.sources.some((source) => 'queryUuid' in source) ||
                 merge.sources.length !== 2 ||
-                !parseSavedMergeQuery(SAVED_MERGE_QUERY_SCHEMA_VERSION, merge)
+                !parseSavedMergeQuery(merge)
             ) {
                 throw new ParameterError(
                     `Invalid merge sources or join keys in cell ${cellIndex}`,

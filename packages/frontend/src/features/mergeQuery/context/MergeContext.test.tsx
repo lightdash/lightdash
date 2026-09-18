@@ -126,6 +126,7 @@ describe('MergeProvider', () => {
             MERGE_URL_PARAM,
             serializeMergeState({
                 focus: { kind: 'join' },
+                primarySourceName: null,
                 additionalSources: [
                     {
                         id: 'b',

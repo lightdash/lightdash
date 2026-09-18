@@ -13,7 +13,7 @@ import {
     assertIsAccountWithOrg,
     assertRegisteredAccount,
     assertUnreachable,
-    buildMergeQueryFromSaved,
+    buildMergeQueryFromPipeline,
     buildWarehouseColumnTotals,
     buildWarehouseRowTotals,
     CalculateSubtotalsFromQuery,
@@ -154,7 +154,7 @@ import {
     type ResultColumns,
     type RunQueryTags,
     type SavedChartDAO,
-    type SavedMergeQuery,
+    type SavedPipeline,
     type SessionUser,
     type SpaceSummaryBase,
     type UserAttributeValueMap,
@@ -6234,12 +6234,12 @@ export class AsyncQueryService extends ProjectService {
             dashboardFilters,
         };
 
-        if (savedChart.merge) {
+        if (savedChart.pipeline) {
             return this.executeAsyncSavedMergeQuery({
                 account,
                 projectUuid,
                 savedChart,
-                merge: savedChart.merge,
+                pipeline: savedChart.pipeline,
                 context,
                 invalidateCache,
                 limit,
@@ -6673,7 +6673,7 @@ export class AsyncQueryService extends ProjectService {
         account,
         projectUuid,
         savedChart,
-        merge,
+        pipeline,
         context,
         invalidateCache,
         limit,
@@ -6696,11 +6696,11 @@ export class AsyncQueryService extends ProjectService {
         | 'userAttributeOverrides'
     > & {
         savedChart: SavedChartDAO;
-        merge: SavedMergeQuery;
+        pipeline: SavedPipeline;
     }): Promise<ApiExecuteAsyncMetricQueryResults> {
-        const baseMergeQuery = buildMergeQueryFromSaved(
+        const baseMergeQuery = buildMergeQueryFromPipeline(
             savedChart.metricQuery,
-            merge,
+            pipeline,
         );
         const exploreBySourceId = await this.getMergeSourceExplores({
             account,
@@ -6757,7 +6757,7 @@ export class AsyncQueryService extends ProjectService {
         account,
         projectUuid,
         savedChart,
-        merge,
+        pipeline,
         primaryExplore,
         tileUuid,
         dashboardUuid,
@@ -6783,12 +6783,12 @@ export class AsyncQueryService extends ProjectService {
         | 'userAttributeOverrides'
     > & {
         savedChart: SavedChartDAO;
-        merge: SavedMergeQuery;
+        pipeline: SavedPipeline;
         primaryExplore: Explore;
     }): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
-        const baseMergeQuery = buildMergeQueryFromSaved(
+        const baseMergeQuery = buildMergeQueryFromPipeline(
             savedChart.metricQuery,
-            merge,
+            pipeline,
         );
         const exploreBySourceId = await this.getMergeSourceExplores({
             account,
@@ -6952,12 +6952,12 @@ export class AsyncQueryService extends ProjectService {
                 }),
             );
 
-        if (savedChart.merge) {
+        if (savedChart.pipeline) {
             return this.executeAsyncDashboardMergeQuery({
                 account,
                 projectUuid,
                 savedChart,
-                merge: savedChart.merge,
+                pipeline: savedChart.pipeline,
                 primaryExplore: explore,
                 tileUuid,
                 dashboardUuid: resolvedDashboardUuid,

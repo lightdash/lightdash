@@ -1,61 +1,32 @@
 import {
-    isMergeMetricSource,
+    buildSavedPipeline,
     type MergeQuery,
-    type SavedMergeQuery,
+    type SavedPipeline,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSetup } from './useMergeSetup';
 
-export const toSavedMerge = (mergeQuery: MergeQuery): SavedMergeQuery => {
-    if (!mergeQuery.sources.some((source) => source.id === PRIMARY_SOURCE_ID)) {
-        throw new Error('A saved merge requires the chart query.');
-    }
-    const repeatValuesSourceIds = mergeQuery.sources.flatMap((source) =>
-        source.repeatValues === true ? [source.id] : [],
-    );
-    return {
-        primarySourceId: PRIMARY_SOURCE_ID,
-        sources: mergeQuery.sources.map((source) => {
-            if (source.id === PRIMARY_SOURCE_ID) {
-                return {
-                    id: source.id,
-                    kind: 'chart' as const,
-                };
-            }
-            // Result sources reference ephemeral query results, which a
-            // saved chart cannot re-run — the editor never produces them.
-            if (!isMergeMetricSource(source)) {
-                throw new Error(
-                    'A merge over existing query results cannot be saved to a chart.',
-                );
-            }
-            return {
-                id: source.id,
-                kind: 'query' as const,
-                metricQuery: source.metricQuery,
-            };
-        }),
-        joinKey: mergeQuery.joinKey.map((part) => ({
-            name: part.name,
-            fieldIdBySourceId: part.fieldIdBySourceId,
-        })),
-        joinType: mergeQuery.joinType,
-        tableCalculations: mergeQuery.tableCalculations,
-        ...(repeatValuesSourceIds.length > 0 ? { repeatValuesSourceIds } : {}),
-    };
-};
+/** The pipeline a chart saves: the chart's query by reference, the rest in full. */
+export const toSavedPipeline = (
+    mergeQuery: MergeQuery,
+    chartSourceId: string,
+): SavedPipeline => buildSavedPipeline({ mergeQuery, chartSourceId });
 
 /** Runtime and persistence consume the same validated merge definition. */
 export const useSavedMerge = (): {
-    merge: SavedMergeQuery | null;
+    pipeline: SavedPipeline | null;
     isValid: boolean;
 } => {
-    const { isMerging, canRun, mergeQuery } = useMergeSetup();
+    const { isMerging, canRun, mergeQuery, sourceNames } = useMergeSetup();
+    const chartSourceId = sourceNames.nameByHandle[PRIMARY_SOURCE_ID];
 
     return useMemo(() => {
-        if (!isMerging) return { merge: null, isValid: true };
-        if (!canRun || !mergeQuery) return { merge: null, isValid: false };
-        return { merge: toSavedMerge(mergeQuery), isValid: true };
-    }, [isMerging, canRun, mergeQuery]);
+        if (!isMerging) return { pipeline: null, isValid: true };
+        if (!canRun || !mergeQuery) return { pipeline: null, isValid: false };
+        return {
+            pipeline: toSavedPipeline(mergeQuery, chartSourceId),
+            isValid: true,
+        };
+    }, [isMerging, canRun, mergeQuery, chartSourceId]);
 };

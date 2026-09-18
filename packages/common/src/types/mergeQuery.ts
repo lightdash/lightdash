@@ -1,13 +1,23 @@
 import assertUnreachable from '../utils/assertUnreachable';
+import { getTotalFilterRules } from '../utils/filters';
 import { getItemId } from '../utils/item';
 import { SupportedDbtAdapter } from './dbt';
 import {
     DimensionType,
+    type CustomDimension,
     type FieldId,
     type ItemsMap,
+    type TableCalculation,
     type TimestampDomain,
 } from './field';
-import { type MetricQuery, type SortField } from './metricQuery';
+import { type Filters } from './filter';
+import {
+    type AdditionalMetric,
+    type DimensionOverrides,
+    type MetricOverrides,
+    type MetricQuery,
+    type SortField,
+} from './metricQuery';
 import { type ParametersValuesMap } from './parameters';
 import { type PivotConfiguration } from './pivot';
 import { type TimeFrames } from './timeFrames';
@@ -821,8 +831,10 @@ export type MergeFieldOrigin =
 /** Provenance of every merged field, by field id. */
 export type MergeFieldOrigins = Record<FieldId, MergeFieldOrigin>;
 
-/** Current JSON schema stored in `saved_queries_version_merges.merge`. */
-export const SAVED_MERGE_QUERY_SCHEMA_VERSION = 2;
+/** Current JSON schema stored in `saved_queries_version_merges.merge`: a pipeline. */
+export const SAVED_MERGE_QUERY_SCHEMA_VERSION = 3;
+/** The flat two-tree shape before the pipeline. Still read, never written. */
+export const SAVED_MERGE_QUERY_SCHEMA_VERSION_V2 = 2;
 
 /**
  * A persisted merge source.
@@ -843,7 +855,12 @@ export type SavedMergeQuerySource =
           metricQuery: MetricQuery;
       };
 
-/** Canonical, scalable representation of a merge stored on a chart version. */
+/**
+ * Schema v2 of a merge stored on a chart version. Accepted on requests and
+ * read from rows written before schema v3; rewritten to a pipeline by
+ * upgradeSavedMergeQuery. Never written.
+ * @deprecated use SavedMergePipeline
+ */
 export type SavedMergeQuery = {
     /** Source whose rows a LEFT merge preserves. */
     primarySourceId: string;
@@ -860,60 +877,18 @@ export type SavedMergeQuery = {
     repeatValuesSourceIds?: string[];
 };
 
-/**
- * Rebuilds a runnable merge from a chart's own query and its stored merge.
- */
-export const buildMergeQueryFromSaved = (
-    chartMetricQuery: MetricQuery,
-    saved: SavedMergeQuery,
-): MergeQuery => {
-    const repeating = new Set(saved.repeatValuesSourceIds ?? []);
-    const sources = saved.sources.map((source): MergeQuerySource => {
-        const repeat = repeating.has(source.id) ? { repeatValues: true } : {};
-        if (source.kind === 'chart') {
-            return { ...repeat, id: source.id, metricQuery: chartMetricQuery };
-        }
-        return { ...repeat, id: source.id, metricQuery: source.metricQuery };
-    });
-    const primaryIndex = sources.findIndex(
-        (source) => source.id === saved.primarySourceId,
-    );
-    if (primaryIndex > 0) {
-        sources.unshift(...sources.splice(primaryIndex, 1));
-    }
-
-    return {
-        sources,
-        joinKey: saved.joinKey,
-        joinType: saved.joinType,
-        tableCalculations: saved.tableCalculations,
-        // The chart's sort state is the Explorer's, so it may still name
-        // primary fields from before the merge was built
-        sorts: toMergedSorts({
-            sorts: chartMetricQuery.sorts,
-            primarySourceId: saved.primarySourceId,
-            primaryMetricQuery: chartMetricQuery,
-            joinKey: saved.joinKey,
-        }),
-        limit: chartMetricQuery.limit,
-    };
-};
-
 const parseJoinType = (value: unknown): MergeJoinType =>
     (Object.values(MergeJoinType) as unknown[]).includes(value)
         ? (value as MergeJoinType)
         : MergeJoinType.FULL;
 
 /**
- * Reads a stored merge back, returning null for anything that does not hold
- * together. An unknown future version leaves the chart working without its
- * merge rather than breaking the chart entirely.
+ * Reads a v2 merge back, returning null for anything that does not hold
+ * together.
  */
 export const parseSavedMergeQuery = (
-    schemaVersion: number,
     value: unknown,
 ): SavedMergeQuery | null => {
-    if (schemaVersion !== SAVED_MERGE_QUERY_SCHEMA_VERSION) return null;
     if (value === null || typeof value !== 'object') return null;
     const candidate = value as Partial<SavedMergeQuery>;
 
@@ -988,4 +963,586 @@ export const parseSavedMergeQuery = (
             : [],
         ...(repeatValuesSourceIds.length > 0 ? { repeatValuesSourceIds } : {}),
     };
+};
+
+/*
+ * Schema v3: a merged chart stores a pipeline. The chart's own query is the
+ * first input and goes by its explore's name; every other query is stored
+ * in full under the name it goes by; one join over all of them; the sort
+ * and limit of the merged result. Nothing here is SQL. The server compiles
+ * it into the DuckDB join at submit, so only where the truth lives changed.
+ *
+ * Names are the merged result's table names: a query saved as `payments`
+ * yields `payments_<fieldId>` columns, and a key named after the chart's
+ * field yields `merge_<chartFieldId>`. A row rewritten from schema v2 keeps
+ * the ids it had (`chartAs`, `keyNames`), so no chart config moves.
+ */
+
+/** A query the pipeline owns, run against an explore. */
+export type SavedPipelineQuery = {
+    explore: string;
+    dimensions: FieldId[];
+    metrics: FieldId[];
+    filters?: Filters;
+    tableCalculations?: TableCalculation[];
+    additionalMetrics?: AdditionalMetric[];
+    customDimensions?: CustomDimension[];
+    metricOverrides?: MetricOverrides;
+    dimensionOverrides?: DimensionOverrides;
+    timezone?: string;
+    /** See MergeQueryMetricSource.repeatValues. Omitted when off. */
+    repeat?: boolean;
+};
+
+export type SavedPipelineSortDirection = 'asc' | 'desc';
+
+/**
+ * A sort of the merged result. `by` is a chart field id, a `query.fieldId`
+ * reference into another query, or the name of a merge table calculation.
+ * A chart field that is a join key sorts the key column.
+ */
+export type SavedPipelineSort = {
+    by: string;
+    direction: SavedPipelineSortDirection;
+};
+
+export type SavedPipeline = {
+    /** The chart query's name in merged column ids, when not its explore's. */
+    chartAs?: string;
+    /** The chart's own query repeats its values. Omitted when off. */
+    chartRepeats?: boolean;
+    /** The other queries, by the name they go by. */
+    queries: { [name: string]: SavedPipelineQuery };
+    join: MergeJoinType;
+    /**
+     * The join keys: each entry is the chart's field and one `query.fieldId`
+     * reference per other query. The key column takes the chart field's id.
+     */
+    keys: { [chartFieldId: string]: string[] };
+    /** The key column's name, when not the chart field's id. */
+    keyNames?: { [chartFieldId: string]: string };
+    sort?: SavedPipelineSort[];
+    limit: number;
+    tableCalculations?: MergeTableCalculation[];
+};
+
+const PIPELINE_REFERENCE_SEPARATOR = '.';
+const PIPELINE_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
+
+/** `query.fieldId` into another query, or a bare chart field id. */
+export const parsePipelineReference = (
+    reference: string,
+): { query: string | null; fieldId: FieldId } => {
+    const separator = reference.indexOf(PIPELINE_REFERENCE_SEPARATOR);
+    return separator === -1
+        ? { query: null, fieldId: reference }
+        : {
+              query: reference.slice(0, separator),
+              fieldId: reference.slice(separator + 1),
+          };
+};
+
+/** The name the chart's query goes by in the merged result. */
+export const getPipelineChartName = (
+    pipeline: Pick<SavedPipeline, 'chartAs'>,
+    chartExploreName: string,
+): string => pipeline.chartAs ?? chartExploreName;
+
+/** The explore names of the queries beside the chart's, in order. */
+export const getPipelineQueryExploreNames = (
+    pipeline: Pick<SavedPipeline, 'queries'>,
+): string[] => Object.values(pipeline.queries).map(({ explore }) => explore);
+
+const getPipelineJoinKey = (
+    pipeline: Pick<SavedPipeline, 'keys' | 'keyNames'>,
+    chartName: string,
+): MergeJoinKeyPart[] =>
+    Object.entries(pipeline.keys).map(([chartFieldId, references]) => ({
+        name: pipeline.keyNames?.[chartFieldId] ?? chartFieldId,
+        fieldIdBySourceId: {
+            [chartName]: chartFieldId,
+            ...Object.fromEntries(
+                references.map((reference) => {
+                    const { query, fieldId } =
+                        parsePipelineReference(reference);
+                    return [query ?? chartName, fieldId];
+                }),
+            ),
+        },
+    }));
+
+/** The merged field id a sort's `by` names. */
+const resolvePipelineSortField = (
+    by: string,
+    pipeline: Pick<SavedPipeline, 'keys' | 'keyNames' | 'tableCalculations'>,
+    chartName: string,
+): FieldId => {
+    if (pipeline.tableCalculations?.some(({ name }) => name === by)) return by;
+    if (by in pipeline.keys) {
+        return getItemId({
+            table: MERGE_TABLE_NAME,
+            name: pipeline.keyNames?.[by] ?? by,
+        });
+    }
+    const { query, fieldId } = parsePipelineReference(by);
+    return getItemId({ table: query ?? chartName, name: fieldId });
+};
+
+/** The `by` that names a merged field id, or null when nothing does. */
+const toPipelineSortReference = (
+    mergedFieldId: FieldId,
+    {
+        chartName,
+        queryNames,
+        joinKey,
+        calculationNames,
+    }: {
+        chartName: string;
+        queryNames: string[];
+        joinKey: MergeJoinKeyPart[];
+        calculationNames: string[];
+    },
+): string | null => {
+    if (calculationNames.includes(mergedFieldId)) return mergedFieldId;
+    const keyPart = joinKey.find(
+        (part) =>
+            getItemId({ table: MERGE_TABLE_NAME, name: part.name }) ===
+            mergedFieldId,
+    );
+    if (keyPart) return keyPart.fieldIdBySourceId[chartName] ?? null;
+    // Longest name first: `orders_2` must win over `orders`
+    const names = [chartName, ...queryNames].sort(
+        (a, b) => b.length - a.length,
+    );
+    const owner = names.find((name) => mergedFieldId.startsWith(`${name}_`));
+    if (!owner) return null;
+    const fieldId = mergedFieldId.slice(owner.length + 1);
+    return owner === chartName
+        ? fieldId
+        : `${owner}${PIPELINE_REFERENCE_SEPARATOR}${fieldId}`;
+};
+
+const toPipelineQuery = (
+    metricQuery: MetricQuery,
+    repeat: boolean,
+): SavedPipelineQuery => ({
+    explore: metricQuery.exploreName,
+    dimensions: metricQuery.dimensions,
+    metrics: metricQuery.metrics,
+    ...(getTotalFilterRules(metricQuery.filters).length > 0
+        ? { filters: metricQuery.filters }
+        : {}),
+    ...(metricQuery.tableCalculations.length > 0
+        ? { tableCalculations: metricQuery.tableCalculations }
+        : {}),
+    ...(metricQuery.additionalMetrics?.length
+        ? { additionalMetrics: metricQuery.additionalMetrics }
+        : {}),
+    ...(metricQuery.customDimensions?.length
+        ? { customDimensions: metricQuery.customDimensions }
+        : {}),
+    ...(metricQuery.metricOverrides &&
+    Object.keys(metricQuery.metricOverrides).length > 0
+        ? { metricOverrides: metricQuery.metricOverrides }
+        : {}),
+    ...(metricQuery.dimensionOverrides &&
+    Object.keys(metricQuery.dimensionOverrides).length > 0
+        ? { dimensionOverrides: metricQuery.dimensionOverrides }
+        : {}),
+    ...(metricQuery.timezone ? { timezone: metricQuery.timezone } : {}),
+    ...(repeat ? { repeat: true } : {}),
+});
+
+/**
+ * The pipeline a runnable merge saves as. The chart's source must be one of
+ * the sources and every other source must be a metric query, because a
+ * saved chart cannot re-run a referenced result.
+ */
+export const buildSavedPipeline = ({
+    mergeQuery,
+    chartSourceId,
+}: {
+    mergeQuery: MergeQuery;
+    chartSourceId: string;
+}): SavedPipeline => {
+    const chartSource = mergeQuery.sources.find(
+        (source) => source.id === chartSourceId,
+    );
+    if (!chartSource || !isMergeMetricSource(chartSource)) {
+        throw new Error('A saved merge requires the chart query.');
+    }
+    const others = mergeQuery.sources.filter(
+        (source) => source.id !== chartSourceId,
+    );
+    const queries = Object.fromEntries(
+        others.map((source) => {
+            if (!isMergeMetricSource(source)) {
+                throw new Error(
+                    'A merge over existing query results cannot be saved to a chart.',
+                );
+            }
+            return [
+                source.id,
+                toPipelineQuery(
+                    source.metricQuery,
+                    source.repeatValues === true,
+                ),
+            ];
+        }),
+    );
+    const keys = Object.fromEntries(
+        mergeQuery.joinKey.map((part) => {
+            const chartFieldId = part.fieldIdBySourceId[chartSourceId];
+            if (!chartFieldId) {
+                throw new Error('Every join key needs the chart query.');
+            }
+            return [
+                chartFieldId,
+                others.map(
+                    (source) =>
+                        `${source.id}${PIPELINE_REFERENCE_SEPARATOR}${part.fieldIdBySourceId[source.id]}`,
+                ),
+            ];
+        }),
+    );
+    const keyNames = Object.fromEntries(
+        mergeQuery.joinKey.flatMap((part) => {
+            const chartFieldId = part.fieldIdBySourceId[chartSourceId];
+            return part.name === chartFieldId
+                ? []
+                : [[chartFieldId, part.name]];
+        }),
+    );
+    const sortContext = {
+        chartName: chartSourceId,
+        queryNames: others.map(({ id }) => id),
+        joinKey: mergeQuery.joinKey,
+        calculationNames: mergeQuery.tableCalculations.map(({ name }) => name),
+    };
+    const sort = (mergeQuery.sorts ?? []).flatMap((field) => {
+        const by = toPipelineSortReference(field.fieldId, sortContext);
+        return by === null
+            ? []
+            : [{ by, direction: field.descending ? 'desc' : 'asc' } as const];
+    });
+    const chartRepeats = chartSource.repeatValues === true;
+    return {
+        ...(chartSourceId !== chartSource.metricQuery.exploreName
+            ? { chartAs: chartSourceId }
+            : {}),
+        queries,
+        join: mergeQuery.joinType,
+        keys,
+        ...(Object.keys(keyNames).length > 0 ? { keyNames } : {}),
+        ...(sort.length > 0 ? { sort } : {}),
+        limit: mergeQuery.limit,
+        ...(mergeQuery.tableCalculations.length > 0
+            ? { tableCalculations: mergeQuery.tableCalculations }
+            : {}),
+        ...(chartRepeats ? { chartRepeats: true } : {}),
+    };
+};
+
+/** Rebuilds a runnable merge from a chart's own query and its stored pipeline. */
+export const buildMergeQueryFromPipeline = (
+    chartMetricQuery: MetricQuery,
+    pipeline: SavedPipeline,
+): MergeQuery => {
+    const chartName = getPipelineChartName(
+        pipeline,
+        chartMetricQuery.exploreName,
+    );
+    const sources: MergeQueryMetricSource[] = [
+        {
+            id: chartName,
+            metricQuery: chartMetricQuery,
+            ...(pipeline.chartRepeats ? { repeatValues: true } : {}),
+        },
+        ...Object.entries(pipeline.queries).map(
+            ([name, query]): MergeQueryMetricSource => {
+                const { explore, repeat, ...intent } = query;
+                return {
+                    id: name,
+                    metricQuery: {
+                        exploreName: explore,
+                        ...intent,
+                        filters: query.filters ?? {},
+                        tableCalculations: query.tableCalculations ?? [],
+                        sorts: [],
+                        limit: pipeline.limit,
+                    },
+                    ...(repeat ? { repeatValues: true } : {}),
+                };
+            },
+        ),
+    ];
+    return {
+        sources,
+        joinKey: getPipelineJoinKey(pipeline, chartName),
+        joinType: pipeline.join,
+        tableCalculations: pipeline.tableCalculations ?? [],
+        sorts: (pipeline.sort ?? []).map(({ by, direction }) => ({
+            fieldId: resolvePipelineSortField(by, pipeline, chartName),
+            descending: direction === 'desc',
+        })),
+        limit: pipeline.limit,
+    };
+};
+
+/**
+ * Rebuilds a runnable merge from a chart's own query and a schema v2 merge,
+ * the shape requests and Document chart cells still carry.
+ */
+export const buildMergeQueryFromSaved = (
+    chartMetricQuery: MetricQuery,
+    saved: SavedMergeQuery,
+): MergeQuery => {
+    const repeating = new Set(saved.repeatValuesSourceIds ?? []);
+    const sources = saved.sources.map((source): MergeQuerySource => {
+        const repeat = repeating.has(source.id) ? { repeatValues: true } : {};
+        if (source.kind === 'chart') {
+            return { ...repeat, id: source.id, metricQuery: chartMetricQuery };
+        }
+        return { ...repeat, id: source.id, metricQuery: source.metricQuery };
+    });
+    const primaryIndex = sources.findIndex(
+        (source) => source.id === saved.primarySourceId,
+    );
+    if (primaryIndex > 0) {
+        sources.unshift(...sources.splice(primaryIndex, 1));
+    }
+    return {
+        sources,
+        joinKey: saved.joinKey,
+        joinType: saved.joinType,
+        tableCalculations: saved.tableCalculations,
+        // The chart's sort state is the Explorer's, so it may still name
+        // primary fields from before the merge was built
+        sorts: toMergedSorts({
+            sorts: chartMetricQuery.sorts,
+            primarySourceId: saved.primarySourceId,
+            primaryMetricQuery: chartMetricQuery,
+            joinKey: saved.joinKey,
+        }),
+        limit: chartMetricQuery.limit,
+    };
+};
+
+/**
+ * A pure rewrite of the v2 shape, keeping the ids it had. The chart's sort
+ * state was the Explorer's and named primary fields, so it is mapped once
+ * here; the chart's limit was the merged result's. A v2 merge whose
+ * primary was not the chart has no pipeline form: the chart is always the
+ * first input.
+ */
+export const upgradeSavedMergeQuery = (
+    saved: SavedMergeQuery,
+    chartMetricQuery: MetricQuery,
+): SavedPipeline | null => {
+    const chartSource = saved.sources.find((source) => source.kind === 'chart');
+    if (!chartSource || chartSource.id !== saved.primarySourceId) return null;
+    return buildSavedPipeline({
+        mergeQuery: buildMergeQueryFromSaved(chartMetricQuery, saved),
+        chartSourceId: chartSource.id,
+    });
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    value !== null && typeof value === 'object' && !Array.isArray(value);
+
+const isStringArray = (value: unknown): value is string[] =>
+    Array.isArray(value) && value.every((item) => typeof item === 'string');
+
+const isPipelineName = (value: unknown): value is string =>
+    typeof value === 'string' &&
+    PIPELINE_NAME_PATTERN.test(value) &&
+    value !== MERGE_TABLE_NAME;
+
+const parsePipelineQuery = (candidate: unknown): SavedPipelineQuery | null => {
+    if (
+        !isRecord(candidate) ||
+        typeof candidate.explore !== 'string' ||
+        !isStringArray(candidate.dimensions) ||
+        !isStringArray(candidate.metrics) ||
+        (candidate.filters !== undefined && !isRecord(candidate.filters)) ||
+        (candidate.tableCalculations !== undefined &&
+            !Array.isArray(candidate.tableCalculations)) ||
+        (candidate.repeat !== undefined &&
+            typeof candidate.repeat !== 'boolean')
+    ) {
+        return null;
+    }
+    return toPipelineQuery(
+        {
+            exploreName: candidate.explore,
+            dimensions: candidate.dimensions,
+            metrics: candidate.metrics,
+            filters: (candidate.filters as Filters | undefined) ?? {},
+            tableCalculations:
+                (candidate.tableCalculations as
+                    | TableCalculation[]
+                    | undefined) ?? [],
+            sorts: [],
+            limit: 0,
+            additionalMetrics: Array.isArray(candidate.additionalMetrics)
+                ? (candidate.additionalMetrics as AdditionalMetric[])
+                : undefined,
+            customDimensions: Array.isArray(candidate.customDimensions)
+                ? (candidate.customDimensions as CustomDimension[])
+                : undefined,
+            metricOverrides: isRecord(candidate.metricOverrides)
+                ? (candidate.metricOverrides as MetricOverrides)
+                : undefined,
+            dimensionOverrides: isRecord(candidate.dimensionOverrides)
+                ? (candidate.dimensionOverrides as DimensionOverrides)
+                : undefined,
+            timezone:
+                typeof candidate.timezone === 'string'
+                    ? candidate.timezone
+                    : undefined,
+        },
+        candidate.repeat === true,
+    );
+};
+
+const parsePipelineKeys = (
+    candidate: unknown,
+    queryNames: string[],
+): SavedPipeline['keys'] | null => {
+    if (!isRecord(candidate) || Object.keys(candidate).length === 0)
+        return null;
+    const entries = Object.entries(candidate).map(
+        ([chartFieldId, references]): [string, string[]] | null => {
+            if (chartFieldId.length === 0 || !isStringArray(references)) {
+                return null;
+            }
+            // One reference per other query, each into a query that exists
+            const referenced = references.map(
+                (reference) => parsePipelineReference(reference).query,
+            );
+            const complete =
+                referenced.length === queryNames.length &&
+                queryNames.every((name) => referenced.includes(name)) &&
+                references.every(
+                    (reference) =>
+                        parsePipelineReference(reference).fieldId.length > 0,
+                );
+            return complete ? [chartFieldId, references] : null;
+        },
+    );
+    return entries.every((entry) => entry !== null)
+        ? Object.fromEntries(entries as [string, string[]][])
+        : null;
+};
+
+/**
+ * Reads a stored pipeline back, returning null for anything that does not
+ * hold together: named queries against explores, one join with a key that
+ * reaches every query, a known join type, a numeric limit.
+ */
+export const parseSavedPipeline = (value: unknown): SavedPipeline | null => {
+    if (!isRecord(value)) return null;
+    const rawQueries = value.queries;
+    if (!isRecord(rawQueries)) return null;
+    const queryNames = Object.keys(rawQueries);
+    if (
+        queryNames.length === 0 ||
+        !queryNames.every(isPipelineName) ||
+        (value.chartAs !== undefined &&
+            (!isPipelineName(value.chartAs) ||
+                queryNames.includes(value.chartAs)))
+    ) {
+        return null;
+    }
+    const parsedQueries = queryNames.map((name) => [
+        name,
+        parsePipelineQuery(rawQueries[name]),
+    ]);
+    if (parsedQueries.some(([, query]) => query === null)) return null;
+    if (!(Object.values(MergeJoinType) as unknown[]).includes(value.join)) {
+        return null;
+    }
+    const keys = parsePipelineKeys(value.keys, queryNames);
+    if (keys === null) return null;
+    if (
+        value.keyNames !== undefined &&
+        (!isRecord(value.keyNames) ||
+            !Object.entries(value.keyNames).every(
+                ([chartFieldId, name]) =>
+                    chartFieldId in keys &&
+                    typeof name === 'string' &&
+                    name.length > 0,
+            ))
+    ) {
+        return null;
+    }
+    if (
+        value.sort !== undefined &&
+        (!Array.isArray(value.sort) ||
+            !value.sort.every(
+                (sort: unknown) =>
+                    isRecord(sort) &&
+                    typeof sort.by === 'string' &&
+                    (sort.direction === 'asc' || sort.direction === 'desc'),
+            ))
+    ) {
+        return null;
+    }
+    if (
+        typeof value.limit !== 'number' ||
+        (value.tableCalculations !== undefined &&
+            !Array.isArray(value.tableCalculations)) ||
+        (value.chartRepeats !== undefined &&
+            typeof value.chartRepeats !== 'boolean')
+    ) {
+        return null;
+    }
+    const keyNames = value.keyNames as SavedPipeline['keyNames'];
+    const sort = value.sort as SavedPipelineSort[] | undefined;
+    const tableCalculations = value.tableCalculations as
+        | MergeTableCalculation[]
+        | undefined;
+    return {
+        ...(value.chartAs !== undefined
+            ? { chartAs: value.chartAs as string }
+            : {}),
+        queries: Object.fromEntries(parsedQueries) as SavedPipeline['queries'],
+        join: value.join as MergeJoinType,
+        keys,
+        ...(keyNames && Object.keys(keyNames).length > 0 ? { keyNames } : {}),
+        ...(sort && sort.length > 0 ? { sort } : {}),
+        limit: value.limit,
+        ...(tableCalculations && tableCalculations.length > 0
+            ? { tableCalculations }
+            : {}),
+        ...(value.chartRepeats === true ? { chartRepeats: true } : {}),
+    };
+};
+
+/**
+ * Reads whatever a chart version stored. A v2 merge is rewritten to a
+ * pipeline with the chart's own sort and limit; an unknown version leaves
+ * the chart working without its merge rather than breaking the chart.
+ */
+export const parseStoredPipeline = ({
+    schemaVersion,
+    value,
+    chartMetricQuery,
+}: {
+    schemaVersion: number;
+    value: unknown;
+    chartMetricQuery: MetricQuery;
+}): SavedPipeline | null => {
+    switch (schemaVersion) {
+        case SAVED_MERGE_QUERY_SCHEMA_VERSION:
+            return parseSavedPipeline(value);
+        case SAVED_MERGE_QUERY_SCHEMA_VERSION_V2: {
+            const saved = parseSavedMergeQuery(value);
+            return saved
+                ? upgradeSavedMergeQuery(saved, chartMetricQuery)
+                : null;
+        }
+        default:
+            return null;
+    }
 };

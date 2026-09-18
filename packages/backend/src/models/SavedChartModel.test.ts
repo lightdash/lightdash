@@ -756,7 +756,7 @@ describe('getSimilarityContexts', () => {
                 name: 'Revenue',
                 spaceUuid: 'space-1',
                 parameters: undefined,
-                merge: null,
+                pipeline: null,
                 metricQuery: expect.objectContaining({
                     exploreName: 'orders',
                     metrics: ['orders_revenue'],
@@ -769,7 +769,7 @@ describe('getSimilarityContexts', () => {
                 name: 'Orders',
                 spaceUuid: 'space-2',
                 parameters: { period: 'last_year' },
-                merge: null,
+                pipeline: null,
                 metricQuery: expect.objectContaining({
                     metrics: ['orders_count'],
                     dimensions: [],

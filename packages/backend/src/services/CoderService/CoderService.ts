@@ -1759,7 +1759,7 @@ export class CoderService extends BaseService {
             },
             chartConfig: chart.chartConfig,
             pivotConfig: chart.pivotConfig,
-            ...(chart.merge ? { merge: chart.merge } : {}),
+            ...(chart.pipeline ? { pipeline: chart.pipeline } : {}),
             dashboardSlug: chart.dashboardUuid
                 ? dashboardSlugs[chart.dashboardUuid]
                 : undefined,
@@ -3377,6 +3377,9 @@ export class CoderService extends BaseService {
                 parameters: fields.parameters,
             }),
             ...(fields.merge !== undefined && { merge: fields.merge }),
+            ...(fields.pipeline !== undefined && {
+                pipeline: fields.pipeline,
+            }),
             ...(fields.spaceUuid !== undefined && {
                 spaceUuid: fields.spaceUuid,
             }),

@@ -6,6 +6,7 @@ import {
     type Explore,
     type Filters,
     type SavedMergeQuery,
+    upgradeSavedMergeQuery,
 } from '@lightdash/common';
 import { getDashboardTileFilterInfo } from './getDashboardTileFilterInfo';
 
@@ -76,7 +77,8 @@ describe('getDashboardTileFilterInfo', () => {
             chartFilters,
             appliedDashboardFilters,
             appliedDashboardFiltersBySourceId: undefined,
-            merge: null,
+            pipeline: null,
+            chartExploreName: 'orders',
             explore,
         });
 
@@ -109,7 +111,7 @@ describe('getDashboardTileFilterInfo', () => {
         operator: FilterOperator.EQUALS,
         values: ['2024-03'],
     };
-    const merge: SavedMergeQuery = {
+    const savedV2: SavedMergeQuery = {
         primarySourceId: 'a',
         sources: [
             {
@@ -139,6 +141,15 @@ describe('getDashboardTileFilterInfo', () => {
         joinType: MergeJoinType.FULL,
         tableCalculations: [],
     };
+    const pipeline = upgradeSavedMergeQuery(savedV2, {
+        exploreName: 'orders',
+        dimensions: ['orders_order_date_month'],
+        metrics: ['orders_total_order_amount'],
+        filters: {},
+        tableCalculations: [],
+        sorts: [],
+        limit: 500,
+    });
 
     test('lists an ordinary echo without a source', () => {
         const result = getDashboardTileFilterInfo({
@@ -149,7 +160,8 @@ describe('getDashboardTileFilterInfo', () => {
                 tableCalculations: [],
             },
             appliedDashboardFiltersBySourceId: undefined,
-            merge: null,
+            pipeline: null,
+            chartExploreName: 'orders',
             explore,
         });
 
@@ -178,7 +190,8 @@ describe('getDashboardTileFilterInfo', () => {
                     tableCalculations: [],
                 },
             },
-            merge,
+            pipeline,
+            chartExploreName: 'orders',
             explore,
         });
 
@@ -210,7 +223,8 @@ describe('getDashboardTileFilterInfo', () => {
                 tableCalculations: [],
             },
             appliedDashboardFiltersBySourceId: undefined,
-            merge,
+            pipeline,
+            chartExploreName: 'orders',
             explore,
         });
 

@@ -7,9 +7,9 @@ import {
 } from '@lightdash/common';
 import {
     DEFAULT_ADDITIONAL_SOURCE_ID,
-    JOIN_KEY,
     PRIMARY_SOURCE_ID,
 } from '../../../../features/mergeQuery/constants';
+import { type MergeUrlState } from '../../../../features/mergeQuery/context/mergeUrlState';
 
 export type CanonicalAiMerge = {
     mergeQuery: MergeQuery & { sources: MergeQueryMetricSource[] };
@@ -23,9 +23,9 @@ const mergedColumnId = (table: string, name: string) =>
     getItemId({ table, name });
 
 /**
- * Renames the AI's free-form source and join-key names to the merge editor's
- * fixed conventions, so everything downstream treats an AI merge exactly like
- * one built by hand. Chart configs referencing the AI's merged column ids must
+ * Renames the AI's free-form source and join-key names to the names the
+ * merge editor would give them, so everything downstream treats an AI merge
+ * exactly like one built by hand. Chart configs referencing the AI's merged column ids must
  * be remapped with `fieldIdByAiFieldId`.
  */
 export const canonicalizeAiMerge = (
@@ -37,9 +37,15 @@ export const canonicalizeAiMerge = (
     const metricSources = mergeQuery.sources.filter(isMergeMetricSource);
     if (metricSources.length !== 2) return null;
     const [primary, additional] = metricSources;
+    // Sources run under their explore's name, as the editor names them
+    const primaryName = primary.metricQuery.exploreName;
+    const additionalName =
+        additional.metricQuery.exploreName === primaryName
+            ? `${primaryName}_2`
+            : additional.metricQuery.exploreName;
     const idBySourceId: Record<string, string> = {
-        [primary.id]: PRIMARY_SOURCE_ID,
-        [additional.id]: DEFAULT_ADDITIONAL_SOURCE_ID,
+        [primary.id]: primaryName,
+        [additional.id]: additionalName,
     };
 
     const fieldIdByAiFieldId: Record<string, string> = {};
@@ -56,8 +62,9 @@ export const canonicalizeAiMerge = (
         });
     });
 
-    const joinKey = mergeQuery.joinKey.map((part, index) => {
-        const name = `${JOIN_KEY}_${index}`;
+    // A key column is named after the primary's field, as the editor names it
+    const joinKey = mergeQuery.joinKey.map((part) => {
+        const name = part.fieldIdBySourceId[primary.id];
         fieldIdByAiFieldId[mergedColumnId(MERGE_TABLE_NAME, part.name)] =
             mergedColumnId(MERGE_TABLE_NAME, name);
         return {
@@ -110,4 +117,52 @@ export const remapFieldIdsDeep = <T>(
         ) as T;
     }
     return value;
+};
+
+/**
+ * The editor state that opens a canonical AI merge in the Explorer: the
+ * editor addresses sources by its fixed handles, with the names they run
+ * under riding along.
+ */
+export const toMergeUrlState = ({
+    mergeQuery,
+}: CanonicalAiMerge): MergeUrlState => {
+    const [primary, additional] = mergeQuery.sources;
+    const handleBySourceId: Record<string, string> = {
+        [primary.id]: PRIMARY_SOURCE_ID,
+        [additional.id]: DEFAULT_ADDITIONAL_SOURCE_ID,
+    };
+    return {
+        focus: { kind: 'source', sourceId: PRIMARY_SOURCE_ID },
+        primarySourceName:
+            primary.id === primary.metricQuery.exploreName ? null : primary.id,
+        additionalSources: [
+            {
+                id: DEFAULT_ADDITIONAL_SOURCE_ID,
+                name: additional.id,
+                exploreName: additional.metricQuery.exploreName,
+                dimensions: additional.metricQuery.dimensions,
+                metrics: additional.metricQuery.metrics,
+                filters: additional.metricQuery.filters,
+                additionalMetrics: additional.metricQuery.additionalMetrics,
+                customDimensions: additional.metricQuery.customDimensions,
+            },
+        ],
+        joinParts: mergeQuery.joinKey.map((part) => ({
+            fieldIdBySourceId: Object.fromEntries(
+                Object.entries(part.fieldIdBySourceId).map(
+                    ([sourceId, fieldId]) => [
+                        handleBySourceId[sourceId] ?? sourceId,
+                        fieldId,
+                    ],
+                ),
+            ),
+        })),
+        joinType: mergeQuery.joinType,
+        repeatValuesSourceIds: mergeQuery.sources.flatMap((source) =>
+            source.repeatValues === true
+                ? [handleBySourceId[source.id] ?? source.id]
+                : [],
+        ),
+    };
 };

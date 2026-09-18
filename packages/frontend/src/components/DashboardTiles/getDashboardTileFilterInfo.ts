@@ -4,9 +4,9 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
     type Explore,
+    getPipelineChartName,
     type Filters,
-    type SavedMergeQuery,
-    type SavedMergeQuerySource,
+    type SavedPipeline,
 } from '@lightdash/common';
 
 export type AppliedDashboardFilterItem = {
@@ -22,46 +22,46 @@ const rulesOf = (filters: DashboardFilters): DashboardFilterRule[] => [
     ...filters.metrics,
 ];
 
-const sourceExploreNameOf = (
-    source: SavedMergeQuerySource,
-    primaryExploreName: string | null,
-): string | null =>
-    source.kind === 'chart'
-        ? primaryExploreName
-        : source.metricQuery.exploreName;
-
-/** Primary first, so the popover reads in the order the merge editor shows. */
-const orderedSources = (merge: SavedMergeQuery): SavedMergeQuerySource[] => [
-    ...merge.sources.filter((source) => source.id === merge.primarySourceId),
-    ...merge.sources.filter((source) => source.id !== merge.primarySourceId),
+/** The merge's sources as they ran, chart first: the order the editor shows. */
+const pipelineSources = (
+    pipeline: SavedPipeline,
+    chartExploreName: string,
+): Array<{ sourceId: string; exploreName: string }> => [
+    {
+        sourceId: getPipelineChartName(pipeline, chartExploreName),
+        exploreName: chartExploreName,
+    },
+    ...Object.entries(pipeline.queries).map(([name, query]) => ({
+        sourceId: name,
+        exploreName: query.explore,
+    })),
 ];
 
 const getAppliedFilterItems = ({
     appliedDashboardFilters,
     appliedDashboardFiltersBySourceId,
-    merge,
-    primaryExploreName,
+    pipeline,
+    chartExploreName,
 }: {
     appliedDashboardFilters: DashboardFilters | undefined;
     appliedDashboardFiltersBySourceId:
         | Record<string, DashboardFilters>
         | undefined;
-    merge: SavedMergeQuery | null;
-    primaryExploreName: string | null;
+    pipeline: SavedPipeline | null;
+    chartExploreName: string;
 }): AppliedDashboardFilterItem[] => {
-    if (merge && appliedDashboardFiltersBySourceId) {
-        return orderedSources(merge).flatMap((source) => {
-            const applied = appliedDashboardFiltersBySourceId[source.id];
-            if (!applied) return [];
-            return rulesOf(applied).map((filterRule) => ({
-                filterRule,
-                sourceId: source.id,
-                sourceExploreName: sourceExploreNameOf(
-                    source,
-                    primaryExploreName,
-                ),
-            }));
-        });
+    if (pipeline && appliedDashboardFiltersBySourceId) {
+        return pipelineSources(pipeline, chartExploreName).flatMap(
+            ({ sourceId, exploreName }) => {
+                const applied = appliedDashboardFiltersBySourceId[sourceId];
+                if (!applied) return [];
+                return rulesOf(applied).map((filterRule) => ({
+                    filterRule,
+                    sourceId,
+                    sourceExploreName: exploreName,
+                }));
+            },
+        );
     }
     return appliedDashboardFilters
         ? rulesOf(appliedDashboardFilters).map((filterRule) => ({
@@ -76,7 +76,8 @@ export const getDashboardTileFilterInfo = ({
     chartFilters,
     appliedDashboardFilters,
     appliedDashboardFiltersBySourceId,
-    merge,
+    pipeline,
+    chartExploreName,
     explore,
 }: {
     chartFilters: Filters;
@@ -84,7 +85,9 @@ export const getDashboardTileFilterInfo = ({
     appliedDashboardFiltersBySourceId:
         | Record<string, DashboardFilters>
         | undefined;
-    merge: SavedMergeQuery | null;
+    pipeline: SavedPipeline | null;
+    /** The chart's own explore; it names the chart's query in the merge. */
+    chartExploreName: string;
     explore: Explore | undefined;
 }) => {
     const overriddenChartFilterRuleIds = getOverriddenChartFilterRuleIds({
@@ -97,8 +100,8 @@ export const getDashboardTileFilterInfo = ({
         appliedFilterItems: getAppliedFilterItems({
             appliedDashboardFilters,
             appliedDashboardFiltersBySourceId,
-            merge,
-            primaryExploreName: explore?.name ?? null,
+            pipeline,
+            chartExploreName,
         }),
         chartFilterItems: getTotalFilterRules(chartFilters).map(
             (filterRule) => ({

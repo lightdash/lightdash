@@ -228,6 +228,30 @@ export type DownloadHandlerOptions = {
 
 type FolderScheme = 'flat' | 'nested';
 
+// Keys only a merged chart's pipeline has read in the order they are
+// thought about; everything else stays alphabetical, so no other file moves.
+const PIPELINE_KEY_ORDER = [
+    'chartAs',
+    'queries',
+    'explore',
+    'join',
+    'keys',
+    'keyNames',
+    'by',
+    'direction',
+];
+const compareContentKeys = (a: string, b: string): number => {
+    const rankA = PIPELINE_KEY_ORDER.indexOf(a);
+    const rankB = PIPELINE_KEY_ORDER.indexOf(b);
+    if (rankA !== -1 || rankB !== -1) {
+        if (rankA === -1) return 1;
+        if (rankB === -1) return -1;
+        return rankA - rankB;
+    }
+    if (a < b) return -1;
+    return a > b ? 1 : 0;
+};
+
 const shouldDownloadAiAgents = ({
     includeAll,
     includeAgents,
@@ -401,7 +425,7 @@ const writeContent = async (
         | DashboardAsCode;
     const chartYml = yaml.dump(cleanContent, {
         quotingType: '"',
-        sortKeys: true,
+        sortKeys: compareContentKeys,
     });
     await fs.writeFile(itemPath, chartYml);
 

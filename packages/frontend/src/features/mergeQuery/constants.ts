@@ -4,7 +4,6 @@ import { type MergeEditorSource, type MergeJoinPart } from './context/context';
 export const PRIMARY_SOURCE_ID = 'a';
 export const DEFAULT_ADDITIONAL_SOURCE_ID = 'b';
 export const MAX_MERGE_SOURCES = 2;
-export const JOIN_KEY = 'join_key';
 
 export const emptyMergeSource = (id: string): MergeEditorSource => ({
     id,
@@ -22,6 +21,7 @@ export const EMPTY_MERGE = {
     replacesQuery: false,
     focus: { kind: 'source' as const, sourceId: PRIMARY_SOURCE_ID },
     additionalSources: [] as MergeEditorSource[],
+    primarySourceName: null,
     joinParts: [
         {
             fieldIdBySourceId: {

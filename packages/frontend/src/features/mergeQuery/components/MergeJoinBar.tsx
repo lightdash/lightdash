@@ -23,6 +23,7 @@ import { selectTableName, useExplorerSelector } from '../../explorer/store';
 import { EMPTY_MERGE, PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
+import { useMergeSourceNames } from '../hooks/useMergeSourceNames';
 import { getMergeSourcesWithoutValues } from '../utils/getMergeSourcesWithoutValues';
 import styles from './MergeJoinBar.module.css';
 import { getJoinClauseLabel } from './mergeJoinLabels';
@@ -162,6 +163,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const tableName = useExplorerSelector(selectTableName);
     const mergeContext = useMergeSafe();
+    const { handleByName } = useMergeSourceNames();
     const {
         isMerging,
         readOnly,
@@ -548,10 +550,10 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
             ))}
 
             {sourcesWithoutValues.map((sourceId) => {
-                const emptyLabel =
-                    sourceId === PRIMARY_SOURCE_ID ? thisQuery : otherQuery;
-                const otherLabel =
-                    sourceId === PRIMARY_SOURCE_ID ? otherQuery : thisQuery;
+                // Results name sources as they ran
+                const isPrimary = handleByName[sourceId] === PRIMARY_SOURCE_ID;
+                const emptyLabel = isPrimary ? thisQuery : otherQuery;
+                const otherLabel = isPrimary ? otherQuery : thisQuery;
                 return (
                     <Note key={`empty-${sourceId}`} tone="muted">
                         {emptyLabel}'s columns are blank on every row: its query
