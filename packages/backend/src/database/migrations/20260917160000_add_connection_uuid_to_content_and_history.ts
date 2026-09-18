@@ -29,45 +29,55 @@ const additions = [
 
 const runDdl = async (
     knex: Knex,
+    connection: unknown,
     message: string,
     sql: string,
 ): Promise<void> => {
     // eslint-disable-next-line no-console
     console.log(message);
-    await knex.raw(`SET lock_timeout = '${LOCK_TIMEOUT}'`);
+    await knex
+        .raw(`SET lock_timeout = '${LOCK_TIMEOUT}'`)
+        .connection(connection);
     try {
-        await knex.raw(sql);
+        await knex.raw(sql).connection(connection);
     } finally {
-        await knex.raw('RESET lock_timeout');
+        await knex.raw('RESET lock_timeout').connection(connection);
     }
 };
 
 const constraintExists = async (
     knex: Knex,
+    connection: unknown,
     table: string,
     constraint: string,
 ): Promise<boolean> => {
-    const result = await knex.raw<{ rowCount: number }>(
-        `SELECT 1 FROM pg_constraint WHERE conname = ? AND conrelid = ?::regclass`,
-        [constraint, table],
-    );
+    const result = await knex
+        .raw<{ rowCount: number }>(
+            `SELECT 1 FROM pg_constraint WHERE conname = ? AND conrelid = ?::regclass`,
+            [constraint, table],
+        )
+        .connection(connection);
     return (result.rowCount ?? 0) > 0;
 };
 
 const dropInvalidIndex = async (
     knex: Knex,
+    connection: unknown,
     indexName: string,
 ): Promise<void> => {
-    const result = await knex.raw<{ rowCount: number }>(
-        `SELECT 1
-         FROM pg_class c
-         JOIN pg_index i ON i.indexrelid = c.oid
-         WHERE c.relname = ? AND NOT i.indisvalid`,
-        [indexName],
-    );
+    const result = await knex
+        .raw<{ rowCount: number }>(
+            `SELECT 1
+             FROM pg_class c
+             JOIN pg_index i ON i.indexrelid = c.oid
+             WHERE c.relname = ? AND NOT i.indisvalid`,
+            [indexName],
+        )
+        .connection(connection);
     if ((result.rowCount ?? 0) > 0) {
         await runDdl(
             knex,
+            connection,
             `Dropping invalid index ${indexName}`,
             `DROP INDEX CONCURRENTLY IF EXISTS ${indexName}`,
         );
@@ -75,12 +85,14 @@ const dropInvalidIndex = async (
 };
 
 export async function up(knex: Knex): Promise<void> {
-    await knex.raw('SET statement_timeout = 0');
+    const connection = await knex.client.acquireConnection();
     try {
+        await knex.raw('SET statement_timeout = 0').connection(connection);
         for (const addition of additions) {
             // eslint-disable-next-line no-await-in-loop
             await runDdl(
                 knex,
+                connection,
                 `Adding ${addition.table}.connection_uuid`,
                 `ALTER TABLE ${addition.table} ADD COLUMN IF NOT EXISTS connection_uuid uuid NULL`,
             );
@@ -89,6 +101,7 @@ export async function up(knex: Knex): Promise<void> {
                 // eslint-disable-next-line no-await-in-loop
                 !(await constraintExists(
                     knex,
+                    connection,
                     addition.table,
                     addition.foreignKey,
                 ))
@@ -96,6 +109,7 @@ export async function up(knex: Knex): Promise<void> {
                 // eslint-disable-next-line no-await-in-loop
                 await runDdl(
                     knex,
+                    connection,
                     `Adding ${addition.foreignKey}`,
                     `ALTER TABLE ${addition.table}
                      ADD CONSTRAINT ${addition.foreignKey}
@@ -109,32 +123,40 @@ export async function up(knex: Knex): Promise<void> {
                 // eslint-disable-next-line no-await-in-loop
                 await runDdl(
                     knex,
+                    connection,
                     `Validating ${addition.foreignKey}`,
                     `ALTER TABLE ${addition.table} VALIDATE CONSTRAINT ${addition.foreignKey}`,
                 );
             }
             // eslint-disable-next-line no-await-in-loop
-            await dropInvalidIndex(knex, addition.index);
+            await dropInvalidIndex(knex, connection, addition.index);
             // eslint-disable-next-line no-await-in-loop
             await runDdl(
                 knex,
+                connection,
                 `Creating ${addition.index}`,
                 `CREATE INDEX CONCURRENTLY IF NOT EXISTS ${addition.index} ON ${addition.table} (connection_uuid)`,
             );
         }
     } finally {
-        await knex.raw('RESET statement_timeout');
-        await knex.raw('RESET lock_timeout');
+        try {
+            await knex.raw('RESET lock_timeout').connection(connection);
+            await knex.raw('RESET statement_timeout').connection(connection);
+        } finally {
+            await knex.client.releaseConnection(connection);
+        }
     }
 }
 
 export async function down(knex: Knex): Promise<void> {
-    await knex.raw('SET statement_timeout = 0');
+    const connection = await knex.client.acquireConnection();
     try {
+        await knex.raw('SET statement_timeout = 0').connection(connection);
         for (const addition of [...additions].reverse()) {
             // eslint-disable-next-line no-await-in-loop
             await runDdl(
                 knex,
+                connection,
                 `Dropping ${addition.index}`,
                 `DROP INDEX CONCURRENTLY IF EXISTS ${addition.index}`,
             );
@@ -142,6 +164,7 @@ export async function down(knex: Knex): Promise<void> {
                 // eslint-disable-next-line no-await-in-loop
                 await runDdl(
                     knex,
+                    connection,
                     `Dropping ${addition.foreignKey}`,
                     `ALTER TABLE ${addition.table} DROP CONSTRAINT IF EXISTS ${addition.foreignKey}`,
                 );
@@ -149,12 +172,17 @@ export async function down(knex: Knex): Promise<void> {
             // eslint-disable-next-line no-await-in-loop
             await runDdl(
                 knex,
+                connection,
                 `Dropping ${addition.table}.connection_uuid`,
                 `ALTER TABLE ${addition.table} DROP COLUMN IF EXISTS connection_uuid`,
             );
         }
     } finally {
-        await knex.raw('RESET statement_timeout');
-        await knex.raw('RESET lock_timeout');
+        try {
+            await knex.raw('RESET lock_timeout').connection(connection);
+            await knex.raw('RESET statement_timeout').connection(connection);
+        } finally {
+            await knex.client.releaseConnection(connection);
+        }
     }
 }
