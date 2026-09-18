@@ -72,13 +72,26 @@ describe('ProjectDbtSourcesModel', () => {
         tracker.on.select(ProjectDbtSourcesTableName).responseOnce(sources);
         tracker.on.insert(ProjectDbtSourcesTableName).responseOnce([]);
 
-        await model.copySources(upstreamProjectUuid, previewProjectUuid);
+        await model.copySources(
+            upstreamProjectUuid,
+            previewProjectUuid,
+            new Map([
+                [
+                    '55555555-5555-4555-8555-555555555555',
+                    '77777777-7777-4777-8777-777777777777',
+                ],
+                [
+                    '66666666-6666-4666-8666-666666666666',
+                    '88888888-8888-4888-8888-888888888888',
+                ],
+            ]),
+        );
 
         expect(tracker.history.select[0].bindings).toEqual([
             upstreamProjectUuid,
         ]);
         expect(tracker.history.insert[0].bindings).toEqual([
-            '55555555-5555-4555-8555-555555555555',
+            '77777777-7777-4777-8777-777777777777',
             githubCiphertext,
             DbtProjectType.GITHUB,
             false,
@@ -88,7 +101,7 @@ describe('ProjectDbtSourcesModel', () => {
             previewProjectUuid,
             'finance_database',
             null,
-            '66666666-6666-4666-8666-666666666666',
+            '88888888-8888-4888-8888-888888888888',
             gitlabCiphertext,
             DbtProjectType.GITLAB,
             false,

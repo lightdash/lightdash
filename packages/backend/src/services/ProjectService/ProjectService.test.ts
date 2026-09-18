@@ -259,6 +259,7 @@ const projectModel = {
     getCompileConnections: vi.fn(async () => [
         { connectionUuid: 'dbt_project-connection-uuid', name: 'Warehouse' },
     ]),
+    copyConnectionsForPreview: vi.fn(async () => new Map<string, string>()),
     getCompileProject: vi.fn(async () => projectWithSensitiveFields),
     runInAnalyticsProvisioningLock: vi.fn(
         async (_org: string, callback: () => Promise<unknown>) => callback(),
@@ -2364,6 +2365,168 @@ describe('ProjectService', () => {
         );
         createWithoutCompileSpy.mockRestore();
         scheduleCompileProjectSpy.mockRestore();
+    });
+
+    test('copies every connection and applies warehouse overrides to the primary source connection', async () => {
+        const upstreamProjectUuid = 'upstream-project-uuid';
+        const previewProjectUuid = 'created-preview-project-uuid';
+        const primaryConnectionUuid = 'primary-connection-uuid';
+        const secondaryConnectionUuid = 'secondary-connection-uuid';
+        const previewPrimaryConnectionUuid = 'preview-primary-connection-uuid';
+        const previewSecondaryConnectionUuid =
+            'preview-secondary-connection-uuid';
+        const connectionUuidMap = new Map([
+            [primaryConnectionUuid, previewPrimaryConnectionUuid],
+            [secondaryConnectionUuid, previewSecondaryConnectionUuid],
+        ]);
+        const primarySource: ProjectDbtSource = {
+            projectDbtSourceUuid: 'primary-source-uuid',
+            projectUuid: upstreamProjectUuid,
+            connectionUuid: primaryConnectionUuid,
+            namespacePrefix: '',
+            name: 'dbt_project',
+            isPrimary: true,
+            precedence: 0,
+            dbtConnection: projectWithSensitiveFields.dbtConnection,
+            warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+            hasCredentialError: false,
+            createdAt: new Date('2026-09-18T09:00:00Z'),
+            updatedAt: new Date('2026-09-18T09:00:00Z'),
+        };
+        const getSources = vi.fn(async () => [primarySource]);
+        const copySources = vi.fn(async () => undefined);
+        const previewService = getMockedProjectService(lightdashConfigMock, {
+            projectDbtSourcesModel: {
+                getSources,
+                copySources,
+            } as unknown as ProjectDbtSourcesModel,
+        });
+        const previewUser: SessionUser = {
+            ...user,
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Test organization',
+            organizationCreatedAt: new Date('2026-09-18T09:00:00Z'),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'create' },
+            ]),
+        };
+        const upstreamConnections: Connection[] = [
+            {
+                ...runtimeConnection,
+                connectionUuid: primaryConnectionUuid,
+                name: 'Primary warehouse',
+            },
+            {
+                ...runtimeConnection,
+                connectionUuid: secondaryConnectionUuid,
+                name: 'Secondary warehouse',
+            },
+        ];
+        const validateSpy = vi
+            .spyOn(
+                previewService as unknown as {
+                    validateProjectCreationPermissions: () => Promise<true>;
+                },
+                'validateProjectCreationPermissions',
+            )
+            .mockResolvedValue(true);
+        const expirationSpy = vi
+            .spyOn(previewService, 'getPreviewExpiresAt')
+            .mockResolvedValue(null);
+        const copyAccessSpy = vi
+            .spyOn(previewService, 'copyUserAccessOnPreview')
+            .mockResolvedValue();
+        const scheduleCompileProjectSpy = vi
+            .spyOn(previewService, 'scheduleCompileProject')
+            .mockResolvedValue({ jobUuid: 'compile-job-uuid' });
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            projectUuid: upstreamProjectUuid,
+            connections: upstreamConnections,
+            warehouseConnection: undefined,
+        });
+        projectModel.get
+            .mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: upstreamProjectUuid,
+                connections: upstreamConnections,
+                warehouseConnection: undefined,
+            })
+            .mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: previewProjectUuid,
+                type: ProjectType.PREVIEW,
+                connections: upstreamConnections.map((connection) => ({
+                    ...connection,
+                    connectionUuid:
+                        connectionUuidMap.get(connection.connectionUuid) ??
+                        connection.connectionUuid,
+                })),
+                warehouseConnection: undefined,
+            });
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+            warehouseClientMock.credentials,
+        );
+        projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+            previewProjectUuid,
+        );
+        projectModel.copyConnectionsForPreview.mockResolvedValueOnce(
+            connectionUuidMap,
+        );
+
+        try {
+            await expect(
+                previewService.createPreview(
+                    previewUser,
+                    upstreamProjectUuid,
+                    {
+                        name: 'Multi-connection preview',
+                        copyContent: false,
+                        warehouseConnectionOverrides: {
+                            schema: 'preview_schema',
+                        },
+                    },
+                    RequestMethod.WEB_APP,
+                ),
+            ).resolves.toEqual({
+                projectUuid: previewProjectUuid,
+                compileJobUuid: 'compile-job-uuid',
+            });
+
+            expect(getSources).toHaveBeenCalledWith(upstreamProjectUuid);
+            expect(
+                projectModel.getWarehouseCredentialsForProject,
+            ).toHaveBeenCalledWith(upstreamProjectUuid, primaryConnectionUuid);
+            expect(
+                projectModel.createWithOptionalCredentials,
+            ).toHaveBeenCalledWith(
+                previewUser.userUuid,
+                previewUser.organizationUuid,
+                expect.objectContaining({ warehouseConnection: undefined }),
+                null,
+                undefined,
+            );
+            expect(projectModel.copyConnectionsForPreview).toHaveBeenCalledWith(
+                upstreamProjectUuid,
+                previewProjectUuid,
+                {
+                    connectionUuid: primaryConnectionUuid,
+                    warehouseConnection: expect.objectContaining({
+                        schema: 'preview_schema',
+                    }),
+                },
+            );
+            expect(copySources).toHaveBeenCalledWith(
+                upstreamProjectUuid,
+                previewProjectUuid,
+                connectionUuidMap,
+            );
+        } finally {
+            validateSpy.mockRestore();
+            expirationSpy.mockRestore();
+            copyAccessSpy.mockRestore();
+            scheduleCompileProjectSpy.mockRestore();
+        }
     });
 
     test.each([RequestMethod.WEB_APP, RequestMethod.CLI])(

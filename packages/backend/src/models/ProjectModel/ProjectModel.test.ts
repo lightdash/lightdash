@@ -151,6 +151,14 @@ describe('ProjectModel', () => {
             targetProjectUuid: string,
             connectionUuid: string,
         ) => Promise<CreateWarehouseCredentials>;
+        create: (
+            targetProjectUuid: string,
+            input: {
+                warehouseConnection: CreateWarehouseCredentials;
+                organizationWarehouseCredentialsUuid?: string | null;
+                name?: string;
+            },
+        ) => Promise<(typeof expectedProject.connections)[number]>;
     };
     const getConnectionModel = () =>
         (
@@ -2020,6 +2028,78 @@ describe('ProjectModel', () => {
         await expect(
             model.hasProjectMembership(projectUuid, 'unassigned-user'),
         ).resolves.toBe(false);
+    });
+
+    test('copies every preview connection and overrides only the selected connection', async () => {
+        const upstreamProjectUuid = 'upstream-project-uuid';
+        const previewProjectUuid = 'preview-project-uuid';
+        const selectedConnectionUuid = projectConnection.connectionUuid;
+        const secondaryConnection = {
+            ...projectConnection,
+            connectionUuid: secondCompileConnectionUuid,
+            name: 'Secondary warehouse',
+            organizationWarehouseCredentialsUuid:
+                'organization-warehouse-credentials-uuid',
+        };
+        const selectedCredentials = {
+            ...CompletePostgresCredentials,
+            schema: 'preview_schema',
+        };
+        const secondaryCredentials = {
+            ...CompletePostgresCredentials,
+            schema: 'secondary_schema',
+        };
+        const connectionModel = getConnectionModel();
+        vi.spyOn(connectionModel, 'listByProject').mockResolvedValue([
+            projectConnection,
+            secondaryConnection,
+        ]);
+        const getCredentials = vi
+            .spyOn(connectionModel, 'getCredentials')
+            .mockResolvedValue(secondaryCredentials);
+        const create = vi
+            .spyOn(connectionModel, 'create')
+            .mockResolvedValueOnce({
+                ...projectConnection,
+                connectionUuid: 'preview-primary-connection-uuid',
+            })
+            .mockResolvedValueOnce({
+                ...secondaryConnection,
+                connectionUuid: 'preview-secondary-connection-uuid',
+            });
+
+        await expect(
+            model.copyConnectionsForPreview(
+                upstreamProjectUuid,
+                previewProjectUuid,
+                {
+                    connectionUuid: selectedConnectionUuid,
+                    warehouseConnection: selectedCredentials,
+                },
+            ),
+        ).resolves.toEqual(
+            new Map([
+                [selectedConnectionUuid, 'preview-primary-connection-uuid'],
+                [
+                    secondCompileConnectionUuid,
+                    'preview-secondary-connection-uuid',
+                ],
+            ]),
+        );
+        expect(create).toHaveBeenNthCalledWith(1, previewProjectUuid, {
+            warehouseConnection: selectedCredentials,
+            name: projectConnection.name,
+        });
+        expect(create).toHaveBeenNthCalledWith(2, previewProjectUuid, {
+            warehouseConnection: secondaryCredentials,
+            organizationWarehouseCredentialsUuid:
+                'organization-warehouse-credentials-uuid',
+            name: secondaryConnection.name,
+        });
+        expect(getCredentials).toHaveBeenCalledExactlyOnceWith(
+            upstreamProjectUuid,
+            secondCompileConnectionUuid,
+        );
     });
 
     test('copies only eligible project access in one idempotent transaction', async () => {

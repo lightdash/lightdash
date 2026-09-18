@@ -659,6 +659,11 @@ type SaveCompiledExploresArgs = {
     dbtModelNames?: string[];
 };
 
+type PreviewConnectionOverride = {
+    connectionUuid: string;
+    warehouseConnection: CreateWarehouseCredentials;
+};
+
 type PreparedExploreStream = {
     exploreStream: AsyncIterable<Explore | ExploreError>;
     lightdashProjectConfig: LightdashProjectConfig;
@@ -3040,6 +3045,7 @@ export class ProjectService extends BaseService {
         data: CreateProjectOptionalCredentials,
         method: RequestMethod,
         internalProvisioning?: InternalProvisioning,
+        previewConnectionOverride?: PreviewConnectionOverride,
     ): Promise<ApiCreateProjectResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -3074,18 +3080,36 @@ export class ProjectService extends BaseService {
             newProjectData.dbtConnection,
         );
 
+        const upstreamProject =
+            newProjectData.type === ProjectType.PREVIEW &&
+            newProjectData.upstreamProjectUuid &&
+            previewConnectionOverride
+                ? await this.projectModel.get(
+                      newProjectData.upstreamProjectUuid,
+                  )
+                : undefined;
+
         // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
         if (
             newProjectData.type === ProjectType.PREVIEW &&
             newProjectData.upstreamProjectUuid
         ) {
-            const upstreamProject = data.upstreamProjectUuid
-                ? await this.projectModel.get(data.upstreamProjectUuid)
-                : undefined;
-            newProjectData.organizationWarehouseCredentialsUuid =
-                upstreamProject?.organizationWarehouseCredentialsUuid;
+            const credentialSourceProject =
+                upstreamProject ??
+                (await this.projectModel.get(
+                    newProjectData.upstreamProjectUuid,
+                ));
+            if (previewConnectionOverride) {
+                if (credentialSourceProject.connections.length === 0) {
+                    newProjectData.organizationWarehouseCredentialsUuid =
+                        credentialSourceProject.organizationWarehouseCredentialsUuid;
+                }
+            } else {
+                newProjectData.organizationWarehouseCredentialsUuid =
+                    credentialSourceProject.organizationWarehouseCredentialsUuid;
+            }
             newProjectData.requireUserCredentials =
-                upstreamProject?.requireUserCredentials ?? false;
+                credentialSourceProject.requireUserCredentials ?? false;
         }
         if (
             newProjectData.type === ProjectType.PREVIEW &&
@@ -3136,11 +3160,22 @@ export class ProjectService extends BaseService {
                   )
                 : newProjectData;
 
+        const copiesUpstreamConnections = Boolean(
+            upstreamProject &&
+            upstreamProject.connections.length > 0 &&
+            previewConnectionOverride,
+        );
+
         const projectUuid =
             await this.projectModel.createWithOptionalCredentials(
                 user.userUuid,
                 user.organizationUuid,
-                createProject,
+                copiesUpstreamConnections
+                    ? {
+                          ...createProject,
+                          warehouseConnection: undefined,
+                      }
+                    : createProject,
                 internalProvisioning?.source === 'analytics'
                     ? null
                     : await this.getPreviewExpiresAt(
@@ -3155,10 +3190,25 @@ export class ProjectService extends BaseService {
             createProject.type === ProjectType.PREVIEW &&
             createProject.upstreamProjectUuid
         ) {
-            await this.projectDbtSourcesModel.copySources(
-                createProject.upstreamProjectUuid,
-                projectUuid,
-            );
+            const connectionUuidMap = copiesUpstreamConnections
+                ? await this.projectModel.copyConnectionsForPreview(
+                      createProject.upstreamProjectUuid,
+                      projectUuid,
+                      previewConnectionOverride,
+                  )
+                : new Map<string, string>();
+            if (copiesUpstreamConnections) {
+                await this.projectDbtSourcesModel.copySources(
+                    createProject.upstreamProjectUuid,
+                    projectUuid,
+                    connectionUuidMap,
+                );
+            } else {
+                await this.projectDbtSourcesModel.copySources(
+                    createProject.upstreamProjectUuid,
+                    projectUuid,
+                );
+            }
         } else {
             await this.materialisePrimaryDbtSource(projectUuid, createProject);
         }
@@ -11952,13 +12002,30 @@ export class ProjectService extends BaseService {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
-        if (!project.warehouseConnection) {
+        const primarySource = (
+            await this.projectDbtSourcesModel.getSources(projectUuid)
+        ).find((source) => source.isPrimary);
+        const primaryConnectionUuid =
+            primarySource?.connectionUuid ??
+            (project.connections.length === 1
+                ? project.connections[0].connectionUuid
+                : undefined);
+        const primaryWarehouseConnection =
+            project.warehouseConnection ??
+            (primaryConnectionUuid
+                ? await this.projectModel.getWarehouseCredentialsForProject(
+                      projectUuid,
+                      primaryConnectionUuid,
+                  )
+                : undefined);
+
+        if (!primaryWarehouseConnection) {
             throw new ParameterError(
                 `Missing warehouse connection for project ${projectUuid}`,
             );
         }
         const warehouseConnection = maybeOverrideWarehouseConnection(
-            project.warehouseConnection,
+            primaryWarehouseConnection,
             data.warehouseConnectionOverrides ?? {},
         );
         ProjectService.assertDatabaseListingSupported(warehouseConnection);
@@ -11979,6 +12046,13 @@ export class ProjectService extends BaseService {
             user,
             previewData,
             context,
+            undefined,
+            primaryConnectionUuid
+                ? {
+                      connectionUuid: primaryConnectionUuid,
+                      warehouseConnection,
+                  }
+                : undefined,
         );
         await this.throwIfPreviewCopyFailed(previewProject);
 

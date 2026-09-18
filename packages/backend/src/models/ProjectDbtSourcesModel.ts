@@ -125,6 +125,7 @@ export class ProjectDbtSourcesModel {
     async copySources(
         sourceProjectUuid: string,
         targetProjectUuid: string,
+        connectionUuidMap: Map<string, string> = new Map(),
     ): Promise<void> {
         const sources = await this.database(ProjectDbtSourcesTableName)
             .select(
@@ -147,7 +148,9 @@ export class ProjectDbtSourcesModel {
         await this.database(ProjectDbtSourcesTableName).insert(
             sources.map((source) => ({
                 project_uuid: targetProjectUuid,
-                connection_uuid: source.connection_uuid,
+                connection_uuid:
+                    connectionUuidMap.get(source.connection_uuid) ??
+                    source.connection_uuid,
                 namespace_prefix: source.namespace_prefix,
                 name: source.name,
                 is_primary: source.is_primary,

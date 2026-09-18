@@ -3601,6 +3601,46 @@ export class ProjectModel {
         }));
     }
 
+    async copyConnectionsForPreview(
+        sourceProjectUuid: string,
+        targetProjectUuid: string,
+        override?: {
+            connectionUuid: string;
+            warehouseConnection: CreateWarehouseCredentials;
+        },
+    ): Promise<Map<string, string>> {
+        const sourceConnections =
+            await this.connectionModel.listByProject(sourceProjectUuid);
+        const connections = await Promise.all(
+            sourceConnections.map(async (sourceConnection) => {
+                const connection = await this.connectionModel.create(
+                    targetProjectUuid,
+                    sourceConnection.connectionUuid === override?.connectionUuid
+                        ? {
+                              warehouseConnection: override.warehouseConnection,
+                              name: sourceConnection.name,
+                          }
+                        : {
+                              warehouseConnection:
+                                  await this.connectionModel.getCredentials(
+                                      sourceProjectUuid,
+                                      sourceConnection.connectionUuid,
+                                  ),
+                              organizationWarehouseCredentialsUuid:
+                                  sourceConnection.organizationWarehouseCredentialsUuid ??
+                                  undefined,
+                              name: sourceConnection.name,
+                          },
+                );
+                return [
+                    sourceConnection.connectionUuid,
+                    connection.connectionUuid,
+                ] as const;
+            }),
+        );
+        return new Map(connections);
+    }
+
     async copyProjectAccess(
         upstreamProjectUuid: string,
         previewProjectUuid: string,
