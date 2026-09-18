@@ -17,11 +17,12 @@ export const getGenerateDataApp = ({ generateDataApp }: Dependencies) =>
     tool({
         ...toolDefinition,
         execute: async (
-            { prompt, template, dashboardSlug, chartSlugs, themeSlug },
+            { name, prompt, template, dashboardSlug, chartSlugs, themeSlug },
             { toolCallId },
         ) => {
             try {
                 const { appUuid, version } = await generateDataApp({
+                    name,
                     prompt,
                     template,
                     dashboardSlug,
@@ -36,6 +37,7 @@ export const getGenerateDataApp = ({ generateDataApp }: Dependencies) =>
                         status: 'pending' as const,
                         appUuid,
                         version,
+                        name,
                     },
                 };
             } catch (error) {

@@ -1,4 +1,7 @@
-import { NotFoundError } from '@lightdash/common';
+import {
+    NotFoundError,
+    toolGenerateDataAppArgsSchema,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { getGenerateDataApp } from './generateDataApp';
 
@@ -22,6 +25,7 @@ type GenerateDataAppOutput = {
         status: string;
         appUuid?: string;
         version?: number;
+        name?: string;
         message?: string;
     };
 };
@@ -29,6 +33,7 @@ type GenerateDataAppOutput = {
 const executeGenerateDataApp = (tool: GenerateDataAppTool) =>
     tool.execute!(
         {
+            name: 'Revenue Overview',
             prompt: 'Build a revenue app',
             template: 'dashboard',
             dashboardSlug: null,
@@ -53,6 +58,7 @@ describe('getGenerateDataApp', () => {
         );
 
         expect(generateDataApp).toHaveBeenCalledWith({
+            name: 'Revenue Overview',
             prompt: 'Build a revenue app',
             template: 'dashboard',
             dashboardSlug: null,
@@ -64,7 +70,16 @@ describe('getGenerateDataApp', () => {
             status: 'pending',
             appUuid: 'app-1',
             version: 1,
+            name: 'Revenue Overview',
         });
+    });
+
+    it('rejects a call that leaves the app unnamed', () => {
+        expect(
+            toolGenerateDataAppArgsSchema.safeParse({
+                prompt: 'Build a revenue app',
+            }).success,
+        ).toBe(false);
     });
 
     it('reports a start-time failure as an error result', async () => {

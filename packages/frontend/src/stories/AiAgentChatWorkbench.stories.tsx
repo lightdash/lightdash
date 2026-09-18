@@ -787,9 +787,10 @@ const StorySurface = ({ children }: { children: ReactNode }) => (
 );
 
 const buildCardStates: DataAppBuildCardState[] = [
-    { kind: 'queued' },
+    { kind: 'queued', name: 'Weekly revenue by region' },
     {
         kind: 'building',
+        name: 'Weekly revenue by region',
         statusMessage: 'Building your app',
         narration: {
             reasoning: ['Totals should reconcile against the revenue metric.'],
