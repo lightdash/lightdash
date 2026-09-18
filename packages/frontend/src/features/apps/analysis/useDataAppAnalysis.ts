@@ -6,7 +6,11 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type QueryEvent } from '../hooks/useAppSdkBridge';
-import { detectDataAppAnomalies, investigateDataAppAnomaly } from './api';
+import {
+    detectDataAppAnomalies,
+    investigateDataAppAnomaly,
+    lookupDataAppAnalysis,
+} from './api';
 import {
     hasInFlightQueries,
     selectCurrentViewSources,
@@ -30,10 +34,14 @@ const errorMessage = (e: unknown): string =>
     (e as ApiError)?.error?.message ??
     (e instanceof Error ? e.message : 'Something went wrong');
 
+const LOOKUP_QUIET_MS = 400;
+
 type ScopedState = {
     scope: string;
     state: DataAppAnalysisState;
     analysedSignature: string | null;
+    /** Last view signature a stored analysis was looked up for. */
+    lookedUpSignature: string | null;
     investigations: Record<string, InvestigationState>;
 };
 
@@ -41,8 +49,20 @@ const freshState = (scope: string): ScopedState => ({
     scope,
     state: { status: 'idle' },
     analysedSignature: null,
+    lookedUpSignature: null,
     investigations: {},
 });
+
+// Newest investigation per anomaly wins; records arrive oldest first.
+const investigationsByAnomaly = (
+    records: DataAppInvestigation[],
+): Record<string, InvestigationState> =>
+    Object.fromEntries(
+        records.map((investigation) => [
+            investigation.anomaly.id,
+            { status: 'ready', investigation },
+        ]),
+    );
 
 /**
  * Drives one "Analyse this view" panel: picks the current view's sources
@@ -95,7 +115,7 @@ export const useDataAppAnalysis = ({
     );
 
     const analyse = useCallback(
-        async (sourcesToAnalyse: DataAppAnalysisSource[]) => {
+        async (sourcesToAnalyse: DataAppAnalysisSource[], force: boolean) => {
             runRef.current += 1;
             const run = runRef.current;
             patch(scope, (prev) => ({
@@ -108,6 +128,7 @@ export const useDataAppAnalysis = ({
                     projectUuid,
                     appUuid,
                     sources: sourcesToAnalyse,
+                    force,
                 });
                 if (run !== runRef.current) return;
                 patch(scope, (prev) => ({
@@ -127,6 +148,58 @@ export const useDataAppAnalysis = ({
     );
 
     const { state } = current;
+    const stale =
+        state.status === 'ready' &&
+        current.analysedSignature !== null &&
+        current.analysedSignature !== signature;
+
+    // A view that was analysed before (by this viewer, or by anyone with the
+    // same rows) opens with its findings; nothing runs on a miss.
+    const shouldLookUp =
+        sources.length > 0 &&
+        !inFlight &&
+        current.lookedUpSignature !== signature &&
+        (state.status === 'idle' || (state.status === 'ready' && stale));
+    // Queries settle one by one on open; wait for a quiet view so a single
+    // lookup covers the final set.
+    const signatureRef = useRef(signature);
+    signatureRef.current = signature;
+    useEffect(() => {
+        if (!shouldLookUp) return undefined;
+        const run = runRef.current;
+        const timer = setTimeout(() => {
+            patch(scope, (prev) => ({ ...prev, lookedUpSignature: signature }));
+            lookupDataAppAnalysis({ projectUuid, appUuid, sources })
+                .then((found) => {
+                    // Drop a response for a view that is no longer current:
+                    // a newer analyse run, or a later lookup for other rows.
+                    if (
+                        !found ||
+                        run !== runRef.current ||
+                        signature !== signatureRef.current
+                    ) {
+                        return;
+                    }
+                    patch(scope, (prev) => ({
+                        ...prev,
+                        analysedSignature: signature,
+                        state: {
+                            status: 'ready',
+                            analysis: found.analysis,
+                            stale: false,
+                        },
+                        investigations: investigationsByAnomaly(
+                            found.investigations,
+                        ),
+                    }));
+                })
+                .catch(() => {
+                    // A failed lookup is not an error state; Analyse works.
+                });
+        }, LOOKUP_QUIET_MS);
+        return () => clearTimeout(timer);
+    }, [shouldLookUp, scope, signature, sources, projectUuid, appUuid, patch]);
+
     const investigate = useCallback(
         async (anomalyId: string, agentUuid: string) => {
             if (state.status !== 'ready') return;
@@ -159,17 +232,14 @@ export const useDataAppAnalysis = ({
         [projectUuid, appUuid, scope, state, patch],
     );
 
-    const stale =
-        state.status === 'ready' &&
-        current.analysedSignature !== null &&
-        current.analysedSignature !== signature;
-
     return {
         sources,
         inFlight,
         state: state.status === 'ready' ? { ...state, stale } : state,
         investigations: current.investigations,
-        analyse: () => analyse(sources),
+        // Re-running a view that already shows a current analysis is a
+        // deliberate regenerate; anything else may still reuse a stored one.
+        analyse: () => analyse(sources, state.status === 'ready' && !stale),
         investigate,
     };
 };
