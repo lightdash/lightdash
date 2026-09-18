@@ -6671,10 +6671,180 @@ Parameters:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "dbtConnectionLabel": {
+                  "description": "Human-readable name of the dbt connection type.",
+                  "type": "string",
+                },
+                "dbtConnectionType": {
+                  "description": "How the dbt project is connected (git host, dbt Cloud, …).",
+                  "enum": [
+                    "dbt",
+                    "dbt_cloud_ide",
+                    "github",
+                    "gitlab",
+                    "bitbucket",
+                    "azure_devops",
+                    "none",
+                    "manifest",
+                  ],
+                  "type": "string",
+                },
+                "dbtVersion": {
+                  "type": "string",
+                },
+                "git": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "branch": {
+                          "type": "string",
+                        },
+                        "hostDomain": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                          "description": "Self-hosted git domain; null for the default host.",
+                        },
+                        "projectSubPath": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                          "description": "Directory of the dbt project inside the repo; null when it is the repo root.",
+                        },
+                        "repository": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "repository",
+                        "branch",
+                        "projectSubPath",
+                        "hostDomain",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Null when the dbt project is not git-backed.",
+                },
+                "previewDeployCi": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasPreviewDeployWorkflow": {
+                          "description": "Whether the repo has the Lightdash preview-deploy GitHub Actions workflow.",
+                          "type": "boolean",
+                        },
+                        "workflowPath": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                          "description": "Path of the workflow file when found.",
+                        },
+                      },
+                      "required": [
+                        "hasPreviewDeployWorkflow",
+                        "workflowPath",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Null when preview-deploy CI cannot be determined (not a git project or no GitHub App).",
+                },
+                "projectName": {
+                  "type": "string",
+                },
+                "projectType": {
+                  "description": "DEFAULT for a regular project, PREVIEW for a preview.",
+                  "enum": [
+                    "DEFAULT",
+                    "PREVIEW",
+                    "TRAINING",
+                  ],
+                  "type": "string",
+                },
+                "warehouseType": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "bigquery",
+                        "postgres",
+                        "redshift",
+                        "snowflake",
+                        "databricks",
+                        "trino",
+                        "clickhouse",
+                        "athena",
+                        "duckdb",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Null when the project has no warehouse connection.",
+                },
+              },
+              "required": [
+                "projectName",
+                "projectType",
+                "dbtConnectionType",
+                "dbtConnectionLabel",
+                "dbtVersion",
+                "warehouseType",
+                "git",
+                "previewDeployCi",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
