@@ -2,6 +2,7 @@ import { ResourceViewItemType, type ResourceViewItem } from '@lightdash/common';
 import { Group, Stack } from '@mantine/core';
 import {
     IconChartBar,
+    IconFileText,
     IconFolder,
     IconLayoutDashboard,
     IconStar,
@@ -31,6 +32,7 @@ const FAVORITE_ICONS: Partial<Record<ResourceViewItemType, Icon>> = {
     [ResourceViewItemType.DASHBOARD]: IconLayoutDashboard,
     [ResourceViewItemType.SPACE]: IconFolder,
     [ResourceViewItemType.DATA_APP]: IconTerminal2,
+    [ResourceViewItemType.DOCUMENT]: IconFileText,
 };
 
 const FavoritePills: FC<{
@@ -176,7 +178,7 @@ export const FavoritesBlockView: FC<BlockComponentProps> = ({
             projectUuid={projectUuid}
             title={block.config.title}
             isInteractive
-            emptyText="Star any dashboard or chart to keep it here — each person sees their own favorites."
+            emptyText="Star content to keep it here — each person sees their own favorites."
         />
     );
 };

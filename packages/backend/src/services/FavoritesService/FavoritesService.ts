@@ -7,11 +7,12 @@ import {
     ParameterError,
     ResourceViewItemType,
     type FavoriteItems,
+    type RegisteredAccount,
     type ResourceViewSpaceItem,
-    type SessionUser,
     type ToggleFavoriteResponse,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { toSessionUser } from '../../auth/account';
 import { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -20,6 +21,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { UserFavoritesModel } from '../../models/UserFavoritesModel';
 import { BaseService } from '../BaseService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
+import type { DocumentService } from '../DocumentService/DocumentService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 type FavoritesServiceArguments = {
@@ -32,6 +34,7 @@ type FavoritesServiceArguments = {
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
     appModel: AppModel;
+    documentService: DocumentService;
 };
 
 export class FavoritesService extends BaseService {
@@ -53,6 +56,8 @@ export class FavoritesService extends BaseService {
 
     private readonly appModel: AppModel;
 
+    private readonly documentService: DocumentService;
+
     constructor({
         analytics,
         userFavoritesModel,
@@ -63,6 +68,7 @@ export class FavoritesService extends BaseService {
         savedChartModel,
         dashboardModel,
         appModel,
+        documentService,
     }: FavoritesServiceArguments) {
         super();
         this.analytics = analytics;
@@ -74,16 +80,18 @@ export class FavoritesService extends BaseService {
         this.savedChartModel = savedChartModel;
         this.dashboardModel = dashboardModel;
         this.appModel = appModel;
+        this.documentService = documentService;
     }
 
     async toggleFavorite(
-        user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
         contentType: ContentType,
         contentUuid: string,
     ): Promise<ToggleFavoriteResponse> {
+        const user = toSessionUser(account);
         const project = await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'view',
@@ -195,8 +203,16 @@ export class FavoritesService extends BaseService {
                 );
                 break;
             }
-            case ContentType.DOCUMENT:
-                throw new ParameterError('Documents cannot be favorited');
+            case ContentType.DOCUMENT: {
+                const document = await this.documentService.getByIdOrSlug(
+                    account,
+                    projectUuid,
+                    contentUuid,
+                );
+                resolvedContentUuid = document.documentUuid;
+                canViewContent = true;
+                break;
+            }
             default:
                 return assertUnreachable(
                     contentType,
@@ -250,11 +266,12 @@ export class FavoritesService extends BaseService {
     }
 
     async getFavorites(
-        user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
     ): Promise<FavoriteItems> {
+        const user = toSessionUser(account);
         const project = await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'view',
@@ -272,7 +289,7 @@ export class FavoritesService extends BaseService {
 
         const spaces = await this.spaceModel.find({ projectUuid });
         const spaceUuids = spaces.map((s) => s.uuid);
-        const [allowedSpaceUuids, granted] = await Promise.all([
+        const [allowedSpaceUuids, sharedAccess] = await Promise.all([
             this.spacePermissionService.getAccessibleSpaceUuids(
                 'view',
                 user,
@@ -281,7 +298,7 @@ export class FavoritesService extends BaseService {
             // Directly granted content stays visible in the caller's own
             // favorites even without any space access path.
             user.organizationUuid
-                ? this.directAccessService.findSharedWithMeUuids(
+                ? this.directAccessService.findSharedWithMeAccess(
                       {
                           userUuid: user.userUuid,
                           organizationUuid: user.organizationUuid,
@@ -290,6 +307,7 @@ export class FavoritesService extends BaseService {
                   )
                 : undefined,
         ]);
+        const granted = sharedAccess?.uuidsByType;
 
         const favoriteRows = await this.userFavoritesModel.getFavoriteUuids(
             user.userUuid,
@@ -312,32 +330,44 @@ export class FavoritesService extends BaseService {
         const appUuids = favoriteRows
             .filter((r) => r.contentType === ContentType.DATA_APP)
             .map((r) => r.contentUuid);
+        const documentUuids = await this.documentService.filterViewableUuids(
+            account,
+            [projectUuid],
+            favoriteRows
+                .filter((r) => r.contentType === ContentType.DOCUMENT)
+                .map((r) => r.contentUuid),
+        );
 
-        const [charts, dashboards, favSpaceBases, apps] = await Promise.all([
-            this.userFavoritesModel.getFavoriteCharts(
-                projectUuid,
-                chartUuids,
-                allowedSpaceUuids,
-                granted?.[DirectAccessResourceType.CHART],
-            ),
-            this.userFavoritesModel.getFavoriteDashboards(
-                projectUuid,
-                dashboardUuids,
-                allowedSpaceUuids,
-                granted?.[DirectAccessResourceType.DASHBOARD],
-            ),
-            this.userFavoritesModel.getFavoriteSpaces(
-                projectUuid,
-                favoriteSpaceUuids,
-                allowedSpaceUuids,
-            ),
-            this.userFavoritesModel.getFavoriteApps(
-                projectUuid,
-                appUuids,
-                allowedSpaceUuids,
-                granted?.[DirectAccessResourceType.APP],
-            ),
-        ]);
+        const [charts, dashboards, favSpaceBases, apps, documents] =
+            await Promise.all([
+                this.userFavoritesModel.getFavoriteCharts(
+                    projectUuid,
+                    chartUuids,
+                    allowedSpaceUuids,
+                    granted?.[DirectAccessResourceType.CHART],
+                ),
+                this.userFavoritesModel.getFavoriteDashboards(
+                    projectUuid,
+                    dashboardUuids,
+                    allowedSpaceUuids,
+                    granted?.[DirectAccessResourceType.DASHBOARD],
+                ),
+                this.userFavoritesModel.getFavoriteSpaces(
+                    projectUuid,
+                    favoriteSpaceUuids,
+                    allowedSpaceUuids,
+                ),
+                this.userFavoritesModel.getFavoriteApps(
+                    projectUuid,
+                    appUuids,
+                    allowedSpaceUuids,
+                    granted?.[DirectAccessResourceType.APP],
+                ),
+                this.userFavoritesModel.getFavoriteDocuments(
+                    projectUuid,
+                    documentUuids,
+                ),
+            ]);
 
         // Enrich favorite spaces with access data from SpacePermissionService
         const favSpaceUuids = favSpaceBases.map((s) => s.data.uuid);
@@ -357,6 +387,21 @@ export class FavoritesService extends BaseService {
             };
         });
 
-        return [...favSpaces, ...dashboards, ...charts, ...apps];
+        return [
+            ...favSpaces,
+            ...dashboards,
+            ...charts,
+            ...apps,
+            ...documents.map((item) => ({
+                ...item,
+                data: {
+                    ...item.data,
+                    directAccessRoles:
+                        sharedAccess?.rolesByType[
+                            DirectAccessResourceType.DOCUMENT
+                        ][item.data.uuid] ?? [],
+                },
+            })),
+        ];
     }
 }

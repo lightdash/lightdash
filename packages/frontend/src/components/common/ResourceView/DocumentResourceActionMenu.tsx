@@ -8,6 +8,8 @@ import { ActionIcon, Menu, Tooltip } from '@mantine/core';
 import {
     IconDots,
     IconCopy,
+    IconStar,
+    IconStarFilled,
     IconFolderSymlink,
     IconUsers,
     IconTrash,
@@ -24,6 +26,7 @@ import { useDocumentCreationSpaces } from '../../../features/documents/useDocume
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
+import useFavoritesContext from '../../../providers/Favorites/useFavoritesContext';
 import MantineIcon from '../MantineIcon';
 import type { ResourceViewActionMenuProps } from './ResourceActionMenu';
 import { ResourceViewItemAction } from './types';
@@ -44,6 +47,8 @@ const DocumentResourceActionMenu = ({
     const { projectUuid, organizationUuid, spaceUuid, directAccessRoles } =
         item.data;
     const { user } = useApp();
+    const favoritesContext = useFavoritesContext();
+    const isFavorite = favoritesContext?.isFavorited(item.data.uuid) ?? false;
     const flag = useServerFeatureFlag(FeatureFlags.Documents);
     const availability = useDirectAccessAvailability();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
@@ -76,7 +81,11 @@ const DocumentResourceActionMenu = ({
     if (
         flag.isError ||
         !flag.data?.enabled ||
-        (!canMove && !canShare && !canDelete && !canDuplicate)
+        (!canMove &&
+            !canShare &&
+            !canDelete &&
+            !canDuplicate &&
+            !favoritesContext)
     ) {
         return null;
     }
@@ -100,6 +109,28 @@ const DocumentResourceActionMenu = ({
                     </Tooltip>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    {favoritesContext && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon
+                                    icon={
+                                        isFavorite ? IconStarFilled : IconStar
+                                    }
+                                    color={isFavorite ? 'orange' : undefined}
+                                />
+                            }
+                            onClick={() =>
+                                favoritesContext.toggleFavorite(
+                                    item.type,
+                                    item.data.uuid,
+                                )
+                            }
+                        >
+                            {isFavorite
+                                ? 'Remove from favorites'
+                                : 'Add to favorites'}
+                        </Menu.Item>
+                    )}
                     {canDuplicate && (
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconCopy} />}

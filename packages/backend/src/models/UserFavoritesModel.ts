@@ -4,6 +4,7 @@ import {
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
     type ResourceViewDataAppItem,
+    type ResourceViewDocumentItem,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { AppsTableName, AppVersionsTableName } from '../database/entities/apps';
@@ -380,6 +381,91 @@ export class UserFavoritesModel {
                     row.latest_ready_version_number ?? null,
                 pinnedListUuid: row.pinned_list_uuid ?? null,
                 pinnedListOrder: row.pinned_list_order ?? null,
+                verification: null,
+            },
+        }));
+    }
+
+    async getFavoriteDocuments(
+        projectUuid: string,
+        documentUuids: string[],
+    ): Promise<ResourceViewDocumentItem[]> {
+        if (documentUuids.length === 0) {
+            return [];
+        }
+        const rows = await this.database('documents')
+            .innerJoin('spaces', 'spaces.space_id', 'documents.space_id')
+            .innerJoin(
+                'projects',
+                'projects.project_uuid',
+                'documents.project_uuid',
+            )
+            .innerJoin(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .leftJoin('document_versions as latest', (join) => {
+                join.on(
+                    'latest.document_id',
+                    '=',
+                    'documents.document_id',
+                ).andOn(
+                    'latest.version_number',
+                    '=',
+                    this.database.raw(
+                        '(select max(version_number) from document_versions where document_id = documents.document_id)',
+                    ),
+                );
+            })
+            .leftJoin(
+                'users as updater',
+                'updater.user_uuid',
+                'latest.created_by_user_uuid',
+            )
+            .where('documents.project_uuid', projectUuid)
+            .whereIn('documents.document_uuid', documentUuids)
+            .whereNull('documents.deleted_at')
+            .whereNull('spaces.deleted_at')
+            .select(
+                'documents.document_uuid',
+                'documents.project_uuid',
+                'documents.name',
+                'documents.slug',
+                'documents.description',
+                'documents.created_by_user_uuid',
+                'documents.updated_at',
+                'organizations.organization_uuid',
+                'spaces.space_uuid',
+                'updater.user_uuid as updated_by_user_uuid',
+                'updater.first_name as updated_by_first_name',
+                'updater.last_name as updated_by_last_name',
+            );
+
+        return rows.map((row) => ({
+            type: ResourceViewItemType.DOCUMENT,
+            data: {
+                uuid: row.document_uuid,
+                projectUuid: row.project_uuid,
+                organizationUuid: row.organization_uuid,
+                spaceUuid: row.space_uuid,
+                name: row.name,
+                slug: row.slug,
+                description: row.description,
+                createdByUserUuid: row.created_by_user_uuid,
+                updatedAt: row.updated_at,
+                updatedByUser: row.updated_by_user_uuid
+                    ? {
+                          userUuid: row.updated_by_user_uuid,
+                          firstName: row.updated_by_first_name ?? '',
+                          lastName: row.updated_by_last_name ?? '',
+                      }
+                    : undefined,
+                directAccessRoles: [],
+                views: 0,
+                firstViewedAt: null,
+                pinnedListUuid: null,
+                pinnedListOrder: null,
                 verification: null,
             },
         }));

@@ -25,6 +25,18 @@ const mocks = vi.hoisted(() => ({
     modal: vi.fn(),
     canDuplicate: false,
     duplicateModal: vi.fn(),
+    favoritesAvailable: false,
+    isFavorite: false,
+    toggleFavorite: vi.fn(),
+}));
+vi.mock('../../../providers/Favorites/useFavoritesContext', () => ({
+    default: () =>
+        mocks.favoritesAvailable
+            ? {
+                  isFavorited: () => mocks.isFavorite,
+                  toggleFavorite: mocks.toggleFavorite,
+              }
+            : null,
 }));
 vi.mock('../../../features/documents/useDocumentCreationSpaces', () => ({
     useDocumentCreationSpaces: () => ({
@@ -144,6 +156,9 @@ describe('Document resource actions', () => {
         mocks.modal.mockReset();
         mocks.canDuplicate = false;
         mocks.duplicateModal.mockReset();
+        mocks.favoritesAvailable = false;
+        mocks.isFavorite = false;
+        mocks.toggleFavorite.mockReset();
     });
     const renderMenu = (roles: SpaceMemberRole[] = [], allowDelete = true) => {
         const onAction = vi.fn();
@@ -197,6 +212,32 @@ describe('Document resource actions', () => {
             }),
         );
     });
+    it.each([false, true])(
+        'lets a reader toggle favorites with current state %s',
+        (isFavorite) => {
+            mocks.spaceRole = undefined;
+            mocks.favoritesAvailable = true;
+            mocks.isFavorite = isFavorite;
+            renderMenu([SpaceMemberRole.VIEWER]);
+            fireEvent.click(
+                screen.getByRole('menuitem', {
+                    name: isFavorite
+                        ? 'Remove from favorites'
+                        : 'Add to favorites',
+                }),
+            );
+            expect(mocks.toggleFavorite).toHaveBeenCalledWith(
+                'document',
+                'document',
+            );
+            for (const name of ['Move', 'Delete', 'Duplicate', 'Share']) {
+                expect(
+                    screen.queryByRole('menuitem', { name }),
+                ).not.toBeInTheDocument();
+            }
+        },
+    );
+
     it('offers delete with inherited editor access', () => {
         const onAction = renderMenu();
         fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));

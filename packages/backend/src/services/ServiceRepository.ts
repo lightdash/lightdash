@@ -1682,6 +1682,7 @@ export class ServiceRepository
                 new FavoritesService({
                     analytics: this.context.lightdashAnalytics,
                     userFavoritesModel: this.models.getUserFavoritesModel(),
+                    documentService: this.getDocumentService(),
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
                     spacePermissionService: this.getSpacePermissionService(),

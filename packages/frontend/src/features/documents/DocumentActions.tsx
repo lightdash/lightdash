@@ -1,5 +1,6 @@
 import {
     DirectAccessResourceType,
+    ContentType,
     getDocumentUrl,
     type Document,
 } from '@lightdash/common';
@@ -8,8 +9,11 @@ import { IconCode, IconCopy, IconDots, IconTrash } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
+import { FavoriteActionIcon } from '../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import DocumentDeleteModal from '../../components/common/modal/DocumentDeleteModal';
+import { useFavoriteMutation } from '../../hooks/favorites/useFavoriteMutation';
+import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import DirectAccessModal from '../directAccess/components/DirectAccessModal';
 import { useCanManageDirectAccess } from '../directAccess/hooks/useCanManageDirectAccess';
@@ -21,6 +25,12 @@ import { useDocumentCreationSpaces } from './useDocumentCreationSpaces';
 
 const DocumentActions = ({ document }: { document: Document }) => {
     const [isShareOpen, setShareOpen] = useState(false);
+    const favorites = useFavorites(document.projectUuid);
+    const favoriteMutation = useFavoriteMutation(document.projectUuid);
+    const isFavorite =
+        favorites.data?.some(
+            (item) => item.data.uuid === document.documentUuid,
+        ) ?? false;
     const [isDeleteOpen, setDeleteOpen] = useState(false);
     const [isCodeOpen, setCodeOpen] = useState(false);
     const [isDuplicateOpen, setDuplicateOpen] = useState(false);
@@ -39,6 +49,21 @@ const DocumentActions = ({ document }: { document: Document }) => {
     const url = `${window.location.origin}${getDocumentUrl(projectUrlIdentifier, document.documentUuid, document.slug)}`;
     return (
         <Group gap="sm">
+            <FavoriteActionIcon
+                name={document.name}
+                isFavorite={isFavorite}
+                disabled={
+                    favorites.isLoading ||
+                    favorites.isError ||
+                    favoriteMutation.isLoading
+                }
+                onToggle={() =>
+                    favoriteMutation.mutate({
+                        contentType: ContentType.DOCUMENT,
+                        contentUuid: document.documentUuid,
+                    })
+                }
+            />
             <CopyActionIcon value={url} copyLabel="Copy document link" />
             {isAvailable && canManage && (
                 <>

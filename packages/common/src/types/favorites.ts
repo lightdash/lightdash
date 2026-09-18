@@ -3,6 +3,7 @@ import type {
     ResourceViewChartItem,
     ResourceViewDashboardItem,
     ResourceViewDataAppItem,
+    ResourceViewDocumentItem,
     ResourceViewSpaceItem,
 } from './resourceViewItem';
 
@@ -22,6 +23,7 @@ export type FavoriteItems = Array<
     | ResourceViewDashboardItem
     | ResourceViewSpaceItem
     | ResourceViewDataAppItem
+    | ResourceViewDocumentItem
 >;
 
 export type ApiFavoriteItems = {
