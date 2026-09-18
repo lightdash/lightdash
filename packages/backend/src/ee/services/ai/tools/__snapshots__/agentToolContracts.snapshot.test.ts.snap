@@ -21738,10 +21738,264 @@ custom metrics are applied automatically.
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "chart": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "chartUuid": {
+                          "type": "string",
+                        },
+                        "customDimensions": {
+                          "description": "Ids of the custom dimensions saved on the chart",
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "customMetrics": {
+                          "description": "Field ids of the custom metrics saved on the chart",
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "dimensions": {
+                          "description": "Dimension field ids",
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "exploreName": {
+                          "type": "string",
+                        },
+                        "filters": {
+                          "additionalProperties": false,
+                          "description": "The saved Filters object: dimensions / metrics / tableCalculations filter groups",
+                          "propertyNames": {
+                            "type": "string",
+                          },
+                          "type": "object",
+                        },
+                        "limit": {
+                          "description": "Row limit saved on the chart",
+                          "type": "number",
+                        },
+                        "metrics": {
+                          "description": "Metric field ids",
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "name": {
+                          "type": "string",
+                        },
+                        "sorts": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "descending": {
+                                "type": "boolean",
+                              },
+                              "fieldId": {
+                                "type": "string",
+                              },
+                              "nullsFirst": {
+                                "type": "boolean",
+                              },
+                            },
+                            "required": [
+                              "fieldId",
+                              "descending",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "tableCalculations": {
+                          "description": "Names of the table calculations saved on the chart",
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "chartUuid",
+                        "name",
+                        "exploreName",
+                        "dimensions",
+                        "metrics",
+                        "filters",
+                        "sorts",
+                        "limit",
+                        "tableCalculations",
+                        "customMetrics",
+                        "customDimensions",
+                      ],
+                      "type": "object",
+                    },
+                    "columns": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "fieldId": {
+                            "type": "string",
+                          },
+                          "label": {
+                            "description": "Column header shown in the CSV",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "fieldId",
+                          "label",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "rowCount": {
+                      "description": "Rows the query returned in total",
+                      "type": "number",
+                    },
+                    "rows": {
+                      "description": "Row cells keyed by column fieldId",
+                      "items": {
+                        "additionalProperties": false,
+                        "propertyNames": {
+                          "type": "string",
+                        },
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "shownRowCount": {
+                      "description": "Rows included in \`rows\`; lower than rowCount when the result was truncated to keep the conversation small",
+                      "type": "number",
+                    },
+                    "status": {
+                      "const": "results",
+                      "type": "string",
+                    },
+                    "truncated": {
+                      "description": "Whether \`rows\` holds only the first shownRowCount rows",
+                      "type": "boolean",
+                    },
+                  },
+                  "required": [
+                    "status",
+                    "chart",
+                    "rowCount",
+                    "shownRowCount",
+                    "truncated",
+                    "columns",
+                    "rows",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "note": {
+                      "description": "Retry guidance; the same text as \`result\`",
+                      "type": "string",
+                    },
+                    "status": {
+                      "const": "no_results",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                    "note",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "chart": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "chartUuid": {
+                          "type": "string",
+                        },
+                        "dimensions": {
+                          "description": "Dimension field ids",
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "exploreName": {
+                          "type": "string",
+                        },
+                        "metrics": {
+                          "description": "Metric field ids",
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "name": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "chartUuid",
+                        "name",
+                        "exploreName",
+                        "dimensions",
+                        "metrics",
+                      ],
+                      "type": "object",
+                    },
+                    "note": {
+                      "description": "Why no rows are returned; the same text as \`result\`",
+                      "type": "string",
+                    },
+                    "status": {
+                      "const": "data_access_disabled",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                    "chart",
+                    "note",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
