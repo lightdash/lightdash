@@ -34,6 +34,7 @@ const createPreviewProject = async ({
         body: JSON.stringify({
             name,
             copyContent: true, // TODO add this option to the UI
+            asyncCopyContent: true,
             dbtConnectionOverrides,
             warehouseConnectionOverrides,
         }),

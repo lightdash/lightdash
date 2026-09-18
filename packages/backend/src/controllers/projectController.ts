@@ -1253,6 +1253,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         body: {
             name: string;
             copyContent: boolean;
+            asyncCopyContent?: boolean;
             dbtConnectionOverrides?: {
                 branch?: string;
                 environment?: DbtProjectEnvironmentVariable[];
@@ -1275,6 +1276,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 warehouseConnectionOverrides: body.warehouseConnectionOverrides,
             },
             RequestMethod.WEB_APP,
+            body.asyncCopyContent,
         );
 
         return {

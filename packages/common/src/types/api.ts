@@ -915,6 +915,7 @@ export type CreateProject = Omit<
     copyWarehouseConnectionFromUpstreamProject?: boolean;
     tableConfiguration?: CreateProjectTableConfiguration;
     copyContent?: boolean;
+    asyncCopyContent?: boolean;
     expiresInHours?: number;
 };
 

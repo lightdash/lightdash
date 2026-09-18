@@ -3012,7 +3012,7 @@ export class ProjectService extends BaseService {
             | {
                   mode: 'async';
                   compile: CopyPreviewContentPayload['compile'];
-              } = { mode: 'async', compile: null },
+              } = { mode: 'sync' },
     ): Promise<ApiCreateProjectResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -9246,6 +9246,12 @@ export class ProjectService extends BaseService {
 
     async getJobStatus(jobUuid: string, user: SessionUser): Promise<Job> {
         const job = await this.jobModel.get(jobUuid);
+        const isOwnPreviewCopyJob =
+            job.userUuid === user.userUuid &&
+            job.jobType === JobType.CREATE_PROJECT &&
+            job.steps.some(
+                (step) => step.stepType === JobStepType.COPYING_PREVIEW_CONTENT,
+            );
 
         const auditedAbility = this.createAuditedAbility(user);
         if (job.projectUuid) {
@@ -9265,6 +9271,7 @@ export class ProjectService extends BaseService {
                 throw new NotFoundError(`Cannot find job`);
             }
         } else if (
+            !isOwnPreviewCopyJob &&
             auditedAbility.cannot(
                 'view',
                 subject('Job', {
@@ -11650,6 +11657,7 @@ export class ProjectService extends BaseService {
             validateAfterCompile?: boolean;
         },
         context: RequestMethod,
+        asyncCopyContent: boolean = false,
     ): Promise<ApiCreatePreviewResults> {
         // create preview project permissions are checked in `createWithoutCompile`
         const project =
@@ -11682,13 +11690,16 @@ export class ProjectService extends BaseService {
             previewData,
             context,
             undefined,
-            {
-                mode: 'async',
-                compile: {
-                    jobUuid: compileJobUuid,
-                    validateAfterCompile: data.validateAfterCompile ?? false,
-                },
-            },
+            asyncCopyContent
+                ? {
+                      mode: 'async',
+                      compile: {
+                          jobUuid: compileJobUuid,
+                          validateAfterCompile:
+                              data.validateAfterCompile ?? false,
+                      },
+                  }
+                : { mode: 'sync' },
         );
         await this.throwIfPreviewCopyFailed(previewProject);
         if (previewProject.contentCopyJobUuid) {

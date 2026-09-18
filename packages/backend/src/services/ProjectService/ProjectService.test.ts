@@ -2139,20 +2139,20 @@ describe('ProjectService', () => {
         },
     );
 
-    test.each(['org', 'project', 'enqueue failure', 'access failure'])(
-        'returns before content copying or cleans up a scheduling failure (%s)',
-        async (creationPath) => {
-            const upstreamProjectUuid = 'upstream-project-uuid';
-            const previewProjectUuid = 'created-preview-project-uuid';
-            const previewUser: SessionUser = {
-                ...user,
-                organizationUuid: projectWithSensitiveFields.organizationUuid,
-                organizationName: 'Test organization',
-                organizationCreatedAt: new Date(),
-                ability: new Ability<PossibleAbilities>([
-                    { subject: 'Project', action: 'create' },
-                ]),
-            };
+    describe('preview content copy scheduling', () => {
+        const upstreamProjectUuid = 'upstream-project-uuid';
+        const previewProjectUuid = 'created-preview-project-uuid';
+        const previewUser: SessionUser = {
+            ...user,
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Test organization',
+            organizationCreatedAt: new Date(),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'create' },
+            ]),
+        };
+
+        const setup = () => {
             const validateSpy = vi
                 .spyOn(
                     service as unknown as {
@@ -2170,7 +2170,7 @@ describe('ProjectService', () => {
             const copyContentSpy = vi
                 .spyOn(service, 'copyContentOnPreview')
                 .mockResolvedValue();
-            (projectModel.get as import('vitest').Mock)
+            vi.mocked(projectModel.get)
                 .mockResolvedValueOnce({
                     ...projectWithSensitiveFields,
                     projectUuid: upstreamProjectUuid,
@@ -2182,153 +2182,207 @@ describe('ProjectService', () => {
                     projectUuid: previewProjectUuid,
                     type: ProjectType.PREVIEW,
                 });
+            return {
+                copyAccessSpy,
+                copyContentSpy,
+                restore: () => {
+                    validateSpy.mockRestore();
+                    expirationSpy.mockRestore();
+                    copyAccessSpy.mockRestore();
+                    copyContentSpy.mockRestore();
+                },
+            };
+        };
+        let mocks: ReturnType<typeof setup>;
+        beforeEach(() => {
+            mocks = setup();
+        });
+        afterEach(() => {
+            mocks.restore();
+        });
 
-            if (creationPath === 'project') {
-                vi.mocked(
-                    projectModel.getWithSensitiveFields,
-                ).mockResolvedValueOnce({
-                    ...projectWithSensitiveFields,
-                    warehouseConnection: warehouseClientMock.credentials,
-                });
-            }
-            if (creationPath === 'enqueue failure') {
-                schedulerClient.copyPreviewContent.mockRejectedValueOnce(
-                    new Error('enqueue failed'),
-                );
-            }
-            if (creationPath === 'access failure') {
-                copyAccessSpy.mockRejectedValueOnce(new Error('access failed'));
-            }
-            try {
-                const creation =
-                    creationPath === 'project'
-                        ? service.createPreview(
-                              previewUser,
-                              upstreamProjectUuid,
-                              {
-                                  name: 'Preview',
-                                  copyContent: true,
-                                  validateAfterCompile: true,
-                              },
-                              RequestMethod.WEB_APP,
-                          )
-                        : service.createWithoutCompile(
-                              previewUser,
-                              {
-                                  name: 'Preview',
-                                  type: ProjectType.PREVIEW,
-                                  dbtConnection: { type: DbtProjectType.NONE },
-                                  upstreamProjectUuid,
-                                  copyContent: true,
-                                  dbtVersion:
-                                      projectWithSensitiveFields.dbtVersion,
-                              },
-                              RequestMethod.WEB_APP,
-                          );
+        const createWithoutCompile = (
+            previewCopy?: Parameters<ProjectService['createWithoutCompile']>[4],
+        ) =>
+            service.createWithoutCompile(
+                previewUser,
+                {
+                    name: 'Preview',
+                    type: ProjectType.PREVIEW,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    upstreamProjectUuid,
+                    copyContent: true,
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                },
+                RequestMethod.WEB_APP,
+                undefined,
+                previewCopy,
+            );
+        const createPreview = (asyncCopyContent?: boolean) => {
+            vi.mocked(
+                projectModel.getWithSensitiveFields,
+            ).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                warehouseConnection: warehouseClientMock.credentials,
+            });
+            return service.createPreview(
+                previewUser,
+                upstreamProjectUuid,
+                {
+                    name: 'Preview',
+                    copyContent: true,
+                    validateAfterCompile: true,
+                },
+                RequestMethod.WEB_APP,
+                asyncCopyContent,
+            );
+        };
 
-                if (
-                    creationPath === 'enqueue failure' ||
-                    creationPath === 'access failure'
-                ) {
-                    await expect(creation).rejects.toThrow(
-                        creationPath === 'enqueue failure'
-                            ? 'enqueue failed'
-                            : 'Failed to copy preview project',
-                    );
-                    expect(projectModel.delete).toHaveBeenCalledWith(
-                        previewProjectUuid,
-                    );
-                    expect(copyContentSpy).not.toHaveBeenCalled();
-                    expect(
-                        schedulerClient.compileProject,
-                    ).not.toHaveBeenCalled();
-                    if (creationPath === 'access failure') {
-                        expect(
-                            schedulerClient.copyPreviewContent,
-                        ).not.toHaveBeenCalled();
-                    }
-                    return;
-                }
-                const result = await creation;
-                expect(copyContentSpy).not.toHaveBeenCalled();
-                expect(schedulerClient.compileProject).not.toHaveBeenCalled();
-                expect(schedulerClient.copyPreviewContent).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        projectUuid: previewProjectUuid,
-                        upstreamProjectUuid,
-                        jobUuid: result.contentCopyJobUuid,
-                        compile:
-                            creationPath === 'project'
-                                ? {
-                                      jobUuid: expect.any(String),
-                                      validateAfterCompile: true,
-                                  }
-                                : null,
+        test('queues an opted-in org preview without copying in the request', async () => {
+            const result = await createWithoutCompile({
+                mode: 'async',
+                compile: null,
+            });
+            expect(mocks.copyContentSpy).not.toHaveBeenCalled();
+            expect(schedulerClient.compileProject).not.toHaveBeenCalled();
+            expect(result).toMatchObject({
+                hasContentCopy: false,
+                contentCopyJobUuid: expect.any(String),
+            });
+            expect(schedulerClient.copyPreviewContent).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    projectUuid: previewProjectUuid,
+                    upstreamProjectUuid,
+                    jobUuid: result.contentCopyJobUuid,
+                    compile: null,
+                }),
+            );
+            expect(jobModel.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    jobUuid: result.contentCopyJobUuid,
+                    projectUuid: undefined,
+                    userUuid: previewUser.userUuid,
+                    jobStatus: JobStatusType.STARTED,
+                }),
+                true,
+            );
+            expect(
+                projectModel.createWithOptionalCredentials,
+            ).toHaveBeenCalledWith(
+                previewUser.userUuid,
+                previewUser.organizationUuid,
+                expect.objectContaining({
+                    organizationWarehouseCredentialsUuid:
+                        'organization-warehouse-credentials-uuid',
+                }),
+                null,
+                undefined,
+            );
+        });
+
+        test('reserves compilation until the opted-in preview copy finishes', async () => {
+            const result = await createPreview(true);
+            expect(mocks.copyContentSpy).not.toHaveBeenCalled();
+            expect(schedulerClient.compileProject).not.toHaveBeenCalled();
+            expect(result).toMatchObject({
+                projectUuid: previewProjectUuid,
+                compileJobUuid: expect.any(String),
+                contentCopyJobUuid: expect.any(String),
+            });
+            expect(schedulerClient.copyPreviewContent).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    jobUuid: result.contentCopyJobUuid,
+                    compile: {
+                        jobUuid: result.compileJobUuid,
+                        validateAfterCompile: true,
+                    },
+                }),
+            );
+            expect(jobModel.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    jobUuid: result.compileJobUuid,
+                    projectUuid: previewProjectUuid,
+                    jobStatus: JobStatusType.STARTED,
+                }),
+                true,
+            );
+        });
+
+        test('removes the preview when enqueueing its copy fails', async () => {
+            schedulerClient.copyPreviewContent.mockRejectedValueOnce(
+                new Error('enqueue failed'),
+            );
+            await expect(
+                createWithoutCompile({ mode: 'async', compile: null }),
+            ).rejects.toThrow('enqueue failed');
+            expect(projectModel.delete).toHaveBeenCalledWith(
+                previewProjectUuid,
+            );
+            expect(mocks.copyContentSpy).not.toHaveBeenCalled();
+            expect(schedulerClient.compileProject).not.toHaveBeenCalled();
+        });
+
+        test('removes the preview without enqueueing when copying access fails', async () => {
+            mocks.copyAccessSpy.mockRejectedValueOnce(
+                new Error('access failed'),
+            );
+            await expect(
+                createWithoutCompile({ mode: 'async', compile: null }),
+            ).rejects.toThrow('Failed to copy preview project');
+            expect(projectModel.delete).toHaveBeenCalledWith(
+                previewProjectUuid,
+            );
+            expect(mocks.copyContentSpy).not.toHaveBeenCalled();
+            expect(schedulerClient.copyPreviewContent).not.toHaveBeenCalled();
+            expect(schedulerClient.compileProject).not.toHaveBeenCalled();
+        });
+
+        test('waits for content before returning an org preview without opt-in', async () => {
+            let finishCopy!: () => void;
+            mocks.copyContentSpy.mockImplementationOnce(
+                () =>
+                    new Promise<void>((resolve) => {
+                        finishCopy = resolve;
                     }),
-                );
-                expect(result).toMatchObject(
-                    creationPath === 'project'
-                        ? {
-                              projectUuid: previewProjectUuid,
-                              compileJobUuid: expect.any(String),
-                              contentCopyJobUuid: expect.any(String),
-                          }
-                        : {
-                              hasContentCopy: false,
-                              contentCopyJobUuid: expect.any(String),
-                              accessCopyError: undefined,
-                              contentCopyError: undefined,
-                          },
-                );
-                expect(jobModel.create).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        jobUuid: result.contentCopyJobUuid,
-                        projectUuid: undefined,
-                        userUuid: previewUser.userUuid,
-                        jobStatus: JobStatusType.STARTED,
+            );
+            const finished = vi.fn();
+            const creation = createWithoutCompile().then((result) => {
+                finished();
+                return result;
+            });
+            await vi.waitFor(() =>
+                expect(mocks.copyContentSpy).toHaveBeenCalled(),
+            );
+            expect(finished).not.toHaveBeenCalled();
+            finishCopy();
+            const result = await creation;
+            expect(result.hasContentCopy).toBe(true);
+            expect(result.contentCopyJobUuid).toBeUndefined();
+            expect(schedulerClient.copyPreviewContent).not.toHaveBeenCalled();
+        });
+
+        test('waits for content before compiling a preview without opt-in', async () => {
+            let finishCopy!: () => void;
+            mocks.copyContentSpy.mockImplementationOnce(
+                () =>
+                    new Promise<void>((resolve) => {
+                        finishCopy = resolve;
                     }),
-                    true,
-                );
-                if ('compileJobUuid' in result) {
-                    expect(jobModel.create).toHaveBeenCalledWith(
-                        expect.objectContaining({
-                            jobUuid: result.compileJobUuid,
-                            projectUuid: previewProjectUuid,
-                            jobStatus: JobStatusType.STARTED,
-                        }),
-                        true,
-                    );
-                    expect(
-                        schedulerClient.copyPreviewContent,
-                    ).toHaveBeenCalledWith(
-                        expect.objectContaining({
-                            compile: {
-                                jobUuid: result.compileJobUuid,
-                                validateAfterCompile: true,
-                            },
-                        }),
-                    );
-                }
-                expect(
-                    projectModel.createWithOptionalCredentials,
-                ).toHaveBeenCalledWith(
-                    previewUser.userUuid,
-                    previewUser.organizationUuid,
-                    expect.objectContaining({
-                        organizationWarehouseCredentialsUuid:
-                            'organization-warehouse-credentials-uuid',
-                    }),
-                    null,
-                    undefined,
-                );
-            } finally {
-                validateSpy.mockRestore();
-                expirationSpy.mockRestore();
-                copyAccessSpy.mockRestore();
-                copyContentSpy.mockRestore();
-            }
-        },
-    );
+            );
+            const creation = createPreview();
+            await vi.waitFor(() =>
+                expect(mocks.copyContentSpy).toHaveBeenCalled(),
+            );
+            expect(schedulerClient.compileProject).not.toHaveBeenCalled();
+            finishCopy();
+            const result = await creation;
+            expect(result.contentCopyJobUuid).toBeUndefined();
+            expect(schedulerClient.copyPreviewContent).not.toHaveBeenCalled();
+            expect(schedulerClient.compileProject).toHaveBeenCalledWith(
+                expect.objectContaining({ projectUuid: previewProjectUuid }),
+            );
+        });
+    });
 
     describe('background preview content copy', () => {
         const payload: CopyPreviewContentPayload = {
@@ -5024,6 +5078,41 @@ describe('ProjectService', () => {
         });
     });
     describe('getJobStatus', () => {
+        test('allows only the creator to poll a failed preview copy without Job permissions', async () => {
+            const copyJob: Job = {
+                ...job,
+                jobResults: undefined,
+                jobType: JobType.CREATE_PROJECT,
+                jobStatus: JobStatusType.ERROR,
+                projectUuid: undefined,
+                userUuid: user.userUuid,
+                steps: [
+                    {
+                        ...job.steps[0],
+                        stepType: JobStepType.COPYING_PREVIEW_CONTENT,
+                    },
+                ],
+            };
+            const previewCreator: SessionUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['create', 'view'] },
+                ]),
+            };
+            vi.mocked(jobModel.get)
+                .mockResolvedValueOnce(copyJob)
+                .mockResolvedValueOnce(copyJob);
+            await expect(
+                service.getJobStatus('jobUuid', previewCreator),
+            ).resolves.toEqual(copyJob);
+            await expect(
+                service.getJobStatus('jobUuid', {
+                    ...previewCreator,
+                    userUuid: 'another-user',
+                }),
+            ).rejects.toThrow(NotFoundError);
+        });
+
         test('should get job with projectUuid if user belongs to org', async () => {
             const result = await service.getJobStatus('jobUuid', user);
             expect(result).toEqual(job);
