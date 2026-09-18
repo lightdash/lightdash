@@ -10,7 +10,7 @@ import Logger from '../../../../logging/logger';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
 import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { truncate } from '../utils/truncation';
 import {
     buildExploreIndex,
@@ -658,20 +658,13 @@ export const getGrepFields = (dependencies: Dependencies) => {
         ...toolDefinition,
         execute: async (args) => {
             try {
-                const result = await runGrepFields(
+                return await runGrepFields(
                     args,
                     context,
                     dependencies.findExplores,
                 );
-                return {
-                    result: result.result,
-                    metadata: result.metadata,
-                };
             } catch (error) {
-                return {
-                    result: toolErrorHandler(error, 'Error grepping fields'),
-                    metadata: { status: 'error' as const },
-                };
+                return toolErrorOutput(error, 'Error grepping fields');
             }
         },
     });
