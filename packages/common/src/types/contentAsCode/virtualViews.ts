@@ -13,6 +13,13 @@ export type VirtualViewAsCode = {
     sql: string;
     columns: ResultColumn[];
     parameters: ParametersValuesMap | null;
+    /**
+     * Name of the connection the SQL runs on, portable across projects.
+     * Download emits it whenever the view is bound to a connection. Upload
+     * resolves it against the target project on create; on update the stored
+     * connection stays, so naming a different one is refused.
+     */
+    connectionName?: string;
 };
 
 export type VirtualViewAsCodeSkip = {

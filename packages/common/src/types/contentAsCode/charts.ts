@@ -122,6 +122,14 @@ export type SqlChartAsCode = Pick<
     version: number;
     contentType?: ContentAsCodeType.SQL_CHART;
     spaceSlug: string;
+    /**
+     * Name of the connection the SQL runs on, portable across projects.
+     * Download emits it whenever the chart is bound to a connection. Upload
+     * resolves it against the target project: a create without a name only
+     * works on a single-connection project, and an update without a name
+     * keeps the connection already stored.
+     */
+    connectionName?: string;
     updatedAt?: Date;
     downloadedAt?: Date;
     /** Direct user/group grants. Omission leaves the existing policy unchanged on upload. */

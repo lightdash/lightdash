@@ -1785,6 +1785,7 @@ export class CoderService extends BaseService {
             config: SqlChartAsCode['config'];
             chartKind: SqlChartAsCode['chartKind'];
             lastUpdatedAt: Date;
+            connectionName: string | undefined;
         },
         spacePath: string,
     ): SqlChartAsCode {
@@ -1803,6 +1804,9 @@ export class CoderService extends BaseService {
             version: currentVersion,
             contentType: ContentAsCodeType.SQL_CHART,
             downloadedAt: new Date(),
+            ...(sqlChart.connectionName === undefined
+                ? {}
+                : { connectionName: sqlChart.connectionName }),
         };
     }
 
@@ -3027,6 +3031,8 @@ export class CoderService extends BaseService {
             pageSize: maxResults,
         });
 
+        const connectionNames =
+            await this.projectModel.getConnectionNamesByUuid(projectUuid);
         const transformedSqlCharts = paginatedSqlChartRows.map((row) =>
             CoderService.transformSqlChart(
                 {
@@ -3038,6 +3044,9 @@ export class CoderService extends BaseService {
                     config: row.config as SqlChartAsCode['config'],
                     chartKind: row.chart_kind,
                     lastUpdatedAt: row.last_version_updated_at,
+                    connectionName: row.connection_uuid
+                        ? connectionNames.get(row.connection_uuid)
+                        : undefined,
                 },
                 row.path,
             ),
@@ -3641,6 +3650,8 @@ export class CoderService extends BaseService {
                 slugs: [slug],
             });
             if (row === undefined) return;
+            const connectionNames =
+                await this.projectModel.getConnectionNamesByUuid(projectUuid);
             await this.recordAppliedSnapshot(
                 projectUuid,
                 ContentAsCodeType.SQL_CHART,
@@ -3654,6 +3665,9 @@ export class CoderService extends BaseService {
                         config: row.config as SqlChartAsCode['config'],
                         chartKind: row.chart_kind,
                         lastUpdatedAt: row.last_version_updated_at,
+                        connectionName: row.connection_uuid
+                            ? connectionNames.get(row.connection_uuid)
+                            : undefined,
                     },
                     row.path,
                 ),
@@ -4354,6 +4368,14 @@ export class CoderService extends BaseService {
                 `Creating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
             );
 
+            // A new chart has no stored connection to fall back on, so the
+            // name in the definition has to resolve here.
+            const { connectionUuid } =
+                await this.projectModel.resolveConnectionByName(
+                    projectUuid,
+                    sqlChartAsCode.connectionName,
+                );
+
             const { savedSqlUuid } = await this.savedSqlModel.create(
                 user.userUuid,
                 projectUuid,
@@ -4365,6 +4387,7 @@ export class CoderService extends BaseService {
                     config: sqlChartAsCode.config,
                     spaceUuid: space.uuid,
                     slug: sqlChartAsCode.slug, // Force the slug from the YAML file
+                    connectionUuid,
                 },
             );
 
@@ -4415,6 +4438,18 @@ export class CoderService extends BaseService {
             `Updating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
         );
 
+        // Omitting the name keeps the connection the chart already runs on;
+        // naming one moves the chart to it.
+        const updatedConnectionUuid =
+            sqlChartAsCode.connectionName === undefined
+                ? undefined
+                : (
+                      await this.projectModel.resolveConnectionByName(
+                          projectUuid,
+                          sqlChartAsCode.connectionName,
+                      )
+                  ).connectionUuid;
+
         await this.savedSqlModel.update({
             userUuid: user.userUuid,
             savedSqlUuid: existingSqlChart.saved_sql_uuid,
@@ -4428,6 +4463,7 @@ export class CoderService extends BaseService {
                     sql: sqlChartAsCode.sql,
                     limit: sqlChartAsCode.limit,
                     config: sqlChartAsCode.config,
+                    connectionUuid: updatedConnectionUuid,
                 },
             },
         });

@@ -520,6 +520,53 @@ export class ProjectModel {
             : this.connectionModel.resolveSole(projectUuid);
     }
 
+    /**
+     * Resolves a portable connection name from a content-as-code definition.
+     * Without a name the project must have exactly one connection, so an
+     * import never silently lands on the wrong warehouse.
+     */
+    async resolveConnectionByName(
+        projectUuid: string,
+        connectionName?: string,
+    ): Promise<Connection> {
+        const connections =
+            await this.connectionModel.listByProject(projectUuid);
+        if (connections.length === 0) {
+            throw new NotFoundError(
+                'Cannot find any warehouse credentials for project.',
+            );
+        }
+        const available = connections.map(({ name }) => `"${name}"`).join(', ');
+        if (connectionName === undefined) {
+            if (connections.length > 1) {
+                throw new ParameterError(
+                    `This project has several connections. Name one in the definition: ${available}.`,
+                );
+            }
+            return connections[0];
+        }
+        const match = connections.find(({ name }) => name === connectionName);
+        if (match === undefined) {
+            throw new ParameterError(
+                `Connection "${connectionName}" does not exist in this project. Available connections: ${available}.`,
+            );
+        }
+        return match;
+    }
+
+    async getConnectionNamesByUuid(
+        projectUuid: string,
+    ): Promise<Map<string, string>> {
+        const connections =
+            await this.connectionModel.listByProject(projectUuid);
+        return new Map(
+            connections.map(({ connectionUuid, name }) => [
+                connectionUuid,
+                name,
+            ]),
+        );
+    }
+
     async upsertMergedManifest(
         projectUuid: string,
         manifest: Buffer,
@@ -2630,6 +2677,26 @@ export class ProjectModel {
             throw new NotFoundError(`Explore "${exploreName}" not found`);
         }
         return row.connection_uuid ?? null;
+    }
+
+    async getExploreConnectionUuids(
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<Map<string, string | null>> {
+        if (exploreNames.length === 0) return new Map();
+        const rows = await this.database(CachedExploreTableName)
+            .select<{ name: string; connection_uuid: string | null }[]>([
+                'name',
+                'connection_uuid',
+            ])
+            .where('project_uuid', projectUuid)
+            .whereIn('name', exploreNames);
+        return new Map(
+            rows.map(({ name, connection_uuid: connectionUuid }) => [
+                name,
+                connectionUuid ?? null,
+            ]),
+        );
     }
 
     async findVirtualViewsFromCache(

@@ -39,7 +39,10 @@ export class VirtualViewCoder extends BaseService {
         this.projectService = projectService;
     }
 
-    private static transform(virtualView: Explore): VirtualViewAsCode | null {
+    private static transform(
+        virtualView: Explore,
+        connectionName?: string,
+    ): VirtualViewAsCode | null {
         const table = virtualView.tables[virtualView.baseTable];
         // Generated time interval dimensions aren't real SQL columns
         const dimensions = table
@@ -77,6 +80,7 @@ export class VirtualViewCoder extends BaseService {
                     left.reference.localeCompare(right.reference),
                 ),
             parameters: virtualView.savedParameterValues ?? null,
+            ...(connectionName === undefined ? {} : { connectionName }),
         };
     }
 
@@ -104,32 +108,45 @@ export class VirtualViewCoder extends BaseService {
         const requested = slugs ? new Set(slugs) : null;
         const cached =
             await this.projectModel.findVirtualViewsFromCache(projectUuid);
+        const candidates = Object.values(cached)
+            .sort((left, right) => left.name.localeCompare(right.name))
+            .filter((explore) => !requested || requested.has(explore.name));
+        const [connectionUuids, connectionNames] = await Promise.all([
+            this.projectModel.getExploreConnectionUuids(
+                projectUuid,
+                candidates.map(({ name }) => name),
+            ),
+            this.projectModel.getConnectionNamesByUuid(projectUuid),
+        ]);
         const virtualViews: VirtualViewAsCode[] = [];
         const skipped: ApiVirtualViewAsCodeListResponse['results']['skipped'] =
             [];
-        Object.values(cached)
-            .sort((left, right) => left.name.localeCompare(right.name))
-            .forEach((explore) => {
-                if (requested && !requested.has(explore.name)) return;
-                if (
-                    isExploreError(explore) ||
-                    explore.type !== ExploreType.VIRTUAL
-                ) {
-                    skipped.push({
-                        slug: explore.name,
-                        reason: 'Cached virtual view is malformed',
-                    });
-                    return;
-                }
-                const transformed = VirtualViewCoder.transform(explore);
-                if (transformed) virtualViews.push(transformed);
-                else {
-                    skipped.push({
-                        slug: explore.name,
-                        reason: 'Virtual view SQL is not stored as a subquery',
-                    });
-                }
-            });
+        candidates.forEach((explore) => {
+            if (
+                isExploreError(explore) ||
+                explore.type !== ExploreType.VIRTUAL
+            ) {
+                skipped.push({
+                    slug: explore.name,
+                    reason: 'Cached virtual view is malformed',
+                });
+                return;
+            }
+            const connectionUuid = connectionUuids.get(explore.name);
+            const transformed = VirtualViewCoder.transform(
+                explore,
+                connectionUuid
+                    ? connectionNames.get(connectionUuid)
+                    : undefined,
+            );
+            if (transformed) virtualViews.push(transformed);
+            else {
+                skipped.push({
+                    slug: explore.name,
+                    reason: 'Virtual view SQL is not stored as a subquery',
+                });
+            }
+        });
 
         const found = new Set([
             ...virtualViews.map(({ slug }) => slug),
@@ -254,13 +271,36 @@ export class VirtualViewCoder extends BaseService {
                 `An explore named "${slug}" already exists and cannot be adopted`,
             );
         }
+        const { connectionName, ...definition } = virtualView;
+        // The connection travels beside the definition: it identifies the
+        // warehouse, not the shape of the view.
         const normalized = {
-            ...virtualView,
+            ...definition,
             columns: [...virtualView.columns].sort((left, right) =>
                 left.reference.localeCompare(right.reference),
             ),
         };
         if (existing && existing.type === ExploreType.VIRTUAL) {
+            const storedConnectionUuid =
+                await this.projectModel.getExploreConnectionUuid(
+                    projectUuid,
+                    slug,
+                );
+            if (connectionName !== undefined) {
+                const { connectionUuid } =
+                    await this.projectModel.resolveConnectionByName(
+                        projectUuid,
+                        connectionName,
+                    );
+                if (
+                    storedConnectionUuid !== null &&
+                    storedConnectionUuid !== connectionUuid
+                ) {
+                    throw new ParameterError(
+                        `Virtual view "${slug}" already runs on another connection. Delete it before you move it to "${connectionName}".`,
+                    );
+                }
+            }
             const current = VirtualViewCoder.transform(existing);
             if (!current && !force) {
                 throw new ParameterError(
@@ -303,10 +343,18 @@ export class VirtualViewCoder extends BaseService {
             return { action: PromotionAction.UPDATE };
         }
 
+        // A new view has no stored connection to fall back on, so the name in
+        // the definition has to resolve here.
+        const { connectionUuid } =
+            await this.projectModel.resolveConnectionByName(
+                projectUuid,
+                connectionName,
+            );
         await this.projectService.createVirtualView(
             account,
             projectUuid,
             {
+                connectionUuid,
                 name: slug,
                 label: normalized.name,
                 sql: normalized.sql,

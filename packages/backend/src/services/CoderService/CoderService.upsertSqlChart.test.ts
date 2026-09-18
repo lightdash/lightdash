@@ -29,6 +29,8 @@ import { CoderService } from './CoderService';
 
 const PROJECT_UUID = 'project-uuid';
 const ORG_UUID = 'org-uuid';
+const CONNECTION_UUID = 'connection-uuid';
+const CONNECTION_NAME = 'finance';
 const SPACE_UUID = 'space-uuid';
 const OTHER_SPACE_UUID = 'other-space-uuid';
 const PARENT_SPACE_UUID = 'parent-space-uuid';
@@ -87,6 +89,10 @@ const buildService = (
             get: vi.fn(async () => ({
                 projectUuid: PROJECT_UUID,
                 organizationUuid: ORG_UUID,
+            })),
+            resolveConnectionByName: vi.fn(async () => ({
+                connectionUuid: CONNECTION_UUID,
+                name: CONNECTION_NAME,
             })),
         } as unknown as ProjectModel,
         savedChartModel: {} as unknown as SavedChartModel,
@@ -352,6 +358,133 @@ describe('CoderService.upsertSqlChart - permissions', () => {
                     { type: 'space', spaceUuid: OTHER_SPACE_UUID },
                 ]);
             },
+        );
+    });
+});
+
+describe('CoderService.upsertSqlChart - connection', () => {
+    afterEach(() => vi.clearAllMocks());
+
+    const editor = () =>
+        makeUser([
+            { subject: 'ContentAsCode', action: 'create' },
+            { subject: 'CustomSql', action: 'manage' },
+            {
+                subject: 'SavedChart',
+                action: 'create',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+            {
+                subject: 'SavedChart',
+                action: 'update',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+        ]);
+
+    it('creates the chart on the connection the definition names', async () => {
+        const savedSqlModel = {
+            find: vi.fn(async () => []),
+            create: vi.fn(async () => ({ savedSqlUuid: 'new-uuid' })),
+        };
+        const service = buildService(savedSqlModel);
+        stubSpace(service);
+
+        await service.upsertSqlChart(
+            editor(),
+            PROJECT_UUID,
+            sqlChartAsCode.slug,
+            { ...sqlChartAsCode, connectionName: CONNECTION_NAME },
+        );
+
+        expect(
+            service.projectModel.resolveConnectionByName,
+        ).toHaveBeenCalledWith(PROJECT_UUID, CONNECTION_NAME);
+        expect(savedSqlModel.create).toHaveBeenCalledWith(
+            'user-uuid',
+            PROJECT_UUID,
+            expect.objectContaining({ connectionUuid: CONNECTION_UUID }),
+        );
+    });
+
+    it('resolves a create without a name against the project', async () => {
+        const savedSqlModel = {
+            find: vi.fn(async () => []),
+            create: vi.fn(async () => ({ savedSqlUuid: 'new-uuid' })),
+        };
+        const service = buildService(savedSqlModel);
+        stubSpace(service);
+
+        await service.upsertSqlChart(
+            editor(),
+            PROJECT_UUID,
+            sqlChartAsCode.slug,
+            sqlChartAsCode,
+        );
+
+        expect(
+            service.projectModel.resolveConnectionByName,
+        ).toHaveBeenCalledWith(PROJECT_UUID, undefined);
+        expect(savedSqlModel.create).toHaveBeenCalledWith(
+            'user-uuid',
+            PROJECT_UUID,
+            expect.objectContaining({ connectionUuid: CONNECTION_UUID }),
+        );
+    });
+
+    it('keeps the stored connection when an update names none', async () => {
+        const savedSqlModel = {
+            find: vi.fn(async () => [existingRow()]),
+            update: vi.fn(async () => ({ savedSqlUuid: 'existing-uuid' })),
+            create: vi.fn(),
+        };
+        const service = buildService(savedSqlModel);
+        stubSpace(service);
+
+        await service.upsertSqlChart(
+            editor(),
+            PROJECT_UUID,
+            sqlChartAsCode.slug,
+            sqlChartAsCode,
+        );
+
+        expect(
+            service.projectModel.resolveConnectionByName,
+        ).not.toHaveBeenCalled();
+        expect(savedSqlModel.update).toHaveBeenCalledWith(
+            expect.objectContaining({
+                sqlChart: expect.objectContaining({
+                    versionedData: expect.objectContaining({
+                        connectionUuid: undefined,
+                    }),
+                }),
+            }),
+        );
+    });
+
+    it('moves the chart when an update names another connection', async () => {
+        const savedSqlModel = {
+            find: vi.fn(async () => [existingRow()]),
+            update: vi.fn(async () => ({ savedSqlUuid: 'existing-uuid' })),
+            create: vi.fn(),
+        };
+        const service = buildService(savedSqlModel);
+        stubSpace(service);
+
+        await service.upsertSqlChart(
+            editor(),
+            PROJECT_UUID,
+            sqlChartAsCode.slug,
+            { ...sqlChartAsCode, connectionName: CONNECTION_NAME },
+        );
+
+        expect(savedSqlModel.update).toHaveBeenCalledWith(
+            expect.objectContaining({
+                sqlChart: expect.objectContaining({
+                    versionedData: expect.objectContaining({
+                        connectionUuid: CONNECTION_UUID,
+                    }),
+                }),
+            }),
         );
     });
 });
