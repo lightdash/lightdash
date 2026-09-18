@@ -185,6 +185,8 @@ describe('ProjectDbtSourcesModel', () => {
         expect(insert.sql).toMatch(/on conflict .* do nothing/i);
         // No warehouse location on the primary; it follows the connection.
         expect(insert.bindings).toEqual(expect.arrayContaining([null]));
+    });
+
     it('binds copied sources to the preview connection identities', async () => {
         tracker.on.select(ProjectDbtSourcesTableName).responseOnce(sources);
         tracker.on.insert(ProjectDbtSourcesTableName).responseOnce([]);
