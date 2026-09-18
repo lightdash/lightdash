@@ -190,6 +190,7 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     getKnowledgeDocumentContent: 'Reading project knowledge',
     readPinnedThread: 'Reading pinned conversation',
     searchTools: 'Finding tools',
+    runCode: 'Running code',
     repoShell: 'Reading repository',
     listProjects: 'Checking projects',
     getProjectInfo: 'Reading project',

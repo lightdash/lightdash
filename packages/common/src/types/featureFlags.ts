@@ -345,6 +345,14 @@ export enum FeatureFlags {
      * the `searchTools` tool. Off by default; enable per-org.
      */
     AiAgentToolSearch = 'ai-agent-tool-search',
+
+    /**
+     * AI agent code mode (AI SDK `@ai-sdk/code-mode`): adds a `runCode` tool
+     * that runs model-written JavaScript in a sandbox where the read-only
+     * data tools are callable as functions, so several results can be
+     * combined in one step. Off by default; enable per-org.
+     */
+    AiAgentCodeMode = 'ai-agent-code-mode',
 }
 
 export type FeatureFlag = {

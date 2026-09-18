@@ -58,6 +58,7 @@ export const ToolNameSchema = z.enum([
     'delegateResearchTask',
     'submitWorkerFindings',
     'searchTools',
+    'runCode',
 ]);
 
 export type ToolName = z.infer<typeof ToolNameSchema>;
