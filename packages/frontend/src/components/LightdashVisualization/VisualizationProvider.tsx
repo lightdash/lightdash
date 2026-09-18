@@ -9,6 +9,7 @@ import {
     type DateZoom,
     type EChartsSeries,
     type ItemsMap,
+    type MergeFieldOrigins,
     type MetricQuery,
     type ParametersValuesMap,
     type PivotValue,
@@ -69,6 +70,8 @@ export type VisualizationProviderProps = {
         metricQuery?: MetricQuery;
         fields?: ItemsMap;
         resolvedTimezone?: string;
+        /** Where each field came from when the results are a merge. */
+        fieldOrigins?: MergeFieldOrigins;
     };
     parameters?: ParametersValuesMap;
     isLoading: boolean;
@@ -162,6 +165,7 @@ const VisualizationProvider: FC<
             metricQuery?: MetricQuery;
             fields?: ItemsMap;
             resolvedTimezone?: string;
+            fieldOrigins?: MergeFieldOrigins;
         }
     >();
 
