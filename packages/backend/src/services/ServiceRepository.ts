@@ -411,6 +411,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     directAccessService: this.getDirectAccessService(),
                     documentModel: this.models.getDocumentModel(),
+                    spaceModel: this.models.getSpaceModel(),
                     projectService: this.getProjectService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectModel: this.models.getProjectModel(),

@@ -6,6 +6,7 @@ import {
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
+    parseDocumentContent,
     SpaceMemberRole,
     type Document,
     type MemberAbility,
@@ -123,16 +124,21 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
     const directAccessService = {
         findSharedWithMeUuids: vi.fn().mockResolvedValue({ document: [] }),
     };
+    const spaceModel = {
+        find: vi.fn().mockResolvedValue([{ path: 'reports.weekly_review' }]),
+    };
     const service = new DocumentService({
         lightdashConfig: { softDelete: { enabled: softDelete } },
         directAccessService,
         documentModel,
+        spaceModel,
         projectModel,
         featureFlagModel,
         spacePermissionService,
     } as unknown as ConstructorParameters<typeof DocumentService>[0]);
     return {
         service,
+        spaceModel,
         directAccessService,
         documentModel,
         projectModel,
@@ -142,6 +148,60 @@ const setup = ({ softDelete = true }: { softDelete?: boolean } = {}) => {
 };
 
 describe('DocumentService', () => {
+    describe('getAsCode', () => {
+        test('exports only portable authoring fields for a reader', async () => {
+            const { service, spaceModel } = setup();
+            const result = await service.getAsCode(
+                makeAccount(),
+                projectUuid,
+                document.slug,
+            );
+            expect(result).toEqual({
+                name: document.name,
+                slug: document.slug,
+                description: document.description,
+                spaceSlug: 'reports/weekly-review',
+                schemaVersion: 1,
+                content: document.version.content,
+            });
+            expect(
+                parseDocumentContent(result.schemaVersion, result.content),
+            ).toEqual(document.version.content);
+            expect(spaceModel.find).toHaveBeenCalledWith({
+                projectUuid,
+                spaceUuids: [document.spaceUuid],
+            });
+        });
+
+        test('does not read space metadata when Documents are disabled', async () => {
+            const { service, featureFlagModel, spaceModel } = setup();
+            featureFlagModel.get.mockResolvedValue({ enabled: false });
+            await expect(
+                service.getAsCode(makeAccount(), projectUuid, document.slug),
+            ).rejects.toThrow(ForbiddenError);
+            expect(spaceModel.find).not.toHaveBeenCalled();
+        });
+
+        test('does not export a private Document without access', async () => {
+            const { service, spacePermissionService, spaceModel } = setup();
+            spacePermissionService.resolveAccess.mockResolvedValue(
+                makeContext([], false),
+            );
+            await expect(
+                service.getAsCode(makeAccount(), projectUuid, document.slug),
+            ).rejects.toThrow(NotFoundError);
+            expect(spaceModel.find).not.toHaveBeenCalled();
+        });
+
+        test('does not export when the source Space is unavailable', async () => {
+            const { service, spaceModel } = setup();
+            spaceModel.find.mockResolvedValue([]);
+            await expect(
+                service.getAsCode(makeAccount(), projectUuid, document.slug),
+            ).rejects.toThrow(NotFoundError);
+        });
+    });
+
     test('UUID read identifiers retain UUID lookup and canonical authorization', async () => {
         const { service, documentModel, spacePermissionService } = setup();
         const identifier = '36d4516a-3af0-48f6-9b47-d50956301501';

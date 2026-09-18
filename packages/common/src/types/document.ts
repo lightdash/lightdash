@@ -77,6 +77,7 @@ export type DocumentAsCode = Pick<
 };
 
 export type ApiDocumentResponse = ApiSuccess<Document>;
+export type ApiDocumentAsCodeResponse = ApiSuccess<DocumentAsCode>;
 export type DocumentList = {
     items: DocumentSummary[];
     nextOffset: number | null;

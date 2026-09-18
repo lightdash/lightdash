@@ -1,6 +1,7 @@
 import {
     assertRegisteredAccount,
     ParameterError,
+    type ApiDocumentAsCodeResponse,
     type ApiDocumentCellQueryResponse,
     type ApiDocumentListResponse,
     type ApiDocumentResponse,
@@ -151,6 +152,23 @@ export class DocumentController extends BaseController {
             results: await this.services
                 .getDocumentService()
                 .list(req.account, projectUuid, { limit, offset }),
+        };
+    }
+
+    @Get('{documentUuidOrSlug}/as-code')
+    @OperationId('GetDocumentAsCode')
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    async getAsCode(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() documentUuidOrSlug: UuidOrSlug,
+    ): Promise<ApiDocumentAsCodeResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDocumentService()
+                .getAsCode(req.account, projectUuid, documentUuidOrSlug),
         };
     }
 

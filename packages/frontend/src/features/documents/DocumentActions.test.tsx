@@ -11,6 +11,13 @@ const mocks = vi.hoisted(() => ({
     canDelete: false,
     navigate: vi.fn(),
     copy: vi.fn(),
+    codeModal: vi.fn(),
+}));
+vi.mock('./DocumentAsCodeModal', () => ({
+    default: (props: unknown) => {
+        mocks.codeModal(props);
+        return <div>Document code</div>;
+    },
 }));
 vi.mock('../../hooks/useProjectRoute', () => ({
     useProjectUrlIdentifier: () => 'project-slug',
@@ -78,6 +85,7 @@ describe('Document actions', () => {
         mocks.deleteModal.mockReset();
         mocks.navigate.mockReset();
         mocks.copy.mockReset();
+        mocks.codeModal.mockReset();
     });
     const renderActions = () =>
         render(
@@ -140,12 +148,25 @@ describe('Document actions', () => {
         );
     });
 
-    it('does not offer deletion without permission', () => {
+    it('lets a read-only reader view code without exposing deletion', async () => {
+        mocks.canManage = false;
         renderActions();
+        expect(mocks.codeModal).not.toHaveBeenCalled();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        const viewCode = await screen.findByRole('menuitem', {
+            name: 'View as code',
+        });
         expect(
-            screen.queryByRole('button', { name: 'Document actions' }),
+            screen.queryByRole('menuitem', { name: 'Delete' }),
         ).not.toBeInTheDocument();
+        fireEvent.click(viewCode);
+        expect(await screen.findByText('Document code')).toBeInTheDocument();
         expect(mocks.deleteModal).not.toHaveBeenCalled();
+        expect(mocks.codeModal).toHaveBeenCalledWith(
+            expect.objectContaining({ document, opened: true }),
+        );
     });
 
     it.each([
