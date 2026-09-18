@@ -1,9 +1,14 @@
 import {
+    DimensionType,
+    FilterOperator,
+    FilterType,
     MergeJoinType,
     MetricType,
     TimeFrames,
+    toolRunQueryOutputSchema,
     type AiWebAppPrompt,
     type SlackPrompt,
+    type ToolRunQueryArgs,
     type ToolRunQueryCustomChartTypeConfig,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -231,6 +236,26 @@ describe('getRunQuery', () => {
         expect(output.metadata).toMatchObject({
             status: 'success',
             queryUuid: '22222222-2222-4222-8222-222222222222',
+        });
+        expect(toolRunQueryOutputSchema.safeParse(output).success).toBe(true);
+        expect(output.structuredContent).toMatchObject({
+            outcome: 'results',
+            query: { exploreName: validExplore.name },
+            mergeConfig: {
+                primarySourceId: 'primary',
+                additionalSources: [
+                    { id: 'comparison', exploreName: validExplore.name },
+                ],
+                joinType: 'full',
+            },
+            // The merge text never cites the execution.
+            queryUuid: null,
+            rowCount: 1,
+            parameters: null,
+            data: {
+                columns: ['merge_key', 'primary_a_met1'],
+                rows: [{ merge_key: 'one', primary_a_met1: 1 }],
+            },
         });
     });
 
@@ -623,6 +648,8 @@ describe('getRunQuery', () => {
         });
         expect(output.result).toContain('Problem:');
         expect(output.result).toContain('How to fix:');
+        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(toolRunQueryOutputSchema.safeParse(output).success).toBe(true);
         expect(runAsyncQuery).not.toHaveBeenCalled();
         expect(createOrUpdateArtifact).not.toHaveBeenCalled();
         expect(Sentry.captureException).not.toHaveBeenCalled();
@@ -756,6 +783,9 @@ describe('getRunQuery', () => {
         );
 
         expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.result).toContain('warehouse unavailable');
+        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(toolRunQueryOutputSchema.safeParse(output).success).toBe(true);
     });
 });
 
@@ -970,6 +1000,7 @@ describe('getRunQuery custom chart types', () => {
             'Custom chart type "cohort-waterfall" was not found in this project',
         );
         expect(output.result).toContain('findCustomChartTypes');
+        expect(output.structuredContent).toEqual({ error: output.result });
         expect(runAsyncQuery).not.toHaveBeenCalled();
         expect(createOrUpdateArtifact).not.toHaveBeenCalled();
     });
@@ -1432,6 +1463,14 @@ describe('getRunQuery parameters', () => {
         expect(output.result).toContain(
             'set explicitly: {"a.metric":"active_users"}',
         );
+        expect(output.structuredContent).toMatchObject({
+            outcome: 'results',
+            parameters: {
+                applied: { 'a.metric': 'active_users' },
+                defaulted: {},
+                unset: [],
+            },
+        });
     });
 
     it('reports default-resolved values when the agent sets nothing', async () => {
@@ -1449,6 +1488,13 @@ describe('getRunQuery parameters', () => {
         expect(output.result).toContain(
             'resolved to defaults: {"a.metric":"revenue"}',
         );
+        expect(output.structuredContent).toMatchObject({
+            parameters: {
+                applied: {},
+                defaulted: { 'a.metric': 'revenue' },
+                unset: [],
+            },
+        });
     });
 
     it('rejects unknown parameter names without running the query', async () => {
@@ -1465,6 +1511,8 @@ describe('getRunQuery parameters', () => {
         expect(output.metadata.status).toBe('error');
         expect(output.result).toContain('unknown parameter "nonsense"');
         expect(output.result).toContain('a.metric');
+        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(toolRunQueryOutputSchema.safeParse(output).success).toBe(true);
     });
 
     it('rejects values outside the declared options', async () => {
@@ -1537,6 +1585,9 @@ describe('getRunQuery parameters', () => {
         }
 
         expect(output.result).toContain('unset with no default: a.metric');
+        expect(output.structuredContent).toMatchObject({
+            parameters: { applied: {}, defaulted: {}, unset: ['a.metric'] },
+        });
     });
 
     it('rejects a list for a single-value parameter', async () => {
@@ -1633,6 +1684,19 @@ describe('getRunQuery Slack links only', () => {
         expect(sendFile).not.toHaveBeenCalled();
         expect(createOrUpdateArtifact).toHaveBeenCalledTimes(1);
         expect(output.result).toBe('Success');
+        expect(output.structuredContent).toEqual({
+            outcome: 'chartOnly',
+            query: {
+                exploreName: validExplore.name,
+                dimensions: metricQueryMock.dimensions,
+                metrics: metricQueryMock.metrics,
+                sorts: [],
+                filters: null,
+                limit: null,
+            },
+            mergeConfig: null,
+        });
+        expect(toolRunQueryOutputSchema.safeParse(output).success).toBe(true);
     });
 
     it('keeps posting the chart image when the setting is off', async () => {
@@ -1647,6 +1711,196 @@ describe('getRunQuery Slack links only', () => {
         expect(output.metadata).toMatchObject({
             chartImageUrl:
                 'https://lightdash.example/api/v1/slack/card-image/abc',
+        });
+    });
+});
+
+describe('getRunQuery structured content', () => {
+    const rows = [
+        { a_dim1: 'one', a_met1: 1 },
+        { a_dim1: 'two', a_met1: 2 },
+        { a_dim1: 'three', a_met1: 3 },
+    ];
+
+    const execute = async ({
+        queryRows = rows,
+        maxContextRows = Number.POSITIVE_INFINITY,
+        maxLimit = 500,
+        exposeQueryUuid = false,
+        enableDataAccess = true,
+        prompt = makePrompt(),
+        input = toolInput,
+    }: {
+        queryRows?: Record<string, unknown>[];
+        maxContextRows?: number;
+        maxLimit?: number;
+        exposeQueryUuid?: boolean;
+        enableDataAccess?: boolean;
+        prompt?: AiWebAppPrompt | SlackPrompt;
+        input?: ToolRunQueryArgs;
+    } = {}) => {
+        const queryTool = getRunQuery({
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery: vi.fn().mockResolvedValue({
+                queryUuid: '11111111-1111-4111-8111-111111111111',
+                rows: queryRows,
+                cacheMetadata: { cacheHit: false },
+                fields: {},
+            }) as RunAsyncQueryFn,
+            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
+            enableMergeQueries: false,
+            enableFilterExpressions: false,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(prompt),
+            sendFile: vi.fn().mockResolvedValue(undefined),
+            createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
+            maxLimit,
+            maxContextRows,
+            exposeQueryUuid,
+            enableDataAccess,
+            slackLinksOnly: false,
+            resolveCustomChartType: vi.fn().mockResolvedValue(null),
+            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
+        });
+        const output = await queryTool.execute!(input, {
+            messages: [],
+            toolCallId: 'tool-call-1',
+            experimental_context: new AgentContext([validExplore]),
+        });
+        if (Symbol.asyncIterator in output) {
+            throw new Error('Expected a non-streaming tool result');
+        }
+        return output;
+    };
+
+    it('mirrors the rows, row count and limit the text reports', async () => {
+        const output = await execute();
+
+        expect(toolRunQueryOutputSchema.safeParse(output).success).toBe(true);
+        expect(output.result).toContain('Returned all 3 rows');
+        expect(output.result).toContain('The row limit of 500 was not reached');
+        expect(output.structuredContent).toEqual({
+            outcome: 'results',
+            query: {
+                exploreName: validExplore.name,
+                dimensions: metricQueryMock.dimensions,
+                metrics: metricQueryMock.metrics,
+                sorts: [],
+                filters: null,
+                limit: null,
+            },
+            mergeConfig: null,
+            queryUuid: null,
+            rowCount: 3,
+            limit: { requested: null, effective: 500, max: 500 },
+            parameters: null,
+            data: { columns: ['a_dim1', 'a_met1'], rows },
+        });
+    });
+
+    it('carries only the rows the text shows when the context is truncated', async () => {
+        const output = await execute({ maxContextRows: 2 });
+
+        expect(output.result).toContain(
+            'Only the first 2 of those 3 rows are shown here',
+        );
+        expect(output.result).toContain('two');
+        expect(output.result).not.toContain('three');
+        expect(output.structuredContent).toMatchObject({
+            rowCount: 3,
+            data: { rows: rows.slice(0, 2) },
+        });
+    });
+
+    it('reports a reached limit consistently with the text', async () => {
+        const output = await execute({ maxLimit: 3 });
+
+        expect(output.result).toContain(
+            'Returned 3 rows, reaching the row limit of 3',
+        );
+        expect(output.structuredContent).toMatchObject({
+            rowCount: 3,
+            limit: { requested: null, effective: 3, max: 3 },
+        });
+    });
+
+    it('cites the query uuid only when the text does', async () => {
+        const hidden = await execute();
+        const cited = await execute({ exposeQueryUuid: true });
+
+        expect(hidden.structuredContent).toMatchObject({ queryUuid: null });
+        expect(cited.result).toContain(
+            "This execution's queryUuid is 11111111-1111-4111-8111-111111111111",
+        );
+        expect(cited.structuredContent).toMatchObject({
+            queryUuid: '11111111-1111-4111-8111-111111111111',
+        });
+    });
+
+    it('omits the data when the rows are hidden from the model', async () => {
+        const output = await execute({
+            enableDataAccess: false,
+            prompt: makeSlackPrompt(),
+        });
+
+        expect(output.result).toContain('Success. Returned all 3 rows');
+        expect(output.result).not.toContain('one');
+        expect(output.structuredContent).toMatchObject({
+            outcome: 'results',
+            rowCount: 3,
+            data: null,
+        });
+        expect(toolRunQueryOutputSchema.safeParse(output).success).toBe(true);
+    });
+
+    it('reports an empty result as noResults', async () => {
+        const output = await execute({ queryRows: [] });
+
+        expect(output.result).toContain('No results were returned');
+        expect(output.structuredContent).toMatchObject({
+            outcome: 'noResults',
+            query: { exploreName: validExplore.name },
+            rowCount: 0,
+            parameters: null,
+        });
+        expect(toolRunQueryOutputSchema.safeParse(output).success).toBe(true);
+    });
+
+    it('echoes the authored filters and sorts of the query', async () => {
+        const filters: NonNullable<ToolRunQueryArgs['queryConfig']['filters']> =
+            {
+                type: 'and',
+
+                dimensions: [
+                    {
+                        fieldId: 'a_dim1',
+                        fieldType: DimensionType.STRING,
+                        fieldFilterType: FilterType.STRING,
+                        operator: FilterOperator.EQUALS,
+                        values: ['one'],
+                    },
+                ],
+                metrics: null,
+                tableCalculations: null,
+            };
+        const sorts = [
+            { fieldId: 'a_met1', descending: true, nullsFirst: null },
+        ];
+        const output = await execute({
+            input: {
+                ...toolInput,
+                queryConfig: {
+                    ...toolInput.queryConfig,
+                    filters,
+                    sorts,
+                    limit: 10,
+                },
+            },
+        });
+
+        expect(output.structuredContent).toMatchObject({
+            query: { filters, sorts, limit: 10 },
+            limit: { requested: 10, effective: 10, max: 500 },
         });
     });
 });
