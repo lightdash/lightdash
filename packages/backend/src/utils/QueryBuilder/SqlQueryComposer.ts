@@ -8,6 +8,7 @@ import {
     type DashboardFilters,
     type DimensionType,
     type Explore,
+    type ItemsMap,
     type MetricQuery,
     type ParametersValuesMap,
     type PivotConfiguration,
@@ -95,6 +96,18 @@ export class SqlQueryComposer extends QueryComposer {
     /** Dashboard filters actually applied to the SQL, for the response echo. */
     getAppliedDashboardFilters(): DashboardFilters | undefined {
         return this.appliedDashboardFilters;
+    }
+
+    /**
+     * SQL charts expose no items at the results seam. The virtual view's
+     * dimensions are packaging around the user's SQL, not semantic fields:
+     * exposing them here would persist a fields map of fake semantic fields
+     * to query history for downstream consumers to trust. SQL generation
+     * still reads them through `compile().fields` (typed dashboard-filter
+     * compilation, the pivot seam).
+     */
+    getFields(): ItemsMap {
+        return {};
     }
 
     private static build(args: SqlQueryComposerArguments): {

@@ -1,6 +1,7 @@
 import {
     getMergeSourceTableLabel,
     getResultColumnMetadataFromItem,
+    getResultColumnSourceItem,
     isField,
     isMergeMetricSource,
     QuerySourceType,
@@ -70,7 +71,7 @@ export const buildComposeMergeOriginalColumns = ({
     Object.fromEntries(
         typedColumns.map((column) => {
             const metadata = getResultColumnMetadataFromItem(
-                itemsMap[column.reference],
+                getResultColumnSourceItem(itemsMap, column.reference),
                 column.reference,
                 usedParametersValues,
             );
