@@ -3389,10 +3389,119 @@ Output:
         "result": {
           "type": "string",
         },
+        "structuredContent": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "matches": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "count": {
+                      "description": "Number of matching custom chart types (0 when none).",
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    "note": {
+                      "description": "Guidance for using the matches, or why there are none and what to try next.",
+                      "type": "string",
+                    },
+                    "results": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "description": {
+                            "type": "string",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "schema": {
+                            "description": "Serialized schema: field slots to bind query fields to (name, label, type, required) and the config options it accepts.",
+                            "type": "string",
+                          },
+                          "slug": {
+                            "description": "Identifies the type when rendering through it.",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "slug",
+                          "name",
+                          "description",
+                          "schema",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "count",
+                    "note",
+                    "results",
+                  ],
+                  "type": "object",
+                },
+                "request": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "query": {
+                          "description": "Keyword terms searched against type names and descriptions.",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "query",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "slug": {
+                          "description": "Exact slug that was fetched.",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "slug",
+                      ],
+                      "type": "object",
+                    },
+                  ],
+                  "description": "The lookup that ran: a keyword search or an exact slug fetch.",
+                },
+              },
+              "required": [
+                "request",
+                "matches",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          ],
+        },
       },
       "required": [
         "result",
         "metadata",
+        "structuredContent",
       ],
       "type": "object",
     },
