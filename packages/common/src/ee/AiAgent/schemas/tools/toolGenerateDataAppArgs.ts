@@ -5,6 +5,10 @@ import {
     type AppVersionStatus,
     type DataAppTemplate,
 } from '../../../apps/types';
+import {
+    toolErrorStructuredContentSchema,
+    type ToolErrorStructuredContent,
+} from '../outputMetadata';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 
 /** Builds run minutes, not seconds: a pending result older than this is stale. */
@@ -68,6 +72,42 @@ export const toolGenerateDataAppArgsSchema = z.object({
         .describe(DATA_APP_THEME_SLUG_DESCRIPTION),
 });
 
+const appUuidSchema = z.string().describe('Uuid of the data app.');
+const versionSchema = z
+    .number()
+    .describe('App version this build produces; 1 for a new app.');
+
+const pendingBuildSchema = z.object({
+    status: z
+        .literal('pending')
+        .describe(
+            'The build has started and is still running; its outcome replaces this result on a later turn.',
+        ),
+    appUuid: appUuidSchema,
+    version: versionSchema,
+});
+
+const readyBuildSchema = z.object({
+    status: z
+        .literal('success')
+        .describe('The build finished; the app version is ready.'),
+    appUuid: appUuidSchema,
+    version: versionSchema,
+    name: z.string().describe('Name of the data app.'),
+    slug: z
+        .string()
+        .nullable()
+        .describe('Slug of the data app, the appSlug for iterateDataApp.'),
+    href: z.string().describe('URL of the app in the builder.'),
+});
+
+export const toolGenerateDataAppStructuredContentSchema = z.discriminatedUnion(
+    'status',
+    [pendingBuildSchema, readyBuildSchema],
+);
+
+// Metadata carries a third `pending` status, so it is not the object
+// `structuredToolOutputSchema` takes; the envelope is spelled out instead.
 export const toolGenerateDataAppOutputSchema = z.object({
     result: z.string(),
     metadata: z.discriminatedUnion('status', [
@@ -93,6 +133,10 @@ export const toolGenerateDataAppOutputSchema = z.object({
             message: z.string(),
         }),
     ]),
+    structuredContent: z.union([
+        toolGenerateDataAppStructuredContentSchema,
+        toolErrorStructuredContentSchema,
+    ]),
 });
 
 export type ToolGenerateDataAppArgs = z.infer<
@@ -103,13 +147,26 @@ export type ToolGenerateDataAppOutput = z.infer<
     typeof toolGenerateDataAppOutputSchema
 >;
 
-export type ToolGenerateDataAppTerminalResult = {
-    result: string;
-    metadata: Exclude<
-        ToolGenerateDataAppOutput['metadata'],
-        { status: 'pending' }
-    >;
-};
+export type ToolGenerateDataAppStructuredContent = z.infer<
+    typeof toolGenerateDataAppStructuredContentSchema
+>;
+
+type ToolGenerateDataAppMetadata = ToolGenerateDataAppOutput['metadata'];
+
+export type ToolGenerateDataAppTerminalResult =
+    | {
+          result: string;
+          metadata: Extract<ToolGenerateDataAppMetadata, { status: 'success' }>;
+          structuredContent: Extract<
+              ToolGenerateDataAppStructuredContent,
+              { status: 'success' }
+          >;
+      }
+    | {
+          result: string;
+          metadata: Extract<ToolGenerateDataAppMetadata, { status: 'error' }>;
+          structuredContent: ToolErrorStructuredContent;
+      };
 
 export const isToolGenerateDataAppResult = makeBuiltInToolResultGuard(
     'generateDataApp',
@@ -152,23 +209,34 @@ export const getGenerateDataAppBuildOutcome = ({
             version === 1
                 ? `The data app "${name}" is ready.`
                 : `Version ${version} of the data app "${name}" is ready.`;
+        const readyBuild = {
+            status: 'success' as const,
+            appUuid,
+            version,
+            name,
+            slug,
+            href,
+        };
         return {
             result: `${readyPhrase} The user can view it from this thread.`,
-            metadata: { status: 'success', appUuid, version, name, slug, href },
+            metadata: readyBuild,
+            structuredContent: readyBuild,
         };
     }
     const cancelled = error === APP_VERSION_CANCELLED_BY_USER;
     const message = cancelled
         ? 'The build was cancelled.'
         : (statusMessage ?? 'The build failed.');
+    const result = `The data app build did not finish: ${message}`;
     return {
-        result: `The data app build did not finish: ${message}`,
+        result,
         metadata: {
             status: 'error',
             appUuid,
             reason: cancelled ? 'cancelled' : 'failed',
             message,
         },
+        structuredContent: { error: result },
     };
 };
 
@@ -178,8 +246,10 @@ export const getExpiredGenerateDataAppBuildOutcome = (
     const message = `The build did not report an outcome within ${
         AI_DATA_APP_BUILD_PENDING_GRACE_MS / 60_000
     } minutes.`;
+    const result = `The data app build did not finish: ${message}`;
     return {
-        result: `The data app build did not finish: ${message}`,
+        result,
         metadata: { status: 'error', appUuid, reason: 'failed', message },
+        structuredContent: { error: result },
     };
 };

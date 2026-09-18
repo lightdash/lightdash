@@ -5,7 +5,7 @@ import {
 import { tool } from 'ai';
 import type { GenerateDataAppFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
-import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     generateDataApp: GenerateDataAppFn;
@@ -29,27 +29,31 @@ export const getGenerateDataApp = ({ generateDataApp }: Dependencies) =>
                     themeSlug,
                     toolCallId,
                 });
+                const pendingBuild = {
+                    status: 'pending' as const,
+                    appUuid,
+                    version,
+                };
 
                 return {
                     result: 'Started the data app build. Tell the user it has started and will take a few minutes, then end your turn.',
-                    metadata: {
-                        status: 'pending' as const,
-                        appUuid,
-                        version,
-                    },
+                    metadata: pendingBuild,
+                    structuredContent: pendingBuild,
                 };
             } catch (error) {
+                const { result, structuredContent } = toolErrorOutput(
+                    error,
+                    'Error starting the data app build. No app was created.',
+                );
                 return {
-                    result: toolErrorHandler(
-                        error,
-                        'Error starting the data app build. No app was created.',
-                    ),
+                    result,
                     metadata: {
                         status: 'error' as const,
                         appUuid: null,
                         reason: 'failed' as const,
                         message: getErrorMessage(error),
                     },
+                    structuredContent,
                 };
             }
         },
