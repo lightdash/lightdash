@@ -6,11 +6,14 @@ import {
     ExploreError,
     friendlyName,
     getErrorMessage,
+    getWarehouseLocation,
     LightdashError,
     ParseError,
     Project,
     ProjectType,
+    type DeployTarget,
     type LightdashProjectConfig,
+    type ProjectDbtSourceSummary,
     type Tag,
 } from '@lightdash/common';
 import inquirer from 'inquirer';
@@ -20,7 +23,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setProject } from '../config';
 import { getDbtContext } from '../dbt/context';
-import { loadDbtTarget } from '../dbt/profile';
+import {
+    loadDbtTarget,
+    warehouseCredentialsFromDbtTarget,
+} from '../dbt/profile';
 import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
@@ -46,6 +52,7 @@ import {
     selectProject,
     type ProjectSelection,
 } from './selectProject';
+import { resolveProjectSource } from './sourceSelection';
 import { getProjectDisableTimestampConversion } from './timestampConversion';
 
 type DeployHandlerOptions = DbtCompileOptions & {
@@ -68,12 +75,45 @@ type DeployHandlerOptions = DbtCompileOptions & {
     disableTimestampConversion?: boolean;
     validateWarehouseColumns: boolean;
     partialCompilation?: boolean;
+    source?: string;
 };
 
 type DeployArgs = DeployHandlerOptions & {
     projectUuid: string;
     complete?: boolean;
     dbtModelNames?: string[];
+    sourceUuid?: string;
+    deployTarget?: DeployTarget;
+};
+
+export const getDeployTarget = async (
+    options: Pick<
+        DeployHandlerOptions,
+        'projectDir' | 'targetPath' | 'profilesDir' | 'profile' | 'target'
+    >,
+    projectType: CliProjectType,
+): Promise<DeployTarget | undefined> => {
+    if (projectType !== CliProjectType.Dbt) return undefined;
+    const context = await getDbtContext({
+        projectDir: path.resolve(options.projectDir),
+        targetPath: options.targetPath,
+    });
+    const { target } = await loadDbtTarget({
+        profilesDir: path.resolve(options.profilesDir),
+        profileName: options.profile || context.profileName,
+        targetName: options.target,
+    });
+    if (target.type === 'spark') return undefined;
+    const credentials = await warehouseCredentialsFromDbtTarget(target);
+    const location = getWarehouseLocation(credentials);
+    const database = location.database ?? location.schema;
+    if (!database) return undefined;
+    return {
+        database,
+        ...('region' in credentials && typeof credentials.region === 'string'
+            ? { region: credentials.region }
+            : undefined),
+    };
 };
 
 const logDeployWarnings = (
@@ -339,7 +379,11 @@ const deployBatched = async (
     >({
         method: 'POST',
         url: `/api/v2/projects/${options.projectUuid}/deploy/${sessionUuid}/finalize`,
-        body: JSON.stringify({ dbtModelNames: options.dbtModelNames }),
+        body: JSON.stringify({
+            dbtModelNames: options.dbtModelNames,
+            sourceUuid: options.sourceUuid,
+            target: options.deployTarget,
+        }),
     });
 
     GlobalState.log(
@@ -460,6 +504,8 @@ export const deploy = async (
                       explores: deployableExplores,
                       dbtModelNames: options.dbtModelNames,
                       complete: options.complete === true,
+                      sourceUuid: options.sourceUuid,
+                      target: options.deployTarget,
                   },
         );
         try {
@@ -468,7 +514,7 @@ export const deploy = async (
                     method: 'PUT',
                     url:
                         options.dbtModelNames === undefined
-                            ? `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}`
+                            ? `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${options.sourceUuid ? `&sourceUuid=${encodeURIComponent(options.sourceUuid)}` : ''}${options.deployTarget ? `&targetDatabase=${encodeURIComponent(options.deployTarget.database)}${options.deployTarget.region ? `&targetRegion=${encodeURIComponent(options.deployTarget.region)}` : ''}` : ''}`
                             : `/api/v2/projects/${options.projectUuid}/deploy`,
                     body: deployPayload,
                 },
@@ -487,7 +533,7 @@ export const deploy = async (
                 );
                 return lightdashApi<ApiDeployExploresResults>({
                     method: 'PUT',
-                    url: `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}`,
+                    url: `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${options.sourceUuid ? `&sourceUuid=${encodeURIComponent(options.sourceUuid)}` : ''}${options.deployTarget ? `&targetDatabase=${encodeURIComponent(options.deployTarget.database)}${options.deployTarget.region ? `&targetRegion=${encodeURIComponent(options.deployTarget.region)}` : ''}` : ''}`,
                     body: JSON.stringify(deployableExplores),
                 });
             });
@@ -719,6 +765,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     const config = await getConfig();
 
     let existingProjectSelection: ProjectSelection | undefined;
+    let selectedSource: ProjectDbtSourceSummary | undefined;
     if (options.create === undefined) {
         if (!config.context?.serverUrl) {
             throw new AuthorizationError(
@@ -735,6 +782,11 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         // Log current project info
         logSelectedProject(existingProjectSelection, config, 'Deploying to');
 
+        selectedSource = await resolveProjectSource(
+            existingProjectSelection.projectUuid,
+            options.source,
+        );
+
         options.disableTimestampConversion =
             await getProjectDisableTimestampConversion(
                 options.disableTimestampConversion,
@@ -744,6 +796,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
 
     const { explores, isProjectComplete, dbtModelNames } =
         await compileProject(options);
+    const deployTarget = await getDeployTarget(options, projectTypeConfig.type);
 
     let projectUuid: string;
 
@@ -765,6 +818,10 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         }
         projectUuid = project.projectUuid;
         await setProject(projectUuid, project.name);
+        selectedSource = await resolveProjectSource(
+            projectUuid,
+            options.source,
+        );
     } else if (existingProjectSelection) {
         projectUuid = existingProjectSelection.projectUuid;
     } else {
@@ -773,11 +830,17 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         );
     }
 
+    if (!selectedSource) {
+        throw new Error('Could not resolve the dbt source for this deploy.');
+    }
+
     await deploy(explores, {
         ...options,
         projectUuid,
         complete: isProjectComplete,
         dbtModelNames,
+        sourceUuid: selectedSource.projectDbtSourceUuid,
+        deployTarget,
     });
 
     const serverUrl = config.context?.serverUrl?.replace(/\/$/, '');

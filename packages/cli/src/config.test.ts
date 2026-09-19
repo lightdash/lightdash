@@ -73,6 +73,7 @@ describe('CLI project environment override', () => {
                     context: {
                         project: 'stored-project',
                         projectName: 'Stored project',
+                        source: 'analytics',
                         previewProject: 'preview-project',
                         previewName: 'Preview project',
                     },
@@ -84,6 +85,10 @@ describe('CLI project environment override', () => {
             expect(config.context).toMatchObject({
                 project: projectOverride || 'stored-project',
                 projectName: expectedName,
+                source:
+                    projectOverride && projectOverride !== 'stored-project'
+                        ? undefined
+                        : 'analytics',
                 previewProject: 'preview-project',
                 previewName: 'Preview project',
             });
