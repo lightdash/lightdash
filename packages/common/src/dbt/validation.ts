@@ -141,6 +141,8 @@ export class ManifestValidator {
         const modelToValidate = { ...model };
         delete modelToValidate.lightdash_source_name;
         delete modelToValidate.lightdash_source_uuid;
+        delete modelToValidate.lightdash_connection_uuid;
+        delete modelToValidate.lightdash_namespace_prefix;
         return ManifestValidator.isValid(validator, modelToValidate, {
             modelName: model.name,
             sourceName: model.lightdash_source_name,

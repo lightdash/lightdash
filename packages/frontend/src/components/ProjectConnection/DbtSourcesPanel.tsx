@@ -5,7 +5,9 @@ import {
     validateProjectDbtSourceName,
     WarehouseTypes,
     type CreateWarehouseCredentials,
+    type Connection,
     type DbtProjectConfig,
+    type Project,
     type ProjectDbtSourceSummary,
     type WarehouseLocation,
 } from '@lightdash/common';
@@ -17,6 +19,7 @@ import {
     Group,
     Loader,
     Menu,
+    Select,
     Stack,
     Text,
     TextInput,
@@ -33,6 +36,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useProject } from '../../hooks/useProject';
 import {
     useCreateProjectDbtSourceMutation,
     useDeleteProjectDbtSourceMutation,
@@ -164,7 +168,9 @@ const DbtSourceFields: FC<{
     form: Form;
     intro: string;
     projectUuid: string;
-}> = ({ form, intro, projectUuid }) => (
+    connections: Connection[];
+    namespaceReadOnly?: boolean;
+}> = ({ form, intro, projectUuid, connections, namespaceReadOnly = false }) => (
     <FormProvider form={form}>
         <ProjectFormProvider isDbtSource projectUuid={projectUuid}>
             <Stack gap="md">
@@ -177,20 +183,41 @@ const DbtSourceFields: FC<{
                     required
                     {...form.getInputProps('name')}
                 />
+                {connections.length > 1 && (
+                    <Select
+                        label="Connection"
+                        data={connections.map((connection) => ({
+                            value: connection.connectionUuid,
+                            label: connection.name,
+                        }))}
+                        required
+                        {...form.getInputProps('connectionUuid')}
+                    />
+                )}
+                <TextInput
+                    label="Namespace prefix"
+                    description="Explore names from this source use this prefix."
+                    placeholder="Defaults to the source name"
+                    readOnly={namespaceReadOnly}
+                    {...form.getInputProps('namespacePrefix')}
+                />
                 <DbtSettingsForm disabled={false} />
             </Stack>
         </ProjectFormProvider>
     </FormProvider>
 );
 
-const AddDbtSourceModal: FC<{
+const AddDbtSourceModalInner: FC<{
     projectUuid: string;
     opened: boolean;
     onClose: () => void;
-}> = ({ projectUuid, opened, onClose }) => {
+    connections: Connection[];
+}> = ({ projectUuid, opened, onClose, connections }) => {
     const form = useForm({
         initialValues: {
             name: '',
+            connectionUuid: connections[0]?.connectionUuid ?? '',
+            namespacePrefix: '',
             dbt: { ...dbtDefaults.formValues[DbtProjectType.GITHUB] },
             warehouseLocation: toFormLocation(undefined),
             // Sources share the project's warehouse; the schema input is hidden
@@ -202,6 +229,10 @@ const AddDbtSourceModal: FC<{
         },
         validate: {
             name: (value) => validateProjectDbtSourceName(value.trim()),
+            namespacePrefix: (value) =>
+                value?.trim()
+                    ? validateProjectDbtSourceName(value.trim())
+                    : null,
             dbt: dbtFormValidators,
         },
         validateInputOnBlur: true,
@@ -221,6 +252,10 @@ const AddDbtSourceModal: FC<{
         createMutation.mutate(
             {
                 name: form.values.name.trim(),
+                connectionUuid: form.values.connectionUuid ?? '',
+                namespacePrefix:
+                    form.values.namespacePrefix?.trim() ||
+                    form.values.name.trim(),
                 dbtConnection: form.values.dbt,
                 warehouseLocation: toApiLocation(form.values.warehouseLocation),
             },
@@ -243,8 +278,30 @@ const AddDbtSourceModal: FC<{
                 form={form}
                 projectUuid={projectUuid}
                 intro="Connect another git-backed dbt project. Its models are merged with the primary source on every deploy and preview, using the project's warehouse and dbt version."
+                connections={connections}
             />
         </MantineModal>
+    );
+};
+
+const AddDbtSourceModal: FC<{
+    projectUuid: string;
+    opened: boolean;
+    onClose: () => void;
+}> = ({ projectUuid, opened, onClose }) => {
+    const { data } = useProject(projectUuid);
+    const connections = (
+        data as (Project & { connections?: Connection[] }) | undefined
+    )?.connections;
+    if (!opened || !connections?.length) return null;
+    return (
+        <AddDbtSourceModalInner
+            key={connections.map(({ connectionUuid }) => connectionUuid).join()}
+            projectUuid={projectUuid}
+            opened
+            onClose={onClose}
+            connections={connections}
+        />
     );
 };
 
@@ -252,14 +309,17 @@ const EditDbtSourceModalInner: FC<{
     projectUuid: string;
     source: ProjectDbtSourceSummary;
     connection: DbtProjectConfig | null;
+    connections: Connection[];
     onClose: () => void;
-}> = ({ projectUuid, source, connection, onClose }) => {
+}> = ({ projectUuid, source, connection, connections, onClose }) => {
     const updateMutation = useUpdateProjectDbtSourceMutation(projectUuid, {
         onSuccess: onClose,
     });
     const form = useForm({
         initialValues: {
             name: source.name,
+            connectionUuid: source.connectionUuid,
+            namespacePrefix: source.namespacePrefix,
             dbt: connection ?? {
                 ...dbtDefaults.formValues[DbtProjectType.GITHUB],
             },
@@ -288,6 +348,10 @@ const EditDbtSourceModalInner: FC<{
                 projectDbtSourceUuid: source.projectDbtSourceUuid,
                 data: {
                     ...(name === source.name ? {} : { name }),
+                    ...(form.values.connectionUuid === source.connectionUuid
+                        ? {}
+                        : { connectionUuid: form.values.connectionUuid }),
+                    namespacePrefix: form.values.namespacePrefix,
                     dbtConnection: form.values.dbt,
                     warehouseLocation: toApiLocation(
                         form.values.warehouseLocation,
@@ -313,6 +377,8 @@ const EditDbtSourceModalInner: FC<{
                 form={form}
                 projectUuid={projectUuid}
                 intro="Update this source's connection. Leave the access token blank to keep the saved one."
+                connections={connections}
+                namespaceReadOnly
             />
         </MantineModal>
     );
@@ -327,12 +393,16 @@ const EditDbtSourceModal: FC<{
         projectUuid,
         source?.projectDbtSourceUuid,
     );
+    const { data: project } = useProject(projectUuid);
+    const connections = (
+        project as (Project & { connections?: Connection[] }) | undefined
+    )?.connections;
 
     if (!source) {
         return null;
     }
 
-    if (isInitialLoading || !data) {
+    if (isInitialLoading || !data || !connections) {
         return (
             <MantineModal
                 opened
@@ -354,6 +424,7 @@ const EditDbtSourceModal: FC<{
             projectUuid={projectUuid}
             source={source}
             connection={data.dbtConnection}
+            connections={connections}
             onClose={onClose}
         />
     );
@@ -403,8 +474,7 @@ const RenamePrimaryDbtSourceModal: FC<{
                     {...form.getInputProps('name')}
                 />
                 <Text size="sm" c="dimmed">
-                    Renaming this source changes qualified explore names on the
-                    next deploy.
+                    Renaming this source does not change its explore names.
                 </Text>
             </Stack>
         </MantineModal>
@@ -448,7 +518,7 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     <Tooltip
                         w={300}
                         position="right"
-                        label="Merge models from other git-backed dbt projects. They're combined with this project's dbt connection on every deploy. If a model or metric name exists in more than one source, each one is renamed to <source>__<name>."
+                        label="Merge models from other git-backed dbt projects. Additional source explores use <prefix>__<name>; the first source's explore names stay unchanged."
                     >
                         <ActionIcon size="sm" aria-label="About dbt sources">
                             <MantineIcon icon={IconInfoCircle} />

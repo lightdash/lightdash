@@ -9,8 +9,8 @@ export type ProjectConnectionForm = {
     dbt: DbtProjectConfig;
     warehouse: CreateWarehouseCredentials;
     organizationWarehouseCredentialsUuid?: string;
+    connectionUuid?: string;
+    namespacePrefix?: string;
     dbtVersion: DbtVersionOption;
-    // Additional dbt sources only: where this source's models live in the
-    // project's warehouse. A blank field means inherit.
     warehouseLocation?: { database: string; schema: string };
 };

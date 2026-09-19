@@ -6,6 +6,8 @@ export const ProjectDbtSourcesTableName = 'project_dbt_sources';
 export type DbProjectDbtSource = {
     project_dbt_source_uuid: string;
     project_uuid: string;
+    connection_uuid: string;
+    namespace_prefix: string;
     name: string;
     is_primary: boolean;
     precedence: number;
@@ -20,6 +22,8 @@ export type DbProjectDbtSource = {
 type CreateDbProjectDbtSource = Pick<
     DbProjectDbtSource,
     | 'project_uuid'
+    | 'connection_uuid'
+    | 'namespace_prefix'
     | 'name'
     | 'is_primary'
     | 'precedence'
@@ -27,11 +31,14 @@ type CreateDbProjectDbtSource = Pick<
     | 'dbt_connection'
     | 'warehouse_database'
     | 'warehouse_schema'
->;
+> &
+    // The primary source is inserted with the project's own dbt source uuid
+    Partial<Pick<DbProjectDbtSource, 'project_dbt_source_uuid'>>;
 
 type UpdateDbProjectDbtSource = Partial<
     Pick<
         DbProjectDbtSource,
+        | 'connection_uuid'
         | 'name'
         | 'precedence'
         | 'dbt_connection_type'
