@@ -126,7 +126,10 @@ import {
     DbProjectMembership,
     ProjectMembershipsTableName,
 } from '../../database/entities/projectMemberships';
-import { ProjectMergedManifestsTable } from '../../database/entities/projectMergedManifests';
+import {
+    ProjectConnectionManifestsTable,
+    ProjectMergedManifestsTable,
+} from '../../database/entities/projectMergedManifests';
 import {
     CachedExploresTableName,
     CachedExploreStagingTableName,
@@ -134,6 +137,7 @@ import {
     CachedWarehouseTableName,
     DbCachedWarehouse,
     DbProject,
+    ProjectConnectionCatalogCacheTableName,
     ProjectTableName,
     type DbCachedExplore,
     type DbCachedExploreStaging,
@@ -159,7 +163,10 @@ import {
 } from '../../database/entities/spaces';
 import { TagsTableName } from '../../database/entities/tags';
 import { DbUser, UserTableName } from '../../database/entities/users';
-import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
+import {
+    WarehouseCredentialTableName,
+    warehouseTypeDisplayNames,
+} from '../../database/entities/warehouseCredentials';
 import {
     AiPromptTableName,
     AiThreadTableName,
@@ -201,10 +208,7 @@ import {
     generateUniqueProjectSlug,
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
-import {
-    ConnectionModel,
-    ConnectionWriteInput,
-} from '../ConnectionModel/ConnectionModel';
+import { ConnectionModel } from '../ConnectionModel/ConnectionModel';
 import { clearProjectExtraRoles } from '../roleSetUtils';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
@@ -216,7 +220,6 @@ export type ProjectModelArguments = {
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
-
 // Initialize cache for warehouse credentials with 30 seconds TTL
 const warehouseCredentialsCache =
     process.env.EXPERIMENTAL_CACHE === 'true'
@@ -235,6 +238,23 @@ const getMotherduckConnectionString = (
     credentials.connectionType === DuckdbConnectionType.MOTHERDUCK
         ? buildMotherduckConnectionString(credentials)
         : undefined;
+
+const normalizeAdditionalDatabases = (databases: string[] = []): string[] => [
+    ...new Set(databases.map((database) => database.trim()).filter(Boolean)),
+];
+
+const mergeConnectionListingFields = <T extends CreateWarehouseCredentials>(
+    credentials: T,
+    row: {
+        list_all_databases: boolean | null;
+        additional_databases: string[] | null;
+    },
+): T =>
+    ({
+        ...credentials,
+        listAllDatabases: row.list_all_databases ?? false,
+        additionalDatabases: row.additional_databases ?? [],
+    }) as T;
 
 async function chunkedInsertReturning<T extends Record<string, unknown>>(
     trx: Transaction,
@@ -441,63 +461,169 @@ export class ProjectModel {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.encryptionUtil = args.encryptionUtil;
-        this.connectionModel = new ConnectionModel(args);
+        this.connectionModel = new ConnectionModel({
+            database: args.database,
+            encryptionUtil: args.encryptionUtil,
+        });
     }
 
-    private async clearWarehouseCredentialsCache(
+    private async resolveConnectionScope(
         projectUuid: string,
-    ): Promise<void> {
-        if (!warehouseCredentialsCache) return;
+        connectionUuid?: string,
+    ): Promise<{ connection: Connection; isSole: boolean }> {
         const connections =
             await this.connectionModel.listByProject(projectUuid);
-        warehouseCredentialsCache.del(
-            connections.map(({ connectionUuid }) => connectionUuid),
-        );
-    }
-
-    private createConnectionModel(database: Knex): ConnectionModel {
-        return database === this.database
-            ? this.connectionModel
-            : new ConnectionModel({
-                  database,
-                  encryptionUtil: this.encryptionUtil,
-              });
+        if (connectionUuid) {
+            const connection = connections.find(
+                ({ connectionUuid: uuid }) => uuid === connectionUuid,
+            );
+            if (!connection) throw new NotFoundError('Connection not found');
+            return { connection, isSole: connections.length === 1 };
+        }
+        if (connections.length === 0) {
+            throw new NotFoundError(
+                'Cannot find any warehouse credentials for project.',
+            );
+        }
+        if (connections.length > 1) throw new MultipleConnectionsError();
+        return { connection: connections[0], isSole: true };
     }
 
     async upsertMergedManifest(
         projectUuid: string,
         manifest: Buffer,
+        connectionUuid?: string,
     ): Promise<void> {
-        await ProjectMergedManifestsTable(this.database)
-            .insert({
-                project_uuid: projectUuid,
-                manifest,
-                created_at: this.database.fn.now() as unknown as Date,
-            })
-            .onConflict('project_uuid')
-            .merge({
-                manifest,
-                created_at: this.database.fn.now() as unknown as Date,
-            });
+        const { connection, isSole } = await this.resolveConnectionScope(
+            projectUuid,
+            connectionUuid,
+        );
+        await this.database.transaction(async (trx) => {
+            await ProjectConnectionManifestsTable(trx)
+                .insert({
+                    project_uuid: projectUuid,
+                    connection_uuid: connection.connectionUuid,
+                    manifest,
+                    created_at: trx.fn.now() as unknown as Date,
+                })
+                .onConflict(['project_uuid', 'connection_uuid'])
+                .merge({
+                    manifest,
+                    created_at: trx.fn.now() as unknown as Date,
+                });
+            if (isSole) {
+                await ProjectMergedManifestsTable(trx)
+                    .insert({
+                        project_uuid: projectUuid,
+                        manifest,
+                        created_at: trx.fn.now() as unknown as Date,
+                    })
+                    .onConflict('project_uuid')
+                    .merge({
+                        manifest,
+                        created_at: trx.fn.now() as unknown as Date,
+                    });
+            }
+        });
     }
 
-    async getMergedManifest(projectUuid: string): Promise<Buffer> {
-        const artifact = await ProjectMergedManifestsTable(this.database)
+    async getMergedManifest(
+        projectUuid: string,
+        connectionUuid?: string,
+    ): Promise<Buffer> {
+        const { connection, isSole } = await this.resolveConnectionScope(
+            projectUuid,
+            connectionUuid,
+        );
+        const artifact = await ProjectConnectionManifestsTable(this.database)
             .select('manifest')
             .where('project_uuid', projectUuid)
+            .where('connection_uuid', connection.connectionUuid)
             .first();
-        if (!artifact) {
-            throw new NotFoundError(
-                'No merged dbt manifest has been persisted for this project',
-            );
+        if (artifact) return artifact.manifest;
+
+        if (isSole) {
+            const legacyArtifact = await ProjectMergedManifestsTable(
+                this.database,
+            )
+                .select('manifest')
+                .where('project_uuid', projectUuid)
+                .first();
+            if (legacyArtifact) return legacyArtifact.manifest;
         }
-        return artifact.manifest;
+
+        throw new NotFoundError(
+            'No merged dbt manifest has been persisted for this project',
+        );
+    }
+
+    async replaceMergedManifests(
+        projectUuid: string,
+        manifests: { connectionUuid: string; manifest: Buffer }[],
+    ): Promise<void> {
+        const connections =
+            await this.connectionModel.listByProject(projectUuid);
+        const liveConnectionUuids = new Set(
+            connections.map(({ connectionUuid }) => connectionUuid),
+        );
+        if (
+            manifests.some(
+                ({ connectionUuid }) =>
+                    !liveConnectionUuids.has(connectionUuid),
+            )
+        ) {
+            throw new NotFoundError('Connection not found');
+        }
+
+        await this.database.transaction(async (trx) => {
+            await ProjectConnectionManifestsTable(trx)
+                .where('project_uuid', projectUuid)
+                .delete();
+            if (manifests.length > 0) {
+                await ProjectConnectionManifestsTable(trx).insert(
+                    manifests.map(({ connectionUuid, manifest }) => ({
+                        project_uuid: projectUuid,
+                        connection_uuid: connectionUuid,
+                        manifest,
+                        created_at: trx.fn.now() as unknown as Date,
+                    })),
+                );
+            }
+            if (connections.length === 1) {
+                const soleManifest = manifests.find(
+                    ({ connectionUuid }) =>
+                        connectionUuid === connections[0].connectionUuid,
+                );
+                if (soleManifest) {
+                    await ProjectMergedManifestsTable(trx)
+                        .insert({
+                            project_uuid: projectUuid,
+                            manifest: soleManifest.manifest,
+                            created_at: trx.fn.now() as unknown as Date,
+                        })
+                        .onConflict('project_uuid')
+                        .merge({
+                            manifest: soleManifest.manifest,
+                            created_at: trx.fn.now() as unknown as Date,
+                        });
+                } else {
+                    await ProjectMergedManifestsTable(trx)
+                        .where('project_uuid', projectUuid)
+                        .delete();
+                }
+            }
+        });
     }
 
     async deleteMergedManifest(projectUuid: string): Promise<void> {
-        await ProjectMergedManifestsTable(this.database)
-            .where('project_uuid', projectUuid)
-            .delete();
+        await this.database.transaction(async (trx) => {
+            await ProjectConnectionManifestsTable(trx)
+                .where('project_uuid', projectUuid)
+                .delete();
+            await ProjectMergedManifestsTable(trx)
+                .where('project_uuid', projectUuid)
+                .delete();
+        });
     }
 
     static mergeMissingDbtConfigSecrets(
@@ -838,33 +964,69 @@ export class ProjectModel {
 
     private async upsertWarehouseConnection(
         trx: Transaction,
-        projectUuid: string,
+        projectId: number,
         data: CreateWarehouseCredentials,
         organizationWarehouseCredentialsUuid?: string,
     ): Promise<void> {
-        const connectionModel = this.createConnectionModel(trx);
-        const input: ConnectionWriteInput = {
-            warehouseConnection: data,
-            organizationWarehouseCredentialsUuid,
+        const {
+            listAllDatabases = false,
+            additionalDatabases = [],
+            ...credentials
+        } = normalizeWarehouseCredentials(data);
+        let encryptedCredentials: Buffer | null = null;
+        if (!organizationWarehouseCredentialsUuid) {
+            try {
+                encryptedCredentials = this.encryptionUtil.encrypt(
+                    JSON.stringify(credentials),
+                );
+            } catch (e) {
+                throw new UnexpectedServerError('Could not save credentials.');
+            }
+        }
+
+        const connection = {
+            project_id: projectId,
+            warehouse_type: credentials.type,
+            name: warehouseTypeDisplayNames[credentials.type],
+            encrypted_credentials: encryptedCredentials,
+            organization_warehouse_credentials_uuid:
+                organizationWarehouseCredentialsUuid ?? null,
+            list_all_databases: listAllDatabases,
+            additional_databases:
+                normalizeAdditionalDatabases(additionalDatabases),
         };
+        const updates = {
+            warehouse_type: connection.warehouse_type,
+            organization_warehouse_credentials_uuid:
+                connection.organization_warehouse_credentials_uuid,
+            list_all_databases: connection.list_all_databases,
+            additional_databases: connection.additional_databases,
+            ...(encryptedCredentials
+                ? { encrypted_credentials: encryptedCredentials }
+                : {}),
+        };
+
         // A project can hold several connections, so there is no project_id
-        // uniqueness to conflict on. Target the live row explicitly, from one
-        // read: re-resolving would let the set change underneath this write.
-        const liveConnections =
-            await connectionModel.listByProject(projectUuid);
-        if (liveConnections.length > 1) {
+        // uniqueness to conflict on. Target the live row explicitly.
+        const liveRows = await trx(WarehouseCredentialTableName)
+            .select<{ warehouse_credentials_id: number }[]>(
+                'warehouse_credentials_id',
+            )
+            .where('project_id', projectId)
+            .whereNull('superseded_at');
+        if (liveRows.length > 1) {
             throw new MultipleConnectionsError();
         }
-        const [liveConnection] = liveConnections;
-        if (liveConnection === undefined) {
-            await connectionModel.create(projectUuid, input);
+        if (liveRows.length === 0) {
+            await trx(WarehouseCredentialTableName).insert(connection);
             return;
         }
-        await connectionModel.update(
-            projectUuid,
-            liveConnection.connectionUuid,
-            input,
-        );
+        await trx(WarehouseCredentialTableName)
+            .where(
+                'warehouse_credentials_id',
+                liveRows[0].warehouse_credentials_id,
+            )
+            .update(updates);
     }
 
     async hasAnyProjects(): Promise<boolean> {
@@ -993,7 +1155,7 @@ export class ProjectModel {
             if (data.warehouseConnection) {
                 await this.upsertWarehouseConnection(
                     trx,
-                    project.project_uuid,
+                    project.project_id,
                     data.warehouseConnection,
                     data.organizationWarehouseCredentialsUuid,
                 );
@@ -1177,7 +1339,7 @@ export class ProjectModel {
             } catch (e) {
                 if (!(e instanceof NotFoundError)) throw e;
             }
-            await this.clearWarehouseCredentialsCache(projectUuid);
+            warehouseCredentialsCache?.del(projectUuid);
         }
         const nextConnectionString = data.warehouseConnection
             ? getMotherduckConnectionString(data.warehouseConnection)
@@ -1219,9 +1381,10 @@ export class ProjectModel {
                 throw new UnexpectedServerError('Could not update project.');
             }
             if (data.warehouseConnection) {
+                const [project] = projects;
                 await this.upsertWarehouseConnection(
                     trx,
-                    projectUuid,
+                    project.project_id,
                     data.warehouseConnection,
                     data.organizationWarehouseCredentialsUuid,
                 );
@@ -1550,7 +1713,8 @@ export class ProjectModel {
         projectUuid: string,
         transaction?: Transaction,
     ): Promise<void> {
-        await this.clearWarehouseCredentialsCache(projectUuid);
+        // Invalidate warehouse credentials cache
+        warehouseCredentialsCache?.del(projectUuid);
 
         const deleteInTransaction = async (trx: Transaction): Promise<void> => {
             const [project] = await trx('projects')
@@ -1592,8 +1756,84 @@ export class ProjectModel {
         }
     }
 
+    async getCompileProject(
+        projectUuid: string,
+    ): Promise<
+        Pick<
+            Project,
+            | 'name'
+            | 'dbtConnection'
+            | 'dbtVersion'
+            | 'organizationUuid'
+            | 'upstreamProjectUuid'
+            | 'projectDefaults'
+        >
+    > {
+        const project = await this.database(ProjectTableName)
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .select<
+                {
+                    name: string;
+                    dbt_connection: Buffer | null;
+                    dbt_version: SupportedDbtVersions;
+                    organization_uuid: string;
+                    copied_from_project_uuid: string | null;
+                    project_defaults: ProjectDefaults | null;
+                }[]
+            >([
+                `${ProjectTableName}.name`,
+                `${ProjectTableName}.dbt_connection`,
+                `${ProjectTableName}.dbt_version`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${ProjectTableName}.copied_from_project_uuid`,
+                `${ProjectTableName}.project_defaults`,
+            ])
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .first();
+        if (!project) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+        if (!project.dbt_connection) {
+            throw new NotFoundError('Project has no valid dbt credentials');
+        }
+        try {
+            return {
+                name: project.name,
+                dbtConnection: JSON.parse(
+                    this.encryptionUtil.decrypt(project.dbt_connection),
+                ) as DbtProjectConfig,
+                dbtVersion: project.dbt_version,
+                organizationUuid: project.organization_uuid,
+                upstreamProjectUuid:
+                    project.copied_from_project_uuid ?? undefined,
+                projectDefaults: project.project_defaults ?? undefined,
+            };
+        } catch {
+            throw new UnexpectedServerError('Failed to load dbt credentials');
+        }
+    }
+
+    async getCompileConnections(projectUuid: string): Promise<Connection[]> {
+        return this.connectionModel.listByProject(projectUuid);
+    }
+
+    async getConnectionForProject(
+        projectUuid: string,
+        connectionUuid?: string,
+    ): Promise<Connection> {
+        return (await this.resolveConnectionScope(projectUuid, connectionUuid))
+            .connection;
+    }
+
     async getWithSensitiveFields(
         projectUuid: string,
+        connectionUuid?: string,
     ): Promise<Project & { warehouseConnection?: CreateWarehouseCredentials }> {
         type QueryResult = {
             name: string;
@@ -1728,14 +1968,20 @@ export class ProjectModel {
 
                 const connections =
                     await this.connectionModel.listByProject(projectUuid);
-
-                const warehouseConnection =
-                    connections.length === 1
-                        ? await this.connectionModel.getCredentials(
-                              projectUuid,
-                              connections[0].connectionUuid,
-                          )
-                        : undefined;
+                let warehouseConnection: CreateWarehouseCredentials | undefined;
+                if (connectionUuid) {
+                    warehouseConnection =
+                        await this.connectionModel.getCredentials(
+                            projectUuid,
+                            connectionUuid,
+                        );
+                } else if (connections.length === 1) {
+                    warehouseConnection =
+                        await this.connectionModel.getCredentials(
+                            projectUuid,
+                            connections[0].connectionUuid,
+                        );
+                }
 
                 const result: Omit<Project, 'warehouseConnection'> = {
                     organizationUuid: project.organization_uuid,
@@ -1744,6 +1990,7 @@ export class ProjectModel {
                     name: project.name,
                     type: project.project_type,
                     dbtConnection: dbtSensitiveCredentials,
+                    connections,
                     pinnedListUuid: project.pinned_list_uuid,
                     dbtVersion: project.dbt_version,
                     upstreamProjectUuid: project.copied_from_project_uuid,
@@ -1769,9 +2016,10 @@ export class ProjectModel {
                     agentSqlScope: project.agent_sql_scope ?? null,
                     requireUserCredentials:
                         project.require_user_credentials ??
-                        warehouseConnection?.requireUserCredentials ??
+                        (connections.length === 1
+                            ? warehouseConnection?.requireUserCredentials
+                            : undefined) ??
                         false,
-                    connections,
                 };
 
                 if (!warehouseConnection) {
@@ -1929,6 +2177,41 @@ export class ProjectModel {
         ) as WarehouseCredentials;
     }
 
+    private async getOrganizationWarehouseCredentials(
+        organizationWarehouseCredentialsUuid: string,
+        organizationUuid: string, // Extra filter value to ensure we are getting the credentials from the correct organization
+    ): Promise<CreateWarehouseCredentials> {
+        const [orgCredentials] = await this.database(
+            'organization_warehouse_credentials',
+        )
+            .where(
+                'organization_warehouse_credentials_uuid',
+                organizationWarehouseCredentialsUuid,
+            )
+            .andWhere('organization_uuid', organizationUuid)
+            .select('warehouse_connection');
+
+        if (!orgCredentials) {
+            throw new NotFoundError(
+                'Organization warehouse credentials not found',
+            );
+        }
+
+        try {
+            return normalizeWarehouseCredentials(
+                JSON.parse(
+                    this.encryptionUtil.decrypt(
+                        orgCredentials.warehouse_connection,
+                    ),
+                ) as CreateWarehouseCredentials,
+            );
+        } catch (e) {
+            throw new UnexpectedServerError(
+                'Failed to load organization warehouse credentials',
+            );
+        }
+    }
+
     async get(projectUuid: string): Promise<Project> {
         const project = await this.getWithSensitiveFields(projectUuid);
         const sensitiveCredentials =
@@ -1943,11 +2226,33 @@ export class ProjectModel {
             ),
         ) as DbtProjectConfig;
 
-        const nonSensitiveCredentialsWithDefaults = sensitiveCredentials
-            ? ProjectModel.getNonSensitiveWarehouseCredentials(
-                  sensitiveCredentials,
-              )
+        const nonSensitiveCredentials = sensitiveCredentials
+            ? (Object.fromEntries(
+                  Object.entries(sensitiveCredentials).filter(
+                      ([key]) =>
+                          !sensitiveCredentialsFieldNames.includes(
+                              key as AnyType,
+                          ),
+                  ),
+              ) as WarehouseCredentials)
             : undefined;
+
+        const scrubbedCredentials =
+            nonSensitiveCredentials &&
+            sensitiveCredentials &&
+            sensitiveCredentials.type === WarehouseTypes.DUCKDB &&
+            sensitiveCredentials.connectionType ===
+                DuckdbConnectionType.DUCKLAKE
+                ? (stripDucklakeNestedSensitive(
+                      sensitiveCredentials,
+                  ) as WarehouseCredentials)
+                : nonSensitiveCredentials;
+
+        const nonSensitiveCredentialsWithDefaults =
+            ProjectModel.getConnectionWithDefaults(
+                sensitiveCredentials,
+                scrubbedCredentials,
+            );
 
         return {
             organizationUuid: project.organizationUuid,
@@ -3104,29 +3409,66 @@ export class ProjectModel {
 
     async getWarehouseFromCache(
         projectUuid: string,
+        connectionUuid?: string,
     ): Promise<WarehouseCatalog | undefined> {
-        const warehouses = await this.database(CachedWarehouseTableName)
-            .select(['warehouse'])
+        const { connection, isSole } = await this.resolveConnectionScope(
+            projectUuid,
+            connectionUuid,
+        );
+        const cachedWarehouse = await this.database(
+            ProjectConnectionCatalogCacheTableName,
+        )
+            .select('warehouse')
             .where('project_uuid', projectUuid)
-            .limit(1);
-        if (warehouses.length > 0) return warehouses[0].warehouse;
+            .where('connection_uuid', connection.connectionUuid)
+            .first();
+        if (cachedWarehouse) return cachedWarehouse.warehouse;
+
+        if (isSole) {
+            const legacyWarehouse = await this.database(
+                CachedWarehouseTableName,
+            )
+                .select('warehouse')
+                .where('project_uuid', projectUuid)
+                .first();
+            if (legacyWarehouse) return legacyWarehouse.warehouse;
+        }
         return undefined;
     }
 
     async saveWarehouseToCache(
         projectUuid: string,
         warehouse: WarehouseCatalog,
+        connectionUuid?: string,
     ): Promise<DbCachedWarehouse> {
-        const [cachedWarehouse] = await this.database(CachedWarehouseTableName)
-            .insert({
-                project_uuid: projectUuid,
-                warehouse: JSON.stringify(warehouse),
-            })
-            .onConflict('project_uuid')
-            .merge()
-            .returning('*');
-
-        return cachedWarehouse;
+        const { connection, isSole } = await this.resolveConnectionScope(
+            projectUuid,
+            connectionUuid,
+        );
+        return this.database.transaction(async (trx) => {
+            const [cachedWarehouse] = await trx(
+                ProjectConnectionCatalogCacheTableName,
+            )
+                .insert({
+                    project_uuid: projectUuid,
+                    connection_uuid: connection.connectionUuid,
+                    warehouse: JSON.stringify(warehouse),
+                })
+                .onConflict(['project_uuid', 'connection_uuid'])
+                .merge({ warehouse: JSON.stringify(warehouse) })
+                .returning('*');
+            if (isSole) {
+                await trx(CachedWarehouseTableName)
+                    .insert({
+                        project_uuid: projectUuid,
+                        warehouse: JSON.stringify(warehouse),
+                    })
+                    .onConflict('project_uuid')
+                    .merge()
+                    .returning('*');
+            }
+            return cachedWarehouse;
+        });
     }
 
     async getProjectMemberAccess(
@@ -4077,40 +4419,94 @@ export class ProjectModel {
         }));
     }
 
-    async listConnections(projectUuid: string): Promise<Connection[]> {
-        return this.connectionModel.listByProject(projectUuid);
-    }
-
-    async getConnectionForProject(
-        projectUuid: string,
-        connectionUuid?: string,
-    ): Promise<Connection> {
-        return connectionUuid
-            ? this.connectionModel.getByUuid(projectUuid, connectionUuid)
-            : this.connectionModel.resolveSole(projectUuid);
-    }
-
     async getWarehouseCredentialsForProject(
         projectUuid: string,
         connectionUuid?: string,
     ): Promise<CreateWarehouseCredentials> {
-        const connection = await this.getConnectionForProject(
-            projectUuid,
-            connectionUuid,
-        );
+        if (connectionUuid) {
+            return this.connectionModel.getCredentials(
+                projectUuid,
+                connectionUuid,
+            );
+        }
+        // Try to get from cache first
         const cachedCredentials =
             warehouseCredentialsCache?.get<CreateWarehouseCredentials>(
-                connection.connectionUuid,
+                projectUuid,
             );
         if (cachedCredentials) {
             return cachedCredentials;
         }
-        const credentials = await this.connectionModel.getCredentials(
-            projectUuid,
-            connection.connectionUuid,
-        );
-        warehouseCredentialsCache?.set(connection.connectionUuid, credentials);
-        return credentials;
+
+        const [row] = await this.database('warehouse_credentials')
+            .innerJoin(
+                'projects',
+                'warehouse_credentials.project_id',
+                'projects.project_id',
+            )
+            .leftJoin(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .select<
+                {
+                    warehouse_type: string;
+                    encrypted_credentials: Buffer | null;
+                    organization_warehouse_credentials_uuid: string | null;
+                    organization_uuid: string;
+                    list_all_databases: boolean;
+                    additional_databases: string[];
+                }[]
+            >([
+                'warehouse_credentials.encrypted_credentials',
+                'warehouse_credentials.organization_warehouse_credentials_uuid',
+                'warehouse_credentials.list_all_databases',
+                'warehouse_credentials.additional_databases',
+                'organizations.organization_uuid',
+            ])
+            .where('project_uuid', projectUuid)
+            .whereNull('warehouse_credentials.superseded_at');
+        if (row === undefined) {
+            throw new NotFoundError(
+                `Cannot find any warehouse credentials for project.`,
+            );
+        }
+        if (row.organization_warehouse_credentials_uuid) {
+            const orgCredentials =
+                await this.getOrganizationWarehouseCredentials(
+                    row.organization_warehouse_credentials_uuid,
+                    row.organization_uuid,
+                );
+            const credentials = mergeConnectionListingFields(
+                orgCredentials,
+                row,
+            );
+            warehouseCredentialsCache?.set(projectUuid, credentials);
+            return credentials;
+        }
+
+        if (!row.encrypted_credentials) {
+            throw new UnexpectedServerError(
+                'Unexpected error: warehouse credentials are missing',
+            );
+        }
+        try {
+            const credentials = mergeConnectionListingFields(
+                normalizeWarehouseCredentials(
+                    JSON.parse(
+                        this.encryptionUtil.decrypt(row.encrypted_credentials),
+                    ) as CreateWarehouseCredentials,
+                ),
+                row,
+            );
+            warehouseCredentialsCache?.set(projectUuid, credentials);
+            return credentials;
+        } catch (e) {
+            throw new UnexpectedServerError(
+                'Unexpected error: failed to parse warehouse credentials',
+            );
+        }
     }
 
     /** Compare-and-swap on the credential's stored refreshToken. Invalidates the warehouse credentials cache on swap. */
@@ -4120,10 +4516,9 @@ export class ProjectModel {
         newRefreshToken: string,
         connectionUuid?: string,
     ): Promise<boolean> {
-        const connection = await this.getConnectionForProject(
-            projectUuid,
-            connectionUuid,
-        );
+        const connection = connectionUuid
+            ? await this.connectionModel.getByUuid(projectUuid, connectionUuid)
+            : await this.connectionModel.resolveSole(projectUuid);
         const swapped = await this.database.transaction(async (trx) => {
             const row = await trx('warehouse_credentials')
                 .innerJoin(
@@ -4184,7 +4579,7 @@ export class ProjectModel {
         });
 
         if (swapped) {
-            warehouseCredentialsCache?.del(connection.connectionUuid);
+            warehouseCredentialsCache?.del(projectUuid);
         }
 
         return swapped;

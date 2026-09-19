@@ -1538,21 +1538,49 @@ export async function* iterateExplores(
             resolvedNamesByUniqueId.get(model.unique_id) ?? model.name;
         const metaJoins = resolveJoins(model, model.meta.joins);
         const configMetaJoins = resolveJoins(model, model.config?.meta?.joins);
+        const resolveAdditionalExplores = (
+            explores: DbtModelNode['meta']['explores'],
+        ) =>
+            explores &&
+            Object.fromEntries(
+                Object.entries(explores).map(([name, explore]) => [
+                    name,
+                    { ...explore, joins: resolveJoins(model, explore.joins) },
+                ]),
+            );
         return {
             ...model,
             name: resolvedName,
             meta:
-                metaJoins === model.meta.joins
+                metaJoins === model.meta.joins && !model.meta.explores
                     ? model.meta
-                    : { ...model.meta, joins: metaJoins },
+                    : {
+                          ...model.meta,
+                          joins: metaJoins,
+                          ...(model.meta.explores
+                              ? {
+                                    explores: resolveAdditionalExplores(
+                                        model.meta.explores,
+                                    ),
+                                }
+                              : {}),
+                      },
             config:
-                configMetaJoins === model.config?.meta?.joins
+                configMetaJoins === model.config?.meta?.joins &&
+                !model.config?.meta?.explores
                     ? model.config
                     : {
                           ...model.config,
                           meta: {
                               ...model.config?.meta,
                               joins: configMetaJoins,
+                              ...(model.config?.meta?.explores
+                                  ? {
+                                        explores: resolveAdditionalExplores(
+                                            model.config.meta.explores,
+                                        ),
+                                    }
+                                  : {}),
                           },
                       },
         };
@@ -1827,7 +1855,9 @@ export async function* iterateExplores(
                                   : exploreConfig.tags;
 
                           return {
-                              name: exploreName,
+                              name: model.lightdash_namespace_prefix
+                                  ? `${model.lightdash_namespace_prefix}__${exploreName}`
+                                  : exploreName,
                               label:
                                   exploreConfig.label ||
                                   friendlyName(exploreName),

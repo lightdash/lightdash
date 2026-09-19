@@ -14,6 +14,8 @@ export const CachedExploresTableName = 'cached_explores';
 export const CachedExploreTableName = 'cached_explore';
 export const CachedExploreStagingTableName = 'cached_explore_staging';
 export const CachedWarehouseTableName = 'cached_warehouse';
+export const ProjectConnectionCatalogCacheTableName =
+    'project_connection_catalog_cache';
 
 export type DbProject = {
     project_id: number;
@@ -142,3 +144,12 @@ export type DbCachedWarehouse = {
 };
 
 export type CachedWarehouseTable = Knex.CompositeTableType<DbCachedWarehouse>;
+
+export type DbProjectConnectionCatalogCache = {
+    project_uuid: string;
+    connection_uuid: string;
+    warehouse: AnyType;
+};
+
+export type ProjectConnectionCatalogCacheTable =
+    Knex.CompositeTableType<DbProjectConnectionCatalogCache>;
