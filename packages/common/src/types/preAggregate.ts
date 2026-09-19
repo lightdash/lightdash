@@ -25,6 +25,12 @@ export type PreAggregateMaterializationStatus =
     | 'superseded'
     | 'failed';
 
+export type PhysicalOutputContract = {
+    columns: { name: string; type: string }[];
+    grain: string[];
+    format: 'parquet' | 'jsonl';
+};
+
 export type ActiveMaterializationDetails = {
     materializationUuid: string;
     queryUuid: string;
