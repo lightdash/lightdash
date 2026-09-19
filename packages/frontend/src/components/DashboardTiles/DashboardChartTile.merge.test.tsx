@@ -140,6 +140,7 @@ const compiledMetric = (
 const ordersExplore: ApiExploreResults = {
     name: 'orders',
     label: 'Orders',
+    connectionUuid: null,
     tags: [],
     baseTable: 'orders',
     joinedTables: [],

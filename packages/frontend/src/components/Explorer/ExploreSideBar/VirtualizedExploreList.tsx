@@ -1,4 +1,4 @@
-import { type SummaryExplore } from '@lightdash/common';
+import { type Connection, type SummaryExplore } from '@lightdash/common';
 import { Box, Divider } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
@@ -35,13 +35,14 @@ export type VirtualListItem =
           isExpanded: boolean;
       };
 
-interface VirtualizedExploreListProps {
+export interface VirtualizedExploreListProps {
     groupedExploreTree: ExploreNode[];
     defaultUngroupedExplores: SummaryExplore[];
     customUngroupedExplores: SummaryExplore[];
     preAggregateExplores: SummaryExplore[];
     externalSourceExplores: SummaryExplore[];
     searchQuery: string;
+    connections: Connection[];
     onExploreClick: (explore: SummaryExplore) => void;
 }
 
@@ -71,6 +72,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
     preAggregateExplores,
     externalSourceExplores,
     searchQuery,
+    connections,
     onExploreClick,
 }) => {
     const [expandedGroupPaths, setExpandedGroupPaths] = useState<Set<string>>(
@@ -292,6 +294,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                             <ExploreNavLink
                                 explore={item.explore}
                                 query={searchQuery}
+                                connections={connections}
                                 onClick={() => onExploreClick(item.explore)}
                             />
                         </Box>
@@ -318,7 +321,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                     return null;
             }
         },
-        [searchQuery, toggleGroup, toggleSection, onExploreClick],
+        [connections, searchQuery, toggleGroup, toggleSection, onExploreClick],
     );
 
     return (

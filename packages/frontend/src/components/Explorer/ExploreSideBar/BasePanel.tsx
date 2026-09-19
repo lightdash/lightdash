@@ -4,7 +4,14 @@ import {
     FeatureFlags,
     type SummaryExplore,
 } from '@lightdash/common';
-import { TextInput, Stack, ActionIcon, Button, Group } from '@mantine/core';
+import {
+    TextInput,
+    Stack,
+    ActionIcon,
+    Button,
+    Group,
+    Select,
+} from '@mantine/core';
 import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import {
     IconAlertCircle,
@@ -14,11 +21,19 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
-import { useCallback, useMemo, useState, useTransition } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    useTransition,
+} from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { AddDataModal } from '../../../features/externalSources/components/AddDataModal';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplores } from '../../../hooks/useExplores';
+import { useProject } from '../../../hooks/useProject';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useProjectTableGroups } from '../../../hooks/useProjectTableGroups';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -29,8 +44,15 @@ import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
+import {
+    emptyFilteredConnectionName,
+    readConnectionFilter,
+    writeConnectionFilter,
+} from './connectionFilterStorage';
+import ExploreList from './ExploreList';
 import { buildExploreTree, sortExploreTree } from './exploreTree';
-import VirtualizedExploreList from './VirtualizedExploreList';
+
+const ALL_CONNECTIONS = 'all';
 
 const getPreAggregateName = (explore: SummaryExplore) =>
     'preAggregateSource' in explore
@@ -54,13 +76,20 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
     const navigate = useNavigate();
     const location = useLocation();
     const projectUuid = useProjectUuid();
+    const { embedToken } = useEmbed();
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
     const [search, setSearch] = useState<string>('');
+    const [connectionFilter, setConnectionFilter] = useState<string | null>(
+        null,
+    );
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [, startTransition] = useTransition();
     const exploresResult = useExplores(projectUuid, true, true);
+    const projectResult = useProject(projectUuid, {
+        enabled: embedToken === undefined && !!projectUuid,
+    });
     const tableGroupsResult = useProjectTableGroups(projectUuid);
     const { data: org } = useOrganization();
     const { data: externalSourcesFlag } = useServerFeatureFlag(
@@ -78,6 +107,38 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
         externalSourcesFlag?.enabled === true &&
         (!onExploreClick || !!onExploreCreated) &&
         !!projectUuid;
+    const connections = useMemo(
+        () => projectResult.data?.connections ?? [],
+        [projectResult.data?.connections],
+    );
+    const connectionUuids = useMemo(
+        () => connections.map(({ connectionUuid }) => connectionUuid),
+        [connections],
+    );
+
+    useEffect(() => {
+        setConnectionFilter(readConnectionFilter(projectUuid, connectionUuids));
+    }, [connectionUuids, projectUuid]);
+
+    const connectionOptions = useMemo(
+        () => [
+            { value: ALL_CONNECTIONS, label: 'All connections' },
+            ...connections.map(({ connectionUuid, name }) => ({
+                value: connectionUuid,
+                label: name,
+            })),
+        ],
+        [connections],
+    );
+
+    const handleConnectionFilterChange = useCallback(
+        (value: string | null) => {
+            const nextFilter = value === ALL_CONNECTIONS ? null : value;
+            setConnectionFilter(nextFilter);
+            writeConnectionFilter(projectUuid, nextFilter);
+        },
+        [projectUuid],
+    );
 
     const filteredExplores = useMemo(() => {
         const validSearch = debouncedSearch
@@ -85,8 +146,13 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
             : '';
         if (exploresResult.data) {
             let explores = Object.values(exploresResult.data);
+            if (connectionFilter) {
+                explores = explores.filter(
+                    (explore) => explore.connectionUuid === connectionFilter,
+                );
+            }
             if (validSearch !== '') {
-                explores = new Fuse(Object.values(exploresResult.data), {
+                explores = new Fuse(explores, {
                     keys: [
                         { name: 'label', weight: 2 },
                         { name: 'name', weight: 2 },
@@ -110,7 +176,7 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
             return explores;
         }
         return undefined;
-    }, [exploresResult.data, debouncedSearch]);
+    }, [connectionFilter, exploresResult.data, debouncedSearch]);
 
     const tableGroupDetails = useMemo(
         () => tableGroupsResult.data ?? {},
@@ -176,6 +242,12 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
             externalSourceExplores,
         ];
     }, [externalSourcesFlag?.enabled, filteredExplores, tableGroupDetails]);
+
+    const emptyConnectionName = emptyFilteredConnectionName(
+        connections,
+        connectionFilter,
+        filteredExplores,
+    );
 
     const handleExploreClick = useCallback(
         (explore: SummaryExplore) => {
@@ -294,7 +366,18 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                             data-tour-suggest="Orders by status"
                         />
 
-                        <VirtualizedExploreList
+                        {connections.length > 1 && (
+                            <Select
+                                aria-label="Filter tables by connection"
+                                data={connectionOptions}
+                                value={connectionFilter ?? ALL_CONNECTIONS}
+                                onChange={handleConnectionFilterChange}
+                                allowDeselect={false}
+                                searchable
+                            />
+                        )}
+
+                        <ExploreList
                             groupedExploreTree={groupedExploreTree}
                             defaultUngroupedExplores={defaultUngroupedExplores}
                             customUngroupedExplores={customUngroupedExplores}
@@ -303,6 +386,8 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                                 sortedExternalSourceExplores
                             }
                             searchQuery={debouncedSearch}
+                            connections={connections}
+                            emptyConnectionName={emptyConnectionName}
                             onExploreClick={handleExploreClick}
                         />
                     </Stack>

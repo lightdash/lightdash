@@ -1,4 +1,8 @@
-import { ExploreType, FeatureFlags, type Explore } from '@lightdash/common';
+import {
+    ExploreType,
+    FeatureFlags,
+    type ApiExploreResults,
+} from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
@@ -75,9 +79,10 @@ const mockExplore = {
     tables: {},
     joinedTables: [],
     targetDatabase: 'postgres',
+    connectionUuid: null,
     type: ExploreType.DEFAULT,
     ymlPath: 'models/orders.yml',
-} as unknown as Explore;
+} as unknown as ApiExploreResults;
 
 type ExploreQuery = ReturnType<typeof useExplore>;
 

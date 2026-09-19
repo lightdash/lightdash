@@ -5290,6 +5290,28 @@ describe('ProjectService', () => {
             expect(result).toEqual(expectedAllExploreSummary);
             expect(projectModel.getSummary).toHaveBeenCalledTimes(1);
         });
+        test('returns each explore connection in the summary payload', async () => {
+            const connectionUuid = 'summary-connection-uuid';
+            vi.mocked(
+                projectModel.getAllExploreSummaries,
+            ).mockResolvedValueOnce([
+                {
+                    ...expectedAllExploreSummary[0],
+                    connectionUuid,
+                    baseTableRequiredAttributes: undefined,
+                },
+            ]);
+
+            const result = await service.getAllExploresSummary(
+                account,
+                projectUuid,
+                false,
+            );
+
+            expect(result).toEqual([
+                expect.objectContaining({ connectionUuid }),
+            ]);
+        });
         test('should get all explores summary with filtering', async () => {
             const result = await service.getAllExploresSummary(
                 account,
