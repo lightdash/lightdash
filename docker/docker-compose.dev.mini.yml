@@ -1,6 +1,7 @@
 volumes:
     postgres_data:
     minio_data:
+    rustfs_data:
 
 services:
     minio:
@@ -18,6 +19,43 @@ services:
             - minio_data:/data
             - ./init-minio.sh:/init-minio.sh
         entrypoint: '/init-minio.sh'
+
+    # RustFS runs alongside MinIO on 9010/9011 for evaluation. Nothing reads
+    # from it until S3_ENDPOINT is repointed.
+    rustfs:
+        image: rustfs/rustfs:1.0.0
+        ports:
+            - '9010:9000'
+            - '9011:9001' # console, served at /rustfs/console/
+        environment:
+            - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY:-rustfsadmin}
+            - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY:-rustfsadmin}
+            - RUSTFS_CONSOLE_ENABLE=${RUSTFS_CONSOLE_ENABLE:-false}
+            - RUSTFS_CORS_ALLOWED_ORIGINS=${RUSTFS_CORS_ALLOWED_ORIGINS:-*}
+        volumes:
+            - rustfs_data:/data
+        healthcheck:
+            test: ['CMD', 'curl', '-fsS', 'http://localhost:9000/health']
+            interval: 5s
+            timeout: 5s
+            retries: 20
+            start_period: 10s
+
+    rustfs-init:
+        image: rustfs/rc:v0.1.36
+        depends_on:
+            rustfs:
+                condition: service_healthy
+        environment:
+            - RUSTFS_ENDPOINT=http://rustfs:9000
+            - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY:-rustfsadmin}
+            - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY:-rustfsadmin}
+            - RUSTFS_DEFAULT_BUCKETS=${RUSTFS_DEFAULT_BUCKETS:-default,results,lightdash-apps}
+            - RUSTFS_EXPIRATION_DAYS=${RUSTFS_EXPIRATION_DAYS:-1}
+        volumes:
+            - ./init-rustfs.sh:/init-rustfs.sh
+        entrypoint: '/init-rustfs.sh'
+        restart: 'no'
 
     db-dev:
         image: pgvector/pgvector:pg18
