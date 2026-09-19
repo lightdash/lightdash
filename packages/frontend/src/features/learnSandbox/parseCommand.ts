@@ -48,7 +48,11 @@ export const parseCommand = (
     if (!subcommand) {
         return { error: 'Type a subcommand, for example: dbt parse' };
     }
-    if (!LEARN_TERMINAL_SUBCOMMANDS[tool as LearnSandboxTool].includes(subcommand)) {
+    if (
+        !LEARN_TERMINAL_SUBCOMMANDS[tool as LearnSandboxTool].includes(
+            subcommand,
+        )
+    ) {
         return { error: LEARN_TERMINAL_REJECTION };
     }
     return { tool: tool as LearnSandboxTool, subcommand, args };

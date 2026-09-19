@@ -167,16 +167,14 @@ describe('Terminal', () => {
         const pane = () =>
             document.querySelector('[data-learn-terminal-output]')!;
         renderTerminal({ output: { status: 'error', exitCode: 1 } });
-        expect(pane().getAttribute('data-tour-failed')).toBe('true');
+        expect(pane()).toHaveAttribute('data-tour-failed', 'true');
     });
 
     it('does not mark a finished or running command as failed', () => {
         renderTerminal({ output: { status: 'done', exitCode: 0 } });
         expect(
-            document
-                .querySelector('[data-learn-terminal-output]')!
-                .hasAttribute('data-tour-failed'),
-        ).toBe(false);
+            document.querySelector('[data-learn-terminal-output]'),
+        ).not.toHaveAttribute('data-tour-failed');
     });
 
     it('has an accessible name for the command input', () => {

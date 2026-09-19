@@ -122,7 +122,9 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
             ]);
             offset += text.length;
         };
-        const chars = [...point.text];
+        // By code point, so a character outside the basic plane is typed
+        // whole; offsets below advance by each piece's own length.
+        const chars = Array.from(point.text);
         const wrapper = wrapperRef.current;
         let index = 0;
         let timer: number | undefined;
@@ -142,7 +144,10 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                         endLineNumber: end.lineNumber,
                         endColumn: 1,
                     },
-                    options: { isWholeLine: true, className: styles.tourInsert },
+                    options: {
+                        isWholeLine: true,
+                        className: styles.tourInsert,
+                    },
                 },
             ]);
             window.setTimeout(() => added.clear(), TOUR_INSERT_HIGHLIGHT_MS);

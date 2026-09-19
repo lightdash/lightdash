@@ -29,7 +29,7 @@ describe('parseCommand', () => {
     });
 });
 describe('activeCommandFromError', () => {
-    it('refuses a subcommand the terminal does not run, with the server\'s words', () => {
+    it("refuses a subcommand the terminal does not run, with the server's words", () => {
         expect(parseCommand('lightdash depl')).toEqual({
             error: 'That command is not available in the Learn terminal',
         });

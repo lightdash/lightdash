@@ -328,7 +328,10 @@ describe('WorkspaceEditor', () => {
         vi.useFakeTimers();
         try {
             const onChange = vi.fn();
-            const { container } = renderEditor({ onChange, content: 'existing' });
+            const { container } = renderEditor({
+                onChange,
+                content: 'existing',
+            });
             tourEditorOf(container)?.setValue('abc');
             // Monaco reports each typed character; none reaches the page.
             (stubs.lastEditorProps.onChange as (v: string) => void)(

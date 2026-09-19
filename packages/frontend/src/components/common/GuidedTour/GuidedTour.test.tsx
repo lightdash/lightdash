@@ -241,7 +241,8 @@ describe('GuidedTour', () => {
     });
 
     it('fades the lines already in the file and drops the indent they share', () => {
-        const suggestion = '    columns:\n      - name: floors\n        description: x';
+        const suggestion =
+            '    columns:\n      - name: floors\n        description: x';
         renderWithProviders(
             <>
                 <div data-block-field />

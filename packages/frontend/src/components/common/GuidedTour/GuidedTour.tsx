@@ -364,7 +364,9 @@ const useBusy = (
             // Once the work has stopped, the page may say it failed; its
             // status words are read from that surface instead.
             const failedEl =
-                el === null ? document.querySelector('[data-tour-failed]') : null;
+                el === null
+                    ? document.querySelector('[data-tour-failed]')
+                    : null;
             const statuses = (el ?? failedEl)?.querySelectorAll(
                 '[data-tour-status]',
             );
