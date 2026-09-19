@@ -12,6 +12,47 @@ services:
             - MINIO_ROOT_PASSWORD=minioadmin
             - MINIO_DEFAULT_BUCKETS=default
             - MINIO_EXPIRATION_DAYS=${MINIO_EXPIRATION_DAYS:-1}
+
+    # RustFS runs alongside MinIO on 9010/9011 so existing objects can be
+    # migrated across before MinIO is removed. Nothing reads from it until
+    # S3_ENDPOINT is repointed.
+    rustfs:
+        image: rustfs/rustfs:1.0.0
+        ports:
+            - '9010:9000'
+            - '9011:9001' # console, served at /rustfs/console/
+        environment:
+            - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY:-rustfsadmin}
+            - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY:-rustfsadmin}
+            - RUSTFS_CONSOLE_ENABLE=${RUSTFS_CONSOLE_ENABLE:-true}
+            # The browser PUTs to presigned URLs directly. The S3 API sends no
+            # CORS headers unless this is set.
+            - RUSTFS_CORS_ALLOWED_ORIGINS=${RUSTFS_CORS_ALLOWED_ORIGINS:-*}
+        healthcheck:
+            test: ['CMD', 'curl', '-fsS', 'http://localhost:9000/health']
+            interval: 5s
+            timeout: 5s
+            retries: 20
+            start_period: 10s
+
+    # One-shot bucket setup. The RustFS server image ships no S3 client, so
+    # this runs in the RustFS CLI image and exits.
+    rustfs-init:
+        image: rustfs/rc:v0.1.36
+        depends_on:
+            rustfs:
+                condition: service_healthy
+        volumes:
+            - ./docker/init-rustfs.sh:/init-rustfs.sh
+        entrypoint: '/init-rustfs.sh'
+        environment:
+            - RUSTFS_ENDPOINT=http://rustfs:9000
+            - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY:-rustfsadmin}
+            - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY:-rustfsadmin}
+            - RUSTFS_DEFAULT_BUCKETS=${RUSTFS_DEFAULT_BUCKETS:-default}
+            - RUSTFS_EXPIRATION_DAYS=${RUSTFS_EXPIRATION_DAYS:-1}
+        restart: 'no'
+
     lightdash:
         platform: linux/amd64
         image: lightdash/lightdash:latest
