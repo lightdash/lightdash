@@ -15,7 +15,7 @@ services:
 
     # RustFS runs alongside MinIO on 9010/9011 so existing objects can be
     # migrated across before MinIO is removed. Nothing reads from it until
-    # S3_ENDPOINT is repointed.
+    # S3_ENDPOINT is repointed. See docs/rustfs-migration.md.
     rustfs:
         image: rustfs/rustfs:1.0.0
         ports:

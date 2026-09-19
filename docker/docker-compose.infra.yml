@@ -22,7 +22,7 @@ services:
             - MINIO_EXPIRATION_DAYS=${MINIO_EXPIRATION_DAYS:-1}
 
     # RustFS runs alongside MinIO on 9010/9011 for evaluation. Nothing reads
-    # from it until S3_ENDPOINT is repointed.
+    # from it until S3_ENDPOINT is repointed. See docs/rustfs-migration.md.
     rustfs:
         image: rustfs/rustfs:1.0.0
         restart: always
