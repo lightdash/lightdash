@@ -11,12 +11,17 @@ import {
 } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { lightdashApi } from '../../../api';
-import { type TableUnitState } from '../utils/tableRows';
+import {
+    tableUnitId,
+    type TableUnitKey,
+    type TableUnitState,
+} from '../utils/tableRows';
 
 export type GetTablesParams = {
     projectUuid: string;
     database: string | undefined;
     connectionUuid?: string;
+    isConnectionSettled?: boolean;
 };
 
 export const databasesQueryKey = (
@@ -71,27 +76,30 @@ const refreshTables = async (projectUuid: string, connectionUuid?: string) =>
 export const useDatabases = ({
     projectUuid,
     connectionUuid,
+    isConnectionSettled = true,
 }: {
     projectUuid: string;
     connectionUuid?: string;
+    isConnectionSettled?: boolean;
 }) =>
     useQuery<WarehouseDatabaseListing, ApiError>({
         queryKey: databasesQueryKey(projectUuid, connectionUuid),
         queryFn: () => fetchDatabases(projectUuid, connectionUuid),
         retry: false,
-        enabled: !!projectUuid,
+        enabled: !!projectUuid && isConnectionSettled,
     });
 
 export const useTables = ({
     projectUuid,
     database,
     connectionUuid,
+    isConnectionSettled = true,
 }: GetTablesParams) =>
     useQuery<WarehouseTablesCatalog, ApiError>({
         queryKey: tablesQueryKey(projectUuid, database ?? '', connectionUuid),
         queryFn: () => fetchTables(projectUuid, database ?? '', connectionUuid),
         retry: false,
-        enabled: !!projectUuid && !!database,
+        enabled: !!projectUuid && !!database && isConnectionSettled,
     });
 
 export const useRefreshTables = ({
@@ -121,76 +129,152 @@ export const useRefreshTables = ({
     );
 };
 
+/** One listed database of one connection, with the uuid its requests carry. */
+export type TableUnit = TableUnitKey & {
+    connectionUuid: string | undefined;
+};
+
+export type ConnectionDatabases = {
+    listings: Map<string, WarehouseDatabaseListing>;
+    isLoading: (connectionId: string) => boolean;
+    errorFor: (connectionId: string) => ApiError | null;
+};
+
 export type TableUnits = {
     states: Map<string, TableUnitState>;
     loadedCatalogs: WarehouseTablesCatalog[];
-    retry: (database: string) => void;
+    retry: (unit: TableUnitKey) => void;
 };
 
 // useQueries returns a new array every render, so memos key off the one
-// signature that changes when a unit's data, error or fetch state changes.
+// signature that changes when a query's data, error or fetch state changes.
 const resultsSignature = (
-    databases: string[],
+    keys: string[],
     results: { status: string; fetchStatus: string; dataUpdatedAt: number }[],
 ) =>
     results
         .map(
             (result, index) =>
-                `${databases[index]}:${result.status}:${result.fetchStatus}:${result.dataUpdatedAt}`,
+                `${keys[index]}:${result.status}:${result.fetchStatus}:${result.dataUpdatedAt}`,
         )
         .join('|');
 
 /**
- * One query per listed database. A database is fetched once the tree expands
- * it; collapsing it keeps the cached tables so the row reopens without a call.
+ * One databases call per connection. A connection is listed once the tree
+ * expands it, so a project with several connections calls only for the ones
+ * the user opens.
+ */
+export const useConnectionDatabases = ({
+    projectUuid,
+    connections,
+    enabledConnectionIds,
+    isConnectionSettled,
+}: {
+    projectUuid: string;
+    connections: { connectionId: string; connectionUuid: string | undefined }[];
+    enabledConnectionIds: ReadonlySet<string>;
+    isConnectionSettled: boolean;
+}): ConnectionDatabases => {
+    const results = useQueries({
+        queries: connections.map((connection) => ({
+            queryKey: databasesQueryKey(projectUuid, connection.connectionUuid),
+            queryFn: () =>
+                fetchDatabases(projectUuid, connection.connectionUuid),
+            retry: false,
+            enabled:
+                !!projectUuid &&
+                isConnectionSettled &&
+                enabledConnectionIds.has(connection.connectionId),
+        })),
+    });
+
+    const signature = resultsSignature(
+        connections.map((connection) => connection.connectionId),
+        results,
+    );
+
+    return useMemo(() => {
+        const listings = new Map<string, WarehouseDatabaseListing>();
+        const loading = new Set<string>();
+        const errors = new Map<string, ApiError>();
+        connections.forEach((connection, index) => {
+            const result = results[index];
+            if (result?.data) {
+                listings.set(connection.connectionId, result.data);
+            } else if (result?.isError) {
+                errors.set(connection.connectionId, result.error as ApiError);
+            } else if (result?.fetchStatus === 'fetching') {
+                loading.add(connection.connectionId);
+            }
+        });
+        return {
+            listings,
+            isLoading: (connectionId: string) => loading.has(connectionId),
+            errorFor: (connectionId: string) =>
+                errors.get(connectionId) ?? null,
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [signature]);
+};
+
+/**
+ * One query per listed database of one connection. A database is fetched once
+ * the tree expands it; collapsing it keeps the cached tables so the row
+ * reopens without a call.
  */
 export const useTableUnits = ({
     projectUuid,
-    databases,
-    enabledDatabases,
-    connectionUuid,
+    units,
+    enabledUnitIds,
+    isConnectionSettled,
 }: {
     projectUuid: string;
-    databases: string[];
-    enabledDatabases: ReadonlySet<string>;
-    connectionUuid?: string;
+    units: TableUnit[];
+    enabledUnitIds: ReadonlySet<string>;
+    isConnectionSettled: boolean;
 }): TableUnits => {
     const queryClient = useQueryClient();
 
     const results = useQueries({
-        queries: databases.map((database) => ({
-            queryKey: tablesQueryKey(projectUuid, database, connectionUuid),
-            queryFn: () => fetchTables(projectUuid, database, connectionUuid),
+        queries: units.map((unit) => ({
+            queryKey: tablesQueryKey(
+                projectUuid,
+                unit.database,
+                unit.connectionUuid,
+            ),
+            queryFn: () =>
+                fetchTables(projectUuid, unit.database, unit.connectionUuid),
             retry: false,
-            enabled: !!projectUuid && enabledDatabases.has(database),
+            enabled:
+                !!projectUuid &&
+                isConnectionSettled &&
+                enabledUnitIds.has(tableUnitId(unit)),
         })),
     });
 
-    const signature = resultsSignature(databases, results);
+    const signature = resultsSignature(units.map(tableUnitId), results);
 
     const states = useMemo(() => {
-        const byDatabase = new Map<string, TableUnitState>();
-        databases.forEach((database, index) => {
+        const byUnit = new Map<string, TableUnitState>();
+        units.forEach((unit, index) => {
             const result = results[index];
+            const id = tableUnitId(unit);
             if (result?.data) {
-                byDatabase.set(database, {
-                    status: 'loaded',
-                    catalog: result.data,
-                });
+                byUnit.set(id, { status: 'loaded', catalog: result.data });
             } else if (result?.isError) {
-                byDatabase.set(database, {
+                byUnit.set(id, {
                     status: 'error',
                     message:
                         (result.error as ApiError | null)?.error?.message ??
                         'Failed to load tables',
                 });
             } else if (result?.fetchStatus === 'fetching') {
-                byDatabase.set(database, { status: 'loading' });
+                byUnit.set(id, { status: 'loading' });
             } else {
-                byDatabase.set(database, { status: 'idle' });
+                byUnit.set(id, { status: 'idle' });
             }
         });
-        return byDatabase;
+        return byUnit;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [signature]);
 
@@ -202,13 +286,21 @@ export const useTableUnits = ({
         [states],
     );
 
+    const unitsById = useMemo(
+        () => new Map(units.map((unit) => [tableUnitId(unit), unit])),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [units.map(tableUnitId).join('|')],
+    );
+
     const retry = useCallback(
-        (database: string) => {
+        (key: TableUnitKey) => {
+            const unit = unitsById.get(tableUnitId(key));
+            if (!unit) return;
             void queryClient.refetchQueries(
-                tablesQueryKey(projectUuid, database, connectionUuid),
+                tablesQueryKey(projectUuid, unit.database, unit.connectionUuid),
             );
         },
-        [connectionUuid, queryClient, projectUuid],
+        [queryClient, projectUuid, unitsById],
     );
 
     return { states, loadedCatalogs, retry };

@@ -11,6 +11,7 @@ import {
     collectEnabledUnits,
     defaultExpandedRowIds,
     qualifiedTableName,
+    tableUnitId,
     type TableUnitState,
     type TreeConnection,
 } from './tableRows';
@@ -71,13 +72,24 @@ const rawCatalog: WarehouseTablesCatalog = {
 
 const connection = (
     databases: WarehouseListedDatabase[],
-    options: { truncated?: boolean; limit?: number } = {},
+    options: {
+        truncated?: boolean;
+        limit?: number;
+        isActive?: boolean;
+        listingStatus?: TreeConnection['listingStatus'];
+        listingForbidden?: boolean;
+    } = {},
 ): TreeConnection => ({
     connectionId: CONNECTION_ID,
     connectionName: 'Warehouse',
+    isActive: options.isActive ?? true,
     databases,
+    listingStatus: options.listingStatus ?? 'loaded',
     truncated: options.truncated ?? false,
     limit: options.limit ?? 100,
+    ...(options.listingForbidden === undefined
+        ? {}
+        : { listingForbidden: options.listingForbidden }),
 });
 
 const loaded = (catalog: WarehouseTablesCatalog): TableUnitState => ({
@@ -94,7 +106,11 @@ const build = (args: {
 }) =>
     buildWarehouseTreeRows({
         connections: args.connections,
-        getUnitState: (name) => args.units?.[name] ?? { status: 'idle' },
+        // Keys are "<connectionId>/<database>", or a bare database name when
+        // the case only has one connection.
+        getUnitState: (unit) =>
+            args.units?.[tableUnitId(unit)] ??
+            args.units?.[unit.database] ?? { status: 'idle' },
         isExpanded: (rowId) => (args.expanded ?? []).includes(rowId),
         search: args.search ?? '',
         typeFilter: args.typeFilter ?? null,
@@ -218,6 +234,7 @@ describe('buildWarehouseTreeRows', () => {
             type: 'error',
             id: `error:database:${CONNECTION_ID}/analytics`,
             depth: 1,
+            connectionId: CONNECTION_ID,
             listedDatabase: 'analytics',
             message: 'Access denied',
         });
@@ -349,7 +366,7 @@ describe('collectEnabledUnits', () => {
                     `schema:${CONNECTION_ID}/AwsDataCatalog/jaffle`,
                 ].includes(rowId),
             ),
-        ).toEqual(['jaffle']);
+        ).toEqual([{ connectionId: CONNECTION_ID, database: 'jaffle' }]);
     });
 
     it('asks for a Postgres database as soon as its own row expands', () => {
@@ -358,7 +375,7 @@ describe('collectEnabledUnits', () => {
                 [connection(postgresDatabases)],
                 (rowId) => rowId === `database:${CONNECTION_ID}/analytics`,
             ),
-        ).toEqual(['analytics']);
+        ).toEqual([{ connectionId: CONNECTION_ID, database: 'analytics' }]);
     });
 });
 
@@ -410,5 +427,228 @@ describe('catalogHasViews', () => {
     it('is true only when some table is a view or materialized view', () => {
         expect(catalogHasViews(athenaCatalog)).toBe(true);
         expect(catalogHasViews(stagingCatalog)).toBe(false);
+    });
+});
+
+describe('buildWarehouseTreeRows with several connections', () => {
+    const activeConnection: TreeConnection = {
+        ...connection(postgresDatabases),
+        connectionId: 'connection-1',
+        connectionName: 'Analytics',
+        isActive: true,
+    };
+    const otherConnection: TreeConnection = {
+        ...connection(postgresDatabases),
+        connectionId: 'connection-2',
+        connectionName: 'Reporting',
+        isActive: false,
+    };
+    const both = [activeConnection, otherConnection];
+
+    it('shows the connection level and marks the active one', () => {
+        const rows = build({ connections: both });
+
+        const connectionRows = rows.filter((row) => row.type === 'connection');
+        expect(
+            connectionRows.map((row) => ({
+                id: row.id,
+                isActive: row.type === 'connection' ? row.isActive : undefined,
+            })),
+        ).toEqual([
+            { id: 'connection:connection-1', isActive: true },
+            { id: 'connection:connection-2', isActive: false },
+        ]);
+    });
+
+    it('opens the active connection and leaves the others closed', () => {
+        const defaults = defaultExpandedRowIds(both);
+
+        expect(defaults['connection:connection-1']).toBe(true);
+        expect(defaults['connection:connection-2']).toBeUndefined();
+        expect(defaults['database:connection-1/analytics']).toBe(true);
+        expect(defaults['database:connection-2/analytics']).toBeUndefined();
+    });
+
+    it('asks for a database only under the connection that expanded it', () => {
+        expect(
+            collectEnabledUnits(both, (rowId) =>
+                [
+                    'connection:connection-2',
+                    'database:connection-2/analytics',
+                ].includes(rowId),
+            ),
+        ).toEqual([{ connectionId: 'connection-2', database: 'analytics' }]);
+    });
+
+    it('keeps two connections sharing a database name apart', () => {
+        const rows = build({
+            connections: both,
+            units: {
+                'connection-1/analytics': loaded(analyticsCatalog),
+                'connection-2/analytics': loaded(rawCatalog),
+            },
+            expanded: [
+                'connection:connection-1',
+                'connection:connection-2',
+                'database:connection-1/analytics',
+                'database:connection-2/analytics',
+            ],
+        });
+
+        const ids = rows.map((row) => row.id);
+        expect(new Set(ids).size).toBe(ids.length);
+        expect(ids).toContain('schema:connection-1/analytics/public');
+        expect(ids).toContain('schema:connection-1/analytics/marts');
+        // The second connection's own catalog has no marts schema
+        expect(ids).not.toContain('schema:connection-2/analytics/marts');
+    });
+
+    it('loads one connection while the other is still idle', () => {
+        const rows = build({
+            connections: both,
+            units: { 'connection-1/analytics': loaded(analyticsCatalog) },
+            expanded: [
+                'connection:connection-1',
+                'connection:connection-2',
+                'database:connection-1/analytics',
+                'database:connection-2/analytics',
+            ],
+        });
+
+        const ids = rows.map((row) => row.id);
+        expect(ids).toContain('schema:connection-1/analytics/public');
+        expect(ids).toContain('loading:database:connection-2/analytics');
+    });
+});
+
+describe('the connection level on first load', () => {
+    const postgres: TreeConnection = {
+        ...connection(postgresDatabases),
+        connectionId: 'connection-postgres',
+        connectionName: 'postgres',
+        isActive: false,
+        databases: [],
+        listingStatus: 'loading',
+    };
+    const finance: TreeConnection = {
+        ...connection(postgresDatabases),
+        connectionId: 'connection-finance',
+        connectionName: 'finance',
+        isActive: true,
+        listingStatus: 'loaded',
+    };
+
+    // The seeded connection listed first, so only its databases were in hand
+    it('shows a row per connection while only the seeded one has listed', () => {
+        const rows = build({
+            connections: [postgres, finance],
+            expanded: ['connection:connection-finance'],
+        });
+
+        const connectionRows = rows.flatMap((row) =>
+            row.type === 'connection'
+                ? [
+                      {
+                          name: row.connectionName,
+                          isActive: row.isActive,
+                          isExpanded: row.isExpanded,
+                      },
+                  ]
+                : [],
+        );
+        expect(connectionRows).toEqual([
+            { name: 'postgres', isActive: false, isExpanded: false },
+            { name: 'finance', isActive: true, isExpanded: true },
+        ]);
+    });
+
+    it('keeps the databases under their connection, not at the top', () => {
+        const rows = build({
+            connections: [postgres, finance],
+            expanded: ['connection:connection-finance'],
+        });
+
+        const databaseRows = rows.filter((row) => row.type === 'database');
+        expect(databaseRows.length).toBeGreaterThan(0);
+        databaseRows.forEach((row) => {
+            expect(row.depth).toBe(1);
+            if (row.type === 'database') {
+                expect(row.connectionId).toBe('connection-finance');
+            }
+        });
+    });
+
+    it('says a connection is still listing when it opens', () => {
+        const rows = build({
+            connections: [postgres, finance],
+            expanded: [
+                'connection:connection-postgres',
+                'connection:connection-finance',
+            ],
+        });
+
+        expect(rows.map((row) => row.id)).toContain(
+            'loading:connection:connection-postgres',
+        );
+    });
+
+    it('surfaces a connection whose databases failed to list', () => {
+        const rows = build({
+            connections: [
+                {
+                    ...postgres,
+                    listingStatus: 'error',
+                    listingError: 'Access denied',
+                },
+                finance,
+            ],
+            expanded: ['connection:connection-postgres'],
+        });
+
+        const errorRow = rows.find(
+            (row) => row.id === 'error:connection:connection-postgres',
+        );
+        expect(errorRow).toMatchObject({ message: 'Access denied' });
+    });
+
+    it('still hides the connection level for a single connection', () => {
+        const rows = build({ connections: [finance] });
+
+        expect(rows.some((row) => row.type === 'connection')).toBe(false);
+    });
+
+    it('marks a refused connection listing as forbidden', () => {
+        const rows = build({
+            connections: [
+                connection([], {
+                    listingStatus: 'error',
+                    listingForbidden: true,
+                }),
+                {
+                    ...connection([], { listingStatus: 'error' }),
+                    connectionId: 'connection-2',
+                    connectionName: 'Other',
+                    isActive: false,
+                },
+            ],
+            expanded: [`connection:${CONNECTION_ID}`],
+        });
+
+        const errorRows = rows.filter((row) => row.type === 'error');
+        expect(errorRows).toHaveLength(1);
+        expect(errorRows[0]).toMatchObject({
+            connectionId: CONNECTION_ID,
+            forbidden: true,
+        });
+    });
+
+    it('leaves an ordinary listing failure retryable', () => {
+        const rows = build({
+            connections: [connection([], { listingStatus: 'error' })],
+            expanded: [`connection:${CONNECTION_ID}`],
+        });
+
+        const errorRows = rows.filter((row) => row.type === 'error');
+        expect(errorRows[0]).toMatchObject({ forbidden: false });
     });
 });

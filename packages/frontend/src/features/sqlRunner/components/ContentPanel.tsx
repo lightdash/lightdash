@@ -9,6 +9,7 @@ import {
     formatSql,
 } from '@lightdash/common';
 import {
+    Badge,
     Box,
     Group,
     Paper,
@@ -54,6 +55,8 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
 import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
+import { useActiveConnection } from '../hooks/useActiveConnection';
+import { useReportMissingConnection } from '../hooks/useConnectionReconciliation';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     clearParameterValues,
@@ -79,6 +82,10 @@ import {
     updateParameterValue,
 } from '../store/sqlRunnerSlice';
 import { prepareAndFetchChartData, runSqlQuery } from '../store/thunks';
+import { isMissingConnectionError } from '../utils/activeConnection';
+
+const QUERY_ERROR_TOAST_KEY = 'sql-runner-query-error';
+const CONNECTION_REQUIRED_TOAST_KEY = 'sql-runner-connection-required';
 import { executeSqlDownloadQuery } from '../utils/executeSqlDownloadQuery';
 import styles from './ContentPanel.module.css';
 import { ChartDownload } from './Download/ChartDownload';
@@ -95,6 +102,8 @@ export const ContentPanel: FC = () => {
     const projectUuid = useAppSelector(selectProjectUuid);
     const connectionUuid = useAppSelector(selectConnectionUuid);
     const resultConnectionUuid = useAppSelector(selectResultConnectionUuid);
+    const { hasSeveralConnections, connectionNameFor } = useActiveConnection();
+    const ranOnConnectionName = connectionNameFor(resultConnectionUuid);
     const sql = useAppSelector(selectSql);
     const queryUuid = useAppSelector(selectQueryUuid);
     const selectedChartType = useAppSelector(selectActiveChartType);
@@ -122,7 +131,8 @@ export const ContentPanel: FC = () => {
         savedSqlChart?.resolvedColorPalette.colors ?? organization?.chartColors;
     const { health } = useApp();
 
-    const { showToastError } = useToaster();
+    const { showToastError, showToastInfo } = useToaster();
+    const reportMissingConnection = useReportMissingConnection();
 
     // State tracked by this component
     const [panelSizes, setPanelSizes] = useState<SplitterPaneSize[]>([60, 40]);
@@ -173,6 +183,17 @@ export const ContentPanel: FC = () => {
         async (sqlToUse: string) => {
             if (!sqlToUse || !limit) return;
 
+            // The editor stays up when a connection is removed under the user,
+            // so running has to say what is missing rather than fail at the API.
+            if (hasSeveralConnections && !connectionUuid) {
+                showToastInfo({
+                    key: CONNECTION_REQUIRED_TOAST_KEY,
+                    title: 'Choose a connection first',
+                    subtitle: 'Your SQL is kept. Pick one to run it.',
+                });
+                return;
+            }
+
             if (
                 activeEditorTab === EditorTabs.VISUALIZATION &&
                 hasQueryResults
@@ -208,19 +229,30 @@ export const ContentPanel: FC = () => {
             parameterValues,
             connectionUuid,
             hasQueryResults,
+            hasSeveralConnections,
+            showToastInfo,
         ],
     );
 
     useEffect(() => {
         if (queryError) {
+            // A removed connection is reconciled instead: the picker resets and
+            // says so, which a raw "Connection not found" toast does not.
+            if (isMissingConnectionError(queryError)) {
+                reportMissingConnection(queryError);
+                return;
+            }
             showToastError({
+                key: QUERY_ERROR_TOAST_KEY,
                 title: 'Could not fetch SQL query results',
                 subtitle: queryError.message,
             });
         } else {
-            notifications.clean();
+            // Only this panel's own error toast: a blanket clean would also
+            // wipe the notice that says a connection was removed.
+            notifications.hide(QUERY_ERROR_TOAST_KEY);
         }
-    }, [queryError, showToastError]);
+    }, [queryError, showToastError, reportMissingConnection]);
 
     const handleFormatSql = useCallback(() => {
         if (!sql) return;
@@ -828,6 +860,17 @@ export const ContentPanel: FC = () => {
                                                 : ''}
                                         </Text>
                                     )}
+                                    {hasSeveralConnections &&
+                                        queryResults?.results &&
+                                        ranOnConnectionName && (
+                                            <Badge
+                                                size="sm"
+                                                variant="light"
+                                                color="blue"
+                                            >
+                                                Ran on {ranOnConnectionName}
+                                            </Badge>
+                                        )}
                                 </Group>
                             </Box>
                             <Box className={styles.resultsBody}>

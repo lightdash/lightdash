@@ -18,6 +18,7 @@ export type TableFieldsTarget = {
 
 export type GetTableFieldsParams = TableFieldsTarget & {
     search: string | undefined;
+    isConnectionSettled?: boolean;
 };
 
 export const tableFieldsQueryKey = ({
@@ -75,6 +76,7 @@ export const useTableFields = ({
     search,
     schema,
     database,
+    isConnectionSettled = true,
 }: GetTableFieldsParams) => {
     return useQuery<
         WarehouseTableSchema,
@@ -97,7 +99,7 @@ export const useTableFields = ({
                 database,
             }),
         retry: false,
-        enabled: !!tableName,
+        enabled: !!tableName && isConnectionSettled,
         select(data) {
             if (!data || isEmpty(data)) return;
 

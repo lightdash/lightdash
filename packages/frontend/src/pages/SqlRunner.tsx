@@ -13,6 +13,7 @@ import {
 import { Sidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
+import { useReconcileActiveConnection } from '../features/sqlRunner/hooks/useConnectionReconciliation';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlRunnerShareUrl } from '../features/sqlRunner/hooks/useSqlRunnerShareUrl';
 import { store } from '../features/sqlRunner/store';
@@ -25,6 +26,7 @@ import {
     setFetchResultsOnLoad,
     setMode,
     setParameterValues,
+    setConnectionUuid,
     setProjectUuid,
     setQuoteChar,
     setSavedChartData,
@@ -33,6 +35,10 @@ import {
     setState,
     setWarehouseConnectionType,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import {
+    readLastUsedConnection,
+    resolveActiveConnection,
+} from '../features/sqlRunner/utils/activeConnection';
 import { HeaderVirtualView } from '../features/virtualView';
 import { type VirtualViewState } from '../features/virtualView/components/HeaderVirtualView';
 import useToaster from '../hooks/toaster/useToaster';
@@ -64,6 +70,7 @@ const SqlRunner = ({
 
     const { data: project } = useProject(projectUuid);
     const { showToastError } = useToaster();
+    useReconcileActiveConnection();
 
     useEffect(() => {
         if (shareState.error) {
@@ -147,16 +154,53 @@ const SqlRunner = ({
         }
     }, [dispatch, data]);
 
-    // Share links replace the whole slice via `setState`, dropping this
-    // project-derived field; re-restore it whenever the store value is missing.
-    const warehouseType =
-        project?.warehouseConnection?.type ??
-        project?.connections[0]?.warehouseType;
+    // A new document opens on the last connection used in this project; a saved
+    // chart opens on the connection stored with its version.
+    const connectionUuid = useAppSelector(
+        (state) => state.sqlRunner.connectionUuid,
+    );
+    const savedSqlChart = useAppSelector(
+        (state) => state.sqlRunner.savedSqlChart,
+    );
+    const isSavedChart = !!params.slug;
+    const connections = project?.connections;
     useEffect(() => {
-        if (warehouseType && !warehouseConnectionType) {
-            dispatch(setWarehouseConnectionType(warehouseType));
-            dispatch(setQuoteChar(getFieldQuoteChar(warehouseType)));
-        }
+        if (connectionUuid || !connections) return;
+        if (isSavedChart && !savedSqlChart) return;
+        const resolved = resolveActiveConnection({
+            connections,
+            savedConnectionUuid: savedSqlChart?.connectionUuid ?? undefined,
+            lastUsedConnectionUuid: projectUuid
+                ? readLastUsedConnection(projectUuid)
+                : undefined,
+            isSavedChart,
+        });
+        if (resolved) dispatch(setConnectionUuid(resolved));
+    }, [
+        dispatch,
+        connectionUuid,
+        connections,
+        savedSqlChart,
+        isSavedChart,
+        projectUuid,
+    ]);
+
+    // The editor dialect follows the selected connection. A project's first
+    // connection can disagree with the one a saved chart runs on, so it is
+    // only used when the project has no choice to make.
+    const selectedConnection = connections?.find(
+        (connection) => connection.connectionUuid === connectionUuid,
+    );
+    const warehouseType =
+        selectedConnection?.warehouseType ??
+        (connections?.length === 1
+            ? connections[0]?.warehouseType
+            : undefined) ??
+        project?.warehouseConnection?.type;
+    useEffect(() => {
+        if (!warehouseType || warehouseType === warehouseConnectionType) return;
+        dispatch(setWarehouseConnectionType(warehouseType));
+        dispatch(setQuoteChar(getFieldQuoteChar(warehouseType)));
     }, [dispatch, warehouseType, warehouseConnectionType]);
 
     if (chartError) {

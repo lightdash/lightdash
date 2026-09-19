@@ -1,11 +1,14 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    clearMissingConnection,
     initialState,
     setConnectionUuid,
     setState,
     setWarehouseConnectionType,
     sqlRunnerSlice,
+    switchActiveConnection,
+    toggleActiveTable,
 } from './sqlRunnerSlice';
 import { runSqlQuery } from './thunks';
 
@@ -110,5 +113,153 @@ describe('sqlRunnerSlice connection bindings', () => {
         expect(completed.resultConnectionUuid).toBe(
             'server-resolved-connection-uuid',
         );
+    });
+});
+
+describe('sqlRunnerSlice switching the active connection', () => {
+    const completedRun = (connectionUuid: string) =>
+        reducer(
+            reducer(undefined, setConnectionUuid(connectionUuid)),
+            runSqlQuery.fulfilled(
+                {
+                    queryUuid: 'query-uuid',
+                    fileUrl: 'file-url',
+                    results: [{ id: 1 }],
+                    columns: [{ reference: 'id' }],
+                },
+                'request-id',
+                {
+                    projectUuid: 'project-uuid',
+                    sql: 'select 1',
+                    limit: 500,
+                    parameterValues: {},
+                    connectionUuid,
+                },
+            ),
+        );
+
+    it('clears the results a switch leaves behind', () => {
+        const completed = completedRun('connection-1');
+        expect(completed.sqlRows).toHaveLength(1);
+
+        const switched = reducer(
+            completed,
+            switchActiveConnection('connection-2'),
+        );
+
+        expect(switched.connectionUuid).toBe('connection-2');
+        expect(switched.sqlRows).toBeUndefined();
+        expect(switched.sqlColumns).toBeUndefined();
+        expect(switched.queryUuid).toBeUndefined();
+        expect(switched.fileUrl).toBeUndefined();
+        expect(switched.resultConnectionUuid).toBeUndefined();
+        expect(switched.resultsTableConfig).toBeUndefined();
+    });
+
+    it('clears the selected table, which belongs to the old catalog', () => {
+        const withTable = reducer(
+            reducer(undefined, setConnectionUuid('connection-1')),
+            toggleActiveTable({
+                table: 'orders',
+                schema: 'jaffle',
+                database: 'raw',
+            }),
+        );
+        expect(withTable.activeTable).toBe('orders');
+
+        const switched = reducer(
+            withTable,
+            switchActiveConnection('connection-2'),
+        );
+
+        expect(switched.activeTable).toBeUndefined();
+        expect(switched.activeSchema).toBeUndefined();
+        expect(switched.activeDatabase).toBeUndefined();
+    });
+
+    it('leaves results alone when the switch selects the active connection', () => {
+        const completed = completedRun('connection-1');
+
+        const unchanged = reducer(
+            completed,
+            switchActiveConnection('connection-1'),
+        );
+
+        expect(unchanged.sqlRows).toHaveLength(1);
+        expect(unchanged.resultConnectionUuid).toBe('connection-1');
+    });
+
+    it('seeds a connection without discarding results', () => {
+        const completed = completedRun('connection-1');
+
+        const seeded = reducer(completed, setConnectionUuid('connection-2'));
+
+        expect(seeded.connectionUuid).toBe('connection-2');
+        expect(seeded.sqlRows).toHaveLength(1);
+        expect(seeded.resultConnectionUuid).toBe('connection-1');
+    });
+});
+
+describe('sqlRunnerSlice clearMissingConnection', () => {
+    const withResults = {
+        ...initialState,
+        connectionUuid: 'connection-marketing',
+        resultConnectionUuid: 'connection-marketing',
+        activeTable: 'campaigns',
+        activeSchema: 'public',
+        activeDatabase: 'acc_marketing',
+        sqlColumns: [],
+        sqlRows: [{ ok: 1 }],
+        queryError: new Error('Connection not found'),
+        queryIsLoading: true,
+    } as typeof initialState;
+
+    it('drops the connection and the table it belonged to', () => {
+        const state = reducer(withResults, clearMissingConnection());
+
+        expect(state.connectionUuid).toBeUndefined();
+        expect(state.activeTable).toBeUndefined();
+        expect(state.activeSchema).toBeUndefined();
+        expect(state.activeDatabase).toBeUndefined();
+        expect(state.queryError).toBeUndefined();
+        expect(state.queryIsLoading).toBe(false);
+    });
+
+    it('keeps the results already on screen', () => {
+        const state = reducer(withResults, clearMissingConnection());
+
+        expect(state.sqlRows).toEqual([{ ok: 1 }]);
+        expect(state.sqlColumns).toEqual([]);
+        expect(state.resultConnectionUuid).toBe('connection-marketing');
+    });
+
+    it('keeps the typed SQL, which is the work the user would lose', () => {
+        const typed = { ...withResults, sql: 'SELECT 42 AS my_unsaved_work' };
+
+        const state = reducer(typed, clearMissingConnection('marketing'));
+
+        expect(state.sql).toBe('SELECT 42 AS my_unsaved_work');
+    });
+
+    it('remembers the removed connection name for the notice', () => {
+        const state = reducer(withResults, clearMissingConnection('marketing'));
+
+        expect(state.removedConnectionName).toBe('marketing');
+    });
+
+    it('forgets the removed name once a connection is chosen', () => {
+        const cleared = reducer(
+            withResults,
+            clearMissingConnection('marketing'),
+        );
+
+        expect(
+            reducer(cleared, switchActiveConnection('connection-postgres'))
+                .removedConnectionName,
+        ).toBeUndefined();
+        expect(
+            reducer(cleared, setConnectionUuid('connection-postgres'))
+                .removedConnectionName,
+        ).toBeUndefined();
     });
 });

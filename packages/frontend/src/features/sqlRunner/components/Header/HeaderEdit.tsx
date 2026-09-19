@@ -37,6 +37,7 @@ import {
     toggleModal,
 } from '../../store/sqlRunnerSlice';
 import { ChartErrorsAlert } from '../ChartErrorsAlert';
+import { ConnectionPicker } from '../ConnectionPicker';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { SqlQueryBeforeSaveAlert } from '../SqlQueryBeforeSaveAlert';
@@ -203,6 +204,7 @@ export const HeaderEdit: FC = () => {
                     </Stack>
 
                     <Group gap="xs">
+                        <ConnectionPicker />
                         <HoverCard disabled={!hasUnrunChanges} withArrow>
                             <HoverCard.Target>
                                 <Button

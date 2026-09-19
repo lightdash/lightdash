@@ -1,5 +1,5 @@
 import { Box, Center, Loader } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { IconAlertCircle, IconPlugConnected } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
 import { type editor } from 'monaco-editor';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
@@ -15,12 +15,14 @@ import Editor, {
 import '../../../styles/monaco.css';
 import { useParameters } from '../../../hooks/parameters/useParameters';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
+import { useActiveConnection } from '../hooks/useActiveConnection';
 import { useDetectedTableFields } from '../hooks/useDetectedTableFields';
 import { useSqlEditorPreferences } from '../hooks/useSqlEditorPreferences';
 import { useTableFields } from '../hooks/useTableFields';
 import { useDatabases, useLoadedCatalogs } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';
+import { shouldAskForConnection } from '../utils/activeConnection';
 import {
     generateTableCompletions,
     getLightdashMonacoTheme,
@@ -74,8 +76,12 @@ export const SqlEditor: FC<{
     // Fetch all available parameters for the project
     const { data: availableParameters } = useParameters(projectUuid, undefined);
 
+    const activeConnection = useActiveConnection();
+    const { isConnectionSettled } = activeConnection;
+
     const { data: listing, isLoading: isTablesDataLoading } = useDatabases({
         projectUuid,
+        isConnectionSettled,
         connectionUuid,
     });
 
@@ -101,6 +107,7 @@ export const SqlEditor: FC<{
         schema: currentSchema,
         database: currentDatabase,
         search: undefined,
+        isConnectionSettled,
     });
 
     // Use React Query to fetch field data for all detected tables in SQL
@@ -110,6 +117,7 @@ export const SqlEditor: FC<{
         projectUuid,
         connectionUuid,
         catalog: loadedCatalog,
+        isConnectionSettled,
     });
 
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
@@ -285,6 +293,17 @@ export const SqlEditor: FC<{
         },
         [debouncedSetSql, highlightText, resetHighlightError],
     );
+
+    // A disabled query reports "loading" forever, so the wait for a choice is
+    // its own state rather than a spinner that never resolves.
+    if (shouldAskForConnection(activeConnection, sql)) {
+        return (
+            <SuboptimalState
+                title="Choose a connection to start writing SQL"
+                icon={IconPlugConnected}
+            />
+        );
+    }
 
     if (isTablesDataLoading) {
         return (

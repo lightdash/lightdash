@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     Center,
@@ -30,42 +31,53 @@ import {
     IconEyeTable,
     IconFolder,
     IconList,
+    IconLock,
     IconPlugConnected,
     IconSearch,
     IconTable,
     IconX,
     type Icon,
 } from '@tabler/icons-react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
 import dayjs from 'dayjs';
-import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { CopyActionIcon } from '../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
-import { useDatabases, useTableUnits } from '../hooks/useTables';
+import { useActiveConnection } from '../hooks/useActiveConnection';
+import { useReportMissingConnection } from '../hooks/useConnectionReconciliation';
+import { useWarehouseTree } from '../hooks/useWarehouseTree';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql, toggleActiveTable } from '../store/sqlRunnerSlice';
+import { tableClickOutcome } from '../utils/activeConnection';
 import {
     buildWarehouseTreeRows,
     catalogHasViews,
-    collectEnabledUnits,
-    defaultExpandedRowIds,
     qualifiedTableName,
     type TableIdentity,
     type TableTypeFilter,
-    type TableUnitState,
-    type TreeConnection,
+    type TableUnitKey,
     type WarehouseTreeRow,
 } from '../utils/tableRows';
+import {
+    ConnectionSwitchPrompt,
+    type PendingConnectionSwitch,
+} from './ConnectionSwitchPrompt';
 import styles from './Tables.module.css';
 
 const GROUP_ROW_HEIGHT = 34;
 const TABLE_ROW_HEIGHT = 30;
 const MESSAGE_ROW_HEIGHT = 32;
 const MIN_SEARCH_LENGTH = 3;
-
-const IDLE_UNIT: TableUnitState = { status: 'idle' };
 
 // Rows cached before the type was stored fall back to the table icon
 const getTableTypeDisplay = (
@@ -113,39 +125,31 @@ const TableItem: FC<{
     isActive: boolean;
     partitionColumn: PartitionColumn | undefined;
     tableType: WarehouseTableType | undefined;
+    onSelect: (
+        identity: TableIdentity,
+        partitionColumn: PartitionColumn | undefined,
+    ) => void;
 }> = memo(
-    ({ identity, depth, search, isActive, partitionColumn, tableType }) => {
+    ({
+        identity,
+        depth,
+        search,
+        isActive,
+        partitionColumn,
+        tableType,
+        onSelect,
+    }) => {
         const { ref: hoverRef, hovered } = useHover();
         const typeDisplay = getTableTypeDisplay(tableType);
         const { ref: truncatedRef, isTruncated } =
             useIsTruncated<HTMLDivElement>();
-        const dispatch = useAppDispatch();
-        const sql = useAppSelector((state) => state.sqlRunner.sql);
         const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
         const quotedTable = qualifiedTableName(identity, quoteChar);
         return (
             <Box ref={hoverRef} pos="relative">
                 <UnstyledButton
                     ff="inherit"
-                    onClick={() => {
-                        if (!sql || sql.match(/SELECT \* FROM (.+)/)) {
-                            dispatch(
-                                setSql(
-                                    `SELECT * FROM ${quotedTable} ${partitionFilter(
-                                        partitionColumn,
-                                    )}`,
-                                ),
-                            );
-                        }
-
-                        dispatch(
-                            toggleActiveTable({
-                                table: identity.table,
-                                schema: identity.schema,
-                                database: identity.database,
-                            }),
-                        );
-                    }}
+                    onClick={() => onSelect(identity, partitionColumn)}
                     w="100%"
                     fz="sm"
                     style={depthStyle(depth)}
@@ -211,6 +215,7 @@ const GroupItem: FC<{
     count: number | null;
     search: string;
     strong: boolean;
+    badge?: string;
     onToggle: (rowId: string, isExpanded: boolean) => void;
 }> = memo(
     ({
@@ -222,6 +227,7 @@ const GroupItem: FC<{
         count,
         search,
         strong,
+        badge,
         onToggle,
     }) => (
         <UnstyledButton
@@ -246,6 +252,11 @@ const GroupItem: FC<{
                         label
                     )}
                 </Text>
+                {badge && (
+                    <Badge size="xs" variant="light" color="blue">
+                        {badge}
+                    </Badge>
+                )}
                 {count !== null && (
                     <Text fz="xs" c="dimmed" ml="auto" pr="xs">
                         {count}
@@ -270,26 +281,41 @@ const LoadingItem: FC<{ depth: number }> = ({ depth }) => (
     </Group>
 );
 
+const CANNOT_BROWSE_MESSAGE = 'You cannot browse this connection';
+
 const ErrorItem: FC<{
     depth: number;
     message: string;
+    forbidden?: boolean;
     onRetry: () => void;
-}> = ({ depth, message, onRetry }) => (
+}> = ({ depth, message, forbidden = false, onRetry }) => (
     <Group
         gap="xs"
         wrap="nowrap"
         className={styles.messageRow}
         style={depthStyle(depth)}
     >
-        <MantineIcon icon={IconAlertTriangle} size="sm" color="red" />
-        <Tooltip label={message} maw={300} multiline>
+        <MantineIcon
+            icon={forbidden ? IconLock : IconAlertTriangle}
+            size="sm"
+            color={forbidden ? 'gray' : 'red'}
+        />
+        {forbidden ? (
             <Text fz="xs" c="dimmed" truncate>
-                Could not load tables
+                {CANNOT_BROWSE_MESSAGE}
             </Text>
-        </Tooltip>
-        <Button variant="subtle" size="compact-xs" onClick={onRetry}>
-            Retry
-        </Button>
+        ) : (
+            <>
+                <Tooltip label={message} maw={300} multiline>
+                    <Text fz="xs" c="dimmed" truncate>
+                        Could not load tables
+                    </Text>
+                </Tooltip>
+                <Button variant="subtle" size="compact-xs" onClick={onRetry}>
+                    Retry
+                </Button>
+            </>
+        )}
     </Group>
 );
 
@@ -362,7 +388,11 @@ const VirtualRow: FC<{
     activeSchema: string | undefined;
     activeDatabase: string | undefined;
     onToggle: (rowId: string, isExpanded: boolean) => void;
-    onRetry: (listedDatabase: string) => void;
+    onRetry: (row: { connectionId: string; listedDatabase: string }) => void;
+    onSelect: (
+        identity: TableIdentity,
+        partitionColumn: PartitionColumn | undefined,
+    ) => void;
 }> = ({
     row,
     search,
@@ -372,6 +402,7 @@ const VirtualRow: FC<{
     activeDatabase,
     onToggle,
     onRetry,
+    onSelect,
 }) => {
     switch (row.type) {
         case 'connection':
@@ -385,6 +416,7 @@ const VirtualRow: FC<{
                     count={showCounts ? row.childCount : null}
                     search={search}
                     strong
+                    badge={row.isActive ? 'Active' : undefined}
                     onToggle={onToggle}
                 />
             );
@@ -429,6 +461,7 @@ const VirtualRow: FC<{
                     }
                     partitionColumn={row.partitionColumn}
                     tableType={row.tableType}
+                    onSelect={onSelect}
                 />
             );
         case 'loading':
@@ -438,7 +471,13 @@ const VirtualRow: FC<{
                 <ErrorItem
                     depth={row.depth}
                     message={row.message}
-                    onRetry={() => onRetry(row.listedDatabase)}
+                    forbidden={row.forbidden}
+                    onRetry={() =>
+                        onRetry({
+                            connectionId: row.connectionId,
+                            listedDatabase: row.listedDatabase,
+                        })
+                    }
                 />
             );
         case 'truncation':
@@ -461,11 +500,151 @@ const rowHeight = (row: WarehouseTreeRow | undefined): number => {
     }
 };
 
+const VirtualTreeList: FC<{
+    rows: WarehouseTreeRow[];
+    viewportRef: React.RefObject<HTMLDivElement | null>;
+    virtualizer: Virtualizer<HTMLDivElement, Element>;
+    search: string;
+    showCounts: boolean;
+    activeTable: string | undefined;
+    activeSchema: string | undefined;
+    activeDatabase: string | undefined;
+    onToggle: (rowId: string, isExpanded: boolean) => void;
+    onRetry: (unit: TableUnitKey) => void;
+    onSelect: (
+        identity: TableIdentity,
+        partitionColumn: PartitionColumn | undefined,
+    ) => void;
+}> = ({
+    rows,
+    viewportRef,
+    virtualizer,
+    search,
+    showCounts,
+    activeTable,
+    activeSchema,
+    activeDatabase,
+    onToggle,
+    onRetry,
+    onSelect,
+}) => (
+    <ScrollArea
+        viewportRef={viewportRef}
+        offsetScrollbars
+        scrollbars="y"
+        classNames={{ content: scrollAreaClasses.verticalContent }}
+        flex={1}
+        type="auto"
+    >
+        {rows.length > 0 && (
+            <Box
+                style={{
+                    height: virtualizer.getTotalSize(),
+                    position: 'relative',
+                }}
+            >
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                    const row = rows[virtualRow.index];
+                    if (!row) return null;
+                    return (
+                        <Box
+                            key={virtualRow.key}
+                            data-index={virtualRow.index}
+                            ref={virtualizer.measureElement}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                transform: `translateY(${virtualRow.start}px)`,
+                            }}
+                        >
+                            <VirtualRow
+                                row={row}
+                                search={search}
+                                showCounts={showCounts}
+                                activeTable={activeTable}
+                                activeSchema={activeSchema}
+                                activeDatabase={activeDatabase}
+                                onToggle={onToggle}
+                                onRetry={({ connectionId, listedDatabase }) =>
+                                    onRetry({
+                                        connectionId,
+                                        database: listedDatabase,
+                                    })
+                                }
+                                onSelect={onSelect}
+                            />
+                        </Box>
+                    );
+                })}
+            </Box>
+        )}
+    </ScrollArea>
+);
+
+/** The sidebar's one-line states: waiting, loading, failed, or nothing found. */
+const TablesStatus: FC<{
+    needsConnectionChoice: boolean;
+    isLoading: boolean;
+    errorMessage: string | undefined;
+    isForbidden: boolean;
+    isEmpty: boolean;
+}> = ({
+    needsConnectionChoice,
+    isLoading,
+    errorMessage,
+    isForbidden,
+    isEmpty,
+}) => {
+    if (needsConnectionChoice) {
+        return (
+            <Center p="sm">
+                <Text c="dimmed" fz="sm" ta="center">
+                    Choose a connection to start writing SQL
+                </Text>
+            </Center>
+        );
+    }
+    if (isLoading) {
+        return (
+            <Center p="sm">
+                <Loader size="sm" />
+            </Center>
+        );
+    }
+    if (isForbidden) {
+        return (
+            <Center p="sm">
+                <Text c="dimmed" fz="sm" ta="center">
+                    {CANNOT_BROWSE_MESSAGE}
+                </Text>
+            </Center>
+        );
+    }
+    if (errorMessage) {
+        return (
+            <Center p="sm">
+                <Text c="red" fz="sm" ta="center">
+                    {errorMessage}
+                </Text>
+            </Center>
+        );
+    }
+    if (isEmpty) {
+        return (
+            <Center p="sm">
+                <Text c="dimmed" fz="sm">
+                    No results found
+                </Text>
+            </Center>
+        );
+    }
+    return null;
+};
+
 export const Tables: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const connectionUuid = useAppSelector(
-        (state) => state.sqlRunner.connectionUuid,
-    );
     const warehouseConnectionType = useAppSelector(
         (state) => state.sqlRunner.warehouseConnectionType,
     );
@@ -496,6 +675,42 @@ export const Tables: FC = () => {
             expansion.key === filterKey ? expansion.overrides : NO_OVERRIDES,
         [expansion, filterKey],
     );
+    const {
+        activeConnectionUuid,
+        activeConnection,
+        connectionNameFor,
+        switchConnection,
+        hasSeveralConnections,
+        isConnectionSettled,
+    } = useActiveConnection();
+
+    const isRowExpandedByOverride = useCallback(
+        (rowId: string) => overrides[rowId],
+        [overrides],
+    );
+
+    const {
+        connections,
+        getUnitState,
+        loadedCatalogs,
+        retry,
+        isRowExpanded,
+        onConnectionExpanded,
+        isLoading,
+        listingError,
+        listingForbidden,
+        isSuccess,
+    } = useWarehouseTree({
+        projectUuid,
+        warehouseConnectionType,
+        isRowExpandedByOverride,
+    });
+
+    const reportMissingConnection = useReportMissingConnection();
+    useEffect(() => {
+        reportMissingConnection(listingError);
+    }, [listingError, reportMissingConnection]);
+
     const toggleRow = useCallback(
         (rowId: string, isExpanded: boolean) => {
             setExpansion((previous) => ({
@@ -505,67 +720,103 @@ export const Tables: FC = () => {
                     [rowId]: !isExpanded,
                 },
             }));
+            // Opening a connection is what asks for its databases
+            if (rowId.startsWith('connection:') && !isExpanded) {
+                onConnectionExpanded(rowId.slice('connection:'.length));
+            }
         },
-        [filterKey],
+        [filterKey, onConnectionExpanded],
     );
 
-    const {
-        data: listing,
-        isLoading,
-        isSuccess,
-        error: listingError,
-    } = useDatabases({ projectUuid, connectionUuid });
+    const dispatch = useAppDispatch();
+    const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
+    const [pendingSwitch, setPendingSwitch] =
+        useState<PendingConnectionSwitch | null>(null);
 
-    const connections = useMemo<TreeConnection[]>(
-        () =>
-            listing
-                ? [
-                      {
-                          // Release 1 projects hold exactly one connection
-                          connectionId: projectUuid,
-                          connectionName:
-                              warehouseConnectionType ?? 'Connection',
-                          databases: listing.databases,
-                          truncated: listing.truncated,
-                          limit: listing.limit,
-                      },
-                  ]
-                : [],
-        [listing, projectUuid, warehouseConnectionType],
-    );
-
-    const defaults = useMemo(
-        () => defaultExpandedRowIds(connections),
-        [connections],
-    );
-    const isRowExpanded = useCallback(
-        (rowId: string) => overrides[rowId] ?? defaults[rowId] ?? false,
-        [overrides, defaults],
+    const openTable = useCallback(
+        (
+            identity: TableIdentity,
+            partitionColumn: PartitionColumn | undefined,
+        ) => {
+            dispatch(
+                setSql(
+                    `SELECT * FROM ${qualifiedTableName(
+                        identity,
+                        quoteChar,
+                    )} ${partitionFilter(partitionColumn)}`,
+                ),
+            );
+            dispatch(
+                toggleActiveTable({
+                    table: identity.table,
+                    schema: identity.schema,
+                    database: identity.database,
+                }),
+            );
+        },
+        [dispatch, quoteChar],
     );
 
-    const listedDatabases = useMemo(
-        () =>
-            connections.flatMap((connection) =>
-                connection.databases.map((entry) => entry.name),
-            ),
-        [connections],
-    );
-    const enabledDatabases = useMemo(
-        () => new Set(collectEnabledUnits(connections, isRowExpanded)),
-        [connections, isRowExpanded],
+    const handleTableSelect = useCallback(
+        (
+            identity: TableIdentity,
+            partitionColumn: PartitionColumn | undefined,
+        ) => {
+            const outcome = tableClickOutcome({
+                sql,
+                activeConnectionUuid,
+                tableConnectionUuid: identity.connectionId,
+            });
+
+            if (outcome === 'insert') {
+                openTable(identity, partitionColumn);
+                return;
+            }
+
+            if (outcome === 'select-only') {
+                dispatch(
+                    toggleActiveTable({
+                        table: identity.table,
+                        schema: identity.schema,
+                        database: identity.database,
+                    }),
+                );
+                return;
+            }
+
+            if (outcome === 'switch-and-insert') {
+                switchConnection(identity.connectionId);
+                openTable(identity, partitionColumn);
+                return;
+            }
+
+            setPendingSwitch({
+                connectionUuid: identity.connectionId,
+                connectionName:
+                    connectionNameFor(identity.connectionId) ?? 'connection',
+                qualifiedName: qualifiedTableName(identity, quoteChar),
+                identity,
+                partitionColumn,
+            });
+        },
+        [
+            activeConnectionUuid,
+            sql,
+            quoteChar,
+            openTable,
+            switchConnection,
+            connectionNameFor,
+            dispatch,
+        ],
     );
 
-    const { states, loadedCatalogs, retry } = useTableUnits({
-        projectUuid,
-        databases: listedDatabases,
-        enabledDatabases,
-        connectionUuid,
-    });
-
-    const getUnitState = useCallback(
-        (listedDatabase: string) => states.get(listedDatabase) ?? IDLE_UNIT,
-        [states],
-    );
+    const confirmPendingSwitch = useCallback(() => {
+        if (!pendingSwitch) return;
+        switchConnection(pendingSwitch.connectionUuid);
+        openTable(pendingSwitch.identity, pendingSwitch.partitionColumn);
+        setPendingSwitch(null);
+    }, [pendingSwitch, switchConnection, openTable]);
 
     const hasViews = useMemo(
         () => loadedCatalogs.some(catalogHasViews),
@@ -597,6 +848,15 @@ export const Tables: FC = () => {
 
     return (
         <>
+            {pendingSwitch && (
+                <ConnectionSwitchPrompt
+                    pendingSwitch={pendingSwitch}
+                    activeConnectionName={activeConnection?.name}
+                    onConfirm={confirmPendingSwitch}
+                    onCancel={() => setPendingSwitch(null)}
+                />
+            )}
+
             <Group gap="xs" wrap="nowrap">
                 <Tooltip
                     opened={
@@ -607,7 +867,7 @@ export const Tables: FC = () => {
                     <TextInput
                         className={styles.searchInput}
                         size="sm"
-                        disabled={!listing && !debouncedSearch}
+                        disabled={!isSuccess && !debouncedSearch}
                         classNames={{ section: styles.searchSection }}
                         leftSection={
                             isLoading ? (
@@ -645,75 +905,29 @@ export const Tables: FC = () => {
                 ) : null}
             </Group>
 
-            <ScrollArea
+            <VirtualTreeList
+                rows={rows}
                 viewportRef={viewportRef}
-                offsetScrollbars
-                scrollbars="y"
-                classNames={{ content: scrollAreaClasses.verticalContent }}
-                flex={1}
-                type="auto"
-            >
-                {rows.length > 0 && (
-                    <Box
-                        style={{
-                            height: virtualizer.getTotalSize(),
-                            position: 'relative',
-                        }}
-                    >
-                        {virtualizer.getVirtualItems().map((virtualRow) => {
-                            const row = rows[virtualRow.index];
-                            if (!row) return null;
-                            return (
-                                <Box
-                                    key={virtualRow.key}
-                                    data-index={virtualRow.index}
-                                    ref={virtualizer.measureElement}
-                                    style={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        width: '100%',
-                                        transform: `translateY(${virtualRow.start}px)`,
-                                    }}
-                                >
-                                    <VirtualRow
-                                        row={row}
-                                        search={effectiveSearch}
-                                        showCounts={typeFilter !== null}
-                                        activeTable={activeTable}
-                                        activeSchema={activeSchema}
-                                        activeDatabase={activeDatabase}
-                                        onToggle={toggleRow}
-                                        onRetry={retry}
-                                    />
-                                </Box>
-                            );
-                        })}
-                    </Box>
-                )}
-            </ScrollArea>
+                virtualizer={virtualizer}
+                search={effectiveSearch}
+                showCounts={typeFilter !== null}
+                activeTable={activeTable}
+                activeSchema={activeSchema}
+                activeDatabase={activeDatabase}
+                onToggle={toggleRow}
+                onRetry={retry}
+                onSelect={handleTableSelect}
+            />
 
-            {isLoading && (
-                <Center p="sm">
-                    <Loader size="sm" />
-                </Center>
-            )}
-
-            {listingError && (
-                <Center p="sm">
-                    <Text c="red" fz="sm" ta="center">
-                        {listingError.error.message}
-                    </Text>
-                </Center>
-            )}
-
-            {isSuccess && rows.length === 0 && (
-                <Center p="sm">
-                    <Text c="dimmed" fz="sm">
-                        No results found
-                    </Text>
-                </Center>
-            )}
+            <TablesStatus
+                needsConnectionChoice={
+                    hasSeveralConnections && !isConnectionSettled
+                }
+                isLoading={isLoading && isConnectionSettled}
+                errorMessage={listingError?.error.message}
+                isForbidden={listingForbidden && isConnectionSettled}
+                isEmpty={isSuccess && isConnectionSettled && rows.length === 0}
+            />
         </>
     );
 };

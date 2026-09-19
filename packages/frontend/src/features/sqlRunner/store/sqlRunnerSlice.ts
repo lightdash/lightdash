@@ -47,6 +47,8 @@ export interface SqlRunnerState {
     activeSchema: string | undefined;
     activeDatabase: string | undefined;
     connectionUuid: string | undefined;
+    /** Names the connection that was removed elsewhere, until one is chosen. */
+    removedConnectionName: string | undefined;
     resultConnectionUuid: string | undefined;
     savedSqlChart: SqlChart | undefined;
     queryUuid: string | undefined;
@@ -104,6 +106,7 @@ export const initialState: SqlRunnerState = {
     activeSchema: undefined,
     activeDatabase: undefined,
     connectionUuid: undefined,
+    removedConnectionName: undefined,
     resultConnectionUuid: undefined,
     savedSqlChart: undefined,
     queryUuid: undefined,
@@ -174,6 +177,7 @@ export const sqlRunnerSlice = createSlice({
         selectRows: (state) => state.sqlRows,
         selectParameterValues: (state) => state.parameterValues,
         selectConnectionUuid: (state) => state.connectionUuid,
+        selectRemovedConnectionName: (state) => state.removedConnectionName,
         selectResultConnectionUuid: (state) => state.resultConnectionUuid,
         selectSqlQueryResults: (state) => {
             if (state.sqlColumns === undefined || state.sqlRows === undefined) {
@@ -199,6 +203,44 @@ export const sqlRunnerSlice = createSlice({
             action: PayloadAction<string | undefined>,
         ) => {
             state.connectionUuid = action.payload;
+            state.removedConnectionName = undefined;
+        },
+        // A connection removed elsewhere cannot stay active. Drop the
+        // selection and the table it belonged to, and leave the results and
+        // the typed SQL that are already on screen alone.
+        clearMissingConnection: (
+            state,
+            action: PayloadAction<string | undefined>,
+        ) => {
+            state.connectionUuid = undefined;
+            state.removedConnectionName = action.payload;
+            state.activeTable = undefined;
+            state.activeSchema = undefined;
+            state.activeDatabase = undefined;
+            state.queryError = undefined;
+            state.queryIsLoading = false;
+        },
+        // Seeding is not switching: the first connection a document resolves
+        // to leaves any loaded results alone.
+        switchActiveConnection: (state, action: PayloadAction<string>) => {
+            if (state.connectionUuid === action.payload) return;
+            state.connectionUuid = action.payload;
+            state.removedConnectionName = undefined;
+            state.sqlColumns = undefined;
+            state.sqlRows = undefined;
+            state.queryUuid = undefined;
+            state.fileUrl = undefined;
+            state.queryError = undefined;
+            state.queryIsLoading = false;
+            state.resultConnectionUuid = undefined;
+            state.resultsTableConfig = undefined;
+            state.editorHighlightError = undefined;
+            state.successfulSqlQueries = withHistory(undefined);
+            state.hasUnrunChanges = false;
+            // The selected table belongs to the catalog being left behind
+            state.activeTable = undefined;
+            state.activeSchema = undefined;
+            state.activeDatabase = undefined;
         },
         updateParameterValue: (
             state,
@@ -435,6 +477,8 @@ export const {
     toggleActiveTable,
     setProjectUuid,
     setConnectionUuid,
+    clearMissingConnection,
+    switchActiveConnection,
     setFetchResultsOnLoad,
     updateName,
     setSql,
