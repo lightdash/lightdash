@@ -10,13 +10,13 @@ az CLI + aca CLI (scripts/aks-dev/)              Helm (~/code/helm-charts/charts
   User-assigned managed identity (UAMI)           bundled postgres (pgvector, ephemeral)
   2× sandbox groups + disk images                 bundled browserless-chrome
   (data-app + writeback, native pause)            migration Job (core + EE)
-ingress-nginx (Azure LB) + cert-manager   →       in-cluster MinIO (S3, app files only)
+ingress-nginx (Azure LB) + cert-manager   →       in-cluster RustFS (S3, app files only)
 sslip.io hostname, real HTTPS                      ServiceAccount → Workload Identity → ADC data plane
 ```
 
 - **No Terraform** — Azure resources are created imperatively (idempotent `az ... show || create`). Sandbox groups + disk images are driven via the standalone **`aca` CLI** (the Sandboxes ADC data plane, `management.azuredevcompute.io`); `az rest` reaches only ARM. The `containerapp` `az` extension still can't install on the broken Homebrew `az` bottle, but `aca` is a separate binary and unaffected (see gotchas).
 - **AKS** with `--enable-oidc-issuer --enable-workload-identity --attach-acr`. The backend pod gets a federated **Workload Identity** token; `DefaultAzureCredential` mints ADC data-plane bearers for the sandbox groups — **no client secret in config**.
-- **Object storage is in-cluster MinIO**, not Azure Blob: Lightdash speaks the S3 API strictly (`parseBaseS3Config` enforces `S3_ENDPOINT/BUCKET/REGION`). MinIO backs the app's file storage only — the `azure-sandboxes` backend is `pauseResume:true` (native memory+disk snapshot), so it writes **no** sandbox snapshots to S3.
+- **Object storage is in-cluster RustFS**, not Azure Blob: Lightdash speaks the S3 API strictly (`parseBaseS3Config` enforces `S3_ENDPOINT/BUCKET/REGION`). RustFS backs the app's file storage only — the `azure-sandboxes` backend is `pauseResume:true` (native memory+disk snapshot), so it writes **no** sandbox snapshots to S3.
 - **Two sandbox groups** (data-app + writeback), one group + disk image per feature, mirroring the split images on every other backend. Sandboxes expose **native exec/file** data-plane APIs — there is no in-container agent to bake into the image.
 - **EE is wired from the start** (license from 1Password) so data-apps / writeback are unlocked.
 
@@ -30,7 +30,7 @@ All commands `source scripts/aks-dev/lib.sh`, load `config.env`, verify tools + 
 ./scripts/aks-dev/up.sh
 ```
 
-Steps (`STEP:`/`OK:`/`SKIP:`/`FAIL:`): providers → RG+ACR → AKS (OIDC+WI+attach-acr) → UAMI + federated credential + AcrPull → sandbox image(s) on ACR → sandbox group(s) + disk image(s) + **SandboxGroup Data Owner** role → MinIO → ingress-nginx + sslip host → cert-manager + issuer → k8s secrets (license/anthropic from 1Password) → render `values.azure.yaml.tpl` + `helm upgrade --install` → health. Ends `READY: https://<host>`.
+Steps (`STEP:`/`OK:`/`SKIP:`/`FAIL:`): providers → RG+ACR → AKS (OIDC+WI+attach-acr) → UAMI + federated credential + AcrPull → sandbox image(s) on ACR → sandbox group(s) + disk image(s) + **SandboxGroup Data Owner** role → RustFS → ingress-nginx + sslip host → cert-manager + issuer → k8s secrets (license/anthropic from 1Password) → render `values.azure.yaml.tpl` + `helm upgrade --install` → health. Ends `READY: https://<host>`.
 
 `up` needs `IMAGE_REF` (the branch image). First time: run `deploy` to build it, or set `IMAGE_REF`/`IMAGE_TAG` in `config.env`.
 
@@ -87,15 +87,15 @@ A `FAIL: <step> -- <reason>` names the failing phase. Diagnose (`kubectl get eve
 **Kubernetes / app** (shared with `/k8s-dev`)
 - **502 on `/assets/*`**: Lightdash's large CSP header overflows nginx's 4k proxy buffer — the overlay sets `proxy-buffer-size: 16k`.
 - **data-app/writeback 504**: synchronous runs exceed nginx's 60s default — the overlay sets `proxy-read/send-timeout: 600`.
-- **migration Job `ParseError: S3-compatible storage is required`**: the job doesn't inherit the main env — `migrationJob.extraEnv` sets the MinIO `S3_*`.
+- **migration Job `ParseError: S3-compatible storage is required`**: the job doesn't inherit the main env — `migrationJob.extraEnv` sets the RustFS `S3_*`.
 
 ## Configuration
 
-`config.env` (gitignored; copy from `config.example.env`). Key values: `LOCATION` (eastus), `ACA_LOCATION` (eastus2 — Sandboxes region), `ACR_NAME` (globally-unique), `AKS_NODE_SIZE`, the sandbox group names + disk image names + ACR images, `SANDBOX_RESOURCE_TIER` (M) / `SANDBOX_API_VERSION`, `SITE_HOST_MODE` (sslip|custom), 1Password item names for the EE license + Anthropic key. The backend env (`SANDBOX_PROVIDER=azure-sandboxes`, `AZURE_SANDBOXES_*`, Workload Identity client id, MinIO S3) is rendered into `values.azure.yaml.tpl`.
+`config.env` (gitignored; copy from `config.example.env`). Key values: `LOCATION` (eastus), `ACA_LOCATION` (eastus2 — Sandboxes region), `ACR_NAME` (globally-unique), `AKS_NODE_SIZE`, the sandbox group names + disk image names + ACR images, `SANDBOX_RESOURCE_TIER` (M) / `SANDBOX_API_VERSION`, `SITE_HOST_MODE` (sslip|custom), 1Password item names for the EE license + Anthropic key. The backend env (`SANDBOX_PROVIDER=azure-sandboxes`, `AZURE_SANDBOXES_*`, Workload Identity client id, RustFS S3) is rendered into `values.azure.yaml.tpl`.
 
 ## Secrets discipline
 
-Nothing sensitive is committed. `LIGHTDASH_SECRET`, postgres password, MinIO creds, the EE license, and the Anthropic key live only in k8s Secrets created at runtime. The license comes from the 1Password item **"Development Lightdash EE license key"** — never a customer-named item. The sandbox data plane authenticates with **no static secret** (Workload Identity + managed identity).
+Nothing sensitive is committed. `LIGHTDASH_SECRET`, postgres password, RustFS creds, the EE license, and the Anthropic key live only in k8s Secrets created at runtime. The license comes from the 1Password item **"Development Lightdash EE license key"** — never a customer-named item. The sandbox data plane authenticates with **no static secret** (Workload Identity + managed identity).
 
 ## Cost
 

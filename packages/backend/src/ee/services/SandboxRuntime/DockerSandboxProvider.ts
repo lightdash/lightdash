@@ -22,7 +22,7 @@ import {
 const SANDBOX_LABEL = 'com.lightdash.sandbox';
 
 /** Prefix for container names so they read like the other dev services
- * (`headless-browser`, `mailpit`, `minio`) instead of Docker's random
+ * (`headless-browser`, `mailpit`, `rustfs`) instead of Docker's random
  * `adjective_surname`. A short random suffix keeps each name unique. */
 const SANDBOX_NAME_PREFIX = 'lightdash-sandbox';
 

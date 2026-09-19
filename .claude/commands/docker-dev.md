@@ -37,7 +37,7 @@ This gives you:
 - `$PORT`, `$FE_PORT`, `$SCHEDULER_PORT`, `$DEBUG_PORT`, `$SDK_TEST_PORT`, `$MAPLE_PORT`, `$LIGHTDASH_PROMETHEUS_PORT` — per-instance app ports
 - `$PGPORT`, `$SITE_URL`, `$S3_ENDPOINT`, `$HEADLESS_BROWSER_PORT`, `$EMAIL_SMTP_PORT` — app config (shared ports hardcoded: S3=9000, browser=3001, SMTP=1025)
 
-**Shared services** (minio, headless-browser, mailpit, nats) run once on fixed ports via `docker-compose.dev.shared.yml`. Only PostgreSQL is per-instance via `docker-compose.dev.instance.yml`.
+**Shared services** (rustfs, headless-browser, mailpit, nats) run once on fixed ports via `docker-compose.dev.shared.yml`. Only PostgreSQL is per-instance via `docker-compose.dev.instance.yml`.
 
 ---
 
@@ -80,7 +80,7 @@ Available commands:
 Run these checks to determine what needs to be done. **Run checks 1-5 and 10 in parallel first**, then checks 6-8 in parallel (they depend on Docker running):
 
 ```bash
-# Check 1a: Shared Docker services running (minio, headless-browser, mailpit, nats)
+# Check 1a: Shared Docker services running (rustfs, headless-browser, mailpit, nats)
 SHARED_COUNT=$(docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml ps --format json 2>/dev/null | grep -c '"State":"running"' || true)
 [ "$SHARED_COUNT" -ge 4 ] && echo "OK: Shared Docker services running ($SHARED_COUNT)" || echo "NEED: Start shared Docker services (only $SHARED_COUNT/4 running)"
 
@@ -312,7 +312,7 @@ template, so Docker is the working local path anyway. Public docs:
    # SANDBOX_AI_WRITEBACK_DOCKER_IMAGE=lightdash-ai-writeback:local
    # SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE=lightdash-agent-onboarding:local
    ```
-   Requires `ANTHROPIC_API_KEY` (agent) and MinIO up (snapshots tar to object storage).
+   Requires `ANTHROPIC_API_KEY` (agent) and RustFS up (snapshots tar to object storage).
 
 ### Critical gotchas
 
@@ -321,7 +321,7 @@ template, so Docker is the working local path anyway. Public docs:
   env across a plain `restart` — `pm2 delete ${LD_INSTANCE_ID}-api ${LD_INSTANCE_ID}-scheduler && pnpm pm2:start`
   to reliably reload `.env.development.local`. Verify with `pm2 jlist` that BOTH processes
   show `SANDBOX_PROVIDER=docker`.
-- **After an OrbStack/Docker restart**, MinIO + NATS may not come back (gen needs MinIO) and
+- **After an OrbStack/Docker restart**, RustFS + NATS may not come back (gen needs RustFS) and
   the graphile worker can zombie — re-run shared compose up and restart the scheduler.
 - **A sandbox feature failing with `(HTTP code 404) ... No such image: lightdash-<name>:local`**
   means that local image was never built on this machine (each new sandbox type ships its own
@@ -646,7 +646,7 @@ Maple trace UI: http://localhost:${MAPLE_PORT}
 | Backend (Express) | ${PORT}      | http://localhost:${PORT}              |
 | Scheduler         | ${SCHEDULER_PORT}      |                                    |
 | PostgreSQL        | ${LD_PG_PORT}      |                                    |
-| MinIO             | 9000/9001 |                                    |
+| RustFS            | 9000/9001 | http://localhost:9001/rustfs/console/ |
 | Headless Browser  | 3001      |                                    |
 | Mailpit           | 8025/1025 | http://localhost:8025         |
 | Maple (traces)    | ${MAPLE_PORT}      | http://localhost:${MAPLE_PORT}             |
@@ -1118,10 +1118,10 @@ docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml ps
 docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml ps
 ```
 
-### MinIO Connection Refused
+### RustFS Connection Refused
 
 ```bash
-docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml ps | grep minio
+docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml ps | grep rustfs
 docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml --env-file .env.development up -d
 ```
 

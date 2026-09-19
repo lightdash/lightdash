@@ -4,7 +4,7 @@
 # Manages port assignments so multiple worktrees can run simultaneously
 # without port conflicts. Each worktree gets a "slot" with computed port offsets.
 #
-# Shared services (minio, headless-browser, mailpit, nats) run once on fixed
+# Shared services (rustfs, headless-browser, mailpit, nats) run once on fixed
 # ports via docker-compose.dev.shared.yml. Only PostgreSQL and app-level ports
 # (API, frontend, scheduler, etc.) are allocated per instance.
 #
@@ -28,8 +28,8 @@ fi
 REGISTRY_DIR="$HOME/.lightdash/dev-instances"
 
 # Shared service ports (fixed, single instance for all worktrees)
-SHARED_MINIO_PORT=9000
-SHARED_MINIO_CONSOLE_PORT=9001
+SHARED_RUSTFS_PORT=9000
+SHARED_RUSTFS_CONSOLE_PORT=9001
 SHARED_BROWSER_PORT=3001
 SHARED_MAILPIT_WEB_PORT=8025
 SHARED_MAILPIT_SMTP_PORT=1025
@@ -79,7 +79,7 @@ compute_ports() {
     # Slot N = base + N * offset
     #
     # Only per-instance ports are computed here.
-    # Shared services (minio, browser, mailpit, nats) use fixed ports.
+    # Shared services (rustfs, browser, mailpit, nats) use fixed ports.
     #
     # Note: with stride 10, cross-slot collisions are theoretically possible
     # (e.g. slot 3 FRONTEND_PORT=3030 vs slot 0 SDK_TEST_PORT=3030).
@@ -181,8 +181,8 @@ write_instance_file() {
     "prometheus": ${PROMETHEUS_PORT}
   },
   "shared": {
-    "minio": ${SHARED_MINIO_PORT},
-    "minioConsole": ${SHARED_MINIO_CONSOLE_PORT},
+    "rustfs": ${SHARED_RUSTFS_PORT},
+    "rustfsConsole": ${SHARED_RUSTFS_CONSOLE_PORT},
     "browser": ${SHARED_BROWSER_PORT},
     "mailpitWeb": ${SHARED_MAILPIT_WEB_PORT},
     "mailpitSmtp": ${SHARED_MAILPIT_SMTP_PORT},
@@ -318,7 +318,7 @@ cmd_list() {
     mkdir -p "$REGISTRY_DIR"
 
     echo "Shared services (all instances):"
-    echo "    MinIO:     localhost:${SHARED_MINIO_PORT} (console: ${SHARED_MINIO_CONSOLE_PORT})"
+    echo "    RustFS:    localhost:${SHARED_RUSTFS_PORT} (console: ${SHARED_RUSTFS_CONSOLE_PORT}/rustfs/console/)"
     echo "    Browser:   localhost:${SHARED_BROWSER_PORT}"
     echo "    Mailpit:   http://localhost:${SHARED_MAILPIT_WEB_PORT} (SMTP: ${SHARED_MAILPIT_SMTP_PORT})"
     echo "    NATS:      localhost:${SHARED_NATS_PORT} (monitor: ${SHARED_NATS_MONITOR_PORT})"
@@ -382,7 +382,9 @@ print(f\"export LIGHTDASH_PROMETHEUS_PORT={p['prometheus']}\")
 print(f\"export PGPORT={p['pg']}\")
 print(f\"export SITE_URL=http://localhost:{p['frontend']}\")
 # Shared service ports (fixed across all instances)
-print(f\"export S3_ENDPOINT=http://localhost:{s['minio']}\")
+# Instance files claimed before RustFS replaced MinIO carry the old 'minio'
+# key, and are never rewritten — fall back to it rather than failing.
+print(f\"export S3_ENDPOINT=http://localhost:{s.get('rustfs', s.get('minio', 9000))}\")
 print(f\"export HEADLESS_BROWSER_PORT={s['browser']}\")
 print(f\"export EMAIL_SMTP_PORT={s['mailpitSmtp']}\")
 "

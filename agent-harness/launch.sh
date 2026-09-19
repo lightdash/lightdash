@@ -37,8 +37,10 @@ API_PORT=$((8000 + AGENT_ID * 10))
 SCHEDULER_PORT=$((8000 + AGENT_ID * 10 + 1))
 DEBUG_PORT=$((9200 + AGENT_ID * 10))
 DB_PORT="${AGENT_DB_PORT:-15432}"
-MINIO_PORT="${AGENT_MINIO_PORT:-19000}"
+RUSTFS_PORT="${AGENT_RUSTFS_PORT:-19000}"
 BROWSER_PORT="${AGENT_BROWSER_PORT:-13001}"
+# Compose default network for the shared infra project (see setup-infra.sh)
+AGENT_INFRA_NETWORK="${AGENT_INFRA_NETWORK:-agent-infra_default}"
 
 log "Ports: frontend=$FE_PORT api=$API_PORT debug=$DEBUG_PORT"
 
@@ -60,20 +62,23 @@ else
     log "Database '$AGENT_DB' created."
 fi
 
-# ── Step 3: Create MinIO bucket ────────────────────────────────────────────
-MINIO_BUCKET="agent-${AGENT_ID}"
-log "Ensuring MinIO bucket '$MINIO_BUCKET' exists..."
+# ── Step 3: Create RustFS bucket ───────────────────────────────────────────
+RUSTFS_BUCKET="agent-${AGENT_ID}"
+log "Ensuring RustFS bucket '$RUSTFS_BUCKET' exists..."
 
-# Use the MinIO HTTP API to create the bucket (PUT /<bucket>)
-MINIO_ENDPOINT="http://localhost:${MINIO_PORT}"
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
-    -u "minioadmin:minioadmin" \
-    "${MINIO_ENDPOINT}/${MINIO_BUCKET}/" 2>/dev/null) || true
-
-if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "409" ]; then
-    log "MinIO bucket '$MINIO_BUCKET' is ready."
+# RustFS requires SigV4, so create the bucket with the RustFS CLI on the shared
+# infra network rather than a plain curl PUT. Reuses the compose init script.
+if docker run --rm --network "${AGENT_INFRA_NETWORK}" \
+    -e RUSTFS_ENDPOINT=http://rustfs:9000 \
+    -e RUSTFS_ACCESS_KEY=rustfsadmin \
+    -e RUSTFS_SECRET_KEY=rustfsadmin \
+    -e RUSTFS_DEFAULT_BUCKETS="$RUSTFS_BUCKET" \
+    -v "$REPO_ROOT/docker/init-rustfs.sh:/init-rustfs.sh" \
+    --entrypoint /init-rustfs.sh \
+    rustfs/rc:v0.1.36 >/dev/null 2>&1; then
+    log "RustFS bucket '$RUSTFS_BUCKET' is ready."
 else
-    log "Warning: MinIO bucket creation returned HTTP $HTTP_STATUS (may already exist or MinIO not ready)"
+    log "Warning: could not create RustFS bucket '$RUSTFS_BUCKET' (RustFS may not be ready)"
 fi
 
 # ── Step 4: Git worktree (optional) ───────────────────────────────────────
@@ -104,7 +109,7 @@ AGENT_ID="$AGENT_ID" \
 API_PORT="$API_PORT" \
 FE_PORT="$FE_PORT" \
 DB_PORT="$DB_PORT" \
-MINIO_PORT="$MINIO_PORT" \
+RUSTFS_PORT="$RUSTFS_PORT" \
 BROWSER_PORT="$BROWSER_PORT" \
 REPO_ROOT="$WORK_DIR" \
     envsubst < "$SCRIPT_DIR/env.template" > "$ENV_FILE"

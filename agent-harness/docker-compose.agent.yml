@@ -25,24 +25,45 @@ services:
         limits:
           memory: 1G
 
-  minio:
-    image: coollabsio/minio:latest
+  rustfs:
+    image: rustfs/rustfs:1.0.0
     ports:
-      - "${AGENT_MINIO_PORT:-19000}:9000"
-      - "${AGENT_MINIO_CONSOLE_PORT:-19001}:9001"
+      - "${AGENT_RUSTFS_PORT:-19000}:9000"
+      - "${AGENT_RUSTFS_CONSOLE_PORT:-19001}:9001"
     volumes:
-      - agent-minio-data:/minio/data
-      - ../docker/init-minio.sh:/init-minio.sh
-    entrypoint: /init-minio.sh
+      # RustFS serves /data (RUSTFS_VOLUMES); mounting elsewhere would leave
+      # objects on an anonymous volume that `compose down` drops
+      - agent-rustfs-data:/data
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-      MINIO_DEFAULT_BUCKETS: default,results
-      MINIO_BROWSER: "off"
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+      RUSTFS_CONSOLE_ENABLE: "false"
+      RUSTFS_CORS_ALLOWED_ORIGINS: "*"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
+
+  rustfs-init:
+    image: rustfs/rc:v0.1.36
+    depends_on:
+      rustfs:
+        condition: service_healthy
+    volumes:
+      - ../docker/init-rustfs.sh:/init-rustfs.sh
+    entrypoint: /init-rustfs.sh
+    environment:
+      RUSTFS_ENDPOINT: http://rustfs:9000
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+      RUSTFS_DEFAULT_BUCKETS: default,results
+    restart: "no"
 
   headless-browser:
     image: ghcr.io/browserless/chromium:v2.38.2
@@ -68,4 +89,4 @@ services:
 
 volumes:
   agent-db-data:
-  agent-minio-data:
+  agent-rustfs-data:

@@ -976,7 +976,7 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
     const secretKey = process.env.S3_SECRET_KEY;
     // Browser-facing S3 endpoint used when minting presigned URLs that the
     // browser will fetch directly (e.g. PUT uploads for app images). In local
-    // dev the internal Docker hostname (http://minio:9000) is unreachable from
+    // dev the internal Docker hostname (http://rustfs:9000) is unreachable from
     // the browser, so set this to http://localhost:9000. In production with
     // real S3 this is typically unnecessary — omit it and the internal endpoint
     // is used for signing, which already resolves publicly.
@@ -996,7 +996,7 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
 
     if (!endpoint || !bucket || !region) {
         throw new ParseError(
-            'S3-compatible storage is required. Set S3_ENDPOINT, S3_BUCKET and S3_REGION (AWS S3, GCS, MinIO, etc.) - https://docs.lightdash.com/self-host/customize-deployment/environment-variables#s3',
+            'S3-compatible storage is required. Set S3_ENDPOINT, S3_BUCKET and S3_REGION (AWS S3, GCS, RustFS, etc.) - https://docs.lightdash.com/self-host/customize-deployment/environment-variables#s3',
             {},
         );
     }
@@ -2015,8 +2015,8 @@ export type S3Config = {
     endpoint: string;
     /**
      * Browser-facing S3 endpoint for presigned URLs that the browser fetches
-     * directly (e.g. image uploads via PUT). In local dev with MinIO, the
-     * internal endpoint (http://minio:9000) isn't reachable from the browser,
+     * directly (e.g. image uploads via PUT). In local dev with RustFS, the
+     * internal endpoint (http://rustfs:9000) is not reachable from the browser,
      * so this can be set to http://localhost:9000. In production with real
      * S3/GCS, this is unnecessary since the endpoint is already public.
      */

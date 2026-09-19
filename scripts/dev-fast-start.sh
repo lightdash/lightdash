@@ -321,17 +321,17 @@ fi
 
 # ---------------------------------------------------------------------------
 # The backend reads and writes S3 objects at localhost:9000 (S3_ENDPOINT). The
-# only thing that should be answering there is the MinIO container that
+# only thing that should be answering there is the RustFS container that
 # docker-compose starts below. If another program on this machine is already
 # listening on port 9000 when the backend connects, the backend talks to that
 # program instead of the container. Docker does not report an error in this
 # case (it maps the container's port on a different network address), so the
 # container looks healthy and the /api/v1/health check passes — but every S3
-# operation goes to the wrong MinIO. Files the backend writes (e.g. generated
-# data-app bundles) are stored there, while a tool pointed at the container
-# sees an empty bucket, and app previews that read back through the container
-# return 404. Detect the conflicting listener now, before docker-compose runs
-# and hides which MinIO is actually being used.
+# operation goes to the wrong object store. Files the backend writes (e.g.
+# generated data-app bundles) are stored there, while a tool pointed at the
+# container sees an empty bucket, and app previews that read back through the
+# container return 404. Detect the conflicting listener now, before
+# docker-compose runs and hides which object store is actually being used.
 step "Check nothing else is using S3 port 9000"
 if command -v lsof >/dev/null 2>&1; then
     CONFLICT_PID=""; CONFLICT_CMD=""
@@ -339,7 +339,7 @@ if command -v lsof >/dev/null 2>&1; then
         _cmd="$(ps -o comm= -p "$_pid" 2>/dev/null)"
         case "$_cmd" in
             # These are Docker / OrbStack / Colima forwarding the container's
-            # port 9000 to the host — i.e. the expected MinIO container. Any
+            # port 9000 to the host — i.e. the expected RustFS container. Any
             # other program listening on 9000 is the problem.
             *docker*|*Docker*|*OrbStack*|*orbstack*|*vpnkit*|*qemu*|*colima*) ;;
             "") ;;  # process exited between lsof and ps — ignore
@@ -347,9 +347,9 @@ if command -v lsof >/dev/null 2>&1; then
         esac
     done
     if [ -n "$CONFLICT_PID" ]; then
-        fail "minio-port" "the program '$(basename "$CONFLICT_CMD")' (pid $CONFLICT_PID) is already listening on port 9000, so the backend would send all S3 reads/writes to it instead of the MinIO container started by docker-compose. The container would still start and report healthy, but data-app files and other S3 objects would be written to and read from different places, and app previews would return 404. This program is not part of /docker-dev. Stop it, then re-run this script:  kill $CONFLICT_PID  (it is safe to use 'kill -9 $CONFLICT_PID' if it does not stop)"
+        fail "rustfs-port" "the program '$(basename "$CONFLICT_CMD")' (pid $CONFLICT_PID) is already listening on port 9000, so the backend would send all S3 reads/writes to it instead of the RustFS container started by docker-compose. The container would still start and report healthy, but data-app files and other S3 objects would be written to and read from different places, and app previews would return 404. This program is not part of /docker-dev. Stop it, then re-run this script:  kill $CONFLICT_PID  (it is safe to use 'kill -9 $CONFLICT_PID' if it does not stop)"
     fi
-    echo "OK: port 9000 is free for the MinIO container"
+    echo "OK: port 9000 is free for the RustFS container"
 else
     echo "SKIP: lsof not installed — cannot check what is using port 9000"
 fi
@@ -369,11 +369,11 @@ mkdir -p "${HOME}/.lightdash"
 if command -v flock >/dev/null 2>&1; then
     flock "$SHARED_LOCK" docker compose -p ld-shared -f "$SHARED_COMPOSE" --env-file .env.development up -d \
         || { sleep 5; start_shared_services; } \
-        || fail "docker-shared" "could not start shared services (minio/headless-browser/mailpit/nats)"
+        || fail "docker-shared" "could not start shared services (rustfs/headless-browser/mailpit/nats)"
 else
     start_shared_services \
         || { sleep 5; start_shared_services; } \
-        || fail "docker-shared" "could not start shared services (minio/headless-browser/mailpit/nats)"
+        || fail "docker-shared" "could not start shared services (rustfs/headless-browser/mailpit/nats)"
 fi
 docker compose -p "$LD_COMPOSE_PROJECT" -f "$INSTANCE_COMPOSE" --env-file .env.development up -d \
     || fail "docker-instance" "could not start per-instance PostgreSQL"

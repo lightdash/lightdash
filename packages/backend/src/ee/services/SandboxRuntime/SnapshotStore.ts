@@ -21,9 +21,9 @@ export interface SnapshotStore {
 }
 
 /**
- * S3/MinIO-backed {@link SnapshotStore}. Reuses {@link S3BaseClient} for
+ * S3/RustFS-backed {@link SnapshotStore}. Reuses {@link S3BaseClient} for
  * endpoint + credential resolution so it behaves identically to the rest of the
- * app's storage (locally: MinIO, zero new infra). Missing-config is surfaced at
+ * app's storage (locally: RustFS, zero new infra). Missing-config is surfaced at
  * call time, not construction, so it is safe to instantiate on the E2B path
  * where snapshots are never written.
  */

@@ -1668,12 +1668,10 @@ const AppGenerate: FC = () => {
                 });
             }
 
-            // Upload files sequentially. Two reasons we can't run these in parallel:
-            // 1. The backend buffers each body to avoid AWS SDK chunked signing,
-            //    which MinIO/GCS handle unreliably (RequestTimeout).
-            // 2. Concurrent PUTs to the same staging prefix
-            //    (apps/{appUuid}/uploads/) hit MinIO's per-prefix lock and fail
-            //    with "A timeout occurred while trying to lock a resource".
+            // Upload files sequentially: the backend buffers each body to avoid
+            // AWS SDK chunked signing, which RustFS/GCS handle unreliably
+            // (RequestTimeout). The old per-prefix lock contention on concurrent
+            // PUTs was a MinIO limitation and no longer applies.
             // Surface individual failures via toast rather than silently dropping them.
             let fileIds: string[] | undefined;
             if (fileAttachments.length > 0) {

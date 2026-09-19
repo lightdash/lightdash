@@ -108,10 +108,10 @@ charts and dashboards include a `space_name` attribute.
 
 ## Local verification
 
-Start an isolated instance and configure its local MinIO usage-events settings
+Start an isolated instance and configure its local RustFS usage-events settings
 as described in [local testing](local-testing.md). Load its assigned environment
 before running the test. The test uses a disposable schema in that instance's
-Postgres and a dedicated MinIO bucket; it cleans up both.
+Postgres and a dedicated RustFS bucket; it cleans up both.
 
 ```bash
 export INSTANCE_ID=<your-instance>
@@ -123,7 +123,7 @@ pnpm exec dotenv -e .env.development.local -e .env.development -- \
   --disableConsoleIntercept
 ```
 
-This exercises real Postgres → JSONL → Parquet → MinIO → signed-URL DuckDB →
+This exercises real Postgres → JSONL → Parquet → RustFS → signed-URL DuckDB →
 Lightdash-generated JOIN SQL, including two organizations, duplicate names,
 unknown/removed users, SQL/dashboard-owned charts, renames, soft deletion,
 overwrites with unchanged source rows, missing snapshots and interrupted exports.

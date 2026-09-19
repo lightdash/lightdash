@@ -15,7 +15,7 @@ import path from 'path';
 import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
 import { createS3AnalyticsSourceResolver } from './S3AnalyticsSource';
 
-// Opt-in, disposable local MinIO bucket; never writes to a cloud bucket.
+// Opt-in, disposable local RustFS bucket; never writes to a cloud bucket.
 describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
     'signed analytics URLs with real DuckDB and local S3',
     () => {

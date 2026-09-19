@@ -52,15 +52,15 @@ The backend, scheduler worker, and headless browser run as separate services tha
 | **Scheduler Worker** | Graphile Worker — processes background jobs (emails, Slack, exports) | `SchedulerWorker.ts`, `SchedulerTask.ts` |
 | **Headless Browser** | Separate Chromium container, takes screenshots/PDFs via CDP | `docker/Dockerfile.headless-browser`, `UnfurlService.ts` |
 | **PostgreSQL** | All application state + Graphile Worker job queue | Knex migrations in `src/database/migrations/` |
-| **S3 / MinIO** | Object storage for screenshots, PDFs, CSVs, result caching, app images | `FileStorageClient.ts`, `S3Client.ts` |
+| **S3 / RustFS** | Object storage for screenshots, PDFs, CSVs, result caching, app images | `FileStorageClient.ts`, `S3Client.ts` |
 | **NATS** | Optional message queue for async query processing | `NatsClient.ts` |
 
 ### S3 Endpoints: Internal vs Public
 
 The backend uses two S3 endpoint settings:
 
--   `S3_ENDPOINT` — internal endpoint the backend uses for all server-side S3 operations (e.g. `http://minio:9000` inside Docker).
--   `S3_PUBLIC_ENDPOINT` — browser-facing endpoint used when minting presigned URLs that the browser fetches directly (e.g. presigned PUT for app image uploads). In local dev, the Docker hostname `minio` is unreachable from the browser, so this must be set to `http://localhost:9000`. In production with real S3/GCS, omit this — the internal endpoint is already publicly resolvable.
+-   `S3_ENDPOINT` — internal endpoint the backend uses for all server-side S3 operations (e.g. `http://rustfs:9000` inside Docker).
+-   `S3_PUBLIC_ENDPOINT` — browser-facing endpoint used when minting presigned URLs that the browser fetches directly (e.g. presigned PUT for app image uploads). In local dev, the Docker hostname `rustfs` is unreachable from the browser, so this must be set to `http://localhost:9000`. In production with real S3/GCS, omit this — the internal endpoint is already publicly resolvable.
 
 When the backend creates a presigned URL for browser-direct upload, it uses `S3_PUBLIC_ENDPOINT` (falling back to `S3_ENDPOINT`) as the signing endpoint. See `parseBaseS3Config()` in `packages/backend/src/config/parseConfig.ts`.
 
@@ -225,7 +225,7 @@ Freezing analytics/customer *deployments* is a different mechanism in a differen
 -   Controllers use TSOA decorators for API generation
 -   Background jobs via Graphile Worker (PostgreSQL-based job queue, not node-cron)
 -   Scheduler enabled/disabled via `SCHEDULER_ENABLED` env var
--   File storage through `FileStorageClient` → S3/MinIO (never local filesystem for cross-service sharing)
+-   File storage through `FileStorageClient` → S3/RustFS (never local filesystem for cross-service sharing)
 
 **Frontend (`packages/frontend/`):**
 

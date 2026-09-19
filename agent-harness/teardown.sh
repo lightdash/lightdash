@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tears down a single agent instance.
-# Stops PM2 processes, drops database, removes MinIO bucket, cleans up files.
+# Stops PM2 processes, drops database, removes RustFS bucket, cleans up files.
 #
 # Safety: Only touches resources with the agent's ID. Cannot affect other agents.
 #
@@ -21,7 +21,8 @@ fi
 log() { echo "==> [agent-$AGENT_ID] $*" >&2; }
 
 DB_PORT="${AGENT_DB_PORT:-15432}"
-MINIO_PORT="${AGENT_MINIO_PORT:-19000}"
+# Compose default network for the shared infra project (see setup-infra.sh)
+AGENT_INFRA_NETWORK="${AGENT_INFRA_NETWORK:-agent-infra_default}"
 
 # ── Step 1: Stop and delete PM2 processes ─────────────────────────────────
 log "Stopping PM2 processes with prefix 'agent-${AGENT_ID}-'..."
@@ -53,20 +54,16 @@ else
     log "Database '$AGENT_DB' does not exist. Skipping."
 fi
 
-# ── Step 3: Remove MinIO bucket ───────────────────────────────────────────
-MINIO_BUCKET="agent-${AGENT_ID}"
-MINIO_ENDPOINT="http://localhost:${MINIO_PORT}"
+# ── Step 3: Remove RustFS bucket ──────────────────────────────────────────
+RUSTFS_BUCKET="agent-${AGENT_ID}"
 
-log "Removing MinIO bucket '$MINIO_BUCKET'..."
-# Use mc if available, otherwise skip
-if command -v mc >/dev/null 2>&1; then
-    mc alias set agent-minio "$MINIO_ENDPOINT" minioadmin minioadmin 2>/dev/null || true
-    mc rb --force "agent-minio/${MINIO_BUCKET}" 2>/dev/null || log "Warning: could not remove MinIO bucket"
-else
-    # Try with curl - delete objects first, then bucket
-    curl -s -X DELETE -u "minioadmin:minioadmin" "${MINIO_ENDPOINT}/${MINIO_BUCKET}/" 2>/dev/null || true
-    log "Note: Install 'mc' (MinIO Client) for reliable bucket cleanup"
-fi
+log "Removing RustFS bucket '$RUSTFS_BUCKET'..."
+# The RustFS CLI runs in a container on the shared infra network, so no host
+# install is needed. --force empties the bucket first.
+docker run --rm --network "${AGENT_INFRA_NETWORK}" --entrypoint /bin/sh rustfs/rc:v0.1.36 -c "
+    rc alias set local http://rustfs:9000 rustfsadmin rustfsadmin >/dev/null 2>&1 &&
+    rc bucket remove --force local/${RUSTFS_BUCKET} >/dev/null 2>&1
+" || log "Warning: could not remove RustFS bucket '$RUSTFS_BUCKET'"
 
 # ── Step 4: Remove generated files ────────────────────────────────────────
 for file in \

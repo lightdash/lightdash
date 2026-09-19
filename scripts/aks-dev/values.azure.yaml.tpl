@@ -4,7 +4,7 @@
 # Secrets are NOT in this file. up.sh creates k8s Secrets idempotently:
 #   - lightdash-pg   (password, postgres-password)            -> bundled postgres
 #   - lightdash-app  (LIGHTDASH_SECRET, LIGHTDASH_LICENSE_KEY, ANTHROPIC_API_KEY) -> backend + migration
-#   - minio-creds    (accesskey, secretkey)                   -> S3 client (app + snapshot store)
+#   - rustfs-creds   (accesskey, secretkey)                   -> S3 client (app + snapshot store)
 # The chart-managed `secrets:` map is left empty; everything sensitive comes via valueFrom.
 
 image:
@@ -71,7 +71,7 @@ nats:
   enabled: false
 
 # Migrations (core + EE) as a pre-install/upgrade hook. EE dirs included because the
-# license is in scope. The job loads the full config, which enforces S3 -> point it at MinIO.
+# license is in scope. The job loads the full config, which enforces S3 -> point it at RustFS.
 migrationJob:
   enabled: true
   extraEnv:
@@ -79,14 +79,14 @@ migrationJob:
       valueFrom: { secretKeyRef: { name: lightdash-app, key: LIGHTDASH_SECRET } }
     - name: LIGHTDASH_LICENSE_KEY
       valueFrom: { secretKeyRef: { name: lightdash-app, key: LIGHTDASH_LICENSE_KEY } }
-    - { name: S3_ENDPOINT, value: "http://minio.minio.svc.cluster.local:9000" }
+    - { name: S3_ENDPOINT, value: "http://rustfs.rustfs.svc.cluster.local:9000" }
     - { name: S3_BUCKET, value: "lightdash" }
     - { name: S3_REGION, value: "us-east-1" }
     - { name: S3_FORCE_PATH_STYLE, value: "true" }
     - name: S3_ACCESS_KEY
-      valueFrom: { secretKeyRef: { name: minio-creds, key: accesskey } }
+      valueFrom: { secretKeyRef: { name: rustfs-creds, key: accesskey } }
     - name: S3_SECRET_KEY
-      valueFrom: { secretKeyRef: { name: minio-creds, key: secretkey } }
+      valueFrom: { secretKeyRef: { name: rustfs-creds, key: secretkey } }
 
 ingress:
   enabled: true
@@ -109,22 +109,22 @@ ingress:
       hosts:
         - "${SITE_HOST}"
 
-# Backend env: S3 -> in-cluster MinIO; sandbox -> Azure Container Apps Sandboxes.
+# Backend env: S3 -> in-cluster RustFS; sandbox -> Azure Container Apps Sandboxes.
 extraEnv:
   - name: LIGHTDASH_SECRET
     valueFrom: { secretKeyRef: { name: lightdash-app, key: LIGHTDASH_SECRET } }
   - name: LIGHTDASH_LICENSE_KEY
     valueFrom: { secretKeyRef: { name: lightdash-app, key: LIGHTDASH_LICENSE_KEY } }
-  # --- S3 via in-cluster MinIO (app file storage; NOT sandbox snapshots — Azure
+  # --- S3 via in-cluster RustFS (app file storage; NOT sandbox snapshots — Azure
   #     Sandboxes pause natively) ---
-  - { name: S3_ENDPOINT, value: "http://minio.minio.svc.cluster.local:9000" }
+  - { name: S3_ENDPOINT, value: "http://rustfs.rustfs.svc.cluster.local:9000" }
   - { name: S3_BUCKET, value: "lightdash" }
   - { name: S3_REGION, value: "us-east-1" }
   - { name: S3_FORCE_PATH_STYLE, value: "true" }
   - name: S3_ACCESS_KEY
-    valueFrom: { secretKeyRef: { name: minio-creds, key: accesskey } }
+    valueFrom: { secretKeyRef: { name: rustfs-creds, key: accesskey } }
   - name: S3_SECRET_KEY
-    valueFrom: { secretKeyRef: { name: minio-creds, key: secretkey } }
+    valueFrom: { secretKeyRef: { name: rustfs-creds, key: secretkey } }
   - { name: S3_EXPIRATION_TIME, value: "259200" }
   # --- AI ---
   - { name: AI_COPILOT_ENABLED, value: "true" }

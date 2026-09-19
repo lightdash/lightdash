@@ -43,7 +43,7 @@ Once you have your agent ID, your ports are deterministic:
 
 **Shared infrastructure** (same for all agents):
 - PostgreSQL: `localhost:15432`
-- MinIO S3: `localhost:19000`
+- RustFS S3: `localhost:19000`
 - Headless Browser: `localhost:13001`
 - Mailpit SMTP: `localhost:11025`
 - Mailpit Web UI: `localhost:18025`
@@ -188,7 +188,7 @@ Your task is complete when ALL are true:
 
 ## What NOT to Do
 
-- **Do NOT** modify shared infrastructure (PostgreSQL, MinIO containers)
+- **Do NOT** modify shared infrastructure (PostgreSQL, RustFS containers)
 - **Do NOT** hardcode ports — always derive from your agent ID
 - **Do NOT** run `docker compose` commands — use `agent-cli.sh`
 - **Do NOT** touch other agents' databases or processes

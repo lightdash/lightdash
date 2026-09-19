@@ -15,7 +15,7 @@ usage-events writer's S3-compatible storage settings: `USAGE_EVENTS_S3_ENDPOINT`
 `USAGE_EVENTS_S3_SECRET_KEY`, and `USAGE_EVENTS_S3_REGION`. The reader reuses this
 server-owned configuration to issue signed GET URLs; it requires no CLI login,
 OAuth exchange, or new cloud infrastructure. The usage-events endpoint defaults
-to `S3_ENDPOINT`; override it when analytics uses GCS and local storage uses MinIO.
+to `S3_ENDPOINT`; override it when analytics uses GCS and local storage uses RustFS.
 
 Add these values to that worktree's `.env.development.local` (never commit them):
 
@@ -110,7 +110,7 @@ slice does not issue export URLs that outlive these checks.
 ## Verify dimension refreshes and joins
 
 Use the [dimension smoke test](dimensions.md#local-verification) to exercise real
-Postgres → Parquet → local MinIO → Explore-generated joins. It uses a disposable
+Postgres → Parquet → local RustFS → Explore-generated joins. It uses a disposable
 schema and bucket, supports a million-row fixture, and checks overwrite behavior,
 renames, missing lookups, tenant isolation and preservation of the previous file
 after an interrupted export.
@@ -135,7 +135,7 @@ instance and a dedicated bucket:
    `No analytics data is available yet`.
 4. Restore the original snapshot and verify a fresh query resolves the user name
    without recreating the project. Remove only the temporary project and fixtures
-   created for the test. Do not delete shared MinIO prefixes.
+   created for the test. Do not delete shared RustFS prefixes.
 
 ## Before customer rollout
 
@@ -155,7 +155,7 @@ instance and a dedicated bucket:
   daily job now also overwrites current dimension snapshots; see
   [resource and retry limits](dimensions.md#export-and-failure-behavior).
 
-Actual GCS reads and isolated MinIO tests verify the signed-URL path; AWS S3 and
+Actual GCS reads and isolated RustFS tests verify the signed-URL path; AWS S3 and
 production multi-tenant rollout remain unverified.
 Production execution supports Console organization flags or ENV enablement through
 the standard feature-flag resolver; see [live testing](live-testing.md).
