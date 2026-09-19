@@ -140,3 +140,19 @@ export const tableClickOutcome = ({
     }
     return isReplaceable ? 'switch-and-insert' : 'prompt';
 };
+
+/**
+ * Whether the editor should give way to "choose a connection". Typed SQL is
+ * never covered by it: a connection removed under the user must not look like
+ * their work is gone.
+ */
+export const shouldAskForConnection = (
+    connection: {
+        hasSeveralConnections: boolean;
+        isConnectionSettled: boolean;
+    },
+    sql: string,
+): boolean =>
+    connection.hasSeveralConnections &&
+    !connection.isConnectionSettled &&
+    sql === '';

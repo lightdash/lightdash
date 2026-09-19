@@ -79,16 +79,37 @@ describe('useReconcileActiveConnection', () => {
         expect(showToastInfo).not.toHaveBeenCalled();
     });
 
-    it('clears a connection the project no longer lists and says so', async () => {
+    it('clears a connection the project no longer lists and names it', async () => {
+        const { rerender } = renderHook(() => useReconcileActiveConnection(), {
+            wrapper,
+        });
+        // The name is only knowable while the connection is still listed
         projectConnections = [postgres];
-
-        renderHook(() => useReconcileActiveConnection(), { wrapper });
+        rerender();
 
         await waitFor(() =>
-            expect(dispatch).toHaveBeenCalledWith(clearMissingConnection()),
+            expect(dispatch).toHaveBeenCalledWith(
+                clearMissingConnection('marketing'),
+            ),
         );
         expect(showToastInfo).toHaveBeenCalledWith(
-            expect.objectContaining({ title: 'This connection was removed' }),
+            expect.objectContaining({
+                title: '"marketing" was removed from this project',
+                autoClose: false,
+            }),
+        );
+    });
+
+    it('says the SQL is kept, so the notice is not read as data loss', async () => {
+        const { rerender } = renderHook(() => useReconcileActiveConnection(), {
+            wrapper,
+        });
+        projectConnections = [postgres];
+        rerender();
+
+        await waitFor(() => expect(showToastInfo).toHaveBeenCalled());
+        expect(showToastInfo.mock.calls[0][0].subtitle).toMatch(
+            /SQL is still here/i,
         );
     });
 

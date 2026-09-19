@@ -22,6 +22,7 @@ import { useTableFields } from '../hooks/useTableFields';
 import { useDatabases, useLoadedCatalogs } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';
+import { shouldAskForConnection } from '../utils/activeConnection';
 import {
     generateTableCompletions,
     getLightdashMonacoTheme,
@@ -75,8 +76,8 @@ export const SqlEditor: FC<{
     // Fetch all available parameters for the project
     const { data: availableParameters } = useParameters(projectUuid, undefined);
 
-    const { isConnectionSettled, hasSeveralConnections } =
-        useActiveConnection();
+    const activeConnection = useActiveConnection();
+    const { isConnectionSettled } = activeConnection;
 
     const { data: listing, isLoading: isTablesDataLoading } = useDatabases({
         projectUuid,
@@ -295,7 +296,7 @@ export const SqlEditor: FC<{
 
     // A disabled query reports "loading" forever, so the wait for a choice is
     // its own state rather than a spinner that never resolves.
-    if (hasSeveralConnections && !isConnectionSettled) {
+    if (shouldAskForConnection(activeConnection, sql)) {
         return (
             <SuboptimalState
                 title="Choose a connection to start writing SQL"
