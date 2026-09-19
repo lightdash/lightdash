@@ -511,6 +511,11 @@ export type ScopeTourStepDefinition = {
     busy?: string;
     /** For a typed step: what the card offers to fill in with one click. */
     suggestion?: string;
+    /**
+     * How many leading lines of a block suggestion are already in the file:
+     * shown faded, as where the rest goes, and never typed.
+     */
+    suggestionContextLines?: number;
 };
 
 export type ScopeTourDefinition = {
@@ -706,6 +711,7 @@ const typed = (
     body: string,
     suggestion: string,
     via: string[],
+    suggestionContextLines = 0,
 ): ScopeTourStepDefinition => ({
     target,
     route,
@@ -716,6 +722,7 @@ const typed = (
     advanceOnTargetInput: true,
     via,
     suggestion,
+    ...(suggestionContextLines > 0 ? { suggestionContextLines } : {}),
 });
 
 const look = (
@@ -803,10 +810,13 @@ export const buildLessonTours = (
                 WORKSPACE_ROUTE,
                 hintFor(editor, files),
                 lesson.column !== undefined && metricType !== undefined
-                    ? `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}**, ${article(metricType)} **${metricType}** ${lesson.result.kind} on the **${lesson.column}** column: it goes under that column's **${under}**. Type it in, or press Use it to add it.`
-                    : `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}** to the **${lesson.result.explore}** model's **${under}**. Type it in, or press Use it to add it.`,
+                    ? `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}**, ${article(metricType)} **${metricType}** ${lesson.result.kind} on the **${lesson.column}** column: it goes under that column's **${under}**. Add the highlighted lines under **${under}:**, or press Use it.`
+                    : `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}** to the **${lesson.result.explore}** model's **${under}**. Add the highlighted lines under **${under}:**, or press Use it.`,
                 lesson.snippet,
                 [fileRow],
+                // The snippet's first line is the key it goes under, which
+                // the file already has: the card fades it.
+                1,
             ),
             typed(
                 command,

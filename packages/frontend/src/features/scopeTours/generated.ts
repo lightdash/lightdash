@@ -23,6 +23,11 @@ export type ScopeTourStepDefinition = {
     busy?: string;
     /** For a typed step: what the card offers to fill in with one click. */
     suggestion?: string;
+    /**
+     * How many leading lines of a block suggestion are already in the file:
+     * shown faded, as where the rest goes, and never typed.
+     */
+    suggestionContextLines?: number;
 };
 
 export type ScopeTourDefinition = {
@@ -5350,7 +5355,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 target: '[data-tour-anchor="workspace-editor"]',
                 route: '/projects/:projectUuid/learn/workspace',
                 title: 'Edit the file',
-                body: "The **average** metric can be used on any numeric dimension or, [for custom SQL](https://docs.lightdash.com/semantic-layer/metrics#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric table column. Let's add **average_payment_amount**, an **average** metric on the **amount** column: it goes under that column's **metrics**. Type it in, or press Use it to add it.",
+                body: "The **average** metric can be used on any numeric dimension or, [for custom SQL](https://docs.lightdash.com/semantic-layer/metrics#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric table column. Let's add **average_payment_amount**, an **average** metric on the **amount** column: it goes under that column's **metrics**. Add the highlighted lines under **metrics:**, or press Use it.",
                 interactive: true,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: true,
@@ -5359,6 +5364,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 ],
                 suggestion:
                     '            metrics:\n              average_payment_amount:\n                type: average',
+                suggestionContextLines: 1,
             },
             {
                 target: '[data-tour-anchor="terminal-command"]',
@@ -5504,7 +5510,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 target: '[data-tour-anchor="workspace-editor"]',
                 route: '/projects/:projectUuid/learn/workspace',
                 title: 'Edit the file',
-                body: "For a dimension to appear in Lightdash, you just need to declare it in your dbt model's YAML file. Let's add **number_of_floors** to the **fm_buildings** model's **columns**. Type it in, or press Use it to add it.",
+                body: "For a dimension to appear in Lightdash, you just need to declare it in your dbt model's YAML file. Let's add **number_of_floors** to the **fm_buildings** model's **columns**. Add the highlighted lines under **columns:**, or press Use it.",
                 interactive: true,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: true,
@@ -5513,6 +5519,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 ],
                 suggestion:
                     '    columns:\n      - name: number_of_floors\n        description: Storeys above ground',
+                suggestionContextLines: 1,
             },
             {
                 target: '[data-tour-anchor="terminal-command"]',

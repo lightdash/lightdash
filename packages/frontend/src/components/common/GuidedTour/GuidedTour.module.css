@@ -340,3 +340,16 @@
     white-space: pre;
     margin: 0;
 }
+
+/* Already in the file: where the highlighted lines go, not something to type. */
+.suggestionContext {
+    opacity: 0.45;
+}
+
+.suggestionInput {
+    color: light-dark(
+        var(--mantine-color-ldBrandViolet-7),
+        var(--mantine-color-ldBrandViolet-3)
+    );
+    font-weight: 600;
+}

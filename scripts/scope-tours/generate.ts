@@ -142,6 +142,11 @@ export type ScopeTourStepDefinition = {
     busy?: string;
     /** For a typed step: what the card offers to fill in with one click. */
     suggestion?: string;
+    /**
+     * How many leading lines of a block suggestion are already in the file:
+     * shown faded, as where the rest goes, and never typed.
+     */
+    suggestionContextLines?: number;
 };
 
 export type ScopeTourDefinition = {

@@ -451,6 +451,13 @@ const main = async () => {
     const page = await browser.newPage({
         viewport: { width: 1440, height: 900 },
     });
+    // SMOKE_CPU_THROTTLE=6 slows the page the way a loaded laptop does: a
+    // timing race between the tour and a controlled editor only shows there.
+    const throttle = Number(process.env.SMOKE_CPU_THROTTLE ?? '1');
+    if (throttle > 1) {
+        const cdp = await page.context().newCDPSession(page);
+        await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
+    }
     if (process.env.SMOKE_DEBUG) {
         // What the driver saw: every page the app moved to and every
         // request that changed something, for reading a failure after.

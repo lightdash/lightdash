@@ -52,6 +52,11 @@ export type GuidedTourStep = {
      */
     suggestion?: string;
     /**
+     * How many leading lines of a block suggestion are already in the file:
+     * shown faded, as where the rest goes, and never typed.
+     */
+    suggestionContextLines?: number;
+    /**
      * The click path to `target` (nav button, menu item, trigger, ...). While
      * `target` is not on the page, the spotlight sits on the deepest `via`
      * control that is, so it follows the learner along the path.
@@ -989,6 +994,16 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // A suggestion of more than one line (a block of YAML) cannot be read
     // inside the sentence that offers it: it is printed as code instead.
     const suggestionIsBlock = !!shownStep.suggestion?.includes('\n');
+    // Printed without the indent the lines share, so a snippet from deep in
+    // a YAML file reads from the left edge; the lines already in the file
+    // are faded and the ones to add stand out.
+    const suggestionLines = (shownStep.suggestion ?? '').split('\n');
+    const sharedIndent = Math.min(
+        ...suggestionLines
+            .filter((line) => line.trim() !== '')
+            .map((line) => /^ */.exec(line)![0].length),
+    );
+    const contextLines = shownStep.suggestionContextLines ?? 0;
     const suggestionButton = (
         <Button
             size="compact-xs"
@@ -1109,7 +1124,9 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                                 suggestionIsBlock ? (
                                     <Stack gap={4} align="flex-start">
                                         <Text fz="xs" c="dimmed">
-                                            Type here, or use:
+                                            {contextLines > 0
+                                                ? 'The faded line is already in the file'
+                                                : 'Type here, or use:'}
                                         </Text>
                                         <Code
                                             block
@@ -1119,7 +1136,36 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                                                 shownStep.suggestion
                                             }
                                         >
-                                            {shownStep.suggestion}
+                                            {suggestionLines.map(
+                                                (line, index) => (
+                                                    <span
+                                                        // eslint-disable-next-line react/no-array-index-key
+                                                        key={index}
+                                                        className={
+                                                            index < contextLines
+                                                                ? styles.suggestionContext
+                                                                : contextLines >
+                                                                    0
+                                                                  ? styles.suggestionInput
+                                                                  : undefined
+                                                        }
+                                                        data-tour-suggestion-line={
+                                                            index < contextLines
+                                                                ? 'context'
+                                                                : 'input'
+                                                        }
+                                                    >
+                                                        {line.slice(
+                                                            sharedIndent,
+                                                        )}
+                                                        {index <
+                                                        suggestionLines.length -
+                                                            1
+                                                            ? '\n'
+                                                            : ''}
+                                                    </span>
+                                                ),
+                                            )}
                                         </Code>
                                         {suggestionButton}
                                     </Stack>

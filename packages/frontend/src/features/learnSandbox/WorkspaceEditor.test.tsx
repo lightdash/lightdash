@@ -19,6 +19,7 @@ const stubs = vi.hoisted(() => {
         getLineCount: () => model.content.split('\n').length,
         getLineMaxColumn: (line: number) =>
             model.content.split('\n')[line - 1].length + 1,
+        getFullModelRange: () => ({ full: true }),
         getPositionAt: (offset: number) => {
             const lines = model.content.slice(0, offset).split('\n');
             return {
@@ -42,6 +43,10 @@ const stubs = vi.hoisted(() => {
                 }[],
             ) => {
                 const [edit] = edits;
+                if ((edit.range as { full?: boolean }).full) {
+                    model.content = edit.text;
+                    return true;
+                }
                 const at = offsetOf(
                     edit.range.startLineNumber,
                     edit.range.startColumn,
@@ -314,6 +319,52 @@ describe('WorkspaceEditor', () => {
                     }),
                 }),
             ]);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('keeps the page out of the loop while the snippet types, so a stale value cannot reset the editor', () => {
+        vi.useFakeTimers();
+        try {
+            const onChange = vi.fn();
+            const { container } = renderEditor({ onChange, content: 'existing' });
+            tourEditorOf(container)?.setValue('abc');
+            // Monaco reports each typed character; none reaches the page.
+            (stubs.lastEditorProps.onChange as (v: string) => void)(
+                'existing\na',
+            );
+            expect(onChange).not.toHaveBeenCalled();
+            vi.runAllTimers();
+            expect(onChange).toHaveBeenCalledTimes(1);
+            expect(onChange).toHaveBeenCalledWith('existing\nabc');
+            // Ordinary typing afterwards is reported as before.
+            (stubs.lastEditorProps.onChange as (v: string) => void)('later');
+            expect(onChange).toHaveBeenLastCalledWith('later');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('writes the intended content in one edit when something else changes the file mid-typing', () => {
+        vi.useFakeTimers();
+        try {
+            const content = 'meta:\n  metrics:\n    old:\n      type: sum';
+            stubs.model.content = content;
+            const onChange = vi.fn();
+            const { container } = renderEditor({ onChange, content });
+            tourEditorOf(container)?.setValue(
+                '  metrics:\n    fresh:\n      type: average',
+            );
+            vi.advanceTimersByTime(60);
+            // A reset from outside: the file is back to what it was.
+            stubs.model.content = content;
+            vi.runAllTimers();
+            expect(stubs.model.content).toBe(
+                'meta:\n  metrics:\n    fresh:\n      type: average\n    old:\n      type: sum',
+            );
+            expect(onChange).toHaveBeenCalledTimes(1);
+            expect(onChange).toHaveBeenCalledWith(stubs.model.content);
         } finally {
             vi.useRealTimers();
         }

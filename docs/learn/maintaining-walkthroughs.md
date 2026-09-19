@@ -91,7 +91,7 @@ To add one:
 
     `test:learn-lessons` appends each snippet the way the editor appends it, compiles the workspace with dbt, and asserts the field the tour ends on exists. It needs the playground virtualenv (`scripts/playground-bundle/README.md`) and a built `common`. This is what catches an indentation that no longer fits, and it catches it long before a learner meets a deploy that fails.
 
-4. **Smoke it** like a walkthrough, naming the lesson by its id. The sandbox has to be on: `GET /api/v1/health` should report `learnSandbox.enabled`.
+4. **Smoke it** like a walkthrough, naming the lesson by its id, and once more with `SMOKE_CPU_THROTTLE=6`: Use it types into a controlled editor, and a timing fault between the two only shows on a slow page. The sandbox has to be on: `GET /api/v1/health` should report `learnSandbox.enabled`.
 
     ```sh
     SMOKE_BASE_URL=http://localhost:<frontend port> \

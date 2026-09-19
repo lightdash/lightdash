@@ -118,6 +118,9 @@ describe('GuidedTour', () => {
         expect(block).not.toBeNull();
         // Exact, not normalised: the newline is the point.
         expect(block?.textContent).toBe(suggestion);
+        expect(
+            block?.querySelector('[data-tour-suggestion-line="context"]'),
+        ).toBeNull();
 
         await user.click(screen.getByRole('button', { name: 'Use it' }));
         expect(screen.getByRole('textbox', { name: 'Model file' })).toHaveValue(
@@ -235,6 +238,44 @@ describe('GuidedTour', () => {
         await user.click(screen.getByRole('button', { name: 'Next' }));
         await user.click(screen.getByRole('button', { name: 'Got it' }));
         expect(calls).toEqual(['finish', 'close']);
+    });
+
+    it('fades the lines already in the file and drops the indent they share', () => {
+        const suggestion = '    columns:\n      - name: floors\n        description: x';
+        renderWithProviders(
+            <>
+                <div data-block-field />
+                <GuidedTour
+                    steps={[
+                        {
+                            target: '[data-block-field]',
+                            title: 'Edit the file',
+                            body: '',
+                            interactive: true,
+                            advanceOnTargetInput: true,
+                            suggestion,
+                            suggestionContextLines: 1,
+                        },
+                    ]}
+                    opened
+                    onClose={vi.fn()}
+                />
+            </>,
+        );
+        const block = document.querySelector('[data-tour-suggestion]');
+        expect(block?.getAttribute('data-tour-suggestion')).toBe(suggestion);
+        expect(block?.textContent).toBe(
+            'columns:\n  - name: floors\n    description: x',
+        );
+        const lines = block?.querySelectorAll('[data-tour-suggestion-line]');
+        expect(
+            [...(lines ?? [])].map((line) =>
+                line.getAttribute('data-tour-suggestion-line'),
+            ),
+        ).toEqual(['context', 'input', 'input']);
+        expect(
+            screen.getByText('The faded line is already in the file'),
+        ).toBeInTheDocument();
     });
 
     it('advances an exact typed field only when it holds the suggested text', async () => {

@@ -16,7 +16,7 @@ import {
 } from '../sqlRunner/utils/monaco';
 // eslint-disable-next-line css-modules/no-unused-class -- classes used from FileTree.tsx
 import styles from './LearnWorkspace.module.css';
-import { insertionPoint } from './snippetInsertion';
+import { insertSnippet, insertionPoint } from './snippetInsertion';
 
 /** Registers the dbt YAML schema against the single shared monaco-yaml
  * instance (see configureLightdashYaml — monaco-yaml only allows one
@@ -98,8 +98,13 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
         // is already there, adds nothing: the learner (and the smoke) can
         // press Use it again without doubling the metric.
         if (typingRef.current) return;
-        const point = insertionPoint(model.getValue(), value);
-        if (model.getValue().includes(point.text)) return;
+        const before = model.getValue();
+        const point = insertionPoint(before, value);
+        if (before.includes(point.text)) return;
+        // What the file must read once the snippet is in, whatever happens
+        // on the way there.
+        const intended = insertSnippet(before, value);
+        const start = point.offset + point.prefix.length;
         let offset = point.offset;
         const insertHere = (text: string) => {
             const at = model.getPositionAt(offset);
@@ -117,16 +122,15 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
             ]);
             offset += text.length;
         };
-        if (point.prefix) insertHere(point.prefix);
-        const firstLine = model.getPositionAt(offset).lineNumber;
         const chars = [...point.text];
         const wrapper = wrapperRef.current;
         let index = 0;
         let timer: number | undefined;
         let cancelled = false;
-        const finish = () => {
+        let firstLine = 1;
+        const finish = (written = false) => {
             const end = model.getPositionAt(offset);
-            if (point.suffix) insertHere(point.suffix);
+            if (point.suffix && !written) insertHere(point.suffix);
             onChangeRef.current(model.getValue());
             ed.setPosition(end);
             ed.revealLineInCenter(end.lineNumber);
@@ -151,6 +155,29 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
         };
         const tick = () => {
             if (cancelled) return;
+            // Anything else touching the model while the snippet types (the
+            // learner's own keystrokes, a reset from outside) would leave
+            // the running offset pointing at the wrong place. Stop animating
+            // and write the intended content in one edit instead.
+            const typedSoFar = chars.slice(0, index).join('');
+            if (
+                model.getValue().slice(start, start + typedSoFar.length) !==
+                    typedSoFar ||
+                model.getValue().length !==
+                    before.length + point.prefix.length + typedSoFar.length
+            ) {
+                ed.executeEdits('learn-tour', [
+                    {
+                        range: model.getFullModelRange(),
+                        text: intended,
+                        forceMoveMarkers: true,
+                    },
+                ]);
+                offset = start + point.text.length;
+                index = chars.length;
+                finish(true);
+                return;
+            }
             insertHere(chars[index]);
             index += 1;
             ed.revealLineInCenter(model.getPositionAt(offset).lineNumber);
@@ -167,8 +194,23 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                 window.clearTimeout(timer);
             },
         };
+        if (point.prefix) insertHere(point.prefix);
+        firstLine = model.getPositionAt(offset).lineNumber;
         if (chars.length === 0) finish();
         else tick();
+        // `typingRef` is set before the first tick returns control, and
+        // stays set until `finish`: while it is, the editor's own change
+        // events are not passed up (see `handleEditorChange`).
+    }, []);
+
+    // The page holds the file as a controlled value. Reporting every typed
+    // character would have it hand Monaco back a value already a character
+    // or two stale, Monaco would reset to it, and the snippet would land
+    // scrambled (seen on slower machines). While the tour types, changes
+    // stay here; `finish` reports the final content once.
+    const handleEditorChange = useCallback((next: string | undefined) => {
+        if (typingRef.current) return;
+        onChangeRef.current(next ?? '');
     }, []);
 
     const handleBeforeMount: BeforeMount = useCallback((monaco) => {
@@ -237,7 +279,7 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                     theme={monacoTheme}
                     beforeMount={handleBeforeMount}
                     onMount={onMount}
-                    onChange={(v) => onChange(v ?? '')}
+                    onChange={handleEditorChange}
                     options={{
                         ...MONACO_DEFAULT_OPTIONS,
                         readOnly: !editable,
