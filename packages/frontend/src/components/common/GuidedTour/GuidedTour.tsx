@@ -77,6 +77,12 @@ export type GuidedTourStep = {
      * that moves on is held until the work is done.
      */
     busy?: string;
+    /**
+     * For a step with `busy`: where Try again sends the learner when the
+     * page marks the work as failed (`data-tour-failed`), instead of letting
+     * them move on to look for a result that is not there.
+     */
+    retryStep?: number;
 };
 
 export type TourPoint = { x: number; y: number };
@@ -342,23 +348,36 @@ const useResolvedSelector = (
 const useBusy = (
     selector: string | undefined,
     active: boolean,
-): { busy: boolean; status: string } => {
-    const [state, setState] = useState({ busy: false, status: '' });
+): { busy: boolean; status: string; failed: boolean } => {
+    const [state, setState] = useState({
+        busy: false,
+        status: '',
+        failed: false,
+    });
     useEffect(() => {
         if (!selector || !active) {
-            setState({ busy: false, status: '' });
+            setState({ busy: false, status: '', failed: false });
             return undefined;
         }
         const tick = () => {
             const el = document.querySelector(selector);
-            const statuses = el?.querySelectorAll('[data-tour-status]');
+            // Once the work has stopped, the page may say it failed; its
+            // status words are read from that surface instead.
+            const failedEl =
+                el === null ? document.querySelector('[data-tour-failed]') : null;
+            const statuses = (el ?? failedEl)?.querySelectorAll(
+                '[data-tour-status]',
+            );
             const last = statuses?.[statuses.length - 1];
             const next = {
                 busy: el !== null,
                 status: last?.textContent?.trim() ?? '',
+                failed: failedEl !== null,
             };
             setState((previous) =>
-                previous.busy === next.busy && previous.status === next.status
+                previous.busy === next.busy &&
+                previous.status === next.status &&
+                previous.failed === next.failed
                     ? previous
                     : next,
             );
@@ -577,7 +596,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     );
     // While the page is still working on this step, the ring sits on that
     // work rather than on the finished surface.
-    const { busy, status } = useBusy(step?.busy, opened);
+    const { busy, status, failed } = useBusy(step?.busy, opened);
     const spotlightSelector = busy && step?.busy ? step.busy : resolvedSelector;
     const rect = useTargetRect(spotlightSelector, opened);
     // How the last step change happened: Next glides the ring from the old
@@ -1059,17 +1078,26 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                         fz="md"
                         lh={1.3}
                         data-tour-card-status={
-                            busy && status !== '' ? status : undefined
+                            (busy || failed) && status !== ''
+                                ? status
+                                : undefined
                         }
                     >
-                        {busy && status !== '' ? status : shownTitle}
+                        {(busy || failed) && status !== ''
+                            ? status
+                            : shownTitle}
                     </Text>
+                    {failed && (
+                        <Text fz="sm" c="dimmed" data-tour-card-failed>
+                            That did not work. Check the output, then try again
+                        </Text>
+                    )}
                     {busy && status !== '' && (
                         <Text fz="xs" c="dimmed">
                             {shownTitle}
                         </Text>
                     )}
-                    {shownStep.body !== '' && (
+                    {shownStep.body !== '' && !failed && (
                         <Box fz="sm" c="dimmed">
                             {shownStep.body}
                         </Box>
@@ -1201,7 +1229,21 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                             // same pulse a highlighted control would.
                             <Button
                                 size="compact-sm"
-                                onClick={handleNext}
+                                // A failed run goes back to where it can be
+                                // put right rather than on to a result that
+                                // is not there.
+                                onClick={
+                                    failed
+                                        ? () =>
+                                              goToStep(
+                                                  shownStep.retryStep ??
+                                                      Math.max(
+                                                          0,
+                                                          stepIndex - 1,
+                                                      ),
+                                              )
+                                        : handleNext
+                                }
                                 // Held, with a loader, while the page is
                                 // still working on this step.
                                 loading={busy}
@@ -1209,7 +1251,11 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                                     busy ? undefined : styles.buttonPulse
                                 }
                             >
-                                {shownIsLast ? 'Got it' : 'Next'}
+                                {failed
+                                    ? 'Try again'
+                                    : shownIsLast
+                                      ? 'Got it'
+                                      : 'Next'}
                             </Button>
                         )}
                     </Group>

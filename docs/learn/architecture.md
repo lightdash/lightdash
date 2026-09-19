@@ -120,7 +120,9 @@ answering with an error. The page is three panes over the copy (the file tree, a
 under a strip carrying the copy's name and a `Back to library` link. Tours drive it through
 `data-tour-anchor="workspace-file"`, `"workspace-editor"`, `"terminal-command"` and `"terminal-run"`, and wait on
 the output pane, which carries `data-tour-busy` and `data-tour-status` while a command runs and, for that same
-duration, the anchor `data-tour-anchor="terminal-running"`; `data-learn-workspace`, `data-learn-file`,
+duration, the anchor `data-tour-anchor="terminal-running"`. A run that ends in an error or a timeout marks the pane `data-tour-failed`, and the tour's result
+step then offers Try again, back at the editor step, instead of Next, so a learner cannot walk on to look for a
+field a failed deploy never created; `data-learn-workspace`, `data-learn-file`,
 `data-learn-editable`, `data-learn-terminal-output` and `data-learn-back-to-library` are there for tests and
 walkthrough verification.
 

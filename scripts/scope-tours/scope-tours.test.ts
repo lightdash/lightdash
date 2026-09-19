@@ -750,6 +750,12 @@ export const Card = () => (
             tour.steps[5].busy,
             '[data-tour-anchor="terminal-running"]',
         );
+        // A failed run returns to the editor step rather than moving on.
+        assert.strictEqual(tour.steps[5].retryStep, 2);
+        assert.strictEqual(
+            tour.steps[tour.steps[5].retryStep!].target,
+            '[data-tour-anchor="workspace-editor"]',
+        );
         assert.strictEqual(
             tour.steps[5].body,
             'Push the current state of your local dbt project files to the authenticated Lightdash project. Trigger a re-compile and refresh of your Lightdash project.',

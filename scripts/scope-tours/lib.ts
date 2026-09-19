@@ -509,6 +509,8 @@ export type ScopeTourStepDefinition = {
     detour?: { target: string; title: string }[];
     /** The page's "still working" surface; the step waits for it to go. */
     busy?: string;
+    /** With `busy`: the step Try again returns to when the page marks the work failed. */
+    retryStep?: number;
     /** For a typed step: what the card offers to fill in with one click. */
     suggestion?: string;
     /**
@@ -827,14 +829,19 @@ export const buildLessonTours = (
                 [fileRow],
             ),
             click(run, WORKSPACE_ROUTE, hintFor(run, files), [fileRow]),
-            look(
-                output,
-                WORKSPACE_ROUTE,
-                'See the result',
-                cite(lesson.outputDocs),
-                [],
-                BUSY_OUTPUT,
-            ),
+            {
+                ...look(
+                    output,
+                    WORKSPACE_ROUTE,
+                    'See the result',
+                    cite(lesson.outputDocs),
+                    [],
+                    BUSY_OUTPUT,
+                ),
+                // A failed run goes back to the editor (step 3), where the
+                // file can be put right before the command is run again.
+                retryStep: 2,
+            },
             click(newMenu, WORKSPACE_ROUTE, hintFor(newMenu, files), []),
             click(newChart, WORKSPACE_ROUTE, hintFor(newChart, files), [
                 newMenu,

@@ -163,6 +163,22 @@ describe('Terminal', () => {
         );
     });
 
+    it('marks a failed or timed-out run for the tour, and nothing else', () => {
+        const pane = () =>
+            document.querySelector('[data-learn-terminal-output]')!;
+        renderTerminal({ output: { status: 'error', exitCode: 1 } });
+        expect(pane().getAttribute('data-tour-failed')).toBe('true');
+    });
+
+    it('does not mark a finished or running command as failed', () => {
+        renderTerminal({ output: { status: 'done', exitCode: 0 } });
+        expect(
+            document
+                .querySelector('[data-learn-terminal-output]')!
+                .hasAttribute('data-tour-failed'),
+        ).toBe(false);
+    });
+
     it('has an accessible name for the command input', () => {
         renderTerminal({ value: 'dbt parse' });
 

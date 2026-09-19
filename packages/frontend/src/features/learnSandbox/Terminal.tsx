@@ -151,6 +151,13 @@ const Terminal: FC<TerminalProps> = ({
             : statusLabel;
     const isEmpty =
         output.chunks.length === 0 && output.status === null && !output.error;
+    // For a walkthrough: the last run did not succeed, so the step that
+    // looks at its result offers to try again instead of moving on.
+    const failed =
+        !busy &&
+        (output.status === 'error' ||
+            output.status === 'timeout' ||
+            !!output.error);
 
     return (
         <Box className={styles.terminalPane}>
@@ -198,6 +205,7 @@ const Terminal: FC<TerminalProps> = ({
                 className={styles.terminalOutput}
                 data-learn-terminal-output
                 data-tour-busy={busy ? 'true' : undefined}
+                data-tour-failed={failed ? 'true' : undefined}
                 data-tour-anchor={busy ? 'terminal-running' : undefined}
                 data-tour-hint={
                     busy ? 'Wait for the command to finish' : undefined

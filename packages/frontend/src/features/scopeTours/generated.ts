@@ -21,6 +21,8 @@ export type ScopeTourStepDefinition = {
     detour?: { target: string; title: string }[];
     /** The page's "still working" surface; the step waits for it to go. */
     busy?: string;
+    /** With busy: the step Try again returns to when the page marks the work failed. */
+    retryStep?: number;
     /** For a typed step: what the card offers to fill in with one click. */
     suggestion?: string;
     /**
@@ -5401,6 +5403,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 advanceOnTargetInput: false,
                 via: [],
                 busy: '[data-tour-anchor="terminal-running"]',
+                retryStep: 2,
             },
             {
                 target: '[data-tour-nav="new"]',
@@ -5556,6 +5559,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 advanceOnTargetInput: false,
                 via: [],
                 busy: '[data-tour-anchor="terminal-running"]',
+                retryStep: 2,
             },
             {
                 target: '[data-tour-nav="new"]',

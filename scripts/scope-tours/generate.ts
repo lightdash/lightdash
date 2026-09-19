@@ -60,6 +60,10 @@
  *                                          step follows it, shows its
  *                                          `[data-tour-status]` words and
  *                                          holds Got it until it is gone
+ *   data-tour-failed="true"                on a page surface: the work a busy
+ *                                          step waited on did not succeed; the
+ *                                          card offers Try again (back to the
+ *                                          step's retryStep) instead of Next
  *   data-tour-result-docs="file#anchor:n"  on the step-1 (result) marker: the
  *                                          docs sentence shown on the closing
  *                                          step; no sentence means no body
@@ -140,6 +144,8 @@ export type ScopeTourStepDefinition = {
     detour?: { target: string; title: string }[];
     /** The page's "still working" surface; the step waits for it to go. */
     busy?: string;
+    /** With busy: the step Try again returns to when the page marks the work failed. */
+    retryStep?: number;
     /** For a typed step: what the card offers to fill in with one click. */
     suggestion?: string;
     /**

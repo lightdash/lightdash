@@ -278,6 +278,54 @@ describe('GuidedTour', () => {
         ).toBeInTheDocument();
     });
 
+    it('offers Try again, back at the retry step, when the page says the work failed', async () => {
+        const user = userEvent.setup();
+        const retrySteps: GuidedTourStep[] = [
+            { target: null, title: 'Fix the file', body: 'edit here' },
+            { target: null, title: 'Run it', body: '' },
+            {
+                target: '[data-pane]',
+                title: 'See the result',
+                body: 'it worked',
+                busy: '[data-running]',
+                retryStep: 0,
+            },
+            { target: null, title: 'After', body: '' },
+        ];
+        renderWithProviders(
+            <>
+                <div data-pane data-tour-failed="true">
+                    <span data-tour-status="true">Failed (exit 1)</span>
+                </div>
+                <GuidedTour
+                    steps={retrySteps}
+                    opened
+                    onClose={vi.fn()}
+                    initialStepIndex={2}
+                />
+            </>,
+        );
+        await waitFor(() =>
+            expect(
+                screen.getByRole('button', { name: 'Try again' }),
+            ).toBeInTheDocument(),
+        );
+        expect(
+            document.querySelector('[data-tour-card-status]')?.textContent,
+        ).toBe('Failed (exit 1)');
+        expect(
+            document.querySelector('[data-tour-card-failed]'),
+        ).not.toBeNull();
+        expect(screen.queryByText('it worked')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Next' }),
+        ).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Try again' }));
+        await waitFor(() =>
+            expect(screen.getByText('Fix the file')).toBeInTheDocument(),
+        );
+    });
+
     it('advances an exact typed field only when it holds the suggested text', async () => {
         // The card follows the ring on an animation frame, so frames are
         // faked along with the debounce timers.
