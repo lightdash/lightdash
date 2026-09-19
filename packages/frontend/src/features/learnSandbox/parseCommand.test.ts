@@ -29,6 +29,15 @@ describe('parseCommand', () => {
     });
 });
 describe('activeCommandFromError', () => {
+    it('refuses a subcommand the terminal does not run, with the server\'s words', () => {
+        expect(parseCommand('lightdash depl')).toEqual({
+            error: 'That command is not available in the Learn terminal',
+        });
+        expect(parseCommand('dbt run')).toEqual({
+            error: 'That command is not available in the Learn terminal',
+        });
+    });
+
     it('extracts the uuid from the 409 message', () => {
         expect(
             activeCommandFromError(

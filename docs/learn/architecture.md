@@ -128,8 +128,10 @@ Edits are held per file in the page and autosaved rather than saved by a button:
 before every run, so a command never runs against a file the learner has changed on screen but not on disk. A
 save that fails leaves the edit in the editor, reports the reason in a toast, and blocks the run that triggered
 it. The terminal parses the typed
-command in the browser before asking for anything, so an input that is not `lightdash` or `dbt` never becomes a
-request. A run the server refuses because a command is already in flight is not an error: the reply names the
+command in the browser before asking for anything, against the same subcommand list the server enforces
+(`LEARN_TERMINAL_SUBCOMMANDS` in `@lightdash/common`), so a mistyped command never becomes a request: Run stays
+off and names the refusal. The command box also carries `data-tour-exact`, so a walkthrough's typed step advances
+only when the box holds the suggested command, not on the first three characters of a typo. A run the server refuses because a command is already in flight is not an error: the reply names the
 running command, and the pane attaches to its output and streams it to the end.
 
 Two knobs exist for that PATH and for where the child sends its API calls. `LEARN_SANDBOX_PATH_PREFIX` is a

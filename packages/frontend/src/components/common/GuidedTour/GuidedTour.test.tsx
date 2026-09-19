@@ -237,6 +237,83 @@ describe('GuidedTour', () => {
         expect(calls).toEqual(['finish', 'close']);
     });
 
+    it('advances an exact typed field only when it holds the suggested text', async () => {
+        // The card follows the ring on an animation frame, so frames are
+        // faked along with the debounce timers.
+        vi.useFakeTimers({
+            toFake: [
+                'setTimeout',
+                'clearTimeout',
+                'setInterval',
+                'clearInterval',
+                'requestAnimationFrame',
+                'cancelAnimationFrame',
+                'Date',
+            ],
+        });
+        try {
+            const exactSteps: GuidedTourStep[] = [
+                {
+                    target: '[data-command]',
+                    title: 'Type the command',
+                    body: '',
+                    interactive: true,
+                    advanceOnTargetInput: true,
+                    suggestion: 'lightdash deploy',
+                },
+                { target: null, title: 'Step two', body: '' },
+            ];
+            // Stable, as the host's is: a fresh callback on every keystroke
+            // would re-arm the tour's input listener and drop its settle timer.
+            const onClose = vi.fn();
+            const Field: FC = () => {
+                const [value, setValue] = useState('');
+                return (
+                    <>
+                        <input
+                            aria-label="Command"
+                            data-command
+                            data-tour-exact="true"
+                            value={value}
+                            onChange={(event) =>
+                                setValue(event.currentTarget.value)
+                            }
+                        />
+                        <GuidedTour
+                            steps={exactSteps}
+                            opened
+                            onClose={onClose}
+                        />
+                    </>
+                );
+            };
+            renderWithProviders(<Field />);
+            const input = screen.getByLabelText('Command') as HTMLInputElement;
+            const type = (text: string) => {
+                const setter = Object.getOwnPropertyDescriptor(
+                    window.HTMLInputElement.prototype,
+                    'value',
+                )!.set!;
+                setter.call(input, text);
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            };
+            await act(async () => {
+                type('lightdash depl');
+                await vi.advanceTimersByTimeAsync(1_500);
+            });
+            expect(screen.getByText('Type the command')).toBeInTheDocument();
+            expect(screen.queryByText('Step two')).not.toBeInTheDocument();
+            // The debounce (900 ms) then the card's glide to the next step.
+            await act(async () => {
+                type('lightdash deploy');
+                await vi.advanceTimersByTimeAsync(3_000);
+            });
+            expect(screen.getByText('Step two')).toBeInTheDocument();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     // A control the instance never shows (a screen behind a config the tour
     // did not know about) used to leave the page blocked with no card and no
     // Skip: the only way out was a new tab.

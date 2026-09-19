@@ -14,6 +14,7 @@ import {
 import MantineIcon from '../../components/common/MantineIcon';
 // eslint-disable-next-line css-modules/no-unused-class -- classes shared across learnSandbox files
 import styles from './LearnWorkspace.module.css';
+import { parseCommand } from './parseCommand';
 
 const BOTTOM_THRESHOLD_PX = 32;
 
@@ -120,7 +121,12 @@ const Terminal: FC<TerminalProps> = ({
     };
 
     const isValueEmpty = value.trim().length === 0;
-    const runDisabled = disabled || busy || isValueEmpty;
+    // A command the server would refuse is refused here first: Run stays
+    // off and says why, so a mistyped command cannot start (or, in a
+    // walkthrough, advance past) a run that would only print a rejection.
+    const parsed = parseCommand(value);
+    const refusal = !isValueEmpty && 'error' in parsed ? parsed.error : null;
+    const runDisabled = disabled || busy || isValueEmpty || refusal !== null;
 
     const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
         if (event.key !== 'Enter') return;
@@ -161,12 +167,14 @@ const Terminal: FC<TerminalProps> = ({
                     data-tour-anchor="terminal-command"
                     data-tour-hint="Type the command"
                     data-tour-input="true"
+                    data-tour-exact="true"
                     data-tour-suggest="dbt parse"
                 />
                 <Button
                     data-tour-anchor="terminal-run"
                     data-tour-hint="Run the command"
                     disabled={runDisabled}
+                    title={refusal ?? undefined}
                     onClick={handleRun}
                     leftSection={<MantineIcon icon={IconPlayerPlay} />}
                 >

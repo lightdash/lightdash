@@ -1,4 +1,20 @@
+import { LEARN_TERMINAL_SUBCOMMANDS } from '@lightdash/common';
 import { buildArgv, LEARN_TERMINAL_REJECTION } from './allowlist';
+
+describe('the shared subcommand list', () => {
+    it('is exactly what buildArgv accepts, so the browser and the server agree', () => {
+        for (const tool of ['lightdash', 'dbt'] as const) {
+            for (const subcommand of LEARN_TERMINAL_SUBCOMMANDS[tool]) {
+                expect(
+                    buildArgv({ tool, subcommand, args: [] }, '/tmp/ws'),
+                ).toMatchObject({ ok: true });
+            }
+            expect(
+                buildArgv({ tool, subcommand: 'depl', args: [] }, '/tmp/ws'),
+            ).toMatchObject({ ok: false });
+        }
+    });
+});
 
 const ws = '/tmp/ws';
 

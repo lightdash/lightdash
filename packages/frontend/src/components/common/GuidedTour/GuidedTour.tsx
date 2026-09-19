@@ -861,6 +861,10 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // pauses; the field may render late (a dialog), so keep looking for it.
     const inputSelector =
         opened && step?.advanceOnTargetInput ? step.target : null;
+    // A field marked data-tour-exact (a command box) advances only when it
+    // holds the suggested text itself; anything else is a typo the next
+    // step would build on.
+    const exactSuggestion = step?.suggestion ?? null;
     useEffect(() => {
         if (!inputSelector) return undefined;
         let el: HTMLElement | null = null;
@@ -879,9 +883,20 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                 : el.querySelector<HTMLElement>('[contenteditable="true"]');
             return editable?.innerText ?? '';
         };
+        const settled = () => {
+            const text = typed().trim();
+            if (text.length < MIN_INPUT_CHARS) return false;
+            if (
+                exactSuggestion !== null &&
+                el?.hasAttribute('data-tour-exact') &&
+                text !== exactSuggestion.trim()
+            )
+                return false;
+            return true;
+        };
         const onInput = () => {
             window.clearTimeout(debounce);
-            if (typed().trim().length < MIN_INPUT_CHARS) return;
+            if (!settled()) return;
             const inputAtEvent = el;
             debounce = window.setTimeout(() => {
                 // A form can reset or remount while the input settles. Only
@@ -890,7 +905,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                     !inputAtEvent?.isConnected ||
                     document.querySelector(inputSelector) !== inputAtEvent ||
                     el !== inputAtEvent ||
-                    typed().trim().length < MIN_INPUT_CHARS
+                    !settled()
                 )
                     return;
                 handleNext();
@@ -913,7 +928,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             window.clearTimeout(debounce);
             el?.removeEventListener('input', onInput);
         };
-    }, [inputSelector, handleNext]);
+    }, [inputSelector, exactSuggestion, handleNext]);
 
     // A hands-on look: the learner may use the highlighted surface (drag a
     // tile, resize it) and moves on with the button. Nothing is blocked,

@@ -5,6 +5,20 @@ export type LearnWorkspaceFile = {
     editable: boolean;
 };
 export type LearnSandboxTool = 'lightdash' | 'dbt';
+/**
+ * Subcommands the Learn terminal runs. The server enforces the list (with
+ * its flag rules); the browser refuses anything else before asking, so a
+ * mistyped command is caught where it is typed.
+ */
+export const LEARN_TERMINAL_SUBCOMMANDS: Record<
+    LearnSandboxTool,
+    readonly string[]
+> = {
+    lightdash: ['compile', 'deploy', 'validate', 'lint', 'download', 'upload'],
+    dbt: ['parse', 'compile', 'ls'],
+};
+export const LEARN_TERMINAL_REJECTION =
+    'That command is not available in the Learn terminal';
 export type LearnSandboxCommandRequest = {
     tool: LearnSandboxTool;
     subcommand: string;

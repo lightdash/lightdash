@@ -685,8 +685,10 @@ describe('LearnWorkspacePage', () => {
                 },
             }),
         );
+        // A command the browser accepts but this server refuses (its list
+        // may be narrower than the shared one).
         await user.clear(screen.getByLabelText('Command'));
-        await user.type(screen.getByLabelText('Command'), 'dbt run');
+        await user.type(screen.getByLabelText('Command'), 'lightdash lint');
         await user.click(screen.getByRole('button', { name: 'Run' }));
 
         await waitFor(() =>

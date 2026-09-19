@@ -143,6 +143,26 @@ describe('Terminal', () => {
         expect(screen.getByRole('button', { name: /run/i })).toBeDisabled();
     });
 
+    it('disables Run and says why for a command the terminal would refuse', () => {
+        renderTerminal({ value: 'lightdash depl' });
+        const run = document.querySelector(
+            '[data-tour-anchor="terminal-run"]',
+        ) as HTMLButtonElement;
+        expect(run).toBeDisabled();
+        expect(run).toHaveAttribute(
+            'title',
+            'That command is not available in the Learn terminal',
+        );
+    });
+
+    it('marks the command input as exact, so a walkthrough advances only on the suggested command', () => {
+        renderTerminal();
+        expect(screen.getByLabelText('Command')).toHaveAttribute(
+            'data-tour-exact',
+            'true',
+        );
+    });
+
     it('has an accessible name for the command input', () => {
         renderTerminal({ value: 'dbt parse' });
 

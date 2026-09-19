@@ -37,6 +37,9 @@
  *                                          a typed step must have one
  *   data-tour-input="true"                 on an anchor: a text field; its step
  *                                          advances once the learner has typed
+ *   data-tour-exact="true"                 on a typed anchor: the step advances
+ *                                          only when the field holds the
+ *                                          suggestion itself (a command box)
  *   data-tour-look="1"                     a surface worth a look on the way,
  *   data-tour-after='<sel>'                taken right after the path click
  *                                          `after` names (a tile while the
