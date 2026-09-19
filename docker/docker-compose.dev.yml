@@ -143,7 +143,7 @@ services:
     lightdash-dev:
         build: *lightdash-build
         depends_on:
-            - minio
+            - rustfs
             - db-dev
             - nats
         volumes: *lightdash-volumes

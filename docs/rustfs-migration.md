@@ -1,12 +1,16 @@
 # Migrating object storage from MinIO to RustFS
 
-Lightdash is replacing MinIO with [RustFS](https://rustfs.com) as the bundled
-S3-compatible object store. Both run side by side for one release so objects can
-be copied across before MinIO is removed.
+Lightdash has replaced MinIO with [RustFS](https://rustfs.com) as the bundled
+S3-compatible object store. RustFS now runs on ports 9000 and 9001, where MinIO
+used to be, and the `minio` service is gone from the compose files.
+
+If you are upgrading from a release that used MinIO, your objects are still in
+the old MinIO volume and will not appear in RustFS on their own. This page is
+how to bring them across.
 
 Everything Lightdash keeps in object storage is affected: dashboard screenshots,
 CSV and PDF exports, cached query results, and generated data-app bundles. None
-of it lives in Postgres, so it does not come across with a database migration.
+of it lives in Postgres, so no database migration brings it over.
 
 RustFS cannot read MinIO's on-disk format. Pointing RustFS at the old
 `minio_data` volume does not work and corrupts data. The objects have to be
@@ -14,12 +18,25 @@ copied over the S3 API, which is what the script below does.
 
 ## Before you start
 
-Both services must be running. In the compose stacks, MinIO is on 9000 and
-RustFS on 9010, and `S3_ENDPOINT` still points at MinIO.
+Both servers have to be running at once, on the same Docker network, so the
+copy can read from one and write to the other.
+
+RustFS comes up with the rest of the stack. Start your previous MinIO container
+alongside it, on the same network and still attached to its existing data
+volume. Give it a host port other than 9000, which RustFS now uses:
 
 ```bash
-docker compose -f docker/docker-compose.dev.shared.yml --env-file .env.development up -d
+docker run -d --name minio \
+  --network <the stack's network> \
+  -p 9010:9000 \
+  -v <project>_minio_data:/data \
+  -e MINIO_ROOT_USER=minioadmin \
+  -e MINIO_ROOT_PASSWORD=minioadmin \
+  coollabsio/minio:latest server /data
 ```
+
+`docker network ls` shows the network name; it is usually `<project>_default`.
+`docker volume ls` shows the volume.
 
 ## Copy the objects
 
@@ -32,7 +49,7 @@ safe to re-run: objects that already match are skipped and changed ones are
 refreshed. It finds the Docker network from the running RustFS container, copies
 each bucket, then compares object counts and fails if any bucket does not match.
 
-Options, for anything that is not the default compose layout:
+Options, for anything that is not the default layout:
 
 | Flag or variable | Default | Purpose |
 |---|---|---|
@@ -46,38 +63,37 @@ Options, for anything that is not the default compose layout:
 Run it again after any final writes, immediately before you switch over. Objects
 written to MinIO after a copy are not in RustFS until the next run.
 
-## Switch the app over
+## Check the result
 
-Repoint the S3 settings at RustFS and restart. In `.env.development.local` or
-your self-host environment:
+Open a dashboard screenshot, download a CSV export, and open a data app. Those
+exercise read, write and presigned access respectively.
+
+## Rolling back
+
+Point the S3 settings back at your MinIO and restart:
 
 ```bash
-S3_ENDPOINT=http://rustfs:9000
+S3_ENDPOINT=http://minio:9000
 S3_PUBLIC_ENDPOINT=http://localhost:9010
-S3_ACCESS_KEY=rustfsadmin
-S3_SECRET_KEY=rustfsadmin
+S3_ACCESS_KEY=minioadmin
+S3_SECRET_KEY=minioadmin
 ```
+
+The MinIO volume is untouched by the migration, so nothing is lost. Objects
+written while RustFS was live stay in RustFS; copy them back by running the
+script with the endpoints swapped.
 
 `S3_PUBLIC_ENDPOINT` is the browser-facing URL used to sign presigned URLs. It
 must be reachable from the browser and must match the host the browser fetches,
 or SigV4 rejects the request.
 
-Check a dashboard screenshot, a CSV export and a data app after the switch.
-Those exercise read, write and presigned access respectively.
-
-## Rolling back
-
-Point `S3_ENDPOINT` back at MinIO and restart. The MinIO volume is untouched by
-the migration, so nothing is lost. Objects written while RustFS was live stay in
-RustFS; copy them back by running the script with the endpoints swapped.
-
 ## Removing MinIO
 
-Once the app has run on RustFS long enough for you to trust it, MinIO and its
-volume can go. A later release drops the `minio` service from the compose files
-and moves RustFS to ports 9000 and 9001.
+Once the app has run on RustFS long enough for you to trust it, stop the MinIO
+container and drop its volume:
 
 ```bash
+docker rm -f minio
 docker volume rm <project>_minio_data
 ```
 
@@ -89,8 +105,10 @@ This is irreversible, so keep a copy until you are sure.
   `RUSTFS_CORS_ALLOWED_ORIGINS` once, covering every bucket including ones the
   app creates later. Without it the S3 API sends no CORS headers and browser
   uploads fail.
-- **The console moved.** It is on port 9001 inside the container, served at
+- **The console moved.** It is still on port 9001, but served at
   `/rustfs/console/` rather than at the root.
+- **Credentials changed.** The bundled defaults are `rustfsadmin` rather than
+  `minioadmin`. Update `S3_ACCESS_KEY` and `S3_SECRET_KEY` if you pinned them.
 - **Path-style addressing is still required.** Keep `S3_FORCE_PATH_STYLE=true`.
 - **Object metadata is preserved.** Content types survive the copy, which
   matters for served app bundles.

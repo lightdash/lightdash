@@ -147,7 +147,7 @@ Status definitions:
 Ensure the development environment is running:
 
 ```bash
-/docker-dev              # Start Docker services (postgres, minio, etc.)
+/docker-dev              # Start Docker services (postgres, rustfs, etc.)
 pnpm pm2:start           # Start all PM2 processes including Maple
 pnpm pm2:status          # Verify all processes are online
 ```

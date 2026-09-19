@@ -194,8 +194,8 @@ runcmd:
     cat > /home/lightdash/.env.agent-harness << 'ENVFILE'
     # Agent harness defaults
     export AGENT_DB_PORT=15432
-    export AGENT_MINIO_PORT=19000
-    export AGENT_MINIO_CONSOLE_PORT=19001
+    export AGENT_RUSTFS_PORT=19000
+    export AGENT_RUSTFS_CONSOLE_PORT=19001
     export AGENT_BROWSER_PORT=13001
     export AGENT_MAILPIT_SMTP_PORT=11025
     export AGENT_MAILPIT_WEB_PORT=18025
@@ -326,7 +326,8 @@ runcmd:
   # -- Pull Docker images ahead of time ----------------------------------------
   - |
     docker pull pgvector/pgvector:pg16
-    docker pull coollabsio/minio:latest
+    docker pull rustfs/rustfs:1.0.0
+    docker pull rustfs/rc:v0.1.36
     docker pull ghcr.io/browserless/chromium:v2.38.2
     docker pull axllent/mailpit:latest
 
