@@ -232,4 +232,34 @@ describe('sqlRunnerSlice clearMissingConnection', () => {
         expect(state.sqlColumns).toEqual([]);
         expect(state.resultConnectionUuid).toBe('connection-marketing');
     });
+
+    it('keeps the typed SQL, which is the work the user would lose', () => {
+        const typed = { ...withResults, sql: 'SELECT 42 AS my_unsaved_work' };
+
+        const state = reducer(typed, clearMissingConnection('marketing'));
+
+        expect(state.sql).toBe('SELECT 42 AS my_unsaved_work');
+    });
+
+    it('remembers the removed connection name for the notice', () => {
+        const state = reducer(withResults, clearMissingConnection('marketing'));
+
+        expect(state.removedConnectionName).toBe('marketing');
+    });
+
+    it('forgets the removed name once a connection is chosen', () => {
+        const cleared = reducer(
+            withResults,
+            clearMissingConnection('marketing'),
+        );
+
+        expect(
+            reducer(cleared, switchActiveConnection('connection-postgres'))
+                .removedConnectionName,
+        ).toBeUndefined();
+        expect(
+            reducer(cleared, setConnectionUuid('connection-postgres'))
+                .removedConnectionName,
+        ).toBeUndefined();
+    });
 });

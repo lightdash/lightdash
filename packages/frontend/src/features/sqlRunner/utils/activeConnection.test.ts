@@ -6,6 +6,7 @@ import {
     isReplaceableSql,
     readLastUsedConnection,
     resolveActiveConnection,
+    shouldAskForConnection,
     tableClickOutcome,
     writeLastUsedConnection,
 } from './activeConnection';
@@ -322,5 +323,40 @@ describe('forgetLastUsedConnection', () => {
         forgetLastUsedConnection(projectUuid, 'connection-1');
 
         expect(readLastUsedConnection(projectUuid)).toBe('connection-2');
+    });
+});
+
+describe('shouldAskForConnection', () => {
+    const unsettled = {
+        hasSeveralConnections: true,
+        isConnectionSettled: false,
+    };
+
+    it('asks for a connection on an empty editor', () => {
+        expect(shouldAskForConnection(unsettled, '')).toBe(true);
+    });
+
+    it('never covers SQL the user has typed', () => {
+        expect(
+            shouldAskForConnection(unsettled, 'SELECT 42 AS my_unsaved_work'),
+        ).toBe(false);
+    });
+
+    it('stays out of the way once a connection is settled', () => {
+        expect(
+            shouldAskForConnection(
+                { ...unsettled, isConnectionSettled: true },
+                '',
+            ),
+        ).toBe(false);
+    });
+
+    it('stays out of the way on a single-connection project', () => {
+        expect(
+            shouldAskForConnection(
+                { ...unsettled, hasSeveralConnections: false },
+                '',
+            ),
+        ).toBe(false);
     });
 });

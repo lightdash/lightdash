@@ -83,6 +83,9 @@ import {
 } from '../store/sqlRunnerSlice';
 import { prepareAndFetchChartData, runSqlQuery } from '../store/thunks';
 import { isMissingConnectionError } from '../utils/activeConnection';
+
+const QUERY_ERROR_TOAST_KEY = 'sql-runner-query-error';
+const CONNECTION_REQUIRED_TOAST_KEY = 'sql-runner-connection-required';
 import { executeSqlDownloadQuery } from '../utils/executeSqlDownloadQuery';
 import styles from './ContentPanel.module.css';
 import { ChartDownload } from './Download/ChartDownload';
@@ -128,7 +131,7 @@ export const ContentPanel: FC = () => {
         savedSqlChart?.resolvedColorPalette.colors ?? organization?.chartColors;
     const { health } = useApp();
 
-    const { showToastError } = useToaster();
+    const { showToastError, showToastInfo } = useToaster();
     const reportMissingConnection = useReportMissingConnection();
 
     // State tracked by this component
@@ -180,6 +183,17 @@ export const ContentPanel: FC = () => {
         async (sqlToUse: string) => {
             if (!sqlToUse || !limit) return;
 
+            // The editor stays up when a connection is removed under the user,
+            // so running has to say what is missing rather than fail at the API.
+            if (hasSeveralConnections && !connectionUuid) {
+                showToastInfo({
+                    key: CONNECTION_REQUIRED_TOAST_KEY,
+                    title: 'Choose a connection first',
+                    subtitle: 'Your SQL is kept. Pick one to run it.',
+                });
+                return;
+            }
+
             if (
                 activeEditorTab === EditorTabs.VISUALIZATION &&
                 hasQueryResults
@@ -215,6 +229,8 @@ export const ContentPanel: FC = () => {
             parameterValues,
             connectionUuid,
             hasQueryResults,
+            hasSeveralConnections,
+            showToastInfo,
         ],
     );
 
@@ -227,11 +243,14 @@ export const ContentPanel: FC = () => {
                 return;
             }
             showToastError({
+                key: QUERY_ERROR_TOAST_KEY,
                 title: 'Could not fetch SQL query results',
                 subtitle: queryError.message,
             });
         } else {
-            notifications.clean();
+            // Only this panel's own error toast: a blanket clean would also
+            // wipe the notice that says a connection was removed.
+            notifications.hide(QUERY_ERROR_TOAST_KEY);
         }
     }, [queryError, showToastError, reportMissingConnection]);
 
