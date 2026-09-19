@@ -31,15 +31,28 @@ export type PhysicalOutputContract = {
     format: 'parquet' | 'jsonl';
 };
 
-export type ActiveMaterializationDetails = {
-    materializationUuid: string;
-    queryUuid: string;
-    materializationUri: string;
-    format: 'jsonl' | 'parquet';
-    columns: ResultColumns | null;
-    materializedAt: Date;
-    totalBytes: number | null;
+export type PreAggregatePreparationStatus = 'ready' | 'unverified' | 'invalid';
+
+export type PreAggregateMaterializationProvenance = {
+    publicationVersion: string | null;
+    compatibilityHash: string | null;
+    evaluatedAt: Date | null;
+    physicalOutputContract: PhysicalOutputContract | null;
+    pinnedContextHash: string | null;
+    /** Present only when the execution proof depends on LIGHTDASH_SECRET. */
+    executionScopeKeyId?: string | null;
 };
+
+export type ActiveMaterializationDetails =
+    PreAggregateMaterializationProvenance & {
+        materializationUuid: string;
+        queryUuid: string | null;
+        materializationUri: string;
+        format: 'jsonl' | 'parquet';
+        columns: ResultColumns | null;
+        materializedAt: Date;
+        totalBytes: number | null;
+    };
 
 export type PreAggregateMaterializationRole = {
     email: string;
@@ -179,8 +192,17 @@ export type PreAggregateCheckResult =
 export type PreAggregateDefinition = {
     preAggregateDefinitionUuid: string;
     projectUuid: string;
-    sourceCachedExploreUuid: string;
-    preAggCachedExploreUuid: string;
+    sourceCachedExploreUuid: string | null;
+    preAggCachedExploreUuid: string | null;
+    sourceExploreName: string | null;
+    preAggregateName: string | null;
+    publicationVersion: string | null;
+    compatibilityHash: string | null;
+    scheduleRevision: string | null;
+    schedulerTimezone: string | null;
+    physicalOutputContract: PhysicalOutputContract | null;
+    preparationStatus: PreAggregatePreparationStatus;
+    automaticEligible: boolean;
     preAggregateDefinition: PreAggregateDef;
     materializationMetricQuery: MaterializationMetricQueryPayload | null;
     materializationQueryError: string | null;
@@ -193,21 +215,23 @@ export type PreAggregateDefinitionWithExploreName = PreAggregateDefinition & {
     preAggExploreName: string;
 };
 
-export type PreAggregateMaterialization = {
-    materializationUuid: string;
-    projectUuid: string;
-    preAggregateDefinitionUuid: string;
-    status: PreAggregateMaterializationStatus;
-    trigger: PreAggregateMaterializationTrigger;
-    queryUuid: string | null;
-    materializationUri: string | null;
-    materializedAt: Date | null;
-    rowCount: number | null;
-    columns: ResultColumns | null;
-    errorMessage: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-};
+export type PreAggregateMaterialization =
+    PreAggregateMaterializationProvenance & {
+        materializationUuid: string;
+        scheduleRevision: string | null;
+        projectUuid: string;
+        preAggregateDefinitionUuid: string;
+        status: PreAggregateMaterializationStatus;
+        trigger: PreAggregateMaterializationTrigger;
+        queryUuid: string | null;
+        materializationUri: string | null;
+        materializedAt: Date | null;
+        rowCount: number | null;
+        columns: ResultColumns | null;
+        errorMessage: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+    };
 
 export const preAggregateMissReasonLabels: Record<
     PreAggregateMissReason,
@@ -347,6 +371,7 @@ export type PreAggregateSchedulerDetails = {
     preAggregateDefinitionUuid: string;
     preAggExploreName: string;
     refreshCron: string;
+    scheduleRevision: string | null;
 };
 
 export type PreAggregateDailyStatResult = {

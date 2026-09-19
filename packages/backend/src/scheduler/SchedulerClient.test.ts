@@ -2,6 +2,7 @@ import {
     FeatureFlags,
     SchedulerAndTargets,
     TraceTaskBase,
+    type PreAggregateMaterializationTrigger,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { type LightdashConfig } from '../config/parseConfig';
@@ -237,6 +238,133 @@ describe('SchedulerClient create project job lookup', () => {
         expect(query).toHaveBeenCalledWith(
             expect.stringContaining("payload->>'jobUuid' = $2"),
             ['createProjectWithCompile', 'lightdash-job-uuid'],
+        );
+    });
+});
+
+describe('SchedulerClient pre-aggregate materialization jobs', () => {
+    const definition = {
+        organizationUuid: ORG_UUID,
+        projectUuid: 'proj-1',
+        createdByUserUuid: 'user-1',
+        preAggregateDefinitionUuid: 'definition-1',
+        refreshCron: '0 10 * * *',
+        schedulerTimezone: 'UTC',
+        scheduleRevision: 'revision-2',
+    };
+
+    afterEach(() => {
+        vi.clearAllMocks();
+        vi.restoreAllMocks();
+    });
+
+    it.each<PreAggregateMaterializationTrigger>([
+        'compile',
+        'cron',
+        'manual',
+        'webhook',
+    ])(
+        'serializes %s in the definition queue without changing coalescing',
+        async (trigger) => {
+            const client = makeClient(false, vi.fn());
+            const scheduledAt = new Date('2026-09-14T10:00:00Z');
+
+            await client.materializePreAggregate(
+                {
+                    ...traceProperties,
+                    preAggregateDefinitionUuid:
+                        definition.preAggregateDefinitionUuid,
+                    trigger,
+                    ...(trigger === 'cron' && {
+                        scheduleRevision: definition.scheduleRevision,
+                    }),
+                },
+                scheduledAt,
+            );
+
+            expect(graphileAddJob).toHaveBeenCalledWith(
+                'materializePreAggregate',
+                expect.objectContaining({ trigger }),
+                expect.objectContaining({
+                    queueName: 'preagg:definition-1',
+                    maxAttempts: 1,
+                    jobKey:
+                        trigger === 'cron'
+                            ? `preagg:definition-1:cron:${scheduledAt.getTime()}`
+                            : `preagg:definition-1:${trigger}`,
+                }),
+            );
+        },
+    );
+
+    it('cancels pending jobs before scheduling the remaining current-day fires with the new revision', async () => {
+        const client = makeClient(false, vi.fn());
+        const cancel = vi
+            .spyOn(client, 'deleteScheduledPreAggregateCronJobsForDefinition')
+            .mockResolvedValue();
+
+        await client.reconcilePreAggregateCronSchedule(
+            {
+                preAggregateDefinitionUuid:
+                    definition.preAggregateDefinitionUuid,
+                definition,
+            },
+            new Date('2026-09-14T09:57:00Z'),
+        );
+
+        expect(cancel).toHaveBeenCalledWith('definition-1');
+        expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
+            'materializePreAggregate',
+            expect.objectContaining({
+                trigger: 'cron',
+                scheduleRevision: 'revision-2',
+            }),
+            expect.objectContaining({
+                runAt: new Date('2026-09-14T10:00:00Z'),
+            }),
+        );
+        expect(cancel.mock.invocationCallOrder[0]).toBeLessThan(
+            graphileAddJob.mock.invocationCallOrder[0],
+        );
+    });
+
+    it('only cancels pending jobs when the definition is no longer schedulable', async () => {
+        const client = makeClient(false, vi.fn());
+        const cancel = vi
+            .spyOn(client, 'deleteScheduledPreAggregateCronJobsForDefinition')
+            .mockResolvedValue();
+
+        await client.reconcilePreAggregateCronSchedule({
+            preAggregateDefinitionUuid: definition.preAggregateDefinitionUuid,
+            definition: null,
+        });
+
+        expect(cancel).toHaveBeenCalledWith('definition-1');
+        expect(graphileAddJob).not.toHaveBeenCalled();
+    });
+
+    it('uses project scheduler timezone when reconciling', async () => {
+        const client = makeClient(false, vi.fn());
+        vi.spyOn(
+            client,
+            'deleteScheduledPreAggregateCronJobsForDefinition',
+        ).mockResolvedValue();
+
+        await client.reconcilePreAggregateCronSchedule(
+            {
+                preAggregateDefinitionUuid:
+                    definition.preAggregateDefinitionUuid,
+                definition: { ...definition, schedulerTimezone: 'Asia/Tokyo' },
+            },
+            new Date('2026-09-14T00:30:00Z'),
+        );
+
+        expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
+            'materializePreAggregate',
+            expect.any(Object),
+            expect.objectContaining({
+                runAt: new Date('2026-09-14T01:00:00Z'),
+            }),
         );
     });
 });

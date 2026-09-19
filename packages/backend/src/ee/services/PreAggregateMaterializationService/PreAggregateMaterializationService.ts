@@ -677,7 +677,7 @@ export class PreAggregateMaterializationService extends BaseService {
                 preAggExploreName,
             );
 
-        if (!activeMaterialization) {
+        if (!activeMaterialization || !activeMaterialization.queryUuid) {
             return undefined;
         }
 

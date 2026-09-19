@@ -1135,7 +1135,11 @@ export class ProjectModel {
             .update({ expires_at: expiresAt });
     }
 
-    async update(projectUuid: string, data: UpdateProject): Promise<void> {
+    async update(
+        projectUuid: string,
+        data: UpdateProject,
+        onProjectWritten?: (trx: Transaction) => Promise<void>,
+    ): Promise<void> {
         let previousConnectionString: string | undefined;
         try {
             previousConnectionString = getMotherduckConnectionString(
@@ -1184,6 +1188,7 @@ export class ProjectModel {
                 project.project_id,
                 data.warehouseConnection,
             );
+            await onProjectWritten?.(trx);
         });
 
         if (
@@ -2356,15 +2361,26 @@ export class ProjectModel {
 
     async getAllExploresFromCache(
         projectUuid: string,
+        trx?: Transaction,
+        sourceExploreNames?: string[],
     ): Promise<{ [exploreUuid: string]: Explore | ExploreError }> {
-        const cachedExplores = await this.database(CachedExploreTableName)
+        const database = trx ?? this.database;
+        const cachedExplores: {
+            cached_explore_uuid: string;
+            explore: Explore | ExploreError;
+        }[] = await database(CachedExploreTableName)
             .select<
                 {
                     cached_explore_uuid: string;
                     explore: Explore | ExploreError;
                 }[]
             >(['explore', 'cached_explore_uuid'])
-            .where('project_uuid', projectUuid);
+            .where('project_uuid', projectUuid)
+            .modify((query) => {
+                if (sourceExploreNames !== undefined) {
+                    void query.whereIn('name', sourceExploreNames);
+                }
+            });
 
         return cachedExplores.reduce<Record<string, Explore | ExploreError>>(
             (acc, { cached_explore_uuid, explore }) => {
@@ -2601,6 +2617,10 @@ export class ProjectModel {
         explores: (Explore | ExploreError)[],
         complete = false,
         dbtModelNames?: string[],
+        onCacheWritten?: (
+            trx: Transaction,
+            changes: { deletedExploreNames: string[] },
+        ) => Promise<void>,
     ) {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
@@ -2782,6 +2802,9 @@ export class ProjectModel {
                         },
                     );
 
+                    await onCacheWritten?.(trx, {
+                        deletedExploreNames: deletedNames,
+                    });
                     return {
                         cachedExploreUuids: individualCachedExplores.map(
                             (explore) => explore.cached_explore_uuid,
@@ -2794,6 +2817,7 @@ export class ProjectModel {
     async saveExploreStreamToCache(
         projectUuid: string,
         explores: AsyncIterable<Explore | ExploreError>,
+        onCacheWritten?: (trx: Transaction) => Promise<void>,
     ): Promise<{ cachedExploreUuids: string[] }> {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
@@ -2930,6 +2954,7 @@ export class ProjectModel {
                                     projectUuid,
                                 ],
                             );
+                            await onCacheWritten?.(trx);
                             return {
                                 promotedRows: promotedResult.rows,
                                 managedNames: managedResult.rows.map(
@@ -6096,6 +6121,7 @@ export class ProjectModel {
     async updateSchedulerSettings(
         projectUuid: string,
         settings: UpdateSchedulerSettings,
+        onSettingsWritten?: (trx: Transaction) => Promise<void>,
     ) {
         const update: Partial<
             Pick<
@@ -6126,12 +6152,14 @@ export class ProjectModel {
             return undefined;
         }
 
-        const [updatedProject] = await this.database(ProjectTableName)
-            .update(update)
-            .where('project_uuid', projectUuid)
-            .returning('*');
-
-        return updatedProject;
+        return this.database.transaction(async (trx) => {
+            const [updatedProject] = await trx(ProjectTableName)
+                .update(update)
+                .where('project_uuid', projectUuid)
+                .returning('*');
+            if (updatedProject) await onSettingsWritten?.(trx);
+            return updatedProject;
+        });
     }
 
     async getProjectWarehouseConfig(projectUuid: string): Promise<{
@@ -6225,6 +6253,7 @@ export class ProjectModel {
     async updateQueryTimezone(
         projectUuid: string,
         settings: UpdateQueryTimezoneSettings,
+        onChanged?: (trx: Transaction) => Promise<void>,
     ): Promise<DbProject> {
         const { queryTimezone, useProjectTimezoneInFilters } = settings;
 
@@ -6271,6 +6300,13 @@ export class ProjectModel {
                 .where('project_uuid', projectUuid)
                 .returning('*');
 
+            if (
+                resultingTimezone !== current.query_timezone ||
+                resultingUseProjectTimezoneInFilters !==
+                    current.use_project_timezone_in_filters
+            ) {
+                await onChanged?.(trx);
+            }
             return updatedProject;
         });
     }

@@ -112,6 +112,47 @@ describe('buildSchedulerLogContext', () => {
     });
 });
 
+describe('pre-aggregate scheduler outcomes', () => {
+    it('only generates daily jobs with a current schedule revision and execution user', async () => {
+        const definition = {
+            organizationUuid: 'organization',
+            projectUuid: 'project',
+            createdByUserUuid: 'user',
+            preAggregateDefinitionUuid: 'definition',
+            preAggExploreName: '__preagg__orders__daily',
+            refreshCron: '0 10 * * *',
+            schedulerTimezone: 'UTC',
+            scheduleRevision: 'revision',
+        };
+        const schedulePreAggregateCronJobs = vi.fn().mockResolvedValue([]);
+        const day = new Date('2026-09-14T00:00:00Z');
+
+        await SchedulerTask.prototype[
+            'generateDailyPreAggregateMaterializationJobs'
+        ].call(
+            {
+                preAggregateModel: {
+                    getProjectSchedulerDetailsForPreAggregates: vi
+                        .fn()
+                        .mockResolvedValue([
+                            definition,
+                            { ...definition, scheduleRevision: null },
+                            { ...definition, createdByUserUuid: null },
+                        ]),
+                },
+                schedulerClient: { schedulePreAggregateCronJobs },
+            },
+            day,
+        );
+
+        expect(schedulePreAggregateCronJobs).toHaveBeenCalledExactlyOnceWith(
+            [definition],
+            day,
+            true,
+        );
+    });
+});
+
 describe('setSchedulerJobLogContext', () => {
     it('skips the updater entirely when no attribution fields are set', () => {
         const update = vi.fn();
