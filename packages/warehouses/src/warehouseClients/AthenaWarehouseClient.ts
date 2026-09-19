@@ -345,7 +345,9 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
                     masterCredentials: clientConfig.credentials,
                     params: {
                         RoleArn: credentials.assumeRoleArn,
-                        RoleSessionName: 'lightdash-athena-session',
+                        RoleSessionName: credentials.connectionUuid
+                            ? `lightdash-${credentials.connectionUuid.slice(0, 12)}`
+                            : 'lightdash-athena-session',
                         ExternalId:
                             credentials.assumeRoleExternalId || undefined,
                     },

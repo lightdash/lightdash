@@ -14,6 +14,7 @@ const FormHarness = () => {
             dbt: { type: DbtProjectType.NONE },
             warehouse: PostgresDefaultValues,
             dbtVersion: DefaultSupportedDbtVersion,
+            requireUserCredentials: false,
         },
     });
 

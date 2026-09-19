@@ -18,7 +18,6 @@ import {
     Stack,
     Text,
     Select,
-    Switch,
     Tooltip,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -764,21 +763,6 @@ const BigQueryForm: FC<{
                         )}
                         <FormSection isOpen={isOpen} name="advanced">
                             <Stack mt={8}>
-                                <Switch
-                                    name="warehouse.requireUserCredentials"
-                                    {...form.getInputProps(
-                                        'warehouse.requireUserCredentials',
-                                        {
-                                            type: 'checkbox',
-                                        },
-                                    )}
-                                    label="Require users to provide their own credentials"
-                                    disabled={disabled}
-                                    defaultChecked={
-                                        BigQueryDefaultValues.requireUserCredentials
-                                    }
-                                />
-
                                 <TextInput
                                     name="warehouse.executionProject"
                                     label="Execution project"

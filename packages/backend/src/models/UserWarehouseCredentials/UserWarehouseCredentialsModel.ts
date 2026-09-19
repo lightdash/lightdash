@@ -296,52 +296,103 @@ export class UserWarehouseCredentialsModel {
         projectUuid: string,
         userUuid: string,
         warehouseType: WarehouseTypes,
+        connectionUuid?: string,
     ): Promise<
         Array<{
             row: DbUserWarehouseCredentialsWithProject;
             isPreferred: boolean;
         }>
     > {
-        const projectPreferredCredentials: DbUserWarehouseCredentialsWithProject =
-            await this.baseSelectWithProject()
-                .leftJoin(
-                    ProjectUserWarehouseCredentialPreferenceTableName,
-                    `${ProjectUserWarehouseCredentialPreferenceTableName}.user_warehouse_credentials_uuid`,
-                    `${UserWarehouseCredentialsTableName}.user_warehouse_credentials_uuid`,
-                )
-                .where(
-                    `${UserWarehouseCredentialsTableName}.warehouse_type`,
-                    warehouseType,
-                )
-                .andWhere(
-                    `${ProjectUserWarehouseCredentialPreferenceTableName}.project_uuid`,
-                    projectUuid,
-                )
-                .andWhere(
-                    `${ProjectUserWarehouseCredentialPreferenceTableName}.user_uuid`,
-                    userUuid,
-                )
-                .first();
+        const preferredQuery = this.baseSelectWithProject()
+            .leftJoin(
+                ProjectUserWarehouseCredentialPreferenceTableName,
+                `${ProjectUserWarehouseCredentialPreferenceTableName}.user_warehouse_credentials_uuid`,
+                `${UserWarehouseCredentialsTableName}.user_warehouse_credentials_uuid`,
+            )
+            .where(
+                `${UserWarehouseCredentialsTableName}.warehouse_type`,
+                warehouseType,
+            )
+            .andWhere(
+                `${ProjectUserWarehouseCredentialPreferenceTableName}.project_uuid`,
+                projectUuid,
+            )
+            .andWhere(
+                `${ProjectUserWarehouseCredentialPreferenceTableName}.user_uuid`,
+                userUuid,
+            );
+        if (connectionUuid) {
+            void preferredQuery.andWhereRaw(
+                `(
+                    ${ProjectUserWarehouseCredentialPreferenceTableName}.connection_uuid = ?
+                    OR (
+                        ${ProjectUserWarehouseCredentialPreferenceTableName}.connection_uuid IS NULL
+                        AND 1 = (
+                            SELECT COUNT(*)
+                            FROM warehouse_credentials scoped_connection
+                            JOIN projects scoped_project
+                                ON scoped_project.project_id = scoped_connection.project_id
+                            WHERE scoped_project.project_uuid = ?
+                              AND scoped_connection.superseded_at IS NULL
+                        )
+                    )
+                )`,
+                [connectionUuid, projectUuid],
+            );
+        }
+        const projectPreferredCredentials:
+            | DbUserWarehouseCredentialsWithProject
+            | undefined = await preferredQuery.first();
 
-        // Fallback: prefer credential assigned to this project, else unassigned
+        if (connectionUuid && !projectPreferredCredentials) {
+            return [];
+        }
+
+        const fallbackQuery = this.baseSelectWithProject()
+            .where(
+                `${UserWarehouseCredentialsTableName}.warehouse_type`,
+                warehouseType,
+            )
+            .andWhere(
+                `${UserWarehouseCredentialsTableName}.user_uuid`,
+                userUuid,
+            )
+            .andWhere(function assignedOrUnassigned(this) {
+                void this.where(
+                    `${UserWarehouseCredentialsTableName}.project_uuid`,
+                    projectUuid,
+                ).orWhereNull(
+                    `${UserWarehouseCredentialsTableName}.project_uuid`,
+                );
+            });
+        if (connectionUuid) {
+            void fallbackQuery.andWhereRaw(
+                `NOT EXISTS (
+                    SELECT 1
+                    FROM ${ProjectUserWarehouseCredentialPreferenceTableName} other_preference
+                    WHERE other_preference.user_uuid = ?
+                      AND other_preference.project_uuid = ?
+                      AND other_preference.user_warehouse_credentials_uuid = ${UserWarehouseCredentialsTableName}.user_warehouse_credentials_uuid
+                      AND NOT (
+                          other_preference.connection_uuid = ?
+                          OR (
+                              other_preference.connection_uuid IS NULL
+                              AND 1 = (
+                                  SELECT COUNT(*)
+                                  FROM warehouse_credentials scoped_connection
+                                  JOIN projects scoped_project
+                                      ON scoped_project.project_id = scoped_connection.project_id
+                                  WHERE scoped_project.project_uuid = ?
+                                    AND scoped_connection.superseded_at IS NULL
+                              )
+                          )
+                      )
+                )`,
+                [userUuid, projectUuid, connectionUuid, projectUuid],
+            );
+        }
         const fallbackRows: DbUserWarehouseCredentialsWithProject[] =
-            await this.baseSelectWithProject()
-                .where(
-                    `${UserWarehouseCredentialsTableName}.warehouse_type`,
-                    warehouseType,
-                )
-                .andWhere(
-                    `${UserWarehouseCredentialsTableName}.user_uuid`,
-                    userUuid,
-                )
-                .andWhere(function assignedOrUnassigned(this) {
-                    void this.where(
-                        `${UserWarehouseCredentialsTableName}.project_uuid`,
-                        projectUuid,
-                    ).orWhereNull(
-                        `${UserWarehouseCredentialsTableName}.project_uuid`,
-                    );
-                })
+            await fallbackQuery
                 .orderByRaw(
                     `CASE WHEN ${UserWarehouseCredentialsTableName}.project_uuid = ? THEN 0 ELSE 1 END ASC`,
                     [projectUuid],
@@ -369,11 +420,13 @@ export class UserWarehouseCredentialsModel {
         projectUuid: string,
         userUuid: string,
         warehouseType: WarehouseTypes,
+        connectionUuid?: string,
     ): Promise<DbUserWarehouseCredentialsWithProject | undefined> {
         const candidates = await this._findProjectCredentialCandidates(
             projectUuid,
             userUuid,
             warehouseType,
+            connectionUuid,
         );
         return candidates[0]?.row;
     }
@@ -431,11 +484,13 @@ export class UserWarehouseCredentialsModel {
         projectUuid: string,
         userUuid: string,
         warehouseType: WarehouseTypes,
+        connectionUuid?: string,
     ): Promise<UserWarehouseCredentials | undefined> {
         const credentials = await this._findProjectCredentials(
             projectUuid,
             userUuid,
             warehouseType,
+            connectionUuid,
         );
         if (credentials) {
             return this.convertToUserWarehouseCredentials(credentials);
@@ -452,11 +507,13 @@ export class UserWarehouseCredentialsModel {
         projectUuid: string,
         userUuid: string,
         warehouseType: WarehouseTypes,
+        connectionUuid?: string,
     ): Promise<UserWarehouseCredentialsWithSecrets | undefined> {
         const candidates = await this._findProjectCredentialCandidates(
             projectUuid,
             userUuid,
             warehouseType,
+            connectionUuid,
         );
 
         let firstError: LightdashError | undefined;
@@ -509,6 +566,7 @@ export class UserWarehouseCredentialsModel {
         userUuid: string,
         projectUuid: string,
         userWarehouseCredentialsUuid: string,
+        connectionUuid: string | null = null,
     ) {
         const [result] = await this.database(
             ProjectUserWarehouseCredentialPreferenceTableName,
@@ -517,8 +575,9 @@ export class UserWarehouseCredentialsModel {
                 user_uuid: userUuid,
                 user_warehouse_credentials_uuid: userWarehouseCredentialsUuid,
                 project_uuid: projectUuid,
+                connection_uuid: connectionUuid,
             })
-            .onConflict(['user_uuid', 'project_uuid'])
+            .onConflict(['user_uuid', 'project_uuid', 'connection_uuid'])
             .merge()
             .returning('*');
 

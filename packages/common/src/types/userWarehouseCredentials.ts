@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import assertUnreachable from '../utils/assertUnreachable';
 import {
     DatabricksAuthenticationType,
     RedshiftAuthenticationType,
@@ -14,6 +15,7 @@ import {
     type CreateRedshiftCredentials,
     type CreateSnowflakeCredentials,
     type CreateTrinoCredentials,
+    type CreateWarehouseCredentials,
     type ProjectType,
 } from './projects';
 
@@ -78,6 +80,7 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
               | 'password'
               | 'authenticationType'
               | 'refreshToken'
+              | 'token'
           >
         | Pick<
               CreateSnowflakeCredentials,
@@ -99,6 +102,7 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
               | 'personalAccessToken'
               | 'authenticationType'
               | 'refreshToken'
+              | 'token'
           > &
               Partial<
                   Pick<
@@ -111,9 +115,119 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
               >)
         | Pick<
               CreateAthenaCredentials,
-              'type' | 'accessKeyId' | 'secretAccessKey'
+              | 'type'
+              | 'accessKeyId'
+              | 'secretAccessKey'
+              | 'sessionToken'
+              | 'assumeRoleArn'
+              | 'assumeRoleExternalId'
           >
         | Pick<CreateDuckdbMotherduckCredentials, 'type' | 'token'>;
+};
+
+export const mergeUserWarehouseCredentials = (
+    connection: CreateWarehouseCredentials,
+    userCredentials: UserWarehouseCredentialsWithSecrets['credentials'],
+): CreateWarehouseCredentials => {
+    switch (connection.type) {
+        case WarehouseTypes.ATHENA:
+            if (userCredentials.type !== WarehouseTypes.ATHENA)
+                return connection;
+            return {
+                ...connection,
+                accessKeyId: userCredentials.accessKeyId,
+                secretAccessKey: userCredentials.secretAccessKey,
+                sessionToken: userCredentials.sessionToken,
+                assumeRoleArn: userCredentials.assumeRoleArn,
+                assumeRoleExternalId: userCredentials.assumeRoleExternalId,
+            };
+        case WarehouseTypes.POSTGRES:
+            if (userCredentials.type !== WarehouseTypes.POSTGRES)
+                return connection;
+            return {
+                ...connection,
+                user: userCredentials.user,
+                password: userCredentials.password,
+            };
+        case WarehouseTypes.REDSHIFT:
+            if (userCredentials.type !== WarehouseTypes.REDSHIFT)
+                return connection;
+            const redshiftCredentials =
+                userCredentials as Partial<CreateRedshiftCredentials>;
+            return {
+                ...connection,
+                user: redshiftCredentials.user ?? '',
+                password: redshiftCredentials.password,
+                authenticationType: redshiftCredentials.authenticationType,
+                accessKeyId: redshiftCredentials.accessKeyId,
+                secretAccessKey: redshiftCredentials.secretAccessKey,
+                sessionToken: redshiftCredentials.sessionToken,
+                assumeRoleArn: redshiftCredentials.assumeRoleArn,
+                assumeRoleExternalId: redshiftCredentials.assumeRoleExternalId,
+            };
+        case WarehouseTypes.SNOWFLAKE:
+            if (userCredentials.type !== WarehouseTypes.SNOWFLAKE)
+                return connection;
+            const snowflakeCredentials =
+                userCredentials as Partial<CreateSnowflakeCredentials>;
+            return {
+                ...connection,
+                user: snowflakeCredentials.user ?? '',
+                password: snowflakeCredentials.password,
+                privateKey: snowflakeCredentials.privateKey,
+                privateKeyPass: snowflakeCredentials.privateKeyPass,
+                token: snowflakeCredentials.token,
+                refreshToken: snowflakeCredentials.refreshToken,
+                authenticationType: snowflakeCredentials.authenticationType,
+            };
+        case WarehouseTypes.BIGQUERY:
+            if (userCredentials.type !== WarehouseTypes.BIGQUERY)
+                return connection;
+            return {
+                ...connection,
+                keyfileContents: userCredentials.keyfileContents,
+                authenticationType: userCredentials.authenticationType,
+            };
+        case WarehouseTypes.DATABRICKS:
+            if (userCredentials.type !== WarehouseTypes.DATABRICKS)
+                return connection;
+            return {
+                ...connection,
+                personalAccessToken: userCredentials.personalAccessToken,
+                authenticationType: userCredentials.authenticationType,
+                refreshToken: userCredentials.refreshToken,
+                token: userCredentials.token,
+                oauthClientId: userCredentials.oauthClientId,
+            };
+        case WarehouseTypes.TRINO:
+            if (userCredentials.type !== WarehouseTypes.TRINO)
+                return connection;
+            return {
+                ...connection,
+                user: userCredentials.user,
+                password: userCredentials.password,
+            };
+        case WarehouseTypes.CLICKHOUSE:
+            if (userCredentials.type !== WarehouseTypes.CLICKHOUSE)
+                return connection;
+            return {
+                ...connection,
+                user: userCredentials.user,
+                password: userCredentials.password,
+            };
+        case WarehouseTypes.DUCKDB:
+            if (
+                connection.connectionType !== 'motherduck' ||
+                userCredentials.type !== WarehouseTypes.DUCKDB
+            )
+                return connection;
+            return {
+                ...connection,
+                token: userCredentials.token,
+            };
+        default:
+            return assertUnreachable(connection, 'Unknown warehouse type');
+    }
 };
 
 export type UpsertUserWarehouseCredentials = {

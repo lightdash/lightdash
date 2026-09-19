@@ -180,8 +180,7 @@ const StatusFilter: FC<{
 const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     const { data: project, isLoading: isLoadingProject } =
         useProject(projectUuid);
-    const requiresUserCredentials =
-        project?.warehouseConnection?.requireUserCredentials ?? false;
+    const requiresUserCredentials = project?.requireUserCredentials ?? false;
     const { hasActiveJobs } = useSchedulerJobsContext();
     const { mutate: refreshAll, isLoading: isRefreshingAll } =
         useRefreshAllPreAggregates(projectUuid, { showToast: true });

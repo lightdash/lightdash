@@ -63,6 +63,7 @@ const createModel = ({
     preferredRow: object | undefined;
     fallbackRows: object[];
 }) => {
+    const rawBindings: unknown[][] = [];
     const makeBuilder = (result: {
         firstRow?: object;
         rows?: object[];
@@ -73,10 +74,15 @@ const createModel = ({
             'select',
             'where',
             'andWhere',
+            'andWhereRaw',
             'orderByRaw',
             'orderBy',
         ].forEach((method) => {
             builder[method] = vi.fn(() => builder);
+        });
+        builder.andWhereRaw = vi.fn((_sql: string, bindings: unknown[]) => {
+            rawBindings.push(bindings);
+            return builder;
         });
         builder.first = vi.fn(async () => result.firstRow);
         builder.then = (
@@ -95,10 +101,13 @@ const createModel = ({
         call += 1;
         return builder;
     }) as unknown as Knex;
-    return new UserWarehouseCredentialsModel({
-        database,
-        encryptionUtil: passthroughEncryption,
-    });
+    return Object.assign(
+        new UserWarehouseCredentialsModel({
+            database,
+            encryptionUtil: passthroughEncryption,
+        }),
+        { rawBindings },
+    );
 };
 
 describe('UserWarehouseCredentialsModel', () => {
@@ -227,6 +236,56 @@ describe('UserWarehouseCredentialsModel', () => {
     });
 
     describe('findForProjectWithSecrets', () => {
+        test('does not infer a connection preference from fallback credentials', async () => {
+            const model = createModel({
+                preferredRow: undefined,
+                fallbackRows: [
+                    makeRow('newest-credential', validBigqueryCredentials),
+                ],
+            });
+
+            await expect(
+                model.findForProject(
+                    'project-1',
+                    'user-1',
+                    WarehouseTypes.BIGQUERY,
+                    'connection-1',
+                ),
+            ).resolves.toBeUndefined();
+        });
+
+        test.each(['connection-1', 'connection-2'])(
+            'scopes preference and fallback queries to %s',
+            async (connectionUuid) => {
+                const model = createModel({
+                    preferredRow: makeRow(
+                        `${connectionUuid}-preferred`,
+                        validBigqueryCredentials,
+                    ),
+                    fallbackRows: [],
+                });
+
+                const result = await model.findForProjectWithSecrets(
+                    'project-1',
+                    'user-1',
+                    WarehouseTypes.BIGQUERY,
+                    connectionUuid,
+                );
+
+                expect(result?.uuid).toBe(`${connectionUuid}-preferred`);
+                expect(model.rawBindings).toContainEqual([
+                    connectionUuid,
+                    'project-1',
+                ]);
+                expect(model.rawBindings).toContainEqual([
+                    'user-1',
+                    'project-1',
+                    connectionUuid,
+                    'project-1',
+                ]);
+            },
+        );
+
         test('returns the preferred credential when it is valid', async () => {
             const model = createModel({
                 preferredRow: makeRow('preferred', validBigqueryCredentials),

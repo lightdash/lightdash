@@ -5,7 +5,6 @@ import { useToggle } from 'react-use';
 import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
-import BooleanSwitch from '../Inputs/BooleanSwitch';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
@@ -87,19 +86,6 @@ const TrinoForm: FC<{
 
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
-                        <BooleanSwitch
-                            name="warehouse.requireUserCredentials"
-                            label="Require users to provide their own credentials"
-                            {...form.getInputProps(
-                                'warehouse.requireUserCredentials',
-                                { type: 'checkbox' },
-                            )}
-                            defaultChecked={
-                                TrinoDefaultValues.requireUserCredentials
-                            }
-                            disabled={disabled}
-                        />
-
                         <NumberInput
                             name="warehouse.port"
                             {...form.getInputProps('warehouse.port')}

@@ -364,21 +364,6 @@ const RedshiftForm: FC<{
                 />
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
-                        <BooleanSwitch
-                            name="warehouse.requireUserCredentials"
-                            label="Require users to provide their own credentials"
-                            {...form.getInputProps(
-                                'warehouse.requireUserCredentials',
-                                {
-                                    type: 'checkbox',
-                                },
-                            )}
-                            defaultChecked={
-                                RedshiftDefaultValues.requireUserCredentials
-                            }
-                            disabled={disabled}
-                        />
-
                         {isIamAuthentication && (
                             <RedshiftIamAdvancedFields
                                 disabled={disabled}

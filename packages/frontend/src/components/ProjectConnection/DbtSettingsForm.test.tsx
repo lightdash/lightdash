@@ -54,6 +54,7 @@ const FormHarness = ({
                 selector: 'tag:lightdash',
             },
             dbtVersion: DefaultSupportedDbtVersion,
+            requireUserCredentials: false,
             warehouse,
         },
     });

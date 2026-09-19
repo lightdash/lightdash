@@ -179,6 +179,26 @@ describe('ConnectionsPanel', () => {
         expect(screen.getAllByText('Organisation credential')).toHaveLength(1);
     });
 
+    it('does not show the project credential policy in the connection modal', async () => {
+        routeApi({
+            connections: [primaryConnection],
+            canAddConnection: true,
+        });
+        const user = userEvent.setup();
+        renderWithProviders(<ConnectionsPanel projectUuid="project-uuid" />);
+
+        await user.click(
+            await screen.findByRole('button', { name: 'Add connection' }),
+        );
+
+        const dialog = await screen.findByRole('dialog');
+        expect(
+            within(dialog).queryByLabelText(
+                'Require users to provide their own credentials',
+            ),
+        ).not.toBeInTheDocument();
+    });
+
     it('disables Add connection and explains why when a second one is not allowed', async () => {
         const reason =
             'A second connection is not enabled for this organisation yet.';

@@ -84,19 +84,6 @@ const ClickhouseForm: FC<{
 
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt="xs">
-                        <BooleanSwitch
-                            name="warehouse.requireUserCredentials"
-                            label="Require users to provide their own credentials"
-                            {...form.getInputProps(
-                                'warehouse.requireUserCredentials',
-                                { type: 'checkbox' },
-                            )}
-                            defaultChecked={
-                                ClickhouseDefaultValues.requireUserCredentials
-                            }
-                            disabled={disabled}
-                        />
-
                         <NumberInput
                             name="warehouse.port"
                             {...form.getInputProps('warehouse.port')}

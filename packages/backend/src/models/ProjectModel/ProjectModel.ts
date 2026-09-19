@@ -978,6 +978,12 @@ export class ProjectModel {
                     organization_warehouse_credentials_uuid:
                         data.organizationWarehouseCredentialsUuid ?? null,
                     provisioning_source: provisioningSource ?? null,
+                    ...(data.requireUserCredentials === undefined
+                        ? {}
+                        : {
+                              require_user_credentials:
+                                  data.requireUserCredentials,
+                          }),
                     ...(expiresAt !== undefined
                         ? { expires_at: expiresAt }
                         : {}),
@@ -1200,6 +1206,12 @@ export class ProjectModel {
                           }
                         : {}),
                     project_defaults: data.projectDefaults ?? null,
+                    ...(data.requireUserCredentials === undefined
+                        ? {}
+                        : {
+                              require_user_credentials:
+                                  data.requireUserCredentials,
+                          }),
                 })
                 .where('project_uuid', projectUuid)
                 .returning('*');
@@ -1231,9 +1243,17 @@ export class ProjectModel {
         projectUuid: string,
         details: UpdateProjectDetails,
     ): Promise<void> {
+        const { requireUserCredentials, ...projectDetails } = details;
         const updatedProjects = await this.database(ProjectTableName)
             .where('project_uuid', projectUuid)
-            .update(details)
+            .update({
+                ...projectDetails,
+                ...(requireUserCredentials === undefined
+                    ? {}
+                    : {
+                          require_user_credentials: requireUserCredentials,
+                      }),
+            })
             .returning('project_uuid');
 
         if (updatedProjects.length === 0) {
@@ -1598,6 +1618,7 @@ export class ProjectModel {
             expires_at: Date | null;
             provisioning_source: string | null;
             agent_sql_scope: AgentSqlScope | null;
+            require_user_credentials: boolean | null;
         }[];
         return wrapSentryTransaction(
             'ProjectModel.getWithSensitiveFields',
@@ -1677,6 +1698,9 @@ export class ProjectModel {
                         this.database
                             .ref('agent_sql_scope')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('require_user_credentials')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -1704,6 +1728,14 @@ export class ProjectModel {
 
                 const connections =
                     await this.connectionModel.listByProject(projectUuid);
+
+                const warehouseConnection =
+                    connections.length === 1
+                        ? await this.connectionModel.getCredentials(
+                              projectUuid,
+                              connections[0].connectionUuid,
+                          )
+                        : undefined;
 
                 const result: Omit<Project, 'warehouseConnection'> = {
                     organizationUuid: project.organization_uuid,
@@ -1735,20 +1767,19 @@ export class ProjectModel {
                     expiresAt: project.expires_at ?? null,
                     provisioningSource: project.provisioning_source ?? null,
                     agentSqlScope: project.agent_sql_scope ?? null,
+                    requireUserCredentials:
+                        project.require_user_credentials ??
+                        warehouseConnection?.requireUserCredentials ??
+                        false,
                     connections,
                 };
 
-                if (connections.length !== 1) {
+                if (!warehouseConnection) {
                     return result;
                 }
-                const [connection] = connections;
                 return {
                     ...result,
-                    warehouseConnection:
-                        await this.connectionModel.getCredentials(
-                            projectUuid,
-                            connection.connectionUuid,
-                        ),
+                    warehouseConnection,
                 };
             },
         );
@@ -1948,6 +1979,7 @@ export class ProjectModel {
             expiresAt: project.expiresAt,
             provisioningSource: project.provisioningSource ?? null,
             agentSqlScope: project.agentSqlScope ?? null,
+            requireUserCredentials: project.requireUserCredentials,
         };
     }
 
@@ -6103,9 +6135,14 @@ export class ProjectModel {
     async getProjectWarehouseConfig(projectUuid: string): Promise<{
         organizationWarehouseCredentialsUuid: string | null;
         queryTimezone: string | null;
+        requireUserCredentials: boolean | null;
     }> {
         const [project] = await this.database(ProjectTableName)
-            .select('organization_warehouse_credentials_uuid', 'query_timezone')
+            .select(
+                'organization_warehouse_credentials_uuid',
+                'query_timezone',
+                'require_user_credentials',
+            )
             .where('project_uuid', projectUuid);
 
         if (!project) {
@@ -6118,6 +6155,7 @@ export class ProjectModel {
             organizationWarehouseCredentialsUuid:
                 project.organization_warehouse_credentials_uuid,
             queryTimezone: project.query_timezone,
+            requireUserCredentials: project.require_user_credentials,
         };
     }
 

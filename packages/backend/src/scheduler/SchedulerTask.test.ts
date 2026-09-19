@@ -12,6 +12,7 @@ import {
     LightdashPage,
     MAX_DELIVERY_QUERIES,
     MetricType,
+    MissingWarehouseCredentialsError,
     NotEnoughResults,
     PartialFailureType,
     PersistentDownloadFileAccessMode,
@@ -1612,6 +1613,114 @@ const callGetNotificationPageData = (
         undefined,
         appCaptureManifest,
     );
+
+describe('getNotificationPageData — dashboard credential failures', () => {
+    it('reports missing personal credentials on one tile and delivers the others', async () => {
+        const dashboard = {
+            uuid: 'dashboard-1',
+            name: 'Revenue dashboard',
+            description: undefined,
+            projectUuid: 'project-1',
+            organizationUuid: 'org-1',
+            filters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+            parameters: {},
+            tabs: [],
+            tiles: [
+                {
+                    uuid: 'tile-missing-credentials',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: {
+                        title: 'Private chart',
+                        savedChartUuid: 'chart-missing-credentials',
+                    },
+                },
+                {
+                    uuid: 'tile-ready',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: {
+                        title: 'Shared chart',
+                        savedChartUuid: 'chart-ready',
+                    },
+                },
+            ],
+        };
+        const executeAsyncDashboardChartQuery = vi.fn(
+            async ({ chartUuid }: { chartUuid: string }) => {
+                if (chartUuid === 'chart-missing-credentials') {
+                    throw new MissingWarehouseCredentialsError(
+                        'Personal credentials are required',
+                    );
+                }
+                return { queryUuid: 'query-ready' };
+            },
+        );
+        const task = makeTaskWithDeps({
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'https://lightdash.example.com',
+                headlessBrowser: {
+                    internalLightdashHost: 'http://lightdash-dev:3000',
+                },
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue(dashboard),
+                },
+                savedChartModel: {
+                    get: vi.fn(async (chartUuid: string) => ({
+                        uuid: chartUuid,
+                        name:
+                            chartUuid === 'chart-ready'
+                                ? 'Shared chart'
+                                : 'Private chart',
+                        chartConfig: { type: ChartType.TABLE, config: {} },
+                        tableConfig: { columnOrder: [] },
+                    })),
+                },
+            }),
+            userService: asDep<'userService'>({
+                getAccountByUserUuid: vi.fn().mockResolvedValue({
+                    user: { id: 'user-1' },
+                    organization: { organizationUuid: 'org-1' },
+                }),
+            }),
+            asyncQueryService: asDep<'asyncQueryService'>({
+                executeAsyncDashboardChartQuery,
+                downloadSyncQueryResults: vi.fn().mockResolvedValue({
+                    fileUrl: 'https://files.example.com/shared.csv',
+                }),
+            }),
+            analytics: asDep<'analytics'>({ trackAccount: vi.fn() }),
+            fileStorageClient: asDep<'fileStorageClient'>({
+                isEnabled: () => false,
+            }),
+            slackClient: asDep<'slackClient'>({ isEnabled: false }),
+        });
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler({
+                appUuid: null,
+                appName: null,
+                dashboardUuid: dashboard.uuid,
+                format: SchedulerFormat.CSV,
+            }),
+        );
+
+        expect(page.csvUrls).toHaveLength(1);
+        expect(page.failures).toEqual([
+            expect.objectContaining({
+                type: PartialFailureType.DASHBOARD_CHART,
+                chartUuid: 'chart-missing-credentials',
+                tileUuid: 'tile-missing-credentials',
+                error: 'Personal credentials are required',
+            }),
+        ]);
+    });
+});
 
 describe('getNotificationPageData — app CSV/XLSX branch', () => {
     const setup = ({

@@ -273,6 +273,7 @@ export type ClickhouseCredentials = Omit<
 
 export type CreateAthenaCredentials = WarehouseConnectionListingFields & {
     type: WarehouseTypes.ATHENA;
+    connectionUuid?: string;
     region: string;
     database: string;
     schema: string;
@@ -1471,6 +1472,7 @@ export type Project = {
     expiresAt: Date | null;
     provisioningSource?: string | null;
     agentSqlScope: AgentSqlScope | null;
+    requireUserCredentials: boolean;
 };
 
 export type ProjectSummary = Pick<
@@ -1550,7 +1552,9 @@ export type ApiEnsurePlaygroundProjectResponse = {
     results: EnsurePlaygroundProjectResults;
 };
 
-export type UpdateProjectDetails = Partial<Pick<Project, 'name'>>;
+export type UpdateProjectDetails = Partial<
+    Pick<Project, 'name' | 'requireUserCredentials'>
+>;
 
 export type ApiGetProjectGroupAccesses = {
     status: 'ok';

@@ -245,10 +245,13 @@ const projectModel = {
     updateTablesConfiguration: vi.fn(),
     getExploreFromCache: vi.fn(async () => validExplore),
     getQueryTimezone: vi.fn(async () => null),
-    getProjectWarehouseConfig: vi.fn(async () => ({
-        organizationWarehouseCredentialsUuid: null,
-        queryTimezone: null,
-    })),
+    getProjectWarehouseConfig: vi.fn<ProjectModel['getProjectWarehouseConfig']>(
+        async () => ({
+            organizationWarehouseCredentialsUuid: null,
+            queryTimezone: null,
+            requireUserCredentials: null,
+        }),
+    ),
     findExploresFromCache: vi.fn(async () => allExplores),
     findExploreTableSummariesFromCache: vi.fn<
         ProjectModel['findExploreTableSummariesFromCache']
@@ -2758,6 +2761,7 @@ describe('ProjectService', () => {
                     name: projectWithSensitiveFields.name,
                     dbtConnection: projectWithSensitiveFields.dbtConnection,
                     dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    requireUserCredentials: true,
                 },
                 RequestMethod.WEB_APP,
             ),
@@ -2771,6 +2775,7 @@ describe('ProjectService', () => {
                 name: projectWithSensitiveFields.name,
                 dbtConnection: projectWithSensitiveFields.dbtConnection,
                 dbtVersion: projectWithSensitiveFields.dbtVersion,
+                requireUserCredentials: true,
             }),
         );
         expect(schedulerClient.testAndCompileProject).toHaveBeenCalledOnce();
@@ -3580,6 +3585,7 @@ describe('ProjectService', () => {
                 projectUuid,
                 sessionAccount.user.id,
                 WarehouseTypes.DATABRICKS,
+                'connection-uuid',
             );
 
             // Query should still execute successfully with user credentials
@@ -3588,6 +3594,165 @@ describe('ProjectService', () => {
     });
 
     describe('user warehouse credentials override', () => {
+        test('requires personal credentials for every connection when the project requires them', async () => {
+            const scopedService = getMockedProjectService(lightdashConfigMock);
+            const findForProjectWithSecrets = vi.fn(async () => undefined);
+            (
+                scopedService as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecrets;
+            vi.mocked(projectModel.getProjectWarehouseConfig)
+                .mockResolvedValueOnce({
+                    organizationWarehouseCredentialsUuid: null,
+                    queryTimezone: null,
+                    requireUserCredentials: true,
+                })
+                .mockResolvedValueOnce({
+                    organizationWarehouseCredentialsUuid: null,
+                    queryTimezone: null,
+                    requireUserCredentials: true,
+                });
+
+            vi.mocked(projectModel.getConnectionForProject)
+                .mockResolvedValueOnce({
+                    connectionUuid: 'required-connection',
+                    name: 'Required',
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    organizationWarehouseCredentialsUuid: null,
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                    createdAt: new Date(),
+                })
+                .mockResolvedValueOnce({
+                    connectionUuid: 'shared-connection',
+                    name: 'Shared',
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    organizationWarehouseCredentialsUuid: null,
+                    listAllDatabases: false,
+                    additionalDatabases: [],
+                    createdAt: new Date(),
+                });
+            vi.mocked(projectModel.getWarehouseCredentialsForProject)
+                .mockResolvedValueOnce({
+                    type: WarehouseTypes.POSTGRES,
+                    host: 'required.example.com',
+                    port: 5432,
+                    dbname: 'analytics',
+                    schema: 'public',
+                    user: 'shared',
+                    password: 'shared-password',
+                    requireUserCredentials: true,
+                })
+                .mockResolvedValueOnce({
+                    type: WarehouseTypes.POSTGRES,
+                    host: 'shared.example.com',
+                    port: 5432,
+                    dbname: 'analytics',
+                    schema: 'public',
+                    user: 'shared',
+                    password: 'shared-password',
+                    requireUserCredentials: false,
+                });
+
+            const getCredentials = (connectionUuid: string) =>
+                (
+                    scopedService as unknown as {
+                        getWarehouseCredentials: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                            connectionUuid: string;
+                        }) => Promise<CreateWarehouseCredentials>;
+                    }
+                ).getWarehouseCredentials({
+                    projectUuid,
+                    userId: sessionAccount.user.id,
+                    isRegisteredUser: true,
+                    connectionUuid,
+                });
+
+            await expect(getCredentials('required-connection')).rejects.toThrow(
+                MissingWarehouseCredentialsError,
+            );
+            await expect(getCredentials('shared-connection')).rejects.toThrow(
+                MissingWarehouseCredentialsError,
+            );
+            expect(findForProjectWithSecrets).toHaveBeenNthCalledWith(
+                1,
+                projectUuid,
+                sessionAccount.user.id,
+                WarehouseTypes.POSTGRES,
+                'required-connection',
+            );
+            expect(findForProjectWithSecrets).toHaveBeenNthCalledWith(
+                2,
+                projectUuid,
+                sessionAccount.user.id,
+                WarehouseTypes.POSTGRES,
+                'shared-connection',
+            );
+        });
+
+        test('falls back to the resolved connection policy while the project setting is null', async () => {
+            const scopedService = getMockedProjectService(lightdashConfigMock);
+            const findForProjectWithSecrets = vi.fn(async () => undefined);
+            (
+                scopedService as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecrets;
+            vi.mocked(
+                projectModel.getProjectWarehouseConfig,
+            ).mockResolvedValueOnce({
+                organizationWarehouseCredentialsUuid: null,
+                queryTimezone: null,
+                requireUserCredentials: null,
+            });
+            vi.mocked(
+                projectModel.getWarehouseCredentialsForProject,
+            ).mockResolvedValueOnce({
+                type: WarehouseTypes.POSTGRES,
+                host: 'legacy.example.com',
+                port: 5432,
+                dbname: 'analytics',
+                schema: 'public',
+                user: 'shared',
+                password: 'shared-password',
+                requireUserCredentials: true,
+            });
+
+            await expect(
+                (
+                    scopedService as unknown as {
+                        getWarehouseCredentials: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                            connectionUuid: string;
+                        }) => Promise<CreateWarehouseCredentials>;
+                    }
+                ).getWarehouseCredentials({
+                    projectUuid,
+                    userId: sessionAccount.user.id,
+                    isRegisteredUser: true,
+                    connectionUuid: 'connection-uuid',
+                }),
+            ).rejects.toThrow(MissingWarehouseCredentialsError);
+            expect(findForProjectWithSecrets).toHaveBeenCalledWith(
+                projectUuid,
+                sessionAccount.user.id,
+                WarehouseTypes.POSTGRES,
+                'connection-uuid',
+            );
+        });
+
         test("should not let user credentials clear the project's requireUserCredentials setting", async () => {
             service.warehouseClients = {};
 
@@ -3736,6 +3901,7 @@ describe('ProjectService', () => {
                         projectUuid,
                         sessionAccount.user.id,
                         WarehouseTypes.BIGQUERY,
+                        'connection-uuid',
                     );
                     expect(credentials).toEqual(
                         expect.objectContaining({
@@ -3889,6 +4055,7 @@ describe('ProjectService', () => {
                     projectUuid,
                     sessionAccount.user.id,
                     WarehouseTypes.TRINO,
+                    'connection-uuid',
                 );
                 expect(credentials).toEqual(
                     expect.objectContaining({
@@ -4107,6 +4274,7 @@ describe('ProjectService', () => {
                 projectUuid,
                 sessionAccount.user.id,
                 WarehouseTypes.REDSHIFT,
+                'connection-uuid',
             );
             expect(mergedCredentials).toEqual(
                 expect.objectContaining({

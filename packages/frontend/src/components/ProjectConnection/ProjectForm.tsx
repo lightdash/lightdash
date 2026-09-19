@@ -15,6 +15,7 @@ import ConnectionsPanel from './ConnectionsPanel';
 import DbtSettingsForm from './DbtSettingsForm';
 import DbtSourcesPanel from './DbtSourcesPanel';
 import { useFormContext } from './formContext';
+import BooleanSwitch from './Inputs/BooleanSwitch';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { getWarehouseIcon } from './ProjectConnectFlow/utils';
 import { useProjectFormContext } from './useProjectFormContext';
@@ -27,6 +28,7 @@ interface Props {
     defaultType?: DbtProjectType;
     isProjectUpdate?: boolean;
     warehouseOnly?: boolean;
+    connectionSettingsDisabled?: boolean;
 }
 
 const shouldShowConnectionsPanel = (
@@ -101,6 +103,7 @@ export const ProjectForm: FC<Props> = ({
     defaultType,
     isProjectUpdate,
     warehouseOnly = false,
+    connectionSettingsDisabled = disabled,
 }) => {
     const form = useFormContext();
     const { savedProject } = useProjectFormContext();
@@ -122,7 +125,7 @@ export const ProjectForm: FC<Props> = ({
                         <Title order={5}>General settings</Title>
                     </div>
 
-                    <div>
+                    <Stack>
                         <TextInput
                             name="name"
                             label="Project name"
@@ -130,13 +133,22 @@ export const ProjectForm: FC<Props> = ({
                             disabled={disabled}
                             {...form.getInputProps('name')}
                         />
-                    </div>
+                        <BooleanSwitch
+                            name="requireUserCredentials"
+                            label="Require users to provide their own credentials"
+                            description="Apply this requirement to every warehouse connection in the project."
+                            disabled={disabled}
+                            {...form.getInputProps('requireUserCredentials', {
+                                type: 'checkbox',
+                            })}
+                        />
+                    </Stack>
                 </SettingsGridCard>
             )}
 
             {!showConnectionsPanel && (
                 <WarehouseConnectionCard
-                    disabled={disabled}
+                    disabled={connectionSettingsDisabled}
                     isProjectUpdate={isProjectUpdate}
                     warehouseOnly={warehouseOnly}
                     showSchemaInput={warehouseOnly || isNative}
@@ -168,8 +180,9 @@ export const ProjectForm: FC<Props> = ({
 
                     <div>
                         <DbtSettingsForm
-                            disabled={disabled}
+                            disabled={connectionSettingsDisabled}
                             defaultType={defaultType}
+                            showWarehouseFields={!showConnectionsPanel}
                         />
                     </div>
                 </SettingsGridCard>
