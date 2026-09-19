@@ -9452,7 +9452,7 @@ export class ProjectService extends BaseService {
         consume: (prepared: PreparedExploreStream) => Promise<T>,
     ): Promise<T> {
         // Checks that project exists
-        const project = await this.projectModel.get(projectUuid);
+        const project = await this.projectModel.getCompileProject(projectUuid);
 
         // A preview of a CLI/NONE project has no dbt files to compile from.
         // Reuse the upstream project's already-compiled explores and config
@@ -9538,7 +9538,7 @@ export class ProjectService extends BaseService {
                         projectId: projectUuid,
                         projectName: project.name,
                         projectType: project.dbtConnection.type,
-                        warehouseType: project.warehouseConnection?.type,
+                        warehouseType: buildResult.warehouseCredentials.type,
                         ...summary.analytics,
                         packagesCount: packages
                             ? Object.keys(packages).length
@@ -9585,7 +9585,7 @@ export class ProjectService extends BaseService {
                     name: errorResponse.name,
                     statusCode: errorResponse.statusCode,
                     projectType: project.dbtConnection.type,
-                    warehouseType: project.warehouseConnection?.type,
+                    warehouseType: buildResult.warehouseCredentials.type,
                 },
             });
             throw errorResponse;
