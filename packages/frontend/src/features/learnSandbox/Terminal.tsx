@@ -102,6 +102,7 @@ const Terminal: FC<TerminalProps> = ({
     output,
 }) => {
     const viewportRef = useRef<HTMLDivElement>(null);
+    const runButtonRef = useRef<HTMLButtonElement>(null);
     const shouldFollowRef = useRef(true);
 
     useEffect(() => {
@@ -132,7 +133,9 @@ const Terminal: FC<TerminalProps> = ({
         if (event.key !== 'Enter') return;
         event.preventDefault();
         if (runDisabled) return;
-        onRun();
+        // Through the button, not around it: a walkthrough step waiting on
+        // Run listens for its click, and Enter is how a terminal is used.
+        runButtonRef.current?.click();
     };
 
     const handleRun = () => {
@@ -178,6 +181,7 @@ const Terminal: FC<TerminalProps> = ({
                     data-tour-suggest="dbt parse"
                 />
                 <Button
+                    ref={runButtonRef}
                     data-tour-anchor="terminal-run"
                     data-tour-hint="Run the command"
                     disabled={runDisabled}

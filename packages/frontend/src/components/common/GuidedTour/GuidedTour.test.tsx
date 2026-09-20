@@ -1,6 +1,6 @@
 import { Button, Popover, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -912,5 +912,90 @@ describe('GuidedTour and the menus a step opens', () => {
         );
         expect(closeDialog).not.toHaveBeenCalled();
         expect(screen.getByText('Chart name')).toBeInTheDocument();
+    });
+
+    // A learner at a terminal types the command and presses Enter in one go,
+    // which runs it (a click on Run) while the tour is still on the typing
+    // step. The Run step that opens next has already had its click.
+    describe('a click that came just before its step', () => {
+        const steps: GuidedTourStep[] = [
+            {
+                target: '[data-x="command"]',
+                title: 'Type the command',
+                body: '',
+                interactive: true,
+                advanceOnTargetInput: true,
+            },
+            {
+                target: '[data-x="run"]',
+                title: 'Run the command',
+                body: '',
+                interactive: true,
+                advanceOnTargetClick: true,
+            },
+            { target: null, title: 'See the result', body: '' },
+        ];
+        beforeEach(() => {
+            document.elementsFromPoint = () => [];
+            Element.prototype.scrollIntoView = () => {};
+        });
+        const mount = () => {
+            const host = document.createElement('div');
+            host.innerHTML =
+                '<input data-x="command" /><button data-x="run">Run</button>';
+            document.body.appendChild(host);
+            return host;
+        };
+
+        it('counts it, and moves past the step', async () => {
+            const host = mount();
+            try {
+                renderWithProviders(
+                    <GuidedTour steps={steps} opened onClose={vi.fn()} />,
+                );
+                await screen.findByText('Type the command');
+                // Typed, then Enter at once: the page clicks Run for them.
+                fireEvent.input(host.querySelector('[data-x="command"]')!, {
+                    target: { value: 'lightdash deploy' },
+                });
+                fireEvent.click(host.querySelector('[data-x="run"]')!);
+                await waitFor(
+                    () =>
+                        expect(
+                            screen.getByText('See the result'),
+                        ).toBeVisible(),
+                    { timeout: 4000 },
+                );
+            } finally {
+                host.remove();
+            }
+        });
+
+        it('does not count a click from long before', async () => {
+            const host = mount();
+            try {
+                renderWithProviders(
+                    <GuidedTour steps={steps} opened onClose={vi.fn()} />,
+                );
+                await screen.findByText('Type the command');
+                const now = Date.now();
+                const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+                fireEvent.click(host.querySelector('[data-x="run"]')!);
+                clock.mockReturnValue(now + 10_000);
+                fireEvent.input(host.querySelector('[data-x="command"]')!, {
+                    target: { value: 'lightdash deploy' },
+                });
+                await screen.findByText(
+                    'Run the command',
+                    {},
+                    { timeout: 4000 },
+                );
+                await new Promise((r) => setTimeout(r, 400));
+                expect(screen.getByText('Run the command')).toBeVisible();
+                clock.mockRestore();
+            } finally {
+                host.remove();
+            }
+        });
     });
 });

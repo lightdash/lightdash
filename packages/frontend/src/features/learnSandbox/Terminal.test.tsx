@@ -198,6 +198,20 @@ describe('Terminal', () => {
         expect(screen.getByLabelText('Command')).toBeEnabled();
     });
 
+    it('runs through the Run button on Enter, so a walkthrough waiting on that click sees it', async () => {
+        const { onRun } = renderTerminal({ value: 'dbt parse' });
+        const clicked = vi.fn();
+        screen
+            .getByRole('button', { name: 'Run' })
+            .addEventListener('click', clicked);
+
+        await userEvent.click(screen.getByLabelText('Command'));
+        await userEvent.keyboard('{Enter}');
+
+        expect(clicked).toHaveBeenCalledTimes(1);
+        expect(onRun).toHaveBeenCalledTimes(1);
+    });
+
     it('calls onRun when Enter is pressed in the command input', async () => {
         const { onRun } = renderTerminal({ value: 'dbt parse' });
 

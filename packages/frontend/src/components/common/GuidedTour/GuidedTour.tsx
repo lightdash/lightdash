@@ -157,6 +157,11 @@ const CARD_RETURN_MS = 4000;
 /** A typed-input step counts as done after this many characters and a pause. */
 const MIN_INPUT_CHARS = 3;
 const INPUT_SETTLE_MS = 900;
+/**
+ * How long a click on a control still counts for a click-to-continue step on
+ * it that opens afterwards: long enough to cover a typed step settling.
+ */
+const EARLY_CLICK_MS = 2500;
 /** Used until the card has been measured. */
 const CARD_FALLBACK_HEIGHT = 220;
 
@@ -922,9 +927,36 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // target may render late (e.g. a menu item), so keep looking for it.
     const advanceSelector =
         opened && step?.advanceOnTargetClick ? step.target : null;
+    // A learner can be a step ahead: at a terminal they type the command and
+    // press Enter in one go, which runs it while the tour is still settling
+    // the typing step. Remember the last click that did not itself move the
+    // tour on, so the step that asks for that click knows it has happened.
+    const advanceSelectorRef = useRef(advanceSelector);
+    advanceSelectorRef.current = advanceSelector;
+    const earlyClickRef = useRef<{ target: Element; at: number } | null>(null);
+    useEffect(() => {
+        if (!opened) return undefined;
+        const onAnyClick = (event: MouseEvent) => {
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+            if (target.closest('[data-tour-card]')) return;
+            const current = advanceSelectorRef.current;
+            if (current && target.closest(current)) return;
+            earlyClickRef.current = { target, at: Date.now() };
+        };
+        document.addEventListener('click', onAnyClick, true);
+        return () => document.removeEventListener('click', onAnyClick, true);
+    }, [opened]);
     useEffect(() => {
         if (!advanceSelector) return undefined;
         let el: Element | null = null;
+        const early = earlyClickRef.current;
+        earlyClickRef.current = null;
+        const clickedAlready = (found: Element) =>
+            early !== null &&
+            Date.now() - early.at <= EARLY_CLICK_MS &&
+            found.contains(early.target);
+        let done = false;
         const onClick = () => {
             advanceByClickRef.current = true;
             const at = el?.getBoundingClientRect();
@@ -941,6 +973,12 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             if (!el) {
                 el = document.querySelector(advanceSelector);
                 el?.addEventListener('click', onClick);
+                // Not `onClick`: no click is happening now, so there is no
+                // point on the page for the ring to travel from.
+                if (el && !done && clickedAlready(el)) {
+                    done = true;
+                    handleNext();
+                }
             }
         };
         tick();
