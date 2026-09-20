@@ -1,9 +1,12 @@
 import knexConstructor, { Knex } from 'knex';
-import { up } from './20260913060539_create_learn_sandbox_tables';
+import { up } from './migrations/20260913060539_create_learn_sandbox_tables';
 
 type Captured = { sql: string; bindings: readonly unknown[] };
 
 /**
+ * Lives beside the migrations folder, not in it: the migration runner loads
+ * every .ts file there as a migration.
+ *
  * Compiles the migration against a connection-less pg client, capturing the
  * statements it would run. knex's schema builder inlines a predicate's
  * bindings as bare `$1, $2` placeholders into the DDL text and sends no
