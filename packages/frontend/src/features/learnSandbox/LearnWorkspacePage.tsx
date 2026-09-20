@@ -1,4 +1,6 @@
 import {
+    describeLearnWorkspaceYamlError,
+    validateLearnWorkspaceYaml,
     type ApiError,
     type LearnSandboxCommandRequest,
 } from '@lightdash/common';
@@ -12,7 +14,14 @@ import {
     Text,
 } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { Link, Navigate } from 'react-router';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import ResizableSplitter from '../../components/common/ResizableSplitter';
@@ -103,6 +112,16 @@ const Workspace: FC<WorkspaceProps> = ({
     const loadedFile = file && file.path === selectedPath ? file : undefined;
     const draft = selectedPath === null ? undefined : drafts[selectedPath];
     const isDirty = draft !== undefined && draft !== loadedFile?.content;
+    // The rule the server applies on save, applied here first: a file that
+    // does not parse is never sent, so the learner reads one line in the
+    // editor's header instead of a toast for every blur.
+    const invalid = useMemo(() => {
+        if (!loadedFile?.editable || draft === undefined) return null;
+        const message = validateLearnWorkspaceYaml(draft);
+        return message === null
+            ? null
+            : describeLearnWorkspaceYamlError(message);
+    }, [draft, loadedFile?.editable]);
 
     // A command is attached but its first poll has not landed: the terminal
     // stays busy across that gap rather than flashing its empty state
@@ -158,6 +177,7 @@ const Workspace: FC<WorkspaceProps> = ({
         if (path === null || draft === undefined) return true;
         if (!loadedFile) return false;
         if (!isDirty) return true;
+        if (invalid !== null) return false;
         const pending = pendingSaveRef.current;
         if (pending && pending.path === path && pending.content === draft)
             return pending.promise;
@@ -183,7 +203,15 @@ const Workspace: FC<WorkspaceProps> = ({
         })();
         pendingSaveRef.current = { path, content: draft, promise };
         return promise;
-    }, [draft, loadedFile, isDirty, saveFile, selectedPath, showToastApiError]);
+    }, [
+        draft,
+        loadedFile,
+        isDirty,
+        invalid,
+        saveFile,
+        selectedPath,
+        showToastApiError,
+    ]);
 
     const handleRun = useCallback(async () => {
         setTerminalError(null);
@@ -193,7 +221,11 @@ const Workspace: FC<WorkspaceProps> = ({
             // report on the old contents, which reads as the edit having had
             // no effect; say so instead of running.
             if (!(await saveIfDirty())) {
-                setTerminalError('The file could not be saved, so nothing ran');
+                setTerminalError(
+                    invalid !== null
+                        ? `${invalid.replace(/ to continue$/, '')}, then run the command again`
+                        : 'The file could not be saved, so nothing ran',
+                );
                 return;
             }
             const parsed = parseCommand(commandInput);
@@ -228,7 +260,7 @@ const Workspace: FC<WorkspaceProps> = ({
         } finally {
             setIsRunPending(false);
         }
-    }, [commandInput, runCommand, saveIfDirty]);
+    }, [commandInput, runCommand, saveIfDirty, invalid]);
 
     return (
         <Box className={styles.shell} data-learn-workspace>
@@ -318,6 +350,7 @@ const Workspace: FC<WorkspaceProps> = ({
                                     editable={loadedFile.editable}
                                     saving={saveFile.isLoading}
                                     dirty={isDirty}
+                                    invalid={invalid}
                                     onChange={handleChange}
                                     onBlur={() => void saveIfDirty()}
                                 />

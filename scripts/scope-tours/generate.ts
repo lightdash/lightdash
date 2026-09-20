@@ -37,6 +37,9 @@
  *                                          a typed step must have one
  *   data-tour-input="true"                 on an anchor: a text field; its step
  *                                          advances once the learner has typed
+ *   data-tour-invalid="<words>"            on a typed anchor, while what it holds
+ *                                          is wrong (YAML that does not parse):
+ *                                          the step holds and shows the words
  *   data-tour-exact="true"                 on a typed anchor: the step advances
  *                                          only when the field holds the
  *                                          suggestion itself (a command box)

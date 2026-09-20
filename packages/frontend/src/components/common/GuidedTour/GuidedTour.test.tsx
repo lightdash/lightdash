@@ -6,7 +6,11 @@ import { useState, type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import MantineModal from '../MantineModal';
-import { GuidedTour, type GuidedTourStep } from './GuidedTour';
+import {
+    GuidedTour,
+    type GuidedTourStep,
+    type TourEditable,
+} from './GuidedTour';
 
 const steps: GuidedTourStep[] = [
     { target: null, title: 'Step one', body: 'first body' },
@@ -325,6 +329,148 @@ describe('GuidedTour', () => {
         await waitFor(() =>
             expect(screen.getByText('Fix the file')).toBeInTheDocument(),
         );
+    });
+
+    it('moves on from a code editor only once it holds the entry, and notices a change that fires no input event', async () => {
+        vi.useFakeTimers({
+            toFake: [
+                'setTimeout',
+                'clearTimeout',
+                'setInterval',
+                'clearInterval',
+                'requestAnimationFrame',
+                'cancelAnimationFrame',
+                'Date',
+            ],
+        });
+        try {
+            const editorSteps: GuidedTourStep[] = [
+                {
+                    target: '[data-code]',
+                    title: 'Edit the file',
+                    body: '',
+                    interactive: true,
+                    advanceOnTargetInput: true,
+                    suggestion: 'columns:\n  - name: floors',
+                },
+                { target: null, title: 'Step two', body: '' },
+            ];
+            const onClose = vi.fn();
+            let value = 'a long file that already holds plenty of text';
+            const Code: FC = () => (
+                <>
+                    <div
+                        data-code
+                        ref={(node) => {
+                            if (!node) return;
+                            (node as HTMLDivElement & TourEditable).tourEditor =
+                                {
+                                    getValue: () => value,
+                                    setValue: () => {},
+                                    holds: () =>
+                                        value.includes('- name: floors'),
+                                };
+                        }}
+                    />
+                    <GuidedTour steps={editorSteps} opened onClose={onClose} />
+                </>
+            );
+            renderWithProviders(<Code />);
+            // Any edit that is not the entry leaves the step where it is.
+            await act(async () => {
+                value += ' and more';
+                await vi.advanceTimersByTimeAsync(3_000);
+            });
+            expect(screen.queryByText('Step two')).not.toBeInTheDocument();
+            // The entry arrives without an input event (a paste, an undo).
+            await act(async () => {
+                value += '\n  - name: floors';
+                await vi.advanceTimersByTimeAsync(3_000);
+            });
+            expect(screen.getByText('Step two')).toBeInTheDocument();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('holds a typed step while the page marks the field invalid, and says why', async () => {
+        vi.useFakeTimers({
+            toFake: [
+                'setTimeout',
+                'clearTimeout',
+                'setInterval',
+                'clearInterval',
+                'requestAnimationFrame',
+                'cancelAnimationFrame',
+                'Date',
+            ],
+        });
+        try {
+            const invalidSteps: GuidedTourStep[] = [
+                {
+                    target: '[data-yaml]',
+                    title: 'Edit the file',
+                    body: '',
+                    interactive: true,
+                    advanceOnTargetInput: true,
+                    suggestion: 'a: 1',
+                },
+                { target: null, title: 'Step two', body: '' },
+            ];
+            const onClose = vi.fn();
+            const Field: FC = () => {
+                const [value, setValue] = useState('');
+                return (
+                    <>
+                        <input
+                            aria-label="File"
+                            data-yaml
+                            data-tour-invalid={
+                                value.includes('oops')
+                                    ? 'Fix the YAML error on line 3 to continue'
+                                    : undefined
+                            }
+                            value={value}
+                            onChange={(event) =>
+                                setValue(event.currentTarget.value)
+                            }
+                        />
+                        <GuidedTour
+                            steps={invalidSteps}
+                            opened
+                            onClose={onClose}
+                        />
+                    </>
+                );
+            };
+            renderWithProviders(<Field />);
+            const input = screen.getByLabelText('File') as HTMLInputElement;
+            const type = (text: string) => {
+                const setter = Object.getOwnPropertyDescriptor(
+                    window.HTMLInputElement.prototype,
+                    'value',
+                )!.set!;
+                setter.call(input, text);
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            };
+            await act(async () => {
+                type('name: x oops');
+                await vi.advanceTimersByTimeAsync(3_000);
+            });
+            expect(screen.getByText('Edit the file')).toBeInTheDocument();
+            expect(screen.queryByText('Step two')).not.toBeInTheDocument();
+            expect(
+                document.querySelector('[data-tour-card-invalid]'),
+            ).toHaveTextContent('Fix the YAML error on line 3 to continue');
+            // The keystroke that puts it right moves the tour on.
+            await act(async () => {
+                type('name: x');
+                await vi.advanceTimersByTimeAsync(3_000);
+            });
+            expect(screen.getByText('Step two')).toBeInTheDocument();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('advances an exact typed field only when it holds the suggested text', async () => {

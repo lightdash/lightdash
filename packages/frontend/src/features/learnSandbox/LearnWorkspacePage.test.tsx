@@ -151,6 +151,7 @@ vi.mock('./WorkspaceEditor', () => ({
         editable,
         saving,
         dirty,
+        invalid,
         onChange,
         onBlur,
     }: {
@@ -159,6 +160,7 @@ vi.mock('./WorkspaceEditor', () => ({
         editable: boolean;
         saving: boolean;
         dirty: boolean;
+        invalid: string | null;
         onChange: (content: string) => void;
         onBlur: () => void;
     }) => (
@@ -168,6 +170,7 @@ vi.mock('./WorkspaceEditor', () => ({
             data-editable={String(editable)}
             data-saving={String(saving)}
             data-dirty={String(dirty)}
+            data-invalid={invalid ?? ''}
         >
             <textarea
                 aria-label="File"
@@ -324,7 +327,7 @@ describe('LearnWorkspacePage', () => {
         // instant) would save the draft away before the file query's own
         // update is observed, hiding the case under test.
         fireEvent.change(screen.getByLabelText('File'), {
-            target: { value: 'version: 2\nx' },
+            target: { value: 'version: 2\n# x' },
         });
         expect(screen.getByTestId('editor')).toHaveAttribute(
             'data-dirty',
@@ -422,7 +425,7 @@ describe('LearnWorkspacePage', () => {
         await screen.findByTestId('editor');
 
         await user.type(screen.getByLabelText('Command'), 'dbt parse');
-        await user.type(screen.getByLabelText('File'), 'x');
+        await user.type(screen.getByLabelText('File'), '# x');
         expect(screen.getByTestId('editor')).toHaveAttribute(
             'data-dirty',
             'true',
@@ -435,7 +438,7 @@ describe('LearnWorkspacePage', () => {
         await waitFor(() => expect(state.calls).toEqual(['save', 'run']));
         expect(state.saveMutateAsync).toHaveBeenCalledWith({
             path: 'models/orders.yml',
-            content: 'version: 2\nx',
+            content: 'version: 2\n# x',
         });
         expect(state.runMutateAsync).toHaveBeenCalledWith({
             tool: 'dbt',
@@ -523,7 +526,7 @@ describe('LearnWorkspacePage', () => {
         await screen.findByTestId('editor');
 
         await user.type(screen.getByLabelText('Command'), 'dbt parse');
-        await user.type(screen.getByLabelText('File'), 'x');
+        await user.type(screen.getByLabelText('File'), '# x');
         fireEvent.click(screen.getByRole('button', { name: 'Run' }));
 
         await waitFor(() =>
@@ -555,7 +558,7 @@ describe('LearnWorkspacePage', () => {
         await screen.findByTestId('editor');
 
         await user.type(screen.getByLabelText('Command'), 'dbt parse');
-        await user.type(screen.getByLabelText('File'), 'x');
+        await user.type(screen.getByLabelText('File'), '# x');
         // Clicking the command input blurs the editor, which starts the save.
         await user.click(screen.getByLabelText('Command'));
         expect(state.saveMutateAsync).toHaveBeenCalledTimes(1);
@@ -604,7 +607,7 @@ describe('LearnWorkspacePage', () => {
         await screen.findByTestId('editor');
 
         await user.type(screen.getByLabelText('Command'), 'dbt parse');
-        await user.type(screen.getByLabelText('File'), 'x');
+        await user.type(screen.getByLabelText('File'), '# x');
         // fireEvent, not userEvent: a real click would blur the editor and
         // start the autosave before Run ever asked for one.
         fireEvent.click(screen.getByRole('button', { name: 'Run' }));
@@ -700,6 +703,35 @@ describe('LearnWorkspacePage', () => {
         expect(state.useCommandOutput).toHaveBeenLastCalledWith('copy-1', null);
     });
 
+    it('does not send a file that is not YAML, and says which line to fix', async () => {
+        const user = userEvent.setup();
+        renderPage();
+        await selectOrders(user);
+        await screen.findByTestId('editor');
+
+        // A stray word between the file's keys.
+        await user.type(screen.getByLabelText('File'), 'oops');
+        await user.click(screen.getByLabelText('Command'));
+
+        expect(screen.getByTestId('editor')).toHaveAttribute(
+            'data-invalid',
+            expect.stringMatching(
+                /^Fix the YAML error on line \d+ to continue$/,
+            ),
+        );
+        expect(state.saveMutateAsync).not.toHaveBeenCalled();
+        expect(state.showToastApiError).not.toHaveBeenCalled();
+
+        await user.type(screen.getByLabelText('Command'), 'dbt parse');
+        await user.click(screen.getByRole('button', { name: 'Run' }));
+        await waitFor(() =>
+            expect(screen.getByTestId('terminal-error')).toHaveTextContent(
+                /^Fix the YAML error on line \d+, then run the command again$/,
+            ),
+        );
+        expect(state.runMutateAsync).not.toHaveBeenCalled();
+    });
+
     it('saves on editor blur and keeps the draft when the save fails', async () => {
         const user = userEvent.setup();
         state.saveMutateAsync = vi.fn(() =>
@@ -712,7 +744,7 @@ describe('LearnWorkspacePage', () => {
         await selectOrders(user);
         await screen.findByTestId('editor');
 
-        await user.type(screen.getByLabelText('File'), 'x');
+        await user.type(screen.getByLabelText('File'), '# x');
         await user.click(screen.getByLabelText('Command'));
 
         await waitFor(() =>

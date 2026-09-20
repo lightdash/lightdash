@@ -16,7 +16,7 @@ import {
 } from '../sqlRunner/utils/monaco';
 // eslint-disable-next-line css-modules/no-unused-class -- classes used from FileTree.tsx
 import styles from './LearnWorkspace.module.css';
-import { insertSnippet, insertionPoint } from './snippetInsertion';
+import { holdsEntry, insertSnippet, insertionPoint } from './snippetInsertion';
 
 /** Registers the dbt YAML schema against the single shared monaco-yaml
  * instance (see configureLightdashYaml — monaco-yaml only allows one
@@ -35,13 +35,14 @@ const configureLearnYaml = (monaco: Monaco) => {
     });
 };
 
-type EditorState = 'saved' | 'dirty' | 'saving' | 'readonly';
+type EditorState = 'saved' | 'dirty' | 'saving' | 'readonly' | 'invalid';
 
 const STATE_LABELS: Record<EditorState, string> = {
     saved: 'Saved',
     dirty: 'Unsaved changes',
     saving: 'Saving…',
     readonly: 'Read-only',
+    invalid: 'Invalid YAML',
 };
 
 type WorkspaceEditorProps = {
@@ -50,6 +51,11 @@ type WorkspaceEditorProps = {
     editable: boolean;
     saving: boolean;
     dirty: boolean;
+    /**
+     * Why the file cannot be saved as it stands, in one line for the learner;
+     * null when it parses. Shown in the header and read by walkthroughs.
+     */
+    invalid?: string | null;
     onChange: (content: string) => void;
     onBlur: () => void;
 };
@@ -65,6 +71,7 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     editable,
     saving,
     dirty,
+    invalid = null,
     onChange,
     onBlur,
 }) => {
@@ -239,6 +246,8 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                 wrapperRef.current.tourEditor = {
                     getValue: () => ed.getValue(),
                     setValue: appendToEditor,
+                    holds: (suggestion) =>
+                        holdsEntry(ed.getValue(), suggestion),
                 };
             }
             ed.onDidBlurEditorText(() => onBlurRef.current());
@@ -248,11 +257,13 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
 
     const state: EditorState = !editable
         ? 'readonly'
-        : saving
-          ? 'saving'
-          : dirty
-            ? 'dirty'
-            : 'saved';
+        : invalid !== null
+          ? 'invalid'
+          : saving
+            ? 'saving'
+            : dirty
+              ? 'dirty'
+              : 'saved';
 
     return (
         <Box className={styles.editorPane}>
@@ -265,8 +276,22 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                 >
                     {path}
                 </Text>
-                <Text fz="xs" c={editable ? 'ldGray.6' : 'ldGray.5'}>
-                    {editable ? STATE_LABELS[state] : 'Read-only'}
+                <Text
+                    fz="xs"
+                    c={
+                        state === 'invalid'
+                            ? 'red.7'
+                            : editable
+                              ? 'ldGray.6'
+                              : 'ldGray.5'
+                    }
+                    data-learn-editor-invalid={invalid ?? undefined}
+                >
+                    {state === 'invalid'
+                        ? invalid
+                        : editable
+                          ? STATE_LABELS[state]
+                          : 'Read-only'}
                 </Text>
             </Box>
             <Box
@@ -275,6 +300,9 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                 data-tour-anchor="workspace-editor"
                 data-tour-hint="Edit the file"
                 data-tour-input="true"
+                // A walkthrough's typed step holds while the file does not
+                // parse, and shows these words on its card.
+                data-tour-invalid={invalid ?? undefined}
                 data-tour-suggest="# Edited in the Learn workspace"
             >
                 <Editor

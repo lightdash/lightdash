@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { insertSnippet, insertionPoint } from './snippetInsertion';
+import { holdsEntry, insertSnippet, insertionPoint } from './snippetInsertion';
 
 const file = [
     'columns:',
@@ -71,5 +71,26 @@ describe('insertSnippet', () => {
         expect(
             insertSnippet('meta:\n  metrics:', '  metrics:\n    fresh: 1'),
         ).toBe('meta:\n  metrics:\n    fresh: 1');
+    });
+});
+
+describe('holdsEntry', () => {
+    const snippet =
+        '    columns:\n      - name: number_of_floors\n        description: Storeys';
+    it('is true once the entry line is in the file, at any indent and with other wording below it', () => {
+        expect(
+            holdsEntry(
+                'columns:\n  - name: number_of_floors\n    description: my own words\n',
+                snippet,
+            ),
+        ).toBe(true);
+    });
+    it('is false for the untouched file and for a half-typed entry', () => {
+        expect(holdsEntry('columns:\n  - name: building_id\n', snippet)).toBe(
+            false,
+        );
+        expect(holdsEntry('columns:\n  - name: number_of\n', snippet)).toBe(
+            false,
+        );
     });
 });

@@ -79,3 +79,19 @@ export const insertSnippet = (content: string, snippet: string): string => {
     const { offset, prefix, suffix, text } = insertionPoint(content, snippet);
     return `${content.slice(0, offset)}${prefix}${text}${suffix}${content.slice(offset)}`;
 };
+
+/**
+ * Whether the file has the entry a lesson's snippet adds. The snippet's
+ * first line is the key it goes under, already in the file; the line after
+ * it names the entry (`- name: number_of_floors`, `average_payment_amount:`).
+ * That line alone is looked for, whatever its indent, so a learner typing by
+ * hand is not held to the snippet's exact wording below it.
+ */
+export const holdsEntry = (content: string, snippet: string): boolean => {
+    const lines = snippet.split('\n');
+    const entry = (lines.length > 1 ? lines[1] : lines[0]).trim();
+    return (
+        entry !== '' &&
+        content.split('\n').some((line) => line.trim() === entry)
+    );
+};

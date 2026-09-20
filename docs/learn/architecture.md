@@ -126,6 +126,12 @@ field a failed deploy never created; `data-learn-workspace`, `data-learn-file`,
 `data-learn-editable`, `data-learn-terminal-output` and `data-learn-back-to-library` are there for tests and
 walkthrough verification.
 
+A file that does not parse as YAML is never sent: the page applies the rule the server applies on save
+(`validateLearnWorkspaceYaml` in `@lightdash/common`), names the line in the editor's header, and marks the editor
+`data-tour-invalid`, so a walkthrough's editor step holds and says which line to fix instead of moving on. That
+step moves on only once the file parses and holds the lesson's entry, and it watches the editor's value as well
+as typed input, because a deletion or an undo fires no input event.
+
 Edits are held per file in the page and autosaved rather than saved by a button: on editor blur, and again
 before every run, so a command never runs against a file the learner has changed on screen but not on disk. A
 save that fails leaves the edit in the editor, reports the reason in a toast, and blocks the run that triggered

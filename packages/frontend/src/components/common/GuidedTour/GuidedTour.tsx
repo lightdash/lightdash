@@ -392,6 +392,34 @@ const useBusy = (
 };
 
 /**
+ * What the page says is wrong with a typed step's field: the words in its
+ * `data-tour-invalid`, or null. The step holds while it is set, and the card
+ * shows the words so the learner knows what to put right.
+ */
+const useTargetInvalid = (
+    selector: string | null,
+    active: boolean,
+): string | null => {
+    const [message, setMessage] = useState<string | null>(null);
+    useEffect(() => {
+        if (!selector || !active) {
+            setMessage(null);
+            return undefined;
+        }
+        const tick = () =>
+            setMessage(
+                document
+                    .querySelector(selector)
+                    ?.getAttribute('data-tour-invalid') ?? null,
+            );
+        tick();
+        const poll = window.setInterval(tick, 150);
+        return () => window.clearInterval(poll);
+    }, [selector, active]);
+    return message;
+};
+
+/**
  * The cutout: the ring plus the page-wide shadow, one box-shadow. The shadow
  * never lifts during a tour; the hole glides to the next control on Next and
  * closes to a point when the control was clicked. `pulse` marks the control
@@ -404,7 +432,16 @@ const useBusy = (
  * anchor, which is what advances the step.
  */
 export type TourEditable = {
-    tourEditor?: { getValue: () => string; setValue: (value: string) => void };
+    tourEditor?: {
+        getValue: () => string;
+        setValue: (value: string) => void;
+        /**
+         * Whether the editor now holds what the step suggested. An editor
+         * over a whole file always holds "enough" text, so without this its
+         * step would move on at the first keystroke.
+         */
+        holds?: (suggestion: string) => boolean;
+    };
 };
 
 type AceLike = {
@@ -599,6 +636,10 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // While the page is still working on this step, the ring sits on that
     // work rather than on the finished surface.
     const { busy, status, failed } = useBusy(step?.busy, opened);
+    const invalidMessage = useTargetInvalid(
+        step?.advanceOnTargetInput ? (step.target ?? null) : null,
+        opened,
+    );
     const spotlightSelector = busy && step?.busy ? step.busy : resolvedSelector;
     const rect = useTargetRect(spotlightSelector, opened);
     // How the last step change happened: Next glides the ring from the old
@@ -909,7 +950,10 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                 : el.querySelector<HTMLElement>('[contenteditable="true"]');
             return editable?.innerText ?? '';
         };
-        const settled = () => {
+        const holdsEnough = () => {
+            const own = (el as (HTMLElement & TourEditable) | null)?.tourEditor;
+            if (own?.holds && exactSuggestion !== null)
+                return own.holds(exactSuggestion);
             const text = typed().trim();
             if (text.length < MIN_INPUT_CHARS) return false;
             if (
@@ -920,9 +964,14 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                 return false;
             return true;
         };
+        // What the page says about the field (data-tour-invalid) is only read
+        // once the input has settled: at the moment of the keystroke that
+        // fixes a mistake, the page has not yet re-rendered to say so.
+        const settled = () =>
+            holdsEnough() && !el?.hasAttribute('data-tour-invalid');
         const onInput = () => {
             window.clearTimeout(debounce);
-            if (!settled()) return;
+            if (!holdsEnough()) return;
             const inputAtEvent = el;
             debounce = window.setTimeout(() => {
                 // A form can reset or remount while the input settles. Only
@@ -937,14 +986,25 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                 handleNext();
             }, INPUT_SETTLE_MS);
         };
+        // A code editor changes in ways that fire no input event (a
+        // deletion, an undo, a paste handled as a command), so its value is
+        // watched as well.
+        let lastValue: string | null = null;
         const tick = () => {
             if (el && !el.isConnected) {
                 el.removeEventListener('input', onInput);
                 el = null;
+                lastValue = null;
             }
             if (!el) {
                 el = document.querySelector<HTMLElement>(inputSelector);
                 el?.addEventListener('input', onInput);
+            }
+            const own = (el as (HTMLElement & TourEditable) | null)?.tourEditor;
+            if (own) {
+                const value = own.getValue();
+                if (lastValue !== null && value !== lastValue) onInput();
+                lastValue = value;
             }
         };
         tick();
@@ -1089,6 +1149,11 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                             ? status
                             : shownTitle}
                     </Text>
+                    {invalidMessage !== null && (
+                        <Text fz="sm" c="red.7" data-tour-card-invalid>
+                            {invalidMessage}
+                        </Text>
+                    )}
                     {failed && (
                         <Text fz="sm" c="dimmed" data-tour-card-failed>
                             That did not work. Check the output, then try again

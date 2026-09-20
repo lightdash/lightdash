@@ -127,6 +127,7 @@ const renderEditor = (overrides: Partial<Props> = {}) =>
                 editable
                 saving={false}
                 dirty={false}
+                invalid={null}
                 onChange={vi.fn()}
                 onBlur={vi.fn()}
                 {...overrides}
@@ -404,6 +405,31 @@ describe('WorkspaceEditor', () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+
+    it('says why the file cannot be saved, in the header and for walkthroughs', () => {
+        const { container } = renderEditor({
+            invalid: 'Fix the YAML error on line 13 to continue',
+        });
+        expect(
+            container.querySelector('[data-learn-editor-state]'),
+        ).toHaveAttribute('data-learn-editor-state', 'invalid');
+        expect(
+            screen.getByText('Fix the YAML error on line 13 to continue'),
+        ).toBeInTheDocument();
+        expect(
+            container.querySelector('[data-tour-anchor="workspace-editor"]'),
+        ).toHaveAttribute(
+            'data-tour-invalid',
+            'Fix the YAML error on line 13 to continue',
+        );
+    });
+
+    it('carries no invalid marker for a file that parses', () => {
+        const { container } = renderEditor({ invalid: null });
+        expect(
+            container.querySelector('[data-tour-anchor="workspace-editor"]'),
+        ).not.toHaveAttribute('data-tour-invalid');
     });
 
     it('calls onBlur when the editor reports blur via onDidBlurEditorText', () => {
