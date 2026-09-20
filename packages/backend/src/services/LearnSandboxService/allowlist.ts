@@ -22,7 +22,9 @@ const RULES: Record<'lightdash' | 'dbt', Record<string, Flag[]>> = {
         download: ['charts', 'dashboards', 'path'],
         upload: ['charts', 'dashboards', 'path'],
     },
-    dbt: { parse: ['select'], compile: ['select'], ls: ['select'] },
+    // dbt parse takes no selector (dbt answers "No such option '--select'"),
+    // so offering one would only trade our refusal for dbt's usage error.
+    dbt: { parse: [], compile: ['select'], ls: ['select'] },
 };
 const reject = { ok: false as const, message: LEARN_TERMINAL_REJECTION };
 

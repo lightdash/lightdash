@@ -18,6 +18,29 @@ describe('buildArgv', () => {
             argv: ['lightdash', 'deploy', '--select', 'orders'],
         });
     });
+    it('refuses a selector on dbt parse, which dbt itself does not take', () => {
+        expect(
+            buildArgv(
+                {
+                    tool: 'dbt',
+                    subcommand: 'parse',
+                    args: ['--select', 'orders'],
+                },
+                ws,
+            ),
+        ).toEqual({ ok: false, message: LEARN_TERMINAL_REJECTION });
+        expect(
+            buildArgv(
+                {
+                    tool: 'dbt',
+                    subcommand: 'compile',
+                    args: ['--select', 'orders'],
+                },
+                ws,
+            ),
+        ).toMatchObject({ ok: true });
+    });
+
     it('accepts dbt parse with no args', () => {
         expect(
             buildArgv({ tool: 'dbt', subcommand: 'parse', args: [] }, ws),
