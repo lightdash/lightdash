@@ -405,6 +405,62 @@ describe('GuidedTour', () => {
         );
     });
 
+    it('holds Check and Use it while the editor is still typing the suggestion in', async () => {
+        const typedSteps: GuidedTourStep[] = [
+            {
+                target: '[data-code]',
+                title: 'Edit the file',
+                body: '',
+                interactive: true,
+                advanceOnTargetInput: true,
+                suggestion: 'columns:\n  - name: floors',
+            },
+            { target: null, title: 'Step two', body: '' },
+        ];
+        let typing = false;
+        const Code: FC = () => (
+            <>
+                <div
+                    data-code
+                    ref={(node) => {
+                        if (!node) return;
+                        (node as HTMLDivElement & TourEditable).tourEditor = {
+                            getValue: () => '',
+                            // Use it starts the editor typing; it is not done
+                            // when this returns.
+                            setValue: () => {
+                                typing = true;
+                            },
+                            isBusy: () => typing,
+                            check: () => null,
+                        };
+                    }}
+                />
+                <GuidedTour steps={typedSteps} opened onClose={vi.fn()} />
+            </>
+        );
+        renderWithProviders(<Code />);
+        const check = await screen.findByRole('button', { name: 'Check' });
+        const useIt = screen.getByRole('button', { name: 'Use it' });
+        expect(check).toBeEnabled();
+
+        fireEvent.click(useIt);
+        // At once, not at the next look at the page: a fast second click
+        // would otherwise check a half-typed file.
+        expect(check).toBeDisabled();
+        expect(useIt).toBeDisabled();
+        fireEvent.click(check);
+        expect(screen.queryByText('Step two')).not.toBeInTheDocument();
+
+        typing = false;
+        await waitFor(() => expect(check).toBeEnabled());
+        expect(useIt).toBeEnabled();
+        fireEvent.click(check);
+        await waitFor(() =>
+            expect(screen.getByText('Step two')).toBeInTheDocument(),
+        );
+    });
+
     it('offers no Check on a plain typed field', () => {
         renderWithProviders(
             <>

@@ -335,6 +335,7 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                 wrapperRef.current.tourEditor = {
                     getValue: () => ed.getValue(),
                     setValue: appendToEditor,
+                    isBusy: () => typingRef.current !== null,
                     // A lesson says what it expects as facts about the dbt
                     // project; a step that carries none falls back to
                     // looking for the snippet's entry line.

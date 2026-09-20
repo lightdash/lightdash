@@ -409,14 +409,27 @@ const useBusy = (
 const useTargetInvalid = (
     selector: string | null,
     active: boolean,
-): { invalidMessage: string | null; canCheck: boolean } => {
+): {
+    invalidMessage: string | null;
+    canCheck: boolean;
+    editorBusy: boolean;
+    /** Look at the page now, not at the next poll. */
+    refresh: () => void;
+} => {
     const [state, setState] = useState<{
         invalidMessage: string | null;
         canCheck: boolean;
-    }>({ invalidMessage: null, canCheck: false });
+        editorBusy: boolean;
+    }>({ invalidMessage: null, canCheck: false, editorBusy: false });
+    const tickRef = useRef<() => void>(() => {});
     useEffect(() => {
         if (!selector || !active) {
-            setState({ invalidMessage: null, canCheck: false });
+            setState({
+                invalidMessage: null,
+                canCheck: false,
+                editorBusy: false,
+            });
+            tickRef.current = () => {};
             return undefined;
         }
         const tick = () => {
@@ -427,19 +440,23 @@ const useTargetInvalid = (
                 invalidMessage: el?.getAttribute('data-tour-invalid') ?? null,
                 // The editor mounts late, so whether it can check is watched.
                 canCheck: typeof el?.tourEditor?.check === 'function',
+                editorBusy: el?.tourEditor?.isBusy?.() ?? false,
             };
             setState((previous) =>
                 previous.invalidMessage === next.invalidMessage &&
-                previous.canCheck === next.canCheck
+                previous.canCheck === next.canCheck &&
+                previous.editorBusy === next.editorBusy
                     ? previous
                     : next,
             );
         };
+        tickRef.current = tick;
         tick();
         const poll = window.setInterval(tick, 150);
         return () => window.clearInterval(poll);
     }, [selector, active]);
-    return state;
+    const refresh = useCallback(() => tickRef.current(), []);
+    return { ...state, refresh };
 };
 
 /**
@@ -470,6 +487,13 @@ export type TourEditable = {
             suggestion: string,
             expect: Record<string, string> | undefined,
         ) => string | null;
+        /**
+         * Whether the editor is still at work on the last `setValue`: one
+         * that types the text in is not done when `setValue` returns. The
+         * card holds Use it and Check until it is, so a half-typed file is
+         * never checked and a second Use it cannot start over the first.
+         */
+        isBusy?: () => boolean;
     };
 };
 
@@ -665,7 +689,12 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // While the page is still working on this step, the ring sits on that
     // work rather than on the finished surface.
     const { busy, status, failed } = useBusy(step?.busy, opened);
-    const { invalidMessage, canCheck } = useTargetInvalid(
+    const {
+        invalidMessage,
+        canCheck,
+        editorBusy,
+        refresh: refreshTarget,
+    } = useTargetInvalid(
         step?.advanceOnTargetInput ? (step.target ?? null) : null,
         opened,
     );
@@ -1144,10 +1173,14 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             size="compact-xs"
             variant="default"
             className={styles.buttonPulse}
+            disabled={editorBusy}
             onClick={() => {
                 setCheckMessage(null);
                 if (shownStep.target)
                     fillTarget(shownStep.target, shownStep.suggestion!);
+                // The editor may now be typing: hold the buttons from this
+                // click, not from the next poll of the page.
+                refreshTarget();
             }}
         >
             Use it
@@ -1159,11 +1192,13 @@ export const GuidedTour: FC<GuidedTourProps> = ({
         <Button
             size="compact-xs"
             data-tour-check
+            disabled={editorBusy}
             onClick={() => {
                 if (!shownStep.target || !shownStep.suggestion) return;
                 const own = document.querySelector<HTMLElement & TourEditable>(
                     shownStep.target,
                 )?.tourEditor;
+                if (own?.isBusy?.()) return;
                 const problem =
                     own?.check?.(shownStep.suggestion, shownStep.expect) ??
                     null;
