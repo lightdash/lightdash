@@ -109,14 +109,13 @@ vi.mock('./hooks/useCommandOutput', () => ({
 }));
 
 // jsdom has no layout, so every resize handle's rect is 0×0 at the origin and
-// react-resizable-panels reads every pointerdown at (0,0) as a drag on a
-// handle and calls stopPropagation on it — no click in the page would ever
-// land. The split layout is not what this page's test is about.
-vi.mock('react-resizable-panels', () => ({
-    PanelGroup: ({ children }: PropsWithChildren) => <div>{children}</div>,
-    Panel: ({ children }: PropsWithChildren) => <div>{children}</div>,
-    PanelResizeHandle: () => <div />,
-}));
+// The split layout is not what this page's test is about, and the real
+// splitter measures its container, which jsdom cannot do.
+vi.mock('../../components/common/ResizableSplitter', () => {
+    const Splitter = ({ children }: PropsWithChildren) => <div>{children}</div>;
+    Splitter.Pane = ({ children }: PropsWithChildren) => <div>{children}</div>;
+    return { default: Splitter };
+});
 
 // Stand-ins for the three panes: each pane has its own test file, so the
 // page's test only needs the handles it wires up.
