@@ -9,9 +9,9 @@ import {
     Text,
 } from '@mantine/core';
 import { useCallback, useRef, useState, type FC } from 'react';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Link, Navigate } from 'react-router';
 import InlineErrorState from '../../components/common/InlineErrorState';
+import ResizableSplitter from '../../components/common/ResizableSplitter';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import FileTree from './FileTree';
@@ -208,13 +208,16 @@ const Workspace: FC<WorkspaceProps> = ({
                     Back to library
                 </Anchor>
             </Group>
-            <PanelGroup className={styles.panels} direction="horizontal">
-                <Panel
+            <ResizableSplitter
+                className={styles.panels}
+                orientation="horizontal"
+                handleLabel="Resize the file tree"
+            >
+                <ResizableSplitter.Pane
                     className={styles.panel}
                     defaultSize={22}
-                    minSize={14}
+                    min={14}
                     id="learn-workspace-files"
-                    order={1}
                 >
                     <ScrollArea className={styles.treePane} py="xs">
                         {isFilesError ? (
@@ -233,23 +236,22 @@ const Workspace: FC<WorkspaceProps> = ({
                             />
                         )}
                     </ScrollArea>
-                </Panel>
-                <PanelResizeHandle
-                    aria-label="Resize the file tree"
-                    className={styles.handleVertical}
-                />
-                <Panel
+                </ResizableSplitter.Pane>
+                <ResizableSplitter.Pane
                     className={styles.panel}
-                    minSize={40}
+                    defaultSize={78}
+                    min={40}
                     id="learn-workspace-main"
-                    order={2}
                 >
-                    <PanelGroup direction="vertical">
-                        <Panel
+                    <ResizableSplitter
+                        orientation="vertical"
+                        handleLabel="Resize the terminal"
+                    >
+                        <ResizableSplitter.Pane
                             className={styles.panel}
-                            minSize={30}
+                            defaultSize={68}
+                            min={30}
                             id="learn-workspace-editor"
-                            order={1}
                         >
                             {selectedPath !== null && isFileError ? (
                                 <Center className={styles.editorEmpty}>
@@ -289,17 +291,12 @@ const Workspace: FC<WorkspaceProps> = ({
                                     </Text>
                                 </Center>
                             )}
-                        </Panel>
-                        <PanelResizeHandle
-                            aria-label="Resize the terminal"
-                            className={styles.handleHorizontal}
-                        />
-                        <Panel
+                        </ResizableSplitter.Pane>
+                        <ResizableSplitter.Pane
                             className={styles.panel}
                             defaultSize={32}
-                            minSize={15}
+                            min={15}
                             id="learn-workspace-terminal"
-                            order={2}
                         >
                             <Terminal
                                 value={commandInput}
@@ -312,10 +309,10 @@ const Workspace: FC<WorkspaceProps> = ({
                                     error: terminalError ?? output.error,
                                 }}
                             />
-                        </Panel>
-                    </PanelGroup>
-                </Panel>
-            </PanelGroup>
+                        </ResizableSplitter.Pane>
+                    </ResizableSplitter>
+                </ResizableSplitter.Pane>
+            </ResizableSplitter>
         </Box>
     );
 };

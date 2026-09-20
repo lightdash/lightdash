@@ -39,28 +39,6 @@
     background: var(--lu-sunken);
 }
 
-.handleVertical,
-.handleHorizontal {
-    flex-shrink: 0;
-    background: var(--lu-border);
-    transition: background 150ms ease;
-}
-
-.handleVertical {
-    width: 1px;
-}
-
-.handleHorizontal {
-    height: 1px;
-}
-
-.handleVertical:hover,
-.handleHorizontal:hover,
-.handleVertical[data-resize-handle-active],
-.handleHorizontal[data-resize-handle-active] {
-    background: var(--lu-accent);
-}
-
 .editorEmpty {
     flex: 1;
     min-height: 0;
