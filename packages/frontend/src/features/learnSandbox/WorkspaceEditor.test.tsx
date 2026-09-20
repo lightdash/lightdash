@@ -535,4 +535,59 @@ describe('WorkspaceEditor', () => {
             [],
         );
     });
+
+    it('never hands the editor back text the editor itself reported', () => {
+        // The page renders a keystroke behind a fast typist. Handing Monaco
+        // that older text replaces the file and throws the cursor to its end.
+        const onChange = vi.fn();
+        const { rerender } = renderEditor({ content: 'a', onChange });
+        const change = stubs.lastEditorProps.onChange as (v: string) => void;
+        change('ab');
+        change('abc');
+        expect(onChange).toHaveBeenLastCalledWith('abc');
+
+        const props = (content: string) => (
+            <MantineProvider env="test">
+                <WorkspaceEditor
+                    path="models/orders.yml"
+                    content={content}
+                    editable
+                    saving={false}
+                    dirty
+                    invalid={null}
+                    onChange={onChange}
+                    onBlur={vi.fn()}
+                />
+            </MantineProvider>
+        );
+        // The stale echo arrives after the editor has moved on to 'abc'.
+        rerender(props('ab'));
+        expect(stubs.lastEditorProps.value).toBeUndefined();
+        rerender(props('abc'));
+        expect(stubs.lastEditorProps.value).toBeUndefined();
+        // Text from somewhere else (the file reloading) is handed over.
+        rerender(props('from the server'));
+        expect(stubs.lastEditorProps.value).toBe('from the server');
+    });
+
+    it('starts each file afresh: another file holding the same text is loaded', () => {
+        const onChange = vi.fn();
+        const { rerender } = renderEditor({ content: 'a', onChange });
+        (stubs.lastEditorProps.onChange as (v: string) => void)('same');
+        rerender(
+            <MantineProvider env="test">
+                <WorkspaceEditor
+                    path="models/customers.yml"
+                    content="same"
+                    editable
+                    saving={false}
+                    dirty={false}
+                    invalid={null}
+                    onChange={onChange}
+                    onBlur={vi.fn()}
+                />
+            </MantineProvider>,
+        );
+        expect(stubs.lastEditorProps.value).toBe('same');
+    });
 });

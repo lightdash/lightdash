@@ -110,6 +110,9 @@ const Workspace: FC<WorkspaceProps> = ({
     // for the path currently selected, so the editor never shows one file's
     // path or content over another's.
     const loadedFile = file && file.path === selectedPath ? file : undefined;
+    // What the drafts are now, for a save that resolves renders later.
+    const draftsRef = useRef(drafts);
+    draftsRef.current = drafts;
     const draft = selectedPath === null ? undefined : drafts[selectedPath];
     const isDirty = draft !== undefined && draft !== loadedFile?.content;
     // The rule the server applies on save, applied here first: a file that
@@ -184,7 +187,14 @@ const Workspace: FC<WorkspaceProps> = ({
         const promise = (async () => {
             try {
                 await saveFile.mutateAsync({ path, content: draft });
+                // The learner may have typed on while the save was in
+                // flight. Only a draft that is still what was saved is done
+                // with: dropping a newer one would hand the editor the saved
+                // text, which resets it and throws the cursor to the end.
+                // The newer draft stays dirty and goes with the next save.
+                if (draftsRef.current[path] !== draft) return true;
                 setDrafts((prev) => {
+                    if (prev[path] !== draft) return prev;
                     const { [path]: _saved, ...rest } = prev;
                     return rest;
                 });

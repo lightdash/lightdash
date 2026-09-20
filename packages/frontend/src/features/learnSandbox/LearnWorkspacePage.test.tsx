@@ -1,6 +1,12 @@
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+    act,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type PropsWithChildren } from 'react';
 import { MemoryRouter } from 'react-router';
@@ -755,6 +761,40 @@ describe('LearnWorkspacePage', () => {
                 }),
             }),
         );
+        expect(screen.getByTestId('editor')).toHaveAttribute(
+            'data-dirty',
+            'true',
+        );
+    });
+
+    it('keeps what was typed while a save was in flight', async () => {
+        const user = userEvent.setup();
+        let releaseSave = () => {};
+        state.saveMutateAsync = vi.fn(
+            () =>
+                new Promise<undefined>((resolve) => {
+                    releaseSave = () => resolve(undefined);
+                }),
+        );
+        renderPage();
+        await selectOrders(user);
+        await screen.findByTestId('editor');
+
+        await user.type(screen.getByLabelText('File'), '# one');
+        // Blur starts the save; the learner goes straight back and types on.
+        await user.click(screen.getByLabelText('Command'));
+        expect(state.saveMutateAsync).toHaveBeenCalledTimes(1);
+        await user.type(screen.getByLabelText('File'), ' two');
+        const typed = (screen.getByLabelText('File') as HTMLTextAreaElement)
+            .value;
+        expect(typed).toContain('# one two');
+
+        await act(async () => {
+            releaseSave();
+        });
+
+        // The editor still holds the newer text, and it is still unsaved.
+        expect(screen.getByLabelText('File')).toHaveValue(typed);
         expect(screen.getByTestId('editor')).toHaveAttribute(
             'data-dirty',
             'true',

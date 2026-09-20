@@ -78,6 +78,8 @@ const TOUR_TYPE_INTERVAL_MS = 24;
 /** How long the lines the tour added stay highlighted. */
 const TOUR_INSERT_HIGHLIGHT_MS = 4000;
 /** Marker owner for misspelt keys, apart from monaco-yaml's own markers. */
+/** How many of its own reports the editor remembers, to know an echo. */
+const REPORTED_LIMIT = 200;
 const KEY_TYPO_MARKERS = 'learn-key-typos';
 /** Long enough that a key is not underlined while it is being typed. */
 const KEY_TYPO_DELAY_MS = 400;
@@ -109,6 +111,29 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     // rather than close over the props from the render that created them.
     const onChangeRef = useRef(onChange);
     onChangeRef.current = onChange;
+    // The page holds the file and hands it back as `content`. React renders
+    // a keystroke or two behind a fast typist, so `content` can be text the
+    // editor reported a moment ago and has since moved past. Monaco's React
+    // wrapper replaces the whole file with any value that differs from the
+    // editor's, which drops those keystrokes and throws the cursor to the end
+    // of the file. Text the editor itself reported is never new to it, so it
+    // is not handed back; anything else (a file loading) is.
+    const reportedRef = useRef<{ path: string; values: Set<string> }>({
+        path,
+        values: new Set(),
+    });
+    if (reportedRef.current.path !== path) {
+        reportedRef.current = { path, values: new Set() };
+    }
+    const report = useCallback((next: string) => {
+        const { values } = reportedRef.current;
+        values.add(next);
+        if (values.size > REPORTED_LIMIT) {
+            values.delete(values.values().next().value as string);
+        }
+        onChangeRef.current(next);
+    }, []);
+    const isOwnEcho = reportedRef.current.values.has(content);
     const onBlurRef = useRef(onBlur);
     onBlurRef.current = onBlur;
 
@@ -120,134 +145,143 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     // advance until the last character has landed.
     const typingRef = useRef<{ cancel: () => void } | null>(null);
     useEffect(() => () => typingRef.current?.cancel(), []);
-    const appendToEditor = useCallback((value: string) => {
-        const ed = editorRef.current;
-        if (!ed) return;
-        const model = ed.getModel();
-        if (!model) return;
-        // A second press while the snippet is still being typed, or once it
-        // is already there, adds nothing: the learner (and the smoke) can
-        // press Use it again without doubling the metric.
-        if (typingRef.current) return;
-        const before = model.getValue();
-        const point = insertionPoint(before, value);
-        if (before.includes(point.text)) return;
-        // What the file must read once the snippet is in, whatever happens
-        // on the way there.
-        const intended = insertSnippet(before, value);
-        const start = point.offset + point.prefix.length;
-        let offset = point.offset;
-        const insertHere = (text: string) => {
-            const at = model.getPositionAt(offset);
-            ed.executeEdits('learn-tour', [
-                {
-                    range: {
-                        startLineNumber: at.lineNumber,
-                        startColumn: at.column,
-                        endLineNumber: at.lineNumber,
-                        endColumn: at.column,
-                    },
-                    text,
-                    forceMoveMarkers: true,
-                },
-            ]);
-            offset += text.length;
-        };
-        // By code point, so a character outside the basic plane is typed
-        // whole; offsets below advance by each piece's own length.
-        const chars = Array.from(point.text);
-        const wrapper = wrapperRef.current;
-        let index = 0;
-        let timer: number | undefined;
-        let cancelled = false;
-        let firstLine = 1;
-        const finish = (written = false) => {
-            const end = model.getPositionAt(offset);
-            if (point.suffix && !written) insertHere(point.suffix);
-            onChangeRef.current(model.getValue());
-            ed.setPosition(end);
-            ed.revealLineInCenter(end.lineNumber);
-            const added = ed.createDecorationsCollection([
-                {
-                    range: {
-                        startLineNumber: firstLine,
-                        startColumn: 1,
-                        endLineNumber: end.lineNumber,
-                        endColumn: 1,
-                    },
-                    options: {
-                        isWholeLine: true,
-                        className: styles.tourInsert,
-                    },
-                },
-            ]);
-            window.setTimeout(() => added.clear(), TOUR_INSERT_HIGHLIGHT_MS);
-            // The caret has to end up where typing would leave it: the page
-            // autosaves on blur, and text dropped into an editor that never
-            // held focus would never blur, so it would sit unsaved until the
-            // learner ran a command.
-            ed.focus();
-            typingRef.current = null;
-        };
-        const tick = () => {
-            if (cancelled) return;
-            // Anything else touching the model while the snippet types (the
-            // learner's own keystrokes, a reset from outside) would leave
-            // the running offset pointing at the wrong place. Stop animating
-            // and write the intended content in one edit instead.
-            const typedSoFar = chars.slice(0, index).join('');
-            if (
-                model.getValue().slice(start, start + typedSoFar.length) !==
-                    typedSoFar ||
-                model.getValue().length !==
-                    before.length + point.prefix.length + typedSoFar.length
-            ) {
+    const appendToEditor = useCallback(
+        (value: string) => {
+            const ed = editorRef.current;
+            if (!ed) return;
+            const model = ed.getModel();
+            if (!model) return;
+            // A second press while the snippet is still being typed, or once it
+            // is already there, adds nothing: the learner (and the smoke) can
+            // press Use it again without doubling the metric.
+            if (typingRef.current) return;
+            const before = model.getValue();
+            const point = insertionPoint(before, value);
+            if (before.includes(point.text)) return;
+            // What the file must read once the snippet is in, whatever happens
+            // on the way there.
+            const intended = insertSnippet(before, value);
+            const start = point.offset + point.prefix.length;
+            let offset = point.offset;
+            const insertHere = (text: string) => {
+                const at = model.getPositionAt(offset);
                 ed.executeEdits('learn-tour', [
                     {
-                        range: model.getFullModelRange(),
-                        text: intended,
+                        range: {
+                            startLineNumber: at.lineNumber,
+                            startColumn: at.column,
+                            endLineNumber: at.lineNumber,
+                            endColumn: at.column,
+                        },
+                        text,
                         forceMoveMarkers: true,
                     },
                 ]);
-                offset = start + point.text.length;
-                index = chars.length;
-                finish(true);
-                return;
-            }
-            insertHere(chars[index]);
-            index += 1;
-            ed.revealLineInCenter(model.getPositionAt(offset).lineNumber);
-            wrapper?.dispatchEvent(new Event('input', { bubbles: true }));
-            if (index < chars.length) {
-                timer = window.setTimeout(tick, TOUR_TYPE_INTERVAL_MS);
-            } else {
-                finish();
-            }
-        };
-        typingRef.current = {
-            cancel: () => {
-                cancelled = true;
-                window.clearTimeout(timer);
-            },
-        };
-        if (point.prefix) insertHere(point.prefix);
-        firstLine = model.getPositionAt(offset).lineNumber;
-        if (chars.length === 0) finish();
-        else tick();
-        // `typingRef` is set before the first tick returns control, and
-        // stays set until `finish`: while it is, the editor's own change
-        // events are not passed up (see `handleEditorChange`).
-    }, []);
+                offset += text.length;
+            };
+            // By code point, so a character outside the basic plane is typed
+            // whole; offsets below advance by each piece's own length.
+            const chars = Array.from(point.text);
+            const wrapper = wrapperRef.current;
+            let index = 0;
+            let timer: number | undefined;
+            let cancelled = false;
+            let firstLine = 1;
+            const finish = (written = false) => {
+                const end = model.getPositionAt(offset);
+                if (point.suffix && !written) insertHere(point.suffix);
+                report(model.getValue());
+                ed.setPosition(end);
+                ed.revealLineInCenter(end.lineNumber);
+                const added = ed.createDecorationsCollection([
+                    {
+                        range: {
+                            startLineNumber: firstLine,
+                            startColumn: 1,
+                            endLineNumber: end.lineNumber,
+                            endColumn: 1,
+                        },
+                        options: {
+                            isWholeLine: true,
+                            className: styles.tourInsert,
+                        },
+                    },
+                ]);
+                window.setTimeout(
+                    () => added.clear(),
+                    TOUR_INSERT_HIGHLIGHT_MS,
+                );
+                // The caret has to end up where typing would leave it: the page
+                // autosaves on blur, and text dropped into an editor that never
+                // held focus would never blur, so it would sit unsaved until the
+                // learner ran a command.
+                ed.focus();
+                typingRef.current = null;
+            };
+            const tick = () => {
+                if (cancelled) return;
+                // Anything else touching the model while the snippet types (the
+                // learner's own keystrokes, a reset from outside) would leave
+                // the running offset pointing at the wrong place. Stop animating
+                // and write the intended content in one edit instead.
+                const typedSoFar = chars.slice(0, index).join('');
+                if (
+                    model.getValue().slice(start, start + typedSoFar.length) !==
+                        typedSoFar ||
+                    model.getValue().length !==
+                        before.length + point.prefix.length + typedSoFar.length
+                ) {
+                    ed.executeEdits('learn-tour', [
+                        {
+                            range: model.getFullModelRange(),
+                            text: intended,
+                            forceMoveMarkers: true,
+                        },
+                    ]);
+                    offset = start + point.text.length;
+                    index = chars.length;
+                    finish(true);
+                    return;
+                }
+                insertHere(chars[index]);
+                index += 1;
+                ed.revealLineInCenter(model.getPositionAt(offset).lineNumber);
+                wrapper?.dispatchEvent(new Event('input', { bubbles: true }));
+                if (index < chars.length) {
+                    timer = window.setTimeout(tick, TOUR_TYPE_INTERVAL_MS);
+                } else {
+                    finish();
+                }
+            };
+            typingRef.current = {
+                cancel: () => {
+                    cancelled = true;
+                    window.clearTimeout(timer);
+                },
+            };
+            if (point.prefix) insertHere(point.prefix);
+            firstLine = model.getPositionAt(offset).lineNumber;
+            if (chars.length === 0) finish();
+            else tick();
+            // `typingRef` is set before the first tick returns control, and
+            // stays set until `finish`: while it is, the editor's own change
+            // events are not passed up (see `handleEditorChange`).
+        },
+        [report],
+    );
 
     // The page holds the file as a controlled value. Reporting every typed
     // character would have it hand Monaco back a value already a character
     // or two stale, Monaco would reset to it, and the snippet would land
     // scrambled (seen on slower machines). While the tour types, changes
     // stay here; `finish` reports the final content once.
-    const handleEditorChange = useCallback((next: string | undefined) => {
-        if (typingRef.current) return;
-        onChangeRef.current(next ?? '');
-    }, []);
+    const handleEditorChange = useCallback(
+        (next: string | undefined) => {
+            if (typingRef.current) return;
+            report(next ?? '');
+        },
+        [report],
+    );
 
     const handleBeforeMount: BeforeMount = useCallback((monaco) => {
         monaco.editor.defineTheme('lightdash-light', {
@@ -370,7 +404,8 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                 <Editor
                     path={path}
                     language="yaml"
-                    value={content}
+                    defaultValue={content}
+                    value={isOwnEcho ? undefined : content}
                     theme={monacoTheme}
                     beforeMount={handleBeforeMount}
                     onMount={onMount}
