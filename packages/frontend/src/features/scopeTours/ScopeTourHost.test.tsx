@@ -117,10 +117,26 @@ vi.mock('./trainingCopy', () => ({
 }));
 
 vi.mock('../learn/LearnDoneModal', () => ({
-    LearnDoneModal: ({ onNext }: { onNext: (scope: string) => void }) => (
-        <button type="button" onClick={() => onNext(NEXT_SCOPE)}>
-            next module
-        </button>
+    LearnDoneModal: ({
+        onNext,
+        onBack,
+        onStay,
+    }: {
+        onNext: (scope: string) => void;
+        onBack: () => void;
+        onStay: () => void;
+    }) => (
+        <div>
+            <button type="button" onClick={() => onNext(NEXT_SCOPE)}>
+                next module
+            </button>
+            <button type="button" onClick={onBack}>
+                back to library
+            </button>
+            <button type="button" onClick={onStay}>
+                keep exploring
+            </button>
+        </div>
     ),
 }));
 
@@ -277,5 +293,77 @@ describe('ScopeTourHost analytics', () => {
         fireEvent.click(screen.getByText('next module'));
 
         expect(learnEvents()[1].properties).toMatchObject({ isRestart: true });
+    });
+
+    it('records the learner staying in the copy to explore what they built', () => {
+        renderHost();
+
+        fireEvent.click(screen.getByText('got it'));
+        fireEvent.click(screen.getByText('keep exploring'));
+
+        expect(learnEvents()[1]).toEqual({
+            name: EventName.LEARN_WALKTHROUGH_KEPT_EXPLORING,
+            properties: {
+                organizationUuid: 'org-1',
+                trainingProjectUuid: 'training-1',
+                scope: SCOPE,
+            },
+        });
+    });
+});
+
+describe('ScopeTourHost copy lifetime', () => {
+    beforeEach(() => {
+        sessionStorage.clear();
+        progressState.completed = [];
+        track.mockClear();
+        navigate.mockClear();
+        mutate.mockClear();
+        searchState.current = new URLSearchParams(
+            `tour=${SCOPE}&copy=true&from=learn`,
+        );
+    });
+
+    it('keeps the copy, and the page it ended on, when the learner stays', () => {
+        renderHost();
+
+        fireEvent.click(screen.getByText('got it'));
+        fireEvent.click(screen.getByText('keep exploring'));
+
+        // Nothing is deleted and nowhere is navigated to: the chart or tree
+        // the walkthrough built is still on the page behind the dialog.
+        expect(mutate).not.toHaveBeenCalled();
+        expect(navigate).not.toHaveBeenCalled();
+        expect(screen.queryByText('keep exploring')).not.toBeInTheDocument();
+    });
+
+    it('leaves the copy for the library, and only then removes it', async () => {
+        renderHost();
+
+        fireEvent.click(screen.getByText('got it'));
+        fireEvent.click(screen.getByText('back to library'));
+        await vi.waitFor(() => expect(mutate).toHaveBeenCalled());
+
+        expect(navigate).toHaveBeenCalledWith(
+            '/projects/training-1/learn',
+            expect.anything(),
+        );
+        expect(mutate).toHaveBeenCalledWith({
+            trainingProjectUuid: 'training-1',
+        });
+        expect(navigate.mock.invocationCallOrder[0]).toBeLessThan(
+            mutate.mock.invocationCallOrder[0],
+        );
+    });
+
+    it('removes the copy when the learner skips the walkthrough part-way', async () => {
+        renderHost();
+
+        fireEvent.click(screen.getByText('skip'));
+        await vi.waitFor(() => expect(mutate).toHaveBeenCalled());
+
+        expect(mutate).toHaveBeenCalledWith({
+            trainingProjectUuid: 'training-1',
+        });
     });
 });

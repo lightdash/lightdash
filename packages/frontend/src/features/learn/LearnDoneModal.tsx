@@ -13,6 +13,8 @@ type Props = {
     scope: string;
     /** Return to the library (the copy is put away behind the learner). */
     onBack: () => void;
+    /** Stay in the copy, on the page the module ended on. Nothing is removed. */
+    onStay: () => void;
     /** Go straight into the next module, in a fresh copy made from here. */
     onNext: (scope: string) => void;
     /** The next copy is being made; the choice has been taken. */
@@ -22,12 +24,15 @@ type Props = {
 /**
  * Shown over the page where Got it was pressed, in the learner's copy: the
  * module is named complete, the library's progress line is repeated, and
- * the choice is the module the library would recommend next or the library
- * itself. Nothing changes on the page behind it until one is picked.
+ * the choice is the module the library would recommend next, the library
+ * itself, or the page behind the dialog. Nothing changes on that page until
+ * one is picked, and what the walkthrough built is still standing on it, so
+ * Keep exploring simply gets out of the way.
  */
 export const LearnDoneModal: FC<Props> = ({
     scope,
     onBack,
+    onStay,
     onNext,
     opening = false,
 }) => {
@@ -62,7 +67,7 @@ export const LearnDoneModal: FC<Props> = ({
     return (
         <MantineModal
             opened
-            onClose={onBack}
+            onClose={onStay}
             title={tour?.title ?? scope}
             subtitle="Module complete"
             size="lg"
@@ -79,16 +84,26 @@ export const LearnDoneModal: FC<Props> = ({
                     >
                         Back to library
                     </Button>
-                    {next && (
+                    <Group gap="xs" wrap="nowrap">
                         <Button
-                            variant="filled"
-                            color="indigo"
-                            loading={opening}
-                            onClick={() => onNext(next.scope)}
+                            variant="default"
+                            onClick={onStay}
+                            disabled={opening}
+                            data-learn-stay
                         >
-                            Next: {next.title}
+                            Keep exploring
                         </Button>
-                    )}
+                        {next && (
+                            <Button
+                                variant="filled"
+                                color="indigo"
+                                loading={opening}
+                                onClick={() => onNext(next.scope)}
+                            >
+                                Next: {next.title}
+                            </Button>
+                        )}
+                    </Group>
                 </Group>
             }
         >

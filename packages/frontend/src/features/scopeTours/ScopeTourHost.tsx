@@ -23,15 +23,17 @@ import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { LearnDoneModal } from '../learn/LearnDoneModal';
-import { readLearnOrigin } from '../learn/origin';
 import { useLearnProgress, useLearnProgressActions } from '../learn/progress';
 import { SCOPE_TOURS } from './generated';
 import {
     createTrainingPreview,
-    deleteTrainingPreviews,
     tourUrlInCopy,
     LEAVING_COPY_STATE,
 } from './trainingCopy';
+import {
+    learnReturnProjectUuid,
+    useLeaveTrainingCopy,
+} from './useLeaveTrainingCopy';
 
 const TOUR_PARAM = 'tour';
 
@@ -197,24 +199,9 @@ const ScopeTourHost: FC = () => {
     // Skipping a tour that ran in a personal copy removes the copy and
     // returns the learner to the shared training project: the library if
     // the tour started there, else the homepage. Got it keeps the copy and
-    // opens the completion dialog in place; leaving it is what removes it.
-    const { mutate: closeCopy } = useMutation<
-        undefined,
-        ApiError,
-        { trainingProjectUuid: string }
-    >(
-        ({ trainingProjectUuid }) =>
-            deleteTrainingPreviews(trainingProjectUuid),
-        {
-            onSettled: async () => {
-                await Promise.all([
-                    queryClient.invalidateQueries(['projects']),
-                    queryClient.invalidateQueries(['user']),
-                    queryClient.invalidateQueries(['account']),
-                ]);
-            },
-        },
-    );
+    // opens the completion dialog in place; leaving it is what removes it,
+    // and Keep exploring never does.
+    const leaveCopy = useLeaveTrainingCopy();
     const upstream =
         project?.type === ProjectType.PREVIEW
             ? (project.upstreamProjectUuid ?? null)
@@ -246,21 +233,7 @@ const ScopeTourHost: FC = () => {
     // library was opened from (its library, or its home), if it is still
     // theirs, else the training project. The library renders on any
     // project route, so returning there keeps them in their own project.
-    const origin = readLearnOrigin();
-    const returnProject =
-        origin &&
-        projects?.some((candidate) => candidate.projectUuid === origin)
-            ? origin
-            : upstream;
-    // Leave the copy before it is removed, and only remove it once the
-    // learner's page has changed: the page being left is addressed by the
-    // copy's slug, and it stays mounted until the next page has loaded. If
-    // the project list refreshed first, that page would find its slug gone
-    // and send the learner to the homepage, undoing the return.
-    const leaveCopy = async (to: string, trainingProjectUuid: string) => {
-        await navigate(to, { state: LEAVING_COPY_STATE });
-        closeCopy({ trainingProjectUuid });
-    };
+    const returnProject = learnReturnProjectUuid(projects, upstream);
     const handleClose = () => {
         // Capture before the state is cleared, and reset the ref so a later
         // Skip stays a Skip.
@@ -299,6 +272,26 @@ const ScopeTourHost: FC = () => {
         if (!upstream) return;
         setFinishedScope(null);
         void leaveCopy(`/projects/${returnProject}/learn`, upstream);
+    };
+    // Keep exploring: close the dialog and leave everything else alone. The
+    // learner stays on the page the module ended on, in the copy they built
+    // it in, with the trainee rights they had a moment ago. The copy goes
+    // when they start the next module (the server makes the new one by
+    // removing this one) or when it expires; the practice banner is how
+    // they get back to the library, since the Learn icon is hidden inside a
+    // copy.
+    const handleStay = () => {
+        const scope = finishedScope;
+        setFinishedScope(null);
+        if (!scope) return;
+        track({
+            name: EventName.LEARN_WALKTHROUGH_KEPT_EXPLORING,
+            properties: {
+                organizationUuid,
+                trainingProjectUuid: upstream,
+                scope,
+            },
+        });
     };
     // One copy per tour start. `isLoading` is not set synchronously, and the
     // effect below re-runs as its inputs settle, so a ref does the gating; a
@@ -501,6 +494,7 @@ const ScopeTourHost: FC = () => {
                 scope={finishedScope}
                 opening={openingCopy}
                 onBack={handleBackToLibrary}
+                onStay={handleStay}
                 onNext={handleNext}
             />
         );
