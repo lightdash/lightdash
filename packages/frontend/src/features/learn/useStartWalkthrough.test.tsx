@@ -121,9 +121,9 @@ describe('useStartWalkthrough', () => {
         expect(openInCopy).toHaveBeenCalledWith({
             scope: 'docs:semantic-layer/metrics',
         });
-        expect(
-            JSON.parse(localStorage.getItem('lightdash.learn.started')!),
-        ).toContain('docs:semantic-layer/metrics');
+        expect(markScopeStarted).toHaveBeenCalledWith(
+            'docs:semantic-layer/metrics',
+        );
     });
 
     it('records nothing when the org has no training project', () => {

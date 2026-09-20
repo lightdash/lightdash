@@ -1,4 +1,4 @@
-import { ProjectMemberRole } from '@lightdash/common';
+import { LEARN_LESSON_IDS, ProjectMemberRole } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { heldScopes, ROLE_ORDER, SYSTEM_ROLE_SCOPES } from './access';
 import {
@@ -224,6 +224,12 @@ describe('docs modules', () => {
         )!;
         expect(holds(new Set(), metrics)).toBe(true);
         expect(accessNote(new Set(), metrics)).toBeNull();
+    });
+
+    it('declares exactly the lesson ids the instance keeps progress for', () => {
+        expect(SANDBOX_LESSONS.map((lesson) => lesson.id)).toEqual([
+            ...LEARN_LESSON_IDS,
+        ]);
     });
 
     it('names the Developer group', () => {

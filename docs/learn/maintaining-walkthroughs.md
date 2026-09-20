@@ -77,11 +77,13 @@ A developer lesson is a walkthrough over the sandbox workspace rather than over 
 
 To add one:
 
-1. **Declare it** in `packages/frontend/src/features/learn/sandboxLessons.ts`: the docs page, the citation each step shows (one, or a list read in order), the file to open, the column the snippet extends, the snippet (its first line is the key it goes under), the command, and the explore and field the learner ends on. Nothing else is authored. The twelve steps come from a fixed template, so a lesson cannot invent a click path, and the only wording that is not a docs sentence is two fixed task sentences the template fills from the entry: on the editor step, which metric to add and which column's metrics it goes under (typed in, or added by Use it), and on the last step, which metric the learner is looking at. The build refuses a column the file does not declare and a snippet with no `type`.
+1. **Add its id** to `LEARN_LESSON_IDS` in `packages/common/src/types/learnSandbox.ts`. The instance keeps progress per id and refuses names it does not know, so a lesson missing from that list would never show as started or complete; a test pins the declarations to it.
 
-2. **Start the snippet with the key it extends.** Its first line is that key at the indent it has in the file (`columns:` under the model to declare a new column, or `metrics:` under a column's `meta` to add a metric), and the lines after it are the entry to add. Use it types those lines directly under the last line in the file that is that key, and the compile test inserts them the same way, so the card shows the learner the path the entry takes. The build refuses a lesson whose key is missing from the file or belongs to something other than the column (or, for `columns:`, the model) the lesson declares.
+2. **Declare it** in `packages/frontend/src/features/learn/sandboxLessons.ts`: the docs page, the citation each step shows (one, or a list read in order), the file to open, the column the snippet extends, the snippet (its first line is the key it goes under), the command, and the explore and field the learner ends on. Nothing else is authored. The twelve steps come from a fixed template, so a lesson cannot invent a click path, and the only wording that is not a docs sentence is two fixed task sentences the template fills from the entry: on the editor step, which metric to add and which column's metrics it goes under (typed in, or added by Use it), and on the last step, which metric the learner is looking at. The build refuses a column the file does not declare and a snippet with no `type`.
 
-3. **Regenerate, check and compile.**
+3. **Start the snippet with the key it extends.** Its first line is that key at the indent it has in the file (`columns:` under the model to declare a new column, or `metrics:` under a column's `meta` to add a metric), and the lines after it are the entry to add. Use it types those lines directly under the last line in the file that is that key, and the compile test inserts them the same way, so the card shows the learner the path the entry takes. The build refuses a lesson whose key is missing from the file or belongs to something other than the column (or, for `columns:`, the model) the lesson declares.
+
+4. **Regenerate, check and compile.**
 
     ```sh
     pnpm scope-tours:generate
@@ -91,7 +93,7 @@ To add one:
 
     `test:learn-lessons` appends each snippet the way the editor appends it, compiles the workspace with dbt, and asserts the field the tour ends on exists. It needs the playground virtualenv (`scripts/playground-bundle/README.md`) and a built `common`. This is what catches an indentation that no longer fits, and it catches it long before a learner meets a deploy that fails.
 
-4. **Smoke it** like a walkthrough, naming the lesson by its id, and once more with `SMOKE_CPU_THROTTLE=6`: Use it types into a controlled editor, and a timing fault between the two only shows on a slow page. The sandbox has to be on: `GET /api/v1/health` should report `learnSandbox.enabled`.
+5. **Smoke it** like a walkthrough, naming the lesson by its id, and once more with `SMOKE_CPU_THROTTLE=6`: Use it types into a controlled editor, and a timing fault between the two only shows on a slow page. The sandbox has to be on: `GET /api/v1/health` should report `learnSandbox.enabled`.
 
     ```sh
     SMOKE_BASE_URL=http://localhost:<frontend port> \

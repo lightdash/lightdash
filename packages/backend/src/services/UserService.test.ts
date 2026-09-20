@@ -5709,6 +5709,43 @@ describe('UserService learn progress (CS-186)', () => {
         expect(learnModel.get).toHaveBeenCalledWith('user-1');
     });
 
+    it('records progress for a developer lesson, which is a docs page and not a scope', async () => {
+        await service().markLearnScopeStarted(
+            account,
+            'docs:semantic-layer/metrics',
+        );
+        expect(learnModel.markStarted).toHaveBeenCalledWith(
+            'user-1',
+            'docs:semantic-layer/metrics',
+        );
+        await service().markLearnScopeCompleted(
+            account,
+            'docs:semantic-layer/dimensions',
+        );
+        expect(learnModel.markCompleted).toHaveBeenCalledWith(
+            'user-1',
+            'docs:semantic-layer/dimensions',
+        );
+        // A docs id nobody declared is still refused.
+        await expect(
+            service().markLearnScopeStarted(
+                account,
+                'docs:semantic-layer/nope',
+            ),
+        ).rejects.toThrow('Unknown Learn scope');
+        await service().mergeLearnProgress(account, {
+            completed: ['docs:semantic-layer/metrics', 'docs:invented/page'],
+            started: [],
+            lastStarted: null,
+        });
+        expect(learnModel.merge).toHaveBeenCalledWith(
+            'user-1',
+            expect.objectContaining({
+                completed: ['docs:semantic-layer/metrics'],
+            }),
+        );
+    });
+
     it('records a start and a completion for a registry scope', async () => {
         await expect(
             service().markLearnScopeStarted(account, 'view:Dashboard'),
