@@ -407,6 +407,40 @@ describe('WorkspaceEditor', () => {
         }
     });
 
+    it("checks the file against a lesson's facts, wherever the learner put the entry", () => {
+        stubs.model.content =
+            'models:\n  - name: fm_buildings\n    columns:\n      - name: building_id\n      - name: "number_of_floors"\n';
+        const { container } = renderEditor({ content: stubs.model.content });
+        const tour = (
+            container.querySelector(
+                '[data-tour-anchor="workspace-editor"]',
+            ) as HTMLDivElement & {
+                tourEditor?: {
+                    check?: (
+                        s: string,
+                        e: Record<string, string> | undefined,
+                    ) => string | null;
+                };
+            }
+        ).tourEditor;
+        const expectation = {
+            model: 'fm_buildings',
+            under: 'columns',
+            field: 'number_of_floors',
+        };
+        // Quoted, and at the end of the list: a text match would refuse it.
+        expect(tour?.check?.('ignored', expectation)).toBeNull();
+        stubs.model.content =
+            'models:\n  - name: fm_buildings\n    columns:\n      - name: building_id\n';
+        expect(tour?.check?.('ignored', expectation)).toBe(
+            "Add number_of_floors to the fm_buildings model's columns",
+        );
+        // A step with no facts falls back to the snippet's entry line.
+        expect(
+            tour?.check?.('    columns:\n      - name: building_id', undefined),
+        ).toBeNull();
+    });
+
     it('says why the file cannot be saved, in the header and for walkthroughs', () => {
         const { container } = renderEditor({
             invalid: 'Fix the YAML error on line 13 to continue',

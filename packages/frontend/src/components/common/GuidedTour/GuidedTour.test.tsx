@@ -331,66 +331,102 @@ describe('GuidedTour', () => {
         );
     });
 
-    it('moves on from a code editor only once it holds the entry, and notices a change that fires no input event', async () => {
-        vi.useFakeTimers({
-            toFake: [
-                'setTimeout',
-                'clearTimeout',
-                'setInterval',
-                'clearInterval',
-                'requestAnimationFrame',
-                'cancelAnimationFrame',
-                'Date',
-            ],
-        });
-        try {
-            const editorSteps: GuidedTourStep[] = [
-                {
-                    target: '[data-code]',
-                    title: 'Edit the file',
-                    body: '',
-                    interactive: true,
-                    advanceOnTargetInput: true,
-                    suggestion: 'columns:\n  - name: floors',
+    it('gives an editor that can check a Check button, and moves on only when the check passes', async () => {
+        const user = userEvent.setup();
+        const checkSteps: GuidedTourStep[] = [
+            {
+                target: '[data-code]',
+                title: 'Edit the file',
+                body: '',
+                interactive: true,
+                advanceOnTargetInput: true,
+                suggestion: 'columns:\n  - name: floors',
+                expect: {
+                    model: 'buildings',
+                    under: 'columns',
+                    field: 'floors',
                 },
-                { target: null, title: 'Step two', body: '' },
-            ];
-            const onClose = vi.fn();
-            let value = 'a long file that already holds plenty of text';
-            const Code: FC = () => (
-                <>
-                    <div
-                        data-code
-                        ref={(node) => {
-                            if (!node) return;
-                            (node as HTMLDivElement & TourEditable).tourEditor =
-                                {
-                                    getValue: () => value,
-                                    setValue: () => {},
-                                    holds: () =>
-                                        value.includes('- name: floors'),
-                                };
-                        }}
-                    />
-                    <GuidedTour steps={editorSteps} opened onClose={onClose} />
-                </>
-            );
-            renderWithProviders(<Code />);
-            // Any edit that is not the entry leaves the step where it is.
-            await act(async () => {
-                value += ' and more';
-                await vi.advanceTimersByTimeAsync(3_000);
-            });
-            expect(screen.queryByText('Step two')).not.toBeInTheDocument();
-            // The entry arrives without an input event (a paste, an undo).
-            await act(async () => {
-                value += '\n  - name: floors';
-                await vi.advanceTimersByTimeAsync(3_000);
-            });
-            expect(screen.getByText('Step two')).toBeInTheDocument();
-        } finally {
-            vi.useRealTimers();
-        }
+            },
+            { target: null, title: 'Step two', body: '' },
+        ];
+        const seen: unknown[] = [];
+        let value = 'a long file that already holds plenty of text';
+        const onClose = vi.fn();
+        const Code: FC = () => (
+            <>
+                <div
+                    data-code
+                    ref={(node) => {
+                        if (!node) return;
+                        (node as HTMLDivElement & TourEditable).tourEditor = {
+                            getValue: () => value,
+                            setValue: () => {},
+                            check: (suggestion, expect) => {
+                                seen.push([suggestion, expect]);
+                                return value.includes('floors')
+                                    ? null
+                                    : 'Add floors to the buildings model';
+                            },
+                        };
+                    }}
+                />
+                <GuidedTour steps={checkSteps} opened onClose={onClose} />
+            </>
+        );
+        renderWithProviders(<Code />);
+        const check = await screen.findByRole('button', { name: 'Check' });
+
+        // Typing, and pausing, is not a claim to be done.
+        value += ' and a lot more typing';
+        document
+            .querySelector('[data-code]')!
+            .dispatchEvent(new Event('input', { bubbles: true }));
+        await new Promise((resolve) => {
+            setTimeout(resolve, 1200);
+        });
+        expect(screen.queryByText('Step two')).not.toBeInTheDocument();
+
+        await user.click(check);
+        expect(
+            document.querySelector('[data-tour-card-check]'),
+        ).toHaveTextContent('Add floors to the buildings model');
+        expect(screen.queryByText('Step two')).not.toBeInTheDocument();
+        // The editor is handed the step's suggestion and its expected facts.
+        expect(seen[0]).toEqual([
+            'columns:\n  - name: floors',
+            { model: 'buildings', under: 'columns', field: 'floors' },
+        ]);
+
+        value += '\n  - name: floors';
+        await user.click(screen.getByRole('button', { name: 'Check' }));
+        await waitFor(() =>
+            expect(screen.getByText('Step two')).toBeInTheDocument(),
+        );
+    });
+
+    it('offers no Check on a plain typed field', () => {
+        renderWithProviders(
+            <>
+                <input aria-label="Name" data-plain />
+                <GuidedTour
+                    steps={[
+                        {
+                            target: '[data-plain]',
+                            title: 'Name it',
+                            body: '',
+                            interactive: true,
+                            advanceOnTargetInput: true,
+                            suggestion: 'Orders overview',
+                        },
+                    ]}
+                    opened
+                    onClose={vi.fn()}
+                />
+            </>,
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Check' }),
+        ).not.toBeInTheDocument();
     });
 
     it('holds a typed step while the page marks the field invalid, and says why', async () => {

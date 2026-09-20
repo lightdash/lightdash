@@ -732,10 +732,16 @@ export const Card = () => (
         );
         assert.strictEqual(tour.steps[2].suggestion, metricsLesson.snippet);
         assert.strictEqual(tour.steps[2].suggestionContextLines, 1);
+        assert.deepStrictEqual(tour.steps[2].expect, {
+            model: 'payments',
+            column: 'amount',
+            under: 'metrics',
+            field: 'average_payment_amount',
+        });
         assert.strictEqual(tour.steps[3].suggestionContextLines, undefined);
         assert.strictEqual(
             tour.steps[2].body,
-            "The **average** metric can be used on any numeric dimension or, [for custom SQL](https://docs.lightdash.com/semantic-layer/metrics#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric table column. Let's add **average_payment_amount**, an **average** metric on the **amount** column: it goes under that column's **metrics**. Add the highlighted lines under **metrics:**, or press Use it.",
+            "The **average** metric can be used on any numeric dimension or, [for custom SQL](https://docs.lightdash.com/semantic-layer/metrics#using-custom-SQL-in-aggregate-metrics), any valid SQL expression that gives a numeric table column. Let's add **average_payment_amount**, an **average** metric on the **amount** column: it goes under that column's **metrics**. Add the highlighted lines under **metrics:**, or press Use it, then Check.",
         );
         assert.strictEqual(tour.steps[3].suggestion, 'lightdash deploy');
         assert.strictEqual(
@@ -844,9 +850,15 @@ export const Card = () => (
             },
         };
         const [columnTour] = buildLessonTours([columnLesson], files);
+        // A column declaration has no owning column to expect.
+        assert.deepStrictEqual(columnTour.steps[2].expect, {
+            model: 'payments',
+            under: 'columns',
+            field: 'extra',
+        });
         assert.ok(
             columnTour.steps[2].body.endsWith(
-                "Let's add **extra** to the **payments** model's **columns**. Add the highlighted lines under **columns:**, or press Use it.",
+                "Let's add **extra** to the **payments** model's **columns**. Add the highlighted lines under **columns:**, or press Use it, then Check.",
             ),
             columnTour.steps[2].body,
         );

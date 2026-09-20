@@ -149,6 +149,8 @@ export type ScopeTourStepDefinition = {
     busy?: string;
     /** With busy: the step Try again returns to when the page marks the work failed. */
     retryStep?: number;
+    /** On an editor's typed step: the facts its Check button tests the file against. */
+    expect?: Record<string, string>;
     /** For a typed step: what the card offers to fill in with one click. */
     suggestion?: string;
     /**

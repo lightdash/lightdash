@@ -348,6 +348,24 @@ const runTour = async (
             if ((await useIt.count()) > 0) {
                 await useIt.click();
                 await page.waitForTimeout(SETTLE_MS);
+                // An editor that checks its own contents moves on from its
+                // Check button, once what Use it typed has landed.
+                const check = page.locator(
+                    '[data-tour-card] [data-tour-check]',
+                );
+                if ((await check.count()) > 0) {
+                    await page.waitForTimeout(SETTLE_MS);
+                    await check.click();
+                    const problem = page.locator(
+                        '[data-tour-card] [data-tour-card-check]',
+                    );
+                    await page.waitForTimeout(400);
+                    if ((await problem.count()) > 0) {
+                        throw new Error(
+                            `Check refused what Use it typed: ${await problem.textContent()}`,
+                        );
+                    }
+                }
             } else {
                 throw new Error(
                     `typed step "${step.title}" offers nothing to use`,

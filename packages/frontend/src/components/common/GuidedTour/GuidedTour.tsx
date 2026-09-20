@@ -78,6 +78,11 @@ export type GuidedTourStep = {
      */
     busy?: string;
     /**
+     * For a typed step on an editor that can check: the facts its Check
+     * button tests the editor against (a lesson's model, column, key, field).
+     */
+    expect?: Record<string, string>;
+    /**
      * For a step with `busy`: where Try again sends the learner when the
      * page marks the work as failed (`data-tour-failed`), instead of letting
      * them move on to look for a result that is not there.
@@ -399,24 +404,37 @@ const useBusy = (
 const useTargetInvalid = (
     selector: string | null,
     active: boolean,
-): string | null => {
-    const [message, setMessage] = useState<string | null>(null);
+): { invalidMessage: string | null; canCheck: boolean } => {
+    const [state, setState] = useState<{
+        invalidMessage: string | null;
+        canCheck: boolean;
+    }>({ invalidMessage: null, canCheck: false });
     useEffect(() => {
         if (!selector || !active) {
-            setMessage(null);
+            setState({ invalidMessage: null, canCheck: false });
             return undefined;
         }
-        const tick = () =>
-            setMessage(
-                document
-                    .querySelector(selector)
-                    ?.getAttribute('data-tour-invalid') ?? null,
+        const tick = () => {
+            const el = document.querySelector<HTMLElement & TourEditable>(
+                selector,
             );
+            const next = {
+                invalidMessage: el?.getAttribute('data-tour-invalid') ?? null,
+                // The editor mounts late, so whether it can check is watched.
+                canCheck: typeof el?.tourEditor?.check === 'function',
+            };
+            setState((previous) =>
+                previous.invalidMessage === next.invalidMessage &&
+                previous.canCheck === next.canCheck
+                    ? previous
+                    : next,
+            );
+        };
         tick();
         const poll = window.setInterval(tick, 150);
         return () => window.clearInterval(poll);
     }, [selector, active]);
-    return message;
+    return state;
 };
 
 /**
@@ -436,11 +454,17 @@ export type TourEditable = {
         getValue: () => string;
         setValue: (value: string) => void;
         /**
-         * Whether the editor now holds what the step suggested. An editor
-         * over a whole file always holds "enough" text, so without this its
-         * step would move on at the first keystroke.
+         * Whether the editor holds what the step asked for: null when it
+         * does, else one line saying what is missing. An editor that can
+         * check gets a Check button on its step, and the step moves on only
+         * when that passes, never on a pause in the typing: an editor over a
+         * whole file always holds "enough" text, and a pause is not a claim
+         * to be done.
          */
-        holds?: (suggestion: string) => boolean;
+        check?: (
+            suggestion: string,
+            expect: Record<string, string> | undefined,
+        ) => string | null;
     };
 };
 
@@ -636,10 +660,13 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // While the page is still working on this step, the ring sits on that
     // work rather than on the finished surface.
     const { busy, status, failed } = useBusy(step?.busy, opened);
-    const invalidMessage = useTargetInvalid(
+    const { invalidMessage, canCheck } = useTargetInvalid(
         step?.advanceOnTargetInput ? (step.target ?? null) : null,
         opened,
     );
+    // What the last press of Check found wrong; cleared with the step.
+    const [checkMessage, setCheckMessage] = useState<string | null>(null);
+    useEffect(() => setCheckMessage(null), [stepIndex]);
     const spotlightSelector = busy && step?.busy ? step.busy : resolvedSelector;
     const rect = useTargetRect(spotlightSelector, opened);
     // How the last step change happened: Next glides the ring from the old
@@ -951,9 +978,9 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             return editable?.innerText ?? '';
         };
         const holdsEnough = () => {
+            // An editor that can check moves on from its Check button only.
             const own = (el as (HTMLElement & TourEditable) | null)?.tourEditor;
-            if (own?.holds && exactSuggestion !== null)
-                return own.holds(exactSuggestion);
+            if (own?.check) return false;
             const text = typed().trim();
             if (text.length < MIN_INPUT_CHARS) return false;
             if (
@@ -986,25 +1013,14 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                 handleNext();
             }, INPUT_SETTLE_MS);
         };
-        // A code editor changes in ways that fire no input event (a
-        // deletion, an undo, a paste handled as a command), so its value is
-        // watched as well.
-        let lastValue: string | null = null;
         const tick = () => {
             if (el && !el.isConnected) {
                 el.removeEventListener('input', onInput);
                 el = null;
-                lastValue = null;
             }
             if (!el) {
                 el = document.querySelector<HTMLElement>(inputSelector);
                 el?.addEventListener('input', onInput);
-            }
-            const own = (el as (HTMLElement & TourEditable) | null)?.tourEditor;
-            if (own) {
-                const value = own.getValue();
-                if (lastValue !== null && value !== lastValue) onInput();
-                lastValue = value;
             }
         };
         tick();
@@ -1090,14 +1106,36 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             size="compact-xs"
             variant="default"
             className={styles.buttonPulse}
-            onClick={() =>
-                shownStep.target &&
-                fillTarget(shownStep.target, shownStep.suggestion!)
-            }
+            onClick={() => {
+                setCheckMessage(null);
+                if (shownStep.target)
+                    fillTarget(shownStep.target, shownStep.suggestion!);
+            }}
         >
             Use it
         </Button>
     );
+
+    // The way forward on a step whose editor can check its own contents.
+    const checkButton = canCheck ? (
+        <Button
+            size="compact-xs"
+            data-tour-check
+            onClick={() => {
+                if (!shownStep.target || !shownStep.suggestion) return;
+                const own = document.querySelector<HTMLElement & TourEditable>(
+                    shownStep.target,
+                )?.tourEditor;
+                const problem =
+                    own?.check?.(shownStep.suggestion, shownStep.expect) ??
+                    null;
+                setCheckMessage(problem);
+                if (problem === null) handleNext();
+            }}
+        >
+            Check
+        </Button>
+    ) : null;
 
     const cardBody = (
         <Paper
@@ -1152,6 +1190,11 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                     {invalidMessage !== null && (
                         <Text fz="sm" c="red.7" data-tour-card-invalid>
                             {invalidMessage}
+                        </Text>
+                    )}
+                    {invalidMessage === null && checkMessage !== null && (
+                        <Text fz="sm" c="red.7" data-tour-card-check>
+                            {checkMessage}
                         </Text>
                     )}
                     {failed && (
@@ -1262,7 +1305,10 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                                                 ),
                                             )}
                                         </Code>
-                                        {suggestionButton}
+                                        <Group gap="xs">
+                                            {suggestionButton}
+                                            {checkButton}
+                                        </Group>
                                     </Stack>
                                 ) : (
                                     <Group gap="xs" wrap="nowrap">
@@ -1281,6 +1327,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                                             </Text>
                                         </Text>
                                         {suggestionButton}
+                                        {checkButton}
                                     </Group>
                                 )
                             ) : (

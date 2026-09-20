@@ -1,4 +1,8 @@
-import { lightdashDbtYamlSchema } from '@lightdash/common';
+import {
+    checkLearnLessonEntry,
+    type LearnLessonExpectation,
+    lightdashDbtYamlSchema,
+} from '@lightdash/common';
 import { Box, Text } from '@mantine/core';
 import type { editor } from 'monaco-editor';
 import { useCallback, useEffect, useRef, type FC } from 'react';
@@ -59,6 +63,14 @@ type WorkspaceEditorProps = {
     onChange: (content: string) => void;
     onBlur: () => void;
 };
+
+const isLessonExpectation = (
+    expect: Record<string, string> | undefined,
+): expect is LearnLessonExpectation & Record<string, string> =>
+    expect !== undefined &&
+    typeof expect.model === 'string' &&
+    typeof expect.under === 'string' &&
+    typeof expect.field === 'string';
 
 /** Milliseconds per character when the tour types a snippet in. */
 const TOUR_TYPE_INTERVAL_MS = 24;
@@ -246,8 +258,15 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
                 wrapperRef.current.tourEditor = {
                     getValue: () => ed.getValue(),
                     setValue: appendToEditor,
-                    holds: (suggestion) =>
-                        holdsEntry(ed.getValue(), suggestion),
+                    // A lesson says what it expects as facts about the dbt
+                    // project; a step that carries none falls back to
+                    // looking for the snippet's entry line.
+                    check: (suggestion, expect) =>
+                        isLessonExpectation(expect)
+                            ? checkLearnLessonEntry(ed.getValue(), expect)
+                            : holdsEntry(ed.getValue(), suggestion)
+                              ? null
+                              : 'Add the highlighted lines, then check again',
                 };
             }
             ed.onDidBlurEditorText(() => onBlurRef.current());

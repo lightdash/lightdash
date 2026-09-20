@@ -511,6 +511,8 @@ export type ScopeTourStepDefinition = {
     busy?: string;
     /** With `busy`: the step Try again returns to when the page marks the work failed. */
     retryStep?: number;
+    /** On an editor's typed step: the facts its Check button tests the file against. */
+    expect?: Record<string, string>;
     /** For a typed step: what the card offers to fill in with one click. */
     suggestion?: string;
     /**
@@ -807,19 +809,32 @@ export const buildLessonTours = (
                 ...click(fileRow, WORKSPACE_ROUTE, hintFor(fileRow, files), []),
                 body: cite(lesson.fileDocs),
             },
-            typed(
-                editor,
-                WORKSPACE_ROUTE,
-                hintFor(editor, files),
-                lesson.column !== undefined && metricType !== undefined
-                    ? `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}**, ${article(metricType)} **${metricType}** ${lesson.result.kind} on the **${lesson.column}** column: it goes under that column's **${under}**. Add the highlighted lines under **${under}:**, or press Use it.`
-                    : `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}** to the **${lesson.result.explore}** model's **${under}**. Add the highlighted lines under **${under}:**, or press Use it.`,
-                lesson.snippet,
-                [fileRow],
-                // The snippet's first line is the key it goes under, which
-                // the file already has: the card fades it.
-                1,
-            ),
+            {
+                ...typed(
+                    editor,
+                    WORKSPACE_ROUTE,
+                    hintFor(editor, files),
+                    lesson.column !== undefined && metricType !== undefined
+                        ? `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}**, ${article(metricType)} **${metricType}** ${lesson.result.kind} on the **${lesson.column}** column: it goes under that column's **${under}**. Add the highlighted lines under **${under}:**, or press Use it, then Check.`
+                        : `${cite(lesson.snippetDocs)} Let's add **${lesson.result.field}** to the **${lesson.result.explore}** model's **${under}**. Add the highlighted lines under **${under}:**, or press Use it, then Check.`,
+                    lesson.snippet,
+                    [fileRow],
+                    // The snippet's first line is the key it goes under, which
+                    // the file already has: the card fades it.
+                    1,
+                ),
+                // What Check looks for, as facts about the dbt project: the
+                // learner's own placement, quoting and style all pass, and
+                // the right entry under the wrong model or column does not.
+                expect: {
+                    model: lesson.result.explore,
+                    ...(lesson.column !== undefined
+                        ? { column: lesson.column }
+                        : {}),
+                    under,
+                    field: lesson.result.field,
+                },
+            },
             typed(
                 command,
                 WORKSPACE_ROUTE,

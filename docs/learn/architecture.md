@@ -129,8 +129,13 @@ walkthrough verification.
 A file that does not parse as YAML is never sent: the page applies the rule the server applies on save
 (`validateLearnWorkspaceYaml` in `@lightdash/common`), names the line in the editor's header, and marks the editor
 `data-tour-invalid`, so a walkthrough's editor step holds and says which line to fix instead of moving on. That
-step moves on only once the file parses and holds the lesson's entry, and it watches the editor's value as well
-as typed input, because a deletion or an undo fires no input event.
+step does not guess when the learner is done from a pause in their typing. Its card has a Check button, which
+tests the file against the lesson's facts (`checkLearnLessonEntry` in `@lightdash/common`): the model has the
+column, or the column has the entry under the named key, in `meta` or `config.meta`. The file is parsed, not
+searched, so where the entry sits in its list, its quoting, spacing, key order and flow style all pass, and the
+right entry under the wrong model or column does not; the card then says where it ended up. A compile was
+measured for this and rejected: `dbt parse` (about 2 s) and `lightdash compile` (about 6 s) both pass a file
+whose entry is in the wrong place, because it still builds. The deploy step that follows compiles anyway.
 
 Edits are held per file in the page and autosaved rather than saved by a button: on editor blur, and again
 before every run, so a command never runs against a file the learner has changed on screen but not on disk. A
