@@ -1261,11 +1261,14 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                             shownStep.suggestion ? (
                                 suggestionIsBlock ? (
                                     <Stack gap={4} align="flex-start">
-                                        <Text fz="xs" c="dimmed">
-                                            {contextLines > 0
-                                                ? 'The faded line is already in the file'
-                                                : 'Type here, or use:'}
-                                        </Text>
+                                        {/* A block with faded context lines
+                                            explains itself: the step's own
+                                            words say which lines to add. */}
+                                        {contextLines === 0 && (
+                                            <Text fz="xs" c="dimmed">
+                                                Type here, or use:
+                                            </Text>
+                                        )}
                                         <Code
                                             block
                                             fz="xs"

@@ -278,9 +278,10 @@ describe('GuidedTour', () => {
                 line.getAttribute('data-tour-suggestion-line'),
             ),
         ).toEqual(['context', 'input', 'input']);
+        // The faded line speaks for itself: no lead-in above the block.
         expect(
-            screen.getByText('The faded line is already in the file'),
-        ).toBeInTheDocument();
+            screen.queryByText('Type here, or use:'),
+        ).not.toBeInTheDocument();
     });
 
     it('offers Try again, back at the retry step, when the page says the work failed', async () => {
