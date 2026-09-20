@@ -1,5 +1,6 @@
 import {
     checkLearnLessonEntry,
+    findYamlKeyTypos,
     type LearnLessonExpectation,
     lightdashDbtYamlSchema,
 } from '@lightdash/common';
@@ -76,6 +77,10 @@ const isLessonExpectation = (
 const TOUR_TYPE_INTERVAL_MS = 24;
 /** How long the lines the tour added stay highlighted. */
 const TOUR_INSERT_HIGHLIGHT_MS = 4000;
+/** Marker owner for misspelt keys, apart from monaco-yaml's own markers. */
+const KEY_TYPO_MARKERS = 'learn-key-typos';
+/** Long enough that a key is not underlined while it is being typed. */
+const KEY_TYPO_DELAY_MS = 400;
 
 const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     path,
@@ -89,6 +94,13 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
 }) => {
     const wrapperRef = useRef<HTMLDivElement & TourEditable>(null);
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+    const keyTypoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(
+        () => () => {
+            if (keyTypoTimer.current) clearTimeout(keyTypoTimer.current);
+        },
+        [],
+    );
     const { monaco: monacoTheme } = useEditorTheme();
 
     // onMount/appendToEditor are wired up once (Monaco calls onMount a
@@ -252,8 +264,39 @@ const WorkspaceEditor: FC<WorkspaceEditorProps> = ({
     }, []);
 
     const onMount: OnMount = useCallback(
-        (ed) => {
+        (ed, monaco) => {
             editorRef.current = ed;
+            // The dbt schema lists the keys it knows without forbidding
+            // others, so monaco-yaml passes `descripton`. Underline a key
+            // that is a slip away from one the schema knows at that spot.
+            const markKeyTypos = () => {
+                const model = ed.getModel();
+                if (!model) return;
+                monaco.editor.setModelMarkers(
+                    model,
+                    KEY_TYPO_MARKERS,
+                    findYamlKeyTypos(
+                        model.getValue(),
+                        lightdashDbtYamlSchema as Record<string, unknown>,
+                    ).map((typo) => ({
+                        severity: monaco.MarkerSeverity.Warning,
+                        message: `Unknown key "${typo.key}". Did you mean "${typo.suggestion}"?`,
+                        startLineNumber: typo.line,
+                        endLineNumber: typo.line,
+                        startColumn: typo.column,
+                        endColumn: typo.endColumn,
+                    })),
+                );
+            };
+            markKeyTypos();
+            ed.onDidChangeModel(markKeyTypos);
+            ed.onDidChangeModelContent(() => {
+                if (keyTypoTimer.current) clearTimeout(keyTypoTimer.current);
+                keyTypoTimer.current = setTimeout(
+                    markKeyTypos,
+                    KEY_TYPO_DELAY_MS,
+                );
+            });
             if (wrapperRef.current) {
                 wrapperRef.current.tourEditor = {
                     getValue: () => ed.getValue(),

@@ -59,6 +59,8 @@ const stubs = vi.hoisted(() => {
             },
         ),
         onDidBlurEditorText: vi.fn(),
+        onDidChangeModelContent: vi.fn(),
+        onDidChangeModel: vi.fn(),
         updateOptions: vi.fn(),
         focus: vi.fn(),
         revealLineInCenter: vi.fn(),
@@ -69,7 +71,9 @@ const stubs = vi.hoisted(() => {
         editor: {
             defineTheme: vi.fn(),
             setTheme: vi.fn(),
+            setModelMarkers: vi.fn(),
         },
+        MarkerSeverity: { Warning: 4 },
     };
     return {
         model,
@@ -485,5 +489,50 @@ describe('WorkspaceEditor', () => {
                 .querySelector('[data-tour-anchor="workspace-editor"]')
                 ?.getAttribute('data-tour-suggest'),
         ).toBe('# Edited in the Learn workspace');
+    });
+
+    it('underlines a misspelt key as a warning that names the key it is close to', () => {
+        stubs.monaco.editor.setModelMarkers.mockClear();
+        stubs.model.content = [
+            'version: 2',
+            'models:',
+            '  - name: orders',
+            '    descripton: Every order',
+        ].join('\n');
+        renderEditor();
+
+        expect(stubs.monaco.editor.setModelMarkers).toHaveBeenLastCalledWith(
+            stubs.model,
+            'learn-key-typos',
+            [
+                {
+                    severity: 4,
+                    message:
+                        'Unknown key "descripton". Did you mean "description"?',
+                    startLineNumber: 4,
+                    endLineNumber: 4,
+                    startColumn: 5,
+                    endColumn: 15,
+                },
+            ],
+        );
+
+        // Fixed: the next change clears the underline.
+        stubs.model.content = stubs.model.content.replace(
+            'descripton',
+            'description',
+        );
+        vi.useFakeTimers();
+        const [changed] = stubs.editor.onDidChangeModelContent.mock.calls.at(
+            -1,
+        ) as [() => void];
+        changed();
+        vi.runAllTimers();
+        vi.useRealTimers();
+        expect(stubs.monaco.editor.setModelMarkers).toHaveBeenLastCalledWith(
+            stubs.model,
+            'learn-key-typos',
+            [],
+        );
     });
 });
