@@ -1,3 +1,10 @@
+# [2.281.0](https://github.com/lightdash/lightdash/compare/2.280.0...2.281.0) (2026-09-21)
+
+
+### Features
+
+* **merge-queries:** store named queries in saved merge schema v3 ([#29517](https://github.com/lightdash/lightdash/issues/29517)) ([e77d86e](https://github.com/lightdash/lightdash/commit/e77d86e4b7f1497cb1a0759a6d6de2c72e61b5fc))
+
 # [2.280.0](https://github.com/lightdash/lightdash/compare/2.279.1...2.280.0) (2026-09-21)
 
 
