@@ -91,6 +91,7 @@ import {
     getGroupByDimensions,
     getItemId,
     getItemMap,
+    getSlackAiEchartsConfig,
     getValidAiQueryLimit,
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
@@ -442,6 +443,8 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
+import { renderEcharts } from '../ai/utils/renderEcharts';
+import { getSlackArtifactCardVersions } from '../ai/utils/slackArtifactImages';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
@@ -469,6 +472,10 @@ import {
     runPromptInputRequestClassification,
     shouldClassifyPromptInputRequestForUpdate,
 } from './promptInputRequestClassifier';
+import {
+    deliverSlackArtifactImages,
+    type SlackArtifactDeliveryRuntime,
+} from './SlackArtifactImageDelivery';
 import {
     canGeneratePostResponseSuggestions,
     filterSuggestionsByEnabledTools,
@@ -1482,6 +1489,243 @@ export class AiAgentService extends BaseService {
             aiAgentModel: this.aiAgentModel,
             lightdashConfig: this.lightdashConfig,
         });
+    }
+
+    async sweepSlackArtifactImages(): Promise<void> {
+        const promptUuids =
+            await this.aiAgentModel.slackArtifactDeliveries.findPending();
+        await Promise.all(
+            promptUuids.map(async (slackPromptUuid) => {
+                const prompt =
+                    await this.aiAgentModel.findSlackPrompt(slackPromptUuid);
+                if (prompt)
+                    await this.schedulerClient.slackAiArtifactImages({
+                        slackPromptUuid,
+                        organizationUuid: prompt.organizationUuid,
+                        projectUuid: prompt.projectUuid,
+                        userUuid: prompt.createdByUserUuid,
+                    });
+            }),
+        );
+    }
+
+    async deliverSlackArtifactImages(promptUuid: string): Promise<void> {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 55_000);
+        try {
+            await deliverSlackArtifactImages({
+                promptUuid,
+                model: this.aiAgentModel.slackArtifactDeliveries,
+                prepare: () =>
+                    this.prepareSlackArtifactImageDelivery(
+                        promptUuid,
+                        controller.signal,
+                    ),
+                signal: controller.signal,
+            });
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    private async prepareSlackArtifactImageDelivery(
+        promptUuid: string,
+        signal?: AbortSignal,
+    ): Promise<SlackArtifactDeliveryRuntime | null> {
+        const prompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
+        if (
+            !prompt ||
+            !prompt.agentUuid ||
+            !prompt.response ||
+            prompt.errorMessage ||
+            !this.fileStorageClient.isEnabled()
+        )
+            return null;
+        const settings =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                prompt.organizationUuid,
+            );
+        if (!settings || settings.aiLinksOnly || !settings.aiAgentsEnabled)
+            return null;
+        if (await this.aiAgentModel.hasAiPromptInterrupt(promptUuid))
+            return null;
+        let user: SessionUser;
+        let agent: AiAgent;
+        try {
+            user = await this.userModel.findSessionUserAndOrgByUuid(
+                prompt.createdByUserUuid,
+                prompt.organizationUuid,
+            );
+            agent = await this.getAgent(
+                user,
+                prompt.agentUuid,
+                prompt.projectUuid,
+            );
+        } catch (error) {
+            if (
+                error instanceof ForbiddenError ||
+                error instanceof NotFoundError
+            )
+                return null;
+            throw error;
+        }
+        if (!agent.enableDataAccess || !(await this.getDecisionClient(user)))
+            return null;
+        const installation =
+            await this.slackAuthenticationModel.getRawInstallationFromOrganizationUuid(
+                prompt.organizationUuid,
+            );
+        const botUserId = installation?.bot?.userId;
+        const botId = installation?.bot?.id;
+        if (!botUserId) return null;
+        const client = await this.slackClient.getWebClient(
+            prompt.organizationUuid,
+        );
+        const artifacts = new Map<string, AiArtifact>();
+        return {
+            findMessage: async (messageTs, versions) => {
+                const wanted = new Set(versions);
+                let cursor: string | undefined;
+                for (let page = 0; page < 10; page += 1) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const history = await client.conversations.replies({
+                        channel: prompt.slackChannelId,
+                        ts: prompt.slackThreadTs ?? prompt.promptSlackTs,
+                        oldest:
+                            messageTs ??
+                            prompt.response_slack_ts ??
+                            prompt.promptSlackTs,
+                        ...(messageTs ? { latest: messageTs } : {}),
+                        inclusive: true,
+                        limit: 100,
+                        cursor,
+                    });
+                    const message = history.messages?.find(
+                        (candidate) =>
+                            (candidate.user === botUserId ||
+                                (botId !== undefined &&
+                                    candidate.bot_id === botId)) &&
+                            candidate.ts &&
+                            (messageTs
+                                ? candidate.ts === messageTs
+                                : getSlackArtifactCardVersions(
+                                      candidate.blocks ?? [],
+                                  ).some((version) => wanted.has(version))),
+                    );
+                    if (message?.ts)
+                        return {
+                            ts: message.ts,
+                            text: message.text ?? '',
+                            blocks: (message.blocks ?? []).flatMap((block) =>
+                                typeof block.type === 'string'
+                                    ? [{ ...block, type: block.type }]
+                                    : [],
+                            ),
+                        };
+                    cursor =
+                        history.response_metadata?.next_cursor || undefined;
+                    if (!cursor || messageTs) break;
+                }
+                return null;
+            },
+            authorize: async (input) => {
+                const artifact = await this.getArtifact(
+                    user,
+                    prompt.projectUuid,
+                    agent.uuid,
+                    input.artifactUuid,
+                    input.versionUuid,
+                );
+                if (
+                    artifact.promptUuid !== promptUuid ||
+                    artifact.threadUuid !== prompt.threadUuid ||
+                    !artifact.chartConfig ||
+                    !['semantic', 'merge', 'customChartType'].includes(
+                        artifact.chartConfig.source,
+                    )
+                )
+                    throw new ForbiddenError(
+                        'Slack image does not belong to this prompt',
+                    );
+                const queries = input.queryTool.mergeConfig
+                    ? buildAiMergeSourceConfigs(input.queryTool).map(
+                          ({ queryConfig }) => queryConfig,
+                      )
+                    : [input.queryTool.queryConfig];
+                await Promise.all(
+                    [
+                        ...new Set(
+                            queries.map(({ exploreName }) => exploreName),
+                        ),
+                    ].map((exploreName) =>
+                        this.getExplore(
+                            user,
+                            prompt.projectUuid,
+                            agent.tags,
+                            exploreName,
+                        ),
+                    ),
+                );
+                await this.asyncQueryService.getAsyncQueryHistory({
+                    account: fromSession(user),
+                    projectUuid: prompt.projectUuid,
+                    queryUuid: input.queryUuid,
+                });
+                artifacts.set(input.versionUuid, artifact);
+            },
+            render: async (input) => {
+                signal?.throwIfAborted();
+                const artifact = artifacts.get(input.versionUuid);
+                if (!artifact)
+                    throw new ForbiddenError(
+                        'Slack image has not been authorized',
+                    );
+                if (artifact.chartConfig?.source === 'customChartType') {
+                    const { imageUrl } =
+                        await this.unfurlService.exportAiAgentArtifact(user, {
+                            projectUuid: prompt.projectUuid,
+                            agentUuid: agent.uuid,
+                            artifact,
+                            cachedQueryUuid: input.queryUuid,
+                            signal,
+                        });
+                    signal?.throwIfAborted();
+                    return imageUrl;
+                }
+                const queryResults =
+                    await this.asyncQueryService.getRawAsyncQueryResults({
+                        account: fromSession(user),
+                        projectUuid: prompt.projectUuid,
+                        queryUuid: input.queryUuid,
+                        maxRows: input.rowLimit,
+                    });
+                if (queryResults.rows.length !== input.rowLimit) return null;
+                const options = await getSlackAiEchartsConfig({
+                    toolArgs: {
+                        type: AiResultType.QUERY_RESULT,
+                        tool: input.queryTool,
+                    },
+                    queryResults,
+                    getPivotedResults,
+                });
+                if (!options) return null;
+                const image = await renderEcharts(options);
+                return this.uploadSlackAgentCardImage({
+                    organizationUuid: prompt.organizationUuid,
+                    image,
+                });
+            },
+            isImageReachable: AiAgentService.isCardImageUrlReachable,
+            updateMessage: async (message) => {
+                await this.slackClient.updateMessage({
+                    organizationUuid: prompt.organizationUuid,
+                    channelId: prompt.slackChannelId,
+                    messageTs: message.ts,
+                    text: message.text,
+                    blocks: message.blocks,
+                });
+            },
+        };
     }
 
     private async uploadSlackAgentCardImage({
@@ -7756,12 +8000,14 @@ export class AiAgentService extends BaseService {
             artifactUuid,
             versionUuid,
             runtimeOptions,
+            cachedQueryUuid,
         }: {
             projectUuid: string;
             agentUuid: string;
             artifactUuid: string;
             versionUuid: string;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            cachedQueryUuid?: string;
         },
     ): Promise<ApiAiAgentArtifactVizQuery> {
         // Timed from the top: the browser blocks on the whole call.
@@ -7803,6 +8049,80 @@ export class AiAgentService extends BaseService {
             throw new ParameterError(
                 'Chart config not found for this artifact',
             );
+        }
+
+        if (cachedQueryUuid !== undefined) {
+            // Headless Slack delivery is the only cached-view path. A caller
+            // cannot substitute another execution or use this for embed views.
+            if (!artifact.promptUuid)
+                throw new ForbiddenError(
+                    'Cached artifact execution is unavailable',
+                );
+            const delivery =
+                await this.aiAgentModel.slackArtifactDeliveries.get(
+                    artifact.promptUuid,
+                );
+            const input = delivery?.render_inputs[versionUuid];
+            const prompt = await this.aiAgentModel.findSlackPrompt(
+                artifact.promptUuid,
+            );
+            if (
+                runtimeOptions ||
+                !delivery ||
+                delivery.finished_at ||
+                !input ||
+                input.queryUuid !== cachedQueryUuid ||
+                input.artifactUuid !== artifactUuid ||
+                artifact.chartConfig.source !== 'customChartType' ||
+                prompt?.createdByUserUuid !== user.userUuid
+            ) {
+                throw new ForbiddenError(
+                    'Cached artifact execution is unavailable',
+                );
+            }
+            const runtime = await this.prepareSlackArtifactImageDelivery(
+                artifact.promptUuid,
+            );
+            if (!runtime)
+                throw new ForbiddenError('Slack image delivery is unavailable');
+            await runtime.authorize(input);
+            const history = await this.asyncQueryService.getAsyncQueryHistory({
+                account: fromSession(user),
+                projectUuid,
+                queryUuid: cachedQueryUuid,
+            });
+            if (
+                history.status !== QueryHistoryStatus.READY ||
+                !history.resultsFileName ||
+                history.totalRowCount !== input.rowLimit ||
+                (history.resultsExpiresAt &&
+                    history.resultsExpiresAt <= new Date())
+            ) {
+                throw new NotFoundError(
+                    'Original chart results are unavailable',
+                );
+            }
+            return {
+                source: 'semantic',
+                type: AiResultType.QUERY_RESULT,
+                mergeQuery: null,
+                metadata: {
+                    title: artifact.title,
+                    description: artifact.description,
+                },
+                query: {
+                    queryUuid: history.queryUuid,
+                    metricQuery: history.metricQuery,
+                    fields: history.fields,
+                    warnings: [],
+                    cacheMetadata: { cacheHit: true },
+                    parameterReferences: Object.keys(
+                        history.usedParameters ?? {},
+                    ),
+                    usedParametersValues: history.usedParameters ?? {},
+                    resolvedTimezone: history.metricQuery.timezone ?? null,
+                },
+            };
         }
 
         if (isAiMergeChartArtifactConfig(artifact.chartConfig)) {
@@ -9102,10 +9422,23 @@ export class AiAgentService extends BaseService {
                 queryEmbedding,
                 embeddingModelProvider: provider,
                 embeddingModel: modelName,
-                limit,
+                limit: decisions ? 30 : limit,
+                ...(decisions ? { semanticCandidates: true } : {}),
             });
 
-        return { relevantVerifiedAnswers: verifiedArtifacts };
+        return {
+            relevantVerifiedAnswers: decisions
+                ? await selectVerifiedAnswers({
+                      decisions,
+                      question: searchQuery,
+                      candidates: verifiedArtifacts,
+                      legacyThreshold:
+                          this.lightdashConfig.ai.copilot
+                              .verifiedAnswerSimilarityThreshold,
+                      limit,
+                  })
+                : verifiedArtifacts,
+        };
     }
 
     static stripSlackMentions(text: string): string {
@@ -10653,6 +10986,18 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     .then(() => undefined);
             });
 
+        const deferSlackVisualization: AiAgentDependencies['deferSlackVisualization'] =
+            isSlackPrompt(prompt) &&
+            options?.onStepProgress &&
+            runtimeAgentSettings.enableDataAccess &&
+            this.fileStorageClient.isEnabled()
+                ? (input) =>
+                      this.aiAgentModel.slackArtifactDeliveries.register(
+                          prompt.promptUuid,
+                          input,
+                      )
+                : undefined;
+
         // Headless-renders a custom chart type answer as the requesting user,
         // who just persisted the artifact — no access re-resolution needed.
         const exportCustomChartTypeImage: ExportCustomChartTypeImageFn = (
@@ -11255,6 +11600,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 toolsRuntime.getKnowledgeDocumentContent,
             getSavedChart: toolsRuntime.getSavedChart,
             sendFile,
+            deferSlackVisualization,
             exportCustomChartTypeImage,
             sendSlackBlocks,
             updateSlackMessage,
@@ -11935,6 +12281,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             getKnowledgeDocumentContent,
             getSavedChart,
             sendFile,
+            deferSlackVisualization,
             exportCustomChartTypeImage,
             sendSlackBlocks,
             updateSlackMessage,
@@ -12312,6 +12659,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             getSavedChart,
             getPrompt,
             sendFile,
+            deferSlackVisualization,
             exportCustomChartTypeImage,
             sendSlackBlocks,
             updateSlackMessage,
@@ -13028,6 +13376,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     dataAppVizUuid,
                     dataAppVizVersion,
                 ),
+            !!(await this.getDecisionClient(user)),
         );
         const sqlArtifactBlocks = await getSqlArtifactCardBlocks(
             slackPrompt.promptUuid,
@@ -14004,6 +14353,26 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 response,
             });
 
+            // The answer is already delivered. Only enqueue image work here;
+            // the durable outbox sweep repairs a crash or temporary queue outage.
+            try {
+                const delivery =
+                    await this.aiAgentModel.slackArtifactDeliveries.get(
+                        slackPrompt.promptUuid,
+                    );
+                if (delivery && !delivery.finished_at)
+                    await this.schedulerClient.slackAiArtifactImages({
+                        slackPromptUuid: slackPrompt.promptUuid,
+                        organizationUuid: slackPrompt.organizationUuid,
+                        projectUuid: slackPrompt.projectUuid,
+                        userUuid: slackPrompt.createdByUserUuid,
+                    });
+            } catch {
+                Logger.warn(
+                    '[AiAgent] Slack image enqueue deferred to outbox recovery.',
+                );
+            }
+
             await this.postSlackMultiAgentTipIfNeeded(
                 slackPrompt,
                 threadMessages,
@@ -14171,6 +14540,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         agent !== undefined &&
                         this.getIsVerifiedArtifactsEnabled(),
                     currentPromptUuid: promptUuid,
+                    userUuid: user.userUuid,
                 });
 
             await this.replyToSlackPromptWithStatus({
@@ -14182,7 +14552,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 canManageAgent,
             });
         } catch (e) {
-            const userFacingMessage = getUserFacingErrorMessage(
+            const userFacingMessage = await this.getPromptErrorMessage(
+                {
+                    userUuid: slackPrompt.createdByUserUuid,
+                    organizationUuid: slackPrompt.organizationUuid,
+                },
                 e,
                 AiAgentService.agentFailedMessage(agent?.name),
             );

@@ -22,10 +22,13 @@ import {
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
 import { partition } from 'lodash';
-import { z } from 'zod';
 import type { SlackStreamChunk } from '../../../../clients/Slack/SlackClient';
 import { stripMemoryCitations } from './memoryCitation';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
+import {
+    deduplicateSlackArtifacts,
+    getLegacySlackArtifactImage,
+} from './slackArtifactIdentity';
 
 const SLACK_SECTION_TEXT_LIMIT = 3000;
 
@@ -163,6 +166,7 @@ export const splitMarkdownIntoMessages = (
 };
 
 const TOOL_TASK_TITLES: Record<string, string> = {
+    loadAgentTools: 'Preparing the next step',
     agent_reasoning: 'Working through the answer',
     loadProjectContext: 'Reading project context',
     findExplores: 'Finding data model',
@@ -550,6 +554,7 @@ export async function getModernArtifactCardBlocks(
         dataAppVizUuid: string,
         dataAppVizVersion?: number,
     ) => Promise<DataAppVizField[] | null>,
+    enableFastDecisions = false,
 ): Promise<(Block | KnownBlock)[]> {
     if (!artifacts || artifacts.length === 0) {
         return [];
@@ -560,15 +565,28 @@ export async function getModernArtifactCardBlocks(
         savedSqlUuid: artifact.savedSqlUuid ?? null,
     }));
 
-    const chartImageUrls = (toolResults ?? [])
-        .filter(
-            (result) =>
-                result.toolType === 'built-in' &&
-                ['runQuery', 'generateVisualization'].includes(
-                    result.toolName,
-                ) &&
-                result.metadata?.status === 'success',
+    const chartResults = (toolResults ?? []).filter(
+        (result) =>
+            result.toolType === 'built-in' &&
+            ['runQuery', 'generateVisualization'].includes(result.toolName) &&
+            result.metadata?.status === 'success',
+    );
+    const attributedImages = new Map<string, string>();
+    for (const result of chartResults) {
+        const metadata = result.metadata as {
+            chartImageUrl?: string;
+            artifactVersionUuid?: string;
+        };
+        if (
+            typeof metadata.chartImageUrl === 'string' &&
+            typeof metadata.artifactVersionUuid === 'string'
         )
+            attributedImages.set(
+                metadata.artifactVersionUuid,
+                metadata.chartImageUrl,
+            );
+    }
+    const chartImageUrls = chartResults
         .map(
             (result) =>
                 (result.metadata as { chartImageUrl?: string | null })
@@ -586,85 +604,14 @@ export async function getModernArtifactCardBlocks(
             )
         ).filter((url): url is string => url !== null),
     );
-    // The viz type lives in chartConfig.chartConfig.defaultVizType (line, bar,
-    // ...); parseVizConfig flattens the unified generateVisualization shape to
-    // "query_result" and can't tell a line from a bar, so read it directly and
-    // fall back to parseVizConfig's type for legacy per-tool shapes.
-    const vizTypeSchema = z.object({
-        chartConfig: z
-            .object({ defaultVizType: z.string() })
-            .nullable()
-            .optional(),
-    });
-    const getChartVizType = (artifact: AiArtifact): string => {
-        if (!artifact.chartConfig) {
-            return 'chart';
-        }
-        if (
-            isAiSqlChartArtifactConfig(artifact.chartConfig) ||
-            isAiComposerChartArtifactConfig(artifact.chartConfig)
-        ) {
-            return 'table';
-        }
-        const parsed = vizTypeSchema.safeParse(artifact.chartConfig.config);
-        if (parsed.success && parsed.data.chartConfig?.defaultVizType) {
-            return parsed.data.chartConfig.defaultVizType;
-        }
-        return (
-            parseVizConfig(artifact.chartConfig.config, maxQueryLimit)?.type ??
-            'chart'
-        );
-    };
-
-    // Identity of a chart within a turn: viz type + title. A retry keeps both
-    // (even when it tweaks the query, e.g. day -> month), so retries collapse;
-    // a line and a bar of the same data differ in viz type, and different
-    // charts differ in title, so both stay separate. Untitled charts fall back
-    // to their query so they don't all collapse together.
-    const getArtifactIdentity = (artifact: AiArtifact): string => {
-        const title = artifact.title?.trim();
-        if (artifact.chartConfig) {
-            const vizType = getChartVizType(artifact);
-            if (title) return `chart:${vizType}:${title}`;
-            if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
-                return `chart:${vizType}:${artifact.chartConfig.sql}`;
-            }
-            if (isAiComposerChartArtifactConfig(artifact.chartConfig)) {
-                return `chart:${vizType}:${artifact.chartConfig.lastQueryUuid}`;
-            }
-            const viz = parseVizConfig(
-                artifact.chartConfig.config,
-                maxQueryLimit,
-            );
-            const query = viz
-                ? JSON.stringify(
-                      { type: viz.type, metricQuery: viz.metricQuery },
-                      (key, value) => (key === 'id' ? undefined : value),
-                  )
-                : artifact.versionUuid;
-            return `chart:${vizType}:${query}`;
-        }
-        if (artifact.dashboardConfig) {
-            return title
-                ? `dashboard:${title}`
-                : `dashboard:${JSON.stringify(artifact.dashboardConfig)}`;
-        }
-        return `version:${artifact.versionUuid}`;
-    };
-
-    // Keep the latest version per identity, preserving first-appearance order
-    // (Slack allows up to 10 cards).
-    const latestByIdentity = new Map<string, AiArtifact>();
-    normalizedArtifacts.forEach((artifact) => {
-        const identity = getArtifactIdentity(artifact);
-        const existing = latestByIdentity.get(identity);
-        if (!existing || artifact.versionNumber > existing.versionNumber) {
-            latestByIdentity.set(identity, artifact);
-        }
-    });
-    const dedupedArtifacts = Array.from(latestByIdentity.values()).slice(0, 10);
-
-    const chartArtifacts = dedupedArtifacts.filter(
+    const dedupedArtifacts = deduplicateSlackArtifacts(
+        normalizedArtifacts,
+        enableFastDecisions ? undefined : maxQueryLimit,
+    ).slice(0, 10);
+    // Map legacy image positions before deduplication or the ten-card cap.
+    const originalCharts = (
+        enableFastDecisions ? normalizedArtifacts : dedupedArtifacts
+    ).filter(
         (artifact) =>
             Boolean(artifact.chartConfig) &&
             !isAiSqlChartArtifactConfig(artifact.chartConfig) &&
@@ -819,19 +766,27 @@ export async function getModernArtifactCardBlocks(
                     vizConfig.metricQuery.metrics.length +
                     additionalMetricsWithSql.length;
                 const dimensionCount = vizConfig.metricQuery.dimensions.length;
-                // A single chart with several images is a retried render — show
-                // the latest. Multiple charts (one card per version) match their
-                // image positionally by version.
-                const chartImageUrl =
-                    chartArtifacts.length === 1
-                        ? chartImageUrls[chartImageUrls.length - 1]
-                        : chartImageUrls[
-                              chartArtifacts.findIndex(
-                                  (chartArtifact) =>
-                                      chartArtifact.versionUuid ===
-                                      artifact.versionUuid,
-                              )
-                          ];
+                let chartImageUrl: string | undefined;
+                if (!enableFastDecisions) {
+                    chartImageUrl =
+                        originalCharts.length === 1
+                            ? chartImageUrls.at(-1)
+                            : chartImageUrls[
+                                  originalCharts.findIndex(
+                                      (chart) =>
+                                          chart.versionUuid ===
+                                          artifact.versionUuid,
+                                  )
+                              ];
+                } else if (attributedImages.size > 0) {
+                    chartImageUrl = attributedImages.get(artifact.versionUuid);
+                } else {
+                    chartImageUrl = getLegacySlackArtifactImage(
+                        artifact,
+                        originalCharts,
+                        chartImageUrls,
+                    );
+                }
 
                 return buildSlackCardBlock({
                     blockId: `ai_agent_chart_card_${artifact.versionUuid}`,

@@ -257,6 +257,11 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         return [
             ...super.getCronItems(),
             {
+                task: EE_SCHEDULER_TASKS.SWEEP_SLACK_AI_ARTIFACT_IMAGES,
+                pattern: '* * * * *',
+                options: { backfillPeriod: 5 * 60 * 1000, maxAttempts: 1 },
+            },
+            {
                 task: EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES,
                 pattern: '*/5 * * * *',
                 options: {
@@ -407,6 +412,21 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 await this.aiAgentService.replyToSlackPrompt(
                     payload.slackPromptUuid,
                 );
+            },
+            [EE_SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    this.aiAgentService.deliverSlackArtifactImages(
+                        payload.slackPromptUuid,
+                    ),
+                    helpers.job,
+                    60_000,
+                );
+            },
+            [EE_SCHEDULER_TASKS.SWEEP_SLACK_AI_ARTIFACT_IMAGES]: async () => {
+                await this.aiAgentService.sweepSlackArtifactImages();
             },
             [EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: async () => {
                 Logger.info('Starting MCP tool call cleanup job');

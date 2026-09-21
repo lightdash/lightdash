@@ -1,0 +1,174 @@
+import { type SessionUser } from '@lightdash/common';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { generateEmbedding } from '../ai/agents/embeddingGenerator';
+import { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
+import { AiAgentService } from './AiAgentService';
+
+vi.mock('../ai/agents/embeddingGenerator', () => ({
+    generateEmbedding: vi.fn(),
+}));
+
+const candidate = (artifactVersionUuid: string, similarity: number) => ({
+    artifactVersionUuid,
+    similarity,
+    chartConfig: {
+        queryConfig: {
+            metrics: ['orders_count'],
+            dimensions: ['orders_status'],
+        },
+    },
+    artifactType: 'chart' as const,
+    verifiedQuestion: 'Count orders by status',
+    title: 'Orders',
+    description: null,
+});
+const baseline = candidate('baseline', 0.99);
+const expanded = candidate('expanded', 0.1);
+const user = { userUuid: 'user', organizationUuid: 'org' } as SessionUser;
+
+const setup = () => {
+    vi.mocked(generateEmbedding).mockResolvedValue({
+        embedding: [1, 0],
+        provider: 'provider',
+        modelName: 'embedding-model',
+    });
+    const aiAgentModel = {
+        searchArtifactsBySimilarity: vi
+            .fn()
+            .mockResolvedValue([baseline, expanded]),
+        findArtifactReferencesByPromptUuid: vi.fn().mockResolvedValue([]),
+        recordArtifactReferences: vi.fn().mockResolvedValue(undefined),
+        getArtifactVersionsByUuids: vi.fn().mockResolvedValue([baseline]),
+    };
+    const request = vi.fn<typeof fetch>().mockImplementation(async () =>
+        Response.json({
+            model: 'test',
+            answers: {
+                relevant_0: { type: 'noul', noul: 0.01 },
+                same_0: { type: 'noul', noul: 0.01 },
+                relevant_1: { type: 'noul', noul: 0.99 },
+                same_1: { type: 'noul', noul: 0.99 },
+            },
+        }),
+    );
+    const service = new AiAgentService({
+        lightdashConfig: lightdashConfigMock,
+        aiAgentModel,
+        analytics: { track: vi.fn() },
+    } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
+    const authorize = vi
+        .spyOn(service, 'getAgent')
+        .mockResolvedValue({} as never);
+    const getDecisions = vi
+        .spyOn(service, 'getDecisionClient')
+        .mockResolvedValue(
+            new AiDecisionClient(
+                { apiKey: 'test', model: 'test', timeoutMs: 900 },
+                request,
+            ),
+        );
+    const args = {
+        projectUuid: 'project',
+        agentUuid: 'agent',
+        searchQuery: 'Count orders by status',
+    };
+    return { service, aiAgentModel, request, authorize, getDecisions, args };
+};
+
+describe('verified answer retrieval', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('authorizes agent access before ranking a larger scoped candidate pool', async () => {
+        const { service, aiAgentModel, args, getDecisions, authorize } =
+            setup();
+        expect(
+            await service.getRelevantVerifiedAnswerContextForAgent(user, args),
+        ).toEqual({ relevantVerifiedAnswers: [expanded] });
+        expect(authorize).toHaveBeenCalledWith(user, 'agent', 'project');
+        expect(getDecisions).toHaveBeenCalledWith({
+            userUuid: 'user',
+            organizationUuid: 'org',
+        });
+        expect(aiAgentModel.searchArtifactsBySimilarity).toHaveBeenCalledWith({
+            organizationUuid: 'org',
+            projectUuid: 'project',
+            agentUuid: 'agent',
+            queryEmbedding: [1, 0],
+            embeddingModelProvider: 'provider',
+            embeddingModel: 'embedding-model',
+            limit: 30,
+            semanticCandidates: true,
+        });
+    });
+
+    it('does not retrieve or classify when agent access fails', async () => {
+        const { service, aiAgentModel, args, authorize, request } = setup();
+        authorize.mockRejectedValue(new Error('denied'));
+        await expect(
+            service.getRelevantVerifiedAnswerContextForAgent(user, args),
+        ).rejects.toThrow('denied');
+        expect(aiAgentModel.searchArtifactsBySimilarity).not.toHaveBeenCalled();
+        expect(request).not.toHaveBeenCalled();
+    });
+
+    it('uses the existing shortlist when the flag is off', async () => {
+        const { service, aiAgentModel, args, getDecisions, request } = setup();
+        getDecisions.mockResolvedValue(undefined);
+        aiAgentModel.searchArtifactsBySimilarity.mockResolvedValue([baseline]);
+        expect(
+            await service.getRelevantVerifiedAnswerContextForAgent(user, args),
+        ).toEqual({ relevantVerifiedAnswers: [baseline] });
+        expect(aiAgentModel.searchArtifactsBySimilarity).toHaveBeenCalledWith(
+            expect.objectContaining({ limit: 3 }),
+        );
+        expect(
+            aiAgentModel.searchArtifactsBySimilarity.mock.calls[0][0],
+        ).not.toHaveProperty('semanticCandidates');
+        expect(request).not.toHaveBeenCalled();
+    });
+
+    it('restores the baseline after decision provider failure', async () => {
+        const { service, args, request } = setup();
+        request.mockRejectedValue(new Error('offline'));
+        expect(
+            await service.getRelevantVerifiedAnswerContextForAgent(user, args),
+        ).toEqual({ relevantVerifiedAnswers: [baseline] });
+    });
+
+    it('records only selected references and reuses persisted references without another decision', async () => {
+        const { service, aiAgentModel, args, request } = setup();
+        const retrieval = {
+            ...args,
+            organizationUuid: 'org',
+            userUuid: 'user',
+            promptUuid: 'prompt',
+        };
+        expect(await service.retrieveRelevantArtifacts(retrieval)).toEqual([
+            expanded,
+        ]);
+        expect(aiAgentModel.recordArtifactReferences).toHaveBeenCalledWith({
+            promptUuid: 'prompt',
+            projectUuid: 'project',
+            artifactReferences: [
+                { artifactVersionUuid: 'expanded', similarityScore: 0.1 },
+            ],
+        });
+        aiAgentModel.findArtifactReferencesByPromptUuid.mockResolvedValue([
+            'baseline',
+        ]);
+        expect(await service.retrieveRelevantArtifacts(retrieval)).toEqual([
+            baseline,
+        ]);
+        expect(request).toHaveBeenCalledOnce();
+    });
+
+    it('does not search without an embedding', async () => {
+        const { service, aiAgentModel, args, request } = setup();
+        vi.mocked(generateEmbedding).mockResolvedValue(null);
+        expect(
+            await service.getRelevantVerifiedAnswerContextForAgent(user, args),
+        ).toEqual({ relevantVerifiedAnswers: [] });
+        expect(aiAgentModel.searchArtifactsBySimilarity).not.toHaveBeenCalled();
+        expect(request).not.toHaveBeenCalled();
+    });
+});

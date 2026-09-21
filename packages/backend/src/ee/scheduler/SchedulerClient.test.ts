@@ -21,6 +21,33 @@ describe('aiAgentReviewRunAt', () => {
     });
 });
 
+describe('Slack artifact image jobs', () => {
+    it('deduplicates by prompt and serializes retries on the same queue', async () => {
+        const addJob = vi.fn().mockResolvedValue({ id: 'job' });
+        const client = Object.create(
+            CommercialSchedulerClient.prototype,
+        ) as CommercialSchedulerClient;
+        client.graphileUtils = Promise.resolve({ addJob } as AnyType);
+        const payload = {
+            slackPromptUuid: 'prompt',
+            organizationUuid: 'org',
+            projectUuid: 'project',
+            userUuid: 'user',
+        };
+        await client.slackAiArtifactImages(payload);
+        expect(addJob).toHaveBeenCalledExactlyOnceWith(
+            EE_SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES,
+            payload,
+            expect.objectContaining({
+                jobKey: 'slack-ai-artifact-images:prompt',
+                queueName: 'slack-ai-artifact-images:prompt',
+                jobKeyMode: 'preserve_run_at',
+                maxAttempts: 6,
+            }),
+        );
+    });
+});
+
 describe('aiAgentMemoryDistillEventRunAt', () => {
     it('defers event-driven distills so a burst of thread activity coalesces', () => {
         const now = new Date('2026-06-04T11:33:48.000Z');
