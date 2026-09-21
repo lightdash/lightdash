@@ -1,3 +1,10 @@
+## [2.274.5](https://github.com/lightdash/lightdash/compare/2.274.4...2.274.5) (2026-09-21)
+
+
+### Bug Fixes
+
+* copy dashboard-owned charts when creating dashboards as code ([#29639](https://github.com/lightdash/lightdash/issues/29639)) ([40539b7](https://github.com/lightdash/lightdash/commit/40539b7cb886ea467aafe76bcba28eccb6962556))
+
 ## [2.274.4](https://github.com/lightdash/lightdash/compare/2.274.3...2.274.4) (2026-09-21)
 
 
