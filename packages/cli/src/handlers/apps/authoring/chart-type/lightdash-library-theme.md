@@ -33,15 +33,15 @@ the host palette.
 Set everything in Inter (`var(--ll-font)`). Measurements use tabular
 numerals. The scale is small and consistent:
 
-| Element | Size | Weight | Color |
-|---|---|---|---|
-| Axis labels | 11.5px | 500 | `var(--ll-text)` |
-| Axis titles | 12px | 500 | `var(--ll-text-muted)` |
-| Legend | 12px | 500 | `var(--ll-text)` |
-| Tooltip body / value pill | 12px | 400 / 600 | `var(--ll-text)` |
-| Tooltip header | 13px | 500 | `var(--ll-text)` |
-| Value labels on marks | 11px | 500 | series color or `var(--ll-ink)` |
-| Headline values (big-number-like) | container-scaled 22–128px | 600, letter-spacing −0.02em | `var(--ll-ink)` |
+| Element                           | Size                      | Weight                      | Color                           |
+| --------------------------------- | ------------------------- | --------------------------- | ------------------------------- |
+| Axis labels                       | 11.5px                    | 500                         | `var(--ll-text)`                |
+| Axis titles                       | 12px                      | 500                         | `var(--ll-text-muted)`          |
+| Legend                            | 12px                      | 500                         | `var(--ll-text)`                |
+| Tooltip body / value pill         | 12px                      | 400 / 600                   | `var(--ll-text)`                |
+| Tooltip header                    | 13px                      | 500                         | `var(--ll-text)`                |
+| Value labels on marks             | 11px                      | 500                         | series color or `var(--ll-ink)` |
+| Headline values (big-number-like) | container-scaled 22–128px | 600, letter-spacing −0.02em | `var(--ll-ink)`                 |
 
 Axes and grids are quiet:
 
