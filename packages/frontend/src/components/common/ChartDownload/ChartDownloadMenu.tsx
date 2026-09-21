@@ -32,6 +32,7 @@ export type ChartDownloadMenuProps = {
     getDownloadQueryUuid: (
         limit: number | null,
         exportPivotedResults?: boolean,
+        limitType?: Limit,
     ) => Promise<string>;
     projectUuid: string;
     chartName?: string;
@@ -130,10 +131,14 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
         const getChartDownloadQueryUuid = useCallback(
             (
                 limit: number | null,
-                _limitType: Limit,
+                limitType: Limit,
                 exportPivotedData: boolean = true,
             ) => {
-                return getDownloadQueryUuid(limit, exportPivotedData);
+                return getDownloadQueryUuid(
+                    limit,
+                    exportPivotedData,
+                    limitType,
+                );
             },
             [getDownloadQueryUuid],
         );

@@ -55,7 +55,7 @@ import {
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
 import ExecutionContext from 'node-execution-context';
-import { Readable } from 'stream';
+import { Readable, Writable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { fromJwt } from '../../auth/account/account';
 import { defaultJwtToken } from '../../auth/account/account.mock';
@@ -4040,6 +4040,182 @@ describe('AsyncQueryService', () => {
             expect(pivotSpy).not.toHaveBeenCalled();
             expect(flatSpy).toHaveBeenCalledTimes(1);
         });
+
+        it.each([DownloadFileType.CSV, DownloadFileType.XLSX])(
+            'exports stored pivot periods and repeated aggregations through flat %s',
+            async (type) => {
+                const workbook = new (await import('exceljs')).Workbook();
+                let csv = '';
+                const exportStorage = {
+                    isEnabled: () => true,
+                    createUploadStream: () => ({
+                        writeStream: new Writable({
+                            write(chunk, _encoding, callback) {
+                                csv += chunk.toString();
+                                callback();
+                            },
+                        }),
+                        close: async () => undefined,
+                    }),
+                    getFileUrl: async () => 'export-url',
+                    uploadExcel: async (stream: Readable) => {
+                        await workbook.xlsx.read(stream);
+                        return 'export-url';
+                    },
+                } as unknown as FileStorageClient;
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        exportsStorageClient: exportStorage,
+                        fileStorageClient: exportStorage,
+                        persistentDownloadFileService: {
+                            createPersistentUrl: async () => 'download-url',
+                        } as unknown as PersistentDownloadFileService,
+                    },
+                );
+                const labels = {
+                    user_id: 'User ID',
+                    order_date: 'Order date',
+                    amount: 'Amount',
+                };
+                const fields: ItemsMap = Object.fromEntries(
+                    ['user_id', 'order_date', 'amount'].map((name) => [
+                        name,
+                        {
+                            name,
+                            table: '',
+                            tableLabel: '',
+                            label: labels[name as keyof typeof labels],
+                            fieldType: FieldType.DIMENSION,
+                            type:
+                                name === 'amount'
+                                    ? DimensionType.NUMBER
+                                    : DimensionType.STRING,
+                            sql: '',
+                            hidden: false,
+                        },
+                    ]),
+                );
+                service.queryHistoryModel.get = vi.fn().mockResolvedValue(
+                    baseReadyQueryHistory({
+                        fields,
+                        pivotConfiguration: {
+                            sortBy: [],
+                            indexColumn: {
+                                reference: 'user_id',
+                                type: VizIndexType.CATEGORY,
+                            },
+                            valuesColumns: [
+                                {
+                                    reference: 'amount',
+                                    aggregation: VizAggregationOptions.SUM,
+                                },
+                                {
+                                    reference: 'amount',
+                                    aggregation: VizAggregationOptions.AVERAGE,
+                                },
+                            ],
+                            groupByColumns: [{ reference: 'order_date' }],
+                        },
+                        pivotValuesColumns: {
+                            amount_sum_jan: {
+                                referenceField: 'amount',
+                                pivotColumnName: 'amount_sum_jan',
+                                aggregation: VizAggregationOptions.SUM,
+                                pivotValues: [
+                                    {
+                                        referenceField: 'order_date',
+                                        value: 'January',
+                                    },
+                                ],
+                                columnIndex: 1,
+                            },
+                            amount_avg_jan: {
+                                referenceField: 'amount',
+                                pivotColumnName: 'amount_avg_jan',
+                                aggregation: VizAggregationOptions.AVERAGE,
+                                pivotValues: [
+                                    {
+                                        referenceField: 'order_date',
+                                        value: 'January',
+                                    },
+                                ],
+                                columnIndex: 1,
+                            },
+                            amount_sum_feb: {
+                                referenceField: 'amount',
+                                pivotColumnName: 'amount_sum_feb',
+                                aggregation: VizAggregationOptions.SUM,
+                                pivotValues: [
+                                    {
+                                        referenceField: 'order_date',
+                                        value: 'February',
+                                    },
+                                ],
+                                columnIndex: 2,
+                            },
+                            amount_avg_feb: {
+                                referenceField: 'amount',
+                                pivotColumnName: 'amount_avg_feb',
+                                aggregation: VizAggregationOptions.AVERAGE,
+                                pivotValues: [
+                                    {
+                                        referenceField: 'order_date',
+                                        value: 'February',
+                                    },
+                                ],
+                                columnIndex: 2,
+                            },
+                        },
+                    }),
+                );
+                vi.mocked(
+                    service.resultsStorageClient.getDownloadStream,
+                ).mockResolvedValue(
+                    Readable.from([
+                        '{"user_id":"A","amount_sum_jan":10,"amount_avg_jan":5,"amount_sum_feb":20,"amount_avg_feb":8}',
+                    ]),
+                );
+
+                await expect(
+                    service.download({
+                        account: sessionAccount,
+                        accessMode:
+                            PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                        projectUuid,
+                        queryUuid: 'test-query-uuid',
+                        type,
+                        columnOrder: ['user_id', 'order_date', 'amount'],
+                        exportPivotedData: false,
+                        onlyRaw: true,
+                    }),
+                ).resolves.toMatchObject({
+                    fileUrl: 'download-url',
+                    truncated: false,
+                });
+
+                if (type === DownloadFileType.CSV) {
+                    expect(csv).toBe(
+                        '\uFEFFUser ID,Order date,Amount (SUM),Amount (AVG)\n"A","January","10","5"\n"A","February","20","8"\n',
+                    );
+                } else {
+                    expect(
+                        workbook.getWorksheet('Sheet1')!.getSheetValues(),
+                    ).toEqual([
+                        undefined,
+                        [
+                            undefined,
+                            'User ID',
+                            'Order date',
+                            'Amount (SUM)',
+                            'Amount (AVG)',
+                        ],
+                        [undefined, 'A', 'January', 10, 5],
+                        [undefined, 'A', 'February', 20, 8],
+                    ]);
+                }
+            },
+        );
     });
 
     describe('analytics cached-result boundaries', () => {

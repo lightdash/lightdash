@@ -35,6 +35,7 @@ import {
     type ConditionalFormattingRowFields,
     type PivotResultsDataCell,
     type PivotRowTotalsByIndex,
+    type PivotValuesColumn,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import * as Excel from 'exceljs';
@@ -53,6 +54,10 @@ import {
     processFieldsForExport,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import {
+    prepareFlatPivotExport,
+    unpivotResultsStream,
+} from '../../utils/flatPivotExport';
 
 export class ExcelService {
     private static readonly EXCEL_ROW_LIMIT = 1_000_000;
@@ -1008,6 +1013,7 @@ export class ExcelService {
             conditionalFormattings?: ConditionalFormattingConfig[];
             // Warehouse-computed totals appended as a final row, keyed by field id
             columnTotals?: Record<string, number>;
+            pivotValuesColumns?: PivotValuesColumn[];
         } = {},
         timezone?: string,
     ): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
@@ -1021,17 +1027,48 @@ export class ExcelService {
             attachmentDownloadName,
             conditionalFormattings,
             columnTotals,
+            pivotValuesColumns,
         } = options;
 
         const { resultsStorageClient, exportsStorageClient } = clients;
 
-        // Process fields and generate headers using shared utility
-        const { sortedFieldIds, headers } = processFieldsForExport(fields, {
-            showTableNames,
-            customLabels,
-            columnOrder,
-            hiddenFields,
-        });
+        const exportConfig = pivotValuesColumns
+            ? prepareFlatPivotExport({
+                  fields,
+                  pivotValuesColumns,
+                  columnOrder,
+                  hiddenFields,
+                  customLabels,
+                  conditionalFormattings,
+                  columnTotals,
+              })
+            : {
+                  fields,
+                  pivotValuesColumns: undefined,
+                  columnOrder,
+                  hiddenFields,
+                  customLabels,
+                  conditionalFormattings,
+                  columnTotals,
+              };
+
+        const { sortedFieldIds, headers } = processFieldsForExport(
+            exportConfig.fields,
+            {
+                showTableNames,
+                customLabels: exportConfig.customLabels,
+                columnOrder: exportConfig.columnOrder,
+                hiddenFields: exportConfig.hiddenFields,
+            },
+        );
+
+        const getResultsStream = async () => {
+            const stream =
+                await resultsStorageClient.getDownloadStream(resultsFileName);
+            return exportConfig.pivotValuesColumns
+                ? unpivotResultsStream(stream, exportConfig.pivotValuesColumns)
+                : stream;
+        };
 
         // Create temporary file
         const tempFilePath = ExcelService.createTempFilePath('direct');
@@ -1041,34 +1078,31 @@ export class ExcelService {
             // scan the results once with a dedicated stream (it is consumed).
             let minMaxMap: ConditionalFormattingMinMaxMap = {};
             if (conditionalFormattings?.length) {
-                const scanStream =
-                    await resultsStorageClient.getDownloadStream(
-                        resultsFileName,
-                    );
+                const scanStream = await getResultsStream();
                 minMaxMap =
                     await ExcelService.buildConditionalFormattingMinMaxMap({
                         resultsStream: scanStream,
-                        fields,
-                        conditionalFormattings,
+                        fields: exportConfig.fields,
+                        conditionalFormattings:
+                            exportConfig.conditionalFormattings ?? [],
                     });
             }
 
             // Step 2: Get source stream
-            const resultsStream =
-                await resultsStorageClient.getDownloadStream(resultsFileName);
+            const resultsStream = await getResultsStream();
 
             // Step 3: Stream JSONL data to Excel temp file
             const { truncated } = await ExcelService.streamJsonlToExcelFile(
                 resultsStream,
                 tempFilePath,
                 headers,
-                fields,
+                exportConfig.fields,
                 onlyRaw,
                 sortedFieldIds,
                 timezone,
-                conditionalFormattings,
+                exportConfig.conditionalFormattings,
                 minMaxMap,
-                columnTotals,
+                exportConfig.columnTotals,
             );
 
             // Generate filename with truncated flag

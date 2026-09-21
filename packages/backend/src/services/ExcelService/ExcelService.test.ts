@@ -2299,3 +2299,167 @@ describe('ExcelService column totals row in xlsx export (PROD-9169)', () => {
         expect(worksheet!.rowCount).toBe(2);
     });
 });
+
+describe('flat export of stored pivot results', () => {
+    const fields: ItemsMap = {
+        category: {
+            ...mockItemMapWithFormats.string_column,
+            name: 'category',
+            table: '',
+            label: 'Category',
+        },
+        period: {
+            ...mockItemMapWithFormats.string_column,
+            name: 'period',
+            table: '',
+            label: 'Period',
+        },
+        revenue: {
+            ...mockItemMapWithFormats.number_without_format,
+            name: 'revenue',
+            table: '',
+            label: 'Revenue',
+        },
+    };
+
+    const readWorkbook = async (
+        rows: Record<string, unknown>[],
+        pivotValuesColumns: Array<{
+            referenceField: string;
+            pivotColumnName: string;
+            aggregation: VizAggregationOptions;
+            pivotValues: Array<{
+                referenceField: string;
+                value: unknown;
+            }>;
+            columnIndex: number;
+        }>,
+        columnTotals?: Record<string, number>,
+    ) => {
+        const workbook = new (await import('exceljs')).Workbook();
+        await ExcelService.downloadAsyncExcelDirectly(
+            'pivot-results',
+            fields,
+            {
+                resultsStorageClient: {
+                    getDownloadStream: async () =>
+                        Readable.from([
+                            rows.map((row) => JSON.stringify(row)).join('\n'),
+                        ]),
+                } as unknown as import('../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient').S3ResultsFileStorageClient,
+                exportsStorageClient: {
+                    uploadExcel: async (stream: Readable) => {
+                        await workbook.xlsx.read(stream);
+                        return 'export-url';
+                    },
+                } as unknown as import('../../clients/FileStorage/FileStorageClient').FileStorageClient,
+            },
+            {
+                columnOrder: ['category', 'period', 'revenue'],
+                pivotValuesColumns,
+                columnTotals,
+            },
+        );
+        return workbook.getWorksheet('Sheet1')!.getSheetValues();
+    };
+
+    it('expands sparse periods while preserving nulls and zeroes', async () => {
+        const sheetValues = await readWorkbook(
+            [
+                { category: 'A', revenue_sum_jan: 10, revenue_sum_feb: 20 },
+                { category: 'B', revenue_sum_feb: 0 },
+                { category: 'C', revenue_sum_jan: null },
+            ],
+            [
+                {
+                    referenceField: 'revenue',
+                    pivotColumnName: 'revenue_sum_jan',
+                    aggregation: VizAggregationOptions.SUM,
+                    pivotValues: [
+                        { referenceField: 'period', value: 'January' },
+                    ],
+                    columnIndex: 1,
+                },
+                {
+                    referenceField: 'revenue',
+                    pivotColumnName: 'revenue_sum_feb',
+                    aggregation: VizAggregationOptions.SUM,
+                    pivotValues: [
+                        { referenceField: 'period', value: 'February' },
+                    ],
+                    columnIndex: 2,
+                },
+            ],
+            { revenue: 30 },
+        );
+
+        expect(sheetValues).toEqual([
+            undefined,
+            [undefined, 'Category', 'Period', 'Revenue'],
+            [undefined, 'A', 'January', 10],
+            [undefined, 'A', 'February', 20],
+            [undefined, 'B', 'February', 0],
+            [undefined, 'C', 'January'],
+            [undefined, 'Total', undefined, 30],
+        ]);
+    });
+
+    it('keeps multiple aggregations of one SQL field distinct', async () => {
+        const sheetValues = await readWorkbook(
+            [
+                {
+                    category: 'A',
+                    revenue_sum_jan: 10,
+                    revenue_avg_jan: 5,
+                    revenue_sum_feb: 20,
+                    revenue_avg_feb: 8,
+                },
+            ],
+            [
+                {
+                    referenceField: 'revenue',
+                    pivotColumnName: 'revenue_sum_jan',
+                    aggregation: VizAggregationOptions.SUM,
+                    pivotValues: [
+                        { referenceField: 'period', value: 'January' },
+                    ],
+                    columnIndex: 1,
+                },
+                {
+                    referenceField: 'revenue',
+                    pivotColumnName: 'revenue_avg_jan',
+                    aggregation: VizAggregationOptions.AVERAGE,
+                    pivotValues: [
+                        { referenceField: 'period', value: 'January' },
+                    ],
+                    columnIndex: 1,
+                },
+                {
+                    referenceField: 'revenue',
+                    pivotColumnName: 'revenue_sum_feb',
+                    aggregation: VizAggregationOptions.SUM,
+                    pivotValues: [
+                        { referenceField: 'period', value: 'February' },
+                    ],
+                    columnIndex: 2,
+                },
+                {
+                    referenceField: 'revenue',
+                    pivotColumnName: 'revenue_avg_feb',
+                    aggregation: VizAggregationOptions.AVERAGE,
+                    pivotValues: [
+                        { referenceField: 'period', value: 'February' },
+                    ],
+                    columnIndex: 2,
+                },
+            ],
+        );
+
+        expect(sheetValues).toEqual([
+            undefined,
+            [undefined, 'Category', 'Period', 'Revenue (SUM)', 'Revenue (AVG)'],
+            [undefined, 'A', 'January', 10, 5],
+            [undefined, 'A', 'February', 20, 8],
+        ]);
+    });
+});

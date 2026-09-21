@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
+import { Limit } from '../components/ExportResults/types';
 import {
     explorerActions,
     selectUnpivotedQueryArgs,
@@ -61,15 +62,25 @@ export const useExplorerQuery = () => {
 
     // Action: Get download query UUID
     const getDownloadQueryUuid = useCallback(
-        async (limit: number | null, exportPivotedResults: boolean = false) => {
+        async (
+            limit: number | null,
+            exportPivotedResults: boolean = false,
+            limitType?: Limit,
+        ) => {
             // When unpivotedResultsEnabled it means that queryResults are pivoted results
             // therefore we need to use unpivotedQueryResults if we want to download raw results
+            const useTableQuery = limitType === Limit.TABLE;
             let queryUuid =
-                unpivotedEnabled && !exportPivotedResults
+                !useTableQuery && unpivotedEnabled && !exportPivotedResults
                     ? unpivotedQueryResults.queryUuid
                     : queryResults.queryUuid;
 
-            if (limit === null || limit !== queryResults.totalResults) {
+            if (
+                !useTableQuery &&
+                (limitType !== undefined ||
+                    limit === null ||
+                    limit !== queryResults.totalResults)
+            ) {
                 const shouldPivot = exportPivotedResults;
                 const queryArgsWithLimit: QueryResultsProps | null =
                     validQueryArgs
