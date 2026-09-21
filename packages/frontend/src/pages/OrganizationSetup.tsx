@@ -1,8 +1,11 @@
 import {
     CompleteUserSchema,
+    describeInvalidOrganizationName,
     FeatureFlags,
     getEmailDomain,
     LightdashMode,
+    sanitizeOrganizationName,
+    suggestOrganizationName,
     validateOrganizationEmailDomains,
     type HealthState,
     type OrganizationBrandColor,
@@ -16,15 +19,24 @@ import {
     Group,
     Select,
     Stack,
+    Collapse,
     Text,
     TextInput,
     Title,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useForm, type FormErrors } from '@mantine/form';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
-import { type FC, type FormEvent, useEffect, useRef, useState } from 'react';
+import {
+    type ChangeEventHandler,
+    type FC,
+    type FormEvent,
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import AboutFooter from '../components/AboutFooter';
+import Callout from '../components/common/Callout';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import PageSpinner from '../components/PageSpinner';
 import { jobTitles } from '../components/UserCompletionModal/jobTitles';
@@ -39,10 +51,7 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
-import {
-    inferOrganizationName,
-    sanitizeDetectedOrganizationName,
-} from '../utils/organizationName';
+import { inferOrganizationName } from '../utils/organizationName';
 import classes from './OrganizationSetup.module.css';
 import { OrganizationSetupPreview } from './OrganizationSetupPreview';
 
@@ -100,6 +109,19 @@ const buildBrandColors = (
     ];
 };
 
+const withOrganizationNameMessage =
+    (resolve: (values: OrganizationSetupFormValues) => FormErrors) =>
+    (values: OrganizationSetupFormValues): FormErrors => {
+        const errors = resolve(values);
+        if (!errors.organizationName) return errors;
+        return {
+            ...errors,
+            organizationName: describeInvalidOrganizationName(
+                values.organizationName,
+            ).title,
+        };
+    };
+
 type OrganizationSetupFormValues = {
     organizationName: string;
     jobTitle: string;
@@ -144,16 +166,20 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
             isTrackingAnonymized: false,
             selectedColor: DEFAULT_COLOR,
         },
-        validate: zodResolver(
-            canEnterOrganizationName
-                ? CompleteUserSchema
-                : // Invited members join an existing org: no org name to set,
-                  // and we only ask the org creator how they heard about us.
-                  CompleteUserSchema.omit({
-                      organizationName: true,
-                      howDidYouHearAboutUs: true,
-                  }),
+        validate: withOrganizationNameMessage(
+            zodResolver(
+                canEnterOrganizationName
+                    ? CompleteUserSchema
+                    : // Invited members join an existing org: no org name to set,
+                      // and we only ask the org creator how they heard about us.
+                      CompleteUserSchema.omit({
+                          organizationName: true,
+                          howDidYouHearAboutUs: true,
+                      }),
+            ),
         ),
+        validateInputOnBlur: ['organizationName'],
+        clearInputErrorOnChange: false,
     });
 
     const { track } = useTracking();
@@ -176,7 +202,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         setValues((current) => ({
             ...(brand.name && !isDirty('organizationName')
                 ? {
-                      organizationName: sanitizeDetectedOrganizationName(
+                      organizationName: sanitizeOrganizationName(
                           brand.name,
                           inferOrganizationName(emailDomain),
                       ),
@@ -310,6 +336,29 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         }
     };
 
+    const hasNameError = Boolean(form.errors.organizationName);
+    const nameMessage = hasNameError
+        ? describeInvalidOrganizationName(form.values.organizationName)
+        : null;
+    const nameSuggestion = hasNameError
+        ? suggestOrganizationName(form.values.organizationName)
+        : null;
+    const applyNameSuggestion = () => {
+        if (!nameSuggestion) return;
+        form.setFieldValue('organizationName', nameSuggestion);
+        form.clearFieldError('organizationName');
+    };
+
+    const organizationNameInputProps = form.getInputProps('organizationName');
+    const handleOrganizationNameChange: ChangeEventHandler<HTMLInputElement> = (
+        event,
+    ) => {
+        organizationNameInputProps.onChange?.(event);
+        if (form.errors.organizationName) {
+            form.validateField('organizationName');
+        }
+    };
+
     const logoTileInitial = (form.values.organizationName || '?')
         .charAt(0)
         .toUpperCase();
@@ -346,8 +395,40 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     placeholder="Acme Analytics"
                                     size="md"
                                     required
-                                    {...form.getInputProps('organizationName')}
+                                    {...organizationNameInputProps}
+                                    onChange={handleOrganizationNameChange}
+                                    error={hasNameError}
                                 />
+
+                                <Collapse
+                                    expanded={hasNameError}
+                                    transitionDuration={200}
+                                >
+                                    {hasNameError && nameMessage && (
+                                        <Callout
+                                            variant="danger"
+                                            title={nameMessage.title}
+                                        >
+                                            <Text size="sm">
+                                                {nameMessage.body}
+                                            </Text>
+                                            {nameSuggestion && (
+                                                <Group mt="xs">
+                                                    <Button
+                                                        variant="default"
+                                                        size="compact-sm"
+                                                        type="button"
+                                                        onClick={
+                                                            applyNameSuggestion
+                                                        }
+                                                    >
+                                                        {`Use "${nameSuggestion}"`}
+                                                    </Button>
+                                                </Group>
+                                            )}
+                                        </Callout>
+                                    )}
+                                </Collapse>
 
                                 <Divider />
 

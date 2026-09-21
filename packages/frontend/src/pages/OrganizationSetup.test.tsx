@@ -26,7 +26,36 @@ vi.mock('../hooks/toaster/useToaster', () => ({
     default: () => toasterMocks,
 }));
 
-const INVALID_NAME_MESSAGE = 'letters, numbers, spaces, underscores or dashes';
+const PERIOD_TITLE = "Periods aren't allowed";
+const COMMA_TITLE = "Commas aren't allowed";
+const MIXED_TITLE = "That name has characters we can't use";
+const RULE_BODY = 'Use letters, numbers, spaces, hyphens or underscores.';
+const SUGGESTION_LABEL = /Use "Acme Inc"/;
+
+const renderNameStep = () => {
+    mockOrgApi('');
+    renderSetupPage({
+        user: {
+            isSetupComplete: false,
+            organizationName: '',
+            email: 'demo@lightdash.com',
+        },
+        health: {
+            mode: LightdashMode.DEFAULT,
+        },
+    });
+    return screen.findByPlaceholderText('Acme Analytics');
+};
+
+const typeNameAndBlur = async (
+    user: ReturnType<typeof userEvent.setup>,
+    input: HTMLElement,
+    name: string,
+) => {
+    await user.clear(input);
+    await user.type(input, name);
+    await user.tab();
+};
 
 const renderSetupPage = (
     mocks?: Parameters<typeof renderWithProviders>[1],
@@ -330,16 +359,137 @@ describe('OrganizationSetup', () => {
         );
 
         await waitFor(() =>
-            expect(
-                screen.getByText((content) =>
-                    content.includes(INVALID_NAME_MESSAGE),
-                ),
-            ).toBeInTheDocument(),
+            expect(screen.getByRole('alert')).toHaveTextContent(PERIOD_TITLE),
         );
         expect(
             screen.queryByPlaceholderText('Select your role'),
         ).not.toBeInTheDocument();
         expect(completionRequestCount).toBe(0);
+    });
+
+    it('names the offending character in a danger callout when the field loses focus', async () => {
+        const user = userEvent.setup();
+
+        const nameInput = await renderNameStep();
+        await typeNameAndBlur(user, nameInput, 'Acme Inc.');
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent(PERIOD_TITLE);
+        expect(alert).toHaveTextContent(RULE_BODY);
+        expect(nameInput).toHaveAttribute('aria-invalid', 'true');
+        expect(screen.getAllByText(PERIOD_TITLE)).toHaveLength(1);
+        expect(screen.getAllByText(RULE_BODY)).toHaveLength(1);
+    });
+
+    it('fills the field from the suggestion button and lets the user continue', async () => {
+        const user = userEvent.setup();
+
+        const nameInput = await renderNameStep();
+        await typeNameAndBlur(user, nameInput, 'Acme Inc.');
+
+        const suggestion = await screen.findByRole('button', {
+            name: SUGGESTION_LABEL,
+        });
+
+        await user.click(suggestion);
+
+        expect(nameInput).toHaveValue('Acme Inc');
+        await waitFor(() =>
+            expect(screen.queryByRole('alert')).not.toBeInTheDocument(),
+        );
+
+        await user.click(
+            await screen.findByRole('button', { name: 'Continue' }),
+        );
+
+        expect(
+            await screen.findByPlaceholderText('Select your role'),
+        ).toBeInTheDocument();
+    });
+
+    it('titles the callout plainly when several kinds of character fail', async () => {
+        const user = userEvent.setup();
+
+        const nameInput = await renderNameStep();
+        await typeNameAndBlur(user, nameInput, 'Acme & Co.');
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent(MIXED_TITLE);
+        expect(alert).toHaveTextContent(RULE_BODY);
+    });
+
+    it('offers no suggestion button when nothing valid survives sanitizing', async () => {
+        const user = userEvent.setup();
+
+        const nameInput = await renderNameStep();
+        await typeNameAndBlur(user, nameInput, '...');
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent(PERIOD_TITLE);
+        expect(
+            screen.queryByRole('button', { name: /^Use "/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('clears the callout as soon as the typed value becomes valid', async () => {
+        const user = userEvent.setup();
+
+        const nameInput = await renderNameStep();
+        await typeNameAndBlur(user, nameInput, 'Acme Inc.');
+
+        await screen.findByRole('alert');
+
+        await user.click(nameInput);
+        await user.type(nameInput, '{backspace}');
+
+        expect(nameInput).toHaveValue('Acme Inc');
+        await waitFor(() =>
+            expect(screen.queryByRole('alert')).not.toBeInTheDocument(),
+        );
+    });
+
+    it('renames the offending character while the typed value stays invalid', async () => {
+        const user = userEvent.setup();
+
+        const nameInput = await renderNameStep();
+        await typeNameAndBlur(user, nameInput, 'Acme Inc.');
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            PERIOD_TITLE,
+        );
+
+        await user.type(nameInput, ',', {
+            initialSelectionStart: 8,
+            initialSelectionEnd: 9,
+        });
+
+        expect(nameInput).toHaveValue('Acme Inc,');
+        await waitFor(() =>
+            expect(screen.getByRole('alert')).toHaveTextContent(COMMA_TITLE),
+        );
+    });
+
+    it('reaches the suggestion with the keyboard and applies it with Enter', async () => {
+        const user = userEvent.setup();
+
+        const nameInput = await renderNameStep();
+        await typeNameAndBlur(user, nameInput, 'Acme Inc.');
+
+        await screen.findByRole('button', { name: SUGGESTION_LABEL });
+
+        await user.click(nameInput);
+        await user.tab();
+
+        expect(
+            screen.getByRole('button', { name: SUGGESTION_LABEL }),
+        ).toHaveFocus();
+
+        await user.keyboard('{Enter}');
+
+        expect(nameInput).toHaveValue('Acme Inc');
+        await waitFor(() =>
+            expect(screen.queryByRole('alert')).not.toBeInTheDocument(),
+        );
     });
 
     it('applies the sanitized brand name when detection resolves after the workspace step', async () => {
