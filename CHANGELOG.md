@@ -1,3 +1,17 @@
+# [2.273.0](https://github.com/lightdash/lightdash/compare/2.272.3...2.273.0) (2026-09-21)
+
+
+### Bug Fixes
+
+* **onboarding:** sanitize detected brand names before they fill the organization name ([#29623](https://github.com/lightdash/lightdash/issues/29623)) ([3a3e614](https://github.com/lightdash/lightdash/commit/3a3e614f6d233bd2570c03764d47765e7ed3da2c))
+* **onboarding:** show validation and request errors on the setup page ([#29622](https://github.com/lightdash/lightdash/issues/29622)) ([b10d87d](https://github.com/lightdash/lightdash/commit/b10d87d30b602da56af2c94d6b53bee617ce2825))
+
+
+### Features
+
+* **cli:** scaffold chart types with the Lightdash Library theme ([#29477](https://github.com/lightdash/lightdash/issues/29477)) ([31e6156](https://github.com/lightdash/lightdash/commit/31e61563822ae06cbddfdce0410ff9ef7e842448))
+* **onboarding:** name the invalid character and suggest a valid organization name ([#29625](https://github.com/lightdash/lightdash/issues/29625)) ([cf9ae26](https://github.com/lightdash/lightdash/commit/cf9ae2625e9bb335661ce8736278d37dbbf0b2b5))
+
 ## [2.272.3](https://github.com/lightdash/lightdash/compare/2.272.2...2.272.3) (2026-09-21)
 
 
