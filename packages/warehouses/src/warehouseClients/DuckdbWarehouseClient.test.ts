@@ -1178,13 +1178,45 @@ describe('DuckdbWarehouseClient', () => {
                 sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
             );
         expect(secretSql).toContain('TYPE gcs');
-        expect(secretSql).toContain("BEARER_TOKEN 'token''quoted'");
+        expect(secretSql).toContain('BEARER_TOKEN $1');
+        expect(secretSql).not.toContain("token'quoted");
+        expect(secretSql).not.toContain("token''quoted");
+        expect(runMock).toHaveBeenCalledWith(secretSql, ["token'quoted"]);
         expect(secretSql).toContain(
             "SCOPE ('s3://bucket/first.jsonl', 's3://bucket/second.jsonl')",
         );
         expect(secretSql).not.toContain('stale-');
         expect(secretSql).not.toContain('credential_chain');
         expect(runMock).not.toHaveBeenCalledWith('INSTALL aws;');
+    });
+
+    it('does not expose credentials from a failed GCS secret statement', async () => {
+        const runMock = vi.fn(async (sql: string) => {
+            if (sql.includes('CREATE OR REPLACE SECRET')) {
+                throw new Error(
+                    'Failed statement containing synthetic-secret-token',
+                );
+            }
+        });
+        const streamMock = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+        const client = DuckdbWarehouseClient.createForPreAggregate({
+            type: 'duckdb_s3',
+            s3Config: {
+                endpoint: 'storage.googleapis.com',
+                forcePathStyle: false,
+                useSsl: true,
+                authMode: 'gcp_oauth',
+                getAccessToken: async () => 'synthetic-secret-token',
+                scope: ['s3://bucket/'],
+            },
+        });
+        await expect(client.runQuery('SELECT 1')).rejects.toThrow(
+            /^Unable to configure GCP OAuth for DuckDB storage$/,
+        );
+        expect(streamMock).not.toHaveBeenCalled();
     });
 
     it.each(['empty', 'rejected'] as const)(

@@ -1024,9 +1024,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         );
 
         if (client.s3Config) {
-            await db.run(
-                await DuckdbWarehouseClient.buildS3SecretSql(client.s3Config),
-            );
+            await DuckdbWarehouseClient.configureS3Secret(db, client.s3Config);
         }
 
         if (client.parquetConfig) {
@@ -1169,12 +1167,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             if (DuckdbWarehouseClient.usesS3CredentialChain(source.s3Config)) {
                 await this.loadExtension(db, 'aws');
             }
-            await db.run(
-                await DuckdbWarehouseClient.buildS3SecretSql({
-                    ...source.s3Config,
-                    scope: [source.scope],
-                }),
-            );
+            await DuckdbWarehouseClient.configureS3Secret(db, {
+                ...source.s3Config,
+                scope: [source.scope],
+            });
         }
         // Restrict the engine, not just SQL validation. No globbing, arbitrary
         // network reads, local files, or shared spill/cache directories.
@@ -1558,9 +1554,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         return stmts;
     }
 
-    private static async buildS3SecretSql(
+    private static async configureS3Secret(
+        db: DuckdbConnection,
         s3Config: DuckdbS3SessionConfig,
-    ): Promise<string> {
+    ): Promise<void> {
         const escape = (v: string) =>
             DuckdbWarehouseClient.sqlBuilder.escapeString(v);
         if (s3Config.authMode === 'gcp_oauth') {
@@ -1576,15 +1573,33 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     'Unable to obtain a Google access token for DuckDB storage',
                 );
             }
-            return `CREATE OR REPLACE SECRET __lightdash_s3 (
-                TYPE gcs,
-                BEARER_TOKEN '${escape(token)}',
-                ENDPOINT '${escape(s3Config.endpoint)}',
-                SCOPE (${s3Config.scope.map((uri) => `'${escape(uri)}'`).join(', ')}),
-                URL_STYLE '${s3Config.forcePathStyle ? 'path' : 'vhost'}',
-                USE_SSL ${s3Config.useSsl}
-            );`;
+            try {
+                await db.run(
+                    `CREATE OR REPLACE SECRET __lightdash_s3 (
+                        TYPE gcs,
+                        BEARER_TOKEN $1,
+                        ENDPOINT '${escape(s3Config.endpoint)}',
+                        SCOPE (${s3Config.scope.map((uri) => `'${escape(uri)}'`).join(', ')}),
+                        URL_STYLE '${s3Config.forcePathStyle ? 'path' : 'vhost'}',
+                        USE_SSL ${s3Config.useSsl}
+                    );`,
+                    [token],
+                );
+            } catch {
+                throw new Error(
+                    'Unable to configure GCP OAuth for DuckDB storage',
+                );
+            }
+            return;
         }
+        await db.run(DuckdbWarehouseClient.buildS3SecretSql(s3Config));
+    }
+
+    private static buildS3SecretSql(
+        s3Config: Extract<DuckdbS3SessionConfig, { authMode?: 'default' }>,
+    ): string {
+        const escape = (v: string) =>
+            DuckdbWarehouseClient.sqlBuilder.escapeString(v);
         const usesStaticCredentials =
             !DuckdbWarehouseClient.usesS3CredentialChain(s3Config);
         // Static keys may come from dedicated pre-aggregate env vars or fall back
@@ -1733,9 +1748,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         );
 
         if (this.s3Config) {
-            await db.run(
-                await DuckdbWarehouseClient.buildS3SecretSql(this.s3Config),
-            );
+            await DuckdbWarehouseClient.configureS3Secret(db, this.s3Config);
         }
 
         if (this.ducklakeConfig) {
@@ -1860,8 +1873,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
         try {
             if (this.s3Config?.authMode === 'gcp_oauth') {
-                await sharedConnection.connection.run(
-                    await DuckdbWarehouseClient.buildS3SecretSql(this.s3Config),
+                await DuckdbWarehouseClient.configureS3Secret(
+                    sharedConnection.connection,
+                    this.s3Config,
                 );
             }
             await DuckdbWarehouseClient.applyResourceLimits(
