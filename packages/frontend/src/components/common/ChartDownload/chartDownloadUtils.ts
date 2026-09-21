@@ -15,23 +15,6 @@ export const CHART_TYPES_WITHOUT_DATA_EXPORT: ChartType[] = Object.values(
     ChartType,
 ).filter((type) => type !== ChartType.TABLE);
 
-/** Whether Explorer can export the currently displayed saved custom chart. */
-export const isSavedDataAppVizImageExportAvailable = ({
-    chartType,
-    isEmbedded,
-    hasSavedChart,
-    hasUnsavedChanges,
-}: {
-    chartType: ChartType;
-    isEmbedded: boolean;
-    hasSavedChart: boolean;
-    hasUnsavedChanges: boolean;
-}) =>
-    chartType === ChartType.DATA_APP_VIZ &&
-    !isEmbedded &&
-    hasSavedChart &&
-    !hasUnsavedChanges;
-
 /**
  * Whether a dashboard tile matches the saved custom chart the backend exports.
  */
@@ -39,7 +22,8 @@ export const isSavedDataAppVizDashboardImageExportAvailable = ({
     chartType,
     canExportData,
     hasDashboardFilters,
-    hasRuntimeParameters,
+    hasParameterOverrides,
+    hasUnpublishedChanges,
     hasDateZoom,
     hasDashboardColorPalette,
     isEmbedded,
@@ -48,7 +32,8 @@ export const isSavedDataAppVizDashboardImageExportAvailable = ({
     chartType: ChartType;
     canExportData: boolean;
     hasDashboardFilters: boolean;
-    hasRuntimeParameters: boolean;
+    hasParameterOverrides: boolean;
+    hasUnpublishedChanges: boolean;
     hasDateZoom: boolean;
     hasDashboardColorPalette: boolean;
     isEmbedded: boolean;
@@ -57,7 +42,8 @@ export const isSavedDataAppVizDashboardImageExportAvailable = ({
     chartType === ChartType.DATA_APP_VIZ &&
     canExportData &&
     !hasDashboardFilters &&
-    !hasRuntimeParameters &&
+    !hasParameterOverrides &&
+    !hasUnpublishedChanges &&
     !hasDateZoom &&
     !hasDashboardColorPalette &&
     !isEmbedded &&

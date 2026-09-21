@@ -6,19 +6,12 @@ import {
     getPivotConfig,
     type ApiScheduledDownloadCsv,
 } from '@lightdash/common';
-import { ActionIcon, Button, Popover } from '@mantine/core';
+import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback } from 'react';
-import { useChartVersionPreview } from '../../../features/apps/ChartVersionPreview/useChartVersionPreview';
-import {
-    selectHasUnsavedChanges,
-    selectSavedChart,
-    useExplorerSelector,
-} from '../../../features/explorer/store';
+import DataAppVizDownloadMenu from '../../../features/apps/DataAppVizDownloadMenu';
 import useEchartsCartesianConfig from '../../../hooks/echarts/useEchartsCartesianConfig';
-import { useDateZoomGranularitySearch } from '../../../hooks/useExplorerRoute';
 import { useAccount } from '../../../hooks/user/useAccount';
-import { useSavedChartImageExport } from '../../../hooks/useSavedChartImageExport';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import { type Limit } from '../../ExportResults/types';
 import ExportSelector from '../../ExportSelector';
@@ -33,7 +26,6 @@ import ChartDownloadOptions from './ChartDownloadOptions';
 import {
     CHART_TYPES_WITHOUT_DATA_EXPORT,
     CHART_TYPES_WITHOUT_IMAGE_EXPORT,
-    isSavedDataAppVizImageExportAvailable,
 } from './chartDownloadUtils';
 
 export type ChartDownloadMenuProps = {
@@ -70,12 +62,6 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 !eChartsOptions);
 
         const { data: account } = useAccount();
-        const savedChart = useExplorerSelector(selectSavedChart);
-        const hasUnsavedChanges = useExplorerSelector(selectHasUnsavedChanges);
-        const dateZoomGranularity = useDateZoomGranularitySearch();
-        const chartVersionPreview = useChartVersionPreview();
-        const { mutate: exportSavedChartImage, isLoading: isExportingImage } =
-            useSavedChartImageExport();
         const ability = useAbilityContext();
         const organizationUuid = account?.organization.organizationUuid;
         const isEmbedded = account?.isJwtUser() === true;
@@ -111,18 +97,6 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                   }),
               )
             : canManageExplore;
-        const canExportSavedDataAppVizImage =
-            canManageExplore &&
-            isSavedDataAppVizImageExportAvailable({
-                chartType: visualizationConfig.chartType,
-                isEmbedded,
-                hasSavedChart: savedChart !== undefined,
-                hasUnsavedChanges:
-                    hasUnsavedChanges ||
-                    !!dateZoomGranularity ||
-                    chartVersionPreview !== undefined,
-            });
-
         const getChartInstance = useCallback(
             () => chartRef.current?.getEchartsInstance(),
             [chartRef],
@@ -164,14 +138,19 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             [getDownloadQueryUuid],
         );
 
+        if (visualizationConfig.chartType === ChartType.DATA_APP_VIZ) {
+            return canExportImages && !isEmbedded ? (
+                <DataAppVizDownloadMenu projectUuid={projectUuid} />
+            ) : null;
+        }
+
         if (
             CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(
                 visualizationConfig.chartType,
             ) &&
             CHART_TYPES_WITHOUT_DATA_EXPORT.includes(
                 visualizationConfig.chartType,
-            ) &&
-            !canExportSavedDataAppVizImage
+            )
         ) {
             return null;
         }
@@ -261,23 +240,9 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 </Popover.Target>
 
                 <Popover.Dropdown>
-                    {canExportSavedDataAppVizImage && savedChart ? (
-                        <Button
-                            size="xs"
-                            loading={isExportingImage}
-                            onClick={() =>
-                                exportSavedChartImage({
-                                    chartUuid: savedChart.uuid,
-                                    projectUuid,
-                                    chartName: savedChart.name,
-                                })
-                            }
-                        >
-                            Export PNG
-                        </Button>
-                    ) : visualizationConfig?.chartType &&
-                      !isTableVisualizationConfig(visualizationConfig) &&
-                      chartRef.current ? (
+                    {visualizationConfig?.chartType &&
+                    !isTableVisualizationConfig(visualizationConfig) &&
+                    chartRef.current ? (
                         <ChartDownloadOptions
                             getChartInstance={getChartInstance}
                         />

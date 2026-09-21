@@ -46,7 +46,8 @@ describe('isSavedDataAppVizDashboardImageExportAvailable', () => {
         chartType: ChartType.DATA_APP_VIZ,
         canExportData: true,
         hasDashboardFilters: false,
-        hasRuntimeParameters: false,
+        hasParameterOverrides: false,
+        hasUnpublishedChanges: false,
         hasDateZoom: false,
         hasDashboardColorPalette: false,
         isEmbedded: false,
@@ -60,8 +61,12 @@ describe('isSavedDataAppVizDashboardImageExportAvailable', () => {
     });
 
     it.each([
+        { canExportData: false },
+        { chartType: ChartType.CARTESIAN },
+        { chartType: ChartType.TABLE },
         { hasDashboardFilters: true },
-        { hasRuntimeParameters: true },
+        { hasParameterOverrides: true },
+        { hasUnpublishedChanges: true },
         { hasDateZoom: true },
         { hasDashboardColorPalette: true },
         { isEmbedded: true },

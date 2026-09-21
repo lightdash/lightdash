@@ -62,6 +62,7 @@ import {
     IconTelescope,
     IconVariable,
 } from '@tabler/icons-react';
+import isEqual from 'lodash/isEqual';
 import React, {
     memo,
     useCallback,
@@ -778,6 +779,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 projectUuid: chart.projectUuid,
             }),
         );
+        const dashboardParameters = useDashboardContext(
+            (c) => c.parameterValues,
+        );
         const { mutate: exportSavedChartImage } = useSavedChartImageExport();
         const canExportSavedDataAppVizImage =
             isSavedDataAppVizDashboardImageExportAvailable({
@@ -786,8 +790,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 hasDashboardFilters: !Object.values(
                     appliedDashboardFilters,
                 ).every((filters) => filters.length === 0),
-                hasRuntimeParameters:
-                    Object.keys(usedParametersValues ?? {}).length > 0,
+                hasParameterOverrides: Object.entries(dashboardParameters).some(
+                    ([key, value]) =>
+                        key in (usedParametersValues ?? {}) &&
+                        !isEqual(value, chart.parameters?.[key]),
+                ),
+                hasUnpublishedChanges: !!chart.hasUnpublishedChanges,
                 hasDateZoom: dashboardChartReadyQuery.dateZoom !== undefined,
                 hasDashboardColorPalette,
                 isEmbedded: false,

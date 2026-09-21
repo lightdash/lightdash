@@ -18,14 +18,27 @@ import {
     type MetricQuery,
     type SavedChart,
 } from '@lightdash/common';
-import { act, cleanup, waitFor } from '@testing-library/react';
+import {
+    act,
+    cleanup,
+    fireEvent,
+    screen,
+    waitFor,
+} from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type DashboardChartReadyQuery } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import ChartColorMappingContextProvider from '../../hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { renderWithProviders } from '../../testing/testUtils';
 import { GenericDashboardChartTile } from './DashboardChartTile';
+
+const exportMocks = vi.hoisted(() => ({
+    parameters: {} as Record<string, string | string[]>,
+}));
+vi.mock('../../providers/Ability/useAbilityContext', () => ({
+    useAbilityContext: () => ({ can: () => true }),
+}));
 
 // The tile is rendered with its data already resolved; nothing may reach the network.
 vi.mock('../../api', () => ({
@@ -71,7 +84,7 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
             dashboardTabs: [],
             dashboardCustomMetrics: [],
             parameterDefinitions: {},
-            parameterValues: {},
+            parameterValues: exportMocks.parameters,
             tilesWithDateZoomApplied: new Set<string>(),
             dateZoomGranularity: undefined,
             dateZoomConfig: undefined,
@@ -360,7 +373,7 @@ const resultsData: InfiniteQueryResults = {
     error: null,
 };
 
-const renderTile = () =>
+const renderTile = (readyQuery = dashboardChartReadyQuery) =>
     renderWithProviders(
         <MemoryRouter
             initialEntries={[
@@ -377,9 +390,7 @@ const renderTile = () =>
                                 isEditMode={false}
                                 isLoading={false}
                                 error={null}
-                                dashboardChartReadyQuery={
-                                    dashboardChartReadyQuery
-                                }
+                                dashboardChartReadyQuery={readyQuery}
                                 resultsData={resultsData}
                                 onDelete={() => {}}
                                 onEdit={() => {}}
@@ -389,6 +400,7 @@ const renderTile = () =>
                 />
             </Routes>
         </MemoryRouter>,
+        { user: { abilityRules: [{ action: 'manage', subject: 'all' }] } },
     );
 
 describe('DashboardChartTile with a merged chart', () => {
@@ -418,5 +430,72 @@ describe('DashboardChartTile with a merged chart', () => {
         // still exists, so none fire after the environment is torn down.
         unmount();
         await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    });
+});
+
+describe('DashboardChartTile custom image export', () => {
+    beforeEach(() => {
+        exportMocks.parameters = {};
+    });
+
+    const customChartQuery = (
+        overrides: Partial<SavedChart> = {},
+    ): DashboardChartReadyQuery => ({
+        ...dashboardChartReadyQuery,
+        chart: {
+            ...chart,
+            merge: undefined,
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: { dataAppVizUuid: 'app-uuid', fieldMapping: {} },
+            },
+            parameters: { region: ['EU'] },
+            ...overrides,
+        },
+        executeQueryResponse: {
+            ...dashboardChartReadyQuery.executeQueryResponse,
+            usedParametersValues: { region: ['EU'] },
+            parameterReferences: ['region'],
+            appliedDashboardFilters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+        },
+    });
+
+    it.each<Record<string, string | string[]>>([
+        {},
+        { region: ['EU'] },
+        { unusedParameter: 'ignored' },
+    ])(
+        'offers export when dashboard parameters preserve the saved chart: %j',
+        async (parameters) => {
+            exportMocks.parameters = parameters;
+            renderTile(customChartQuery());
+            fireEvent.click(await screen.findByTestId('tile-icon-more'));
+            expect(
+                await screen.findByRole('menuitem', { name: 'Export image' }),
+            ).toBeInTheDocument();
+        },
+    );
+
+    it('does not export saved data when a dashboard parameter changes the chart', async () => {
+        exportMocks.parameters = { region: ['US'] };
+        renderTile(customChartQuery());
+        fireEvent.click(await screen.findByTestId('tile-icon-more'));
+        await screen.findByRole('menu');
+        expect(
+            screen.queryByRole('menuitem', { name: 'Export image' }),
+        ).toBeNull();
+    });
+
+    it('does not export the published chart while displaying an unpublished draft', async () => {
+        renderTile(customChartQuery({ hasUnpublishedChanges: true }));
+        fireEvent.click(await screen.findByTestId('tile-icon-more'));
+        await screen.findByRole('menu');
+        expect(
+            screen.queryByRole('menuitem', { name: 'Export image' }),
+        ).toBeNull();
     });
 });

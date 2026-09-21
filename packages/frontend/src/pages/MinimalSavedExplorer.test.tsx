@@ -120,6 +120,17 @@ describe('MinimalSavedExplorer screenshot readiness', () => {
         await waitFor(() => expect(getReadyIndicator()).not.toBeNull());
     });
 
+    it('still waits for the existing Vega chart paint signal', async () => {
+        mocks.savedChart = mockSavedChartResponse({
+            chartConfig: { type: ChartType.CUSTOM },
+        });
+        renderPage();
+        await screen.findByTestId('signal-screenshot-ready');
+        expect(getReadyIndicator()).toBeNull();
+        fireEvent.click(screen.getByTestId('signal-screenshot-ready'));
+        await waitFor(() => expect(getReadyIndicator()).not.toBeNull());
+    });
+
     it('keeps ordinary charts ready once their query is loaded', async () => {
         mocks.savedChart = mockSavedChartResponse();
         renderPage();
