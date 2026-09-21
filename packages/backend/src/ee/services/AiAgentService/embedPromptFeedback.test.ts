@@ -36,6 +36,7 @@ const buildUser = ({
         organizationName: 'Organization',
         ability: new Ability([
             { action: 'view', subject: 'Project' },
+            { action: 'view', subject: 'AiAgent' },
             ...(canManageAgent
                 ? [{ action: 'manage', subject: 'AiAgent' }]
                 : []),
