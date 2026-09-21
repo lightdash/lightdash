@@ -1,6 +1,6 @@
+import knex from 'knex';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import knex from 'knex';
 import { Client } from 'pg';
 
 console.log = (...values: unknown[]) => {
@@ -19,7 +19,10 @@ const requireArgument = (name: string): string => {
 const quoteIdentifier = (identifier: string): string =>
     `"${identifier.replaceAll('"', '""')}"`;
 
-const connectionForDatabase = (connectionUri: string, database: string): string => {
+const connectionForDatabase = (
+    connectionUri: string,
+    database: string,
+): string => {
     const url = new URL(connectionUri);
     url.pathname = `/${database}`;
     return url.toString();
@@ -29,7 +32,12 @@ const createDatabase = async (adminUri: string, databaseName: string) => {
     const client = new Client({ connectionString: adminUri });
     await client.connect();
     try {
-        await client.query(`CREATE DATABASE ${quoteIdentifier(databaseName)}`);
+        const template = process.argv.includes('--template')
+            ? requireArgument('--template')
+            : undefined;
+        await client.query(
+            `CREATE DATABASE ${quoteIdentifier(databaseName)}${template ? ` TEMPLATE ${quoteIdentifier(template)}` : ''}`,
+        );
     } finally {
         await client.end();
     }
@@ -48,7 +56,9 @@ const dropDatabase = async (adminUri: string, databaseName: string) => {
             'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()',
             [databaseName],
         );
-        await client.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)}`);
+        await client.query(
+            `DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)}`,
+        );
     } finally {
         await client.end();
     }
@@ -98,9 +108,10 @@ const applyThrough = async (connectionUri: string, through: string) => {
         const pendingThroughTarget = files
             .slice(0, targetIndex + 1)
             .filter((file) => !completedBefore.has(file));
-        for (const name of pendingThroughTarget) {
+        await pendingThroughTarget.reduce(async (previousMigration, name) => {
+            await previousMigration;
             await database.migrate.up({ name });
-        }
+        }, Promise.resolve());
         const completedAfter = await completedMigrations(database);
         const completedSet = new Set(completedAfter);
         const missing = files
@@ -116,7 +127,12 @@ const applyThrough = async (connectionUri: string, through: string) => {
             ledgerBoundary !== target
         ) {
             throw new Error(
-                JSON.stringify({ missing, completedPastBoundary, ledgerBoundary, target }),
+                JSON.stringify({
+                    missing,
+                    completedPastBoundary,
+                    ledgerBoundary,
+                    target,
+                }),
             );
         }
         return {
@@ -134,7 +150,10 @@ const main = async () => {
     const command = process.argv[2] as DatabaseCommand | undefined;
     const connectionUri = requireArgument('--connection-uri');
     if (command === 'create') {
-        return createDatabase(connectionUri, requireArgument('--database-name'));
+        return createDatabase(
+            connectionUri,
+            requireArgument('--database-name'),
+        );
     }
     if (command === 'drop') {
         return dropDatabase(connectionUri, requireArgument('--database-name'));
@@ -149,7 +168,7 @@ main()
     .then((result) => process.stdout.write(`${JSON.stringify(result)}\n`))
     .catch((error: unknown) => {
         process.stderr.write(
-            `${error instanceof Error ? error.stack ?? error.message : String(error)}\n`,
+            `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
         );
         process.exitCode = 1;
     });

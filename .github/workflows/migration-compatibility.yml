@@ -1,0 +1,73 @@
+name: Migration compatibility
+
+on:
+    pull_request:
+        paths:
+            - 'scripts/migration-compatibility/**'
+            - 'package.json'
+            - '.github/workflows/migration-compatibility.yml'
+    workflow_dispatch:
+        inputs:
+            application_ref:
+                description: Application commit or ref override
+                required: false
+                type: string
+            migration_ref:
+                description: Migration commit or ref
+                required: true
+                default: 4e4660f2c583613d08e3f6f085234f1aa73cedae
+                type: string
+            cases:
+                description: Comma-separated compatibility cases
+                required: true
+                default: ambiguous-column-broken,catalog-cache-stale,merged-manifest-stale,two-live-connections-wrong-warehouse
+                type: string
+
+permissions:
+    contents: read
+
+jobs:
+    migration-compatibility:
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        services:
+            postgres:
+                image: postgres:15-alpine
+                env:
+                    POSTGRES_DB: postgres
+                    POSTGRES_PASSWORD: password
+                    POSTGRES_USER: postgres
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd "pg_isready -U postgres -d postgres"
+                    --health-interval 5s
+                    --health-timeout 5s
+                    --health-retries 20
+        steps:
+            - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411
+              with:
+                  egress-policy: audit
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+              with:
+                  fetch-depth: 0
+            - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2
+              with:
+                  cache: true
+                  install: false
+            - name: Fetch compatibility revisions
+              run: git fetch origin feature/spk-2198 feature/spk-2297
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
+            - name: Run compatibility cases
+              env:
+                  APPLICATION_REF: ${{ inputs.application_ref }}
+                  COMPATIBILITY_CASES: ${{ inputs.cases || 'ambiguous-column-broken,catalog-cache-stale,merged-manifest-stale,two-live-connections-wrong-warehouse' }}
+                  MIGRATION_REF: ${{ inputs.migration_ref || '4e4660f2c583613d08e3f6f085234f1aa73cedae' }}
+                  PGCONNECTIONURI: postgresql://postgres:password@localhost:5432/postgres
+              run: |
+                  args=(--case "$COMPATIBILITY_CASES" --migration-ref "$MIGRATION_REF")
+                  if [ -n "$APPLICATION_REF" ]; then
+                    args+=(--app-ref "$APPLICATION_REF")
+                  fi
+                  pnpm test:migration-compatibility -- "${args[@]}"
