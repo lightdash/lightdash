@@ -8,7 +8,6 @@ import {
     ActionIcon,
     Badge,
     Box,
-    Button,
     Group,
     Menu,
     Stack,
@@ -19,6 +18,7 @@ import {
     IconDots,
     IconFilePencil,
     IconGitFork,
+    IconRefresh,
     IconTelescope,
     IconTrash,
 } from '@tabler/icons-react';
@@ -94,16 +94,19 @@ const ChartTypeGalleryCard: FC<Props> = ({
                             <Text c="dimmed" size="xs">
                                 Preview unavailable
                             </Text>
-                            <Button
-                                variant="subtle"
-                                size="compact-xs"
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    onRetryPreview();
-                                }}
-                            >
-                                Retry
-                            </Button>
+                            <Tooltip label="Retry preview">
+                                <ActionIcon
+                                    variant="subtle"
+                                    size="md"
+                                    aria-label="Retry preview"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onRetryPreview();
+                                    }}
+                                >
+                                    <MantineIcon icon={IconRefresh} />
+                                </ActionIcon>
+                            </Tooltip>
                         </Stack>
                     ) : previewMounted ? (
                         <ChartTypeSamplePreview
