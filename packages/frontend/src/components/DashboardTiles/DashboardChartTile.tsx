@@ -22,7 +22,7 @@ import {
     getItemId,
     getItemMap,
     getPivotConfig,
-    getPipelineQueryExploreNames,
+    getMergeDefinitionQueryExploreNames,
     getShowColumnTotalsFromChartConfig,
     getVisibleFields,
     isCartesianChartConfig,
@@ -670,11 +670,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             chart,
             explore,
         } = dashboardChartReadyQuery;
-        const savedPipeline = chart.pipeline ?? null;
+        const savedMerge = chart.merge ?? null;
         // A merged tile's filters echo per source; the other source's explore
         // is needed to label them.
         const additionalExploreName = (
-            savedPipeline ? getPipelineQueryExploreNames(savedPipeline) : []
+            savedMerge ? getMergeDefinitionQueryExploreNames(savedMerge) : []
         )[0];
         const { data: additionalExplore } = useExplore(additionalExploreName, {
             refetchOnMount: false,
@@ -1086,14 +1086,14 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     chartFilters: chart.metricQuery.filters,
                     appliedDashboardFilters,
                     appliedDashboardFiltersBySourceId,
-                    pipeline: savedPipeline,
+                    merge: savedMerge,
                     chartExploreName: chart.metricQuery.exploreName,
                     explore,
                 }),
             [
                 appliedDashboardFilters,
                 appliedDashboardFiltersBySourceId,
-                savedPipeline,
+                savedMerge,
                 chart.metricQuery.exploreName,
                 chart.metricQuery.filters,
                 explore,
@@ -1119,9 +1119,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         const { pathname: chartPathname, search: chartSearch } = useMemo(
             () =>
                 getExploreFromHereUrl(
-                    savedPipeline ? chart : chartWithDashboardFilters,
+                    savedMerge ? chart : chartWithDashboardFilters,
                 ),
-            [savedPipeline, chart, chartWithDashboardFilters],
+            [savedMerge, chart, chartWithDashboardFilters],
         );
 
         const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);

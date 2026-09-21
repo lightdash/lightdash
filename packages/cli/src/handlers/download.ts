@@ -228,9 +228,9 @@ export type DownloadHandlerOptions = {
 
 type FolderScheme = 'flat' | 'nested';
 
-// Keys only a merged chart's pipeline has read in the order they are
+// Keys only a merged chart's merge has read in the order they are
 // thought about; everything else stays alphabetical, so no other file moves.
-const PIPELINE_KEY_ORDER = [
+const MERGE_DEFINITION_KEY_ORDER = [
     'chartAs',
     'queries',
     'explore',
@@ -241,8 +241,8 @@ const PIPELINE_KEY_ORDER = [
     'direction',
 ];
 const compareContentKeys = (a: string, b: string): number => {
-    const rankA = PIPELINE_KEY_ORDER.indexOf(a);
-    const rankB = PIPELINE_KEY_ORDER.indexOf(b);
+    const rankA = MERGE_DEFINITION_KEY_ORDER.indexOf(a);
+    const rankB = MERGE_DEFINITION_KEY_ORDER.indexOf(b);
     if (rankA !== -1 || rankB !== -1) {
         if (rankA === -1) return 1;
         if (rankB === -1) return -1;

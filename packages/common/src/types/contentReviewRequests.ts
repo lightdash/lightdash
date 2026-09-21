@@ -48,7 +48,7 @@ export type ContentReviewSimilarContentItem = {
 // Only query context, never warehouse results or credentials.
 export type ChartSimilarityContext = Pick<
     SavedChart,
-    'metricQuery' | 'parameters' | 'pipeline'
+    'metricQuery' | 'parameters' | 'merge'
 >;
 
 export type FindSimilarContentBody = {

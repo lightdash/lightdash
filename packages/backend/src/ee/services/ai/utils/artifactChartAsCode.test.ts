@@ -322,7 +322,7 @@ describe('existing artifact chart export', () => {
             }),
             { region: 'Europe' },
         );
-        expect(result.pipeline).toMatchObject({
+        expect(result.merge).toMatchObject({
             join: MergeJoinType.FULL,
         });
         expect(result.metricQuery.exploreName).toBe(validExplore.name);

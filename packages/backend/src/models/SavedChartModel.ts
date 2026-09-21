@@ -38,10 +38,11 @@ import {
     MetricFilterRule,
     MetricOverrides,
     MetricQuery,
+    normalizeSavedMergeDefinition,
     NotFoundError,
     Organization,
     ParameterError,
-    parseStoredPipeline,
+    parseStoredMergeDefinition,
     Project,
     ResolvedProjectColorPalette,
     SAVED_MERGE_QUERY_SCHEMA_VERSION,
@@ -56,7 +57,6 @@ import {
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
-    upgradeSavedMergeQuery,
     type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -330,7 +330,6 @@ const createSavedChartVersion = async (
         parameters,
         updatedByUser,
         merge,
-        pipeline,
     }: CreateSavedChartVersion,
 ): Promise<void> => {
     await db.transaction(async (trx) => {
@@ -367,32 +366,32 @@ const createSavedChartVersion = async (
                 timezone: toTimezoneSetting(timezone),
             })
             .returning('*');
-        // Chart versions are immutable, so this is an insert per version and
-        // never an update. Only versions that actually merge get a row. A
-        // request may still send the schema v2 merge; the row is a pipeline.
-        const storedPipeline =
-            pipeline ??
-            (merge
-                ? upgradeSavedMergeQuery(merge, {
-                      exploreName: tableName,
-                      dimensions,
-                      metrics,
-                      filters,
-                      sorts,
-                      limit,
-                      tableCalculations,
-                      additionalMetrics,
-                      customDimensions,
-                      metricOverrides,
-                      dimensionOverrides,
-                      timezone,
-                  })
-                : null);
-        if (storedPipeline) {
+        // Only merged versions get a row. Accept schema v2 requests,
+        // but always persist the normalized schema v3 definition.
+        const storedMerge = merge
+            ? normalizeSavedMergeDefinition(merge, {
+                  exploreName: tableName,
+                  dimensions,
+                  metrics,
+                  filters,
+                  sorts,
+                  limit,
+                  tableCalculations,
+                  additionalMetrics,
+                  customDimensions,
+                  metricOverrides,
+                  dimensionOverrides,
+                  timezone,
+              })
+            : null;
+        if (merge && !storedMerge) {
+            throw new ParameterError('Invalid saved merge definition.');
+        }
+        if (storedMerge) {
             await trx('saved_queries_version_merges').insert({
                 saved_queries_version_id: version.saved_queries_version_id,
                 schema_version: SAVED_MERGE_QUERY_SCHEMA_VERSION,
-                merge: JSON.stringify(storedPipeline),
+                merge: JSON.stringify(storedMerge),
             });
         }
 
@@ -620,7 +619,6 @@ export const createSavedChart = async (
         slug,
         forceSlug,
         merge,
-        pipeline,
     }: CreateSavedChart & {
         updatedByUser: UpdatedByUser;
         slug: string;
@@ -750,7 +748,6 @@ export const createSavedChart = async (
                         parameters,
                         updatedByUser,
                         merge,
-                        pipeline,
                     },
                 );
                 return newSavedChart.saved_query_uuid;
@@ -2486,8 +2483,8 @@ export class SavedChartModel {
                 );
                 // An unknown future shape leaves the chart working without its
                 // merge rather than failing the whole chart.
-                const pipeline = mergeRow
-                    ? parseStoredPipeline({
+                const merge = mergeRow
+                    ? parseStoredMergeDefinition({
                           schemaVersion: mergeRow.schema_version,
                           value: mergeRow.merge,
                           chartMetricQuery: metricQuery,
@@ -2519,7 +2516,7 @@ export class SavedChartModel {
                     name: savedQuery.name,
                     description: savedQuery.description,
                     tableName: savedQuery.explore_name,
-                    pipeline,
+                    merge,
                     updatedAt: savedQuery.created_at,
                     updatedByUser: {
                         userUuid: savedQuery.user_uuid,
@@ -2733,8 +2730,8 @@ export class SavedChartModel {
                 parameters: chart.parameters || undefined,
                 // An unknown future shape leaves the chart working without its
                 // merge rather than failing the whole chart.
-                pipeline: mergeRow
-                    ? parseStoredPipeline({
+                merge: mergeRow
+                    ? parseStoredMergeDefinition({
                           schemaVersion: mergeRow.schema_version,
                           value: mergeRow.merge,
                           chartMetricQuery: metricQuery,

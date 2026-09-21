@@ -1301,7 +1301,7 @@ export class ContentReviewRequestService extends BaseService {
             ): ChartSimilarityContext => ({
                 metricQuery: value.metricQuery,
                 parameters: value.parameters,
-                pipeline: value.pipeline,
+                merge: value.merge,
             });
             const definitions =
                 await this.savedChartModel.getSimilarityContexts({

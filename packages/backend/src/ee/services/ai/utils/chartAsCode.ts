@@ -1,5 +1,5 @@
 import {
-    buildSavedPipeline,
+    buildSavedMergeDefinition,
     canonicalizeAiMerge,
     ChartType,
     ContentAsCodeType,
@@ -156,7 +156,7 @@ export const prepareChartAsCode = ({
             content.pivotConfig,
             canonicalMerge.fieldIdByAiFieldId,
         );
-        content.pipeline = buildSavedPipeline({
+        content.merge = buildSavedMergeDefinition({
             chartSourceId: canonicalMerge.mergeQuery.sources[0].id,
             mergeQuery: {
                 ...canonicalMerge.mergeQuery,

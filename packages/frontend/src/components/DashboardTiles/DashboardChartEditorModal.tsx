@@ -113,7 +113,7 @@ const DashboardChartEditorView: FC<
             withFullHeight
             withPaddedContent
         >
-            <MergeProvider savedPipeline={editChart?.pipeline ?? null}>
+            <MergeProvider savedMerge={editChart?.merge ?? null}>
                 <DashboardChartEditorHeaderActions
                     onOpenChartPage={onOpenChartPage}
                     onOpenVersionHistory={onOpenVersionHistory}

@@ -70,7 +70,7 @@ const savedV2: SavedMergeQuery = {
     tableCalculations: [],
 };
 
-const pipeline = upgradeSavedMergeQuery(savedV2, chart.metricQuery)!;
+const merge = upgradeSavedMergeQuery(savedV2, chart.metricQuery)!;
 
 const parseChartParam = (search: string) =>
     JSON.parse(
@@ -91,7 +91,7 @@ describe('getExploreFromHereUrl', () => {
     });
 
     it('opens a merged chart on its primary explore with the merge restored', () => {
-        const url = getExploreFromHereUrl({ ...chart, pipeline });
+        const url = getExploreFromHereUrl({ ...chart, merge });
         const params = new URLSearchParams(url.search);
 
         expect(url.pathname).toBe('/projects/project-uuid/tables/orders');
@@ -131,7 +131,7 @@ describe('getExploreFromHereUrl', () => {
     it('falls back to the primary query when the stored merge is unreadable', () => {
         const url = getExploreFromHereUrl({
             ...chart,
-            pipeline: { ...pipeline, keys: {} },
+            merge: { ...merge, keys: {} },
         });
 
         expect(url.pathname).toBe('/projects/project-uuid/tables/orders');

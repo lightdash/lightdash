@@ -6465,7 +6465,7 @@ describe('AsyncQueryService', () => {
             parameters: undefined,
             pivotConfig: undefined,
             chartConfig: { type: ChartType.TABLE },
-            pipeline: upgradeSavedMergeQuery(
+            merge: upgradeSavedMergeQuery(
                 {
                     primarySourceId: 'a',
                     sources: [

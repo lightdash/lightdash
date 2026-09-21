@@ -3216,8 +3216,141 @@
             "enum": ["multi-step", "merged", "direct"],
             "type": "string"
         },
+        "SavedMergeDefinition": {
+            "properties": {
+                "chartAs": {
+                    "description": "The chart query's name in merged column ids, when not its explore's.",
+                    "type": "string"
+                },
+                "chartRepeats": {
+                    "description": "The chart's own query repeats its values. Omitted when off.",
+                    "type": "boolean"
+                },
+                "join": {
+                    "$ref": "#/$defs/MergeJoinType"
+                },
+                "keyNames": {
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "The key column's name, when not the chart field's id.",
+                    "properties": {},
+                    "type": "object"
+                },
+                "keys": {
+                    "additionalProperties": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "description": "The join keys: each entry is the chart's field and one `query.fieldId`\nreference per other query. The key column takes the chart field's id.",
+                    "properties": {},
+                    "type": "object"
+                },
+                "limit": {
+                    "format": "double",
+                    "type": "number"
+                },
+                "queries": {
+                    "additionalProperties": {
+                        "$ref": "#/$defs/SavedMergeDefinitionQuery"
+                    },
+                    "description": "The other queries, by the name they go by.",
+                    "properties": {},
+                    "type": "object"
+                },
+                "sort": {
+                    "items": {
+                        "$ref": "#/$defs/SavedMergeDefinitionSort"
+                    },
+                    "type": "array"
+                },
+                "tableCalculations": {
+                    "items": {
+                        "$ref": "#/$defs/MergeTableCalculation"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": ["limit", "keys", "join", "queries"],
+            "type": "object"
+        },
+        "SavedMergeDefinitionQuery": {
+            "description": "A query the merge owns, run against an explore.",
+            "properties": {
+                "additionalMetrics": {
+                    "items": {
+                        "$ref": "#/$defs/AdditionalMetric"
+                    },
+                    "type": "array"
+                },
+                "customDimensions": {
+                    "items": {
+                        "$ref": "#/$defs/CustomDimension"
+                    },
+                    "type": "array"
+                },
+                "dimensionOverrides": {
+                    "$ref": "#/$defs/DimensionOverrides"
+                },
+                "dimensions": {
+                    "items": {
+                        "$ref": "#/$defs/FieldId"
+                    },
+                    "type": "array"
+                },
+                "explore": {
+                    "type": "string"
+                },
+                "filters": {
+                    "$ref": "#/$defs/Filters"
+                },
+                "metricOverrides": {
+                    "$ref": "#/$defs/MetricOverrides"
+                },
+                "metrics": {
+                    "items": {
+                        "$ref": "#/$defs/FieldId"
+                    },
+                    "type": "array"
+                },
+                "repeat": {
+                    "description": "See MergeQueryMetricSource.repeatValues. Omitted when off.",
+                    "type": "boolean"
+                },
+                "tableCalculations": {
+                    "items": {
+                        "$ref": "#/$defs/TableCalculation"
+                    },
+                    "type": "array"
+                },
+                "timezone": {
+                    "type": "string"
+                }
+            },
+            "required": ["metrics", "dimensions", "explore"],
+            "type": "object"
+        },
+        "SavedMergeDefinitionSort": {
+            "description": "A sort of the merged result. `by` is a chart field id, a `query.fieldId`\nreference into another query, or the name of a merge table calculation.\nA chart field that is a join key sorts the key column.",
+            "properties": {
+                "by": {
+                    "type": "string"
+                },
+                "direction": {
+                    "$ref": "#/$defs/SavedMergeDefinitionSortDirection"
+                }
+            },
+            "required": ["direction", "by"],
+            "type": "object"
+        },
+        "SavedMergeDefinitionSortDirection": {
+            "enum": ["asc", "desc"],
+            "type": "string"
+        },
         "SavedMergeQuery": {
-            "description": "Schema v2 of a merge stored on a chart version. Accepted on requests and\nread from rows written before schema v3; rewritten to a pipeline by\nupgradeSavedMergeQuery. Never written.",
+            "description": "Schema v2 of a merge stored on a chart version. Accepted on requests and\nread from rows written before schema v3; rewritten to schema v3 by\nupgradeSavedMergeQuery. Never written.",
             "properties": {
                 "joinKey": {
                     "items": {
@@ -3294,139 +3427,6 @@
                 }
             ],
             "description": "A persisted merge source.\n\nThe chart source is a reference: its metric query already lives on the chart\nversion. Every additional source owns its query. This keeps one source of\ntruth while allowing more sources without adding `thirdQuery`, `fourthQuery`,\nand so on."
-        },
-        "SavedPipeline": {
-            "properties": {
-                "chartAs": {
-                    "description": "The chart query's name in merged column ids, when not its explore's.",
-                    "type": "string"
-                },
-                "chartRepeats": {
-                    "description": "The chart's own query repeats its values. Omitted when off.",
-                    "type": "boolean"
-                },
-                "join": {
-                    "$ref": "#/$defs/MergeJoinType"
-                },
-                "keyNames": {
-                    "additionalProperties": {
-                        "type": "string"
-                    },
-                    "description": "The key column's name, when not the chart field's id.",
-                    "properties": {},
-                    "type": "object"
-                },
-                "keys": {
-                    "additionalProperties": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "description": "The join keys: each entry is the chart's field and one `query.fieldId`\nreference per other query. The key column takes the chart field's id.",
-                    "properties": {},
-                    "type": "object"
-                },
-                "limit": {
-                    "format": "double",
-                    "type": "number"
-                },
-                "queries": {
-                    "additionalProperties": {
-                        "$ref": "#/$defs/SavedPipelineQuery"
-                    },
-                    "description": "The other queries, by the name they go by.",
-                    "properties": {},
-                    "type": "object"
-                },
-                "sort": {
-                    "items": {
-                        "$ref": "#/$defs/SavedPipelineSort"
-                    },
-                    "type": "array"
-                },
-                "tableCalculations": {
-                    "items": {
-                        "$ref": "#/$defs/MergeTableCalculation"
-                    },
-                    "type": "array"
-                }
-            },
-            "required": ["limit", "keys", "join", "queries"],
-            "type": "object"
-        },
-        "SavedPipelineQuery": {
-            "description": "A query the pipeline owns, run against an explore.",
-            "properties": {
-                "additionalMetrics": {
-                    "items": {
-                        "$ref": "#/$defs/AdditionalMetric"
-                    },
-                    "type": "array"
-                },
-                "customDimensions": {
-                    "items": {
-                        "$ref": "#/$defs/CustomDimension"
-                    },
-                    "type": "array"
-                },
-                "dimensionOverrides": {
-                    "$ref": "#/$defs/DimensionOverrides"
-                },
-                "dimensions": {
-                    "items": {
-                        "$ref": "#/$defs/FieldId"
-                    },
-                    "type": "array"
-                },
-                "explore": {
-                    "type": "string"
-                },
-                "filters": {
-                    "$ref": "#/$defs/Filters"
-                },
-                "metricOverrides": {
-                    "$ref": "#/$defs/MetricOverrides"
-                },
-                "metrics": {
-                    "items": {
-                        "$ref": "#/$defs/FieldId"
-                    },
-                    "type": "array"
-                },
-                "repeat": {
-                    "description": "See MergeQueryMetricSource.repeatValues. Omitted when off.",
-                    "type": "boolean"
-                },
-                "tableCalculations": {
-                    "items": {
-                        "$ref": "#/$defs/TableCalculation"
-                    },
-                    "type": "array"
-                },
-                "timezone": {
-                    "type": "string"
-                }
-            },
-            "required": ["metrics", "dimensions", "explore"],
-            "type": "object"
-        },
-        "SavedPipelineSort": {
-            "description": "A sort of the merged result. `by` is a chart field id, a `query.fieldId`\nreference into another query, or the name of a merge table calculation.\nA chart field that is a join key sorts the key column.",
-            "properties": {
-                "by": {
-                    "type": "string"
-                },
-                "direction": {
-                    "$ref": "#/$defs/SavedPipelineSortDirection"
-                }
-            },
-            "required": ["direction", "by"],
-            "type": "object"
-        },
-        "SavedPipelineSortDirection": {
-            "enum": ["asc", "desc"],
-            "type": "string"
         },
         "Series": {
             "properties": {
@@ -4320,13 +4320,14 @@
         "merge": {
             "anyOf": [
                 {
-                    "allOf": [
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/SavedMergeDefinition"
+                        },
                         {
                             "$ref": "#/$defs/SavedMergeQuery"
                         }
-                    ],
-                    "deprecated": true,
-                    "description": "The merge in its schema v2 shape. Accepted on requests and rewritten to\na pipeline on save; responses carry `pipeline` instead."
+                    ]
                 },
                 {
                     "type": "null"
@@ -4356,21 +4357,6 @@
         "parameters": {
             "$ref": "#/$defs/ParametersValuesMap",
             "description": "Parameter values for the chart query"
-        },
-        "pipeline": {
-            "anyOf": [
-                {
-                    "allOf": [
-                        {
-                            "$ref": "#/$defs/SavedPipeline"
-                        }
-                    ],
-                    "description": "The pipeline this chart's query is merged through, when it has one:\nthe chart's own query by reference, every other query, and the merge.\nAbsent on the overwhelming majority of charts."
-                },
-                {
-                    "type": "null"
-                }
-            ]
         },
         "pivotConfig": {
             "description": "Pivot table configuration",

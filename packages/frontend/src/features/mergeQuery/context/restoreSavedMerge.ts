@@ -1,4 +1,7 @@
-import { parsePipelineReference, parseSavedPipeline } from '@lightdash/common';
+import {
+    parseMergeDefinitionReference,
+    parseSavedMergeDefinition,
+} from '@lightdash/common';
 import {
     DEFAULT_ADDITIONAL_SOURCE_ID,
     MAX_MERGE_SOURCES,
@@ -7,7 +10,7 @@ import {
 import { type MergeUrlState } from './mergeUrlState';
 
 /**
- * Turns a chart's stored pipeline back into editable state. The editor
+ * Turns a chart's stored merge back into editable state. The editor
  * addresses the chart's query and the other query by fixed handles; the
  * names they run under ride along so the saved chart's column ids hold.
  *
@@ -16,9 +19,9 @@ import { type MergeUrlState } from './mergeUrlState';
  * ignored rather than crashing the chart; they are never converted.
  */
 export const restoreSavedMerge = (value: unknown): MergeUrlState | null => {
-    const pipeline = parseSavedPipeline(value);
-    if (!pipeline) return null;
-    const queries = Object.entries(pipeline.queries);
+    const merge = parseSavedMergeDefinition(value);
+    if (!merge) return null;
+    const queries = Object.entries(merge.queries);
     // Persistence is N-shaped; the current editor's product limit stays
     // explicit here rather than leaking positional A/B state through callers.
     if (queries.length + 1 > MAX_MERGE_SOURCES) return null;
@@ -27,7 +30,7 @@ export const restoreSavedMerge = (value: unknown): MergeUrlState | null => {
 
     return {
         focus: { kind: 'source', sourceId: PRIMARY_SOURCE_ID },
-        primarySourceName: pipeline.chartAs ?? null,
+        primarySourceName: merge.chartAs ?? null,
         additionalSources: [
             {
                 id: handle,
@@ -40,27 +43,27 @@ export const restoreSavedMerge = (value: unknown): MergeUrlState | null => {
                 customDimensions: query.customDimensions,
             },
         ],
-        joinParts: Object.entries(pipeline.keys).map(
+        joinParts: Object.entries(merge.keys).map(
             ([chartFieldId, references]) => {
-                const keyName = pipeline.keyNames?.[chartFieldId];
+                const keyName = merge.keyNames?.[chartFieldId];
                 const reference = references.find(
                     (candidate) =>
-                        parsePipelineReference(candidate).query === name,
+                        parseMergeDefinitionReference(candidate).query === name,
                 );
                 return {
                     ...(keyName ? { name: keyName } : {}),
                     fieldIdBySourceId: {
                         [PRIMARY_SOURCE_ID]: chartFieldId,
                         [handle]: reference
-                            ? parsePipelineReference(reference).fieldId
+                            ? parseMergeDefinitionReference(reference).fieldId
                             : null,
                     },
                 };
             },
         ),
-        joinType: pipeline.join,
+        joinType: merge.join,
         repeatValuesSourceIds: [
-            ...(pipeline.chartRepeats ? [PRIMARY_SOURCE_ID] : []),
+            ...(merge.chartRepeats ? [PRIMARY_SOURCE_ID] : []),
             ...(query.repeat ? [handle] : []),
         ],
     };

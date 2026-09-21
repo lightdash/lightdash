@@ -77,7 +77,7 @@ describe('getDashboardTileFilterInfo', () => {
             chartFilters,
             appliedDashboardFilters,
             appliedDashboardFiltersBySourceId: undefined,
-            pipeline: null,
+            merge: null,
             chartExploreName: 'orders',
             explore,
         });
@@ -141,7 +141,7 @@ describe('getDashboardTileFilterInfo', () => {
         joinType: MergeJoinType.FULL,
         tableCalculations: [],
     };
-    const pipeline = upgradeSavedMergeQuery(savedV2, {
+    const merge = upgradeSavedMergeQuery(savedV2, {
         exploreName: 'orders',
         dimensions: ['orders_order_date_month'],
         metrics: ['orders_total_order_amount'],
@@ -160,7 +160,7 @@ describe('getDashboardTileFilterInfo', () => {
                 tableCalculations: [],
             },
             appliedDashboardFiltersBySourceId: undefined,
-            pipeline: null,
+            merge: null,
             chartExploreName: 'orders',
             explore,
         });
@@ -190,7 +190,7 @@ describe('getDashboardTileFilterInfo', () => {
                     tableCalculations: [],
                 },
             },
-            pipeline,
+            merge,
             chartExploreName: 'orders',
             explore,
         });
@@ -223,7 +223,7 @@ describe('getDashboardTileFilterInfo', () => {
                 tableCalculations: [],
             },
             appliedDashboardFiltersBySourceId: undefined,
-            pipeline,
+            merge,
             chartExploreName: 'orders',
             explore,
         });

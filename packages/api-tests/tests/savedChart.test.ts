@@ -233,13 +233,13 @@ describe('Saved chart space selection', () => {
             `${apiUrl}/saved/${createResponse.body.results.uuid}`,
         );
         // A request may still send the schema v2 merge; the chart stores and
-        // returns the pipeline it rewrites to.
+        // returns the merge it rewrites to.
         const chartMetricQuery = {
             ...chartMock.metricQuery,
             filters: completedOnly,
         };
-        expect(getCreated.body.results.merge).toBeUndefined();
-        expect(getCreated.body.results.pipeline).toEqual(
+        expect(getCreated.body.results).not.toHaveProperty('pipeline');
+        expect(getCreated.body.results.merge).toEqual(
             upgradeSavedMergeQuery(merge, chartMetricQuery),
         );
         expect(getCreated.body.results.metricQuery.filters).toEqual(
@@ -262,7 +262,7 @@ describe('Saved chart space selection', () => {
                 },
             ],
         };
-        const editedPipeline = upgradeSavedMergeQuery(
+        const editedMergeDefinition = upgradeSavedMergeQuery(
             editedMerge,
             chartMetricQuery,
         );
@@ -271,7 +271,7 @@ describe('Saved chart space selection', () => {
             {
                 ...chartMock,
                 metricQuery: chartMetricQuery,
-                pipeline: editedPipeline,
+                merge: editedMergeDefinition,
                 parameters,
             },
         );
@@ -280,8 +280,8 @@ describe('Saved chart space selection', () => {
         const getEdited = await admin.get<{ results: SavedChart }>(
             `${apiUrl}/saved/${createResponse.body.results.uuid}`,
         );
-        expect(getEdited.body.results.pipeline).toEqual(editedPipeline);
-        expect(getEdited.body.results.pipeline?.join).toBe(MergeJoinType.LEFT);
+        expect(getEdited.body.results.merge).toEqual(editedMergeDefinition);
+        expect(getEdited.body.results.merge?.join).toBe(MergeJoinType.LEFT);
         expect(getEdited.body.results.parameters).toEqual(parameters);
     });
 

@@ -834,9 +834,9 @@ export type MergeFieldOrigin =
 /** Provenance of every merged field, by field id. */
 export type MergeFieldOrigins = Record<FieldId, MergeFieldOrigin>;
 
-/** Current JSON schema stored in `saved_queries_version_merges.merge`: a pipeline. */
+/** Current JSON schema stored in `saved_queries_version_merges.merge`: a merge. */
 export const SAVED_MERGE_QUERY_SCHEMA_VERSION = 3;
-/** The flat two-tree shape before the pipeline. Still read, never written. */
+/** The legacy shape with explicit source ids. Still read, never written. */
 export const SAVED_MERGE_QUERY_SCHEMA_VERSION_V2 = 2;
 
 /**
@@ -860,9 +860,9 @@ export type SavedMergeQuerySource =
 
 /**
  * Schema v2 of a merge stored on a chart version. Accepted on requests and
- * read from rows written before schema v3; rewritten to a pipeline by
+ * read from rows written before schema v3; rewritten to schema v3 by
  * upgradeSavedMergeQuery. Never written.
- * @deprecated use SavedMergePipeline
+ * @deprecated use SavedMergeDefinition
  */
 export type SavedMergeQuery = {
     /** Source whose rows a LEFT merge preserves. */
@@ -969,7 +969,7 @@ export const parseSavedMergeQuery = (
 };
 
 /*
- * Schema v3: a merged chart stores a pipeline. The chart's own query is the
+ * Schema v3: a merged chart stores named source queries and one join. The chart's own query is the
  * first input and goes by its explore's name; every other query is stored
  * in full under the name it goes by; one join over all of them; the sort
  * and limit of the merged result. Nothing here is SQL. The server compiles
@@ -981,8 +981,8 @@ export const parseSavedMergeQuery = (
  * the ids it had (`chartAs`, `keyNames`), so no chart config moves.
  */
 
-/** A query the pipeline owns, run against an explore. */
-export type SavedPipelineQuery = {
+/** A query the merge owns, run against an explore. */
+export type SavedMergeDefinitionQuery = {
     explore: string;
     dimensions: FieldId[];
     metrics: FieldId[];
@@ -997,25 +997,25 @@ export type SavedPipelineQuery = {
     repeat?: boolean;
 };
 
-export type SavedPipelineSortDirection = 'asc' | 'desc';
+export type SavedMergeDefinitionSortDirection = 'asc' | 'desc';
 
 /**
  * A sort of the merged result. `by` is a chart field id, a `query.fieldId`
  * reference into another query, or the name of a merge table calculation.
  * A chart field that is a join key sorts the key column.
  */
-export type SavedPipelineSort = {
+export type SavedMergeDefinitionSort = {
     by: string;
-    direction: SavedPipelineSortDirection;
+    direction: SavedMergeDefinitionSortDirection;
 };
 
-export type SavedPipeline = {
+export type SavedMergeDefinition = {
     /** The chart query's name in merged column ids, when not its explore's. */
     chartAs?: string;
     /** The chart's own query repeats its values. Omitted when off. */
     chartRepeats?: boolean;
     /** The other queries, by the name they go by. */
-    queries: { [name: string]: SavedPipelineQuery };
+    queries: { [name: string]: SavedMergeDefinitionQuery };
     join: MergeJoinType;
     /**
      * The join keys: each entry is the chart's field and one `query.fieldId`
@@ -1024,19 +1024,19 @@ export type SavedPipeline = {
     keys: { [chartFieldId: string]: string[] };
     /** The key column's name, when not the chart field's id. */
     keyNames?: { [chartFieldId: string]: string };
-    sort?: SavedPipelineSort[];
+    sort?: SavedMergeDefinitionSort[];
     limit: number;
     tableCalculations?: MergeTableCalculation[];
 };
 
-const PIPELINE_REFERENCE_SEPARATOR = '.';
-const PIPELINE_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
+const MERGE_DEFINITION_REFERENCE_SEPARATOR = '.';
+const MERGE_DEFINITION_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
 
 /** `query.fieldId` into another query, or a bare chart field id. */
-export const parsePipelineReference = (
+export const parseMergeDefinitionReference = (
     reference: string,
 ): { query: string | null; fieldId: FieldId } => {
-    const separator = reference.indexOf(PIPELINE_REFERENCE_SEPARATOR);
+    const separator = reference.indexOf(MERGE_DEFINITION_REFERENCE_SEPARATOR);
     return separator === -1
         ? { query: null, fieldId: reference }
         : {
@@ -1046,28 +1046,28 @@ export const parsePipelineReference = (
 };
 
 /** The name the chart's query goes by in the merged result. */
-export const getPipelineChartName = (
-    pipeline: Pick<SavedPipeline, 'chartAs'>,
+export const getMergeDefinitionChartName = (
+    merge: Pick<SavedMergeDefinition, 'chartAs'>,
     chartExploreName: string,
-): string => pipeline.chartAs ?? chartExploreName;
+): string => merge.chartAs ?? chartExploreName;
 
 /** The explore names of the queries beside the chart's, in order. */
-export const getPipelineQueryExploreNames = (
-    pipeline: Pick<SavedPipeline, 'queries'>,
-): string[] => Object.values(pipeline.queries).map(({ explore }) => explore);
+export const getMergeDefinitionQueryExploreNames = (
+    merge: Pick<SavedMergeDefinition, 'queries'>,
+): string[] => Object.values(merge.queries).map(({ explore }) => explore);
 
-const getPipelineJoinKey = (
-    pipeline: Pick<SavedPipeline, 'keys' | 'keyNames'>,
+const getMergeDefinitionJoinKey = (
+    merge: Pick<SavedMergeDefinition, 'keys' | 'keyNames'>,
     chartName: string,
 ): MergeJoinKeyPart[] =>
-    Object.entries(pipeline.keys).map(([chartFieldId, references]) => ({
-        name: pipeline.keyNames?.[chartFieldId] ?? chartFieldId,
+    Object.entries(merge.keys).map(([chartFieldId, references]) => ({
+        name: merge.keyNames?.[chartFieldId] ?? chartFieldId,
         fieldIdBySourceId: {
             [chartName]: chartFieldId,
             ...Object.fromEntries(
                 references.map((reference) => {
                     const { query, fieldId } =
-                        parsePipelineReference(reference);
+                        parseMergeDefinitionReference(reference);
                     return [query ?? chartName, fieldId];
                 }),
             ),
@@ -1075,24 +1075,27 @@ const getPipelineJoinKey = (
     }));
 
 /** The merged field id a sort's `by` names. */
-const resolvePipelineSortField = (
+const resolveMergeDefinitionSortField = (
     by: string,
-    pipeline: Pick<SavedPipeline, 'keys' | 'keyNames' | 'tableCalculations'>,
+    merge: Pick<
+        SavedMergeDefinition,
+        'keys' | 'keyNames' | 'tableCalculations'
+    >,
     chartName: string,
 ): FieldId => {
-    if (pipeline.tableCalculations?.some(({ name }) => name === by)) return by;
-    if (by in pipeline.keys) {
+    if (merge.tableCalculations?.some(({ name }) => name === by)) return by;
+    if (by in merge.keys) {
         return getItemId({
             table: MERGE_TABLE_NAME,
-            name: pipeline.keyNames?.[by] ?? by,
+            name: merge.keyNames?.[by] ?? by,
         });
     }
-    const { query, fieldId } = parsePipelineReference(by);
+    const { query, fieldId } = parseMergeDefinitionReference(by);
     return getItemId({ table: query ?? chartName, name: fieldId });
 };
 
 /** The `by` that names a merged field id, or null when nothing does. */
-const toPipelineSortReference = (
+const toMergeDefinitionSortReference = (
     mergedFieldId: FieldId,
     {
         chartName,
@@ -1122,13 +1125,13 @@ const toPipelineSortReference = (
     const fieldId = mergedFieldId.slice(owner.length + 1);
     return owner === chartName
         ? fieldId
-        : `${owner}${PIPELINE_REFERENCE_SEPARATOR}${fieldId}`;
+        : `${owner}${MERGE_DEFINITION_REFERENCE_SEPARATOR}${fieldId}`;
 };
 
-const toPipelineQuery = (
+const toMergeDefinitionQuery = (
     metricQuery: MetricQuery,
     repeat: boolean,
-): SavedPipelineQuery => ({
+): SavedMergeDefinitionQuery => ({
     explore: metricQuery.exploreName,
     dimensions: metricQuery.dimensions,
     metrics: metricQuery.metrics,
@@ -1157,17 +1160,17 @@ const toPipelineQuery = (
 });
 
 /**
- * The pipeline a runnable merge saves as. The chart's source must be one of
+ * The merge a runnable merge saves as. The chart's source must be one of
  * the sources and every other source must be a metric query, because a
  * saved chart cannot re-run a referenced result.
  */
-export const buildSavedPipeline = ({
+export const buildSavedMergeDefinition = ({
     mergeQuery,
     chartSourceId,
 }: {
     mergeQuery: MergeQuery;
     chartSourceId: string;
-}): SavedPipeline => {
+}): SavedMergeDefinition => {
     const chartSource = mergeQuery.sources.find(
         (source) => source.id === chartSourceId,
     );
@@ -1186,7 +1189,7 @@ export const buildSavedPipeline = ({
             }
             return [
                 source.id,
-                toPipelineQuery(
+                toMergeDefinitionQuery(
                     source.metricQuery,
                     source.repeatValues === true,
                 ),
@@ -1203,7 +1206,7 @@ export const buildSavedPipeline = ({
                 chartFieldId,
                 others.map(
                     (source) =>
-                        `${source.id}${PIPELINE_REFERENCE_SEPARATOR}${part.fieldIdBySourceId[source.id]}`,
+                        `${source.id}${MERGE_DEFINITION_REFERENCE_SEPARATOR}${part.fieldIdBySourceId[source.id]}`,
                 ),
             ];
         }),
@@ -1223,7 +1226,7 @@ export const buildSavedPipeline = ({
         calculationNames: mergeQuery.tableCalculations.map(({ name }) => name),
     };
     const sort = (mergeQuery.sorts ?? []).flatMap((field) => {
-        const by = toPipelineSortReference(field.fieldId, sortContext);
+        const by = toMergeDefinitionSortReference(field.fieldId, sortContext);
         return by === null
             ? []
             : [{ by, direction: field.descending ? 'desc' : 'asc' } as const];
@@ -1246,22 +1249,22 @@ export const buildSavedPipeline = ({
     };
 };
 
-/** Rebuilds a runnable merge from a chart's own query and its stored pipeline. */
-export const buildMergeQueryFromPipeline = (
+/** Rebuilds a runnable merge from a chart's own query and its stored merge. */
+export const buildMergeQueryFromMergeDefinition = (
     chartMetricQuery: MetricQuery,
-    pipeline: SavedPipeline,
+    merge: SavedMergeDefinition,
 ): MergeQuery => {
-    const chartName = getPipelineChartName(
-        pipeline,
+    const chartName = getMergeDefinitionChartName(
+        merge,
         chartMetricQuery.exploreName,
     );
     const sources: MergeQueryMetricSource[] = [
         {
             id: chartName,
             metricQuery: chartMetricQuery,
-            ...(pipeline.chartRepeats ? { repeatValues: true } : {}),
+            ...(merge.chartRepeats ? { repeatValues: true } : {}),
         },
-        ...Object.entries(pipeline.queries).map(
+        ...Object.entries(merge.queries).map(
             ([name, query]): MergeQueryMetricSource => {
                 const { explore, repeat, ...intent } = query;
                 return {
@@ -1272,7 +1275,7 @@ export const buildMergeQueryFromPipeline = (
                         filters: query.filters ?? {},
                         tableCalculations: query.tableCalculations ?? [],
                         sorts: [],
-                        limit: pipeline.limit,
+                        limit: merge.limit,
                     },
                     ...(repeat ? { repeatValues: true } : {}),
                 };
@@ -1281,14 +1284,14 @@ export const buildMergeQueryFromPipeline = (
     ];
     return {
         sources,
-        joinKey: getPipelineJoinKey(pipeline, chartName),
-        joinType: pipeline.join,
-        tableCalculations: pipeline.tableCalculations ?? [],
-        sorts: (pipeline.sort ?? []).map(({ by, direction }) => ({
-            fieldId: resolvePipelineSortField(by, pipeline, chartName),
+        joinKey: getMergeDefinitionJoinKey(merge, chartName),
+        joinType: merge.join,
+        tableCalculations: merge.tableCalculations ?? [],
+        sorts: (merge.sort ?? []).map(({ by, direction }) => ({
+            fieldId: resolveMergeDefinitionSortField(by, merge, chartName),
             descending: direction === 'desc',
         })),
-        limit: pipeline.limit,
+        limit: merge.limit,
     };
 };
 
@@ -1335,16 +1338,16 @@ export const buildMergeQueryFromSaved = (
  * A pure rewrite of the v2 shape, keeping the ids it had. The chart's sort
  * state was the Explorer's and named primary fields, so it is mapped once
  * here; the chart's limit was the merged result's. A v2 merge whose
- * primary was not the chart has no pipeline form: the chart is always the
+ * primary was not the chart has no merge form: the chart is always the
  * first input.
  */
 export const upgradeSavedMergeQuery = (
     saved: SavedMergeQuery,
     chartMetricQuery: MetricQuery,
-): SavedPipeline | null => {
+): SavedMergeDefinition | null => {
     const chartSource = saved.sources.find((source) => source.kind === 'chart');
     if (!chartSource || chartSource.id !== saved.primarySourceId) return null;
-    return buildSavedPipeline({
+    return buildSavedMergeDefinition({
         mergeQuery: buildMergeQueryFromSaved(chartMetricQuery, saved),
         chartSourceId: chartSource.id,
     });
@@ -1356,12 +1359,14 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isStringArray = (value: unknown): value is string[] =>
     Array.isArray(value) && value.every((item) => typeof item === 'string');
 
-const isPipelineName = (value: unknown): value is string =>
+const isMergeDefinitionName = (value: unknown): value is string =>
     typeof value === 'string' &&
-    PIPELINE_NAME_PATTERN.test(value) &&
+    MERGE_DEFINITION_NAME_PATTERN.test(value) &&
     value !== MERGE_TABLE_NAME;
 
-const parsePipelineQuery = (candidate: unknown): SavedPipelineQuery | null => {
+const parseMergeDefinitionQuery = (
+    candidate: unknown,
+): SavedMergeDefinitionQuery | null => {
     if (
         !isRecord(candidate) ||
         typeof candidate.explore !== 'string' ||
@@ -1375,7 +1380,7 @@ const parsePipelineQuery = (candidate: unknown): SavedPipelineQuery | null => {
     ) {
         return null;
     }
-    return toPipelineQuery(
+    return toMergeDefinitionQuery(
         {
             exploreName: candidate.explore,
             dimensions: candidate.dimensions,
@@ -1408,10 +1413,10 @@ const parsePipelineQuery = (candidate: unknown): SavedPipelineQuery | null => {
     );
 };
 
-const parsePipelineKeys = (
+const parseMergeDefinitionKeys = (
     candidate: unknown,
     queryNames: string[],
-): SavedPipeline['keys'] | null => {
+): SavedMergeDefinition['keys'] | null => {
     if (!isRecord(candidate) || Object.keys(candidate).length === 0)
         return null;
     const entries = Object.entries(candidate).map(
@@ -1421,14 +1426,15 @@ const parsePipelineKeys = (
             }
             // One reference per other query, each into a query that exists
             const referenced = references.map(
-                (reference) => parsePipelineReference(reference).query,
+                (reference) => parseMergeDefinitionReference(reference).query,
             );
             const complete =
                 referenced.length === queryNames.length &&
                 queryNames.every((name) => referenced.includes(name)) &&
                 references.every(
                     (reference) =>
-                        parsePipelineReference(reference).fieldId.length > 0,
+                        parseMergeDefinitionReference(reference).fieldId
+                            .length > 0,
                 );
             return complete ? [chartFieldId, references] : null;
         },
@@ -1439,33 +1445,35 @@ const parsePipelineKeys = (
 };
 
 /**
- * Reads a stored pipeline back, returning null for anything that does not
+ * Reads a stored merge back, returning null for anything that does not
  * hold together: named queries against explores, one join with a key that
  * reaches every query, a known join type, a numeric limit.
  */
-export const parseSavedPipeline = (value: unknown): SavedPipeline | null => {
+export const parseSavedMergeDefinition = (
+    value: unknown,
+): SavedMergeDefinition | null => {
     if (!isRecord(value)) return null;
     const rawQueries = value.queries;
     if (!isRecord(rawQueries)) return null;
     const queryNames = Object.keys(rawQueries);
     if (
         queryNames.length === 0 ||
-        !queryNames.every(isPipelineName) ||
+        !queryNames.every(isMergeDefinitionName) ||
         (value.chartAs !== undefined &&
-            (!isPipelineName(value.chartAs) ||
+            (!isMergeDefinitionName(value.chartAs) ||
                 queryNames.includes(value.chartAs)))
     ) {
         return null;
     }
     const parsedQueries = queryNames.map((name) => [
         name,
-        parsePipelineQuery(rawQueries[name]),
+        parseMergeDefinitionQuery(rawQueries[name]),
     ]);
     if (parsedQueries.some(([, query]) => query === null)) return null;
     if (!(Object.values(MergeJoinType) as unknown[]).includes(value.join)) {
         return null;
     }
-    const keys = parsePipelineKeys(value.keys, queryNames);
+    const keys = parseMergeDefinitionKeys(value.keys, queryNames);
     if (keys === null) return null;
     if (
         value.keyNames !== undefined &&
@@ -1500,8 +1508,8 @@ export const parseSavedPipeline = (value: unknown): SavedPipeline | null => {
     ) {
         return null;
     }
-    const keyNames = value.keyNames as SavedPipeline['keyNames'];
-    const sort = value.sort as SavedPipelineSort[] | undefined;
+    const keyNames = value.keyNames as SavedMergeDefinition['keyNames'];
+    const sort = value.sort as SavedMergeDefinitionSort[] | undefined;
     const tableCalculations = value.tableCalculations as
         | MergeTableCalculation[]
         | undefined;
@@ -1509,7 +1517,9 @@ export const parseSavedPipeline = (value: unknown): SavedPipeline | null => {
         ...(value.chartAs !== undefined
             ? { chartAs: value.chartAs as string }
             : {}),
-        queries: Object.fromEntries(parsedQueries) as SavedPipeline['queries'],
+        queries: Object.fromEntries(
+            parsedQueries,
+        ) as SavedMergeDefinition['queries'],
         join: value.join as MergeJoinType,
         keys,
         ...(keyNames && Object.keys(keyNames).length > 0 ? { keyNames } : {}),
@@ -1524,10 +1534,10 @@ export const parseSavedPipeline = (value: unknown): SavedPipeline | null => {
 
 /**
  * Reads whatever a chart version stored. A v2 merge is rewritten to a
- * pipeline with the chart's own sort and limit; an unknown version leaves
+ * merge with the chart's own sort and limit; an unknown version leaves
  * the chart working without its merge rather than breaking the chart.
  */
-export const parseStoredPipeline = ({
+export const parseStoredMergeDefinition = ({
     schemaVersion,
     value,
     chartMetricQuery,
@@ -1535,10 +1545,10 @@ export const parseStoredPipeline = ({
     schemaVersion: number;
     value: unknown;
     chartMetricQuery: MetricQuery;
-}): SavedPipeline | null => {
+}): SavedMergeDefinition | null => {
     switch (schemaVersion) {
         case SAVED_MERGE_QUERY_SCHEMA_VERSION:
-            return parseSavedPipeline(value);
+            return parseSavedMergeDefinition(value);
         case SAVED_MERGE_QUERY_SCHEMA_VERSION_V2: {
             const saved = parseSavedMergeQuery(value);
             return saved
@@ -1549,3 +1559,12 @@ export const parseStoredPipeline = ({
             return null;
     }
 };
+
+/** Normalizes either supported request shape to the saved schema v3 definition. */
+export const normalizeSavedMergeDefinition = (
+    value: SavedMergeDefinition | SavedMergeQuery,
+    chartMetricQuery: MetricQuery,
+): SavedMergeDefinition | null =>
+    'queries' in value
+        ? parseSavedMergeDefinition(value)
+        : upgradeSavedMergeQuery(value, chartMetricQuery);

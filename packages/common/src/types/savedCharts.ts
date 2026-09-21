@@ -8,7 +8,7 @@ import { type ContentDraftStaleness } from './contentAsCode/draftRebase';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type CompactOrAlias, type FieldId } from './field';
 import { type KnexPaginatedData } from './knex-paginate';
-import { type SavedMergeQuery, type SavedPipeline } from './mergeQuery';
+import { type SavedMergeDefinition, type SavedMergeQuery } from './mergeQuery';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 import { type ResolvedProjectColorPalette } from './organization';
 import { type ParametersValuesMap } from './parameters';
@@ -950,18 +950,8 @@ export type SavedChart = {
         /** Ordered fields to render on the pivot row axis */
         rows?: string[];
     };
-    /**
-     * The pipeline this chart's query is merged through, when it has one:
-     * the chart's own query by reference, every other query, and the merge.
-     * Absent on the overwhelming majority of charts.
-     */
-    pipeline?: SavedPipeline | null;
-    /**
-     * The merge in its schema v2 shape. Accepted on requests and rewritten to
-     * a pipeline on save; responses carry `pipeline` instead.
-     * @deprecated send `pipeline`
-     */
-    merge?: SavedMergeQuery | null;
+    /** Named source queries, join keys, and ordering of the merged result. */
+    merge?: SavedMergeDefinition | null;
     /** Visualization configuration for the chart */
     chartConfig: ChartConfig;
     /** Table view configuration */
@@ -1037,9 +1027,10 @@ type CreateChartBase = Pick<
     | 'chartConfig'
     | 'tableConfig'
     | 'parameters'
-    | 'pipeline'
-    | 'merge'
->;
+> & {
+    /** Accepts schema v2 uploads; saved charts return the named schema v3 shape. */
+    merge?: SavedMergeDefinition | SavedMergeQuery | null;
+};
 
 // colorPaletteUuid is on each member to avoid an allOf in the OpenAPI schema.
 export type CreateChartInSpace = CreateChartBase & {
@@ -1058,6 +1049,7 @@ export type CreateSavedChart = CreateChartInSpace | CreateChartInDashboard;
 
 export type CreateSavedChartVersion = Omit<
     SavedChart,
+    | 'merge'
     | 'uuid'
     | 'name'
     | 'updatedAt'
@@ -1082,6 +1074,7 @@ export type CreateSavedChartVersion = Omit<
     // For Charts created within a dashboard
     Partial<Pick<SavedChart, 'dashboardUuid' | 'dashboardName'>> & {
         preserveVerification?: boolean;
+        merge?: SavedMergeDefinition | SavedMergeQuery | null;
     };
 
 export type UpdateSavedChart = Partial<

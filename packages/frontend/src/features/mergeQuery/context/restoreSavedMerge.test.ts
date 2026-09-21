@@ -48,7 +48,7 @@ const chart = {
 };
 
 describe('restoreSavedMerge', () => {
-    // The API rewrites older rows to a pipeline; a browser holding an older
+    // The API rewrites older rows to a merge; a browser holding an older
     // response sees no merge rather than a broken one
     it('ignores a cached merge in an older shape', () => {
         expect(restoreSavedMerge(savedV2)).toBeNull();
@@ -59,7 +59,7 @@ describe('restoreSavedMerge', () => {
         ).toBeNull();
     });
 
-    it('restores the stored pipeline', () => {
+    it('restores the stored merge', () => {
         expect(
             restoreSavedMerge(upgradeSavedMergeQuery(savedV2, chart)),
         ).toEqual({
@@ -95,7 +95,7 @@ describe('restoreSavedMerge', () => {
     });
 
     // The editor edits the merge around the chart's own query
-    it('refuses a pipeline whose left-join primary is not the chart query', () => {
+    it('refuses a merge whose left-join primary is not the chart query', () => {
         expect(
             restoreSavedMerge(
                 upgradeSavedMergeQuery(

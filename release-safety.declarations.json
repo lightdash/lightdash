@@ -32,6 +32,10 @@
         "organization-roadmap-flag-removed": {
             "reason": "The OrganizationRoadmap member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this rollout flag must remove it when upgrading; the enterprise roadmap is now available to every organization on an instance whose license key validated at boot, gated per user by the existing view:Roadmap permission.",
             "requiredStop": false
+        },
+        "saved-chart-merge-schema-v3": {
+            "reason": "Saved chart API responses now return the named schema v3 definition under merge (queries, join, keys, sort and limit), replacing schema v2 sources and joinKey. Clients reading merge must adopt the new response shape. Existing schema v2 uploads remain accepted and stored rows are upgraded on read with their field ids preserved.",
+            "requiredStop": false
         }
     }
 }

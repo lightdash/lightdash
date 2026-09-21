@@ -9,7 +9,7 @@ import {
     type MergeQueryError,
     type ParametersValuesMap,
     type SavedChartDAO,
-    type SavedPipeline,
+    type SavedMergeDefinition,
 } from '@lightdash/common';
 import {
     useCallback,
@@ -46,11 +46,11 @@ import { restoreSavedMerge } from './restoreSavedMerge';
  */
 export const MergeProvider: FC<
     PropsWithChildren<{
-        savedPipeline?: SavedPipeline | null;
+        savedMerge?: SavedMergeDefinition | null;
         /** View mode: show the merge, allow nothing, keep the URL clean. */
         readOnly?: boolean;
     }>
-> = ({ children, savedPipeline, readOnly = false }) => {
+> = ({ children, savedMerge, readOnly = false }) => {
     const projectUuid = useProjectUuid();
     const [searchParams, setSearchParams] = useSearchParams();
     // Restored once, on mount. A link wins over the chart's stored merge, so
@@ -59,7 +59,7 @@ export const MergeProvider: FC<
     const [restored] = useState(
         () =>
             parseMergeState(searchParams.get(MERGE_URL_PARAM)) ??
-            (savedPipeline ? restoreSavedMerge(savedPipeline) : null),
+            (savedMerge ? restoreSavedMerge(savedMerge) : null),
     );
     // A restored merge the rules refuse never runs, so nothing may wait on it.
     const [restoredRunRefused, setRestoredRunRefused] = useState(false);

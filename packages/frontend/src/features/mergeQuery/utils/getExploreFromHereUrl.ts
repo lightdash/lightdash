@@ -17,7 +17,7 @@ export const getExploreFromHereUrl = (
         chart,
         true,
     );
-    const restored = chart.pipeline ? restoreSavedMerge(chart.pipeline) : null;
+    const restored = chart.merge ? restoreSavedMerge(chart.merge) : null;
     if (!restored) return url;
     const search = new URLSearchParams(url.search);
     search.set(MERGE_URL_PARAM, serializeMergeState(restored));

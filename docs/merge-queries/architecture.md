@@ -76,15 +76,15 @@ legs at submit and the join through its persisted spec.
 
 ## What a chart version stores
 
-A merged chart version stores a pipeline in `saved_queries_version_merges`
+A merged chart version stores its definition in `saved_queries_version_merges`
 (schema version 3, jsonb in the `merge` column): the other queries by the
 name they go by, one join, and the sort and limit of the merged result. The
 chart's own query is the first input and goes by its explore's name. This is
-also the `pipeline` field of the chart API and the `pipeline:` block of
+also the `merge` field of the chart API and the `merge:` block of
 chart-as-code; nothing translates between them.
 
 ```yaml
-pipeline:
+merge:
   queries:
     payments:
       explore: payments
@@ -106,9 +106,9 @@ yields `merge_orders_order_date_month`. A `by` is a chart field id, a
 `query.fieldId` reference, or a merge table calculation's name; a chart field
 that is a key sorts the key column. A query that repeats its values says
 `repeat: true`; the chart's own query says `chartRepeats: true` on the
-pipeline. Filters and table calculations appear only when there are some.
+merge. Filters and table calculations appear only when there are some.
 
-What the validator enforces (`parseSavedPipeline` in
+What the validator enforces (`parseSavedMergeDefinition` in
 `packages/common/src/types/mergeQuery.ts`): at least one query, names that
 are identifiers and not `merge`, a known join type with no fallback, a key
 whose every entry reaches every query exactly once, a numeric limit, sorts
@@ -121,9 +121,9 @@ chart's query as it was, `keyNames` keeps a key column's old name
 (`merge_join_key_0`), and the other query keeps `b`. Nothing is backfilled
 and no row is rewritten in place; writes emit version 3. A request may still
 send `merge` in the v2 shape and is rewritten on save; a v2 merge whose
-primary was not the chart has no pipeline form and is dropped. Every reader
-goes through `SavedChartModel`, which returns `pipeline`, and every runner
-through `buildMergeQueryFromPipeline`: saved charts, dashboard tiles,
+primary was not the chart is refused on write and omitted when reading old rows. Every reader
+goes through `SavedChartModel`, which returns `merge`, and every runner
+through `buildMergeQueryFromMergeDefinition`: saved charts, dashboard tiles,
 scheduled deliveries, chart-as-code, promotion and version history. Document
 chart cells keep the v2 shape inside the document's own schema.
 

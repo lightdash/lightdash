@@ -55,7 +55,7 @@ const queryContext = (
             JSON.stringify({
                 metricQuery: chart.metricQuery,
                 parameters: chart.parameters ?? {},
-                pipeline: chart.pipeline ?? null,
+                merge: chart.merge ?? null,
             }),
         );
     } catch {

@@ -1,17 +1,18 @@
 import { SupportedDbtAdapter } from './dbt';
 import { DimensionType } from './field';
 import {
-    buildMergeQueryFromPipeline,
+    buildMergeQueryFromMergeDefinition,
     buildMergeQueryFromSaved,
-    buildSavedPipeline,
+    buildSavedMergeDefinition,
     getMergeCompiledSqlText,
     getUnaccountedDimensions,
     getWarehouseDefaultNullsFirst,
     MergeJoinType,
     MergeQueryErrorKind,
+    normalizeSavedMergeDefinition,
+    parseSavedMergeDefinition,
     parseSavedMergeQuery,
-    parseSavedPipeline,
-    parseStoredPipeline,
+    parseStoredMergeDefinition,
     placeMergeSortNulls,
     resolveMergeSorts,
     SAVED_MERGE_QUERY_SCHEMA_VERSION_V2,
@@ -555,12 +556,28 @@ describe('saved merge schemas', () => {
         repeatValuesSourceIds: ['b'],
     };
 
+    it('accepts either request shape and normalizes it to schema v3', () => {
+        const definition = upgradeSavedMergeQuery(savedV2, chart)!;
+        expect(normalizeSavedMergeDefinition(savedV2, chart)).toEqual(
+            definition,
+        );
+        expect(normalizeSavedMergeDefinition(definition, chart)).toEqual(
+            definition,
+        );
+        expect(
+            normalizeSavedMergeDefinition(
+                { ...definition, queries: {} },
+                chart,
+            ),
+        ).toBeNull();
+    });
+
     // A v2 row keeps the ids it had, so no chart config moves: the chart is
     // still `a`, the other query `b`, the key column `merge_join_key_0`.
-    it('rewrites a version 2 merge to a pipeline that keeps its ids', () => {
-        const pipeline = upgradeSavedMergeQuery(savedV2, chart);
+    it('upgrades a version 2 merge while keeping its field ids', () => {
+        const merge = upgradeSavedMergeQuery(savedV2, chart);
 
-        expect(pipeline).toEqual({
+        expect(merge).toEqual({
             chartAs: 'a',
             queries: {
                 b: {
@@ -577,19 +594,19 @@ describe('saved merge schemas', () => {
             limit: 500,
         });
         expect(
-            parseStoredPipeline({
+            parseStoredMergeDefinition({
                 schemaVersion: SAVED_MERGE_QUERY_SCHEMA_VERSION_V2,
                 value: savedV2,
                 chartMetricQuery: chart,
             }),
-        ).toEqual(pipeline);
+        ).toEqual(merge);
         // The runnable merge is the one the v2 shape produced
-        expect(buildMergeQueryFromPipeline(chart, pipeline!)).toEqual(
+        expect(buildMergeQueryFromMergeDefinition(chart, merge!)).toEqual(
             buildMergeQueryFromSaved(chart, savedV2),
         );
     });
 
-    it('has no pipeline form for a version 2 merge whose primary was not the chart', () => {
+    it('has no merge form for a version 2 merge whose primary was not the chart', () => {
         expect(
             upgradeSavedMergeQuery({ ...savedV2, primarySourceId: 'b' }, chart),
         ).toBeNull();
@@ -597,7 +614,7 @@ describe('saved merge schemas', () => {
 
     // A chart saved today goes by its explore's name, and so does each
     // other query, so the file and the merged column ids read the same.
-    it('saves a runnable merge as a pipeline in the names it runs under', () => {
+    it('saves a merge using its source names', () => {
         const runnable: MergeQuery = {
             sources: [
                 { id: 'orders', metricQuery: chart },
@@ -627,12 +644,12 @@ describe('saved merge schemas', () => {
             ],
             limit: 250,
         };
-        const pipeline = buildSavedPipeline({
+        const merge = buildSavedMergeDefinition({
             mergeQuery: runnable,
             chartSourceId: 'orders',
         });
 
-        expect(pipeline).toEqual({
+        expect(merge).toEqual({
             queries: {
                 payments: {
                     explore: 'payments',
@@ -657,9 +674,9 @@ describe('saved merge schemas', () => {
             ],
         });
         expect(
-            parseSavedPipeline(JSON.parse(JSON.stringify(pipeline))),
-        ).toEqual(pipeline);
-        expect(buildMergeQueryFromPipeline(chart, pipeline)).toEqual({
+            parseSavedMergeDefinition(JSON.parse(JSON.stringify(merge))),
+        ).toEqual(merge);
+        expect(buildMergeQueryFromMergeDefinition(chart, merge)).toEqual({
             ...runnable,
             sources: [
                 runnable.sources[0],
@@ -677,7 +694,7 @@ describe('saved merge schemas', () => {
 
     it('refuses to save a merge over an existing result or without the chart query', () => {
         expect(() =>
-            buildSavedPipeline({
+            buildSavedMergeDefinition({
                 mergeQuery: {
                     sources: [
                         { id: 'orders', metricQuery: chart },
@@ -692,7 +709,7 @@ describe('saved merge schemas', () => {
             }),
         ).toThrow('cannot be saved');
         expect(() =>
-            buildSavedPipeline({
+            buildSavedMergeDefinition({
                 mergeQuery: {
                     sources: [{ id: 'b', metricQuery: chart }],
                     joinKey: [],
@@ -705,33 +722,33 @@ describe('saved merge schemas', () => {
         ).toThrow('requires the chart query');
     });
 
-    it('rejects a pipeline that does not hold together', () => {
+    it('rejects a merge that does not hold together', () => {
         const valid = upgradeSavedMergeQuery(savedV2, chart)!;
-        expect(parseSavedPipeline(null)).toBeNull();
-        expect(parseSavedPipeline({ ...valid, queries: {} })).toBeNull();
+        expect(parseSavedMergeDefinition(null)).toBeNull();
+        expect(parseSavedMergeDefinition({ ...valid, queries: {} })).toBeNull();
         // A query name is a merged table name
         expect(
-            parseSavedPipeline({
+            parseSavedMergeDefinition({
                 ...valid,
                 queries: { merge: valid.queries.b },
             }),
         ).toBeNull();
         expect(
-            parseSavedPipeline({
+            parseSavedMergeDefinition({
                 ...valid,
                 queries: { 'pay.ments': valid.queries.b },
             }),
         ).toBeNull();
         // Every key reaches every query, once
-        expect(parseSavedPipeline({ ...valid, keys: {} })).toBeNull();
+        expect(parseSavedMergeDefinition({ ...valid, keys: {} })).toBeNull();
         expect(
-            parseSavedPipeline({
+            parseSavedMergeDefinition({
                 ...valid,
                 keys: { orders_order_date_month: [] },
             }),
         ).toBeNull();
         expect(
-            parseSavedPipeline({
+            parseSavedMergeDefinition({
                 ...valid,
                 keys: {
                     orders_order_date_month: ['ghost.orders_order_date_month'],
@@ -739,23 +756,28 @@ describe('saved merge schemas', () => {
             }),
         ).toBeNull();
         // No join type fallback, no sort without a direction
-        expect(parseSavedPipeline({ ...valid, join: 'cross' })).toBeNull();
         expect(
-            parseSavedPipeline({ ...valid, sort: [{ by: 'orders_total' }] }),
+            parseSavedMergeDefinition({ ...valid, join: 'cross' }),
         ).toBeNull();
-        expect(parseSavedPipeline(valid)).toEqual(valid);
+        expect(
+            parseSavedMergeDefinition({
+                ...valid,
+                sort: [{ by: 'orders_total' }],
+            }),
+        ).toBeNull();
+        expect(parseSavedMergeDefinition(valid)).toEqual(valid);
     });
 
     it('leaves a chart without its merge on an unknown schema version', () => {
         expect(
-            parseStoredPipeline({
+            parseStoredMergeDefinition({
                 schemaVersion: 1,
                 value: savedV2,
                 chartMetricQuery: chart,
             }),
         ).toBeNull();
         expect(
-            parseStoredPipeline({
+            parseStoredMergeDefinition({
                 schemaVersion: 99,
                 value: upgradeSavedMergeQuery(savedV2, chart),
                 chartMetricQuery: chart,

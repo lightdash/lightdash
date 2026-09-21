@@ -108,14 +108,14 @@ DuckDB over other results, or an external source. A merge is two semantic-layer
 nodes and one DuckDB node. See `docs/multi-source-queries.md`.
 _Avoid_: connector, provider, data source (collides with warehouse connections)
 
-**Pipeline**:
+**Saved merge definition**:
 What a chart version stores when its query is merged: the other queries by
 the name they go by, the join, the keys, and the sort and limit of the merged
 result. The chart's own query is the first input, by its explore's name.
 Schema version 3 of `saved_queries_version_merges`, the chart API's
-`pipeline` field, and chart-as-code's `pipeline:` block, all the same shape.
-_Avoid_: saved merge (the schema v2 shape, still accepted on requests), DAG
-(the runtime's term for the submitted query graph), node (there are none)
+`merge` field, and chart-as-code's `merge:` block, all the same shape.
+_Avoid_: pipeline (suggests ordered operations), DAG (the runtime query graph),
+node (there are none in the saved definition)
 
 ## Boundaries
 

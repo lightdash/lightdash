@@ -43,6 +43,7 @@ import {
     KnexPaginatedData,
     MetricType,
     MissingConfigError,
+    normalizeSavedMergeDefinition,
     NotFoundError,
     ParameterError,
     SavedChart,
@@ -1053,6 +1054,16 @@ export class SavedChartService
             );
         }
 
+        const merge = chartVersion.merge
+            ? normalizeSavedMergeDefinition(
+                  chartVersion.merge,
+                  chartVersion.metricQuery,
+              )
+            : chartVersion.merge;
+        if (chartVersion.merge && !merge) {
+            throw new ParameterError('Invalid saved merge definition.');
+        }
+
         const verificationAfterUpdate =
             await this.getVerificationAfterChartUpdate({
                 user,
@@ -1073,8 +1084,7 @@ export class SavedChartService
                     tableConfig: chartVersion.tableConfig,
                     pivotConfig: chartVersion.pivotConfig,
                     parameters: chartVersion.parameters,
-                    merge: chartVersion.merge,
-                    pipeline: chartVersion.pipeline,
+                    merge,
                     verified: verificationAfterUpdate !== null,
                 },
                 verificationAfterUpdate,

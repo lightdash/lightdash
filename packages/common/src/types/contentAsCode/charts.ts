@@ -1,6 +1,7 @@
 import type { PartialDeep } from 'type-fest';
 import type { ChartAsCodeLanguageMap } from '../../utils/i18n/chartAsCode';
 import type { ContentVerificationInfo } from '../contentVerification';
+import type { SavedMergeDefinition, SavedMergeQuery } from '../mergeQuery';
 import type { MetricQuery } from '../metricQuery';
 import type { PromotionChanges } from '../promotion';
 import type {
@@ -81,13 +82,12 @@ export type ChartAsCode = Omit<
         | 'metricQuery'
         | 'chartConfig'
         | 'pivotConfig'
-        | 'pipeline'
-        | 'merge'
         | 'slug'
         | 'parameters'
     >,
     'metricQuery' | 'chartConfig'
 > & {
+    merge?: SavedMergeDefinition | SavedMergeQuery | null;
     metricQuery: Omit<MetricQuery, 'filters'> & { filters: FiltersInput };
     chartConfig: ChartAsCodeConfig;
     /** Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted. */

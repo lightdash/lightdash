@@ -1,6 +1,6 @@
 import { MergeJoinType, type MergeQuery } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { toSavedPipeline } from './useSavedMerge';
+import { toSavedMergeDefinition } from './useSavedMerge';
 
 const metricQuery = (exploreName: string) => ({
     exploreName,
@@ -12,7 +12,7 @@ const metricQuery = (exploreName: string) => ({
     tableCalculations: [],
 });
 
-describe('toSavedPipeline', () => {
+describe('toSavedMergeDefinition', () => {
     it('persists the exact effective join used by the runtime, the chart query by reference', () => {
         const mergeQuery: MergeQuery = {
             sources: [
@@ -41,7 +41,7 @@ describe('toSavedPipeline', () => {
             limit: 500,
         };
 
-        expect(toSavedPipeline(mergeQuery, 'orders')).toEqual({
+        expect(toSavedMergeDefinition(mergeQuery, 'orders')).toEqual({
             queries: {
                 payments: {
                     explore: 'payments',
@@ -80,7 +80,7 @@ describe('toSavedPipeline', () => {
             limit: 500,
         };
 
-        expect(toSavedPipeline(mergeQuery, 'a')).toEqual({
+        expect(toSavedMergeDefinition(mergeQuery, 'a')).toEqual({
             chartAs: 'a',
             queries: {
                 b: {

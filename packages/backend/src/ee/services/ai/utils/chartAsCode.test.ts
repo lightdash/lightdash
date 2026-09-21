@@ -1,5 +1,5 @@
 import {
-    buildMergeQueryFromPipeline,
+    buildMergeQueryFromMergeDefinition,
     ChartType,
     FilterOperator,
     getFields,
@@ -199,15 +199,17 @@ describe('deterministic chart-as-code', () => {
             `${primaryName}_a_met1`,
             `${additionalName}_a_met1`,
         ]);
-        expect(content.merge).toBeUndefined();
-        expect(content.pipeline).toMatchObject({
+        expect(content).not.toHaveProperty('pipeline');
+        expect(content.merge).toMatchObject({
             join: MergeJoinType.FULL,
             keys: { a_dim1: [`${additionalName}.a_dim1`] },
         });
-        if (!content.pipeline) throw new Error('Expected pipeline');
-        const reconstructed = buildMergeQueryFromPipeline(
+        if (!content.merge || !('queries' in content.merge)) {
+            throw new Error('Expected schema v3 merge');
+        }
+        const reconstructed = buildMergeQueryFromMergeDefinition(
             metricQuery,
-            content.pipeline,
+            content.merge,
         );
         expect(reconstructed.sources).toEqual([
             { id: primaryName, metricQuery },
@@ -219,10 +221,10 @@ describe('deterministic chart-as-code', () => {
         expect(reconstructed.joinType).toBe(mergeQuery.joinType);
         expect(yaml).not.toContain('synthetic_merge');
         expect(load(yaml)).toEqual(parse(yaml));
-        expect(content.pipeline.queries[additionalName]).toMatchObject({
+        expect(content.merge.queries[additionalName]).toMatchObject({
             explore: metricQuery.exploreName,
         });
-        expect(content.pipeline.limit).toBe(50);
+        expect(content.merge.limit).toBe(50);
         expect(() =>
             prepareChartAsCode({ ...source(), queryTool: mergeTool }),
         ).toThrow('executed source queries');

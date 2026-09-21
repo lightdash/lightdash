@@ -17,7 +17,7 @@ export const classification = {
     reason: 'Changes only the default for newly inserted saved merge rows',
 } as const;
 
-// Schema v3 stores the merge as a pipeline. Existing v2 rows are read and
+// Schema v3 names the source queries. Existing v2 rows are read and
 // rewritten on load; nothing is backfilled.
 export async function up(knex: Knex): Promise<void> {
     await setSchemaVersionDefault(knex, 3);

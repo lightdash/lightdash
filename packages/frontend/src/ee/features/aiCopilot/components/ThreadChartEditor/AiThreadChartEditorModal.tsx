@@ -43,7 +43,7 @@ const ChartViewContent: FC<{ chart: SavedChart }> = ({ chart }) => {
         <Provider store={store}>
             <ExplorerEffects />
             <Page withContainerHeight withFullHeight withPaddedContent>
-                <MergeProvider savedPipeline={chart.pipeline ?? null}>
+                <MergeProvider savedMerge={chart.merge ?? null}>
                     <Explorer />
                 </MergeProvider>
             </Page>
