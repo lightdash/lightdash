@@ -34307,6 +34307,103 @@
                 "required": ["passcode", "domain"],
                 "type": "object"
             },
+            "UserAttributeAsCode": {
+                "properties": {
+                    "groups": {
+                        "items": {
+                            "properties": {
+                                "values": {
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "type": "array"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["values", "name"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "users": {
+                        "items": {
+                            "properties": {
+                                "values": {
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "type": "array"
+                                },
+                                "email": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["values", "email"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "attributeDefaults": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "groups",
+                    "users",
+                    "attributeDefaults",
+                    "description",
+                    "name",
+                    "version"
+                ],
+                "type": "object"
+            },
+            "ApiContentAsCodeListResponse__userAttributes-UserAttributeAsCode-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "userAttributes": {
+                                "items": {
+                                    "$ref": "#/components/schemas/UserAttributeAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["userAttributes"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUserAttributeAsCodeListResponse": {
+                "$ref": "#/components/schemas/ApiContentAsCodeListResponse__userAttributes-UserAttributeAsCode-Array__"
+            },
+            "ApiUserAttributeAsCodeUpsertResponse": {
+                "$ref": "#/components/schemas/ApiContentAsCodeUpsertResponse"
+            },
             "RoleLevel": {
                 "type": "string",
                 "enum": ["project", "organization"]
@@ -63903,7 +64000,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.270.0",
+        "version": "2.271.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -75903,6 +76000,92 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v2/orgs/{orgUuid}/code/userAttributes": {
+            "get": {
+                "operationId": "GetCodeUserAttributes",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUserAttributeAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "User attributes"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "UpsertCodeUserAttribute",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUserAttributeAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "User attributes"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UserAttributeAsCode"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/orgs/{orgUuid}/code/roles": {

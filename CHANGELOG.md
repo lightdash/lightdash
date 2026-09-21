@@ -1,3 +1,10 @@
+# [2.271.0](https://github.com/lightdash/lightdash/compare/2.270.0...2.271.0) (2026-09-21)
+
+
+### Features
+
+* support organization user attributes as code ([#29620](https://github.com/lightdash/lightdash/issues/29620)) ([d60f3df](https://github.com/lightdash/lightdash/commit/d60f3df79afd0176ed3fd3a36b975abeb70a4f1c)), closes [#26256](https://github.com/lightdash/lightdash/issues/26256)
+
 # [2.270.0](https://github.com/lightdash/lightdash/compare/2.269.1...2.270.0) (2026-09-21)
 
 
