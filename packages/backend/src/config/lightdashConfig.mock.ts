@@ -297,6 +297,7 @@ export const lightdashConfigMock: LightdashConfig = {
         exploreSummaryProjectionMinStoredBytesPerExplore: 2048,
     },
     ai: {
+        decisions: { apiKey: null, model: 'jev-1.13.0', timeoutMs: 900 },
         copilot: {
             enabled: false,
             debugLoggingEnabled: false,
