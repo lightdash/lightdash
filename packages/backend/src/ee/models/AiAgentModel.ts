@@ -236,6 +236,7 @@ import { type AiAgentThreadLiveStateSignals } from '../services/AiAgentService/a
 import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../services/AiDeepResearchService/constants';
 import { AI_AGENT_THREAD_PENDING_TIMEOUT_MS } from './aiAgentConstants';
 import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
+import { AiSlackArtifactDeliveryModel } from './AiSlackArtifactDeliveryModel';
 import { claimAiPromptExecutionMode } from './claimAiPromptExecutionMode';
 
 export type AiPromptResponseState = {
@@ -569,8 +570,13 @@ export class AiAgentModel {
 
     private reviewClassifierModel: AiAgentReviewClassifierModel;
 
+    readonly slackArtifactDeliveries: AiSlackArtifactDeliveryModel;
+
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
+        this.slackArtifactDeliveries = new AiSlackArtifactDeliveryModel(
+            this.database,
+        );
         this.lightdashConfig = dependencies.lightdashConfig;
         this.encryptionUtil = dependencies.encryptionUtil;
         this.reviewClassifierModel = new AiAgentReviewClassifierModel({

@@ -162,6 +162,13 @@ const getTagsForTask: {
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,
     }),
+    [SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+        'ai_agent.prompt_uuid': payload.slackPromptUuid,
+    }),
+    [SCHEDULER_TASKS.SWEEP_SLACK_AI_ARTIFACT_IMAGES]: () => ({}),
 
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: (payload) => ({
         'organization.uuid': payload.organizationUuid,

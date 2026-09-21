@@ -61,6 +61,22 @@ export const aiAgentMemoryDistillEventRunAt = (now: Date): Date =>
     new Date(now.getTime() + MEMORY_DISTILL_EVENT_DEBOUNCE_MS);
 
 export class CommercialSchedulerClient extends SchedulerClient {
+    async slackAiArtifactImages(payload: SlackPromptJobPayload) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES,
+            payload,
+            {
+                maxAttempts: 6,
+                jobKey: `slack-ai-artifact-images:${payload.slackPromptUuid}`,
+                jobKeyMode: 'preserve_run_at',
+                queueName: `slack-ai-artifact-images:${payload.slackPromptUuid}`,
+                priority: JobPriority.MEDIUM,
+            },
+        );
+        return { jobId };
+    }
+
     async mobilePushLiveActivityStart(
         payload: MobilePushLiveActivityStartJobPayload,
         runAt: Date = new Date(),

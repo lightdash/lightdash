@@ -75,6 +75,7 @@ import {
     ApiUpdateUserAgentPreferencesResponse,
     assertEmbeddedAuth,
     assertRegisteredAccount,
+    ForbiddenError,
     KnexPaginateArgs,
     ParameterError,
     type UUID,
@@ -1780,10 +1781,15 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
         @Path() artifactUuid: string,
         @Path() versionUuid: string,
+        @Query() cachedQueryUuid?: string,
     ): Promise<ApiAiAgentArtifactVizQueryResponse> {
         this.setStatus(200);
 
         if (req.account?.authentication.type === 'jwt') {
+            if (cachedQueryUuid !== undefined)
+                throw new ForbiddenError(
+                    'Cached artifact execution is unavailable',
+                );
             assertEmbeddedAuth(req.account);
             return {
                 status: 'ok',
@@ -1808,6 +1814,7 @@ export class AiAgentController extends BaseController {
                     agentUuid,
                     artifactUuid,
                     versionUuid,
+                    cachedQueryUuid,
                 },
             ),
         };

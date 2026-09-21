@@ -174,6 +174,8 @@ export type MobilePushLiveActivityStartJobPayload = TraceTaskBase & {
 
 export const EE_SCHEDULER_TASKS = {
     SLACK_AI_PROMPT: 'slackAiPrompt',
+    SLACK_AI_ARTIFACT_IMAGES: 'slackAiArtifactImages',
+    SWEEP_SLACK_AI_ARTIFACT_IMAGES: 'sweepSlackAiArtifactImages',
     AI_AGENT_EVAL_RESULT: 'aiAgentEvalResult',
     AI_AGENT_REVIEW_CLASSIFIER: 'aiAgentReviewClassifier',
     AI_AGENT_REVIEW_WRITEBACK: 'aiAgentReviewWriteback',
@@ -288,6 +290,8 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD]: ExportCsvDashboardPayload;
     [SCHEDULER_TASKS.EXPORT_CONTENT]: ExportContentPayload;
     [SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
+    [SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES]: SlackPromptJobPayload;
+    [SCHEDULER_TASKS.SWEEP_SLACK_AI_ARTIFACT_IMAGES]: TraceTaskBase;
     [SCHEDULER_TASKS.RENAME_RESOURCES]: RenameResourcesPayload;
     [SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE]: MaterializePreAggregatePayload;
     [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: TraceTaskBase;
@@ -346,6 +350,8 @@ export interface TaskPayloadMap {
 
 export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: SlackPromptJobPayload;
+    [EE_SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES]: SlackPromptJobPayload;
+    [EE_SCHEDULER_TASKS.SWEEP_SLACK_AI_ARTIFACT_IMAGES]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;
