@@ -1,3 +1,10 @@
+## [2.272.3](https://github.com/lightdash/lightdash/compare/2.272.2...2.272.3) (2026-09-21)
+
+
+### Bug Fixes
+
+* **duckdb:** authenticate object storage with GCP OAuth ([#29641](https://github.com/lightdash/lightdash/issues/29641)) ([06eedc5](https://github.com/lightdash/lightdash/commit/06eedc5a554239dfecffc82a572884b4faea44c7))
+
 ## [2.272.2](https://github.com/lightdash/lightdash/compare/2.272.1...2.272.2) (2026-09-21)
 
 
