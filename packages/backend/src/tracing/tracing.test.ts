@@ -14,6 +14,7 @@ import {
     configureOtelTraceExport,
     createOtelInstrumentations,
     getActiveSpanId,
+    getActiveSpanName,
     getOtelDatabaseTraceMaxQueryLength,
     initOtelTracing,
     installRedactingOtelDiagnostics,
@@ -133,6 +134,36 @@ describe('getActiveSpanId', () => {
         } as never);
 
         expect(getActiveSpanId()).toBe(SPAN_ID);
+    });
+});
+
+describe('getActiveSpanName', () => {
+    it('returns the active Sentry span name in Sentry mode', () => {
+        vi.stubEnv('LIGHTDASH_OTEL_TRACES_ENABLED', undefined);
+        const span = {
+            spanContext: () => ({ spanId: SPAN_ID }),
+            getSpanJSON: () => ({
+                data: {},
+                description: 'sentry-caller',
+                span_id: SPAN_ID,
+                start_timestamp: 0,
+                trace_id: TRACE_ID,
+            }),
+        } as never;
+
+        Sentry.withActiveSpan(span, () => {
+            expect(getActiveSpanName()).toBe('sentry-caller');
+        });
+    });
+
+    it('returns the active OpenTelemetry span name in OpenTelemetry mode', () => {
+        vi.stubEnv('LIGHTDASH_OTEL_TRACES_ENABLED', 'true');
+        vi.stubEnv('OTEL_SDK_DISABLED', undefined);
+        vi.spyOn(trace, 'getActiveSpan').mockReturnValue({
+            name: 'otel-caller',
+        } as never);
+
+        expect(getActiveSpanName()).toBe('otel-caller');
     });
 });
 

@@ -25,7 +25,7 @@ import expressSession from 'express-session';
 import expressStaticGzip from 'express-static-gzip';
 import helmet from 'helmet';
 import { produce } from 'immer';
-import knex, { Knex } from 'knex';
+import { Knex } from 'knex';
 import passport from 'passport';
 import refresh from 'passport-oauth2-refresh';
 import path from 'path';
@@ -63,6 +63,7 @@ import {
 import { databricksPassportStrategy } from './controllers/authentication/strategies/databricksStrategy';
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
+import { createDatabase } from './database/createDatabase';
 import { MigrationLeaseManager } from './database/migrationLease';
 import { errorHandler, scimErrorHandler } from './errors';
 import { buildExpressSessionOptions } from './expressSessionOptions';
@@ -275,7 +276,7 @@ export default class App {
                 : undefined,
         });
         registerAiUsageTracker((event) => this.analytics.track(event));
-        this.database = knex(
+        this.database = createDatabase(
             this.environment === 'production'
                 ? args.knexConfig.production
                 : args.knexConfig.development,
