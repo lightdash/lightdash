@@ -579,6 +579,32 @@ const renderDateOrTimestampFilterSql = ({
 
     const settings = isDateFilterRule(filter) ? filter.settings : undefined;
 
+    if (
+        settings?.selectedPeriod &&
+        filter.values?.length &&
+        (filter.operator === FilterOperator.EQUALS ||
+            filter.operator === FilterOperator.NOT_EQUALS)
+    ) {
+        const period = settings.selectedPeriod;
+        const ranges = filter.values.map((value: string) => {
+            const start = getMomentDateWithCustomStartOfWeek(
+                effectiveStartOfWeek,
+                moment.tz(formatDate(value, TimeFrames.DAY, true), timezone),
+            ).startOf(period);
+            const end = start.clone().add(1, period);
+            return `((${dimensionSql}) >= ${castValue(
+                boundaryFormatter(start.toDate()),
+            )} AND (${dimensionSql}) < ${castValue(
+                boundaryFormatter(end.toDate()),
+            )})`;
+        });
+        const selected =
+            ranges.length === 1 ? ranges[0] : `(${ranges.join(' OR ')})`;
+        return filter.operator === FilterOperator.NOT_EQUALS
+            ? `(NOT ${selected} OR (${dimensionSql}) IS NULL)`
+            : selected;
+    }
+
     // Multi-value equals/notEquals match any value, like string/number filters
     const castValues = (values: Date[]): string =>
         values.map((value) => castValue(literalFormatter(value))).join(',');

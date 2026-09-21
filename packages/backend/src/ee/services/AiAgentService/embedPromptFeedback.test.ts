@@ -26,9 +26,11 @@ const EMBED_ACTOR_UUID = 'embed-write-user-1';
 const buildUser = ({
     userUuid = EMBED_ACTOR_UUID,
     canManageAgent = false,
+    canViewAgent = true,
 }: {
     userUuid?: string;
     canManageAgent?: boolean;
+    canViewAgent?: boolean;
 } = {}): SessionUser =>
     ({
         userUuid,
@@ -36,7 +38,7 @@ const buildUser = ({
         organizationName: 'Organization',
         ability: new Ability([
             { action: 'view', subject: 'Project' },
-            { action: 'view', subject: 'AiAgent' },
+            ...(canViewAgent ? [{ action: 'view', subject: 'AiAgent' }] : []),
             ...(canManageAgent
                 ? [{ action: 'manage', subject: 'AiAgent' }]
                 : []),
@@ -196,6 +198,18 @@ const buildService = ({
 };
 
 describe('AiAgentService updateEmbedHumanScoreForMessage', () => {
+    it('rejects an actor without agent access', async () => {
+        const { aiAgentModel, updateEmbedFeedback } = buildService();
+        await expect(
+            updateEmbedFeedback(
+                buildEmbedAccount({
+                    embedWriteUser: buildUser({ canViewAgent: false }),
+                }),
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(aiAgentModel.updateHumanScore).not.toHaveBeenCalled();
+    });
+
     it('writes feedback as the token-configured actor and preserves side effects', async () => {
         const {
             aiAgentModel,
