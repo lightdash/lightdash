@@ -516,3 +516,41 @@ describe('getMetadata parameters', () => {
         });
     });
 });
+
+describe('fast source details', () => {
+    it('adds whole join predicates and table filters only when enabled', () => {
+        const explore = makeExplore({});
+        explore.joinedTables = [
+            {
+                table: 'users',
+                sqlOn: '${orders.user_id} = ${users.id}',
+                compiledSqlOn: 'orders.user_id = users.id',
+                always: true,
+            },
+        ];
+        explore.tables.orders.sqlWhere = 'orders.deleted_at IS NULL';
+        const args = {
+            requests: [{ type: 'explore' as const, exploreIds: ['sales'] }],
+        };
+        const dependencies = {
+            availableExplores: [explore],
+            projectParameterDefinitions: {},
+        };
+        const legacy = executeGetMetadata(args, dependencies);
+        const fast = executeGetMetadata(args, {
+            ...dependencies,
+            includeSourceDetails: true,
+        });
+        expect(fast.result).toContain(explore.joinedTables[0].sqlOn);
+        expect(fast.result).toContain('orders.deleted_at IS NULL');
+        expect(legacy.result).not.toContain('sqlOn');
+        expect(legacy.result).not.toContain('orders.deleted_at IS NULL');
+        expect(fast.structuredContent).toEqual(legacy.structuredContent);
+        expect(
+            executeGetMetadata(args, {
+                ...dependencies,
+                includeSourceDetails: false,
+            }),
+        ).toEqual(legacy);
+    });
+});

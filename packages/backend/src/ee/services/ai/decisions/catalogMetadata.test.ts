@@ -22,6 +22,31 @@ const fixture = () => {
 };
 
 describe('preloaded catalog metadata', () => {
+    it('spends the metadata budget on the selected source before equivalent joined copies', () => {
+        const explores = ['events', 'billing', 'usage'].map((name) => ({
+            ...fixture(),
+            name,
+        }));
+        const fields = buildFieldIndex(explores);
+        const result = prepareCatalogMetadata(
+            fields,
+            explores,
+            {},
+            new Map(fields.map((field) => [field.path, -0.99])),
+            new Map([
+                ['events', -0.01],
+                ['billing', -0.02],
+                ['usage', -0.97],
+            ]),
+        )!;
+        expect(result).toContain('Explore: usage');
+        expect(result.indexOf('Explore: usage')).toBeLessThan(
+            result.indexOf('Explore: billing'),
+        );
+        expect(result).not.toContain('Explore: events');
+        expect(fields[0].exploreName).toBe('events');
+    });
+
     it('omits low-relevance definitions without dropping discovery candidates or truncating rules', () => {
         const explore = fixture();
         explore.tables.a.metrics.met1.description =
@@ -66,7 +91,11 @@ describe('preloaded catalog metadata', () => {
                     },
                 ],
             },
-            { availableExplores: [explore], projectParameterDefinitions: {} },
+            {
+                availableExplores: [explore],
+                projectParameterDefinitions: {},
+                includeSourceDetails: true,
+            },
             { includeFieldLists: false },
         );
         expect(result).toContain(expected.result);

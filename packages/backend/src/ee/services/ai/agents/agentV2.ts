@@ -678,6 +678,7 @@ const prepareCandidateSeed = async (
         ranked.explores,
         projectParameterDefinitions,
         ranked.fieldRanks,
+        ranked.exploreRanks,
     );
     return [
         recentQueryFields.length > 0
@@ -1361,6 +1362,7 @@ export const getAgentTools = (
     // Companion to grepFields: rich detail for the explores/fields the agent
     // selected (joined tables, required filters, filter types, hints).
     const getMetadata = getGetMetadata({
+        includeSourceDetails: !!args.decisions,
         availableExplores,
         projectParameterDefinitions,
     });
