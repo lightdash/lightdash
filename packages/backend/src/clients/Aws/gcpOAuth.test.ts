@@ -167,6 +167,75 @@ describe('gcp_oauth request authentication', () => {
         expect(headers['x-amz-metadata-directive']).toBeUndefined();
     });
 
+    /**
+     * GCS locks the request into a header dialect — S3 or GCS — based on the
+     * FIRST `x-amz-*` or `x-goog-*` header it encounters. The SDK always puts
+     * `x-amz-user-agent` before everything else, so any request that also
+     * carries a translated `x-goog-*` header is read as S3-dialect and
+     * rejected with a bare `InvalidArgument`. Translation alone is not
+     * enough: every remaining `x-amz-*` header must go.
+     */
+    it('strips leftover x-amz headers so GCS reads the goog dialect', async () => {
+        const { requests, handler } = createCapturingRequestHandler();
+        const client = new S3Client({
+            ...buildS3ClientConfig({
+                region: 'auto',
+                endpoint: 'https://storage.googleapis.com',
+                forcePathStyle: true,
+                authMode: 'gcp_oauth',
+            }),
+            requestHandler: handler,
+        });
+        applyGcpOAuth(client);
+
+        await client.send(
+            new CopyObjectCommand({
+                Bucket: 'a-bucket',
+                CopySource: '/a-bucket/source-key',
+                Key: 'destination-key',
+            }),
+        );
+
+        expect(requests).toHaveLength(1);
+        const amzHeaders = Object.keys(requests[0].headers).filter((name) =>
+            name.toLowerCase().startsWith('x-amz-'),
+        );
+        expect(amzHeaders).toEqual([]);
+    });
+
+    it('translates user metadata headers so GCS stores them', async () => {
+        const { requests, handler } = createCapturingRequestHandler();
+        const client = new S3Client({
+            ...buildS3ClientConfig({
+                region: 'auto',
+                endpoint: 'https://storage.googleapis.com',
+                forcePathStyle: true,
+                authMode: 'gcp_oauth',
+            }),
+            requestHandler: handler,
+        });
+        applyGcpOAuth(client);
+
+        await client.send(
+            new PutObjectCommand({
+                Bucket: 'a-bucket',
+                Key: 'a-key',
+                Body: 'some content',
+                Metadata: { origin: 'a-value' },
+            }),
+        );
+
+        expect(requests).toHaveLength(1);
+        const headers = Object.fromEntries(
+            Object.entries(requests[0].headers).map(([name, value]) => [
+                name.toLowerCase(),
+                value,
+            ]),
+        );
+        expect(headers['x-goog-meta-origin']).toEqual('a-value');
+        expect(headers['x-amz-meta-origin']).toBeUndefined();
+    });
+
     it('asks for a token on every request so long uploads survive expiry', async () => {
         const { handler } = createCapturingRequestHandler();
         const client = new S3Client({
