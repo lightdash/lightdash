@@ -1,3 +1,10 @@
+## [2.286.7](https://github.com/lightdash/lightdash/compare/2.286.6...2.286.7) (2026-09-21)
+
+
+### Bug Fixes
+
+* **ai-agents:** refresh verified context for the current question ([#29690](https://github.com/lightdash/lightdash/issues/29690)) ([cf6bfe0](https://github.com/lightdash/lightdash/commit/cf6bfe01cc52527d46515c821ffb40fa6bc599a0)), closes [#29671](https://github.com/lightdash/lightdash/issues/29671) [#29676](https://github.com/lightdash/lightdash/issues/29676) [#29679](https://github.com/lightdash/lightdash/issues/29679) [#29682](https://github.com/lightdash/lightdash/issues/29682) [#29689](https://github.com/lightdash/lightdash/issues/29689) [#29671](https://github.com/lightdash/lightdash/issues/29671)
+
 ## [2.286.6](https://github.com/lightdash/lightdash/compare/2.286.5...2.286.6) (2026-09-21)
 
 
