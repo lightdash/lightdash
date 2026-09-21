@@ -72,9 +72,9 @@ describe('Vertex instance configuration', () => {
 
     it('configures ADC with the project and defaults to the global endpoint', () => {
         vi.stubEnv('AI_DEFAULT_PROVIDER', 'vertex');
-        vi.stubEnv('GOOGLE_VERTEX_PROJECT', ' test-project ');
-        vi.stubEnv('GOOGLE_VERTEX_MODEL_NAME', ' custom-model ');
-        vi.stubEnv('GOOGLE_VERTEX_FAST_MODEL_NAME', ' fast-model ');
+        vi.stubEnv('GOOGLE_VERTEX_PROJECT', 'test-project');
+        vi.stubEnv('GOOGLE_VERTEX_MODEL_NAME', 'custom-model');
+        vi.stubEnv('GOOGLE_VERTEX_FAST_MODEL_NAME', 'fast-model');
         vi.stubEnv('GOOGLE_VERTEX_SUPPORTS_STREAMING', 'false');
         const parsed = aiCopilotConfigSchema.parse(getAiConfig());
         expect(parsed.providers.vertex).toEqual({
@@ -86,9 +86,9 @@ describe('Vertex instance configuration', () => {
     });
 
     it('uses an explicit region and ignores an empty API key', () => {
-        vi.stubEnv('GOOGLE_VERTEX_API_KEY', ' ');
+        vi.stubEnv('GOOGLE_VERTEX_API_KEY', '');
         vi.stubEnv('GOOGLE_VERTEX_PROJECT', 'test-project');
-        vi.stubEnv('GOOGLE_VERTEX_LOCATION', ' europe-west1 ');
+        vi.stubEnv('GOOGLE_VERTEX_LOCATION', 'europe-west1');
         expect(getAiConfig().providers.vertex?.auth).toEqual({
             type: 'adc',
             project: 'test-project',
@@ -97,7 +97,7 @@ describe('Vertex instance configuration', () => {
     });
 
     it('uses Express Mode when an API key is configured, even with a project', () => {
-        vi.stubEnv('GOOGLE_VERTEX_API_KEY', ' test-key ');
+        vi.stubEnv('GOOGLE_VERTEX_API_KEY', 'test-key');
         vi.stubEnv('GOOGLE_VERTEX_PROJECT', 'test-project');
         expect(getAiConfig().providers.vertex?.auth).toEqual({
             type: 'api-key',

@@ -1468,27 +1468,26 @@ export const getAiConfig = () => ({
               }
             : undefined,
         vertex:
-            process.env.GOOGLE_VERTEX_API_KEY?.trim() ||
-            process.env.GOOGLE_VERTEX_PROJECT?.trim()
+            process.env.GOOGLE_VERTEX_API_KEY ||
+            process.env.GOOGLE_VERTEX_PROJECT
                 ? {
-                      auth: process.env.GOOGLE_VERTEX_API_KEY?.trim()
+                      auth: process.env.GOOGLE_VERTEX_API_KEY
                           ? {
                                 type: 'api-key',
-                                apiKey: process.env.GOOGLE_VERTEX_API_KEY.trim(),
+                                apiKey: process.env.GOOGLE_VERTEX_API_KEY,
                             }
                           : {
                                 type: 'adc',
-                                project:
-                                    process.env.GOOGLE_VERTEX_PROJECT?.trim(),
+                                project: process.env.GOOGLE_VERTEX_PROJECT,
                                 location:
-                                    process.env.GOOGLE_VERTEX_LOCATION?.trim() ||
+                                    process.env.GOOGLE_VERTEX_LOCATION ||
                                     'global',
                             },
                       modelName:
-                          process.env.GOOGLE_VERTEX_MODEL_NAME?.trim() ||
+                          process.env.GOOGLE_VERTEX_MODEL_NAME ||
                           DEFAULT_GOOGLE_MODEL_NAME,
                       fastModelName:
-                          process.env.GOOGLE_VERTEX_FAST_MODEL_NAME?.trim() ||
+                          process.env.GOOGLE_VERTEX_FAST_MODEL_NAME ||
                           undefined,
                       supportsStreaming: getProviderSupportsStreaming(
                           'GOOGLE_VERTEX_SUPPORTS_STREAMING',
