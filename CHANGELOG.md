@@ -1,3 +1,10 @@
+## [2.271.1](https://github.com/lightdash/lightdash/compare/2.271.0...2.271.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* **data-apps:** raise the analysis source cap to 50 queries ([#29624](https://github.com/lightdash/lightdash/issues/29624)) ([b13386c](https://github.com/lightdash/lightdash/commit/b13386ca0a5df9b7efd754b797e73ebaefb92d71))
+
 # [2.271.0](https://github.com/lightdash/lightdash/compare/2.270.0...2.271.0) (2026-09-21)
 
 
