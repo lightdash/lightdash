@@ -103,10 +103,12 @@ export const buildCompactionSql = ({
     bucket,
     partition,
     columns,
+    storageScheme = 's3',
 }: {
     bucket: string;
     partition: RawPartition;
     columns: CompactedStreamColumn[];
+    storageScheme?: 's3' | 'gs';
 }): { sql: string; compactedKey: string } => {
     const compactedKey = `${COMPACTED_KEY_PREFIX}/org_id=${partition.orgId}/stream=${
         partition.stream
@@ -123,9 +125,12 @@ export const buildCompactionSql = ({
     // Read the exact listed files (not a glob) so objects written between
     // listing and COPY are never deleted uncompacted nor compacted twice.
     const fileList = partition.keys
-        .map((key) => `'s3://${escapeSqlString(`${bucket}/${key}`)}'`)
+        .map(
+            (key) =>
+                `'${storageScheme}://${escapeSqlString(`${bucket}/${key}`)}'`,
+        )
         .join(', ');
-    const sql = `COPY (SELECT ${selectList} FROM read_json([${fileList}], format='newline_delimited', columns={${columnDefs}})) TO 's3://${escapeSqlString(
+    const sql = `COPY (SELECT ${selectList} FROM read_json([${fileList}], format='newline_delimited', columns={${columnDefs}})) TO '${storageScheme}://${escapeSqlString(
         `${bucket}/${compactedKey}`,
     )}' (FORMAT PARQUET, COMPRESSION zstd)`;
     return { sql, compactedKey };
@@ -245,6 +250,10 @@ export class UsageEventsCompactor extends S3BaseClient {
                         bucket: this.bucket,
                         partition,
                         columns,
+                        storageScheme:
+                            this.s3Config.authMode === 'gcp_oauth'
+                                ? 'gs'
+                                : 's3',
                     });
                     // eslint-disable-next-line no-await-in-loop
                     const duckdbMetrics = await duckdb.runSqlWithMetrics(sql);
@@ -316,7 +325,17 @@ export class UsageEventsCompactor extends S3BaseClient {
             );
         }
         return new DuckdbWarehouseClient(
-            { type: 'duckdb_s3', s3Config: runtimeConfig },
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    ...runtimeConfig,
+                    ...(this.s3Config.authMode === 'gcp_oauth'
+                        ? {
+                              scope: [`gs://${this.bucket}/`],
+                          }
+                        : {}),
+                },
+            },
             {
                 resourceLimits: { memoryLimit: '256MB', threads: 1 },
                 logger: Logger,

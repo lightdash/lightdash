@@ -10,6 +10,20 @@ vi.mock('../../../clients/Aws/S3BaseClient', () => ({
     createS3ClientFromConfig: vi.fn(),
 }));
 vi.mock('@aws-sdk/s3-request-presigner', () => ({ getSignedUrl: vi.fn() }));
+const gcsSign = vi.hoisted(() => vi.fn());
+vi.mock('@google-cloud/storage', () => ({
+    Storage: class {
+        // eslint-disable-next-line class-methods-use-this
+        bucket(bucket: string) {
+            return {
+                file: (objectKey: string) => ({
+                    getSignedUrl: (options: Record<string, unknown>) =>
+                        gcsSign(bucket, objectKey, options),
+                }),
+            };
+        }
+    },
+}));
 vi.mock('@duckdb/node-api', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@duckdb/node-api')>()),
     DuckDBInstance: { create: vi.fn() },
@@ -81,6 +95,31 @@ describe('signed analytics file manifests', () => {
         });
         expect(JSON.stringify(source)).not.toContain('writer-');
         expect(destroy).toHaveBeenCalledOnce();
+    });
+
+    it('uses Google signed URLs for workload identity without AWS signing', async () => {
+        const signedUrl = `https://storage.googleapis.com/example-bucket/${key().replace(/=/g, '%3D')}?X-Goog-Signature=test`;
+        gcsSign.mockResolvedValue([signedUrl]);
+        const source = await createS3AnalyticsSourceResolver({
+            ...config,
+            storage: {
+                endpoint: config.storage.endpoint,
+                bucket: config.storage.bucket,
+                region: config.storage.region,
+                authMode: 'gcp_oauth',
+            },
+        })();
+        expect(source.tables).toEqual([
+            { name: 'query_events', urls: [signedUrl] },
+        ]);
+        expect(gcsSign).toHaveBeenCalledWith(config.storage.bucket, key(), {
+            version: 'v4',
+            action: 'read',
+            expires: expect.any(Number),
+        });
+        expect(getSignedUrl).not.toHaveBeenCalled();
+        expect(source).not.toHaveProperty('httpAuth');
+        expect(source).not.toHaveProperty('s3Config');
     });
 
     it('includes all retained dates across pages, including year-old data, for supported streams only', async () => {

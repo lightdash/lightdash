@@ -1,5 +1,4 @@
-import { GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { ParameterError } from '@lightdash/common';
 import { type DuckdbParquetSource } from '@lightdash/warehouses';
 import {
@@ -8,6 +7,7 @@ import {
     usageDimensionSchemas,
     usageDimensionTable,
 } from '../../../analytics/eventStream/usageDimensions';
+import { createObjectUrlSigner } from '../../../clients/Aws/ObjectUrlSigner';
 import {
     createS3ClientFromConfig,
     type S3ConnectionConfig,
@@ -62,6 +62,7 @@ export const createS3AnalyticsSourceResolver = ({
     };
     return async () => {
         const client = createS3ClientFromConfig(config);
+        const urlSigner = createObjectUrlSigner(client, config);
         const tables = new Map<string, string[]>();
         let hasEvents = false;
         try {
@@ -105,10 +106,10 @@ export const createS3AnalyticsSourceResolver = ({
                                 'Analytics manifest exceeds file limit',
                             );
                         // eslint-disable-next-line no-await-in-loop
-                        const url = await getSignedUrl(
-                            client,
-                            new GetObjectCommand({ Bucket: bucket, Key: key }),
-                            { expiresIn: SIGNED_URL_LIFETIME_SECONDS },
+                        const url = await urlSigner.getSignedDownloadUrl(
+                            bucket,
+                            key,
+                            SIGNED_URL_LIFETIME_SECONDS,
                         );
                         const urls = tables.get(tableName) ?? [];
                         urls.push(url);
