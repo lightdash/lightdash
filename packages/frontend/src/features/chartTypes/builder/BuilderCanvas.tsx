@@ -2,7 +2,7 @@ import {
     ECHARTS_DEFAULT_COLORS,
     type DataAppVizContext,
 } from '@lightdash/common';
-import { Box, Stack, Text, Title } from '@mantine/core';
+import { Badge, Box, Group, Stack, Text, Title } from '@mantine/core';
 import { type FC, type ReactNode, type RefObject } from 'react';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import { type AppIframePreviewHandle } from '../../apps/AppIframePreview';
@@ -10,6 +10,9 @@ import AppPreview from '../../apps/components/AppPreview';
 import { type SdkManifest } from '../../apps/hooks/useAppSdkBridge';
 import classes from './BuilderCanvas.module.css';
 import BuilderPromptExamples from './BuilderPromptExamples';
+
+/** Where the previewed rows came from. */
+export type PreviewDataSource = { kind: 'sample' };
 
 type Props = {
     projectUuid: string;
@@ -26,6 +29,8 @@ type Props = {
     clarifierUnavailable: boolean;
     /** Sample data plus configuration from the panel; null renders the app bare. */
     previewContext: DataAppVizContext | null;
+    /** What backs `previewContext`; null when the host previews its own rows. */
+    previewDataSource: PreviewDataSource | null;
     /** The card's configuration column; null until a version declares a schema. */
     configurePanel: ReactNode;
     /** Fills the composer with a starter prompt; null while no composer is
@@ -93,6 +98,7 @@ const BuilderCanvas: FC<Props> = ({
     isClarifyRoundOpen,
     clarifierUnavailable,
     previewContext,
+    previewDataSource,
     configurePanel,
     onPickExample,
     onSdkManifest,
@@ -112,28 +118,44 @@ const BuilderCanvas: FC<Props> = ({
                     data-dimmed={isBuilding}
                     inert={isBuilding}
                 >
+                    <Box className={classes.preview}>
+                        {previewDataSource && (
+                            <Group
+                                className={classes.sampleDataBadge}
+                                gap="xs"
+                                wrap="nowrap"
+                            >
+                                <Badge size="xs" variant="light" color="yellow">
+                                    Sample data
+                                </Badge>
+                                <Text fz="xs" c="dimmed">
+                                    Made-up rows.
+                                </Text>
+                            </Group>
+                        )}
+                        <Box className={classes.previewFrame}>
+                            <AppPreview
+                                ref={previewRef}
+                                projectUuid={projectUuid}
+                                appUuid={appUuid}
+                                version={previewVersion}
+                                refreshKey={0}
+                                dataAppVizContext={previewContext ?? undefined}
+                                dataAppVizMode
+                                {...elementPickerProps}
+                                onScreenshotAvailabilityChange={
+                                    onScreenshotAvailabilityChange
+                                }
+                                onSdkManifest={onSdkManifest}
+                                urlStateSync={syncPreviewUrlState}
+                            />
+                        </Box>
+                    </Box>
                     {configurePanel && (
                         <Box className={classes.configurePanel}>
                             {configurePanel}
                         </Box>
                     )}
-                    <Box className={classes.preview}>
-                        <AppPreview
-                            ref={previewRef}
-                            projectUuid={projectUuid}
-                            appUuid={appUuid}
-                            version={previewVersion}
-                            refreshKey={0}
-                            dataAppVizContext={previewContext ?? undefined}
-                            dataAppVizMode
-                            {...elementPickerProps}
-                            onScreenshotAvailabilityChange={
-                                onScreenshotAvailabilityChange
-                            }
-                            onSdkManifest={onSdkManifest}
-                            urlStateSync={syncPreviewUrlState}
-                        />
-                    </Box>
                 </Box>
             ) : isFirstBuild ? (
                 <Stack gap="xl" align="center">

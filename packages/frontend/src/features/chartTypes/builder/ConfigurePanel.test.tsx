@@ -23,6 +23,14 @@ const schema: DataAppVizSchema = {
     colorPalette: null,
 };
 
+const schemaWithFields: DataAppVizSchema = {
+    ...schema,
+    fields: [
+        { name: 'x', label: 'X axis', type: 'dimension', required: true },
+        { name: 'y', label: 'Y axis', type: 'metric', required: false },
+    ],
+};
+
 const renderPanel = (
     props: Partial<React.ComponentProps<typeof ConfigurePanel>> = {},
 ) =>
@@ -89,5 +97,23 @@ describe('ConfigurePanel', () => {
         expect(
             screen.getByText('This chart type declares no display options.'),
         ).toBeInTheDocument();
+    });
+
+    it('lists the schema fields as chart inputs, with type and required marker', () => {
+        renderPanel({ schema: schemaWithFields });
+
+        expect(screen.getByText('Chart inputs')).toBeInTheDocument();
+        expect(screen.getByText('X axis')).toBeInTheDocument();
+        expect(screen.getByText('dimension')).toBeInTheDocument();
+        expect(screen.getByText('Y axis')).toBeInTheDocument();
+        expect(screen.getByText('metric')).toBeInTheDocument();
+        // Required is conveyed with text, not colour alone.
+        expect(screen.getByText('Required')).toBeInTheDocument();
+    });
+
+    it('hides the chart inputs section when the schema declares no fields', () => {
+        renderPanel();
+
+        expect(screen.queryByText('Chart inputs')).not.toBeInTheDocument();
     });
 });
