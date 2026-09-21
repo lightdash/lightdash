@@ -4,7 +4,13 @@ import { randomUUID } from 'node:crypto';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { SearchModel } from '../../../models/SearchModel';
 import type { DbDocument } from '../../entities/documents';
-import { down, up } from '../20260921130000_add_document_search_vector';
+import {
+    down as migrateDown,
+    up as migrateUp,
+} from '../20260921130000_add_document_search_vector';
+
+const up = (database: Knex) => database.transaction(migrateUp);
+const down = (database: Knex) => database.transaction(migrateDown);
 
 describe('Document search PostgreSQL integration', () => {
     const schema = `document_search_${randomUUID().replaceAll('-', '')}`;
@@ -98,7 +104,7 @@ describe('Document search PostgreSQL integration', () => {
         await database.raw('UPDATE spaces SET deleted_at = NULL');
     });
 
-    it('backfills existing metadata, safely reruns, and survives down/up with content intact', async () => {
+    it('generates stored metadata, safely reruns, and survives down/up with content intact', async () => {
         await down(database);
         const uuid = await insertDocument();
         await up(database);
@@ -120,6 +126,14 @@ describe('Document search PostgreSQL integration', () => {
             [`${schema}.documents_search_vector_idx`],
         );
         expect(index.rows).toEqual([{ valid: true, method: 'gin' }]);
+        const column = await database('information_schema.columns')
+            .where({
+                table_schema: schema,
+                table_name: 'documents',
+                column_name: 'search_vector',
+            })
+            .first('is_generated');
+        expect(column).toEqual({ is_generated: 'ALWAYS' });
         await down(database);
         expect(
             await database.schema.hasColumn('documents', 'search_vector'),
