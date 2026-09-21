@@ -1,3 +1,12 @@
+# [2.277.0](https://github.com/lightdash/lightdash/compare/2.276.0...2.277.0) (2026-09-21)
+
+
+### Features
+
+* **ai-agents:** deliver artifacts in Slack ([#29637](https://github.com/lightdash/lightdash/issues/29637)) ([a0800e5](https://github.com/lightdash/lightdash/commit/a0800e5f937c7f4f130293a25bac4fb5c434e28b))
+* **ai-agents:** polish fast response experience ([#29627](https://github.com/lightdash/lightdash/issues/29627)) ([00ff3ec](https://github.com/lightdash/lightdash/commit/00ff3ecddb4f8a018d84b1e87f0f888c98092bdd))
+* **chart-types:** deliver field metadata (labels + formats) in the viz context ([#29644](https://github.com/lightdash/lightdash/issues/29644)) ([013b68c](https://github.com/lightdash/lightdash/commit/013b68c27fcd9f89298d5148a2eedef1a04ccf25))
+
 # [2.276.0](https://github.com/lightdash/lightdash/compare/2.275.0...2.276.0) (2026-09-21)
 
 

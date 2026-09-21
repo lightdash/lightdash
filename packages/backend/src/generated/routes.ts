@@ -46575,6 +46575,8 @@ const models: TsoaRoute.Models = {
             dataType: 'union',
             subSchemas: [
                 { dataType: 'enum', enums: ['slackAiPrompt'] },
+                { dataType: 'enum', enums: ['slackAiArtifactImages'] },
+                { dataType: 'enum', enums: ['sweepSlackAiArtifactImages'] },
                 { dataType: 'enum', enums: ['aiAgentEvalResult'] },
                 { dataType: 'enum', enums: ['aiAgentReviewClassifier'] },
                 { dataType: 'enum', enums: ['aiAgentReviewWriteback'] },
@@ -84145,6 +84147,11 @@ export function RegisterRoutes(app: Router) {
             in: 'path',
             name: 'versionUuid',
             required: true,
+            dataType: 'string',
+        },
+        cachedQueryUuid: {
+            in: 'query',
+            name: 'cachedQueryUuid',
             dataType: 'string',
         },
     };
