@@ -8,6 +8,7 @@ import { IconChartBar } from '@tabler/icons-react';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
+import { MemoryRouter } from 'react-router';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
@@ -98,6 +99,16 @@ vi.mock('../../../features/apps/hooks/useCanCreateDataApp', () => ({
 // already the identity every mocked hook expects.
 vi.mock('../../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
+}));
+// The library modal's section fetches the registry; an enabled, empty
+// registry keeps the modal renderable without network.
+vi.mock('../../../features/chartTypes/hooks/useRegistryChartTypes', () => ({
+    useRegistryChartTypes: () => ({
+        data: { registryEnabled: true, charts: [] },
+        error: null,
+        isInitialLoading: false,
+        refetch: vi.fn(),
+    }),
 }));
 vi.mock('../../../features/apps/hooks/useCanEditDataApp', () => ({
     useCanEditDataAppChecker: () => mocks.canEditChartType,
@@ -695,8 +706,13 @@ const setProjectItems = (items: DataAppViz[]) => {
     } as unknown as ReturnType<typeof useDataAppVisualizations>);
 };
 
+// The library modal renders router Links, so the gallery needs a router.
 const renderGallery = (onConfigure = vi.fn()) => {
-    renderWithProviders(<ExplorerChartTypeGallery onConfigure={onConfigure} />);
+    renderWithProviders(
+        <MemoryRouter>
+            <ExplorerChartTypeGallery onConfigure={onConfigure} />
+        </MemoryRouter>,
+    );
     return onConfigure;
 };
 
@@ -1140,7 +1156,7 @@ describe('ExplorerChartTypeGallery', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('ends the built-in shelf with a tile that opens the chart type library', async () => {
+    it('ends the built-in shelf with a tile that opens the library in a modal', async () => {
         renderGallery();
 
         const builtIn = screen.getByRole('group', { name: 'Built in' });
@@ -1157,9 +1173,20 @@ describe('ExplorerChartTypeGallery', () => {
         ).toBeTruthy();
 
         await userEvent.click(findNew);
-        expect(mocks.navigate).toHaveBeenCalledWith(
+        // The library opens in place; the explore context is never left.
+        const dialog = await screen.findByRole('dialog');
+        expect(
+            within(dialog).getByText('Find new chart types'),
+        ).toBeInTheDocument();
+        expect(
+            within(dialog).getByRole('link', {
+                name: 'Open the full library page',
+            }),
+        ).toHaveAttribute(
+            'href',
             '/projects/project-uuid/chart-types?tab=chart-library',
         );
+        expect(mocks.navigate).not.toHaveBeenCalled();
     });
 
     it('hides the discover tile without the chart type library flag', () => {

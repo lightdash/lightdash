@@ -28,9 +28,9 @@ import {
 } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { useEffect, useId, useMemo, useRef, useState, type FC } from 'react';
-import { useNavigate } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
+import ChartTypeLibraryModal from '../../../features/chartTypes/components/ChartTypeLibraryModal';
 import { useChartTypesEnabled } from '../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
 import {
@@ -512,10 +512,10 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
 }) => {
     const projectUuid = useProjectUuid();
     const dispatch = useExplorerDispatch();
-    const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [showAllProjectTypes, setShowAllProjectTypes] = useState(false);
+    const [isLibraryOpen, setIsLibraryOpen] = useState(false);
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
         true;
@@ -642,13 +642,11 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                   )
             : null;
     // Discovery needs the library, so the tile follows its flag alone; the
-    // gallery page itself handles a registry that turns out unreachable.
+    // library section itself handles a registry that turns out unreachable.
+    // Browsing happens in a modal so the explore context survives the detour.
     const onFindNew =
         libraryEnabled && projectUuid !== undefined
-            ? () =>
-                  navigate(
-                      `/projects/${projectUuid}/chart-types?tab=chart-library`,
-                  )
+            ? () => setIsLibraryOpen(true)
             : null;
     // One query feeds the Custom shelf and the built-in shelf's installed
     // tail, so its loading/error notice renders once, on the shelf this
@@ -718,14 +716,22 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     ];
 
     return (
-        <ChartTypeGallery
-            search={search}
-            onSearchChange={setSearch}
-            sections={sections}
-            disabledReason={
-                disabled ? 'Run your query to pick a chart type.' : null
-            }
-        />
+        <>
+            <ChartTypeGallery
+                search={search}
+                onSearchChange={setSearch}
+                sections={sections}
+                disabledReason={
+                    disabled ? 'Run your query to pick a chart type.' : null
+                }
+            />
+            {isLibraryOpen && projectUuid !== undefined ? (
+                <ChartTypeLibraryModal
+                    projectUuid={projectUuid}
+                    onClose={() => setIsLibraryOpen(false)}
+                />
+            ) : null}
+        </>
     );
 };
 
