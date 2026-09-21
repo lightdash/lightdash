@@ -697,6 +697,7 @@ const runGrepFields = async (
                   context.availableExplores,
                   ranking.projectParameterDefinitions,
                   ranked.fieldRanks,
+                  ranked.exploreRanks,
               )
             : null,
         ranked?.ambiguous ? CATALOG_AMBIGUITY_GUIDANCE : null,

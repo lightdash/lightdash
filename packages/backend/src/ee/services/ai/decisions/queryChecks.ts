@@ -29,7 +29,7 @@ export const QUERY_INTENT_CHECKS = {
         'Represent every explicit condition as a filter or a metric definition; grouping alone does not apply a filter.',
     ],
     grain: [
-        'Does the chosen explore or query clearly aggregate at a different entity or grouping than explicitly requested? Inspect the base table, selected dimensions, metric definitions and declared join relationships. Do not assume the presence of a joined field makes the base table the correct grain.',
+        'Does the chosen explore or query clearly aggregate at a different entity or grouping than explicitly requested? Inspect the base table, selected dimensions, metric definitions and declared join predicates and relationships, including how filters attribute activity to an entity. Do not assume the presence of a joined field makes the base table the correct grain.',
         'Check entity grain, requested groupings and join relationships.',
     ],
     time: [
@@ -77,12 +77,15 @@ export const describeSemanticQuery = (
                 table: join.table,
                 relationship: join.relationship ?? null,
                 type: join.type ?? null,
+                sqlOn: join.sqlOn,
+                always: join.always ?? false,
             })),
         },
         fields: getFields(explore)
             .filter((field) => selected.has(getItemId(field)))
             .map((field) => ({
                 id: getItemId(field),
+                table: field.table,
                 label: field.label,
                 description: field.description,
                 type: field.type,

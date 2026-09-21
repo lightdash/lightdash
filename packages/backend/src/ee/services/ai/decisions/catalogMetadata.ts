@@ -13,6 +13,7 @@ export const prepareCatalogMetadata = (
     availableExplores: Explore[],
     projectParameterDefinitions: ParameterDefinitions,
     fieldRanks?: ReadonlyMap<string, number> | null,
+    exploreRanks?: ReadonlyMap<string, number> | null,
 ): string | null => {
     const blocks: string[] = [];
     const includedExplores = new Set<string>();
@@ -24,7 +25,11 @@ export const prepareCatalogMetadata = (
         size += block.length + 2;
         return true;
     };
-    const dependencies = { availableExplores, projectParameterDefinitions };
+    const dependencies = {
+        availableExplores,
+        projectParameterDefinitions,
+        includeSourceDetails: true,
+    };
     // Ranks are negative relevance probabilities. Keep the full discovery pool
     // elsewhere, but spend metadata tokens on confident matches and their dates.
     const metadataFields = fieldRanks
@@ -34,7 +39,16 @@ export const prepareCatalogMetadata = (
                   -CATALOG_RELEVANCE_THRESHOLD,
           )
         : fields;
-    metadataFields.slice(0, 40).forEach((field) => {
+    // Joined copies can have identical field scores. Spend the bounded budget
+    // on the chosen source first, retaining field relevance within each source.
+    const orderedFields = exploreRanks
+        ? [...metadataFields].sort(
+              (a, b) =>
+                  (exploreRanks.get(a.exploreName) ?? Infinity) -
+                  (exploreRanks.get(b.exploreName) ?? Infinity),
+          )
+        : metadataFields;
+    orderedFields.slice(0, 40).forEach((field) => {
         if (includedFields.size >= MAX_FIELDS) return;
         if (!includedExplores.has(field.exploreName)) {
             if (includedExplores.size >= MAX_EXPLORES) return;
