@@ -14,6 +14,8 @@ type Props = {
     fit: PreviewFitState;
     /** The version on screen declares inputs, so real data can be bound. */
     hasDeclaredInputs: boolean;
+    /** The inputs on screen come from the last session, unrun. */
+    isRemembered: boolean;
     /** Asks Chart Studio to find the data; null without Ambient AI. */
     onSuggestFields: (() => void) | null;
     isSuggestingFields: boolean;
@@ -30,6 +32,7 @@ const PreviewDataStatus: FC<Props> = ({
     run,
     fit,
     hasDeclaredInputs,
+    isRemembered,
     onSuggestFields,
     isSuggestingFields,
     onOpenDataMenu,
@@ -97,6 +100,21 @@ const PreviewDataStatus: FC<Props> = ({
             >
                 <MantineIcon icon={IconRefresh} size={14} />
             </ActionIcon>
+        );
+    }
+
+    // The strip's own label already says nothing runs unasked; this is the
+    // ask. Named apart from the panel's own Run query.
+    if (isRemembered) {
+        return (
+            <Button
+                size="compact-xs"
+                variant="default"
+                aria-label="Run the remembered query"
+                onClick={onRefresh}
+            >
+                Run query
+            </Button>
         );
     }
 

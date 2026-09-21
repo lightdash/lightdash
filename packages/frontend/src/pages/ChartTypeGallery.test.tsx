@@ -112,6 +112,7 @@ const makeDataAppViz = (overrides: Partial<DataAppViz>): DataAppViz => ({
     createdByUserUuid: 'user-1',
     icon: null,
     registrySlug: null,
+    previewSelection: null,
     ...overrides,
 });
 
@@ -424,6 +425,34 @@ describe('ChartTypeGallery', () => {
         expect(screen.getByText('Built by')).toBeInTheDocument();
         expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
         expect(screen.getByText('Last updated')).toBeInTheDocument();
+    });
+
+    it('says what the last session built on, and that it stays unrun here', () => {
+        setData([
+            makeDataAppViz({
+                previewSelection: {
+                    exploreName: 'customers',
+                    fieldCount: 3,
+                    updatedAt: new Date('2026-09-01'),
+                },
+            }),
+        ]);
+        renderPage();
+
+        fireEvent.click(screen.getByText('Radial gauge'));
+
+        expect(screen.getByText('Last built on')).toBeInTheDocument();
+        // The explore's name, as stored: the gallery holds no explore list to
+        // resolve a label from, and will not fetch one to get it.
+        expect(
+            screen.getByText(
+                'customers, 3 fields. Remembered for editing, never run from here.',
+            ),
+        ).toBeInTheDocument();
+        // The gallery preview is the chart type's own sample, always.
+        expect(screen.getAllByTestId('sample-preview').length).toBeGreaterThan(
+            0,
+        );
     });
 
     it('links the card menu actions and deletes after confirmation', async () => {

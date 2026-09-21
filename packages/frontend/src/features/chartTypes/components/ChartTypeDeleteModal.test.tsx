@@ -26,6 +26,7 @@ const viz: DataAppViz = {
     createdAt: new Date(),
     createdByUserUuid: 'user-1',
     registrySlug: null,
+    previewSelection: null,
 };
 
 const mockImpact = (

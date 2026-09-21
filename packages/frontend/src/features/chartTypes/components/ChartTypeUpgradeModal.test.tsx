@@ -32,6 +32,7 @@ const viz: DataAppViz = {
     createdAt: new Date(),
     createdByUserUuid: 'user-1',
     registrySlug: 'sankey',
+    previewSelection: null,
 };
 
 const registryUpdate: RegistryChartTypeListItem = {

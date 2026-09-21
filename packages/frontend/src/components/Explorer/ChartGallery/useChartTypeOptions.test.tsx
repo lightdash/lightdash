@@ -31,6 +31,7 @@ const projectChartType = {
     schema: { fields: [], configOptions: [], colorPalette: null },
     icon: 'chart-scatter-3d',
     registrySlug: null,
+    previewSelection: null,
 } satisfies DataAppViz;
 
 const getSelectedItem = (

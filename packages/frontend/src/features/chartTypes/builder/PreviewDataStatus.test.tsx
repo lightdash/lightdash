@@ -29,6 +29,7 @@ const renderStatus = (
             run={{ status: 'notRun' }}
             fit={{ status: 'notApplicable' }}
             hasDeclaredInputs
+            isRemembered={false}
             onSuggestFields={null}
             isSuggestingFields={false}
             onOpenDataMenu={vi.fn()}
@@ -61,6 +62,25 @@ describe('PreviewDataStatus', () => {
         expect(
             screen.getByText('Nothing runs until you ask.'),
         ).toBeInTheDocument();
+    });
+
+    it('offers one click to run the remembered inputs', () => {
+        const onRefresh = vi.fn();
+        renderStatus({
+            selection: querySelection,
+            fit: { status: 'fits' },
+            isRemembered: true,
+            onRefresh,
+        });
+
+        // The strip's own label already says nothing runs unasked, and the
+        // panel keeps the plain "Run query" name for its own button.
+        expect(screen.queryByText('Nothing runs until you ask.')).toBeNull();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Run the remembered query' }),
+        );
+
+        expect(onRefresh).toHaveBeenCalledOnce();
     });
 
     it('reports a run in progress', () => {

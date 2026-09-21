@@ -28,6 +28,7 @@ const makeDataAppViz = (overrides: Partial<DataAppViz>): DataAppViz => ({
     createdByUserUuid: 'user-1',
     icon: null,
     registrySlug: null,
+    previewSelection: null,
     ...overrides,
 });
 

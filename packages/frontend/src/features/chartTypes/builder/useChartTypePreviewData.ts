@@ -29,6 +29,7 @@ import {
     type PreviewDataSelection,
     type PreviewDataSource,
     type PreviewFitState,
+    type PreviewQuerySelection,
     type PreviewRunState,
 } from './previewDataTypes';
 
@@ -63,6 +64,10 @@ export type ChartTypePreviewDataState = {
     runQuery: () => void;
 };
 
+/** How many distinct columns a mapping names — the server counts the same. */
+const distinctFieldCount = (mapping: DataAppVizFieldMapping) =>
+    new Set(Object.values(mapping).flatMap(getDataAppVizFieldIds)).size;
+
 const NO_FIELDS: DataAppVizFieldMapping = {};
 const NO_ITEMS: ItemsMap = {};
 const SAMPLE: PreviewDataSelection = { kind: 'sample' };
@@ -72,26 +77,79 @@ const NOT_RUN: PreviewRunState = { status: 'notRun' };
  * The author's opt-in preview on real data.
  *
  * Nothing here reaches the warehouse on its own: selecting a chart or an
- * explore, binding an input and moving between versions all read metadata
- * only. `runQuery` is the single path that executes, once per call, and the
- * rows it returns live in this state for the session.
+ * explore, binding an input, reading back the last session's selection and
+ * moving between versions all read metadata only. `runQuery` is the single
+ * path that executes, once per call, and the rows it returns live in this
+ * state for the session.
  */
 export const useChartTypePreviewData = ({
     projectUuid,
     schema,
+    chartTypeUuid,
+    rememberedSelection,
+    isAppSettled,
+    onRunSuccess,
 }: {
     projectUuid: string | undefined;
     schema: DataAppVizSchema | null;
+    /** The chart type these choices belong to; null before one exists. */
+    chartTypeUuid: string | null;
+    /** What this chart type was last previewed with. Resolves after the first
+     *  render, and never replaces a choice made in this session. */
+    rememberedSelection: PreviewQuerySelection | null;
+    /** The chart type has been read: what it remembers is now known, whether
+     *  that is a selection or nothing at all. */
+    isAppSettled: boolean;
+    /** The binding a successful run's rows belong to. */
+    onRunSuccess: (selection: PreviewQuerySelection) => void;
 }): ChartTypePreviewDataState => {
-    const [selection, setSelection] = useState<PreviewDataSelection>(SAMPLE);
+    const [selection, setSelection] = useState<PreviewDataSelection>(
+        () => rememberedSelection ?? SAMPLE,
+    );
+    const [isRemembered, setIsRemembered] = useState(
+        rememberedSelection !== null,
+    );
     const [run, setRun] = useState<PreviewRunState>(NOT_RUN);
     const [inferredFields, setInferredFields] = useState<
         DataAppVizField[] | null
     >(null);
+    // Both keyed by chart type: the one it was read back for, and the one the
+    // author has since chosen data for themselves.
+    const hasChosenData = useRef<string | null>(null);
+    const hydratedFor = useRef<string | null>(
+        rememberedSelection === null ? null : chartTypeUuid,
+    );
     // Only the latest run may write results back, and only one is ever in
     // flight — neither depends on how the button is rendered.
     const runToken = useRef(0);
     const isRunning = useRef(false);
+
+    // State only, and deliberately not a query: reading the last session's
+    // selection back fills the inputs and leaves the run `notRun`.
+    useEffect(() => {
+        if (chartTypeUuid === null) return;
+        if (
+            hasChosenData.current === chartTypeUuid ||
+            hydratedFor.current === chartTypeUuid
+        ) {
+            return;
+        }
+        if (rememberedSelection === null) {
+            // A settled read with nothing remembered is the answer. What a
+            // later refetch carries belongs to another session, not this one.
+            if (isAppSettled) hydratedFor.current = chartTypeUuid;
+            return;
+        }
+        hydratedFor.current = chartTypeUuid;
+        setSelection(rememberedSelection);
+        setIsRemembered(true);
+    }, [chartTypeUuid, isAppSettled, rememberedSelection]);
+
+    /** The author picked data themselves: it is theirs from here on. */
+    const chooseData = useCallback(() => {
+        hasChosenData.current = chartTypeUuid;
+        setIsRemembered(false);
+    }, [chartTypeUuid]);
 
     // Inputs suggested for a chart type that has not been built yet stand in
     // for a declaration, so the binding, the fit and the query are all the
@@ -222,14 +280,16 @@ export const useChartTypePreviewData = ({
 
     const selectSample = useCallback(() => {
         runToken.current += 1;
+        chooseData();
         setSelection(SAMPLE);
         setRun(NOT_RUN);
         setInferredFields(null);
-    }, []);
+    }, [chooseData]);
 
     const selectSavedChart = useCallback(
         (chart: SavedChart) => {
             runToken.current += 1;
+            chooseData();
             setRun(NOT_RUN);
             setInferredFields(null);
             setSelection({
@@ -247,21 +307,25 @@ export const useChartTypePreviewData = ({
                     : {},
             });
         },
-        [schema],
+        [chooseData, schema],
     );
 
-    const selectExplore = useCallback((exploreName: string) => {
-        runToken.current += 1;
-        setRun(NOT_RUN);
-        setInferredFields(null);
-        setSelection({
-            kind: 'query',
-            exploreName,
-            savedChart: null,
-            metricQuery: emptyChartTypePreviewMetricQuery(exploreName),
-            fieldMapping: {},
-        });
-    }, []);
+    const selectExplore = useCallback(
+        (exploreName: string) => {
+            runToken.current += 1;
+            chooseData();
+            setRun(NOT_RUN);
+            setInferredFields(null);
+            setSelection({
+                kind: 'query',
+                exploreName,
+                savedChart: null,
+                metricQuery: emptyChartTypePreviewMetricQuery(exploreName),
+                fieldMapping: {},
+            });
+        },
+        [chooseData],
+    );
 
     const selectSuggestedData = useCallback(
         ({
@@ -274,6 +338,7 @@ export const useChartTypePreviewData = ({
             inferredFields: DataAppVizField[] | null;
         }) => {
             runToken.current += 1;
+            chooseData();
             setRun(NOT_RUN);
             setInferredFields(inferred);
             // Staying inside the explore already selected keeps the query it
@@ -291,12 +356,13 @@ export const useChartTypePreviewData = ({
                       },
             );
         },
-        [],
+        [chooseData],
     );
 
     const setField = useCallback(
         (fieldName: string, fieldId: string | string[] | null) => {
             runToken.current += 1;
+            chooseData();
             // Rows from the previous binding are not this binding's results.
             setRun(NOT_RUN);
             setSelection((current) => {
@@ -309,7 +375,7 @@ export const useChartTypePreviewData = ({
                 return { ...current, fieldMapping: next };
             });
         },
-        [fieldMapping],
+        [chooseData, fieldMapping],
     );
 
     const runQuery = useCallback(() => {
@@ -331,12 +397,13 @@ export const useChartTypePreviewData = ({
                 // Polling cannot be cancelled, so an abandoned run is simply
                 // not consumed; its rows never reach the preview.
                 if (token !== runToken.current) return;
-                // The binding these rows belong to is now the selection's.
-                setSelection((current) =>
-                    current.kind === 'query'
-                        ? { ...current, fieldMapping }
-                        : current,
-                );
+                // The binding these rows belong to is now the selection's,
+                // and the one worth remembering for the next session.
+                if (selection.kind === 'query') {
+                    const committed = { ...selection, fieldMapping };
+                    setSelection(committed);
+                    onRunSuccess(committed);
+                }
                 setRun({
                     status: 'ready',
                     rows: result.rows,
@@ -351,13 +418,28 @@ export const useChartTypePreviewData = ({
                 if (token !== runToken.current) return;
                 setRun({ status: 'error', message: getErrorMessage(error) });
             });
-    }, [projectUuid, metricQuery, activeSchema, fieldMapping, itemsMap]);
+    }, [
+        projectUuid,
+        metricQuery,
+        activeSchema,
+        fieldMapping,
+        itemsMap,
+        selection,
+        onRunSuccess,
+    ]);
 
     const boundFieldCount = useMemo(
-        () =>
-            new Set(Object.values(fieldMapping).flatMap(getDataAppVizFieldIds))
-                .size,
+        () => distinctFieldCount(fieldMapping),
         [fieldMapping],
+    );
+    // The mapping as chosen, not as reconciled: the same count the chart
+    // type's own summary reports, so the builder and the gallery agree.
+    const committedFieldCount = useMemo(
+        () =>
+            selection.kind === 'query'
+                ? distinctFieldCount(selection.fieldMapping)
+                : 0,
+        [selection],
     );
 
     const previewDataSource: PreviewDataSource = (() => {
@@ -367,14 +449,29 @@ export const useChartTypePreviewData = ({
         if (fit.status === 'doesNotFit') {
             return { kind: 'mismatch', issueCount: fit.issues.length };
         }
-        return run.status === 'ready' && exploreLabel !== null
-            ? {
-                  kind: 'live',
-                  exploreLabel,
-                  rowCount: run.rowCount,
-                  ranAt: run.ranAt,
-              }
-            : { kind: 'sample' };
+        if (run.status === 'ready' && exploreLabel !== null) {
+            return {
+                kind: 'live',
+                exploreLabel,
+                rowCount: run.rowCount,
+                ranAt: run.ranAt,
+            };
+        }
+        // The last session's inputs are bound, but its rows are not kept, so
+        // the canvas stays on sample data; a resolving explore has no count.
+        if (
+            isRemembered &&
+            run.status === 'notRun' &&
+            exploreLabel !== null &&
+            (fit.status === 'fits' || fit.status === 'resolving')
+        ) {
+            return {
+                kind: 'remembered',
+                exploreLabel,
+                fieldCount: fit.status === 'fits' ? committedFieldCount : null,
+            };
+        }
+        return { kind: 'sample' };
     })();
 
     return {

@@ -2,6 +2,7 @@ import { assertUnreachable } from '@lightdash/common';
 import { Badge, Group, Text } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import { countLabel } from '../utils/countLabel';
 import classes from './PreviewDataStrip.module.css';
 import { type PreviewDataSource } from './previewDataTypes';
 
@@ -30,6 +31,24 @@ const SourceLabel: FC<{ source: PreviewDataSource }> = ({ source }) => {
                     <Text fz="xs" c="dimmed">
                         Made-up rows.
                     </Text>
+                </>
+            );
+        case 'remembered':
+            return (
+                <>
+                    <Badge size="xs" variant="light" color="yellow">
+                        Sample data
+                    </Badge>
+                    {/* The explore is still resolving, so the badge stands
+                        alone rather than claiming made-up rows. */}
+                    {source.fieldCount !== null && (
+                        <Text fz="xs" c="dimmed" lineClamp={1}>
+                            {`Last built on ${source.exploreLabel}, ${countLabel(
+                                source.fieldCount,
+                                'field',
+                            )}. Nothing runs until you ask.`}
+                        </Text>
+                    )}
                 </>
             );
         case 'live':

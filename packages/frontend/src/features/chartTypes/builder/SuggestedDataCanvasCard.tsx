@@ -9,6 +9,7 @@ import { Badge, Box, Group, Stack, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import DataAppVizFieldTypeBadge from '../components/DataAppVizFieldTypeBadge';
 import { dataAppVizFieldPools } from '../utils/autoMapDataAppVizFields';
+import { countLabel } from '../utils/countLabel';
 import classes from './SuggestedDataCanvasCard.module.css';
 
 type Props = {
@@ -17,9 +18,6 @@ type Props = {
     fieldMapping: DataAppVizFieldMapping;
     itemsMap: ItemsMap;
 };
-
-const countLabel = (count: number, noun: string) =>
-    `${count} ${noun}${count === 1 ? '' : 's'}`;
 
 /**
  * What the canvas says while a suggestion is on screen: the query that would

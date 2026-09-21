@@ -76,6 +76,7 @@ const renderPanel = (
             metricQuery={metricQuery}
             run={{ status: 'notRun' }}
             fit={{ status: 'fits' }}
+            isRemembered={false}
             onSuggestFields={null}
             onSuggestInput={null}
             isSuggestingFields={false}
@@ -113,6 +114,7 @@ describe('ChartInputsPanel', () => {
                 metricQuery={metricQuery}
                 run={{ status: 'notRun' }}
                 fit={{ status: 'fits' }}
+                isRemembered={false}
                 onSuggestFields={null}
                 onSuggestInput={null}
                 isSuggestingFields={false}
@@ -123,6 +125,17 @@ describe('ChartInputsPanel', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Change' }));
 
         expect(onChangeExplore).toHaveBeenCalledOnce();
+    });
+
+    it('says the inputs are remembered and what running them costs', () => {
+        renderPanel({ isRemembered: true });
+
+        expect(screen.getByText('Not run yet.')).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'These inputs are remembered from the last session. Running queries your warehouse once.',
+            ),
+        ).toBeInTheDocument();
     });
 
     it('offers to run once and summarises the query', () => {

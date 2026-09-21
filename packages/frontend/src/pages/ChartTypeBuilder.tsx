@@ -7,7 +7,7 @@ import {
     type ResultRow,
 } from '@lightdash/common';
 import { Box, Button } from '@mantine/core';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import {
     Link,
     Navigate,
@@ -24,6 +24,7 @@ import { useAmbientAiEnabled } from '../ee/features/ambientAi/hooks/useAmbientAi
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
+import { useRememberPreviewSelection } from '../features/apps/hooks/useRememberPreviewSelection';
 import BuildInProgressExitModal from '../features/chartTypes/builder/BuildInProgressExitModal';
 import ChartInputsPanel from '../features/chartTypes/builder/ChartInputsPanel';
 import ChartTypeBuilderHeader from '../features/chartTypes/builder/ChartTypeBuilderHeader';
@@ -34,7 +35,10 @@ import PreviewDataOverlay, {
 } from '../features/chartTypes/builder/PreviewDataOverlay';
 import PreviewDataPill from '../features/chartTypes/builder/PreviewDataPill';
 import PreviewDataStatus from '../features/chartTypes/builder/PreviewDataStatus';
-import { type PreviewDataSource } from '../features/chartTypes/builder/previewDataTypes';
+import {
+    type PreviewDataSource,
+    type PreviewQuerySelection,
+} from '../features/chartTypes/builder/previewDataTypes';
 import SuggestedDataCanvasCard from '../features/chartTypes/builder/SuggestedDataCanvasCard';
 import SuggestedDataSheet from '../features/chartTypes/builder/SuggestedDataSheet';
 import { useChartTypeAuthoringExit } from '../features/chartTypes/builder/useChartTypeAuthoringExit';
@@ -46,6 +50,10 @@ import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartT
 import { useDataAppVizResolvedColors } from '../features/chartTypes/hooks/useDataAppVizResolvedColors';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { buildExplorerVizContext } from '../features/chartTypes/utils/explorerVizContext';
+import {
+    previewSelectionFromApi,
+    previewSelectionToApi,
+} from '../features/chartTypes/utils/previewSelectionApi';
 import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
 import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
@@ -137,8 +145,39 @@ const ChartTypeBuilder: FC = () => {
         panel.colorPaletteUuid,
     );
 
+    const canEdit = useCanEditDataApp(projectUuid, {
+        spaceUuid: appMeta?.spaceUuid ?? null,
+        createdByUserUuid: appMeta?.createdByUserUuid ?? null,
+    });
+    // Registry-installed chart types are read-only, so nothing about them is
+    // remembered; the server refuses the write either way.
+    const rememberPreviewSelection = useRememberPreviewSelection({
+        projectUuid,
+        appUuid: activeVizUuid ?? build.appUuid ?? null,
+        appUuidOrSlug: urlVizUuid,
+        enabled: canEdit && (appMeta?.registrySlug ?? null) === null,
+    });
+    const rememberedSelection = useMemo(
+        () => previewSelectionFromApi(appMeta?.previewSelection ?? null),
+        [appMeta?.previewSelection],
+    );
+    const onRunSuccess = useCallback(
+        (ran: PreviewQuerySelection) =>
+            rememberPreviewSelection(previewSelectionToApi(ran)),
+        [rememberPreviewSelection],
+    );
+
     const schema = workspace.dataAppViz?.schema ?? null;
-    const previewData = useChartTypePreviewData({ projectUuid, schema });
+    const previewData = useChartTypePreviewData({
+        projectUuid,
+        schema,
+        chartTypeUuid: activeVizUuid ?? null,
+        rememberedSelection,
+        // The app row is the read: once it is here, what this chart type
+        // remembers is settled, selection or none.
+        isAppSettled: appMeta !== null,
+        onRunSuccess,
+    });
     const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
     const isAmbientAiEnabled = useAmbientAiEnabled() === true;
     const suggestion = useChartTypeDataSuggestion({
@@ -244,11 +283,6 @@ const ChartTypeBuilder: FC = () => {
         );
     }, [activeVizUuid, explorerChart, projectUuid]);
 
-    const canEdit = useCanEditDataApp(projectUuid, {
-        spaceUuid: appMeta?.spaceUuid ?? null,
-        createdByUserUuid: appMeta?.createdByUserUuid ?? null,
-    });
-
     // Falls back to `build.appUuid` for the window before the redirect below
     // adopts it, while the URL is still `/new`.
     const exit = useChartTypeAuthoringExit({
@@ -335,6 +369,11 @@ const ChartTypeBuilder: FC = () => {
     }
 
     const selection = previewData.selection;
+    // Only once the explore has resolved: before that there is nothing to
+    // count, and running the query would be premature.
+    const isRemembered =
+        previewData.previewDataSource.kind === 'remembered' &&
+        previewData.previewDataSource.fieldCount !== null;
     const overlayReason: PreviewDataOverlayReason | null =
         previewData.fit.status === 'doesNotFit'
             ? {
@@ -363,6 +402,7 @@ const ChartTypeBuilder: FC = () => {
                 metricQuery={previewData.metricQuery}
                 run={previewData.run}
                 fit={previewData.fit}
+                isRemembered={isRemembered}
                 onSuggestFields={suggestion.onSuggestFields}
                 onSuggestInput={suggestion.onSuggestInput}
                 isSuggestingFields={suggestion.isSuggestingFields}
@@ -448,6 +488,7 @@ const ChartTypeBuilder: FC = () => {
                         run={previewData.run}
                         fit={previewData.fit}
                         hasDeclaredInputs={previewData.hasDeclaredInputs}
+                        isRemembered={isRemembered}
                         onSuggestFields={suggestion.onSuggestFields}
                         isSuggestingFields={suggestion.isSuggestingFields}
                         onOpenDataMenu={() => setIsDataMenuOpen(true)}

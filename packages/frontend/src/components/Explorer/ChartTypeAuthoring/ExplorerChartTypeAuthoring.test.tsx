@@ -171,6 +171,7 @@ const dataAppViz = {
     createdByUserUuid: 'user-1',
     icon: null,
     registrySlug: null,
+    previewSelection: null,
 } satisfies DataAppViz;
 
 const readyVersion = {

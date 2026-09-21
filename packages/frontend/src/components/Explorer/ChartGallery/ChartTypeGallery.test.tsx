@@ -51,6 +51,7 @@ const projectChartType = {
     schema: { fields: [], configOptions: [], colorPalette: null },
     icon: null,
     registrySlug: null,
+    previewSelection: null,
 } satisfies DataAppViz;
 
 const installedChartType = {

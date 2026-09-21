@@ -21,6 +21,7 @@ import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
+import { countLabel } from '../utils/countLabel';
 import classes from './ChartTypeDetailModal.module.css';
 import ChartTypeForkModal from './ChartTypeForkModal';
 import ChartTypeSamplePreview from './ChartTypeSamplePreview';
@@ -240,6 +241,21 @@ const ChartTypeDetailModal: FC<Props> = ({
                                 {lastUpdatedAgo}
                             </Text>
                         </Box>
+                        {dataAppViz.previewSelection && (
+                            <Box>
+                                <Text fz="xs" fw={600} c="dimmed">
+                                    Last built on
+                                </Text>
+                                <Text fz="sm" fw={500} c="ldGray.8">
+                                    {`${
+                                        dataAppViz.previewSelection.exploreName
+                                    }, ${countLabel(
+                                        dataAppViz.previewSelection.fieldCount,
+                                        'field',
+                                    )}. Remembered for editing, never run from here.`}
+                                </Text>
+                            </Box>
+                        )}
                         <Box>
                             <Text fz="xs" fw={600} c="dimmed">
                                 Version

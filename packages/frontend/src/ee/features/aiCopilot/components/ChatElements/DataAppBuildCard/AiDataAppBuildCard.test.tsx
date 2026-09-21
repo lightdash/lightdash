@@ -121,6 +121,7 @@ const app = (
         versions.find((v) => v.status === 'ready')?.version ?? null,
     icon: null,
     verification: null,
+    previewSelection: null,
 });
 
 const pending: ToolGenerateDataAppOutput['metadata'] = {

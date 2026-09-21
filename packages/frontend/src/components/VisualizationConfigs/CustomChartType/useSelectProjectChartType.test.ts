@@ -98,6 +98,7 @@ const dataAppViz = {
     createdByUserUuid: 'user-uuid',
     icon: null,
     registrySlug: null,
+    previewSelection: null,
 } satisfies DataAppViz;
 
 describe('useSelectProjectChartType', () => {

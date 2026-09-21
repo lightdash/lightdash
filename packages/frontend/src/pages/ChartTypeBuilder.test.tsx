@@ -8,6 +8,7 @@ import {
     type ApiGetAppResponse,
     type CompiledDimension,
     type CompiledMetric,
+    type DataAppVizPreviewSelection,
     type Explore,
     type SdkFeature,
     type SuggestedChartTypeData,
@@ -92,6 +93,16 @@ vi.mock('../features/apps/hooks/useAppBuildPoller', () => ({
 }));
 vi.mock('../features/apps/hooks/useUpdateApp', () => ({
     useUpdateApp: () => ({ mutateAsync: vi.fn(), isLoading: false }),
+}));
+const { rememberSelection, rememberArgs } = vi.hoisted(() => ({
+    rememberSelection: vi.fn(),
+    rememberArgs: { current: null as Record<string, unknown> | null },
+}));
+vi.mock('../features/apps/hooks/useRememberPreviewSelection', () => ({
+    useRememberPreviewSelection: (args: Record<string, unknown>) => {
+        rememberArgs.current = args;
+        return rememberSelection;
+    },
 }));
 vi.mock('../hooks/appearance/useOrganizationAppearance', () => ({
     useColorPalettes: () => ({ data: [] }),
@@ -470,6 +481,55 @@ const suggestedData: SuggestedChartTypeData = {
     ],
 };
 
+const rememberedSelection: DataAppVizPreviewSelection = {
+    version: 1,
+    exploreName: 'customers',
+    savedChart: null,
+    metricQuery: {
+        exploreName: 'customers',
+        dimensions: ['customers_channel'],
+        metrics: ['customers_count'],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: [],
+        additionalMetrics: null,
+        customDimensions: null,
+    },
+    fieldMapping: { source: 'customers_channel', value: 'customers_count' },
+    updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+    updatedByUserUuid: 'user-1',
+};
+
+/** A ready version declaring the two inputs the remembered selection binds. */
+const setSankeyVersion = () => {
+    vi.mocked(useAppVersionHistory).mockReturnValue(
+        historyStub([appVersion({ version: 1 })], 1),
+    );
+    vi.mocked(useDataAppVisualization).mockReturnValue({
+        data: {
+            schema: {
+                fields: [
+                    {
+                        name: 'source',
+                        label: 'Source',
+                        type: 'dimension',
+                        required: true,
+                    },
+                    {
+                        name: 'value',
+                        label: 'Value',
+                        type: 'metric',
+                        required: true,
+                    },
+                ],
+                configOptions: [],
+                colorPalette: null,
+            },
+        },
+    } as unknown as ReturnType<typeof useDataAppVisualization>);
+};
+
 const sendPrompt = (prompt: string) => {
     fireEvent.change(
         screen.getByPlaceholderText('Describe a new chart type…'),
@@ -729,6 +789,102 @@ describe('ChartTypeBuilder', () => {
         fireEvent.click(screen.getByRole('button', { name: 'History' }));
 
         expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+    });
+
+    it('offers the last session’s inputs without running anything', () => {
+        setApp(appMeta({ previewSelection: rememberedSelection }));
+        setSankeyVersion();
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        expect(screen.getByText('Sample data')).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Last built on Customers, 2 fields. Nothing runs until you ask.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: 'Preview data: Customers, 2 fields, not run',
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Not run yet.')).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'These inputs are remembered from the last session. Running queries your warehouse once.',
+            ),
+        ).toBeInTheDocument();
+        expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+        // Remembering is wired to this chart type, and allowed for it.
+        expect(rememberArgs.current).toEqual({
+            projectUuid: 'p1',
+            appUuid: 'viz-1',
+            appUuidOrSlug: '1e9a3b2c-0000-4000-8000-000000000001',
+            enabled: true,
+        });
+    });
+
+    it('remembers nothing for an author who cannot edit', () => {
+        // The edit route sends a non-editor to the gallery, so the create
+        // flow is where the builder renders without edit rights.
+        vi.mocked(useCanEditDataApp).mockReturnValue(false);
+        renderBuilder('/projects/p1/chart-types/new');
+
+        expect(rememberArgs.current).toEqual({
+            projectUuid: 'p1',
+            appUuid: null,
+            appUuidOrSlug: undefined,
+            enabled: false,
+        });
+    });
+
+    it('waits for the explore before claiming made-up rows', () => {
+        vi.mocked(useExploreByProjectUuid).mockReturnValue({
+            data: undefined,
+            error: null,
+        } as unknown as ReturnType<typeof useExploreByProjectUuid>);
+        setApp(appMeta({ previewSelection: rememberedSelection }));
+        setSankeyVersion();
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        expect(screen.getByText('Sample data')).toBeInTheDocument();
+        expect(screen.queryByText('Made-up rows.')).toBeNull();
+        expect(screen.queryByText(/Last built on/)).toBeNull();
+        expect(
+            screen.queryByRole('button', {
+                name: 'Run the remembered query',
+            }),
+        ).toBeNull();
+        expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+    });
+
+    it('runs the remembered inputs once, when asked, and remembers what ran', async () => {
+        setApp(appMeta({ previewSelection: rememberedSelection }));
+        setSankeyVersion();
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+        expect(rememberSelection).not.toHaveBeenCalled();
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Run the remembered query' }),
+        );
+
+        await waitFor(() =>
+            expect(executeChartTypePreviewQuery).toHaveBeenCalledOnce(),
+        );
+        expect(rememberSelection).toHaveBeenCalledExactlyOnceWith({
+            exploreName: 'customers',
+            savedChart: null,
+            metricQuery: rememberedSelection.metricQuery,
+            fieldMapping: {
+                source: 'customers_channel',
+                value: 'customers_count',
+            },
+        });
     });
 
     it('keeps the configure panel beside the chart while it rebuilds', () => {

@@ -36,15 +36,13 @@ import {
     checkChartTypeFit,
     chartTypeFitSummary,
 } from '../utils/chartTypePreviewFit';
+import { countLabel } from '../utils/countLabel';
 import classes from './PreviewDataPill.module.css';
 import { type PreviewDataSelection } from './previewDataTypes';
 
 const CHART_PAGE_SIZE = 10;
 
 type Menus = 'root' | 'savedCharts' | 'explores';
-
-const countLabel = (count: number, noun: string) =>
-    `${count} ${noun}${count === 1 ? '' : 's'}`;
 
 /** One searchable chart, with the fit its query would have against the
  *  version on screen. The chart's definition is metadata; reading it never

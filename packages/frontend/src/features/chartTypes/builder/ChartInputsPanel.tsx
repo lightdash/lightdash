@@ -36,6 +36,8 @@ type Props = {
     metricQuery: MetricQuery;
     run: PreviewRunState;
     fit: PreviewFitState;
+    /** These inputs come from the last session, and nothing has been run. */
+    isRemembered: boolean;
     /** Asks Chart Studio to map these inputs; null without Ambient AI. */
     onSuggestFields: (() => void) | null;
     /** The same, for the one input that does not fit. */
@@ -58,6 +60,7 @@ const ChartInputsPanel: FC<Props> = ({
     metricQuery,
     run,
     fit,
+    isRemembered,
     onSuggestFields,
     onSuggestInput,
     isSuggestingFields,
@@ -271,6 +274,13 @@ const ChartInputsPanel: FC<Props> = ({
                         </Button>
                     )}
                 </Group>
+
+                {isRemembered && (
+                    <Text fz="xs" c="dimmed">
+                        These inputs are remembered from the last session.
+                        Running queries your warehouse once.
+                    </Text>
+                )}
 
                 <Text fz="xs" c="dimmed">
                     {`Query · Limit ${metricQuery.limit}${

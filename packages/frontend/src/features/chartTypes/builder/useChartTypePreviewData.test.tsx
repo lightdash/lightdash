@@ -14,6 +14,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useExploreByProjectUuid } from '../../../hooks/useExplore';
 import type * as chartTypePreviewQueryModule from '../utils/chartTypePreviewQuery';
 import { executeChartTypePreviewQuery } from '../utils/chartTypePreviewQuery';
+import { type PreviewQuerySelection } from './previewDataTypes';
 import { useChartTypePreviewData } from './useChartTypePreviewData';
 
 vi.mock('../../../hooks/useExplore', () => ({
@@ -101,11 +102,74 @@ const resultItems: ItemsMap = {
     customers_count: metric('count'),
 };
 
-const renderPreviewData = (schema: DataAppVizSchema | null = sankeySchema) =>
+const remembered: PreviewQuerySelection = {
+    kind: 'query',
+    exploreName: 'customers',
+    savedChart: null,
+    metricQuery: {
+        exploreName: 'customers',
+        dimensions: ['customers_channel', 'customers_plan'],
+        metrics: ['customers_count'],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: [],
+    },
+    fieldMapping: {
+        source: 'customers_channel',
+        target: 'customers_plan',
+        value: 'customers_count',
+    },
+};
+
+type PreviewOptions = {
+    remembered?: PreviewQuerySelection | null;
+    onRunSuccess?: (selection: PreviewQuerySelection) => void;
+};
+
+const renderPreviewData = (
+    schema: DataAppVizSchema | null = sankeySchema,
+    options: PreviewOptions = {},
+) =>
     renderHook(
         ({ current }: { current: DataAppVizSchema | null }) =>
-            useChartTypePreviewData({ projectUuid: 'p1', schema: current }),
+            useChartTypePreviewData({
+                projectUuid: 'p1',
+                schema: current,
+                chartTypeUuid: 'viz-1',
+                rememberedSelection: options.remembered ?? null,
+                isAppSettled: true,
+                onRunSuccess: options.onRunSuccess ?? (() => {}),
+            }),
         { initialProps: { current: schema } },
+    );
+
+type ArrivingProps = {
+    selection: PreviewQuerySelection | null;
+    chartTypeUuid: string | null;
+    isAppSettled: boolean;
+};
+
+const PENDING_READ: ArrivingProps = {
+    selection: null,
+    chartTypeUuid: 'viz-1',
+    isAppSettled: false,
+};
+
+/** The app read resolves after the first render, so what a chart type
+ *  remembers arrives through a re-render rather than with the mount. */
+const renderPreviewDataArriving = (initialProps = PENDING_READ) =>
+    renderHook(
+        ({ selection, chartTypeUuid, isAppSettled }: ArrivingProps) =>
+            useChartTypePreviewData({
+                projectUuid: 'p1',
+                schema: sankeySchema,
+                chartTypeUuid,
+                rememberedSelection: selection,
+                isAppSettled,
+                onRunSuccess: () => {},
+            }),
+        { initialProps },
     );
 
 describe('useChartTypePreviewData', () => {
@@ -451,6 +515,200 @@ describe('useChartTypePreviewData', () => {
         ).toEqual(['customers_channel', 'customers_plan']);
         expect(result.current.fieldMapping.source).toBe('customers_segment');
         expect(executeChartTypePreviewQuery).toHaveBeenCalledTimes(0);
+    });
+
+    it('binds the last session’s selection and runs nothing', () => {
+        const { result } = renderPreviewData(sankeySchema, { remembered });
+
+        expect(result.current.selection).toEqual(remembered);
+        expect(result.current.run).toEqual({ status: 'notRun' });
+        expect(result.current.fieldMapping).toEqual(remembered.fieldMapping);
+        expect(result.current.previewDataSource).toEqual({
+            kind: 'remembered',
+            exploreLabel: 'Customers',
+            fieldCount: 3,
+        });
+        expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+    });
+
+    it('takes a selection that resolves after the first render', async () => {
+        const { result, rerender } = renderPreviewDataArriving();
+        expect(result.current.selection).toEqual({ kind: 'sample' });
+
+        rerender({ ...PENDING_READ, selection: remembered });
+
+        await waitFor(() =>
+            expect(result.current.selection).toEqual(remembered),
+        );
+        expect(result.current.run).toEqual({ status: 'notRun' });
+        expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+    });
+
+    it('leaves a choice made in this session alone', async () => {
+        const { result, rerender } = renderPreviewDataArriving();
+        act(() => result.current.selectExplore('orders'));
+
+        rerender({ ...PENDING_READ, selection: remembered });
+
+        await waitFor(() =>
+            expect(
+                result.current.selection.kind === 'query' &&
+                    result.current.selection.exploreName,
+            ).toBe('orders'),
+        );
+        expect(result.current.previewDataSource.kind).not.toBe('remembered');
+        expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+    });
+
+    it('never hydrates once the read settled with nothing remembered', async () => {
+        const { result, rerender } = renderPreviewDataArriving({
+            ...PENDING_READ,
+            isAppSettled: true,
+        });
+
+        // A refetch carrying someone else's first selection, mid-session.
+        rerender({
+            ...PENDING_READ,
+            isAppSettled: true,
+            selection: remembered,
+        });
+
+        await waitFor(() =>
+            expect(result.current.previewDataSource).toEqual({
+                kind: 'sample',
+            }),
+        );
+        expect(result.current.selection).toEqual({ kind: 'sample' });
+        expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+    });
+
+    it('reads back the chart type it moved to, choice or not', async () => {
+        const { result, rerender } = renderPreviewDataArriving({
+            ...PENDING_READ,
+            isAppSettled: true,
+        });
+        act(() => result.current.selectExplore('customers'));
+
+        // Another chart type: the choice made for the previous one is not
+        // this one's, so its own selection is read back.
+        rerender({
+            selection: remembered,
+            chartTypeUuid: 'viz-2',
+            isAppSettled: true,
+        });
+        await waitFor(() =>
+            expect(result.current.selection).toEqual(remembered),
+        );
+
+        // And a choice made for this one holds against the same read.
+        act(() => result.current.setField('source', 'customers_segment'));
+        rerender({
+            selection: remembered,
+            chartTypeUuid: 'viz-2',
+            isAppSettled: true,
+        });
+
+        expect(result.current.fieldMapping.source).toBe('customers_segment');
+        expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+    });
+
+    it('holds the remembered label while the explore resolves', () => {
+        vi.mocked(useExploreByProjectUuid).mockReturnValue({
+            data: undefined,
+            error: null,
+        } as unknown as ReturnType<typeof useExploreByProjectUuid>);
+
+        const { result } = renderPreviewData(sankeySchema, { remembered });
+
+        expect(result.current.fit).toEqual({ status: 'resolving' });
+        expect(result.current.previewDataSource).toEqual({
+            kind: 'remembered',
+            exploreLabel: 'customers',
+            fieldCount: null,
+        });
+    });
+
+    it('counts the fields the last session stored, not the ones filled in for it', () => {
+        const { result } = renderPreviewData(sankeySchema, {
+            remembered: {
+                ...remembered,
+                fieldMapping: {
+                    source: 'customers_channel',
+                    value: 'customers_count',
+                },
+            },
+        });
+
+        // The third input is filled in from the query's own columns, but the
+        // gallery counts what was stored — and so does the strip.
+        expect(result.current.boundFieldCount).toBe(3);
+        expect(result.current.previewDataSource).toEqual({
+            kind: 'remembered',
+            exploreLabel: 'Customers',
+            fieldCount: 2,
+        });
+    });
+
+    it('stops calling the selection remembered once an input changes', () => {
+        const { result } = renderPreviewData(sankeySchema, { remembered });
+
+        act(() => result.current.setField('source', 'customers_segment'));
+
+        expect(result.current.previewDataSource).toEqual({ kind: 'sample' });
+        expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+    });
+
+    it('reports a remembered explore it can no longer read', () => {
+        vi.mocked(useExploreByProjectUuid).mockReturnValue({
+            data: undefined,
+            error: { error: { statusCode: 403, message: 'Forbidden' } },
+        } as unknown as ReturnType<typeof useExploreByProjectUuid>);
+
+        const { result } = renderPreviewData(sankeySchema, { remembered });
+
+        expect(result.current.previewDataSource).toEqual({
+            kind: 'unavailable',
+            message: 'You do not have access to this explore.',
+        });
+        expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+    });
+
+    it('remembers the binding a successful run ran, and only then', async () => {
+        const onRunSuccess = vi.fn();
+        const { result } = renderPreviewData(sankeySchema, { onRunSuccess });
+
+        act(() => result.current.selectSavedChart(savedChart));
+        act(() => result.current.setField('source', 'customers_segment'));
+        expect(onRunSuccess).not.toHaveBeenCalled();
+
+        act(() => result.current.runQuery());
+        await waitFor(() => expect(result.current.run.status).toBe('ready'));
+
+        expect(onRunSuccess).toHaveBeenCalledExactlyOnceWith({
+            kind: 'query',
+            exploreName: 'customers',
+            savedChart: { uuid: 'chart-1', name: 'Channel to plan' },
+            metricQuery: savedChart.metricQuery,
+            fieldMapping: {
+                source: 'customers_segment',
+                target: 'customers_plan',
+                value: 'customers_count',
+            },
+        });
+    });
+
+    it('remembers nothing when a run fails', async () => {
+        vi.mocked(executeChartTypePreviewQuery).mockRejectedValue(
+            new Error('Column customers_plan does not exist'),
+        );
+        const onRunSuccess = vi.fn();
+        const { result } = renderPreviewData(sankeySchema, { onRunSuccess });
+        act(() => result.current.selectSavedChart(savedChart));
+
+        act(() => result.current.runQuery());
+        await waitFor(() => expect(result.current.run.status).toBe('error'));
+
+        expect(onRunSuccess).not.toHaveBeenCalled();
     });
 
     it('starts a fresh query when a suggestion moves to another explore', () => {
