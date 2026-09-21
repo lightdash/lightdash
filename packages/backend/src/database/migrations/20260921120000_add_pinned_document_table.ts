@@ -3,6 +3,11 @@ import { Knex } from 'knex';
 const PinnedListTableName = 'pinned_list';
 const PinnedDocumentTableName = 'pinned_document';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Creates an additive Document pin membership table. Raw SQL only sets a finite lock timeout and generates UUID defaults for new rows; existing tables and data remain unchanged.',
+};
+
 export async function up(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
     if (!(await knex.schema.hasTable(PinnedDocumentTableName))) {
