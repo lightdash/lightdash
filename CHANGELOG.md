@@ -1,3 +1,10 @@
+# [2.285.0](https://github.com/lightdash/lightdash/compare/2.284.0...2.285.0) (2026-09-21)
+
+
+### Features
+
+* **search:** include Documents in global search and type filters ([#29654](https://github.com/lightdash/lightdash/issues/29654)) ([77377fa](https://github.com/lightdash/lightdash/commit/77377fa863e4ccf6fb5ddebdf2a91c71d7886231))
+
 # [2.284.0](https://github.com/lightdash/lightdash/compare/2.283.0...2.284.0) (2026-09-21)
 
 
