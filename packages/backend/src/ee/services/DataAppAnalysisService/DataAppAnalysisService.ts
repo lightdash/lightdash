@@ -65,7 +65,7 @@ import {
 } from '../AppGenerateService/appAuthz';
 import { groundAnomalies, type GroundingSource } from './grounding';
 
-const MAX_SOURCES = 40;
+const MAX_SOURCES = 50;
 
 const sha256 = (value: string): string =>
     createHash('sha256').update(value).digest('hex');
