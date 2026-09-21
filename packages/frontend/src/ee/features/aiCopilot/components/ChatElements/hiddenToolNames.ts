@@ -8,4 +8,4 @@ const HIDDEN_TOOL_NAMES: ReadonlySet<string> = new Set([
 ] satisfies AiAgentToolName[]);
 
 export const isHiddenToolName = (toolName: string): boolean =>
-    HIDDEN_TOOL_NAMES.has(toolName);
+    toolName === 'loadAgentTools' || HIDDEN_TOOL_NAMES.has(toolName);

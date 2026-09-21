@@ -22,3 +22,17 @@
         animation: none;
     }
 }
+
+.scrollableBody {
+    overflow: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Tiles appear immediately; each chart retains its own query loading state. */
+.layoutTile {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}

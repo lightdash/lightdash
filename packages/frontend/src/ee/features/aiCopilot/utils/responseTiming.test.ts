@@ -9,7 +9,7 @@ describe('getResponseTimingMetrics', () => {
                 firstTokenAt: '2026-09-03T10:00:01.250Z',
                 finishedAt: '2026-09-03T10:00:12.000Z',
             }),
-        ).toEqual({ ttftMs: 1250, totalMs: 12000 });
+        ).toEqual({ ttftMs: 1250, totalMs: 12000, stages: null });
     });
 
     it('returns a null first-token figure when nothing streamed', () => {
@@ -19,7 +19,7 @@ describe('getResponseTimingMetrics', () => {
                 firstTokenAt: null,
                 finishedAt: '2026-09-03T10:00:03.000Z',
             }),
-        ).toEqual({ ttftMs: null, totalMs: 3000 });
+        ).toEqual({ ttftMs: null, totalMs: 3000, stages: null });
     });
 
     it('rejects unparseable timestamps instead of producing NaN', () => {
@@ -30,6 +30,25 @@ describe('getResponseTimingMetrics', () => {
                 finishedAt: '2026-09-03T10:00:03.000Z',
             }),
         ).toBeNull();
+    });
+
+    it('preserves server stage timings', () => {
+        const stages = {
+            preparationMs: 100,
+            providerMs: 400,
+            queryMs: 200,
+            apiMs: 50,
+            renderMs: 25,
+            queryCacheHits: 1,
+        };
+        expect(
+            getResponseTimingMetrics({
+                startedAt: '2026-09-03T10:00:00.000Z',
+                firstTokenAt: null,
+                finishedAt: '2026-09-03T10:00:01.000Z',
+                stages,
+            })?.stages,
+        ).toEqual(stages);
     });
 });
 

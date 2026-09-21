@@ -1,7 +1,8 @@
 import { isAiAgentSqlArtifactVizQuery } from '@lightdash/common';
 import { Center, Text } from '@mantine/core';
 import { useCallback, useEffect, useState, type FC } from 'react';
-import { useParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
+import { validate as isUuid } from 'uuid';
 import ScreenshotProgressIndicator from '../../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../../components/common/ScreenshotReadyIndicator';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -20,6 +21,13 @@ const MinimalAiAgentArtifact: FC = () => {
         versionUuid: string;
     }>();
     const projectUuid = useProjectUuid();
+    const [searchParams] = useSearchParams();
+    const requestedQueryUuid = searchParams.get('cachedQueryUuid');
+    const hasInvalidCachedQuery =
+        requestedQueryUuid !== null && !isUuid(requestedQueryUuid);
+    const cachedQueryUuid = hasInvalidCachedQuery
+        ? undefined
+        : (requestedQueryUuid ?? undefined);
     const artifactRef = {
         projectUuid: projectUuid!,
         agentUuid: agentUuid!,
@@ -43,9 +51,12 @@ const MinimalAiAgentArtifact: FC = () => {
         artifactData?.chartConfig,
     );
 
-    const vizQueryHandle = useAiAgentArtifactVizQuery(artifactRef, {
-        enabled: customChartType !== null,
-    });
+    const vizQueryHandle = useAiAgentArtifactVizQuery(
+        { ...artifactRef, cachedQueryUuid },
+        {
+            enabled: customChartType !== null && !hasInvalidCachedQuery,
+        },
+    );
     const vizQueryData =
         vizQueryHandle.data &&
         !isAiAgentSqlArtifactVizQuery(vizQueryHandle.data)
@@ -54,7 +65,7 @@ const MinimalAiAgentArtifact: FC = () => {
 
     const queryResults = useInfiniteQueryResults(
         projectUuid,
-        vizQueryData?.query.queryUuid,
+        hasInvalidCachedQuery ? undefined : vizQueryData?.query.queryUuid,
     );
 
     const [isScreenshotReady, setIsScreenshotReady] = useState(false);
@@ -77,6 +88,7 @@ const MinimalAiAgentArtifact: FC = () => {
             ? customChartType === null
             : false;
     const hasLoadError =
+        hasInvalidCachedQuery ||
         !!artifactError ||
         isUnsupportedArtifact ||
         !!vizQueryHandle.error ||

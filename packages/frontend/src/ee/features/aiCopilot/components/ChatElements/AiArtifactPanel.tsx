@@ -1,5 +1,6 @@
 import {
     AiResultType,
+    FeatureFlags,
     getGroupByDimensions,
     getWebAiChartConfig,
     isAiAgentSqlArtifactVizQuery,
@@ -22,10 +23,13 @@ import {
 } from '@mantine/core';
 import { IconExclamationCircle, IconX } from '@tabler/icons-react';
 import { memo, useMemo, useState, type FC } from 'react';
+import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
+import InlineErrorState from '../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
 import {
     getAiArtifactChartSource,
@@ -67,8 +71,15 @@ type AiArtifactPanelProps = {
     variant?: 'floating' | 'inline';
 };
 
-export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
-    ({ artifact, showCloseButton = true, variant = 'floating' }) => {
+const AiArtifactPanelContent: FC<
+    AiArtifactPanelProps & { fastDecisions: boolean }
+> = memo(
+    ({
+        artifact,
+        showCloseButton = true,
+        variant = 'floating',
+        fastDecisions,
+    }) => {
         const dispatch = useAiAgentStoreDispatch();
         const { data: health } = useHealth();
 
@@ -76,6 +87,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             data: artifactData,
             isLoading: isArtifactLoading,
             error: artifactError,
+            refetch: refetchArtifact,
         } = useAiAgentArtifact({
             projectUuid: artifact.projectUuid,
             agentUuid: artifact.agentUuid,
@@ -83,7 +95,12 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             versionUuid: artifact.versionUuid,
         });
 
-        const { data: thread } = useAiAgentThread(
+        const {
+            data: thread,
+            isLoading: isThreadLoading,
+            error: threadError,
+            refetch: refetchThread,
+        } = useAiAgentThread(
             artifact.projectUuid,
             artifact.agentUuid,
             artifact.threadUuid,
@@ -216,8 +233,23 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             parsedChartConfig?.type === AiResultType.QUERY_RESULT &&
             !isCustomChartTypeAnswer;
 
-        if (isArtifactLoading || !message) {
+        if (fastDecisions && (artifactError || threadError)) {
             return (
+                <Box className={styles.floatingPanel} p="md">
+                    <InlineErrorState
+                        message="Could not load this chart."
+                        onRetry={() => {
+                            if (artifactError) void refetchArtifact();
+                            if (threadError) void refetchThread();
+                        }}
+                    />
+                </Box>
+            );
+        }
+        if (isArtifactLoading || (fastDecisions ? isThreadLoading : !message)) {
+            return fastDecisions ? (
+                <EmptyStateLoader title="Loading artifact…" />
+            ) : (
                 <Box {...ChatElementsUtils.centeredElementProps} p="md">
                     <Center className={styles.loading}>
                         <Loader
@@ -229,17 +261,17 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                 </Box>
             );
         }
-
-        const isError =
+        if (
             artifactError ||
             !artifactData ||
+            !message ||
             (artifactData.artifactType === 'dashboard' &&
                 !artifactData.dashboardConfig) ||
-            (artifactData.artifactType === 'chart' &&
-                !artifactData.chartConfig);
-
-        if (isError) {
-            return (
+            (artifactData.artifactType === 'chart' && !artifactData.chartConfig)
+        ) {
+            return fastDecisions ? (
+                <InlineErrorState message="This artifact is unavailable." />
+            ) : (
                 <Box {...ChatElementsUtils.centeredElementProps} p="md">
                     <Stack gap="xs" align="center" justify="center">
                         <MantineIcon
@@ -259,8 +291,8 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         // tile has its own inline switcher inside its Card).
         if (artifactData.artifactType === 'dashboard') {
             return (
-                <div className={styles.floatingPanel}>
-                    <div className={styles.dashboardContent}>
+                <Box className={styles.floatingPanel}>
+                    <Box className={styles.dashboardContent}>
                         <AiDashboardVisualization
                             artifactData={artifactData}
                             projectUuid={artifact.projectUuid}
@@ -269,8 +301,8 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             message={message}
                             showCloseButton={showCloseButton}
                         />
-                    </div>
-                </div>
+                    </Box>
+                </Box>
             );
         }
 
@@ -341,21 +373,44 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         // Wait for the viz query data so the renderer mounts with valid
         // inputs.
         if (
-            queryExecutionHandle.isLoading ||
-            (!isSqlArtifact && queryResults.isFetchingRows) ||
-            !queryExecutionHandle.data ||
-            queryResults.error
+            fastDecisions &&
+            (queryExecutionHandle.error || queryResults.error)
         ) {
             return (
-                <div className={styles.floatingPanel}>
-                    <Center className={styles.loading}>
-                        <Loader
-                            type="dots"
-                            color="gray"
-                            delayedMessage="Loading visualization..."
-                        />
-                    </Center>
-                </div>
+                <Box className={styles.floatingPanel} p="md">
+                    <InlineErrorState
+                        message="Could not load the visualization."
+                        onRetry={() => {
+                            if (queryExecutionHandle.error)
+                                void queryExecutionHandle.refetch();
+                            else void queryResults.refetchRows();
+                        }}
+                    />
+                </Box>
+            );
+        }
+        if (
+            queryExecutionHandle.isLoading ||
+            (!isSqlArtifact &&
+                queryResults.isFetchingRows &&
+                (!fastDecisions || queryResults.rows.length === 0)) ||
+            !queryExecutionHandle.data ||
+            (!fastDecisions && queryResults.error)
+        ) {
+            return (
+                <Box className={styles.floatingPanel}>
+                    {fastDecisions ? (
+                        <EmptyStateLoader title="Loading visualization…" />
+                    ) : (
+                        <Center className={styles.loading}>
+                            <Loader
+                                type="dots"
+                                color="gray"
+                                delayedMessage="Loading visualization..."
+                            />
+                        </Center>
+                    )}
+                </Box>
             );
         }
 
@@ -366,7 +421,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         const metricQuery = semanticVizQueryData?.query.metricQuery;
 
         const floatingHead = (
-            <div className={styles.head}>
+            <Box className={styles.head}>
                 <Stack gap={0} flex={1} miw={0}>
                     <TruncatedText fz="sm" fw={600} maxWidth="100%">
                         {title}
@@ -441,19 +496,19 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                         </>
                     )}
                 </Group>
-            </div>
+            </Box>
         );
 
         if (sqlVizQueryData) {
             return (
-                <div className={styles.floatingPanel}>
-                    <div className={styles.floatingContent}>
+                <Box className={styles.floatingPanel}>
+                    <Box className={styles.floatingContent}>
                         <AiSqlArtifactVisualization
                             results={queryResults}
                             headerContent={floatingHead}
                         />
-                    </div>
-                </div>
+                    </Box>
+                </Box>
             );
         }
 
@@ -462,8 +517,8 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         }
 
         return (
-            <div className={styles.floatingPanel}>
-                <div
+            <Box className={styles.floatingPanel}>
+                <Box
                     className={`${styles.floatingContent} ${
                         shouldShowPill ? styles.withPillClearance : ''
                     }`}
@@ -477,7 +532,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                         headerContent={floatingHead}
                         loadExplore={!isMergeArtifact}
                     />
-                </div>
+                </Box>
                 {shouldShowPill && metricQuery && (
                     <Box className={styles.floatingPill}>
                         <AgentVisualizationChartTypeSwitcher
@@ -491,7 +546,24 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                         />
                     </Box>
                 )}
-            </div>
+            </Box>
         );
     },
 );
+
+export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo((props) => {
+    const fastDecisions =
+        useServerFeatureFlag(FeatureFlags.AiAgentFastDecisions).data
+            ?.enabled === true;
+    return (
+        <AiArtifactPanelContent
+            key={
+                fastDecisions
+                    ? `${props.artifact.projectUuid}:${props.artifact.agentUuid}:${props.artifact.artifactUuid}:${props.artifact.versionUuid}`
+                    : 'legacy'
+            }
+            {...props}
+            fastDecisions={fastDecisions}
+        />
+    );
+});

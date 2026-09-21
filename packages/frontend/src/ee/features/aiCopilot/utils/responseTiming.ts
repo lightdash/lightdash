@@ -3,6 +3,7 @@ import type { AiPromptResponseTiming } from '@lightdash/common';
 export type ResponseTimingMetrics = {
     ttftMs: number | null;
     totalMs: number;
+    stages: AiPromptResponseTiming['stages'] | null;
 };
 
 export const getResponseTimingMetrics = (
@@ -20,6 +21,7 @@ export const getResponseTimingMetrics = (
                 ? null
                 : firstTokenAt - startedAt,
         totalMs: finishedAt - startedAt,
+        stages: timing.stages ?? null,
     };
 };
 

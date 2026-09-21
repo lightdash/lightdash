@@ -122,7 +122,10 @@ export const AiVisualizationRenderer: FC<Props> = ({
 
     const { metricQuery, fields, resolvedTimezone } = vizQueryData.query;
     const tableName = metricQuery?.exploreName;
-    const allowsAnalyticalInteraction = interactionMode === 'full';
+    // Merged result columns do not belong to a single explore. Drill-down
+    // and underlying-data requests cannot use their synthetic query.
+    const allowsAnalyticalInteraction =
+        interactionMode === 'full' && !vizQueryData.mergeQuery;
     const { data: explore } = useExplore(
         loadExplore && allowsAnalyticalInteraction ? tableName : undefined,
     );
@@ -361,6 +364,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                                     size="compact-xs"
                                     variant="subtle"
                                     color="ldGray"
+                                    c="dimmed"
                                     aria-expanded={detailsExpanded}
                                     rightSection={
                                         <MantineIcon
