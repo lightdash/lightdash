@@ -1,3 +1,10 @@
+## [2.286.5](https://github.com/lightdash/lightdash/compare/2.286.4...2.286.5) (2026-09-21)
+
+
+### Bug Fixes
+
+* **ai:** require successful query context for fast follow-ups ([#29679](https://github.com/lightdash/lightdash/issues/29679)) ([c20f2dc](https://github.com/lightdash/lightdash/commit/c20f2dc2040ba7e42cb4eabec0aed24e45c0eda9)), closes [#29671](https://github.com/lightdash/lightdash/issues/29671) [#29676](https://github.com/lightdash/lightdash/issues/29676) [#29682](https://github.com/lightdash/lightdash/issues/29682) [#29689](https://github.com/lightdash/lightdash/issues/29689) [#29690](https://github.com/lightdash/lightdash/issues/29690) [#29671](https://github.com/lightdash/lightdash/issues/29671)
+
 ## [2.286.4](https://github.com/lightdash/lightdash/compare/2.286.3...2.286.4) (2026-09-21)
 
 
