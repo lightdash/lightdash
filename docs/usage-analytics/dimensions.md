@@ -85,9 +85,8 @@ After deployment, click **Sync content** as an organization admin to compile the
 new fields in an existing project before updating managed sample dashboards.
 Re-running `POST /api/v1/org/analytics-project` also refreshes the models while
 preserving the project and saved content. New projects include them immediately.
-Existing authorization and feature-flag checks apply. Agent snapshots add one
-concurrent index on `ai_agent (organization_uuid, ai_agent_uuid)` for bounded
-organization-scoped paging. No new configuration is required.
+Existing authorization and feature-flag checks apply. No database migration or
+new configuration is required.
 
 The first dimension refresh does not have to finish before creating or updating
 an analytics project, provided supported event files already exist:
