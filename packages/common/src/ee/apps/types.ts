@@ -42,12 +42,14 @@ export type {
  * Ordered pipeline stages. Index position determines progression — used to
  * skip completed stages when a build is retried after a worker crash.
  * 'ready' is included as the final stage; 'error' is terminal but not a
- * stage (not reachable through normal progression).
+ * stage (not reachable through normal progression). 'compact' is optional —
+ * most builds go straight from 'catalog' to 'generating'.
  */
 export const APP_VERSION_STAGE_ORDER = [
     'pending',
     'sandbox',
     'catalog',
+    'compact',
     'generating',
     'building',
     'packaging',
@@ -55,6 +57,17 @@ export const APP_VERSION_STAGE_ORDER = [
 ] as const;
 
 export const APP_VERSION_TERMINAL_STATUSES = ['ready', 'error'] as const;
+
+/**
+ * Outcome of the compact stage. 'failed' — the agent reported it could not
+ * summarize. 'error' — the call produced no verdict (config, sandbox, timeout).
+ */
+export type DataAppCompactionResult =
+    | 'success'
+    | 'failed'
+    | 'error'
+    // an earlier attempt compacted, its outcome died with the pod
+    | 'interrupted';
 
 /**
  * Error message stamped on a version when the user cancels its build. There is

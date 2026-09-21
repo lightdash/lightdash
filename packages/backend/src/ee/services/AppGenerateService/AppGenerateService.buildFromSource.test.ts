@@ -66,8 +66,13 @@ const REGISTRY_HOSTS = ['registry.npmjs.org'];
 // Sentinel copilot config the mocked resolver returns and createSandbox is
 // asserted to receive — verifies the org-resolved config is threaded through.
 const COPILOT_CONFIG = { sentinel: 'copilot' } as never;
-// The mocked feature flag is enabled, so the resolved config carries the 1h TTL.
-const CODING_AGENT_CONFIG = { sentinel: 'copilot', promptCacheTtl: '1h' };
+// The mocked feature flag is enabled, so the resolved config carries the 1h TTL
+// and the compaction lever.
+const CODING_AGENT_CONFIG = {
+    sentinel: 'copilot',
+    promptCacheTtl: '1h',
+    compactLongSessions: true,
+};
 
 const CUSTOM_DEPS: AppVersionDependencies = {
     custom: [{ name: 'react-query', version: '^5.0.0' }],

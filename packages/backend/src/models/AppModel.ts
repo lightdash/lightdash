@@ -906,6 +906,43 @@ export class AppModel {
         return cancelled !== undefined;
     }
 
+    // Thread 1 predates threads, so its legacy versions carry a null thread uuid.
+    private versionsInThread(thread: {
+        app_id: string;
+        app_thread_uuid: string;
+        thread_number: number;
+    }) {
+        return this.database(AppVersionsTableName)
+            .where('app_id', thread.app_id)
+            .andWhere((q) => {
+                void q.where('app_thread_uuid', thread.app_thread_uuid);
+                if (thread.thread_number === 1) {
+                    void q.orWhereNull('app_thread_uuid');
+                }
+            });
+    }
+
+    // Newest terminal version before `beforeVersion` in the same thread; the
+    // compaction trigger's input. Thread-scoped so a cleared context starts clean.
+    async findPreviousFinishedVersionInThread(
+        appThreadUuid: string,
+        beforeVersion: number,
+    ): Promise<{
+        version: number;
+        generationUsage: DataAppGenerationUsage | null;
+    } | null> {
+        const thread = await this.findThreadByUuid(appThreadUuid);
+        if (!thread) return null;
+        const row = await this.versionsInThread(thread)
+            .whereIn('status', [...APP_VERSION_TERMINAL_STATUSES])
+            .andWhere('version', '<', beforeVersion)
+            .orderBy('version', 'desc')
+            .select('version', 'generation_usage')
+            .first();
+        if (!row) return null;
+        return { version: row.version, generationUsage: row.generation_usage };
+    }
+
     // Whether a version other than `excludeVersion` ran the agent in this thread.
     // Thread 1 predates narration, so any other version counts there.
     async threadHasVersionThatReachedCodingAgent(
@@ -915,12 +952,7 @@ export class AppModel {
         const thread = await this.findThreadByUuid(appThreadUuid);
         if (!thread) return false;
         const isThreadOne = thread.thread_number === 1;
-        const row = await this.database(AppVersionsTableName)
-            .where('app_id', thread.app_id)
-            .andWhere((q) => {
-                void q.where('app_thread_uuid', appThreadUuid);
-                if (isThreadOne) void q.orWhereNull('app_thread_uuid');
-            })
+        const row = await this.versionsInThread(thread)
             .modify((q) => {
                 if (excludeVersion !== null) {
                     void q.whereNot('version', excludeVersion);

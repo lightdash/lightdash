@@ -28,6 +28,9 @@ export type ClaudeGenerationUsage = {
     outputTokens: number;
     cacheReadInputTokens: number;
     cacheCreationInputTokens: number;
+    // `cacheCreationInputTokens` split by TTL; both 0 for Codex.
+    cacheCreation1hInputTokens: number;
+    cacheCreation5mInputTokens: number;
     numTurns: number;
     durationApiMs: number;
     costUsd: number;
@@ -47,6 +50,8 @@ export const ZERO_CLAUDE_USAGE: ClaudeGenerationUsage = {
     outputTokens: 0,
     cacheReadInputTokens: 0,
     cacheCreationInputTokens: 0,
+    cacheCreation1hInputTokens: 0,
+    cacheCreation5mInputTokens: 0,
     numTurns: 0,
     durationApiMs: 0,
     costUsd: 0,
@@ -113,6 +118,10 @@ export function addClaudeUsage(
         cacheReadInputTokens: a.cacheReadInputTokens + b.cacheReadInputTokens,
         cacheCreationInputTokens:
             a.cacheCreationInputTokens + b.cacheCreationInputTokens,
+        cacheCreation1hInputTokens:
+            a.cacheCreation1hInputTokens + b.cacheCreation1hInputTokens,
+        cacheCreation5mInputTokens:
+            a.cacheCreation5mInputTokens + b.cacheCreation5mInputTokens,
         numTurns: a.numTurns + b.numTurns,
         durationApiMs: a.durationApiMs + b.durationApiMs,
         costUsd: a.costUsd + b.costUsd,
@@ -343,6 +352,10 @@ function parseResult(line: string):
     }
     if (event.type !== 'result') return undefined;
     const usage = (event.usage ?? {}) as Record<string, unknown>;
+    const cacheCreation = (usage.cache_creation ?? {}) as Record<
+        string,
+        unknown
+    >;
     const modelUsage = parseModelUsage(event.modelUsage);
     return {
         text: typeof event.result === 'string' ? event.result : null,
@@ -356,6 +369,12 @@ function parseResult(line: string):
             cacheReadInputTokens: asFiniteNumber(usage.cache_read_input_tokens),
             cacheCreationInputTokens: asFiniteNumber(
                 usage.cache_creation_input_tokens,
+            ),
+            cacheCreation1hInputTokens: asFiniteNumber(
+                cacheCreation.ephemeral_1h_input_tokens,
+            ),
+            cacheCreation5mInputTokens: asFiniteNumber(
+                cacheCreation.ephemeral_5m_input_tokens,
             ),
             numTurns: asFiniteNumber(event.num_turns),
             durationApiMs: asFiniteNumber(event.duration_api_ms),

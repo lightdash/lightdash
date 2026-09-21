@@ -874,6 +874,7 @@
                             "pending",
                             "sandbox",
                             "catalog",
+                            "compact",
                             "generating",
                             "building",
                             "packaging",
