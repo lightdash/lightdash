@@ -1,3 +1,10 @@
+# [2.286.0](https://github.com/lightdash/lightdash/compare/2.285.0...2.286.0) (2026-09-21)
+
+
+### Features
+
+* log all cached explore statements (SPK-2300) ([#29672](https://github.com/lightdash/lightdash/issues/29672)) ([f12442e](https://github.com/lightdash/lightdash/commit/f12442ee126a4dc2e1da833ce87d922968b05aaf))
+
 # [2.285.0](https://github.com/lightdash/lightdash/compare/2.284.0...2.285.0) (2026-09-21)
 
 
