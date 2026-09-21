@@ -220,6 +220,7 @@ describe('UnfurlService', () => {
                 on: vi.fn(),
                 goto: vi.fn().mockResolvedValue(undefined),
                 waitForSelector: vi.fn().mockResolvedValue(undefined),
+                getAttribute: vi.fn().mockResolvedValue('ready'),
                 evaluate: vi.fn().mockResolvedValue(undefined),
                 locator: vi.fn().mockReturnValue({
                     first: vi.fn().mockReturnValue({
@@ -330,6 +331,60 @@ describe('UnfurlService', () => {
                 /^https:\/\/app\.lightdash\.cloud\/api\/v1\/slack\/preview\//,
             );
             expect(imageBuffer).toEqual(Buffer.from('png-bytes'));
+        });
+
+        it('requests the exact cached execution for deferred custom charts', async () => {
+            const { service, page } = setup();
+            mockFileStorageClient.isEnabled.mockReturnValue(true);
+            const cachedQueryUuid = '55555555-5555-4555-8555-555555555555';
+            await service.exportAiAgentArtifact(ACTING_USER, {
+                ...EXPORT_ARGS,
+                cachedQueryUuid,
+            });
+            const url = new URL(page.goto.mock.calls[0][0]);
+            expect(url.searchParams.get('cachedQueryUuid')).toBe(
+                cachedQueryUuid,
+            );
+            expect(page.getAttribute).toHaveBeenCalledWith(
+                SCREENSHOT_SELECTORS.READY_INDICATOR,
+                'data-status',
+            );
+            expect(page.screenshot).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not publish an error frame as a deferred chart image', async () => {
+            const { service, page } = setup();
+            page.getAttribute.mockResolvedValue('completed-with-errors');
+            await expect(
+                service.exportAiAgentArtifact(ACTING_USER, {
+                    ...EXPORT_ARGS,
+                    cachedQueryUuid: 'execution',
+                }),
+            ).rejects.toThrow();
+            expect(page.screenshot).not.toHaveBeenCalled();
+            expect(page.close).toHaveBeenCalled();
+        });
+
+        it('closes a cancelled background capture without an internal retry', async () => {
+            const { service, browser, page } = setup();
+            const controller = new AbortController();
+            page.waitForSelector.mockImplementationOnce(async () => {
+                controller.abort();
+                throw new Error(
+                    'Target page, context or browser has been closed',
+                );
+            });
+            await expect(
+                service.exportAiAgentArtifact(ACTING_USER, {
+                    ...EXPORT_ARGS,
+                    cachedQueryUuid: 'execution',
+                    signal: controller.signal,
+                }),
+            ).rejects.toThrow();
+            expect(page.screenshot).not.toHaveBeenCalled();
+            expect(page.close).toHaveBeenCalled();
+            expect(browser.close).toHaveBeenCalled();
+            expect(playwrightMocks.connectOverCDP).toHaveBeenCalledTimes(1);
         });
 
         it('fails closed when the ready indicator never mounts', async () => {

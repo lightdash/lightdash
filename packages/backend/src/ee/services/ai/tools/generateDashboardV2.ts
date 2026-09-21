@@ -4,6 +4,8 @@ import {
     type ToolDashboardV2ArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import type { AiDecisionClient } from '../decisions/AiDecisionClient';
+import { chooseDashboardLayout } from '../decisions/dashboardLayout';
 import type {
     CreateOrUpdateArtifactFn,
     GetPromptFn,
@@ -14,6 +16,8 @@ import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateRunQueryTool } from './runQuery';
 
 type Dependencies = {
+    decisions?: AiDecisionClient;
+    userQuestion?: string;
     getPrompt: GetPromptFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
 };
@@ -21,6 +25,8 @@ type Dependencies = {
 const toolDefinition = generateDashboardToolDefinition.for('agent');
 
 export const getGenerateDashboardV2 = ({
+    decisions,
+    userQuestion,
     getPrompt,
     createOrUpdateArtifact,
 }: Dependencies) =>
@@ -84,8 +90,20 @@ export const getGenerateDashboardV2 = ({
                     };
                 }
 
-                // Create dashboard with valid visualizations only
-                const prompt = await getPrompt();
+                const visualizations = toolArgs.visualizations.filter(
+                    (_, index) => validIndices.has(index),
+                );
+                // Layout selection adds no warehouse query and overlaps prompt loading.
+                const [prompt, layout] = await Promise.all([
+                    getPrompt(),
+                    decisions && userQuestion
+                        ? chooseDashboardLayout({
+                              decisions,
+                              question: userQuestion,
+                              visualizations,
+                          })
+                        : undefined,
+                ]);
 
                 // Store the original (untransformed) toolArgs, not the transformed version
                 // This is important because when reading from DB, we parse with the base schema
@@ -96,12 +114,19 @@ export const getGenerateDashboardV2 = ({
                     title: toolArgs.title,
                     description: toolArgs.description,
                     vizConfig: {
-                        ...toolArgs,
-                        visualizations: toolArgs.visualizations.filter(
-                            (_, index) => validIndices.has(index),
-                        ),
+                        title: toolArgs.title,
+                        description: toolArgs.description,
+                        visualizations,
+                        ...(layout ? { layout } : {}),
                     },
                 });
+
+                let layoutResult: string | undefined;
+                if (decisions) {
+                    layoutResult = layout
+                        ? `Dashboard layout: ${layout.template}. Tile positions, in original visualization order: ${JSON.stringify(layout.positions)}. Narrow previews stack tiles in reading order.`
+                        : 'Dashboard uses the default layout. No requested custom arrangement was applied.';
+                }
 
                 // Return appropriate message based on whether some visualizations failed
                 if (errors.length > 0) {
@@ -112,7 +137,9 @@ export const getGenerateDashboardV2 = ({
                             validVisualizations.length > 1 ? 's' : ''
                         }.\n\nThe following visualizations were excluded due to validation errors:\n${failedVisualizations
                             .map((title) => `- ${title}`)
-                            .join('\n')}\n\nErrors:\n${errors.join('\n')}`,
+                            .join(
+                                '\n',
+                            )}\n\nErrors:\n${errors.join('\n')}${layoutResult ? `\n\n${layoutResult}` : ''}`,
                         metadata: {
                             status: 'success',
                         },
@@ -120,7 +147,7 @@ export const getGenerateDashboardV2 = ({
                 }
 
                 return {
-                    result: `Success`,
+                    result: layoutResult ?? 'Success',
                     metadata: {
                         status: 'success',
                     },

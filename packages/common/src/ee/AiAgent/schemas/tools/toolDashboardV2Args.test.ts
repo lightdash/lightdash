@@ -72,3 +72,58 @@ describe('toolDashboardV2Args persisted parsing', () => {
         ).toBe(true);
     });
 });
+
+describe('server-owned dashboard layout', () => {
+    const dashboard = {
+        title: 'Overview',
+        description: '',
+        visualizations: [visualization(null), visualization(null)],
+    };
+    const layout = {
+        template: 'analysis',
+        positions: [
+            { x: 0, y: 10, w: 36, h: 8 },
+            { x: 0, y: 0, w: 36, h: 10 },
+        ],
+    };
+
+    it('round-trips layout only in the persisted schema', () => {
+        const input = { ...dashboard, layout };
+        expect(toolDashboardV2ArgsSchemaPersisted.parse(input).layout).toEqual(
+            layout,
+        );
+        expect(
+            toolDashboardV2ArgsSchemaTransformed.parse(input).layout,
+        ).toEqual(layout);
+        expect(toolDashboardV2ArgsSchema.parse(input)).not.toHaveProperty(
+            'layout',
+        );
+    });
+
+    it.each([
+        { ...layout, positions: layout.positions.slice(0, 1) },
+        { ...layout, positions: [layout.positions[0], layout.positions[0]] },
+        {
+            ...layout,
+            positions: [{ x: 0, y: 0, w: 40, h: 8 }, layout.positions[1]],
+        },
+    ])('refuses incomplete or invalid placement %j', (invalidLayout) => {
+        expect(
+            toolDashboardV2ArgsSchemaPersisted.safeParse({
+                ...dashboard,
+                layout: invalidLayout,
+            }).success,
+        ).toBe(false);
+    });
+
+    it('can read a partially validated one-chart artifact while advertising a two-chart minimum', () => {
+        const input = {
+            ...dashboard,
+            visualizations: dashboard.visualizations.slice(0, 1),
+        };
+        expect(
+            toolDashboardV2ArgsSchemaPersisted.safeParse(input).success,
+        ).toBe(true);
+        expect(toolDashboardV2ArgsSchema.safeParse(input).success).toBe(false);
+    });
+});

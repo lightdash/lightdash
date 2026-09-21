@@ -1251,3 +1251,7 @@ export * from './lightdash/LightdashModelEditor';
 export * from './lightdash/convertCustomMetricToLightdash';
 export * from './types/analyticsProject';
 export * from './types/recentContent';
+
+export * from './utils/dashboardTilePositions';
+
+export * from './utils/savedMerge';

@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { isValidDashboardTilePositions } from '../../../../utils/dashboardTilePositions';
+import { AI_DASHBOARD_LAYOUT_TEMPLATES } from '../../dashboardLayout';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
@@ -68,13 +70,47 @@ export const toolDashboardV2ArgsSchema = createToolSchema()
 export const toolDashboardV2ArgsSchemaPersisted = createToolSchema()
     .extend({
         ...dashboardV2Fields,
+        // A partially validated dashboard may retain one usable visualization.
         visualizations: z
             .array(toolRunQueryArgsSchemaPersisted)
-            .min(2)
+            .min(1)
             .max(15)
             .describe(visualizationsDescription),
+        // Server-owned presentation metadata; never advertised as tool input.
+        layout: z
+            .object({
+                template: z.enum(AI_DASHBOARD_LAYOUT_TEMPLATES),
+                positions: z
+                    .array(
+                        z.object({
+                            x: z.number().int().nonnegative(),
+                            y: z.number().int().nonnegative(),
+                            w: z.number().int().positive(),
+                            h: z.number().int().positive(),
+                        }),
+                    )
+                    .min(1)
+                    .max(15),
+            })
+            .optional(),
     })
-    .build();
+    .build()
+    .superRefine((value, ctx) => {
+        if (
+            value.layout &&
+            !isValidDashboardTilePositions(
+                value.layout.positions,
+                value.visualizations.length,
+            )
+        ) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['layout'],
+                message:
+                    'Dashboard layout must place every visualization within the grid without overlap.',
+            });
+        }
+    });
 
 export type ToolDashboardV2Args = z.infer<
     typeof toolDashboardV2ArgsSchemaPersisted

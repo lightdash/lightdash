@@ -26,6 +26,13 @@ export enum DashboardTileTypes {
     DATA_APP = 'data_app',
 }
 
+export type DashboardTilePosition = {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+};
+
 type CreateDashboardTileBase = {
     uuid?: string;
     type: DashboardTileTypes;
@@ -451,6 +458,8 @@ export type CreateDashboardWithCharts = {
     description?: string;
     spaceUuid: string;
     charts: CreateSavedChart[];
+    /** Optional complete grid placement, in charts array order. */
+    tilePositions?: DashboardTilePosition[];
 };
 
 export type ApiCreateDashboardWithChartsResponse = {

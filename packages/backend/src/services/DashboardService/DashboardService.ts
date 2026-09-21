@@ -31,6 +31,7 @@ import {
     isDashboardVersionedFields,
     isJwtUser,
     isUserWithOrg,
+    isValidDashboardTilePositions,
     isValidFrequency,
     isValidTimezone,
     KnexPaginateArgs,
@@ -107,7 +108,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { createTwoColumnTiles } from '../../utils/dashboardTileUtils';
+import { createDashboardChartTiles } from '../../utils/dashboardTileUtils';
 import { BaseService } from '../BaseService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
@@ -3837,6 +3838,17 @@ export class DashboardService
         data: CreateDashboardWithCharts,
     ): Promise<Dashboard> {
         const user = toSessionUser(account);
+        if (
+            data.tilePositions &&
+            !isValidDashboardTilePositions(
+                data.tilePositions,
+                data.charts.length,
+            )
+        ) {
+            throw new ParameterError(
+                'Dashboard tile positions must cover every chart within the 36-column grid without overlap.',
+            );
+        }
         // 1. Create empty dashboard
         const emptyDashboard: CreateDashboard = {
             name: data.name,
@@ -3868,9 +3880,10 @@ export class DashboardService
 
             const savedCharts = await Promise.all(chartPromises);
 
-            const tiles = createTwoColumnTiles(
+            const tiles = createDashboardChartTiles(
                 savedCharts,
                 dashboard.tabs?.[0]?.uuid,
+                data.tilePositions,
             );
 
             const updateFields: DashboardVersionedFields = {

@@ -9,6 +9,10 @@ export const renderEcharts = async (eChartOptions: AnyType) => {
         renderer: 'canvas',
         devicePixelRatio: 2,
     });
-    chart.setOption(eChartOptions);
-    return canvas.toBuffer('image/png');
+    try {
+        chart.setOption(eChartOptions);
+        return canvas.toBuffer('image/png');
+    } finally {
+        chart.dispose();
+    }
 };

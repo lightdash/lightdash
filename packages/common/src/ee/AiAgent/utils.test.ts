@@ -102,6 +102,20 @@ describe('parseAiArtifactChartConfig', () => {
         expect(parseAiArtifactChartConfig(config)).toEqual(config);
     });
 
+    it('preserves a portable content-as-code snapshot for server validation', () => {
+        const contentAsCode = { version: 1, contentType: 'chart' };
+        const config = {
+            source: 'semantic',
+            config: semanticConfig,
+            contentAsCode,
+        } as const;
+
+        expect(parseAiArtifactChartConfig(config)).toEqual({
+            ...config,
+            config: semanticConfig,
+        });
+    });
+
     it('round-trips a customChartType envelope', () => {
         const config = {
             source: 'customChartType',
