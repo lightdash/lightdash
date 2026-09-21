@@ -1,3 +1,4 @@
+import { DuckDBInstance } from '@duckdb/node-api';
 import { type MergeColumnTotal } from '@lightdash/common';
 import { buildMergeTotalsSql } from './mergeTotalsSql';
 
@@ -63,6 +64,53 @@ describe('buildMergeTotalsSql', () => {
 
         expect(statement?.fieldIds).toEqual(['a_orders_total']);
     });
+
+    it.each([
+        { rowCount: 0, includeMergedTotal: false },
+        { rowCount: 2, includeMergedTotal: false },
+        { rowCount: 0, includeMergedTotal: true },
+        { rowCount: 2, includeMergedTotal: true },
+    ])(
+        'returns one totals row for $rowCount merged rows, merged aggregate: $includeMergedTotal',
+        async ({ rowCount, includeMergedTotal }) => {
+            const statement = buildMergeTotalsSql({
+                fieldIds: includeMergedTotal
+                    ? ['a_orders_total', 'b_payments_unique']
+                    : ['b_payments_unique'],
+                columnTotals,
+                sourceTotalTables: [
+                    {
+                        sourceId: 'b',
+                        table: 'source_total_1',
+                        sourceFieldIds: ['payments_unique'],
+                    },
+                ],
+            });
+            if (!statement) throw new Error('Expected a totals statement');
+            const instance = await DuckDBInstance.create(':memory:');
+            const connection = await instance.connect();
+            try {
+                await connection.run(
+                    `CREATE TABLE merged_result AS SELECT i::DOUBLE AS a_orders_total FROM range(${rowCount}) AS t(i)`,
+                );
+                await connection.run(
+                    'CREATE TABLE source_total_1 AS SELECT 7::DOUBLE AS payments_unique',
+                );
+                const reader = await connection.runAndReadAll(statement.sql);
+                expect(reader.getRowObjects()).toEqual([
+                    {
+                        ...(includeMergedTotal
+                            ? { a_orders_total: rowCount === 0 ? null : 1 }
+                            : {}),
+                        b_payments_unique: 7,
+                    },
+                ]);
+            } finally {
+                connection.closeSync();
+                instance.closeSync();
+            }
+        },
+    );
 
     it('has nothing to run when no column has a total', () => {
         expect(

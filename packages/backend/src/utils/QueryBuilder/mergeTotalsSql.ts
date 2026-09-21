@@ -80,7 +80,11 @@ export const buildMergeTotalsSql = ({
     return {
         sql: [
             `SELECT ${terms.map(({ term }) => term).join(',\n       ')}`,
-            `FROM ${quote(MERGE_TOTALS_REFERENCE_TABLE)}`,
+            ...(terms.some(
+                ({ fieldId }) => columnTotals[fieldId].from === 'mergedRows',
+            )
+                ? [`FROM ${quote(MERGE_TOTALS_REFERENCE_TABLE)}`]
+                : []),
         ].join('\n'),
         fieldIds: terms.map(({ fieldId }) => fieldId),
     };
