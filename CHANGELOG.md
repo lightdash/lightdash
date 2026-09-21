@@ -1,3 +1,12 @@
+# [2.272.0](https://github.com/lightdash/lightdash/compare/2.271.1...2.272.0) (2026-09-21)
+
+
+### Features
+
+* explore semantic charts from documents ([#29600](https://github.com/lightdash/lightdash/issues/29600)) ([0c25ccc](https://github.com/lightdash/lightdash/commit/0c25ccca176cfd39f00b5741744ded2337b25c66)), closes [#29599](https://github.com/lightdash/lightdash/issues/29599)
+* expose agent names in usage analytics ([#29503](https://github.com/lightdash/lightdash/issues/29503)) ([12b657a](https://github.com/lightdash/lightdash/commit/12b657a47fe44229dbe6cc3ec53bedad4c34d073))
+* guide MCP document research summaries ([#29599](https://github.com/lightdash/lightdash/issues/29599)) ([d6f438f](https://github.com/lightdash/lightdash/commit/d6f438f53f0632fe8dd4543803ae2b607d80fb3c)), closes [#29598](https://github.com/lightdash/lightdash/issues/29598)
+
 ## [2.271.1](https://github.com/lightdash/lightdash/compare/2.271.0...2.271.1) (2026-09-21)
 
 
