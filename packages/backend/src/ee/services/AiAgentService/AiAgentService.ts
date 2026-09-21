@@ -12350,6 +12350,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             modelName: prompt.modelConfig?.modelName,
             provider: prompt.modelConfig?.modelProvider as AnyType,
         });
+        const initialModelId = modelProperties.model.modelId;
 
         // AiAgentFastDecisions is the master switch for the bounded fast
         // experience, including its smaller tool-call model. The separate
@@ -12493,6 +12494,21 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const standardMaxContextRows = decisions
             ? 100
             : Number.POSITIVE_INFINITY;
+        Logger.info('AI agent execution configuration', {
+            event: 'ai_agent.execution_config',
+            promptId: prompt.promptUuid,
+            threadId: prompt.threadUuid,
+            organizationId: user.organizationUuid,
+            projectId: prompt.projectUuid,
+            surface: isSlackPrompt(prompt) ? 'slack' : 'web',
+            executionMode: responseExecution.mode,
+            fastDecisionsEnabled: !!decisions,
+            adaptiveModelsEnabled: adaptiveModels?.enabled ?? false,
+            adaptiveModelSelected:
+                modelProperties.model.modelId !== initialModelId,
+            mainModel: modelProperties.model.modelId,
+            toolCallModel: toolCallModel?.model.modelId ?? null,
+        });
         const args: AiAgentArgs = {
             decisions,
             toolCallModel,
