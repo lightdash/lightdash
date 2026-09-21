@@ -524,6 +524,9 @@ describe('DataAppVizTestPanel', () => {
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
                 fieldMapping: { source: 'orders_visible' },
+                fields: {
+                    orders_visible: { label: 'visible', tableLabel: 'Orders' },
+                },
                 rows: resultRows,
                 options: { showLegend: true },
                 colorPalette: ['#111111'],
@@ -543,6 +546,9 @@ describe('DataAppVizTestPanel', () => {
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
                 fieldMapping: { source: 'orders_visible' },
+                fields: {
+                    orders_visible: { label: 'visible', tableLabel: 'Orders' },
+                },
                 rows: resultRows,
                 options: { showLegend: false },
                 colorPalette: ['#111111'],
@@ -571,6 +577,9 @@ describe('DataAppVizTestPanel', () => {
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
                 fieldMapping: { source: 'orders_visible' },
+                fields: {
+                    orders_visible: { label: 'visible', tableLabel: 'Orders' },
+                },
                 rows: resultRows,
                 options: { showLegend: true },
                 colorPalette: ['#111111'],
@@ -590,6 +599,9 @@ describe('DataAppVizTestPanel', () => {
         await waitFor(() =>
             expect(onContextChange).toHaveBeenLastCalledWith({
                 fieldMapping: { source: 'orders_visible' },
+                fields: {
+                    orders_visible: { label: 'visible', tableLabel: 'Orders' },
+                },
                 rows: resultRows,
                 options: { showLegend: true },
                 colorPalette: ['#123456', '#abcdef'],

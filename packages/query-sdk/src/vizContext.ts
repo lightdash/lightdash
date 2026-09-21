@@ -87,6 +87,42 @@ export type VizContextPivotDetails = {
 };
 
 /**
+ * Semantic-layer format of a bound field, mirroring the host's `CustomFormat`.
+ * Use it to build axis-tick and legend formatters; per-cell `formatted` values
+ * already honor it.
+ */
+export type VizFieldFormat = {
+    /** 'default' | 'percent' | 'currency' | 'number' | 'id' | 'date' |
+     *  'timestamp' | 'bytes_si' | 'bytes_iec' | 'custom' (open set — hosts may
+     *  add values). */
+    type: string;
+    /** Number of decimal places. */
+    round?: number;
+    /** Number separator style. */
+    separator?: string;
+    /** ISO currency code, e.g. 'USD'. */
+    currency?: string;
+    /** Compact notation for large numbers (K, M, B, T) or byte units. */
+    compact?: string;
+    prefix?: string;
+    suffix?: string;
+    /** Time interval for date formatting. */
+    timeInterval?: string;
+    /** Custom format expression. */
+    custom?: string;
+};
+
+/** Display metadata the host resolved for one bound query field. */
+export type VizFieldMetadata = {
+    /** Field label without the table prefix, e.g. "Total order amount". */
+    label: string;
+    /** Label of the table the field belongs to. */
+    tableLabel?: string;
+    /** Semantic-layer format, when the field declares one. */
+    format?: VizFieldFormat;
+};
+
+/**
  * Pushed by the host into the iframe. `fieldMapping` maps each field name the
  * renderer declared to the query field id it resolves to; `rows` are the
  * host-fetched result rows keyed by field id; `options` holds the current
@@ -98,6 +134,8 @@ export type VizContextPivotDetails = {
 export type DataAppVizContextMessage = {
     type: 'lightdash:sdk:data-app-viz-context';
     fieldMapping: Record<string, string | string[]>;
+    /** Absent when the installed host predates field-metadata delivery. */
+    fields?: Record<string, VizFieldMetadata>;
     rows: VizContextRow[];
     /** Absent when the installed host predates config-option delivery. */
     options?: Record<string, VizContextOptionValue>;
@@ -180,6 +218,16 @@ export const getRaw = (
 };
 
 /**
+ * Display label for a bound field, e.g. `"Total order amount"`. Falls back to
+ * the raw field id when the host sent no metadata for it (older hosts send
+ * none at all).
+ */
+export const getFieldLabel = (
+    context: Pick<VizContext, 'fields'>,
+    fieldId: string,
+): string => context.fields[fieldId]?.label ?? fieldId;
+
+/**
  * Host-mediated access to the raw rows behind a clicked data point. `enabled`
  * is false when the host predates the capability, the viewer lacks permission,
  * or no transport is mounted — render no menu item in that case (never a
@@ -214,6 +262,12 @@ export type VizUnderlyingData = {
 export type VizContext = {
     /** Slot name → query field id, or ordered ids for a slot declared multiple. */
     fieldMapping: Record<string, string | string[]>;
+    /**
+     * Query field id → display metadata (label, table label, semantic-layer
+     * format). Empty when the host predates field-metadata delivery — read
+     * labels with `getFieldLabel` so raw ids remain the fallback.
+     */
+    fields: Record<string, VizFieldMetadata>;
     /** Host-fetched result rows, keyed by query field id. */
     rows: VizContextRow[];
     /** Config option name → current value (the user's choice, else the declared default). */
@@ -240,6 +294,7 @@ export type VizContext = {
 
 type VizContextValue = {
     fieldMapping: Record<string, string | string[]>;
+    fields: Record<string, VizFieldMetadata>;
     rows: VizContextRow[];
     options: Record<string, VizContextOptionValue>;
     colorPalette: string[];
@@ -288,6 +343,28 @@ const normalizeStringRecord = (value: unknown): Record<string, string> => {
         Object.entries(value).filter(
             (entry): entry is [string, string] => typeof entry[1] === 'string',
         ),
+    );
+};
+
+const normalizeFields = (value: unknown): Record<string, VizFieldMetadata> => {
+    if (!isPlainRecord(value)) return {};
+
+    return Object.fromEntries(
+        Object.entries(value).flatMap(([fieldId, metadata]) => {
+            if (!isPlainRecord(metadata) || typeof metadata.label !== 'string')
+                return [];
+            const normalized: VizFieldMetadata = {
+                label: metadata.label,
+                ...(typeof metadata.tableLabel === 'string'
+                    ? { tableLabel: metadata.tableLabel }
+                    : {}),
+                ...(isPlainRecord(metadata.format) &&
+                typeof metadata.format.type === 'string'
+                    ? { format: metadata.format as VizFieldFormat }
+                    : {}),
+            };
+            return [[fieldId, normalized] as const];
+        }),
     );
 };
 
@@ -351,6 +428,7 @@ export function toVizContextState(
 ): VizContextValue {
     return {
         fieldMapping: message.fieldMapping ?? {},
+        fields: normalizeFields(message.fields),
         rows: Array.isArray(message.rows) ? message.rows : [],
         options: normalizeOptions(message.options),
         colorPalette: Array.isArray(message.colorPalette)
@@ -577,8 +655,9 @@ export function VizContextProvider({ children }: { children: ReactNode }) {
  * still works standalone. Re-renders whenever the host pushes (on load, on
  * mapping change, on query change). Resolve a single-field slot with
  * `fieldMapping[name]`, or iterate that value when the slot declares multiple
- * fields, then read cells with `getFormatted`/`getRaw`. Read a declared config
- * option with `options[name]`, and colour series with
+ * fields, then read cells with `getFormatted`/`getRaw` and label axes and
+ * legends with `getFieldLabel`. Read a declared config option with
+ * `options[name]`, and colour series with
  * `resolveSeriesColor` / `resolveValueColor`.
  */
 export function useVizContext(): VizContext {
@@ -612,6 +691,7 @@ export function useVizContext(): VizContext {
 
     return {
         fieldMapping: context?.fieldMapping ?? {},
+        fields: context?.fields ?? {},
         rows: context?.rows ?? [],
         options: context?.options ?? {},
         colorPalette: context?.colorPalette ?? [],

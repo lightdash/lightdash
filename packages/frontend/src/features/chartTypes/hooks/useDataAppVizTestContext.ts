@@ -1,4 +1,5 @@
 import {
+    deriveDataAppVizFieldMetadata,
     deriveDataAppVizPivotConfig,
     deriveDataAppVizPivotConfiguration,
     ECHARTS_DEFAULT_COLORS,
@@ -153,6 +154,10 @@ export const useDataAppVizTestContext = ({
         ) {
             onContextChange({
                 fieldMapping: run.fieldMapping,
+                fields: deriveDataAppVizFieldMetadata(
+                    run.fieldMapping,
+                    itemsMap,
+                ),
                 rows,
                 options: effectiveOptions,
                 colorPalette,
@@ -166,6 +171,7 @@ export const useDataAppVizTestContext = ({
         rows,
         run,
         runQueryUuid,
+        itemsMap,
         queryResults.queryUuid,
         queryResults.pivotDetails,
         effectiveOptions,

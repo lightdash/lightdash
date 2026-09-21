@@ -8,6 +8,7 @@ import type { Transport } from './types';
 import {
     buildVizDrillDown,
     buildVizUnderlyingData,
+    getFieldLabel,
     getFormatted,
     getRaw,
     resolveSeriesColor,
@@ -75,6 +76,9 @@ const inboundSeriesColorsRemainOptional: Assert<
 const inboundValueColorsRemainOptional: Assert<
     IsOptional<DataAppVizContextMessage, 'valueColors'>
 > = true;
+const inboundFieldsRemainOptional: Assert<
+    IsOptional<DataAppVizContextMessage, 'fields'>
+> = true;
 void [
     messageKeysMatchHost,
     messageTypeMatchesHost,
@@ -84,6 +88,7 @@ void [
     inboundPaletteRemainsOptional,
     inboundSeriesColorsRemainOptional,
     inboundValueColorsRemainOptional,
+    inboundFieldsRemainOptional,
 ];
 
 const row: VizContextRow = {
@@ -134,6 +139,25 @@ describe('getRaw', () => {
         expect(getRaw(row, undefined)).toBeNull();
         expect(getRaw(row, 'not_a_field')).toBeNull();
         expect(getRaw(row, 'empty_field')).toBeNull();
+    });
+});
+
+describe('getFieldLabel', () => {
+    const context = {
+        fields: { orders_total: { label: 'Total order amount' } },
+    };
+
+    it('returns the host-resolved label for a bound field', () => {
+        expect(getFieldLabel(context, 'orders_total')).toBe(
+            'Total order amount',
+        );
+    });
+
+    it('falls back to the raw field id without metadata', () => {
+        expect(getFieldLabel(context, 'orders_status')).toBe('orders_status');
+        expect(getFieldLabel({ fields: {} }, 'orders_status')).toBe(
+            'orders_status',
+        );
     });
 });
 
@@ -293,6 +317,7 @@ describe('toVizContextState', () => {
             ),
         ).toEqual({
             fieldMapping: {},
+            fields: {},
             rows: [],
             options: {},
             colorPalette: [],
@@ -303,6 +328,44 @@ describe('toVizContextState', () => {
             underlyingDataOpenEnabled: false,
             drillDownEnabled: false,
         });
+    });
+
+    it('keeps well-formed field metadata and drops malformed entries', () => {
+        const state = toVizContextState(
+            message({
+                fields: {
+                    orders_total: {
+                        label: 'Total order amount',
+                        tableLabel: 'Orders',
+                        format: { type: 'currency', currency: 'USD' },
+                    },
+                    orders_status: { label: 'Status' },
+                    no_label: { tableLabel: 'Orders' } as never,
+                    bad_format: {
+                        label: 'Bad format',
+                        format: { round: 2 } as never,
+                    },
+                    not_an_object: 'label' as never,
+                },
+            }),
+        );
+
+        expect(state.fields).toEqual({
+            orders_total: {
+                label: 'Total order amount',
+                tableLabel: 'Orders',
+                format: { type: 'currency', currency: 'USD' },
+            },
+            orders_status: { label: 'Status' },
+            bad_format: { label: 'Bad format' },
+        });
+    });
+
+    it('defaults missing field metadata to an empty map for older hosts', () => {
+        expect(toVizContextState(message({})).fields).toEqual({});
+        expect(
+            toVizContextState(message({ fields: [] as never })).fields,
+        ).toEqual({});
     });
 
     it('normalizes pivot metadata used to resolve generated columns', () => {

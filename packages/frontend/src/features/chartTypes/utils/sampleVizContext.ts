@@ -253,6 +253,14 @@ export const buildSampleVizContext = (
 
     return {
         fieldMapping: expanded.fieldMapping,
+        // Fabricated columns have no semantic-layer item; the declared slot
+        // label stands in so previews still show human names.
+        fields: Object.fromEntries(
+            expanded.fields.map((field) => [
+                sampleColumnId(field),
+                { label: field.label },
+            ]),
+        ),
         options: getEffectiveOptionValues(schema.configOptions, optionValues),
         colorPalette,
         seriesColors: {},

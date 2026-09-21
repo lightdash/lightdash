@@ -1194,6 +1194,10 @@ describe('data-app-viz-context push', () => {
 
     const dataAppVizContext: DataAppVizContext = {
         fieldMapping: { category: 'orders_status', value: 'orders_count' },
+        fields: {
+            orders_status: { label: 'Status', tableLabel: 'Orders' },
+            orders_count: { label: 'Count', tableLabel: 'Orders' },
+        },
         rows: [
             {
                 orders_status: {

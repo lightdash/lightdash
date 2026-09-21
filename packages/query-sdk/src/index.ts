@@ -103,6 +103,7 @@ export {
     useVizContext,
     getFormatted,
     getRaw,
+    getFieldLabel,
     resolveSeriesColor,
     resolveValueColor,
 } from './vizContext';
@@ -112,6 +113,8 @@ export type {
     VizContextOptionValue,
     VizContextPivotDetails,
     VizContextRow,
+    VizFieldFormat,
+    VizFieldMetadata,
     VizUnderlyingData,
     VizDrillDown,
     DataAppVizContextMessage,
