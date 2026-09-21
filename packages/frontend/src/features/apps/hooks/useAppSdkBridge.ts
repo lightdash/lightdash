@@ -8,6 +8,7 @@ import {
     APP_SDK_MOUNTED_QUERIES_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     APP_SDK_VIZ_DRILL_DOWN_PATH,
+    APP_SDK_VIZ_POINT_MENU_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_PATH,
     extractAppSdkRouteProjectUuid,
@@ -322,6 +323,13 @@ export type UseAppSdkBridgeParams = {
      * iframe input).
      */
     onVizDrillDownIntent?: (intentBody: unknown) => void;
+    /**
+     * Handles the viz point-menu virtual route
+     * (`APP_SDK_VIZ_POINT_MENU_PATH`): the host renders its native data-point
+     * context menu at the intent's coordinates. Never forwarded to the API.
+     * Absent = the capability is reported unavailable to the iframe.
+     */
+    onVizPointMenuIntent?: (intentBody: unknown) => { shown: boolean };
     // When set, `lightdash:sdk:url-state-change` messages from the iframe SDK
     // are validated and forwarded. Left undefined, they're ignored.
     onUrlStateChange?: (state: Record<string, unknown>) => void;
@@ -376,6 +384,7 @@ export function useAppSdkBridge({
     rewriteVizUnderlyingDataRequest,
     onVizUnderlyingDataIntent,
     onVizDrillDownIntent,
+    onVizPointMenuIntent,
     onUrlStateChange,
     onSdkManifest,
     onVizRendered,
@@ -892,6 +901,29 @@ export function useAppSdkBridge({
                 return;
             }
 
+            // Bridge-only virtual route: the viz posts a data-point click;
+            // the host renders its native context menu. Answered here —
+            // nothing is forwarded to the API.
+            if (path === APP_SDK_VIZ_POINT_MENU_PATH) {
+                if (!onVizPointMenuIntent) {
+                    respond({
+                        error: 'The data point menu is not available for this visualization.',
+                    });
+                    return;
+                }
+                try {
+                    respond({ result: onVizPointMenuIntent(body) });
+                } catch (err) {
+                    respond({
+                        error:
+                            err instanceof Error
+                                ? err.message
+                                : 'Invalid point-menu request.',
+                    });
+                }
+                return;
+            }
+
             if (!isAllowedAppSdkRoute(method, path)) {
                 respond({ error: `Blocked: ${method} ${path}` });
                 return;
@@ -1251,6 +1283,7 @@ export function useAppSdkBridge({
             rewriteVizUnderlyingDataRequest,
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
+            onVizPointMenuIntent,
             pushColorScheme,
             onUrlStateChange,
             onSdkManifest,

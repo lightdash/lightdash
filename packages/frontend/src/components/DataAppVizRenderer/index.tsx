@@ -18,7 +18,7 @@ import {
     useState,
     type FC,
 } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import AppIframePreview from '../../features/apps/AppIframePreview';
@@ -46,8 +46,13 @@ import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 import { SCREENSHOT_READY_FALLBACK_MS } from './constants';
+import DataAppVizPointMenu from './DataAppVizPointMenu';
 import classes from './DataAppVizRenderer.module.css';
 import { resolveVizDrillDownConfig } from './vizDrillDownConfig';
+import {
+    resolveVizPointMenuState,
+    type VizPointMenuState,
+} from './vizPointMenuConfig';
 import { resolveVizUnderlyingDataConfig } from './vizUnderlyingDataConfig';
 import { buildVizUnderlyingDataRequest } from './vizUnderlyingDataRequest';
 
@@ -354,15 +359,11 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const underlyingDataOpenEnabled =
         underlyingDataEnabled && !!openUnderlyingDataModal;
 
-    const onVizUnderlyingDataIntent = useMemo(() => {
-        if (
-            !underlyingDataOpenEnabled ||
-            !openUnderlyingDataModal ||
-            !reconciledFieldMapping
-        ) {
-            return undefined;
-        }
-        return (intentBody: unknown) => {
+    // Resolves the click intent and opens the native dialog; toasts and
+    // rethrows so the bridge route relays the message.
+    const openVizUnderlyingData = useCallback(
+        (intentBody: unknown) => {
+            if (!openUnderlyingDataModal || !reconciledFieldMapping) return;
             try {
                 openUnderlyingDataModal(
                     resolveVizUnderlyingDataConfig(intentBody, {
@@ -371,14 +372,6 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                         dateZoom,
                     }),
                 );
-                trackingContext?.track({
-                    name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-                    properties: {
-                        organizationId: user?.data?.organizationUuid,
-                        userId: user?.data?.userUuid,
-                        projectId: projectUuid,
-                    },
-                });
             } catch (err) {
                 showToastError({
                     title: 'Could not open underlying data',
@@ -386,17 +379,35 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                 });
                 throw err;
             }
+        },
+        [
+            openUnderlyingDataModal,
+            reconciledFieldMapping,
+            itemsMap,
+            dateZoom,
+            showToastError,
+        ],
+    );
+
+    const onVizUnderlyingDataIntent = useMemo(() => {
+        if (!underlyingDataOpenEnabled) return undefined;
+        return (intentBody: unknown) => {
+            openVizUnderlyingData(intentBody);
+            trackingContext?.track({
+                name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
+                properties: {
+                    organizationId: user?.data?.organizationUuid,
+                    userId: user?.data?.userUuid,
+                    projectId: projectUuid,
+                },
+            });
         };
     }, [
         underlyingDataOpenEnabled,
-        openUnderlyingDataModal,
-        reconciledFieldMapping,
-        itemsMap,
-        dateZoom,
+        openVizUnderlyingData,
         trackingContext,
         user,
         projectUuid,
-        showToastError,
     ]);
 
     // enabled:false ⇒ callback undefined ⇒ the bridge answers the virtual
@@ -437,6 +448,50 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         dateZoom,
     ]);
 
+    const [pointMenuState, setPointMenuState] =
+        useState<VizPointMenuState | null>(null);
+    const isDashboardSurface = useLocation().pathname.includes('/dashboards');
+
+    // Any single action available ⇒ the menu is worth offering.
+    const pointMenuEnabled =
+        !!reconciledFieldMapping &&
+        !embedToken &&
+        !minimal &&
+        (underlyingDataOpenEnabled || drillDownEnabled || !!sourceQueryUuid);
+
+    const onVizPointMenuIntent = useMemo(() => {
+        if (!pointMenuEnabled || !reconciledFieldMapping) return undefined;
+        return (
+            intentBody: unknown,
+            iframeRect: DOMRect | null,
+        ): { shown: boolean } => {
+            const state = resolveVizPointMenuState(intentBody, {
+                fieldMapping: reconciledFieldMapping,
+                itemsMap: itemsMap ?? {},
+                iframeRect,
+                drillDownEnabled,
+                underlyingDataEnabled: underlyingDataOpenEnabled,
+                dateZoom,
+            });
+            const hasAction =
+                state.copyValue !== undefined ||
+                state.underlyingDataConfig !== undefined ||
+                state.drillConfig !== undefined ||
+                (isDashboardSurface && state.filters.length > 0);
+            if (!hasAction) return { shown: false };
+            setPointMenuState(state);
+            return { shown: true };
+        };
+    }, [
+        pointMenuEnabled,
+        reconciledFieldMapping,
+        itemsMap,
+        drillDownEnabled,
+        underlyingDataOpenEnabled,
+        dateZoom,
+        isDashboardSurface,
+    ]);
+
     const dataAppVizContext = useMemo<DataAppVizContext | undefined>(() => {
         if (!rows || !configOptions || !reconciledFieldMapping)
             return undefined;
@@ -461,7 +516,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                 openEnabled: underlyingDataOpenEnabled,
             },
             drillDown: { enabled: drillDownEnabled },
-            pointMenu: { enabled: false },
+            pointMenu: { enabled: pointMenuEnabled },
         };
     }, [
         reconciledFieldMapping,
@@ -475,6 +530,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         underlyingDataEnabled,
         underlyingDataOpenEnabled,
         drillDownEnabled,
+        pointMenuEnabled,
     ]);
 
     // Terminal placeholders never mount the iframe — their frame is final,
@@ -753,8 +809,35 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                     }
                     onVizUnderlyingDataIntent={onVizUnderlyingDataIntent}
                     onVizDrillDownIntent={onVizDrillDownIntent}
+                    onVizPointMenuIntent={onVizPointMenuIntent}
                 />
             </Box>
+            {pointMenuState && (
+                <DataAppVizPointMenu
+                    state={pointMenuState}
+                    onClose={() => setPointMenuState(null)}
+                    metricQuery={metricQuery}
+                    showUnderlyingData={
+                        pointMenuState.underlyingDataConfig !== undefined
+                    }
+                    onViewUnderlyingData={() => {
+                        if (
+                            openUnderlyingDataModal &&
+                            pointMenuState.underlyingDataConfig
+                        ) {
+                            openUnderlyingDataModal(
+                                pointMenuState.underlyingDataConfig,
+                            );
+                        }
+                    }}
+                    showFilters={isDashboardSurface}
+                    trackingData={{
+                        organizationId: user?.data?.organizationUuid,
+                        userId: user?.data?.userUuid,
+                        projectId: projectUuid,
+                    }}
+                />
+            )}
             {isPreviewLoading && (
                 <Box className={classes.loadingOverlay}>
                     <LoadingChart />

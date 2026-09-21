@@ -18,6 +18,8 @@ const MAX_FILTER_VALUE_WIDTH = 250;
 type Props = {
     filters: FilterDashboardToRule[];
     onAddFilter?: (filter: FilterDashboardToRule, isTemporary: boolean) => void;
+    /** Whether to render the leading divider. False when this is the first section in the menu. */
+    withDivider?: boolean;
 };
 
 const getExcludeFilter = (
@@ -30,7 +32,11 @@ const getExcludeFilter = (
             : FilterOperator.NOT_EQUALS,
 });
 
-export const FilterDashboardTo: FC<Props> = ({ filters, onAddFilter }) => {
+export const FilterDashboardTo: FC<Props> = ({
+    filters,
+    onAddFilter,
+    withDivider = true,
+}) => {
     const getUiString = useUiStrings();
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
@@ -38,7 +44,7 @@ export const FilterDashboardTo: FC<Props> = ({ filters, onAddFilter }) => {
     const addFilterCallback = onAddFilter ?? addDimensionDashboardFilter;
     return (
         <>
-            <Menu.Divider />
+            {withDivider && <Menu.Divider />}
 
             {filters.map((filter) => {
                 const fieldName = friendlyName(filter.target.fieldName);
