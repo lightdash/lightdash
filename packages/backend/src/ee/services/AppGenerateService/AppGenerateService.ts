@@ -294,6 +294,7 @@ import {
     addClaudeGenerationAttempt,
     addClaudeUsage,
     ClaudeStreamProcessor,
+    findClaudeResultUsage,
     ZERO_CLAUDE_GENERATION_TELEMETRY,
     ZERO_CLAUDE_USAGE,
     type ClaudeGenerationTelemetry,
@@ -611,6 +612,8 @@ const COMPACTION_TIMEOUT_MS = 5 * 60 * 1000;
 type CodingAgentCompactionRun = {
     result: DataAppCompactionResult;
     durationMs: number;
+    // Null when the CLI emitted no `result` event, e.g. it never ran.
+    usage: ClaudeGenerationUsage | null;
 };
 
 /** Org-resolved provider config plus the per-build CLI session options. */
@@ -2545,6 +2548,7 @@ export class AppGenerateService extends BaseService {
         provider: 'anthropic' | 'bedrock' | 'openai',
         keyManagement: AiKeyManagement,
         usage: ClaudeGenerationUsage,
+        functionId: 'appClaudeGeneration' | 'appClaudeCompaction',
     ): void {
         const emit = (
             resolvedModel: string,
@@ -2558,7 +2562,7 @@ export class AppGenerateService extends BaseService {
         ) =>
             emitAiUsage(
                 getAiCallTelemetry({
-                    functionId: 'appClaudeGeneration',
+                    functionId,
                     feature: 'data-app',
                     organizationUuid: payload.organizationUuid,
                     projectUuid: payload.projectUuid,
@@ -2690,6 +2694,7 @@ export class AppGenerateService extends BaseService {
                         claudeProvider,
                     ),
                 generationUsage,
+                'appClaudeGeneration',
             );
             await this.recordGenerationUsage(payload, generationUsage);
         }
@@ -5263,12 +5268,13 @@ export class AppGenerateService extends BaseService {
         const done = (
             result: CodingAgentCompactionRun['result'],
             detail: string,
+            usage: ClaudeGenerationUsage | null = null,
         ): CodingAgentCompactionRun => {
             const durationMs = AppGenerateService.elapsed(start);
             const line = `App ${appUuid}: session compaction ${result} after ${durationMs}ms`;
             if (result === 'success') this.logger.info(line);
             else this.logger.warn(`${line}: ${detail}`);
-            return { result, durationMs };
+            return { result, durationMs, usage };
         };
 
         let claudeCodeEnv: Record<string, string>;
@@ -5298,9 +5304,16 @@ export class AppGenerateService extends BaseService {
                 },
             );
             const outcome = findCodingAgentCompactionOutcome(result.stdout);
-            if (outcome?.result === 'success') return done('success', '');
+            const usage = findClaudeResultUsage(result.stdout);
+            if (outcome?.result === 'success') {
+                return done('success', '', usage);
+            }
             if (outcome?.result === 'failed') {
-                return done('failed', outcome.error ?? 'no reason reported');
+                return done(
+                    'failed',
+                    outcome.error ?? 'no reason reported',
+                    usage,
+                );
             }
             return done(
                 'error',
@@ -6407,7 +6420,20 @@ export class AppGenerateService extends BaseService {
             claudeProvider,
             claudeKeyManagement,
             generationUsage,
+            'appClaudeGeneration',
         );
+        // Kept apart from the generation so `contextTokensPerTurn` on the
+        // next version only sees the turns that ran on the summary.
+        if (compaction?.usage) {
+            AppGenerateService.emitDataAppAiUsage(
+                payload,
+                'sonnet',
+                claudeProvider,
+                claudeKeyManagement,
+                compaction.usage,
+                'appClaudeCompaction',
+            );
+        }
         await this.recordGenerationUsage(payload, generationUsage);
 
         this.analytics.track({
@@ -6472,6 +6498,13 @@ export class AppGenerateService extends BaseService {
                     compaction?.result ??
                     (compactedOnEarlierAttempt ? 'interrupted' : null),
                 contextTokensPerTurn,
+                compactInputTokens: compaction?.usage?.inputTokens ?? null,
+                compactOutputTokens: compaction?.usage?.outputTokens ?? null,
+                compactCacheReadInputTokens:
+                    compaction?.usage?.cacheReadInputTokens ?? null,
+                compactCacheCreationInputTokens:
+                    compaction?.usage?.cacheCreationInputTokens ?? null,
+                compactCostUsd: compaction?.usage?.costUsd ?? null,
                 distBytes,
                 sourceBytes,
             },
