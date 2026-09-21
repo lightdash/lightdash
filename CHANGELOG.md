@@ -1,3 +1,13 @@
+# [2.274.0](https://github.com/lightdash/lightdash/compare/2.273.0...2.274.0) (2026-09-21)
+
+
+### Features
+
+* **ai-agent:** agent names the data app it builds ([#29543](https://github.com/lightdash/lightdash/issues/29543)) ([4f70d02](https://github.com/lightdash/lightdash/commit/4f70d02929e639b8a4badb8e334ca39002429c3b))
+* **mcp:** generate_data_app and list_data_app_themes tools ([#29545](https://github.com/lightdash/lightdash/issues/29545)) ([302764f](https://github.com/lightdash/lightdash/commit/302764f8f6fc4ca9af7ea63581b7880aac500ce8))
+* **mcp:** get_data_app_build_status tool ([#29544](https://github.com/lightdash/lightdash/issues/29544)) ([90e29b9](https://github.com/lightdash/lightdash/commit/90e29b91088f1685e2a6959f60d2132fec00f6fe))
+* **mcp:** iterate_data_app tool ([#29532](https://github.com/lightdash/lightdash/issues/29532)) ([590b9c6](https://github.com/lightdash/lightdash/commit/590b9c6846057e41a7cc8e06bb0d6ecb45c04d03))
+
 # [2.273.0](https://github.com/lightdash/lightdash/compare/2.272.3...2.273.0) (2026-09-21)
 
 

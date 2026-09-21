@@ -19101,6 +19101,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['explorer_chart_config'] },
                 { dataType: 'enum', enums: ['chart_type_builder'] },
                 { dataType: 'enum', enums: ['ai_agent'] },
+                { dataType: 'enum', enums: ['mcp'] },
             ],
             validators: {},
         },
@@ -27746,6 +27747,20 @@ const models: TsoaRoute.Models = {
                                         {
                                             dataType: 'nestedObjectLiteral',
                                             nestedProperties: {
+                                                name: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        { dataType: 'string' },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                        {
+                                                            dataType:
+                                                                'undefined',
+                                                        },
+                                                    ],
+                                                },
                                                 version: {
                                                     dataType: 'double',
                                                     required: true,
