@@ -281,8 +281,13 @@ export class ProjectHomepageModel {
             UNION ALL
             SELECT 'data_app', app_id, slug FROM apps
             WHERE project_uuid = ? AND deleted_at IS NULL
+            UNION ALL
+            SELECT 'document', document_uuid, documents.slug FROM documents
+            JOIN spaces USING (space_id)
+            WHERE documents.project_uuid = ? AND documents.deleted_at IS NULL
+                AND spaces.deleted_at IS NULL
         `,
-            [projectUuid, projectUuid, projectUuid, projectUuid],
+            [projectUuid, projectUuid, projectUuid, projectUuid, projectUuid],
         );
         return result.rows;
     }

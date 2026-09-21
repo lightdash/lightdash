@@ -19,6 +19,7 @@ const organizationUuid = 'organization';
 const userUuid = 'reader';
 const spaceUuid = 'space';
 const document: Document = {
+    pinnedListUuid: null,
     documentUuid,
     projectUuid,
     organizationUuid,

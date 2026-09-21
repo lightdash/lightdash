@@ -34,6 +34,7 @@ import {
     type ProjectHomepage,
     type ProjectMemberRole,
     type PublishAnnouncementPayload,
+    type RegisteredAccount,
     type ResolvedHomepage,
     type SessionUser,
     type UpdateAnnouncementRequest,
@@ -45,6 +46,7 @@ import { createCanvas, loadImage } from 'canvas';
 import { randomUUID } from 'crypto';
 import { type Readable } from 'stream';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { toSessionUser } from '../../auth/account';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { type LightdashConfig } from '../../config/parseConfig';
@@ -53,6 +55,7 @@ import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../../services/BaseService';
+import type { DocumentService } from '../../services/DocumentService/DocumentService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type PersistentDownloadFileService } from '../../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import type { RecentContentService } from '../../services/RecentContentService/RecentContentService';
@@ -184,6 +187,7 @@ const readImageDimensions = (buffer: Buffer): ImageDimensions | null =>
     readJpegDimensions(buffer);
 
 export type ProjectHomepageServiceArguments = {
+    documentService: Pick<DocumentService, 'filterViewableUuids'>;
     recentContentService: Pick<RecentContentService, 'getRecentlyViewed'>;
     projectHomepageModel: Pick<
         ProjectHomepageModel,
@@ -236,6 +240,7 @@ export type ProjectHomepageServiceArguments = {
 };
 
 export class ProjectHomepageService extends BaseService {
+    private readonly documentService: ProjectHomepageServiceArguments['documentService'];
     private readonly recentContentService: ProjectHomepageServiceArguments['recentContentService'];
     private readonly projectHomepageModel: ProjectHomepageServiceArguments['projectHomepageModel'];
 
@@ -263,6 +268,7 @@ export class ProjectHomepageService extends BaseService {
 
     constructor(args: ProjectHomepageServiceArguments) {
         super();
+        this.documentService = args.documentService;
         this.projectHomepageModel = args.projectHomepageModel;
         this.recentContentService = args.recentContentService;
         this.analytics = args.analytics;
@@ -655,11 +661,36 @@ export class ProjectHomepageService extends BaseService {
         }
     }
 
+    private async assertCanViewDocumentReferences(
+        account: RegisteredAccount,
+        projectUuid: string,
+        documentUuids: Set<string>,
+    ): Promise<void> {
+        if (documentUuids.size === 0) {
+            return;
+        }
+        const allowedDocumentUuids = new Set(
+            await this.documentService.filterViewableUuids(
+                account,
+                [projectUuid],
+                [...documentUuids],
+            ),
+        );
+        if (
+            [...documentUuids].some((uuid) => !allowedDocumentUuids.has(uuid))
+        ) {
+            throw new ParameterError(
+                'Homepage Document reference is missing or inaccessible',
+            );
+        }
+    }
+
     async downloadHomepagesAsCode(
-        user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
         names: string[] = [],
     ): Promise<ApiHomepageAsCodeListResponse['results']> {
+        const user = toSessionUser(account);
         await this.assertCanUseCode(user, projectUuid, 'view');
         const homepages = await this.projectHomepageModel.list(projectUuid);
         const selected = homepages.filter(
@@ -675,9 +706,10 @@ export class ProjectHomepageService extends BaseService {
         }
         const references =
             await this.projectHomepageModel.getCodeReferences(projectUuid);
+        const documentUuids = new Set<string>();
         const assignments =
             await this.projectHomepageModel.getAssignments(projectUuid);
-        return {
+        const result: ApiHomepageAsCodeListResponse['results'] = {
             homepages: selected
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map((homepage) => ({
@@ -689,6 +721,7 @@ export class ProjectHomepageService extends BaseService {
                         projectUuid,
                         references,
                         this.lightdashConfig.siteUrl,
+                        (uuid) => documentUuids.add(uuid),
                     ),
                     publication: {
                         isDefault: homepage.isDefault,
@@ -733,15 +766,22 @@ export class ProjectHomepageService extends BaseService {
                 (name) => !selected.some((h) => h.name === name),
             ),
         };
+        await this.assertCanViewDocumentReferences(
+            account,
+            projectUuid,
+            documentUuids,
+        );
+        return result;
     }
 
     async upsertHomepageAsCode(
-        user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
         name: string,
         input: HomepageAsCode,
         publish: boolean = false,
     ): Promise<ApiHomepageAsCodeUpsertResponse['results']> {
+        const user = toSessionUser(account);
         await this.assertCanUseCode(user, projectUuid, 'manage');
         const document = parseHomepageAsCode(input, name);
         if (name !== document.name)
@@ -750,13 +790,20 @@ export class ProjectHomepageService extends BaseService {
             throw new ParameterError(
                 'Publishing a homepage requires publication settings',
             );
+        const documentUuids = new Set<string>();
         const config = parseHomepageConfig(
             uploadHomepageConfig(
                 document.config,
                 projectUuid,
                 await this.projectHomepageModel.getCodeReferences(projectUuid),
                 this.lightdashConfig.siteUrl,
+                (uuid) => documentUuids.add(uuid),
             ),
+        );
+        await this.assertCanViewDocumentReferences(
+            account,
+            projectUuid,
+            documentUuids,
         );
         const groups =
             await this.projectHomepageModel.getCodeGroups(projectUuid);

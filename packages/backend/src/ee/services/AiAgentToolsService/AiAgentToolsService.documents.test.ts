@@ -25,6 +25,7 @@ const cell = {
     content: { markdown: '## Findings' },
 };
 const document: Document = {
+    pinnedListUuid: null,
     documentUuid: 'document',
     projectUuid,
     organizationUuid: 'organization',

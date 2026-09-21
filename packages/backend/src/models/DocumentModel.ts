@@ -348,6 +348,12 @@ export class DocumentModel {
         documentUuid: string,
     ): Promise<Document> {
         const row = await this.activeDocuments(database, projectUuid)
+            .leftJoin(
+                'pinned_document',
+                'pinned_document.document_uuid',
+                'documents.document_uuid',
+            )
+            .select('pinned_document.pinned_list_uuid')
             .where('documents.document_uuid', documentUuid)
             .first();
         if (!row) {
@@ -362,6 +368,7 @@ export class DocumentModel {
         }
         return {
             ...toSummary(row),
+            pinnedListUuid: row.pinned_list_uuid ?? null,
             version: {
                 versionUuid: version.document_version_uuid,
                 versionNumber: version.version_number,

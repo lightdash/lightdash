@@ -10,7 +10,7 @@ import {
 } from '@lightdash/common';
 
 export type HomepageContentReference = {
-    contentType: 'chart' | 'dashboard' | 'space' | 'data_app';
+    contentType: 'chart' | 'dashboard' | 'space' | 'data_app' | 'document';
     uuid: string;
     slug: string;
 };
@@ -23,6 +23,7 @@ const linkContentTypes: Record<
     saved: 'chart',
     spaces: 'space',
     apps: 'data_app',
+    documents: 'document',
 };
 
 const resolveReference = (
@@ -30,6 +31,7 @@ const resolveReference = (
     type: HomepageContentReference['contentType'],
     value: string,
     direction: 'download' | 'upload',
+    onDocumentReference?: (uuid: string) => void,
 ): string => {
     const matches = references.filter(
         (ref) =>
@@ -37,9 +39,17 @@ const resolveReference = (
             ref[direction === 'download' ? 'uuid' : 'slug'] === value,
     );
     if (matches.length !== 1) {
+        if (type === 'document') {
+            throw new ParameterError(
+                'Homepage Document reference is missing or inaccessible',
+            );
+        }
         throw new ParameterError(
             `Homepage reference ${type} "${value}" is ${matches.length === 0 ? 'missing' : 'ambiguous'} in this project`,
         );
+    }
+    if (type === 'document') {
+        onDocumentReference?.(matches[0].uuid);
     }
     return matches[0][direction === 'download' ? 'slug' : 'uuid'];
 };
@@ -50,10 +60,11 @@ const translateLinks = (
     references: HomepageContentReference[],
     direction: 'download' | 'upload',
     siteUrl: string,
+    onDocumentReference?: (uuid: string) => void,
 ): string => {
     if (direction === 'download') {
         return content.replace(
-            /https?:\/\/[^\s)]+|\/projects\/[^/\s)]+\/(?:dashboards|saved|spaces|apps)\/[^/\s)#?]+(?:\/view)?/g,
+            /https?:\/\/[^\s)]+|\/projects\/[^/\s)]+\/(?:dashboards|saved|spaces|apps|documents)\/[^/\s)#?]+(?:\/view)?/g,
             (match) => {
                 let value = match;
                 if (/^https?:/.test(match)) {
@@ -67,17 +78,17 @@ const translateLinks = (
                     value = `${url.pathname}${url.search}${url.hash}`;
                 }
                 const parts = value.match(
-                    /^\/projects\/([^/]+)\/(dashboards|saved|spaces|apps)\/([^/\s)#?]+)(\/view)?(.*)$/,
+                    /^\/projects\/([^/]+)\/(dashboards|saved|spaces|apps|documents)\/([^/\s)#?]+)(\/view)?(.*)$/,
                 );
                 if (!parts || parts[1] !== projectUuid) return match;
                 const [, , path, uuid, view, suffix] = parts;
                 const type = linkContentTypes[path];
-                return `lightdash://${path}/${encodeURIComponent(resolveReference(references, type, uuid, direction))}${view ?? ''}${suffix}`;
+                return `lightdash://${path}/${encodeURIComponent(resolveReference(references, type, uuid, direction, onDocumentReference))}${view ?? ''}${suffix}`;
             },
         );
     }
     return content.replace(
-        /lightdash:\/\/(dashboards|saved|spaces|apps)\/([^/\s)#?]+)(\/view)?/g,
+        /lightdash:\/\/(dashboards|saved|spaces|apps|documents)\/([^/\s)#?]+)(\/view)?/g,
         (
             _match,
             path: string,
@@ -91,7 +102,7 @@ const translateLinks = (
                 throw new ParameterError('Invalid encoded homepage link');
             }
             const type = linkContentTypes[path];
-            return `/projects/${projectUuid}/${path}/${resolveReference(references, type, slug, direction)}${view ?? ''}`;
+            return `/projects/${projectUuid}/${path}/${resolveReference(references, type, slug, direction, onDocumentReference)}${view ?? ''}`;
         },
     );
 };
@@ -101,11 +112,25 @@ export const downloadHomepageConfig = (
     projectUuid: string,
     references: HomepageContentReference[],
     siteUrl: string,
+    onDocumentReference?: (uuid: string) => void,
 ): HomepageAsCode['config'] => {
     const ref = (type: HomepageContentReference['contentType'], uuid: string) =>
-        resolveReference(references, type, uuid, 'download');
+        resolveReference(
+            references,
+            type,
+            uuid,
+            'download',
+            onDocumentReference,
+        );
     const link = (value: string) =>
-        translateLinks(value, projectUuid, references, 'download', siteUrl);
+        translateLinks(
+            value,
+            projectUuid,
+            references,
+            'download',
+            siteUrl,
+            onDocumentReference,
+        );
     const action = (value: HomepageQuickAction): HomepageActionAsCode => {
         switch (value.type) {
             case 'dashboard': {
@@ -204,11 +229,19 @@ export const uploadHomepageConfig = (
     projectUuid: string,
     references: HomepageContentReference[],
     siteUrl: string,
+    onDocumentReference?: (uuid: string) => void,
 ): HomepageConfig => {
     const ref = (type: HomepageContentReference['contentType'], slug: string) =>
-        resolveReference(references, type, slug, 'upload');
+        resolveReference(references, type, slug, 'upload', onDocumentReference);
     const link = (value: string) =>
-        translateLinks(value, projectUuid, references, 'upload', siteUrl);
+        translateLinks(
+            value,
+            projectUuid,
+            references,
+            'upload',
+            siteUrl,
+            onDocumentReference,
+        );
     const action = (value: HomepageActionAsCode): HomepageQuickAction => {
         switch (value.type) {
             case 'dashboard': {

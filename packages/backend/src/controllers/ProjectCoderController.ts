@@ -113,12 +113,12 @@ type ExternalConnectionCoder = {
 
 type HomepageCoder = {
     downloadHomepagesAsCode(
-        user: ReturnType<typeof toSessionUser>,
+        account: RegisteredAccount,
         projectUuid: string,
         names?: string[],
     ): Promise<ApiHomepageAsCodeListResponse['results']>;
     upsertHomepageAsCode(
-        user: ReturnType<typeof toSessionUser>,
+        account: RegisteredAccount,
         projectUuid: string,
         name: string,
         document: HomepageAsCode,
@@ -143,11 +143,7 @@ export class ProjectCoderController extends BaseController {
         return codeSuccess(
             await this.services
                 .getProjectHomepageService<HomepageCoder>()
-                .downloadHomepagesAsCode(
-                    toSessionUser(req.account),
-                    projectUuid,
-                    names,
-                ),
+                .downloadHomepagesAsCode(req.account, projectUuid, names),
         );
     }
 
@@ -168,7 +164,7 @@ export class ProjectCoderController extends BaseController {
             await this.services
                 .getProjectHomepageService<HomepageCoder>()
                 .upsertHomepageAsCode(
-                    toSessionUser(req.account),
+                    req.account,
                     projectUuid,
                     name,
                     document,

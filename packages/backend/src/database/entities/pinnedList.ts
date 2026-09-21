@@ -5,6 +5,7 @@ export const PinnedChartTableName = 'pinned_chart';
 export const PinnedDashboardTableName = 'pinned_dashboard';
 export const PinnedSpaceTableName = 'pinned_space';
 export const PinnedAppTableName = 'pinned_app';
+export const PinnedDocumentTableName = 'pinned_document';
 
 export type DbPinnedList = {
     pinned_list_uuid: string;
@@ -41,11 +42,16 @@ export type DbPinnedApp = {
     order: number;
 };
 
+export type DbPinnedDocument = Omit<DbPinnedApp, 'app_uuid'> & {
+    document_uuid: string;
+};
+
 export type DbPinnedItem =
     | DbPinnedChart
     | DbPinnedDashboard
     | DBPinnedSpace
-    | DbPinnedApp;
+    | DbPinnedApp
+    | DbPinnedDocument;
 
 export type CreatePinnedChart = Omit<
     DbPinnedChart,
@@ -87,4 +93,10 @@ export type PinnedAppTable = Knex.CompositeTableType<
     DbPinnedApp,
     CreatePinnedApp,
     Pick<DbPinnedApp, 'order'>
+>;
+
+export type PinnedDocumentTable = Knex.CompositeTableType<
+    DbPinnedDocument,
+    Omit<DbPinnedDocument, 'pinned_item_uuid' | 'created_at' | 'order'>,
+    Pick<DbPinnedDocument, 'order'>
 >;

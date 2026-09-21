@@ -394,6 +394,11 @@ export class UserFavoritesModel {
             return [];
         }
         const rows = await this.database('documents')
+            .leftJoin(
+                'pinned_document',
+                'pinned_document.document_uuid',
+                'documents.document_uuid',
+            )
             .innerJoin('spaces', 'spaces.space_id', 'documents.space_id')
             .innerJoin(
                 'projects',
@@ -428,6 +433,8 @@ export class UserFavoritesModel {
             .whereNull('documents.deleted_at')
             .whereNull('spaces.deleted_at')
             .select(
+                'pinned_document.pinned_list_uuid',
+                'pinned_document.order',
                 'documents.document_uuid',
                 'documents.project_uuid',
                 'documents.name',
@@ -464,8 +471,8 @@ export class UserFavoritesModel {
                 directAccessRoles: [],
                 views: 0,
                 firstViewedAt: null,
-                pinnedListUuid: null,
-                pinnedListOrder: null,
+                pinnedListUuid: row.pinned_list_uuid ?? null,
+                pinnedListOrder: row.order ?? null,
                 verification: null,
             },
         }));

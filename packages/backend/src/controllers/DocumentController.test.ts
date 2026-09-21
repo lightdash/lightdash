@@ -118,3 +118,29 @@ describe('Document chart query boundary', () => {
         },
     );
 });
+
+describe('Document pin boundary', () => {
+    test('passes project and slug to the authorized pinning service', async () => {
+        const result = {
+            projectUuid: 'project',
+            spaceUuid: 'space',
+            pinnedListUuid: 'list',
+            isPinned: true,
+        };
+        const toggleDocumentPin = vi.fn().mockResolvedValue(result);
+        const controller = new DocumentController({
+            getPinningService: () => ({ toggleDocumentPin }),
+        } as unknown as ConstructorParameters<typeof DocumentController>[0]);
+        const request = {
+            account: { user: { type: 'registered' } },
+        } as unknown as express.Request;
+        await expect(
+            controller.togglePin(request, 'project', 'weekly-review'),
+        ).resolves.toEqual({ status: 'ok', results: result });
+        expect(toggleDocumentPin).toHaveBeenCalledWith(
+            request.account,
+            'project',
+            'weekly-review',
+        );
+    });
+});

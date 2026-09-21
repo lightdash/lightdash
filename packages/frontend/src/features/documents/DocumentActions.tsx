@@ -1,11 +1,20 @@
+import { subject } from '@casl/ability';
 import {
     DirectAccessResourceType,
     ContentType,
+    FeatureFlags,
     getDocumentUrl,
     type Document,
 } from '@lightdash/common';
 import { ActionIcon, Button, Group, Menu, Tooltip } from '@mantine/core';
-import { IconCode, IconCopy, IconDots, IconTrash } from '@tabler/icons-react';
+import {
+    IconCode,
+    IconCopy,
+    IconDots,
+    IconTrash,
+    IconPin,
+    IconPinnedOff,
+} from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
@@ -14,7 +23,10 @@ import MantineIcon from '../../components/common/MantineIcon';
 import DocumentDeleteModal from '../../components/common/modal/DocumentDeleteModal';
 import { useFavoriteMutation } from '../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
+import { useDocumentPinningMutation } from '../../hooks/pinning/useDocumentPinningMutation';
 import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../providers/App/useApp';
 import DirectAccessModal from '../directAccess/components/DirectAccessModal';
 import { useCanManageDirectAccess } from '../directAccess/hooks/useCanManageDirectAccess';
 import { useDirectAccessAvailability } from '../directAccess/hooks/useDirectAccess';
@@ -24,6 +36,20 @@ import { useCanDeleteDocument } from './useCanDeleteDocument';
 import { useDocumentCreationSpaces } from './useDocumentCreationSpaces';
 
 const DocumentActions = ({ document }: { document: Document }) => {
+    const { user } = useApp();
+    const documentFlag = useServerFeatureFlag(FeatureFlags.Documents);
+    const pinMutation = useDocumentPinningMutation();
+    const isPinned = document.pinnedListUuid !== null;
+    const canPin =
+        !documentFlag.isError &&
+        documentFlag.data?.enabled === true &&
+        user.data?.ability.can(
+            'manage',
+            subject('PinnedItems', {
+                organizationUuid: document.organizationUuid,
+                projectUuid: document.projectUuid,
+            }),
+        );
     const [isShareOpen, setShareOpen] = useState(false);
     const favorites = useFavorites(document.projectUuid);
     const favoriteMutation = useFavoriteMutation(document.projectUuid);
@@ -96,6 +122,26 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     </Tooltip>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    {canPin && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon
+                                    icon={isPinned ? IconPinnedOff : IconPin}
+                                />
+                            }
+                            disabled={pinMutation.isLoading}
+                            onClick={() =>
+                                pinMutation.mutate({
+                                    projectUuid: document.projectUuid,
+                                    documentUuid: document.documentUuid,
+                                })
+                            }
+                        >
+                            {isPinned
+                                ? 'Unpin from homepage'
+                                : 'Pin to homepage'}
+                        </Menu.Item>
+                    )}
                     {writableSpaces.length > 0 && (
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconCopy} />}

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parseHomepageConfig, sanitizeHomepageConfig } from './schema';
+import {
+    collectionBlockSchema,
+    parseHomepageConfig,
+    sanitizeHomepageConfig,
+} from './schema';
 import { defaultHomepageConfig, type HomepageConfig } from './types';
 
 const validConfig: HomepageConfig = {
@@ -355,5 +359,25 @@ describe('sanitizeHomepageConfig', () => {
         expect(() => sanitizeHomepageConfig({ rows: 'nope' })).toThrow(
             /Corrupt/,
         );
+    });
+});
+
+describe('Document collections', () => {
+    it('preserves Document references mixed with existing content and the Document type filter', () => {
+        const block = {
+            id: 'mixed',
+            type: 'collection',
+            config: {
+                title: 'Documents',
+                source: 'manual',
+                items: [
+                    { contentType: 'document', uuid: 'first-document' },
+                    { contentType: 'dashboard', uuid: 'dashboard' },
+                    { contentType: 'document', uuid: 'second-document' },
+                ],
+                contentTypes: ['document'],
+            },
+        };
+        expect(collectionBlockSchema.parse(block)).toEqual(block);
     });
 });

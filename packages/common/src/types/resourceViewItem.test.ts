@@ -67,4 +67,12 @@ describe('Document content presentation', () => {
             },
         });
     });
+
+    it('preserves Document pin state for content-table action menus', () => {
+        const item = contentToResourceViewItem({
+            ...content,
+            pinnedList: { uuid: 'homepage-pins' },
+        });
+        expect(item.data.pinnedListUuid).toBe('homepage-pins');
+    });
 });

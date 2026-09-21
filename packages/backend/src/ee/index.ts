@@ -303,6 +303,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 context,
             }) =>
                 new ProjectHomepageService({
+                    documentService: repository.getDocumentService(),
                     recentContentService: repository.getRecentContentService(),
                     projectHomepageModel:
                         models.getProjectHomepageModel<ProjectHomepageModel>(),

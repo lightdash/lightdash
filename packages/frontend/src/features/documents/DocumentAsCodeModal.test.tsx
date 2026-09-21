@@ -49,6 +49,7 @@ const exportedDocument: DocumentAsCode = {
 };
 
 const document: Document = {
+    pinnedListUuid: null,
     documentUuid: 'document',
     projectUuid: 'project',
     organizationUuid: 'organization',

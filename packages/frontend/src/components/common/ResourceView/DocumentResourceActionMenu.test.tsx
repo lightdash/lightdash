@@ -49,7 +49,7 @@ vi.mock('../../../features/documents/DocumentDuplicateModal', () => ({
         return <div>Duplicate document form</div>;
     },
 }));
-const ability = new Ability<PossibleAbilities>([
+const baseRules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0] = [
     {
         action: 'delete',
         subject: 'Document',
@@ -87,7 +87,8 @@ const ability = new Ability<PossibleAbilities>([
             access: { $elemMatch: { userUuid: 'user', role: 'admin' } },
         },
     },
-]);
+];
+const ability = new Ability<PossibleAbilities>(baseRules);
 vi.mock('../../../providers/App/useApp', () => ({
     default: () => ({
         user: { data: { userUuid: 'user', organizationUuid: 'org', ability } },
@@ -149,6 +150,7 @@ const item: ResourceViewDocumentItem = {
 
 describe('Document resource actions', () => {
     beforeEach(() => {
+        ability.update(baseRules ?? []);
         mocks.enabled = true;
         mocks.flagError = false;
         mocks.available = true;
@@ -177,6 +179,48 @@ describe('Document resource actions', () => {
         );
         return onAction;
     };
+    it.each([null, 'homepage-pins'])(
+        'dispatches pin toggles with current list %s',
+        (pinnedListUuid) => {
+            ability.update([
+                ...(baseRules ?? []),
+                {
+                    action: 'manage',
+                    subject: 'PinnedItems',
+                    conditions: {
+                        projectUuid: 'project',
+                        organizationUuid: 'org',
+                    },
+                },
+            ]);
+            const pinnedItem = {
+                ...item,
+                data: { ...item.data, pinnedListUuid },
+            };
+            const onAction = vi.fn();
+            render(
+                <MantineProvider>
+                    <DocumentResourceActionMenu
+                        item={pinnedItem}
+                        onAction={onAction}
+                        isOpen
+                    />
+                </MantineProvider>,
+            );
+            fireEvent.click(
+                screen.getByRole('menuitem', {
+                    name: pinnedListUuid
+                        ? 'Unpin from homepage'
+                        : 'Pin to homepage',
+                }),
+            );
+            expect(onAction).toHaveBeenCalledWith({
+                type: ResourceViewItemAction.PIN_TO_HOMEPAGE,
+                item: pinnedItem,
+            });
+        },
+    );
+
     it('moves with inherited editor access and never offers unsupported actions', () => {
         const onAction = renderMenu();
         fireEvent.click(screen.getByRole('menuitem', { name: 'Move' }));

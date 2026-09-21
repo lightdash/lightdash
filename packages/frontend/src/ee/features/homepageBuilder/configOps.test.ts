@@ -330,3 +330,15 @@ describe('reorderCollectionItems', () => {
         expect(input.map((i) => i.uuid)).toEqual(['a', 'b']);
     });
 });
+
+it('reorders Documents among other collection references without dropping hidden items', () => {
+    const items: HomepageCollectionItemRef[] = [
+        { contentType: 'document', uuid: 'first-document' },
+        { contentType: 'dashboard', uuid: 'dashboard' },
+        { contentType: 'document', uuid: 'unavailable-document' },
+        { contentType: 'document', uuid: 'second-document' },
+    ];
+    expect(
+        reorderCollectionItems(items, 'second-document', 'first-document'),
+    ).toEqual([items[3], items[0], items[1], items[2]]);
+});

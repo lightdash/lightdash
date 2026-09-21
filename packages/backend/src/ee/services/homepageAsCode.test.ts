@@ -18,6 +18,7 @@ const references: HomepageContentReference[] = [
     { contentType: 'dashboard', uuid: 'dashboard-uuid', slug: 'overview' },
     { contentType: 'space', uuid: 'space-uuid', slug: 'shared' },
     { contentType: 'data_app', uuid: 'app-uuid', slug: 'forecast' },
+    { contentType: 'document', uuid: 'document-uuid', slug: 'weekly-review' },
 ];
 const configFor = (blocks: HomepageBlock[]): HomepageConfig => ({
     version: 1,
@@ -184,6 +185,10 @@ describe('homepage content-as-code translation', () => {
                     },
                     { contentType: 'space', uuid: 'destination-space-uuid' },
                     { contentType: 'data_app', uuid: 'destination-app-uuid' },
+                    {
+                        contentType: 'document',
+                        uuid: 'destination-document-uuid',
+                    },
                 ],
             },
         });

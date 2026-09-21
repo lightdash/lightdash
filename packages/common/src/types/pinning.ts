@@ -2,6 +2,7 @@ import {
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
     type ResourceViewDataAppItem,
+    type ResourceViewDocumentItem,
     type ResourceViewItemType,
     type ResourceViewSpaceItem,
 } from './resourceViewItem';
@@ -18,6 +19,7 @@ export type PinnedItem = {
     dashboardUuid?: string;
     spaceUuid?: string;
     appUuid?: string;
+    documentUuid?: string;
     createdAt: Date;
 };
 
@@ -45,6 +47,15 @@ export type CreateAppPinnedItem = {
     appUuid: string;
 };
 
+export type CreateDocumentPinnedItem = {
+    projectUuid: string;
+    documentUuid: string;
+};
+export type DeleteDocumentPinnedItem = {
+    pinnedListUuid: string;
+    documentUuid: string;
+};
+
 export type DeleteChartPinnedItem = {
     pinnedListUuid: string;
     savedChartUuid: string;
@@ -69,13 +80,15 @@ export type DeletePinnedItem =
     | DeleteChartPinnedItem
     | DeleteDashboardPinnedItem
     | DeleteSpacePinnedItem
-    | DeleteAppPinnedItem;
+    | DeleteAppPinnedItem
+    | DeleteDocumentPinnedItem;
 
 export type CreatePinnedItem =
     | CreateChartPinnedItem
     | CreateDashboardPinnedItem
     | CreateSpacePinnedItem
-    | CreateAppPinnedItem;
+    | CreateAppPinnedItem
+    | CreateDocumentPinnedItem;
 
 export type UpdatePinnedItemOrder = {
     type: ResourceViewItemType;
@@ -83,7 +96,8 @@ export type UpdatePinnedItemOrder = {
         | ResourceViewChartItem['data']
         | ResourceViewDashboardItem['data']
         | ResourceViewSpaceItem['data']
-        | ResourceViewDataAppItem['data'],
+        | ResourceViewDataAppItem['data']
+        | ResourceViewDocumentItem['data'],
         'uuid' | 'pinnedListOrder'
     >;
 };
@@ -124,6 +138,7 @@ export type PinnedItems = Array<
     | ResourceViewChartItem
     | ResourceViewSpaceItem
     | ResourceViewDataAppItem
+    | ResourceViewDocumentItem
 >;
 
 export type TogglePinnedItemInfo = {
@@ -137,3 +152,12 @@ export type ApiTogglePinnedItem = {
     status: 'ok';
     results: TogglePinnedItemInfo;
 };
+
+export const isCreateDocumentPinnedItem = (
+    item: CreatePinnedItem,
+): item is CreateDocumentPinnedItem =>
+    'documentUuid' in item && !!item.documentUuid;
+export const isDeleteDocumentPinnedItem = (
+    item: DeletePinnedItem,
+): item is DeleteDocumentPinnedItem =>
+    'documentUuid' in item && !!item.documentUuid;

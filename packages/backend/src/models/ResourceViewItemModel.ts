@@ -3,6 +3,7 @@ import {
     ResourceViewChartItem,
     ResourceViewDashboardItem,
     ResourceViewDataAppItem,
+    ResourceViewDocumentItem,
     ResourceViewItemType,
     ResourceViewSpaceItem,
 } from '@lightdash/common';
@@ -472,6 +473,101 @@ const getAllSpaces = async (
 
 export class ResourceViewItemModel {
     database: Knex;
+
+    async getPinnedDocuments(
+        projectUuid: string,
+        pinnedListUuid: string,
+    ): Promise<ResourceViewDocumentItem[]> {
+        const rows = await this.database('documents')
+            .innerJoin('spaces', 'spaces.space_id', 'documents.space_id')
+            .innerJoin(
+                'projects',
+                'projects.project_uuid',
+                'documents.project_uuid',
+            )
+            .innerJoin(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .leftJoin('document_versions as latest', (join) => {
+                join.on(
+                    'latest.document_id',
+                    '=',
+                    'documents.document_id',
+                ).andOn(
+                    'latest.version_number',
+                    '=',
+                    this.database.raw(
+                        '(select max(version_number) from document_versions where document_id = documents.document_id)',
+                    ),
+                );
+            })
+            .leftJoin(
+                'users as updater',
+                'updater.user_uuid',
+                'latest.created_by_user_uuid',
+            )
+            .where('documents.project_uuid', projectUuid)
+            .innerJoin(
+                'pinned_document',
+                'pinned_document.document_uuid',
+                'documents.document_uuid',
+            )
+            .innerJoin(
+                'pinned_list',
+                'pinned_list.pinned_list_uuid',
+                'pinned_document.pinned_list_uuid',
+            )
+            .where('pinned_list.project_uuid', projectUuid)
+            .where('pinned_document.pinned_list_uuid', pinnedListUuid)
+            .whereNull('documents.deleted_at')
+            .whereNull('spaces.deleted_at')
+            .select(
+                'pinned_document.pinned_list_uuid',
+                'pinned_document.order',
+                'documents.document_uuid',
+                'documents.project_uuid',
+                'documents.name',
+                'documents.slug',
+                'documents.description',
+                'documents.created_by_user_uuid',
+                'documents.updated_at',
+                'organizations.organization_uuid',
+                'spaces.space_uuid',
+                'updater.user_uuid as updated_by_user_uuid',
+                'updater.first_name as updated_by_first_name',
+                'updater.last_name as updated_by_last_name',
+            );
+
+        return rows.map((row) => ({
+            type: ResourceViewItemType.DOCUMENT,
+            data: {
+                uuid: row.document_uuid,
+                projectUuid: row.project_uuid,
+                organizationUuid: row.organization_uuid,
+                spaceUuid: row.space_uuid,
+                name: row.name,
+                slug: row.slug,
+                description: row.description,
+                createdByUserUuid: row.created_by_user_uuid,
+                updatedAt: row.updated_at,
+                updatedByUser: row.updated_by_user_uuid
+                    ? {
+                          userUuid: row.updated_by_user_uuid,
+                          firstName: row.updated_by_first_name ?? '',
+                          lastName: row.updated_by_last_name ?? '',
+                      }
+                    : undefined,
+                directAccessRoles: [],
+                views: 0,
+                firstViewedAt: null,
+                pinnedListUuid: row.pinned_list_uuid,
+                pinnedListOrder: row.order,
+                verification: null,
+            },
+        }));
+    }
 
     constructor(args: ResourceViewItemModelArguments) {
         this.database = args.database;

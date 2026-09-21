@@ -9,6 +9,7 @@ import {
 import type {
     HomepageBlock,
     HomepageCollectionBlock,
+    HomepageCollectionItemRef,
     HomepageCtaBlock,
     HomepageQuickAction,
     HomepageQuickActionsBlock,
@@ -45,7 +46,7 @@ export type HomepageBlockAsCode =
           type: 'collection';
           config: Omit<HomepageCollectionBlock['config'], 'items'> & {
               items: {
-                  contentType: 'chart' | 'dashboard' | 'space' | 'data_app';
+                  contentType: HomepageCollectionItemRef['contentType'];
                   slug: string;
               }[];
           };
@@ -132,12 +133,9 @@ const blockSchema = z.union([
         config: collectionBlockSchema.shape.config.extend({
             items: z.array(
                 z.object({
-                    contentType: z.enum([
-                        'chart',
-                        'dashboard',
-                        'space',
-                        'data_app',
-                    ]),
+                    contentType:
+                        collectionBlockSchema.shape.config.shape.items.element
+                            .shape.contentType,
                     slug: reference,
                 }),
             ),

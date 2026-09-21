@@ -5,6 +5,11 @@ import DocumentActions from './DocumentActions';
 
 const mocks = vi.hoisted(() => ({
     canManage: true,
+    canPin: true,
+    documentsEnabled: true,
+    pinLoading: false,
+    isPinned: false,
+    togglePin: vi.fn(),
     isAvailable: true,
     modal: vi.fn(),
     deleteModal: vi.fn(),
@@ -16,6 +21,20 @@ const mocks = vi.hoisted(() => ({
     duplicateModal: vi.fn(),
     isFavorite: false,
     toggleFavorite: vi.fn(),
+}));
+vi.mock('../../providers/App/useApp', () => ({
+    default: () => ({
+        user: { data: { ability: { can: () => mocks.canPin } } },
+    }),
+}));
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: { enabled: mocks.documentsEnabled } }),
+}));
+vi.mock('../../hooks/pinning/useDocumentPinningMutation', () => ({
+    useDocumentPinningMutation: () => ({
+        mutate: mocks.togglePin,
+        isLoading: mocks.pinLoading,
+    }),
 }));
 vi.mock('../../hooks/favorites/useFavorites', () => ({
     useFavorites: () => ({
@@ -80,6 +99,7 @@ vi.mock('../directAccess/components/DirectAccessModal', () => ({
 }));
 
 const document: Document = {
+    pinnedListUuid: null,
     documentUuid: 'document',
     projectUuid: 'project',
     organizationUuid: 'org',
@@ -105,6 +125,11 @@ const document: Document = {
 describe('Document actions', () => {
     beforeEach(() => {
         mocks.canManage = true;
+        mocks.canPin = true;
+        mocks.documentsEnabled = true;
+        mocks.pinLoading = false;
+        mocks.isPinned = false;
+        mocks.togglePin.mockReset();
         mocks.isAvailable = true;
         mocks.modal.mockReset();
         mocks.canDelete = false;
@@ -120,9 +145,59 @@ describe('Document actions', () => {
     const renderActions = () =>
         render(
             <MantineProvider>
-                <DocumentActions document={document} />
+                <DocumentActions
+                    document={{
+                        ...document,
+                        pinnedListUuid: mocks.isPinned ? 'pins' : null,
+                    }}
+                />
             </MantineProvider>,
         );
+
+    it.each([false, true])(
+        'toggles the exact Document with current pin state %s',
+        async (isPinned) => {
+            mocks.isPinned = isPinned;
+            renderActions();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Document actions' }),
+            );
+            fireEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: isPinned ? 'Unpin from homepage' : 'Pin to homepage',
+                }),
+            );
+            expect(mocks.togglePin).toHaveBeenCalledWith({
+                projectUuid: 'project',
+                documentUuid: 'document',
+            });
+        },
+    );
+    it.each([
+        { canPin: false, documentsEnabled: true },
+        { canPin: true, documentsEnabled: false },
+    ])('hides pin controls when unavailable %j', async (permissions) => {
+        Object.assign(mocks, permissions);
+        renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        await screen.findByRole('menuitem', { name: 'View as code' });
+        expect(
+            screen.queryByRole('menuitem', { name: 'Pin to homepage' }),
+        ).not.toBeInTheDocument();
+    });
+    it('prevents toggling while a pin mutation is pending', async () => {
+        mocks.pinLoading = true;
+        renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        fireEvent.click(
+            await screen.findByRole('menuitem', { name: 'Pin to homepage' }),
+        );
+        expect(mocks.togglePin).not.toHaveBeenCalled();
+    });
 
     it('opens the shared access modal for the exact Document', () => {
         renderActions();
@@ -235,7 +310,12 @@ describe('Document actions', () => {
         mocks.isFavorite = true;
         view.rerender(
             <MantineProvider>
-                <DocumentActions document={document} />
+                <DocumentActions
+                    document={{
+                        ...document,
+                        pinnedListUuid: mocks.isPinned ? 'pins' : null,
+                    }}
+                />
             </MantineProvider>,
         );
         fireEvent.click(

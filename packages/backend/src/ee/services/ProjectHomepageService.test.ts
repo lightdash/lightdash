@@ -15,6 +15,8 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { Readable } from 'stream';
+import { fromSession } from '../../auth/account';
+import { DocumentService } from '../../services/DocumentService/DocumentService';
 import {
     ProjectHomepageService,
     type ProjectHomepageServiceArguments,
@@ -126,6 +128,7 @@ const makeViewerUser = (): SessionUser => ({
 
 const makeService = ({
     flagEnabled = true,
+    documentService = { filterViewableUuids: vi.fn().mockResolvedValue([]) },
     projectHomepageModel = {},
     groupsModel = {},
     projectModel = {},
@@ -137,6 +140,7 @@ const makeService = ({
     schedulerClient = {},
 }: {
     flagEnabled?: boolean;
+    documentService?: ProjectHomepageServiceArguments['documentService'];
     projectHomepageModel?: Partial<
         ProjectHomepageServiceArguments['projectHomepageModel']
     >;
@@ -156,6 +160,7 @@ const makeService = ({
     >;
 } = {}) =>
     new ProjectHomepageService({
+        documentService,
         recentContentService: {
             getRecentlyViewed: vi.fn().mockResolvedValue([]),
         },
@@ -251,9 +256,9 @@ const makeService = ({
 
 describe('ProjectHomepageService', () => {
     describe('homepage as code', () => {
-        const codeUser = (): SessionUser => {
+        const codeUser = () => {
             const user = makeAdminUser();
-            return {
+            return fromSession({
                 ...user,
                 ability: new Ability<PossibleAbilities>([
                     ...user.ability.rules,
@@ -266,7 +271,7 @@ describe('ProjectHomepageService', () => {
                         },
                     },
                 ]),
-            };
+            });
         };
         const document = {
             contentType: ContentAsCodeType.HOMEPAGE as const,
@@ -289,6 +294,282 @@ describe('ProjectHomepageService', () => {
             },
             publication: { isDefault: true, groups: [], roles: [] },
         };
+
+        it('authorizes only Documents used by the requested export and import, including links', async () => {
+            const filterViewableUuids = vi
+                .fn()
+                .mockResolvedValue(['used', 'linked']);
+            const upsertAsCode = vi
+                .fn()
+                .mockResolvedValue({ action: PromotionAction.CREATE });
+            const config: HomepageConfig = {
+                version: 1,
+                rows: [
+                    {
+                        id: 'row',
+                        blocks: [
+                            {
+                                id: 'collection',
+                                type: 'collection',
+                                config: {
+                                    title: 'Documents',
+                                    items: [
+                                        {
+                                            contentType: 'document',
+                                            uuid: 'used',
+                                        },
+                                    ],
+                                },
+                            },
+                            {
+                                id: 'links',
+                                type: 'markdown',
+                                config: {
+                                    content: `/projects/${PROJECT_UUID}/documents/linked`,
+                                },
+                            },
+                        ],
+                    },
+                ],
+            };
+            const service = makeService({
+                documentService: { filterViewableUuids },
+                projectHomepageModel: {
+                    getCodeReferences: vi.fn().mockResolvedValue([
+                        {
+                            contentType: 'document',
+                            uuid: 'used',
+                            slug: 'used-report',
+                        },
+                        {
+                            contentType: 'document',
+                            uuid: 'linked',
+                            slug: 'linked-report',
+                        },
+                        {
+                            contentType: 'document',
+                            uuid: 'unused',
+                            slug: 'private-report',
+                        },
+                    ]),
+                    list: vi.fn().mockResolvedValue([
+                        makeHomepage({
+                            name: document.name,
+                            publishedConfig: config,
+                        }),
+                        makeHomepage({
+                            name: 'Unrequested',
+                            publishedConfig: {
+                                version: 1,
+                                rows: [
+                                    {
+                                        id: 'row',
+                                        blocks: [
+                                            {
+                                                id: 'link',
+                                                type: 'markdown',
+                                                config: {
+                                                    content: `/projects/${PROJECT_UUID}/documents/unused`,
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        }),
+                    ]),
+                    upsertAsCode,
+                },
+            });
+            const account = codeUser();
+            const result = await service.downloadHomepagesAsCode(
+                account,
+                PROJECT_UUID,
+                [document.name],
+            );
+            expect(result.homepages).toHaveLength(1);
+            expect(filterViewableUuids).toHaveBeenLastCalledWith(
+                account,
+                [PROJECT_UUID],
+                ['used', 'linked'],
+            );
+            await service.upsertHomepageAsCode(
+                account,
+                PROJECT_UUID,
+                document.name,
+                result.homepages[0],
+            );
+            expect(filterViewableUuids).toHaveBeenCalledTimes(2);
+            expect(filterViewableUuids).toHaveBeenLastCalledWith(
+                account,
+                [PROJECT_UUID],
+                ['used', 'linked'],
+            );
+            expect(upsertAsCode).toHaveBeenCalledWith(
+                expect.objectContaining({ config }),
+            );
+        });
+
+        it('skips Document access resolution when the requested configs contain no Document references', async () => {
+            const filterViewableUuids = vi.fn();
+            const service = makeService({
+                documentService: { filterViewableUuids },
+                projectHomepageModel: {
+                    getCodeReferences: vi.fn().mockResolvedValue([
+                        {
+                            contentType: 'document',
+                            uuid: 'unused',
+                            slug: 'private-report',
+                        },
+                    ]),
+                    list: vi
+                        .fn()
+                        .mockResolvedValue([
+                            makeHomepage({ publishedConfig: validConfig }),
+                        ]),
+                    upsertAsCode: vi
+                        .fn()
+                        .mockResolvedValue({ action: PromotionAction.CREATE }),
+                },
+            });
+            await service.downloadHomepagesAsCode(codeUser(), PROJECT_UUID);
+            await service.upsertHomepageAsCode(
+                codeUser(),
+                PROJECT_UUID,
+                document.name,
+                document,
+            );
+            expect(filterViewableUuids).not.toHaveBeenCalled();
+        });
+
+        it.each(['disabled', 'private'])(
+            'rejects %s Document references on download and upload without exposing their slug',
+            async (state) => {
+                const documentUuid = '00000000-0000-0000-0000-000000000099';
+                const slug = 'confidential-acquisition-plan';
+                const upsertAsCode = vi.fn();
+                const documentService = new DocumentService({
+                    projectModel: {
+                        getSummary: vi.fn().mockResolvedValue({
+                            projectUuid: PROJECT_UUID,
+                            organizationUuid: ORGANIZATION_UUID,
+                        }),
+                    },
+                    featureFlagModel: {
+                        get: vi.fn().mockResolvedValue({
+                            enabled: state !== 'disabled',
+                        }),
+                    },
+                    documentModel: {
+                        listSummariesByUuid: vi.fn().mockResolvedValue([
+                            {
+                                documentUuid,
+                                projectUuid: PROJECT_UUID,
+                                organizationUuid: ORGANIZATION_UUID,
+                                spaceUuid: 'private-space',
+                            },
+                        ]),
+                    },
+                    spacePermissionService: {
+                        resolveAccessBatch: vi.fn().mockResolvedValue([
+                            {
+                                context: {
+                                    projectUuid: PROJECT_UUID,
+                                    organizationUuid: ORGANIZATION_UUID,
+                                    inheritsFromOrgOrProject: false,
+                                    access: [],
+                                },
+                            },
+                        ]),
+                    },
+                } as unknown as ConstructorParameters<
+                    typeof DocumentService
+                >[0]);
+                const config: HomepageConfig = {
+                    version: 1,
+                    rows: [
+                        {
+                            id: 'row',
+                            blocks: [
+                                {
+                                    id: 'collection',
+                                    type: 'collection',
+                                    config: {
+                                        title: 'Documents',
+                                        items: [
+                                            {
+                                                contentType: 'document',
+                                                uuid: documentUuid,
+                                            },
+                                        ],
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                };
+                const service = makeService({
+                    documentService,
+                    projectHomepageModel: {
+                        getCodeReferences: vi.fn().mockResolvedValue([
+                            {
+                                contentType: 'document',
+                                uuid: documentUuid,
+                                slug,
+                            },
+                        ]),
+                        list: vi
+                            .fn()
+                            .mockResolvedValue([
+                                makeHomepage({ publishedConfig: config }),
+                            ]),
+                        upsertAsCode,
+                    },
+                });
+                await expect(
+                    service.downloadHomepagesAsCode(codeUser(), PROJECT_UUID),
+                ).rejects.toThrow(
+                    'Homepage Document reference is missing or inaccessible',
+                );
+                await expect(
+                    service.upsertHomepageAsCode(
+                        codeUser(),
+                        PROJECT_UUID,
+                        document.name,
+                        {
+                            ...document,
+                            config: {
+                                version: 1,
+                                rows: [
+                                    {
+                                        id: 'row',
+                                        blocks: [
+                                            {
+                                                id: 'collection',
+                                                type: 'collection',
+                                                config: {
+                                                    title: 'Documents',
+                                                    items: [
+                                                        {
+                                                            contentType:
+                                                                'document',
+                                                            slug,
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        },
+                    ),
+                ).rejects.toThrow(
+                    'Homepage Document reference is missing or inaccessible',
+                );
+                expect(upsertAsCode).not.toHaveBeenCalled();
+            },
+        );
 
         it('exports the published layout, excluding unpublished pages', async () => {
             const service = makeService({
@@ -356,7 +637,7 @@ describe('ProjectHomepageService', () => {
             ).rejects.toThrow();
             await expect(
                 makeService().downloadHomepagesAsCode(
-                    makeAdminUser(),
+                    fromSession(makeAdminUser()),
                     PROJECT_UUID,
                 ),
             ).rejects.toThrow(ForbiddenError);
