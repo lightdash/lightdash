@@ -1,3 +1,10 @@
+# [2.270.0](https://github.com/lightdash/lightdash/compare/2.269.1...2.270.0) (2026-09-21)
+
+
+### Features
+
+* **ai:** default documents to research summaries ([#29598](https://github.com/lightdash/lightdash/issues/29598)) ([957c9b4](https://github.com/lightdash/lightdash/commit/957c9b47c76fccf0692a42ec50034456a381617e))
+
 ## [2.269.1](https://github.com/lightdash/lightdash/compare/2.269.0...2.269.1) (2026-09-21)
 
 
