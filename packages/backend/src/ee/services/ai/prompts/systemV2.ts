@@ -274,10 +274,24 @@ export const getSystemPromptV2 = (args: {
         availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use grepFields to discover the relevant one for each request.`;
     }
 
+    const allowMarkdownTables =
+        args.enableFastMetadata && !slackChannelId && !slackLinksOnly;
     const content = SYSTEM_PROMPT_TEMPLATE.replace(
         '{{self_improvement_section}}',
         '',
     )
+        .replace(
+            '{{table_request_guidance}}',
+            allowMarkdownTables
+                ? '- For a small tabular answer, use runQuery and present its results as a Markdown table. Use generateVisualization with defaultVizType: "table" when the user requests a table visualization or a saved, interactive or downloadable table.'
+                : '- When a user asks for a "table", generate a table visualization with generateVisualization (defaultVizType: \'table\'). Never produce markdown tables.',
+        )
+        .replace(
+            '{{response_format_guidance}}',
+            allowMarkdownTables
+                ? '- Use simple Markdown: bold, italics, lists, and Markdown tables with a header, separator and data rows. Use blank lines around tables. Never emit an empty table header followed by the same data as a list. Use ### headings only when needed to organize a longer answer. No # or ## headers, code blocks, images or horizontal rules.'
+                : '- Use simple Markdown: `###`, bold, italics, lists. No `#` or `##` headers, no code blocks, no markdown tables, no images, no horizontal rules.',
+        )
         .replace(
             '{{search_field_values_filter_guidance}}',
             enableFilterExpressions
@@ -429,13 +443,22 @@ export const getSystemPromptV2 = (args: {
 
     const finalContent = [
         content,
+        args.enableFastMetadata
+            ? 'All assistant text is user-visible, including text before and between tool calls. Do not write context-preservation notes, scratchpads, field-ID inventories or summaries for yourself into the response when warned about context being cleared. Context housekeeping is handled by the application. Do not save temporary query results as durable user memories. Continue the user task using available evidence; if necessary, retrieve missing evidence with an authorized tool. Prior assistant notes are not evidence.'
+            : '',
+        args.enableFastMetadata
+            ? 'Separate observed results from explanations. Correlation, timing and subgroup differences do not establish causation: a coverage drop does not prove an automation failed, a policy changed or someone followed a different process. Support causal claims with direct evidence about the mechanism, such as documented changes or an appropriate causal analysis. Label untested explanations as hypotheses, state what evidence would test them, and do not say alternatives are ruled out by descriptive counts alone. Do not invent statistical baselines, sampling limits or query constraints from the shape of the results; use the executed query and field definitions. Compare like-for-like periods; label partial periods and mutable current-state attributes rather than treating them as historical snapshots.'
+            : '',
+        args.enableFastMetadata
+            ? 'Lead short answers with the result, not a generated title or a restatement of the request. Do not repeat the artifact title as a heading: the UI already labels the artifact. Summarize the key finding without duplicating the entire chart as both a table and a list. Include material scope and uncertainty, but avoid speculative diagnoses and unsolicited offers at the end of every answer.'
+            : '',
         deepResearchContent,
         grepFieldsSection,
         args.enableFastMetadata
             ? 'For straightforward entity trends or breakdowns, use a single matching count definition and its configured default time granularity when available. A nearby revenue or amount field alone is not a reason to ask count versus amount. Apply explicit business rules and prior scope first; ask when count definitions genuinely compete. Do not invent a date restriction; state the measure, grain and scope used. When the current request or a field-search result includes preloaded catalog metadata, use those definitions, joins, filters and defaults directly. Only call getMetadata for missing or truncated details; do not repeat a metadata lookup to confirm the same details.'
             : '',
         args.enableFastMetadata
-            ? 'Use runQuery when the user wants an answer from data without a chart; it returns rows without creating a chart artifact. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized.'
+            ? 'Use runQuery when the user wants an answer from data without a chart; it returns rows without creating a chart artifact in web chat. Slack result cards are attached automatically. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized.'
             : '',
         args.enableFastMetadata
             ? 'For a follow-up that changes only presentation, such as "as a line chart", reuse the preceding successful query tool input. Preserve its measure, filters and scope, add only the dimension or chart configuration required by the request, and call generateVisualization directly when the carried-forward candidates cover it.'

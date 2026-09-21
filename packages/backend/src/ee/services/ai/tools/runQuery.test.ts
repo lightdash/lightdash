@@ -1844,12 +1844,16 @@ describe('getRunQuery Slack links only', () => {
         enableDataAccess,
         slackLinksOnly,
         deferSlackVisualization,
-        input = toolInput,
+        merge = false,
+        input = merge ? mergeInput : toolInput,
+        purpose = 'visualization',
     }: {
         enableDataAccess: boolean;
         slackLinksOnly: boolean;
         deferSlackVisualization?: DeferSlackVisualizationFn;
         input?: ToolRunQueryArgs;
+        merge?: boolean;
+        purpose?: 'answer' | 'visualization';
     }) => {
         const runAsyncQuery = vi.fn().mockResolvedValue({
             queryUuid: 'query-uuid',
@@ -1857,6 +1861,13 @@ describe('getRunQuery Slack links only', () => {
             cacheMetadata: { cacheHit: false },
             fields: {},
         }) as RunAsyncQueryFn;
+        const runAsyncMergeQuery = vi.fn().mockResolvedValue({
+            queryUuid: 'query-uuid',
+            rows: [{ merge_key: 'one', primary_a_met1: 1 }],
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+            metricQuery: metricQueryMock,
+        });
         const sendFile = vi
             .fn()
             .mockResolvedValue(
@@ -1867,10 +1878,11 @@ describe('getRunQuery Slack links only', () => {
             versionUuid: 'version-uuid',
         });
         const queryTool = getRunQuery({
+            purpose,
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
-            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
-            enableMergeQueries: false,
+            runAsyncMergeQuery,
+            enableMergeQueries: merge,
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
             getPrompt: vi.fn().mockResolvedValue(makeSlackPrompt()),
@@ -1893,8 +1905,57 @@ describe('getRunQuery Slack links only', () => {
         if (Symbol.asyncIterator in output) {
             throw new Error('Expected a non-streaming tool result');
         }
-        return { output, runAsyncQuery, sendFile, createOrUpdateArtifact };
+        return {
+            output,
+            runAsyncQuery,
+            runAsyncMergeQuery,
+            sendFile,
+            createOrUpdateArtifact,
+        };
     };
+
+    it.each([
+        { slackLinksOnly: false, merge: false },
+        { slackLinksOnly: true, merge: false },
+        { slackLinksOnly: false, merge: true },
+        { slackLinksOnly: true, merge: true },
+    ])(
+        'keeps the result card for answer-only Slack queries (%j)',
+        async ({ slackLinksOnly, merge }) => {
+            const {
+                output,
+                runAsyncQuery,
+                runAsyncMergeQuery,
+                sendFile,
+                createOrUpdateArtifact,
+            } = await executeLinksOnly({
+                purpose: 'answer',
+                merge,
+                enableDataAccess: true,
+                slackLinksOnly,
+            });
+            expect(
+                merge ? runAsyncMergeQuery : runAsyncQuery,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                merge ? runAsyncQuery : runAsyncMergeQuery,
+            ).not.toHaveBeenCalled();
+            expect(createOrUpdateArtifact).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    promptUuid: 'prompt-uuid',
+                    artifactType: 'chart',
+                    vizConfig: expect.objectContaining({
+                        config: expect.objectContaining({ chartConfig: null }),
+                    }),
+                }),
+            );
+            expect(output.metadata).toMatchObject({
+                status: 'success',
+                queryUuid: 'query-uuid',
+            });
+            if (slackLinksOnly) expect(sendFile).not.toHaveBeenCalled();
+        },
+    );
 
     it('returns query evidence immediately after durable image registration', async () => {
         const deferSlackVisualization = vi.fn().mockResolvedValue(true);
