@@ -1,4 +1,5 @@
 import {
+    buildSavedMergeDefinition,
     canonicalizeAiMerge,
     ChartType,
     ContentAsCodeType,
@@ -8,7 +9,6 @@ import {
     isCustomChartTypeSlugChartConfig,
     ParameterError,
     remapFieldIdsDeep,
-    toSavedMerge,
     type ChartAsCode,
     type DataAppVizSchema,
     type ItemsMap,
@@ -156,12 +156,15 @@ export const prepareChartAsCode = ({
             content.pivotConfig,
             canonicalMerge.fieldIdByAiFieldId,
         );
-        content.merge = toSavedMerge({
-            ...canonicalMerge.mergeQuery,
-            sources: canonicalMerge.mergeQuery.sources.map((source) => ({
-                ...source,
-                metricQuery: portableMetricQuery(source.metricQuery),
-            })),
+        content.merge = buildSavedMergeDefinition({
+            chartSourceId: canonicalMerge.mergeQuery.sources[0].id,
+            mergeQuery: {
+                ...canonicalMerge.mergeQuery,
+                sources: canonicalMerge.mergeQuery.sources.map((source) => ({
+                    ...source,
+                    metricQuery: portableMetricQuery(source.metricQuery),
+                })),
+            },
         });
     }
     validation.validateContent('chart', {

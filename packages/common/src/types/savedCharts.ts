@@ -8,7 +8,7 @@ import { type ContentDraftStaleness } from './contentAsCode/draftRebase';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type CompactOrAlias, type FieldId } from './field';
 import { type KnexPaginatedData } from './knex-paginate';
-import { type SavedMergeQuery } from './mergeQuery';
+import { type SavedMergeDefinition, type SavedMergeQuery } from './mergeQuery';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 import { type ResolvedProjectColorPalette } from './organization';
 import { type ParametersValuesMap } from './parameters';
@@ -950,11 +950,8 @@ export type SavedChart = {
         /** Ordered fields to render on the pivot row axis */
         rows?: string[];
     };
-    /**
-     * Second query this chart's query is merged with, when it has one. Absent
-     * on the overwhelming majority of charts.
-     */
-    merge?: SavedMergeQuery | null;
+    /** Named source queries, join keys, and ordering of the merged result. */
+    merge?: SavedMergeDefinition | null;
     /** Visualization configuration for the chart */
     chartConfig: ChartConfig;
     /** Table view configuration */
@@ -1020,18 +1017,18 @@ export type SavedChart = {
     } | null;
 };
 
-type CreateChartBase = Pick<
-    SavedChart,
-    | 'name'
-    | 'description'
-    | 'tableName'
-    | 'metricQuery'
-    | 'pivotConfig'
-    | 'chartConfig'
-    | 'tableConfig'
-    | 'parameters'
-    | 'merge'
->;
+type CreateChartBase = {
+    name: SavedChart['name'];
+    description?: SavedChart['description'];
+    tableName: SavedChart['tableName'];
+    metricQuery: SavedChart['metricQuery'];
+    pivotConfig?: SavedChart['pivotConfig'];
+    chartConfig: SavedChart['chartConfig'];
+    tableConfig: SavedChart['tableConfig'];
+    parameters?: SavedChart['parameters'];
+    /** Accepts schema v2 uploads; saved charts return the named schema v3 shape. */
+    merge?: SavedMergeDefinition | SavedMergeQuery | null;
+};
 
 // colorPaletteUuid is on each member to avoid an allOf in the OpenAPI schema.
 export type CreateChartInSpace = CreateChartBase & {
@@ -1050,6 +1047,7 @@ export type CreateSavedChart = CreateChartInSpace | CreateChartInDashboard;
 
 export type CreateSavedChartVersion = Omit<
     SavedChart,
+    | 'merge'
     | 'uuid'
     | 'name'
     | 'updatedAt'
@@ -1074,6 +1072,7 @@ export type CreateSavedChartVersion = Omit<
     // For Charts created within a dashboard
     Partial<Pick<SavedChart, 'dashboardUuid' | 'dashboardName'>> & {
         preserveVerification?: boolean;
+        merge?: SavedMergeDefinition | SavedMergeQuery | null;
     };
 
 export type UpdateSavedChart = Partial<

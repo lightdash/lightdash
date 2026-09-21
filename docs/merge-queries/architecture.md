@@ -74,6 +74,68 @@ legs at submit and the join through its persisted spec.
   history.
 - It is the only engine that can reach existing results or external sources.
 
+## What a chart version stores
+
+A merged chart version stores its definition in `saved_queries_version_merges`
+(schema version 3, jsonb in the `merge` column): the other queries by the
+name they go by, one join, and the sort and limit of the merged result. The
+chart's own query is the first input and goes by its explore's name. This is
+also the `merge` field of the chart API and the `merge:` block of
+chart-as-code; nothing translates between them.
+
+```yaml
+merge:
+  queries:
+    payments:
+      explore: payments
+      dimensions: [orders_order_date_month]
+      metrics: [payments_unique_payment_count]
+  join: left
+  keys:
+    orders_order_date_month: [payments.orders_order_date_month]
+  sort:
+    - by: orders_order_date_month
+      direction: desc
+  limit: 500
+```
+
+Names are the merged result's table names: `payments` yields
+`payments_payments_unique_payment_count`, the chart's `orders` yields
+`orders_orders_total_order_amount`, and a key named after the chart's field
+yields `merge_orders_order_date_month`. A `by` is a chart field id, a
+`query.fieldId` reference, or a merge table calculation's name; a chart field
+that is a key sorts the key column. A query that repeats its values says
+`repeat: true`; the chart's own query says `chartRepeats: true` on the
+merge. Filters and table calculations appear only when there are some.
+
+What the validator enforces (`parseSavedMergeDefinition` in
+`packages/common/src/types/mergeQuery.ts`): at least one query, names that
+are identifiers and not `merge`, a known join type with no fallback, a key
+whose every entry reaches every query exactly once, a numeric limit, sorts
+with a direction. Intent only, never SQL.
+
+Rows written under schema version 2 (primary id plus source kinds, sort on
+the chart) are rewritten when read, once, by `upgradeSavedMergeQuery`, and
+keep the ids they had so no chart config moves: `chartAs: a` names the
+chart's query as it was, `keyNames` keeps a key column's old name
+(`merge_join_key_0`), and the other query keeps `b`. Nothing is backfilled
+and no row is rewritten in place; writes emit version 3. A request may still
+send `merge` in the v2 shape and is rewritten on save; a v2 merge whose
+primary was not the chart is refused on write and omitted when reading old rows. Every reader
+goes through `SavedChartModel`, which returns `merge`, and every runner
+through `buildMergeQueryFromMergeDefinition`: saved charts, dashboard tiles,
+scheduled deliveries, chart-as-code, promotion and version history. Document
+chart cells keep the v2 shape inside the document's own schema.
+
+In the Explorer the editor addresses its sources by fixed handles (`a`, `b`)
+and runs them under names (`getMergeSourceNames`): the chart's explore, the
+other query's explore, `_2` on a repeat. A restored chart carries its saved
+names so its column ids hold.
+
+Kept as decided: the side table stays (a column on `saved_queries_versions`
+would widen every version read for a value almost no version has), and
+`tableConfig.columnOrder` keeps the ids it always had.
+
 ## The paths to the DuckDB engine
 
 Merge is not the only caller, and this is the map worth having before touching

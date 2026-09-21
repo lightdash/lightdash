@@ -1,4 +1,10 @@
-import type { SavedChartDAO } from '@lightdash/common';
+import {
+    normalizeSavedMergeDefinition,
+    ParameterError,
+    type SavedChartDAO,
+    type SavedMergeDefinition,
+    type SavedMergeQuery,
+} from '@lightdash/common';
 
 export type ChartDraftOverlay = Partial<
     Pick<
@@ -11,10 +17,12 @@ export type ChartDraftOverlay = Partial<
         | 'tableConfig'
         | 'pivotConfig'
         | 'parameters'
-        | 'merge'
         | 'spaceUuid'
     >
-> & { verified?: boolean };
+> & {
+    merge?: SavedMergeDefinition | SavedMergeQuery | null;
+    verified?: boolean;
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -55,6 +63,15 @@ export const mergeDraftIntoChart = <T extends SavedChartDAO>(
     draft: unknown,
 ): T => {
     assertChartDraftOverlay(draft);
+    const merge = draft.merge
+        ? normalizeSavedMergeDefinition(
+              draft.merge,
+              draft.metricQuery ?? chart.metricQuery,
+          )
+        : draft.merge;
+    if (draft.merge && !merge) {
+        throw new ParameterError('Invalid saved merge definition.');
+    }
     return {
         ...chart,
         ...(draft.name !== undefined && { name: draft.name }),
@@ -79,7 +96,7 @@ export const mergeDraftIntoChart = <T extends SavedChartDAO>(
         ...(draft.parameters !== undefined && {
             parameters: draft.parameters,
         }),
-        ...(draft.merge !== undefined && { merge: draft.merge }),
+        ...(merge !== undefined && { merge }),
         ...(draft.spaceUuid !== undefined && {
             spaceUuid: draft.spaceUuid,
         }),

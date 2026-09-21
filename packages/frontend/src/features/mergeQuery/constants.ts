@@ -6,7 +6,6 @@ import {
 export {
     MERGE_PRIMARY_SOURCE_ID as PRIMARY_SOURCE_ID,
     MERGE_ADDITIONAL_SOURCE_ID as DEFAULT_ADDITIONAL_SOURCE_ID,
-    MERGE_JOIN_KEY as JOIN_KEY,
 } from '@lightdash/common';
 import { type MergeEditorSource, type MergeJoinPart } from './context/context';
 
@@ -28,6 +27,7 @@ export const EMPTY_MERGE = {
     replacesQuery: false,
     focus: { kind: 'source' as const, sourceId: PRIMARY_SOURCE_ID },
     additionalSources: [] as MergeEditorSource[],
+    primarySourceName: null,
     joinParts: [
         {
             fieldIdBySourceId: {

@@ -67,6 +67,7 @@ import {
 } from '../../utils/aiSavedChartData';
 import {
     canonicalizeAiMerge,
+    toMergeUrlState,
     remapFieldIdsDeep,
 } from '../../utils/canonicalizeAiMerge';
 import { AiChartDownloadModal } from './AiChartDownloadModal';
@@ -344,7 +345,7 @@ export const AiChartQuickOptions = ({
         if (merge) {
             if (!canonicalMerge || !projectUuid) return undefined;
             const { fieldIdByAiFieldId } = canonicalMerge;
-            const [primary, additional] = canonicalMerge.mergeQuery.sources;
+            const [primary] = canonicalMerge.mergeQuery.sources;
             const url = getOpenInExploreUrl({
                 metricQuery: primary.metricQuery,
                 projectUuid,
@@ -357,32 +358,7 @@ export const AiChartQuickOptions = ({
             const search = new URLSearchParams(url.search);
             search.set(
                 MERGE_URL_PARAM,
-                serializeMergeState({
-                    focus: { kind: 'source', sourceId: primary.id },
-                    additionalSources: [
-                        {
-                            id: additional.id,
-                            exploreName: additional.metricQuery.exploreName,
-                            dimensions: additional.metricQuery.dimensions,
-                            metrics: additional.metricQuery.metrics,
-                            filters: additional.metricQuery.filters,
-                            additionalMetrics:
-                                additional.metricQuery.additionalMetrics,
-                            customDimensions:
-                                additional.metricQuery.customDimensions,
-                        },
-                    ],
-                    joinParts: canonicalMerge.mergeQuery.joinKey.map(
-                        (part) => ({
-                            fieldIdBySourceId: part.fieldIdBySourceId,
-                        }),
-                    ),
-                    joinType: canonicalMerge.mergeQuery.joinType,
-                    repeatValuesSourceIds:
-                        canonicalMerge.mergeQuery.sources.flatMap((source) =>
-                            source.repeatValues === true ? [source.id] : [],
-                        ),
-                }),
+                serializeMergeState(toMergeUrlState(canonicalMerge)),
             );
             return { pathname: url.pathname, search: search.toString() };
         }

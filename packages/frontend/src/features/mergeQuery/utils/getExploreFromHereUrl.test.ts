@@ -3,6 +3,7 @@ import {
     MergeJoinType,
     type SavedChart,
     type SavedMergeQuery,
+    upgradeSavedMergeQuery,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { MERGE_URL_PARAM, parseMergeState } from '../context/mergeUrlState';
@@ -38,7 +39,7 @@ const chartFixture: ChartFixture = {
 };
 const chart = chartFixture as SavedChart;
 
-const merge: SavedMergeQuery = {
+const savedV2: SavedMergeQuery = {
     primarySourceId: 'a',
     sources: [
         { id: 'a', kind: 'chart' },
@@ -69,6 +70,8 @@ const merge: SavedMergeQuery = {
     tableCalculations: [],
 };
 
+const merge = upgradeSavedMergeQuery(savedV2, chart.metricQuery)!;
+
 const parseChartParam = (search: string) =>
     JSON.parse(
         new URLSearchParams(search).get('create_saved_chart_version') ?? '',
@@ -97,9 +100,12 @@ describe('getExploreFromHereUrl', () => {
         );
         expect(parseMergeState(params.get(MERGE_URL_PARAM))).toEqual({
             focus: { kind: 'source', sourceId: 'a' },
+            // The chart was saved under schema v2, so its ids ride along
+            primarySourceName: 'a',
             additionalSources: [
                 {
                     id: 'b',
+                    name: 'b',
                     exploreName: 'payments',
                     dimensions: ['payments_payment_month'],
                     metrics: ['payments_unique_payment_count'],
@@ -110,6 +116,7 @@ describe('getExploreFromHereUrl', () => {
             ],
             joinParts: [
                 {
+                    name: 'order_month',
                     fieldIdBySourceId: {
                         a: 'orders_order_month',
                         b: 'payments_payment_month',
@@ -124,10 +131,7 @@ describe('getExploreFromHereUrl', () => {
     it('falls back to the primary query when the stored merge is unreadable', () => {
         const url = getExploreFromHereUrl({
             ...chart,
-            merge: {
-                ...merge,
-                sources: [{ id: 'a', kind: 'chart' }],
-            },
+            merge: { ...merge, keys: {} },
         });
 
         expect(url.pathname).toBe('/projects/project-uuid/tables/orders');

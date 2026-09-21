@@ -14,7 +14,10 @@ import { createContext } from 'react';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 
 export type MergeEditorSource = {
+    /** Editor handle. The name it runs under comes from getMergeSourceNames. */
     id: string;
+    /** The name a saved chart fixed for it; omitted for a source built here. */
+    name?: string;
     exploreName: string | null;
     dimensions: string[];
     metrics: string[];
@@ -30,6 +33,8 @@ export type MergeFocus =
 
 /** One part of the join key: the field each source contributes. */
 export type MergeJoinPart = {
+    /** The key column's name a saved chart fixed; omitted means the chart's field id. */
+    name?: string;
     fieldIdBySourceId: Record<string, string | null>;
 };
 
@@ -105,6 +110,8 @@ export type MergeContextValue = {
     focus: MergeFocus;
     /** Sources owned by the merge; the chart-owned source stays in Explorer. */
     additionalSources: MergeEditorSource[];
+    /** The chart query's saved name, when a chart fixed it; null means its explore. */
+    primarySourceName: string | null;
     joinParts: MergeJoinPart[];
     joinType: MergeJoinType;
     /** Sources that repeat their values across the others' extra dimensions. */

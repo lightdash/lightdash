@@ -68,6 +68,7 @@ import {
     isSchedulerImageOptions,
     isSlackTarget,
     normalizeContentAsCodePath,
+    normalizeSavedMergeDefinition,
     NotFoundError,
     NotificationFrequency,
     NotImplementedError,
@@ -136,6 +137,7 @@ import { DashboardService } from '../DashboardService/DashboardService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';
+import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
 import {
@@ -3354,35 +3356,7 @@ export class CoderService extends BaseService {
         const fields = overlay as Partial<typeof chart> & {
             verified?: boolean;
         };
-        const merged = {
-            ...chart,
-            ...(fields.name !== undefined && { name: fields.name }),
-            ...(fields.description !== undefined && {
-                description: fields.description,
-            }),
-            ...(fields.tableName !== undefined && {
-                tableName: fields.tableName,
-            }),
-            ...(fields.metricQuery !== undefined && {
-                metricQuery: fields.metricQuery,
-            }),
-            ...(fields.chartConfig !== undefined && {
-                chartConfig: fields.chartConfig,
-            }),
-            ...(fields.tableConfig !== undefined && {
-                tableConfig: fields.tableConfig,
-            }),
-            ...(fields.pivotConfig !== undefined && {
-                pivotConfig: fields.pivotConfig,
-            }),
-            ...(fields.parameters !== undefined && {
-                parameters: fields.parameters,
-            }),
-            ...(fields.merge !== undefined && { merge: fields.merge }),
-            ...(fields.spaceUuid !== undefined && {
-                spaceUuid: fields.spaceUuid,
-            }),
-        };
+        const merged = mergeDraftIntoChart(chart, overlay);
         const spaces = await this.spaceModel.find({
             spaceUuids: merged.spaceUuid ? [merged.spaceUuid] : [],
         });
@@ -3744,6 +3718,17 @@ export class CoderService extends BaseService {
                 slug,
             });
 
+        const metricQuery = {
+            ...chartAsCode.metricQuery,
+            filters: normalizeFilterIds(chartAsCode.metricQuery.filters),
+        };
+        const merge = chartAsCode.merge
+            ? normalizeSavedMergeDefinition(chartAsCode.merge, metricQuery)
+            : chartAsCode.merge;
+        if (chartAsCode.merge && !merge) {
+            throw new ParameterError('Invalid saved merge definition.');
+        }
+
         // Default optional fields when missing (e.g. user-authored YAML)
         const chartWithDefaults = {
             ...chartAsCode,
@@ -3754,10 +3739,8 @@ export class CoderService extends BaseService {
                 projectUuid,
                 chartAsCode.chartConfig,
             ),
-            metricQuery: {
-                ...chartAsCode.metricQuery,
-                filters: normalizeFilterIds(chartAsCode.metricQuery.filters),
-            },
+            metricQuery,
+            merge,
         };
 
         // Access block preflight runs before any write; dashboard-owned

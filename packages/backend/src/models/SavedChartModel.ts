@@ -38,10 +38,11 @@ import {
     MetricFilterRule,
     MetricOverrides,
     MetricQuery,
+    normalizeSavedMergeDefinition,
     NotFoundError,
     Organization,
     ParameterError,
-    parseSavedMergeQuery,
+    parseStoredMergeDefinition,
     Project,
     ResolvedProjectColorPalette,
     SAVED_MERGE_QUERY_SCHEMA_VERSION,
@@ -365,13 +366,32 @@ const createSavedChartVersion = async (
                 timezone: toTimezoneSetting(timezone),
             })
             .returning('*');
-        // Chart versions are immutable, so this is an insert per version and
-        // never an update. Only versions that actually merge get a row.
-        if (merge) {
+        // Only merged versions get a row. Accept schema v2 requests,
+        // but always persist the normalized schema v3 definition.
+        const storedMerge = merge
+            ? normalizeSavedMergeDefinition(merge, {
+                  exploreName: tableName,
+                  dimensions,
+                  metrics,
+                  filters,
+                  sorts,
+                  limit,
+                  tableCalculations,
+                  additionalMetrics,
+                  customDimensions,
+                  metricOverrides,
+                  dimensionOverrides,
+                  timezone,
+              })
+            : null;
+        if (merge && !storedMerge) {
+            throw new ParameterError('Invalid saved merge definition.');
+        }
+        if (storedMerge) {
             await trx('saved_queries_version_merges').insert({
                 saved_queries_version_id: version.saved_queries_version_id,
                 schema_version: SAVED_MERGE_QUERY_SCHEMA_VERSION,
-                merge: JSON.stringify(merge),
+                merge: JSON.stringify(storedMerge),
             });
         }
 
@@ -2450,13 +2470,25 @@ export class SavedChartModel {
                     mergeQuery,
                 ]);
 
+                const metricQuery = SavedChartModel.buildMetricQuery(
+                    savedQuery,
+                    {
+                        fields,
+                        sorts,
+                        tableCalculations,
+                        additionalMetricsRows,
+                        customBinDimensionsRows,
+                        customSqlDimensionsRows,
+                    },
+                );
                 // An unknown future shape leaves the chart working without its
                 // merge rather than failing the whole chart.
                 const merge = mergeRow
-                    ? parseSavedMergeQuery(
-                          mergeRow.schema_version,
-                          mergeRow.merge,
-                      )
+                    ? parseStoredMergeDefinition({
+                          schemaVersion: mergeRow.schema_version,
+                          value: mergeRow.merge,
+                          chartMetricQuery: metricQuery,
+                      })
                     : null;
 
                 const columnOrder: string[] = [
@@ -2491,14 +2523,7 @@ export class SavedChartModel {
                         firstName: savedQuery.first_name,
                         lastName: savedQuery.last_name,
                     },
-                    metricQuery: SavedChartModel.buildMetricQuery(savedQuery, {
-                        fields,
-                        sorts,
-                        tableCalculations,
-                        additionalMetricsRows,
-                        customBinDimensionsRows,
-                        customSqlDimensionsRows,
-                    }),
+                    metricQuery,
                     parameters: savedQuery.parameters || undefined,
                     chartConfig,
                     tableConfig: {
@@ -2685,30 +2710,32 @@ export class SavedChartModel {
         return charts.map((chart) => {
             const versionId = chart.saved_queries_version_id;
             const mergeRow = mergeByVersion.get(versionId)?.[0];
+            const metricQuery = SavedChartModel.buildMetricQuery(chart, {
+                fields: fieldsByVersion.get(versionId) ?? [],
+                sorts: sortsByVersion.get(versionId) ?? [],
+                tableCalculations:
+                    tableCalculationsByVersion.get(versionId) ?? [],
+                additionalMetricsRows:
+                    additionalMetricsByVersion.get(versionId) ?? [],
+                customBinDimensionsRows:
+                    customBinDimensionsByVersion.get(versionId) ?? [],
+                customSqlDimensionsRows:
+                    customSqlDimensionsByVersion.get(versionId) ?? [],
+            });
             return {
                 uuid: chart.saved_query_uuid,
                 name: chart.name,
                 spaceUuid: chart.space_uuid,
-                metricQuery: SavedChartModel.buildMetricQuery(chart, {
-                    fields: fieldsByVersion.get(versionId) ?? [],
-                    sorts: sortsByVersion.get(versionId) ?? [],
-                    tableCalculations:
-                        tableCalculationsByVersion.get(versionId) ?? [],
-                    additionalMetricsRows:
-                        additionalMetricsByVersion.get(versionId) ?? [],
-                    customBinDimensionsRows:
-                        customBinDimensionsByVersion.get(versionId) ?? [],
-                    customSqlDimensionsRows:
-                        customSqlDimensionsByVersion.get(versionId) ?? [],
-                }),
+                metricQuery,
                 parameters: chart.parameters || undefined,
                 // An unknown future shape leaves the chart working without its
                 // merge rather than failing the whole chart.
                 merge: mergeRow
-                    ? parseSavedMergeQuery(
-                          mergeRow.schema_version,
-                          mergeRow.merge,
-                      )
+                    ? parseStoredMergeDefinition({
+                          schemaVersion: mergeRow.schema_version,
+                          value: mergeRow.merge,
+                          chartMetricQuery: metricQuery,
+                      })
                     : null,
             };
         });

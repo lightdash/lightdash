@@ -5,11 +5,6 @@ import {
     type MergeQueryMetricSource,
 } from '../../types/mergeQuery';
 import { getItemId } from '../../utils/item';
-import {
-    MERGE_ADDITIONAL_SOURCE_ID as DEFAULT_ADDITIONAL_SOURCE_ID,
-    MERGE_JOIN_KEY as JOIN_KEY,
-    MERGE_PRIMARY_SOURCE_ID as PRIMARY_SOURCE_ID,
-} from '../../utils/savedMerge';
 
 export type CanonicalAiMerge = {
     mergeQuery: Omit<MergeQuery, 'sources'> & {
@@ -25,9 +20,9 @@ const mergedColumnId = (table: string, name: string) =>
     getItemId({ table, name });
 
 /**
- * Renames the AI's free-form source and join-key names to the merge editor's
- * fixed conventions, so everything downstream treats an AI merge exactly like
- * one built by hand. Chart configs referencing the AI's merged column ids must
+ * Renames the AI's free-form source and join-key names to the names the
+ * merge editor would give them, so everything downstream treats an AI merge
+ * exactly like one built by hand. Chart configs referencing the AI's merged column ids must
  * be remapped with `fieldIdByAiFieldId`.
  */
 export const canonicalizeAiMerge = (
@@ -39,9 +34,15 @@ export const canonicalizeAiMerge = (
     const metricSources = mergeQuery.sources.filter(isMergeMetricSource);
     if (metricSources.length !== 2) return null;
     const [primary, additional] = metricSources;
+    // Sources run under their explore's name, as the editor names them
+    const primaryName = primary.metricQuery.exploreName;
+    const additionalName =
+        additional.metricQuery.exploreName === primaryName
+            ? `${primaryName}_2`
+            : additional.metricQuery.exploreName;
     const idBySourceId: Record<string, string> = {
-        [primary.id]: PRIMARY_SOURCE_ID,
-        [additional.id]: DEFAULT_ADDITIONAL_SOURCE_ID,
+        [primary.id]: primaryName,
+        [additional.id]: additionalName,
     };
 
     const fieldIdByAiFieldId: Record<string, string> = {};
@@ -58,8 +59,9 @@ export const canonicalizeAiMerge = (
         });
     });
 
-    const joinKey = mergeQuery.joinKey.map((part, index) => {
-        const name = `${JOIN_KEY}_${index}`;
+    // A key column is named after the primary's field, as the editor names it
+    const joinKey = mergeQuery.joinKey.map((part) => {
+        const name = part.fieldIdBySourceId[primary.id];
         fieldIdByAiFieldId[mergedColumnId(MERGE_TABLE_NAME, part.name)] =
             mergedColumnId(MERGE_TABLE_NAME, name);
         return {

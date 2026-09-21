@@ -8,6 +8,7 @@ import {
     SEED_ORG_1_EDITOR,
     SEED_PROJECT,
     SpaceMemberRole,
+    upgradeSavedMergeQuery,
     type SavedMergeQuery,
 } from '@lightdash/common';
 import { login, loginAsEditor } from '../helpers/auth';
@@ -231,7 +232,16 @@ describe('Saved chart space selection', () => {
         const getCreated = await admin.get<{ results: SavedChart }>(
             `${apiUrl}/saved/${createResponse.body.results.uuid}`,
         );
-        expect(getCreated.body.results.merge).toEqual(merge);
+        // A request may still send the schema v2 merge; the chart stores and
+        // returns the merge it rewrites to.
+        const chartMetricQuery = {
+            ...chartMock.metricQuery,
+            filters: completedOnly,
+        };
+        expect(getCreated.body.results).not.toHaveProperty('pipeline');
+        expect(getCreated.body.results.merge).toEqual(
+            upgradeSavedMergeQuery(merge, chartMetricQuery),
+        );
         expect(getCreated.body.results.metricQuery.filters).toEqual(
             completedOnly,
         );
@@ -252,15 +262,16 @@ describe('Saved chart space selection', () => {
                 },
             ],
         };
+        const editedMergeDefinition = upgradeSavedMergeQuery(
+            editedMerge,
+            chartMetricQuery,
+        );
         const editResponse = await admin.post(
             `${apiUrl}/saved/${createResponse.body.results.uuid}/version`,
             {
                 ...chartMock,
-                metricQuery: {
-                    ...chartMock.metricQuery,
-                    filters: completedOnly,
-                },
-                merge: editedMerge,
+                metricQuery: chartMetricQuery,
+                merge: editedMergeDefinition,
                 parameters,
             },
         );
@@ -269,8 +280,8 @@ describe('Saved chart space selection', () => {
         const getEdited = await admin.get<{ results: SavedChart }>(
             `${apiUrl}/saved/${createResponse.body.results.uuid}`,
         );
-        expect(getEdited.body.results.merge).toEqual(editedMerge);
-        expect(getEdited.body.results.merge?.joinType).toBe(MergeJoinType.LEFT);
+        expect(getEdited.body.results.merge).toEqual(editedMergeDefinition);
+        expect(getEdited.body.results.merge?.join).toBe(MergeJoinType.LEFT);
         expect(getEdited.body.results.parameters).toEqual(parameters);
     });
 

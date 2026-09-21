@@ -9,7 +9,7 @@ import {
     type MergeQueryError,
     type ParametersValuesMap,
     type SavedChartDAO,
-    type SavedMergeQuery,
+    type SavedMergeDefinition,
 } from '@lightdash/common';
 import {
     useCallback,
@@ -46,7 +46,7 @@ import { restoreSavedMerge } from './restoreSavedMerge';
  */
 export const MergeProvider: FC<
     PropsWithChildren<{
-        savedMerge?: SavedMergeQuery | null;
+        savedMerge?: SavedMergeDefinition | null;
         /** View mode: show the merge, allow nothing, keep the URL clean. */
         readOnly?: boolean;
     }>
@@ -77,6 +77,8 @@ export const MergeProvider: FC<
     const [additionalSources, setAdditionalSources] = useState(
         restored?.additionalSources ?? [],
     );
+    // Fixed by the saved chart so its merged column ids hold; never edited
+    const primarySourceName = restored?.primarySourceName ?? null;
     const [joinParts, setJoinParts] = useState<MergeJoinPart[]>(
         restored?.joinParts ?? [
             {
@@ -316,6 +318,7 @@ export const MergeProvider: FC<
                         MERGE_URL_PARAM,
                         serializeMergeState({
                             focus,
+                            primarySourceName,
                             additionalSources,
                             joinParts,
                             joinType,
@@ -334,6 +337,7 @@ export const MergeProvider: FC<
         isMerging,
         focus,
         additionalSources,
+        primarySourceName,
         joinParts,
         joinType,
         repeatValuesSourceIds,
@@ -561,6 +565,7 @@ export const MergeProvider: FC<
             lastRunMergeQuery: runState.lastRunMergeQuery,
             focus,
             additionalSources,
+            primarySourceName,
             joinParts,
             joinType,
             repeatValuesSourceIds,
@@ -595,6 +600,7 @@ export const MergeProvider: FC<
             runState.lastRunMergeQuery,
             focus,
             additionalSources,
+            primarySourceName,
             joinParts,
             joinType,
             repeatValuesSourceIds,

@@ -257,6 +257,7 @@ describe('CoderService', () => {
             dashboardUuid: null,
             tableName: 'orders',
             metricQuery: {
+                exploreName: 'orders',
                 metrics: [],
                 dimensions: [],
                 filters: {},
@@ -317,6 +318,64 @@ describe('CoderService', () => {
             );
 
             expect(result.spaceSlug).toBe('draft-space');
+        });
+
+        it('exports a legacy merge draft using the named merge schema', async () => {
+            const result = await service.getPortableChartAsCodeWithOverlay(
+                'project-uuid',
+                publishedChart.uuid,
+                {
+                    merge: {
+                        primarySourceId: 'a',
+                        sources: [
+                            { id: 'a', kind: 'chart' },
+                            {
+                                id: 'b',
+                                kind: 'query',
+                                metricQuery: {
+                                    ...publishedChart.metricQuery,
+                                    exploreName: 'payments',
+                                },
+                            },
+                        ],
+                        joinKey: [
+                            {
+                                name: 'month',
+                                fieldIdBySourceId: {
+                                    a: 'orders_month',
+                                    b: 'payments_month',
+                                },
+                            },
+                        ],
+                        joinType: 'left',
+                        tableCalculations: [],
+                    },
+                },
+            );
+            expect(result).not.toHaveProperty('pipeline');
+            expect(result.merge).toMatchObject({
+                chartAs: 'a',
+                queries: { b: { explore: 'payments' } },
+                keys: { orders_month: ['b.payments_month'] },
+                join: 'left',
+            });
+        });
+
+        it('rejects an invalid merge draft instead of exporting a single-source chart', async () => {
+            await expect(
+                service.getPortableChartAsCodeWithOverlay(
+                    'project-uuid',
+                    publishedChart.uuid,
+                    {
+                        merge: {
+                            queries: {},
+                            keys: {},
+                            join: 'left',
+                            limit: 500,
+                        },
+                    },
+                ),
+            ).rejects.toThrow('Invalid saved merge definition');
         });
 
         it('renders a dashboard draft move as the target space slug', async () => {
