@@ -5548,52 +5548,104 @@ export class AppGenerateService extends BaseService {
         // grow between enqueue and worker pickup (or a job may predate the
         // guardrails). Fail fast with the specific limit message instead of
         // copying everything into the sandbox and running the build to timeout.
-        if (payload.designUuid) {
-            const design =
-                await this.organizationDesignModel.findInOrganization(
-                    payload.organizationUuid,
-                    payload.designUuid,
-                );
-            const violation = design ? checkThemeLimits(design.files) : null;
-            if (design && violation) {
-                const message = themeLimitMessage(violation, design.name);
-                this.logger.warn(
-                    `App ${appUuid}: theme ${payload.designUuid} exceeds the size cap at build time (${violation.bytes} > ${violation.limit} bytes); failing fast — ${message}`,
-                );
-                const themeError = new Error(message);
-                const marked = await this.markError(
-                    appUuid,
-                    version,
-                    themeError,
-                    message,
-                );
-                if (marked) {
-                    await this.trackVersionFailed(
-                        payload,
-                        'config',
-                        themeError,
-                        durations,
-                        overallStart,
-                        0,
-                        { wasResumed, claudeProvider, schedulerWaitMs },
+        try {
+            if (payload.designUuid) {
+                const design =
+                    await this.organizationDesignModel.findInOrganization(
+                        payload.organizationUuid,
+                        payload.designUuid,
                     );
+                const violation = design
+                    ? checkThemeLimits(design.files)
+                    : null;
+                if (design && violation) {
+                    const message = themeLimitMessage(violation, design.name);
+                    this.logger.warn(
+                        `App ${appUuid}: theme ${payload.designUuid} exceeds the size cap at build time (${violation.bytes} > ${violation.limit} bytes); failing fast — ${message}`,
+                    );
+                    const themeError = new Error(message);
+                    const marked = await this.markError(
+                        appUuid,
+                        version,
+                        themeError,
+                        message,
+                    );
+                    if (marked) {
+                        await this.trackVersionFailed(
+                            payload,
+                            'config',
+                            themeError,
+                            durations,
+                            overallStart,
+                            0,
+                            { wasResumed, claudeProvider, schedulerWaitMs },
+                        );
+                    }
+                    return;
                 }
-                return;
             }
-        }
 
-        const designCopy = await copyDesignIntoSandbox({
-            sandbox,
-            s3Client,
-            bucket,
-            organizationDesignModel: this.organizationDesignModel,
-            organizationUuid: payload.organizationUuid,
-            designUuid: payload.designUuid ?? null,
-            logger: this.logger,
-        });
-        await this.assembleEffectiveSkill(sandbox, designCopy);
-        if (this.dataAppCodingAgent === 'codex') {
-            await AppGenerateService.prepareCodexProjectContext(sandbox);
+            const designCopy = await copyDesignIntoSandbox({
+                sandbox,
+                s3Client,
+                bucket,
+                organizationDesignModel: this.organizationDesignModel,
+                organizationUuid: payload.organizationUuid,
+                designUuid: payload.designUuid ?? null,
+                logger: this.logger,
+            });
+            await this.assembleEffectiveSkill(sandbox, designCopy);
+            if (this.dataAppCodingAgent === 'codex') {
+                await AppGenerateService.prepareCodexProjectContext(sandbox);
+            }
+        } catch (error) {
+            const redact = (text: string): string =>
+                redactSandboxEnvSecrets(
+                    text,
+                    {
+                        ...codingAgentEnv,
+                        GCP_CLOUD_RUN_SANDBOX_SECRET:
+                            this.lightdashConfig.appRuntime.gcpCloudRun
+                                ?.sandboxSecret ?? '',
+                    },
+                    [
+                        ...CLAUDE_CODE_SECRET_ENV_KEYS,
+                        ...CODEX_CODE_SECRET_ENV_KEYS,
+                        ...CLAUDE_CODE_OTEL_SECRET_ENV_KEYS,
+                        'GCP_CLOUD_RUN_SANDBOX_SECRET',
+                    ],
+                );
+            // Redact before truncating so a cut through a credential cannot leak it.
+            const summary = AppGenerateService.truncateEnd(
+                redact(getErrorMessage(error)),
+                500,
+            );
+            const stderr =
+                error instanceof SandboxCommandError && error.stderr
+                    ? `\nstderr: ${AppGenerateService.truncateEnd(redact(error.stderr), 3000)}`
+                    : '';
+            const setupError = new Error(`${summary}${stderr}`);
+            this.logger.error(
+                `App ${appUuid} version ${version}: build environment setup failed: ${setupError.message}`,
+            );
+            const marked = await this.markError(
+                appUuid,
+                version,
+                setupError,
+                'Failed to set up build environment. Please try again.',
+            );
+            if (marked) {
+                await this.trackVersionFailed(
+                    payload,
+                    'sandbox',
+                    setupError,
+                    durations,
+                    overallStart,
+                    0,
+                    { wasResumed, claudeProvider, schedulerWaitMs },
+                );
+            }
+            return;
         }
 
         let catalogStats = {
