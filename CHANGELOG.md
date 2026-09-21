@@ -1,3 +1,10 @@
+## [2.286.3](https://github.com/lightdash/lightdash/compare/2.286.2...2.286.3) (2026-09-21)
+
+
+### Bug Fixes
+
+* **ai:** compact search responses and restore Slack result cards ([#29671](https://github.com/lightdash/lightdash/issues/29671)) ([4eb206b](https://github.com/lightdash/lightdash/commit/4eb206b84a0c93ae32e29f7473f542719708d254)), closes [#29676](https://github.com/lightdash/lightdash/issues/29676) [#29679](https://github.com/lightdash/lightdash/issues/29679) [#29682](https://github.com/lightdash/lightdash/issues/29682) [#29689](https://github.com/lightdash/lightdash/issues/29689) [#29690](https://github.com/lightdash/lightdash/issues/29690)
+
 ## [2.286.2](https://github.com/lightdash/lightdash/compare/2.286.1...2.286.2) (2026-09-21)
 
 
