@@ -582,7 +582,7 @@ export const getRunQuery = ({
     const inputSchema: Schema<RunQueryToolInput> = rawInputSchema;
     let description = baseDescription;
     if (purpose === 'answer') {
-        description = `${baseDescription} Use this when the user wants a data answer without a visualization. Set chartConfig to null. It returns query rows without creating a chart artifact.`;
+        description = `${baseDescription} Use this when the user wants a data answer without a visualization. Set chartConfig to null. It returns query rows without creating a chart artifact in web chat; Slack also receives an explorable result card.`;
     } else if (decisions && enableDataAccess) {
         description = `${baseDescription} For builtin charts, you can set chartConfig to null: the server selects a validated default from the question and actual result shape. Supply chartConfig when explicit presentation settings are needed. Query fields, filters and limits are always your responsibility.`;
     }
@@ -666,6 +666,10 @@ export const getRunQuery = ({
                         };
                     }
                 }
+                const artifactToolArgs =
+                    purpose === 'answer'
+                        ? { ...toolArgs, chartConfig: null }
+                        : toolArgs;
 
                 const explore = ctx.getExplore(
                     queryTool.queryConfig.exploreName,
@@ -780,7 +784,7 @@ export const getRunQuery = ({
                         chartConfig: ToolRunQueryBuiltinChartConfig | null = null,
                         contentAsCode?: PreparedChartAsCode,
                     ) => {
-                        if (purpose === 'answer')
+                        if (purpose === 'answer' && !isSlackPrompt(prompt))
                             return Promise.resolve(undefined);
                         const vizConfig =
                             persistedExpressionArgs === null
@@ -788,8 +792,8 @@ export const getRunQuery = ({
                                       source: 'merge' as const,
                                       schemaVersion: 1 as const,
                                       config: chartConfig
-                                          ? { ...toolArgs, chartConfig }
-                                          : toolArgs,
+                                          ? { ...artifactToolArgs, chartConfig }
+                                          : artifactToolArgs,
                                   }
                                 : buildResolvedRunQueryArtifactConfig({
                                       persistedArgs: chartConfig
@@ -1028,19 +1032,21 @@ export const getRunQuery = ({
                 // emits yAxisMetrics with only the base metric id (it can't
                 // know the auto-generated PoP ids); the server fills them
                 // in here before persisting the artifact.
-                let expandedToolArgs: typeof toolArgs = toolArgs;
+                let expandedToolArgs: typeof toolArgs = artifactToolArgs;
                 if (
                     expandedMetrics.length >
                         queryTool.queryConfig.metrics.length &&
-                    toolArgs.chartConfig &&
-                    !isCustomChartTypeSlugChartConfig(toolArgs.chartConfig)
+                    artifactToolArgs.chartConfig &&
+                    !isCustomChartTypeSlugChartConfig(
+                        artifactToolArgs.chartConfig,
+                    )
                 ) {
                     expandedToolArgs = {
-                        ...toolArgs,
+                        ...artifactToolArgs,
                         chartConfig: {
-                            ...toolArgs.chartConfig,
+                            ...artifactToolArgs.chartConfig,
                             yAxisMetrics: expandMetricsWithPopAdditionalMetrics(
-                                toolArgs.chartConfig.yAxisMetrics,
+                                artifactToolArgs.chartConfig.yAxisMetrics,
                                 populatedCustomMetrics,
                             ),
                         },
@@ -1103,7 +1109,8 @@ export const getRunQuery = ({
                     chartConfig: ToolRunQueryBuiltinChartConfig | null = null,
                     contentAsCode?: PreparedChartAsCode,
                 ) => {
-                    if (purpose === 'answer') return Promise.resolve(undefined);
+                    if (purpose === 'answer' && !isSlackPrompt(prompt))
+                        return Promise.resolve(undefined);
                     const vizConfig =
                         chartConfig && customChartTypeBinding === null
                             ? {

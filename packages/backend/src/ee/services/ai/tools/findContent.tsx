@@ -18,13 +18,14 @@ import type {
     FindContentDashboardResult,
     FindContentDataAppResult,
     FindContentFn,
+    FindContentResult,
     FindContentSpaceMetadata,
     FindContentSpaceResult,
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { DASHBOARD_CHARTS_PREVIEW_COUNT, truncate } from '../utils/truncation';
-import { xmlBuilder } from '../xmlBuilder';
+import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 
 const renderVerified = (verification: ContentVerificationInfo | null) =>
     verification ? (
@@ -35,7 +36,7 @@ const renderVerified = (verification: ContentVerificationInfo | null) =>
     ) : null;
 
 type Dependencies = {
-    decisions?: AiDecisionClient;
+    decisions?: Pick<AiDecisionClient, 'evaluate'>;
     findContent: FindContentFn;
     siteUrl: string;
     toolDescriptionMaxChars: number;
@@ -44,6 +45,25 @@ type Dependencies = {
 };
 
 const toolDefinition = findContentToolDefinition.for('agent');
+
+const getContentUrl = (content: FindContentResult, siteUrl: string) => {
+    switch (content.contentType) {
+        case 'document':
+            return content.href;
+        case 'space':
+            return null;
+        case 'data_app':
+            return `${siteUrl}/projects/${content.projectUuid}/apps/${content.uuid}/view`;
+        case 'dashboard':
+            return `${siteUrl}/projects/${content.projectUuid}/dashboards/${content.uuid}/view#dashboard-link`;
+        case 'chart':
+            return isSavedChartSearchResult(content)
+                ? `${siteUrl}/projects/${content.projectUuid}/saved/${content.uuid}/view#chart-link#chart-type-${content.chartType}`
+                : `${siteUrl}/projects/${content.projectUuid}/sql-runner/${content.slug}#chart-link#chart-type-${content.chartType}`;
+        default:
+            return assertUnreachable(content, 'Unknown content type');
+    }
+};
 
 const renderSpaceMetadata = (space: FindContentSpaceMetadata) => (
     <space
@@ -69,6 +89,71 @@ const renderSpace = (space: FindContentSpaceResult) => (
         {renderSpaceMetadata(space.space)}
     </spaceResult>
 );
+
+const renderCompactContent = (
+    args: Awaited<ReturnType<FindContentFn>> & {
+        searchQuery: string;
+        verifiedOnly: boolean;
+    },
+    siteUrl: string,
+    descriptionMaxChars: number,
+    detailsToolName: Dependencies['dashboardDetailsToolName'],
+) => {
+    const shown = args.content.slice(0, 8);
+    return (
+        <searchresult
+            searchQuery={args.searchQuery}
+            totalMatches={args.content.length}
+            shown={shown.length}
+        >
+            {shown.length === 0 && args.verifiedOnly
+                ? 'No verified content matched this query. Try other search terms; use verifiedOnly=false only if unverified content is acceptable.'
+                : null}
+            {shown.length < args.content.length
+                ? 'More matches were omitted. Narrow the search query or spaceSlug if the intended item is missing; this is not an exhaustive inventory.'
+                : null}
+            {shown.length > 0
+                ? `Search summaries only. Use ${detailsToolName} to inspect a selected dashboard's charts before making claims about their contents.`
+                : null}
+            {shown.map((content) =>
+                content.contentType === 'space' ? (
+                    renderSpace(content)
+                ) : (
+                    <match
+                        type={content.contentType}
+                        uuid={content.uuid}
+                        slug={content.slug}
+                        name={content.name}
+                        href={getContentUrl(content, siteUrl)}
+                        chartCount={
+                            content.contentType === 'dashboard'
+                                ? content.charts.length
+                                : undefined
+                        }
+                        validationErrorCount={
+                            content.contentType === 'dashboard'
+                                ? content.validationErrors?.length
+                                : undefined
+                        }
+                    >
+                        {content.space && renderSpaceMetadata(content.space)}
+                        {renderVerified(content.verification)}
+                        {content.description ? (
+                            <description>
+                                {escapeXmlText(
+                                    truncate(
+                                        content.description,
+                                        Math.min(descriptionMaxChars, 200),
+                                    ),
+                                )}
+                            </description>
+                        ) : null}
+                    </match>
+                ),
+            )}
+        </searchresult>
+    );
+};
 
 const renderChart = (
     chart: AllChartsSearchResult & Pick<FindContentChartResult, 'space'>,
@@ -367,11 +452,18 @@ export const getFindContent = ({
                     result: (
                         <searchresults>
                             {searchQueryResults.map((searchQueryResult) =>
-                                renderContent(
-                                    searchQueryResult,
-                                    siteUrl,
-                                    toolDescriptionMaxChars,
-                                ),
+                                decisions
+                                    ? renderCompactContent(
+                                          searchQueryResult,
+                                          siteUrl,
+                                          toolDescriptionMaxChars,
+                                          dashboardDetailsToolName,
+                                      )
+                                    : renderContent(
+                                          searchQueryResult,
+                                          siteUrl,
+                                          toolDescriptionMaxChars,
+                                      ),
                             )}
                         </searchresults>
                     ).toString(),

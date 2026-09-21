@@ -35,6 +35,36 @@ const getCodeBlock = (container: HTMLElement) => {
     return codeBlock;
 };
 
+describe('AiMarkdown tables', () => {
+    it.each([false, true])(
+        'renders a complete table with chat sanitization (streaming=%s)',
+        (isStreaming) => {
+            const { container } = renderWithProviders(
+                <AiMarkdown
+                    isStreaming={isStreaming}
+                    allowedTags={{ 'memory-citation': ['id'] }}
+                    rehypePlugins={[]}
+                >
+                    {
+                        '**Total: 15 tickets.**\n\n| Category | Tickets |\n|---|---:|\n| Question | 10 |\n| Bug | 5 |\n\nMost tickets are questions.'
+                    }
+                </AiMarkdown>,
+            );
+
+            expect(container.querySelectorAll('table')).toHaveLength(1);
+            expect(container.querySelectorAll('thead th')).toHaveLength(2);
+            expect(container.querySelectorAll('tbody tr')).toHaveLength(2);
+            expect(container.querySelector('tbody')).toHaveTextContent(
+                'Question',
+            );
+            expect(
+                container.querySelector('[data-streamdown="strong"]'),
+            ).toHaveTextContent('Total: 15 tickets.');
+            expect(container).not.toHaveTextContent('|---');
+        },
+    );
+});
+
 // Streamdown renders one span per source line and styles code blocks with
 // Tailwind utilities we don't ship — including the `block` that separates those
 // lines. AiMarkdown.module.css restyles the structure by data attribute

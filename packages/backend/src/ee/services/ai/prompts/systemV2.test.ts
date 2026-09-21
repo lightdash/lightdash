@@ -290,6 +290,47 @@ describe('getSystemPromptV2 custom chart types', () => {
 });
 
 describe('getSystemPromptV2 merge queries', () => {
+    test('keeps context housekeeping private and separates observations from causes in fast mode', () => {
+        const fast = promptText({
+            availableExplores: [],
+            enableFastMetadata: true,
+        });
+        expect(fast).toContain('All assistant text is user-visible');
+        expect(fast).toContain('Do not write context-preservation notes');
+        expect(fast).toContain(
+            'Correlation, timing and subgroup differences do not establish causation',
+        );
+        expect(fast).toContain('Label untested explanations as hypotheses');
+    });
+
+    test('allows complete web tables and avoids redundant titles in fast mode', () => {
+        const fast = promptText({
+            availableExplores: [],
+            enableFastMetadata: true,
+        });
+        expect(fast).toContain(
+            'Markdown tables with a header, separator and data rows',
+        );
+        expect(fast).not.toContain('Never produce markdown tables');
+        expect(fast).not.toContain('no markdown tables');
+        expect(fast).toContain('Do not repeat the artifact title');
+    });
+
+    test.each([{ slackChannelId: 'channel' }, { slackLinksOnly: true }])(
+        'retains Slack table restrictions: %j',
+        (slack) => {
+            const fast = promptText({
+                availableExplores: [],
+                enableFastMetadata: true,
+                ...slack,
+            });
+            expect(fast).toContain('Never produce markdown tables');
+            expect(fast).not.toContain(
+                'Markdown tables with a header, separator and data rows',
+            );
+        },
+    );
+
     test('requires result-backed comparisons in fast mode only', () => {
         const baseline = promptText({ availableExplores: [] });
         const fast = promptText({
