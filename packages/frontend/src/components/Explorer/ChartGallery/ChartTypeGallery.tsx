@@ -28,6 +28,7 @@ import {
 } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { useEffect, useId, useMemo, useRef, useState, type FC } from 'react';
+import { useNavigate } from 'react-router';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useChartTypesEnabled } from '../../../features/chartTypes/hooks/useChartTypesEnabled';
@@ -61,7 +62,7 @@ export type ChartTypeGalleryItem = Omit<ChartTypeOption, 'id'> & {
     disabled: boolean;
     /** Shown as the card's tooltip; null shows none. */
     description: string | null;
-    /** Installed from the chart type library; tints the card and shows the badge. */
+    /** Installed from the chart type library; shows the provenance badge. */
     installed: boolean;
     onConfigure: (() => void) | null;
     /** Opens the builder directly; null hides the action. */
@@ -109,6 +110,8 @@ export type ChartTypeGallerySection = {
     loadingMore: boolean;
     /** Opens the chart type builder; null hides the create tile. */
     onCreateNew: (() => void) | null;
+    /** Opens the chart type library; null hides the discover tile. */
+    onFindNew: (() => void) | null;
 };
 
 const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
@@ -158,7 +161,6 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                 <UnstyledButton
                     className={classes.card}
                     data-selected={item.selected}
-                    data-installed={item.installed}
                     aria-pressed={item.selected}
                     disabled={item.disabled}
                     onClick={
@@ -322,7 +324,11 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
     if (section.items.length === 0 && errorNotice !== null) {
         return errorNotice;
     }
-    if (section.items.length === 0 && section.onCreateNew === null) {
+    if (
+        section.items.length === 0 &&
+        section.onCreateNew === null &&
+        section.onFindNew === null
+    ) {
         return <SectionEmpty message={section.emptyMessage} />;
     }
     return (
@@ -394,6 +400,33 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
                             lh={1.2}
                         >
                             New chart type
+                        </Text>
+                    </UnstyledButton>
+                ) : null}
+                {/* Leads out of the picker to the library, so it takes the
+                    action-tile material rather than a chart type's. */}
+                {section.onFindNew !== null ? (
+                    <UnstyledButton
+                        className={clsx(classes.card, classes.createCard)}
+                        aria-label="Find new chart types"
+                        onClick={section.onFindNew}
+                    >
+                        <Box className={classes.cardIcon}>
+                            <MantineIcon
+                                className={classes.icon}
+                                icon={IconPlus}
+                                size="xl"
+                                stroke={1.5}
+                                color="dimmed"
+                            />
+                        </Box>
+                        <Text
+                            className={classes.cardLabel}
+                            fz="xs"
+                            fw={500}
+                            lh={1.2}
+                        >
+                            Find new chart types
                         </Text>
                     </UnstyledButton>
                 ) : null}
@@ -479,11 +512,15 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
 }) => {
     const projectUuid = useProjectUuid();
     const dispatch = useExplorerDispatch();
+    const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [showAllProjectTypes, setShowAllProjectTypes] = useState(false);
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
+        true;
+    const libraryEnabled =
+        useServerFeatureFlag(FeatureFlags.ChartTypeRegistry).data?.enabled ===
         true;
     const { enabled: chartTypesEnabled } = useChartTypesEnabled();
     const {
@@ -604,6 +641,15 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                       }),
                   )
             : null;
+    // Discovery needs the library, so the tile follows its flag alone; the
+    // gallery page itself handles a registry that turns out unreachable.
+    const onFindNew =
+        libraryEnabled && projectUuid !== undefined
+            ? () =>
+                  navigate(
+                      `/projects/${projectUuid}/chart-types?tab=chart-library`,
+                  )
+            : null;
     // One query feeds the Custom shelf and the built-in shelf's installed
     // tail, so its loading/error notice renders once, on the shelf this
     // customer's types live in: Custom for data-apps customers, Built in for
@@ -647,6 +693,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
               : unfetchedCount,
         loadingMore: isFetchingNextPage && !fetchMoreOnBuiltIn,
         onCreateNew,
+        onFindNew: null,
     };
 
     const sections: ChartTypeGallerySection[] = [
@@ -666,6 +713,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             moreCount: fetchMoreOnBuiltIn ? unfetchedCount : 0,
             loadingMore: isFetchingNextPage && fetchMoreOnBuiltIn,
             onCreateNew: null,
+            onFindNew,
         },
     ];
 

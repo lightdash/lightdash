@@ -100,52 +100,8 @@
     box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
 }
 
-/* Library installs share the built-ins' shelf; a violet tint plus the corner
-   badge mark their provenance. Selection still owns the blue, so every rule
-   steps aside for data-selected. */
-.card[data-installed='true']:not([data-selected='true']) {
-    border-color: light-dark(
-        var(--mantine-color-violet-2),
-        color-mix(
-            in srgb,
-            var(--mantine-color-violet-4) 35%,
-            var(--mantine-color-default-border)
-        )
-    );
-    background: light-dark(
-        var(--mantine-color-violet-0),
-        color-mix(
-            in srgb,
-            var(--mantine-color-violet-9) 25%,
-            var(--mantine-color-body)
-        )
-    );
-}
-
-.card[data-installed='true']:hover:not(:disabled):not([data-selected='true']),
-.cardWrapper:hover
-    .card[data-installed='true']:not(:disabled):not([data-selected='true']) {
-    border-color: light-dark(
-        var(--mantine-color-violet-3),
-        var(--mantine-color-violet-6)
-    );
-    background: light-dark(
-        var(--mantine-color-violet-1),
-        color-mix(
-            in srgb,
-            var(--mantine-color-violet-9) 40%,
-            var(--mantine-color-body)
-        )
-    );
-}
-
-.card[data-installed='true']:not([data-selected='true']) .icon {
-    color: light-dark(
-        var(--mantine-color-violet-7),
-        var(--mantine-color-violet-4)
-    );
-}
-
+/* Library installs share the built-ins' shelf and keep its neutral card; the
+   violet corner badge alone marks their provenance. */
 .installedBadge {
     position: absolute;
     top: calc(var(--mantine-spacing-xs) / 2);

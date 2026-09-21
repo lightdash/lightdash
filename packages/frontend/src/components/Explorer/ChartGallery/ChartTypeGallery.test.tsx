@@ -94,6 +94,11 @@ vi.mock(
 vi.mock('../../../features/apps/hooks/useCanCreateDataApp', () => ({
     useCanCreateDataApp: () => mocks.canCreateDataApp(),
 }));
+// The real hook resolves slugs via the projects query; the param here is
+// already the identity every mocked hook expects.
+vi.mock('../../../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-uuid',
+}));
 vi.mock('../../../features/apps/hooks/useCanEditDataApp', () => ({
     useCanEditDataAppChecker: () => mocks.canEditChartType,
 }));
@@ -143,6 +148,7 @@ const gallerySection = (
     moreCount: 0,
     loadingMore: false,
     onCreateNew: null,
+    onFindNew: null,
     ...overrides,
 });
 
@@ -1102,7 +1108,6 @@ describe('ExplorerChartTypeGallery', () => {
             vega.compareDocumentPosition(install) &
                 Node.DOCUMENT_POSITION_FOLLOWING,
         ).toBeTruthy();
-        expect(install).toHaveAttribute('data-installed', 'true');
         expect(
             within(builtIn).getByRole('img', {
                 name: 'Installed from the chart type library',
@@ -1111,7 +1116,12 @@ describe('ExplorerChartTypeGallery', () => {
         // Local types keep their own shelf, unmarked.
         expect(
             within(custom).getByRole('button', { name: 'Event pulse' }),
-        ).toHaveAttribute('data-installed', 'false');
+        ).toBeInTheDocument();
+        expect(
+            within(custom).queryByRole('img', {
+                name: 'Installed from the chart type library',
+            }),
+        ).not.toBeInTheDocument();
         // New types are always local, so the create tile stays with Custom.
         expect(
             within(custom).getByRole('button', {
@@ -1127,6 +1137,37 @@ describe('ExplorerChartTypeGallery', () => {
             screen.queryByRole('img', {
                 name: 'Installed from the chart type library',
             }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('ends the built-in shelf with a tile that opens the chart type library', async () => {
+        renderGallery();
+
+        const builtIn = screen.getByRole('group', { name: 'Built in' });
+        const findNew = within(builtIn).getByRole('button', {
+            name: 'Find new chart types',
+        });
+        // Discovery closes the shelf, so it sits after every chart type.
+        const vega = within(builtIn).getByRole('button', {
+            name: 'Vega (JSON editor)',
+        });
+        expect(
+            vega.compareDocumentPosition(findNew) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+
+        await userEvent.click(findNew);
+        expect(mocks.navigate).toHaveBeenCalledWith(
+            '/projects/project-uuid/chart-types?tab=chart-library',
+        );
+    });
+
+    it('hides the discover tile without the chart type library flag', () => {
+        featureFlags.current = { [FeatureFlags.EnableDataApps]: true };
+        renderGallery();
+
+        expect(
+            screen.queryByRole('button', { name: 'Find new chart types' }),
         ).not.toBeInTheDocument();
     });
 
