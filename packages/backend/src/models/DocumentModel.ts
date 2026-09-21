@@ -22,6 +22,11 @@ import {
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
 
+export type DocumentVisibility = {
+    spaceUuids: string[];
+    documentUuids: string[];
+};
+
 export type CreateDocument = {
     projectUuid: string;
     spaceUuid: string;

@@ -31,6 +31,7 @@ import type { LightdashConfig } from '../../config/parseConfig';
 import type {
     DocumentContentUpdate,
     DocumentModel,
+    DocumentVisibility,
 } from '../../models/DocumentModel';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -589,6 +590,22 @@ export class DocumentService extends BaseService {
                 'Document pagination requires limit 1–100 and a non-negative integer offset',
             );
         }
+        const visibility = await this.getVisibility(account, projectUuid);
+        const items = await this.dependencies.documentModel.list(projectUuid, {
+            ...visibility,
+            limit: limit + 1,
+            offset,
+        });
+        return {
+            items: items.slice(0, limit),
+            nextOffset: items.length > limit ? offset + limit : null,
+        };
+    }
+
+    async getVisibility(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<DocumentVisibility> {
         const project = await this.assertProjectAccess(account, projectUuid);
         const spaceUuids =
             await this.dependencies.documentModel.listSpaceUuids(projectUuid);
@@ -628,15 +645,9 @@ export class DocumentService extends BaseService {
             [projectUuid],
             shared[DirectAccessResourceType.DOCUMENT],
         );
-        const items = await this.dependencies.documentModel.list(projectUuid, {
+        return {
             spaceUuids: allowedSpaceUuids,
             documentUuids: allowedDocumentUuids,
-            limit: limit + 1,
-            offset,
-        });
-        return {
-            items: items.slice(0, limit),
-            nextOffset: items.length > limit ? offset + limit : null,
         };
     }
 

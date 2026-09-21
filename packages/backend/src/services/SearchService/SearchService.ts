@@ -8,8 +8,10 @@ import {
     ForbiddenError,
     isDashboardSearchResult,
     isTableErrorSearchResult,
+    NotFoundError,
     SavedChartSearchResult,
     SearchFilters,
+    SearchItemType,
     SearchResults,
     SessionUser,
     SpaceSearchResult,
@@ -17,18 +19,21 @@ import {
     TableSearchResult,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { fromSession } from '../../auth/account';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import {
     OmnibarSearchTiming,
     timeOmnibarSearch,
     timeOmnibarSearchSync,
 } from '../../logging/omnibarSearchTiming';
+import type { DocumentVisibility } from '../../models/DocumentModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { searchReservingVerified } from '../../models/SearchModel/utils/search';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { BaseService } from '../BaseService';
+import type { DocumentService } from '../DocumentService/DocumentService';
 import {
     type AccessTarget,
     type SpacePermissionService,
@@ -37,6 +42,7 @@ import { checkUserAttributesAccess } from '../UserAttributesService/UserAttribut
 
 type SearchServiceArguments = {
     analytics: LightdashAnalytics;
+    documentService: DocumentService;
     searchModel: SearchModel;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
@@ -81,6 +87,8 @@ export class SearchService extends BaseService {
 
     private readonly searchModel: SearchModel;
 
+    private readonly documentService: DocumentService;
+
     private readonly analytics: LightdashAnalytics;
 
     private readonly projectModel: ProjectModel;
@@ -97,6 +105,7 @@ export class SearchService extends BaseService {
         super();
         this.analytics = args.analytics;
         this.searchModel = args.searchModel;
+        this.documentService = args.documentService;
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.userAttributesModel = args.userAttributesModel;
@@ -282,8 +291,36 @@ export class SearchService extends BaseService {
                 throw new ForbiddenError();
             }
 
+            let documentVisibility: DocumentVisibility | undefined;
+            if (
+                !filters?.verifiedOnly &&
+                (!filters?.type || filters.type === SearchItemType.DOCUMENT)
+            ) {
+                try {
+                    documentVisibility =
+                        await this.documentService.getVisibility(
+                            fromSession(user),
+                            projectUuid,
+                        );
+                } catch (error) {
+                    if (
+                        !(
+                            error instanceof ForbiddenError ||
+                            error instanceof NotFoundError
+                        )
+                    ) {
+                        throw error;
+                    }
+                }
+            }
             const search = () =>
-                this.searchModel.search(projectUuid, query, filters, timing);
+                this.searchModel.search(
+                    projectUuid,
+                    query,
+                    filters,
+                    timing,
+                    documentVisibility,
+                );
             const results = await timeOmnibarSearch(
                 timing,
                 'searchModel',
@@ -556,6 +593,16 @@ export class SearchService extends BaseService {
                 );
             }
 
+            const visibleDocumentUuids = new Set(
+                results.documents.length > 0
+                    ? await this.documentService.filterViewableUuids(
+                          fromSession(user),
+                          [projectUuid],
+                          results.documents.map(({ uuid }) => uuid),
+                      )
+                    : [],
+            );
+
             const assembleResults = () => {
                 const filteredResults = {
                     ...results,
@@ -586,6 +633,9 @@ export class SearchService extends BaseService {
                         ? results.pages
                         : [],
                     dataApps: filteredDataApps,
+                    documents: results.documents.filter(({ uuid }) =>
+                        visibleDocumentUuids.has(uuid),
+                    ),
                 };
 
                 this.analytics.track({

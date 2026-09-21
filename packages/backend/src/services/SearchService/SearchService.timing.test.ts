@@ -17,6 +17,7 @@ const malformedTypeFilter = 'privacy-filter-canary';
 
 const user = {
     userUuid,
+    abilityRules: [],
     ability: defineUserAbility(
         {
             role: OrganizationMemberRole.ADMIN,
@@ -38,6 +39,7 @@ const emptyResults: SearchResults = {
     pages: [],
     dashboardTabs: [],
     dataApps: [],
+    documents: [],
 };
 
 const deferred = <T>() => {
@@ -107,6 +109,12 @@ const makeService = ({
         }),
     };
     const service = new SearchService({
+        documentService: {
+            filterViewableUuids: vi.fn().mockResolvedValue([]),
+            getVisibility: vi
+                .fn()
+                .mockResolvedValue({ spaceUuids: [], documentUuids: [] }),
+        } as never,
         analytics: analytics as never,
         searchModel: searchModel as never,
         projectModel: projectModel as never,
@@ -164,6 +172,7 @@ describe('SearchService omnibar timing', () => {
             query,
             { type: malformedTypeFilter },
             expect.anything(),
+            undefined,
         );
         expect(loggerInfo).toHaveBeenCalledOnce();
         const [message, record] = loggerInfo.mock.calls[0];
@@ -203,6 +212,7 @@ describe('SearchService omnibar timing', () => {
             query,
             undefined,
             undefined,
+            { spaceUuids: [], documentUuids: [] },
         );
     });
 

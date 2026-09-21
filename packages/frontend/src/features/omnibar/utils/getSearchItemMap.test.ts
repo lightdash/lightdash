@@ -4,6 +4,7 @@ import { getSearchItemMap } from './getSearchItemMap';
 
 const emptyResults = {
     spaces: [],
+    documents: [],
     dashboards: [],
     dashboardTabs: [],
     savedCharts: [],
@@ -15,6 +16,37 @@ const emptyResults = {
 } as SearchResults;
 
 describe('getSearchItemMap', () => {
+    it('maps documents to their slug URL with searchable metadata', () => {
+        const document = {
+            uuid: 'document-uuid',
+            slug: 'quarterly-report',
+            name: 'Quarterly report',
+            description: 'Revenue and retention',
+            projectUuid: 'project-uuid',
+            spaceUuid: 'space-uuid',
+            createdBy: null,
+            search_rank: 0.75,
+        };
+        const result = getSearchItemMap(
+            { ...emptyResults, documents: [document] },
+            'project-uuid',
+            'project-slug',
+        );
+        expect(result.documents).toEqual([
+            {
+                type: SearchItemType.DOCUMENT,
+                title: document.name,
+                description: document.description,
+                item: document,
+                searchRank: document.search_rank,
+                location: {
+                    pathname:
+                        '/projects/project-slug/documents/quarterly-report',
+                },
+            },
+        ]);
+    });
+
     it('uses the project URL identifier for core content results', () => {
         const result = getSearchItemMap(
             {

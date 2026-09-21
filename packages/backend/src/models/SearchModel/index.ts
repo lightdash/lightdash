@@ -6,6 +6,7 @@ import {
     DashboardSearchResult,
     DashboardTabResult,
     DataAppSearchResult,
+    DocumentSearchResult,
     Explore,
     ExploreError,
     ExploreType,
@@ -52,6 +53,7 @@ import {
 } from '../../logging/omnibarSearchTiming';
 import { AppModel } from '../AppModel';
 import { ContentVerificationModel } from '../ContentVerificationModel';
+import type { DocumentVisibility } from '../DocumentModel';
 import {
     filterByCreatedAt,
     filterByCreatedByUuid,
@@ -1205,6 +1207,92 @@ export class SearchModel {
         }));
     }
 
+    async searchDocuments(
+        projectUuid: string,
+        query: string,
+        filters?: SearchFilters,
+        visibility?: DocumentVisibility,
+    ): Promise<DocumentSearchResult[]> {
+        if (
+            filters?.verifiedOnly ||
+            !shouldSearchForType(SearchItemType.DOCUMENT, filters?.type)
+        ) {
+            return [];
+        }
+        const searchRank = getFullTextSearchRankCalcSql({
+            database: this.database,
+            variables: {
+                searchVectorColumn: 'documents.search_vector',
+                searchQuery: query,
+            },
+            nameColumn: 'documents.name',
+        });
+        const searchFilter = getFullTextSearchFilterSql({
+            database: this.database,
+            searchVectorColumn: 'documents.search_vector',
+            searchQuery: query,
+        });
+        const baseQuery = this.database('documents')
+            .innerJoin('spaces', 'spaces.space_id', 'documents.space_id')
+            .leftJoin(
+                'users as creator',
+                'creator.user_uuid',
+                'documents.created_by_user_uuid',
+            )
+            .select(
+                { uuid: 'documents.document_uuid' },
+                'documents.slug',
+                'documents.name',
+                'documents.description',
+                { projectUuid: 'documents.project_uuid' },
+                { spaceUuid: 'spaces.space_uuid' },
+                { search_rank: searchRank },
+                { firstName: 'creator.first_name' },
+                { lastName: 'creator.last_name' },
+                { userUuid: 'creator.user_uuid' },
+            )
+            .where('documents.project_uuid', projectUuid)
+            .whereNull('documents.deleted_at')
+            .whereNull('spaces.deleted_at')
+            .whereRaw(searchFilter)
+            .orderBy('search_rank', 'desc')
+            .orderBy('documents.document_uuid')
+            .limit(SEARCH_LIMIT_PER_ITEM_TYPE);
+        if (visibility) {
+            void baseQuery.where((builder) =>
+                builder
+                    .whereIn('spaces.space_uuid', visibility.spaceUuids)
+                    .orWhereIn(
+                        'documents.document_uuid',
+                        visibility.documentUuids,
+                    ),
+            );
+        }
+        const dateFiltered = filterByCreatedAt('documents', baseQuery, filters);
+        const rows: (Omit<DocumentSearchResult, 'createdBy'> & {
+            firstName: string | null;
+            lastName: string | null;
+            userUuid: string | null;
+        })[] = await filterByCreatedByUuid(
+            dateFiltered,
+            {
+                tableName: 'documents',
+                tableUserUuidColumnName: 'created_by_user_uuid',
+            },
+            filters,
+        );
+        return rows.map(({ firstName, lastName, userUuid, ...document }) => ({
+            ...document,
+            createdBy: userUuid
+                ? {
+                      firstName: firstName ?? '',
+                      lastName: lastName ?? '',
+                      userUuid,
+                  }
+                : null,
+        }));
+    }
+
     async searchDataApps(
         projectUuid: string,
         query: string,
@@ -1888,6 +1976,7 @@ export class SearchModel {
         query: string,
         filters?: SearchFilters,
         timing?: OmnibarSearchTiming,
+        documentVisibility?: DocumentVisibility,
     ): Promise<SearchResults> {
         const verifiedOnly = filters?.verifiedOnly === true;
         const contentOptions: SearchContentOptions = { verifiedOnly };
@@ -1935,6 +2024,7 @@ export class SearchModel {
                 pages: [],
                 dashboardTabs: [],
                 dataApps: [],
+                documents: [],
             };
         }
 
@@ -1989,6 +2079,15 @@ export class SearchModel {
             searchDataApps,
         );
 
+        const documents = documentVisibility
+            ? await this.searchDocuments(
+                  projectUuid,
+                  query,
+                  filters,
+                  documentVisibility,
+              )
+            : [];
+
         const explores = await this.getProjectExplores(projectUuid, timing);
         const searchTableErrors = () =>
             this.searchTableErrors(projectUuid, query, explores);
@@ -2020,6 +2119,7 @@ export class SearchModel {
             pages,
             dashboardTabs,
             dataApps,
+            documents,
         };
     }
 }
