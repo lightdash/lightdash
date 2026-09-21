@@ -78,6 +78,9 @@ function buildService() {
         orgAiCopilotConfigResolver: {
             getClaudeCodeConfig: vi.fn().mockResolvedValue(copilot),
         },
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         appRuntimeS3: { client: {}, bucket: 'apps' },
     } as never);
     const suspendSandbox = vi.fn().mockResolvedValue(undefined);
