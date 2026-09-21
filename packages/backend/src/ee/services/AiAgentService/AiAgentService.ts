@@ -14307,12 +14307,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 return;
             }
 
+            const finalizationStartedAt = Date.now();
             const blocks = await this.getSlackAgentFinalBlocks({
                 user,
                 slackPrompt,
                 agent,
                 response,
             });
+            const blocksFinishedAt = Date.now();
             const slackResponse = stripMemoryCitations(response);
             const slackifiedMarkdown = slackifyMarkdown(slackResponse).replace(
                 /\\\n/g,
@@ -14347,6 +14349,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     trailingBlocks: blocks,
                 });
             }
+
+            Logger.info('AI agent Slack answer delivered', {
+                event: 'ai_agent.slack_answer_delivered',
+                promptId: slackPrompt.promptUuid,
+                threadId: slackPrompt.threadUuid,
+                organizationId: slackPrompt.organizationUuid,
+                projectId: slackPrompt.projectUuid,
+                blockPreparationMs: blocksFinishedAt - finalizationStartedAt,
+                deliveryMs: Date.now() - blocksFinishedAt,
+            });
 
             await this.aiAgentModel.updateModelResponse({
                 promptUuid: slackPrompt.promptUuid,

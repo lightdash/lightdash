@@ -212,7 +212,12 @@ describe('flags-off agent turns', () => {
                     messages: options.messages,
                 });
                 expect(firstStep?.toolChoice).toBeUndefined();
-                expect(firstStep?.model).toBeUndefined();
+                if (mode === 'generate') {
+                    expect(firstStep?.model.modelId).toBe(args.model.modelId);
+                    expect(firstStep?.model.provider).toBe(args.model.provider);
+                } else {
+                    expect(firstStep?.model).toBeUndefined();
+                }
                 expect(firstStep?.activeTools).toBeUndefined();
                 expect(evaluate).not.toHaveBeenCalled();
             } finally {

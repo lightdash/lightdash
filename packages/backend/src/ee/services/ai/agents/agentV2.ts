@@ -153,7 +153,11 @@ import {
     type IntentToolGate,
 } from './referenceToolGating';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
-import { TurnTimingTracker, type StepTiming } from './turnTiming';
+import {
+    TurnTimingTracker,
+    withNonStreamingProviderTiming,
+    type StepTiming,
+} from './turnTiming';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -2372,7 +2376,6 @@ export const generateAgentResponse = async ({
         `Agent settings: ${JSON.stringify(args.agentSettings)}`,
     );
     const startTime = Date.now();
-    // No decide/execute split here: steps are reported once wholly finished.
     const timing = new TurnTimingTracker(startTime);
     const modelName = getAiAgentModelName(args.model);
     let generatedTokenUsage = initialPromptTokenUsage(
@@ -2419,7 +2422,17 @@ export const generateAgentResponse = async ({
         const result = await generateText({
             ...defaultAgentOptions,
             ...args.callOptions,
-            prepareStep,
+            prepareStep: async (input) => {
+                const prepared = await prepareStep(input);
+                return {
+                    ...prepared,
+                    model: withNonStreamingProviderTiming(
+                        ('model' in prepared ? prepared.model : undefined) ??
+                            args.model,
+                        timing,
+                    ),
+                };
+            },
             stopWhen: [
                 stepCountIs(args.execution.maxSteps),
                 stopWhenPromptInterrupted,
@@ -2436,6 +2449,42 @@ export const generateAgentResponse = async ({
             tools,
             messages,
             experimental_context: agentContext,
+            experimental_onToolCallStart: ({ toolCall }) => {
+                timing.recordToolCallStart(
+                    toolCall.toolCallId,
+                    toolCall.toolName,
+                );
+            },
+            experimental_onToolCallFinish: (event) => {
+                const toolTiming = timing.recordToolCallEnd(
+                    event.toolCall.toolCallId,
+                    event.success && isQueryCacheHit(event.output),
+                );
+                if (toolTiming) {
+                    dependencies.trackEvent({
+                        event: 'ai_agent.tool_call_completed',
+                        userId: args.userId,
+                        properties: {
+                            organizationId: args.organizationId,
+                            projectId: args.agentSettings.projectUuid,
+                            aiAgentId: args.agentSettings.uuid,
+                            promptId: args.promptUuid,
+                            threadId: args.threadUuid,
+                            stepIndex: toolTiming.stepIndex,
+                            toolName: toolTiming.toolName,
+                            toolCallId: event.toolCall.toolCallId,
+                            durationMs: toolTiming.durationMs,
+                            stage: toolTiming.stage,
+                            queryCacheHit: toolTiming.queryCacheHit,
+                            status:
+                                !event.success ||
+                                isErrorToolResult(event.output)
+                                    ? 'error'
+                                    : 'success',
+                        },
+                    });
+                }
+            },
             onStepFinish: async (step) => {
                 const stepUsage = await recordStepUsage(step);
                 // completeStep opens the next step; these calls belong to this one.

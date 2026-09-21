@@ -1,3 +1,5 @@
+import { wrapLanguageModel, type LanguageModel } from 'ai';
+
 /**
  * Per-step wall-clock timing for one agent turn.
  *
@@ -105,6 +107,11 @@ export class TurnTimingTracker {
 
     private readonly completedSteps: StepTiming[] = [];
 
+    private readonly providerCalls: Array<{
+        stepIndex: number;
+        durationMs: number;
+    }> = [];
+
     private readonly completedToolCalls: ToolCallTiming[] = [];
 
     private readonly explicitStageSpans: Array<{
@@ -143,6 +150,19 @@ export class TurnTimingTracker {
             this.completedSteps.length === 0
         ) {
             this.stepStartedAt = this.preparationFinishedAt;
+        }
+    }
+
+    async measureProviderCall<T>(call: () => PromiseLike<T>): Promise<T> {
+        const startedAt = this.now();
+        const { stepIndex } = this;
+        try {
+            return await call();
+        } finally {
+            this.providerCalls.push({
+                stepIndex,
+                durationMs: this.now() - startedAt,
+            });
         }
     }
 
@@ -207,14 +227,24 @@ export class TurnTimingTracker {
         // crediting tool time to the model.
         const splitUnobservable =
             calls > 0 && this.stepFirstToolCallAt === null;
+        const providerCalls = this.providerCalls.filter(
+            (call) => call.stepIndex === this.stepIndex,
+        );
 
+        let inferenceMs = splitUnobservable
+            ? null
+            : (this.stepFirstToolCallAt ?? finishedAt) - this.stepStartedAt;
+        if (providerCalls.length > 0) {
+            inferenceMs = providerCalls.reduce(
+                (total, call) => total + call.durationMs,
+                0,
+            );
+        }
         const timing: StepTiming = {
             stepIndex: this.stepIndex,
             stepOffsetMs: this.stepStartedAt - this.turnStartedAt,
             stepTotalMs: finishedAt - this.stepStartedAt,
-            inferenceMs: splitUnobservable
-                ? null
-                : (this.stepFirstToolCallAt ?? finishedAt) - this.stepStartedAt,
+            inferenceMs,
             toolWallMs: (() => {
                 if (splitUnobservable) return null;
                 return this.stepFirstToolCallAt === null
@@ -243,12 +273,15 @@ export class TurnTimingTracker {
         const observableInference = this.completedSteps.map(
             ({ inferenceMs }) => inferenceMs,
         );
+        const unfinishedProviderMs = this.providerCalls
+            .filter((call) => call.stepIndex === this.stepIndex)
+            .reduce((total, call) => total + call.durationMs, 0);
         const providerMs = observableInference.every(
             (duration): duration is number => duration !== null,
         )
             ? observableInference.reduce(
                   (total, duration) => total + duration,
-                  0,
+                  unfinishedProviderMs,
               )
             : null;
         const stageMs = (stage: ToolStage) => {
@@ -276,3 +309,19 @@ export class TurnTimingTracker {
         };
     }
 }
+
+export const withNonStreamingProviderTiming = (
+    model: Exclude<LanguageModel, string>,
+    timing: TurnTimingTracker,
+) => {
+    // Older adapters retain tool-boundary timing without changing their protocol.
+    if (model.specificationVersion !== 'v3') return model;
+    return wrapLanguageModel({
+        model,
+        middleware: {
+            specificationVersion: 'v3',
+            wrapGenerate: ({ doGenerate }) =>
+                timing.measureProviderCall(doGenerate),
+        },
+    });
+};
