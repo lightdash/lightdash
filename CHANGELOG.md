@@ -1,3 +1,10 @@
+## [2.274.3](https://github.com/lightdash/lightdash/compare/2.274.2...2.274.3) (2026-09-21)
+
+
+### Bug Fixes
+
+* **dashboards:** preserve whole periods in date filter tile overrides ([#29634](https://github.com/lightdash/lightdash/issues/29634)) ([f98ff0e](https://github.com/lightdash/lightdash/commit/f98ff0ee5946a553f70b7c0430a175d1483a9cc3))
+
 ## [2.274.2](https://github.com/lightdash/lightdash/compare/2.274.1...2.274.2) (2026-09-21)
 
 
