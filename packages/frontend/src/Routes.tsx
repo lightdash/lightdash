@@ -153,6 +153,16 @@ const MINIMAL_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: '/minimal/projects/:projectUuid/chart-types/:dataAppVizUuid',
+                lazy: async () => {
+                    const MinimalChartType = await loadLazyRouteDefault(
+                        './pages/MinimalChartType',
+                        () => import('./pages/MinimalChartType'),
+                    );
+                    return { Component: MinimalChartType };
+                },
+            },
+            {
                 path: '/minimal/projects/:projectUuid/apps/:appUuid',
                 lazy: async () => {
                     const MinimalApp = await loadLazyRouteDefault(

@@ -36,6 +36,8 @@ type Props = {
     projectUuid: string;
     dataAppVizUuid: string;
     icon: ChartTypeIcon | null;
+    onIframeLoad?: () => void;
+    onScreenshotAvailabilityChange?: (available: boolean) => void;
 };
 
 /**
@@ -46,6 +48,8 @@ const ChartTypeSamplePreview: FC<Props> = ({
     projectUuid,
     dataAppVizUuid,
     icon,
+    onIframeLoad,
+    onScreenshotAvailabilityChange,
 }) => {
     const previewOrigin = usePreviewOrigin();
     const { data: metadata, error: metadataError } =
@@ -127,6 +131,10 @@ const ChartTypeSamplePreview: FC<Props> = ({
                         identityKey={dataAppVizUuid}
                         dataAppVizContext={sampleContext}
                         dataAppVizMode
+                        onIframeLoad={onIframeLoad}
+                        onScreenshotAvailabilityChange={
+                            onScreenshotAvailabilityChange
+                        }
                     />
                 </Box>
             )}

@@ -1,4 +1,5 @@
 import {
+    DATA_APP_VIZ_TEMPLATE,
     DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
     LightdashPage,
@@ -25,7 +26,7 @@ import { type ShareModel } from '../../models/ShareModel';
 import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { type SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
-import { UnfurlService } from './UnfurlService';
+import { ScreenshotContext, UnfurlService } from './UnfurlService';
 
 const playwrightMocks = vi.hoisted(() => ({
     connectOverCDP: vi.fn(),
@@ -78,6 +79,7 @@ const mockDownloadFileModel = {
 
 function createService(
     overrides: Partial<{
+        appModel: Partial<AppModel>;
         savedSqlModel: Partial<SavedSqlModel>;
         savedChartModel: Partial<SavedChartModel>;
         dashboardModel: Partial<DashboardModel>;
@@ -101,7 +103,7 @@ function createService(
             {}) as unknown as SavedChartModel,
         savedSqlModel: (overrides.savedSqlModel ??
             {}) as unknown as SavedSqlModel,
-        appModel: {} as unknown as AppModel,
+        appModel: (overrides.appModel ?? {}) as unknown as AppModel,
         shareModel: {} as unknown as ShareModel,
         fileStorageClient:
             mockFileStorageClient as unknown as FileStorageClient,
@@ -174,7 +176,7 @@ describe('UnfurlService', () => {
         });
     });
 
-    describe('exportAiAgentArtifact', () => {
+    describe('iframe chart screenshots', () => {
         const ACTING_USER = {
             userUuid: 'user-uuid-1',
             organizationUuid: 'org-uuid-1',
@@ -273,65 +275,94 @@ describe('UnfurlService', () => {
             expect(playwrightMocks.connectOverCDP).not.toHaveBeenCalled();
         });
 
-        it('renders the minimal artifact page with app-style launch args and a fixed 800x600@2x viewport', async () => {
-            const { service, browser, page } = setup();
-            mockFileStorageClient.isEnabled.mockReturnValue(true);
-            mockFileStorageClient.uploadImage.mockResolvedValue(
-                'https://s3.example.com/raw-signed-url',
-            );
-            mockSlackUnfurlImageModel.create.mockResolvedValue(undefined);
+        it.each(['artifact', 'chart type'] as const)(
+            'renders the minimal %s page with app-style launch args and a fixed 800x600@2x viewport',
+            async (kind) => {
+                const { service, browser, page } = setup();
+                mockFileStorageClient.isEnabled.mockReturnValue(true);
+                mockFileStorageClient.uploadImage.mockResolvedValue(
+                    'https://s3.example.com/raw-signed-url',
+                );
+                mockSlackUnfurlImageModel.create.mockResolvedValue(undefined);
 
-            const { imageBuffer, imageUrl } =
-                await service.exportAiAgentArtifact(ACTING_USER, EXPORT_ARGS);
+                const minimalUrl =
+                    kind === 'artifact'
+                        ? `http://headless-browser:8080/minimal/projects/${ARTIFACT_REFS.projectUuid}/ai-agents/${ARTIFACT_REFS.agentUuid}/artifacts/${ARTIFACT_REFS.artifactUuid}/versions/${ARTIFACT_REFS.versionUuid}`
+                        : `http://headless-browser:8080/minimal/projects/${ARTIFACT_REFS.projectUuid}/chart-types/${ARTIFACT_REFS.artifactUuid}`;
+                service.appModel.findAppByUuid = vi.fn().mockResolvedValue({
+                    app_id: ARTIFACT_REFS.artifactUuid,
+                    project_uuid: ARTIFACT_REFS.projectUuid,
+                    organization_uuid: 'org-uuid-1',
+                    template: DATA_APP_VIZ_TEMPLATE,
+                    name: 'Revenue treemap',
+                });
+                const { imageUrl } =
+                    kind === 'artifact'
+                        ? await service.exportAiAgentArtifact(
+                              ACTING_USER,
+                              EXPORT_ARGS,
+                          )
+                        : await service.unfurlImage({
+                              url: minimalUrl,
+                              lightdashPage: LightdashPage.CHART_TYPE,
+                              imageId: 'chart-type-image',
+                              authUserUuid: 'user-uuid-1',
+                              context: ScreenshotContext.SLACK,
+                              selectedTabs: null,
+                          });
 
-            // App-style launch: window sizing + secure-context for the
-            // sandboxed viz iframe SDK.
-            const [endpoint] = playwrightMocks.connectOverCDP.mock.calls[0];
-            expect(endpoint).toContain('--window-size%3D800%2C600');
-            expect(endpoint).toContain(
-                'unsafely-treat-insecure-origin-as-secure',
-            );
+                // App-style launch: window sizing + secure-context for the
+                // sandboxed viz iframe SDK.
+                const [endpoint] = playwrightMocks.connectOverCDP.mock.calls[0];
+                expect(endpoint).toContain('--window-size%3D800%2C600');
+                expect(endpoint).toContain(
+                    'unsafely-treat-insecure-origin-as-secure',
+                );
 
-            expect(browser.newPage).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    viewport: { width: 800, height: 600 },
-                    deviceScaleFactor: 2,
-                    serviceWorkers: 'block',
-                }),
-            );
-            expect(page.cdpSession.send).toHaveBeenCalledWith(
-                'Emulation.setDeviceMetricsOverride',
-                expect.objectContaining({
-                    width: 800,
-                    height: 600,
-                    deviceScaleFactor: 2,
-                }),
-            );
+                expect(browser.newPage).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        viewport: { width: 800, height: 600 },
+                        deviceScaleFactor: 2,
+                        serviceWorkers: 'block',
+                    }),
+                );
+                expect(page.cdpSession.send).toHaveBeenCalledWith(
+                    'Emulation.setDeviceMetricsOverride',
+                    expect.objectContaining({
+                        width: 800,
+                        height: 600,
+                        deviceScaleFactor: 2,
+                    }),
+                );
 
-            expect(page.goto).toHaveBeenCalledWith(
-                `http://headless-browser:8080/minimal/projects/${ARTIFACT_REFS.projectUuid}/ai-agents/${ARTIFACT_REFS.agentUuid}/artifacts/${ARTIFACT_REFS.artifactUuid}/versions/${ARTIFACT_REFS.versionUuid}`,
-                expect.objectContaining({ timeout: expect.any(Number) }),
-            );
-            expect(page.waitForSelector).toHaveBeenCalledWith(
-                SCREENSHOT_SELECTORS.READY_INDICATOR,
-                { state: 'attached', timeout: 180_000 },
-            );
+                expect(page.goto).toHaveBeenCalledWith(
+                    minimalUrl,
+                    expect.objectContaining({ timeout: expect.any(Number) }),
+                );
+                expect(page.waitForSelector).toHaveBeenCalledWith(
+                    SCREENSHOT_SELECTORS.READY_INDICATOR,
+                    { state: 'attached', timeout: 180_000 },
+                );
 
-            // Fixed-frame capture: viewport-sized, never content-measured.
-            expect(page.setViewportSize).not.toHaveBeenCalled();
-            expect(page.screenshot).toHaveBeenCalledTimes(1);
-            expect(page.screenshot.mock.calls[0][0]).not.toMatchObject({
-                fullPage: true,
-            });
+                // Fixed-frame capture: viewport-sized, never content-measured.
+                expect(page.setViewportSize).not.toHaveBeenCalled();
+                expect(page.screenshot).toHaveBeenCalledTimes(1);
+                expect(page.screenshot.mock.calls[0][0]).not.toMatchObject({
+                    fullPage: true,
+                });
 
-            expect(mockSlackUnfurlImageModel.create).toHaveBeenCalledWith(
-                expect.objectContaining({ organizationUuid: 'org-uuid-1' }),
-            );
-            expect(imageUrl).toMatch(
-                /^https:\/\/app\.lightdash\.cloud\/api\/v1\/slack\/preview\//,
-            );
-            expect(imageBuffer).toEqual(Buffer.from('png-bytes'));
-        });
+                expect(mockSlackUnfurlImageModel.create).toHaveBeenCalledWith(
+                    expect.objectContaining({ organizationUuid: 'org-uuid-1' }),
+                );
+                expect(imageUrl).toMatch(
+                    /^https:\/\/app\.lightdash\.cloud\/api\/v1\/slack\/preview\//,
+                );
+                expect(mockFileStorageClient.uploadImage).toHaveBeenCalledWith(
+                    Buffer.from('png-bytes'),
+                    expect.any(String),
+                );
+            },
+        );
 
         it('requests the exact cached execution for deferred custom charts', async () => {
             const { service, page } = setup();
@@ -541,6 +572,102 @@ describe('UnfurlService', () => {
                 /^https:\/\/app\.lightdash\.cloud\/api\/v1\/slack\/image\//,
             );
         });
+    });
+
+    describe('custom chart type unfurls', () => {
+        const projectUuid = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+        const chartTypeUuid = '11111111-2222-3333-4444-555555555555';
+
+        it('uses the chart type metadata and refuses a different project', async () => {
+            const findAppByUuid = vi.fn().mockResolvedValue({
+                app_id: chartTypeUuid,
+                project_uuid: projectUuid,
+                organization_uuid: 'organization-uuid',
+                template: DATA_APP_VIZ_TEMPLATE,
+                name: 'Sample bar chart',
+                description: 'A reusable chart type',
+            });
+            const service = createService({ appModel: { findAppByUuid } });
+            const url = `https://app.lightdash.cloud/projects/${projectUuid}/chart-types/${chartTypeUuid}`;
+            await expect(
+                service.unfurlDetails(url, null),
+            ).resolves.toMatchObject({
+                title: 'Sample bar chart',
+                description: 'A reusable chart type',
+                pageType: 'chart_type',
+                organizationUuid: 'organization-uuid',
+                resourceUuid: chartTypeUuid,
+            });
+            await expect(
+                service.unfurlDetails(url, null, 'another-organization'),
+            ).rejects.toThrow('Chart type not found');
+            findAppByUuid.mockResolvedValue({
+                project_uuid: 'another-project',
+            });
+            await expect(service.unfurlDetails(url, null)).rejects.toThrow(
+                'Chart type not found',
+            );
+            findAppByUuid.mockResolvedValue({
+                project_uuid: projectUuid,
+                template: 'dashboard',
+            });
+            await expect(service.unfurlDetails(url, null)).rejects.toThrow(
+                'Chart type not found',
+            );
+            findAppByUuid.mockResolvedValue(undefined);
+            await expect(service.unfurlDetails(url, null)).rejects.toThrow(
+                'Chart type not found',
+            );
+        });
+
+        it.each([
+            [
+                'https://app.lightdash.cloud/projects',
+                projectUuid,
+                chartTypeUuid,
+            ],
+            [
+                'http://headless-browser:8080/minimal/projects',
+                projectUuid,
+                chartTypeUuid,
+            ],
+            [
+                'https://app.lightdash.cloud/projects',
+                'jaffle-shop',
+                'radial-gauge',
+            ],
+            [
+                'http://headless-browser:8080/minimal/projects',
+                projectUuid,
+                'radial-gauge',
+            ],
+        ])(
+            'resolves %s/%s/chart-types/%s to the sample preview',
+            async (baseUrl, projectIdentifier, chartTypeIdentifier) => {
+                const service = createService({
+                    projectModel: {
+                        getUuidBySlug: vi.fn().mockResolvedValue(projectUuid),
+                    },
+                    appModel: {
+                        findAppByUuidOrSlug: vi
+                            .fn()
+                            .mockResolvedValue({ app_id: chartTypeUuid }),
+                    },
+                });
+                await expect(
+                    service.parseUrl(
+                        `${baseUrl}/${projectIdentifier}/chart-types/${chartTypeIdentifier}?view=preview`,
+                        'organization-uuid',
+                    ),
+                ).resolves.toMatchObject({
+                    isValid: true,
+                    lightdashPage: 'chart_type',
+                    projectUuid,
+                    appUuid: chartTypeUuid,
+                    minimalUrl: `http://headless-browser:8080/minimal/projects/${projectUuid}/chart-types/${chartTypeUuid}`,
+                });
+            },
+        );
     });
 
     describe('parseUrl - SQL Runner charts', () => {

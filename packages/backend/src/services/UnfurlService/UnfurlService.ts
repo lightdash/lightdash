@@ -5,6 +5,7 @@ import {
     AuthorizationError,
     ChartType,
     DashboardTileTypes,
+    DATA_APP_VIZ_TEMPLATE,
     DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
     expandSelectedTabs,
@@ -232,8 +233,8 @@ const bigNumberViewport = {
     height: 500,
 };
 
-// Fixed-frame AI artifact card, captured @2x for crisp Slack rendering.
-const aiArtifactViewport = {
+// Fixed-frame iframe charts, captured @2x for crisp Slack rendering.
+const iframeChartViewport = {
     width: 800,
     height: 600,
     deviceScaleFactor: 2,
@@ -585,6 +586,24 @@ export class UnfurlService extends BaseService {
                     organizationUuid: app.organization_uuid,
                     resourceUuid: app.app_id,
                 };
+            case LightdashPage.CHART_TYPE: {
+                const chartType = parsedUrl.appUuid
+                    ? await this.appModel.findAppByUuid(parsedUrl.appUuid)
+                    : undefined;
+                if (
+                    !chartType ||
+                    chartType.project_uuid !== parsedUrl.projectUuid ||
+                    chartType.template !== DATA_APP_VIZ_TEMPLATE
+                ) {
+                    throw new NotFoundError('Chart type not found');
+                }
+                return {
+                    title: chartType.name,
+                    description: chartType.description,
+                    organizationUuid: chartType.organization_uuid,
+                    resourceUuid: chartType.app_id,
+                };
+            }
             case LightdashPage.AI_ARTIFACT:
                 // Never produced by parseUrl; artifact exports go through
                 // exportAiAgentArtifact, not unfurls.
@@ -627,6 +646,14 @@ export class UnfurlService extends BaseService {
             resourceUuid,
             ...rest
         } = await this.getTitleAndDescription(parsedUrl, selectedTabs);
+
+        if (
+            parsedUrl.lightdashPage === LightdashPage.CHART_TYPE &&
+            organizationUuidContext &&
+            organizationUuid !== organizationUuidContext
+        ) {
+            throw new NotFoundError('Chart type not found');
+        }
 
         return {
             title,
@@ -1566,6 +1593,9 @@ export class UnfurlService extends BaseService {
                     // APP renders inside a cross-origin iframe sized 100vh.
                     // Starting tall avoids a mid-flight resize race where the
                     // child paints into the new area after the screenshot fires.
+                    const isFixedFrame =
+                        lightdashPage === LightdashPage.AI_ARTIFACT ||
+                        lightdashPage === LightdashPage.CHART_TYPE;
                     let initialViewport: { width: number; height: number };
                     if (chartType === ChartType.BIG_NUMBER) {
                         initialViewport = bigNumberViewport;
@@ -1574,11 +1604,11 @@ export class UnfurlService extends BaseService {
                             ...appViewport,
                             width: gridWidth ?? appViewport.width,
                         };
-                    } else if (lightdashPage === LightdashPage.AI_ARTIFACT) {
+                    } else if (isFixedFrame) {
                         // Fixed frame: never widened by gridWidth or content.
                         initialViewport = {
-                            width: aiArtifactViewport.width,
-                            height: aiArtifactViewport.height,
+                            width: iframeChartViewport.width,
+                            height: iframeChartViewport.height,
                         };
                     } else {
                         initialViewport = {
@@ -1591,8 +1621,7 @@ export class UnfurlService extends BaseService {
                     // needs the app-style launch args (window sizing + secure
                     // context).
                     const usesAppLaunchArgs =
-                        lightdashPage === LightdashPage.APP ||
-                        lightdashPage === LightdashPage.AI_ARTIFACT;
+                        lightdashPage === LightdashPage.APP || isFixedFrame;
 
                     const browserConnectionEndpoint = usesAppLaunchArgs
                         ? getAppBrowserEndpoint(
@@ -1636,10 +1665,10 @@ export class UnfurlService extends BaseService {
                     signal?.throwIfAborted();
                     page = await browser.newPage({
                         viewport: initialViewport,
-                        ...(lightdashPage === LightdashPage.AI_ARTIFACT
+                        ...(isFixedFrame
                             ? {
                                   deviceScaleFactor:
-                                      aiArtifactViewport.deviceScaleFactor,
+                                      iframeChartViewport.deviceScaleFactor,
                               }
                             : {}),
                         serviceWorkers: 'block',
@@ -1660,12 +1689,12 @@ export class UnfurlService extends BaseService {
                             initialViewport,
                             `unfurlId: ${imageId}`,
                         );
-                    } else if (lightdashPage === LightdashPage.AI_ARTIFACT) {
+                    } else if (isFixedFrame) {
                         await this.overrideCdpViewport(
                             page,
                             initialViewport,
                             `unfurlId: ${imageId}`,
-                            aiArtifactViewport.deviceScaleFactor,
+                            iframeChartViewport.deviceScaleFactor,
                         );
                     }
 
@@ -2318,9 +2347,9 @@ export class UnfurlService extends BaseService {
                         }
                     }
 
-                    // AI artifacts keep their fixed frame: no content
+                    // Chart types and AI artifacts keep their fixed frame: no content
                     // measurement, no viewport resize.
-                    if (lightdashPage !== LightdashPage.AI_ARTIFACT) {
+                    if (!isFixedFrame) {
                         const fullPage = await page.locator(finalSelector);
                         const fullPageSize = await fullPage?.boundingBox({
                             timeout: this.screenshotTimeoutMs,
@@ -2522,7 +2551,7 @@ export class UnfurlService extends BaseService {
                                     timeout: this.screenshotTimeoutMs,
                                 });
                         }
-                    } else if (lightdashPage === LightdashPage.AI_ARTIFACT) {
+                    } else if (isFixedFrame) {
                         // Fixed-frame capture at the declared viewport.
                         imageBuffer = await page.screenshot({
                             path,
@@ -2886,6 +2915,40 @@ export class UnfurlService extends BaseService {
         );
         const appUrl = new RegExp(`/projects/${uuid}/apps/${uuid}`);
 
+        const chartTypeMatch = resolvedUrl.match(
+            new RegExp(`/projects/(${uuid})/chart-types/([^/?#]+)`),
+        );
+        if (chartTypeMatch) {
+            const [, projectUuid, encodedIdentifier] = chartTypeMatch;
+            try {
+                const appUuidOrSlug = decodeURIComponent(encodedIdentifier);
+                const appUuid = uuidExactRegex.test(appUuidOrSlug)
+                    ? appUuidOrSlug
+                    : (
+                          await this.appModel.findAppByUuidOrSlug(
+                              projectUuid,
+                              appUuidOrSlug,
+                          )
+                      )?.app_id;
+                if (!appUuid) throw new NotFoundError('Chart type not found');
+                return {
+                    isValid: true,
+                    lightdashPage: LightdashPage.CHART_TYPE,
+                    url,
+                    minimalUrl: new URL(
+                        `/minimal/projects/${projectUuid}/chart-types/${appUuid}`,
+                        this.lightdashConfig.headlessBrowser
+                            .internalLightdashHost,
+                    ).href,
+                    projectUuid,
+                    appUuid,
+                };
+            } catch (e) {
+                this.logger.debug(
+                    `Chart type ${encodedIdentifier} did not resolve in project ${projectUuid}: ${getErrorMessage(e)}`,
+                );
+            }
+        }
         if (resolvedUrl.match(appUrl) !== null) {
             const [projectUuid, appUuid] = resolvedUrl.match(uuidRegex) || [];
             return {

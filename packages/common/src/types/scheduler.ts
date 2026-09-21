@@ -749,6 +749,7 @@ export enum LightdashPage {
     SQL_CHART = 'sql_chart',
     APP = 'app',
     AI_ARTIFACT = 'ai_artifact',
+    CHART_TYPE = 'chart_type',
 }
 
 // Info-only delivery notice — never a failure, must not affect run status.
