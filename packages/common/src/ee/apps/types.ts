@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { type AnyType } from '../../types/any';
 import { type ReadyQueryResultsPage } from '../../types/api';
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
 import { type ContentVerificationInfo } from '../../types/contentVerification';
@@ -7,12 +8,17 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '../../types/dashboard';
+import { type CustomDimension, type TableCalculation } from '../../types/field';
 import { type DashboardFilters } from '../../types/filter';
 import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '../../types/knex-paginate';
-import { type MetricQuery } from '../../types/metricQuery';
+import {
+    type AdditionalMetric,
+    type MetricQuery,
+    type SortField,
+} from '../../types/metricQuery';
 import { type DashboardParameters } from '../../types/parameters';
 import { type ResultRow } from '../../types/results';
 import {
@@ -546,6 +552,184 @@ export type ApiAppVersionSummary = {
     dependencies?: { custom: AppVersionDependencyEntry[] };
 };
 
+/**
+ * The query shape behind a chart type's last preview run. Mirrors
+ * `MetricQueryRequest`: TSOA cannot resolve `MetricQuery`, so the filter tree
+ * stays untyped here as well.
+ */
+export type DataAppVizPreviewMetricQuery = {
+    exploreName: string;
+    dimensions: string[];
+    metrics: string[];
+    filters: {
+        dimensions?: AnyType;
+        metrics?: AnyType;
+        tableCalculations?: AnyType;
+    };
+    sorts: SortField[];
+    limit: number;
+    tableCalculations: TableCalculation[];
+    additionalMetrics: AdditionalMetric[] | null;
+    customDimensions: CustomDimension[] | null;
+};
+
+/**
+ * What a Chart Studio author last previewed a chart type with: the explore, the
+ * query shape and the input mapping. Results are not part of it; size is capped.
+ */
+export type DataAppVizPreviewSelection = {
+    version: 1;
+    exploreName: string;
+    savedChart: { uuid: string; name: string } | null;
+    metricQuery: DataAppVizPreviewMetricQuery;
+    fieldMapping: DataAppVizFieldMapping;
+    updatedAt: Date;
+    updatedByUserUuid: string;
+};
+
+/** What the author may write; the rest of the selection is server-stamped. */
+export type DataAppVizPreviewSelectionInput = Omit<
+    DataAppVizPreviewSelection,
+    'version' | 'updatedAt' | 'updatedByUserUuid'
+>;
+
+/**
+ * Gallery-sized view of a remembered selection. Deliberately carries no filter
+ * values and no saved chart name — the full selection is manage-only.
+ */
+export type DataAppVizPreviewSelectionSummary = {
+    exploreName: string;
+    fieldCount: number;
+    updatedAt: Date;
+};
+
+export type ApiSetDataAppVizPreviewSelectionRequest = {
+    selection: DataAppVizPreviewSelectionInput;
+};
+
+export type ApiSetDataAppVizPreviewSelectionResponse = ApiSuccessEmpty;
+
+/** A selection larger than this is refused rather than persisted. */
+export const DATA_APP_VIZ_PREVIEW_SELECTION_MAX_BYTES = 64 * 1024;
+
+// Query fragments the Explorer owns. Validated as plain objects — enough to
+// keep a result-row payload out — and stored verbatim.
+const previewQueryFragment = <T>() =>
+    z.custom<T>(
+        (value) =>
+            typeof value === 'object' &&
+            value !== null &&
+            !Array.isArray(value),
+        'expected an object',
+    );
+
+const previewSortField = z
+    .object({
+        fieldId: z.string().max(255),
+        descending: z.boolean(),
+        nullsFirst: z.boolean().optional(),
+        pivotValues: z
+            .array(
+                z
+                    .object({
+                        reference: z.string().max(255),
+                        value: z.union([
+                            z.string(),
+                            z.number(),
+                            z.boolean(),
+                            z.null(),
+                        ]),
+                    })
+                    .strict(),
+            )
+            .optional(),
+    })
+    .strict();
+
+const previewMetricQuery = z
+    .object({
+        exploreName: z.string().min(1).max(255),
+        dimensions: z.array(z.string().max(255)),
+        metrics: z.array(z.string().max(255)),
+        filters: z
+            .object({
+                dimensions: z.unknown().optional(),
+                metrics: z.unknown().optional(),
+                tableCalculations: z.unknown().optional(),
+            })
+            .strict(),
+        sorts: z.array(previewSortField),
+        limit: z.number().int().nonnegative(),
+        tableCalculations: z.array(previewQueryFragment<TableCalculation>()),
+        additionalMetrics: z
+            .array(previewQueryFragment<AdditionalMetric>())
+            .nullable(),
+        customDimensions: z
+            .array(previewQueryFragment<CustomDimension>())
+            .nullable(),
+    })
+    .strict();
+
+const previewSelectionShape = {
+    exploreName: z.string().min(1).max(255),
+    savedChart: z
+        .object({ uuid: z.string().uuid(), name: z.string().max(255) })
+        .strict()
+        .nullable(),
+    metricQuery: previewMetricQuery,
+    fieldMapping: z.record(
+        z.string().max(255),
+        z.union([z.string().max(255), z.array(z.string().max(255)).max(50)]),
+    ),
+};
+
+/**
+ * Validates the author-supplied half of a selection. Strict: a `rows` key, or
+ * any other key we did not ask for, fails. The three server-stamped keys are
+ * accepted and dropped, so a client may echo back a selection it was served.
+ */
+export const dataAppVizPreviewSelectionInputSchema = z
+    .object({
+        ...previewSelectionShape,
+        version: z.unknown().optional(),
+        updatedAt: z.unknown().optional(),
+        updatedByUserUuid: z.unknown().optional(),
+    })
+    .strict()
+    .transform(({ exploreName, savedChart, metricQuery, fieldMapping }) => ({
+        exploreName,
+        savedChart,
+        metricQuery,
+        fieldMapping,
+    }));
+
+/**
+ * Validates a stored selection on the way back out. `updatedAt` is coerced
+ * because jsonb hands dates back as strings; an unknown `version` fails, so a
+ * row written by a newer server reads as no selection at all.
+ */
+export const dataAppVizPreviewSelectionSchema = z
+    .object({
+        ...previewSelectionShape,
+        version: z.literal(1),
+        updatedAt: z.coerce.date(),
+        updatedByUserUuid: z.string().uuid(),
+    })
+    .strict();
+
+// Compile-time guards: the validators and the API types must not drift.
+const previewSelectionInputSchemaMatchesApiType: AssertMutuallyAssignable<
+    z.infer<typeof dataAppVizPreviewSelectionInputSchema>,
+    DataAppVizPreviewSelectionInput
+> = true;
+void previewSelectionInputSchemaMatchesApiType;
+
+const previewSelectionSchemaMatchesApiType: AssertMutuallyAssignable<
+    z.infer<typeof dataAppVizPreviewSelectionSchema>,
+    DataAppVizPreviewSelection
+> = true;
+void previewSelectionSchemaMatchesApiType;
+
 export type ApiGetAppResponse = ApiSuccess<{
     appUuid: string;
     name: string;
@@ -574,6 +758,9 @@ export type ApiGetAppResponse = ApiSuccess<{
     // and for chart types with no icon chosen.
     icon: ChartTypeIcon | null;
     verification: ContentVerificationInfo | null;
+    // The chart type's last preview data selection. Null for callers who can
+    // only view the app — the selection carries the author's filter values.
+    previewSelection: DataAppVizPreviewSelection | null;
 }>;
 
 export type ApiUpdateAppRequest = {
@@ -1236,6 +1423,9 @@ export type DataAppViz = {
     // Registry slug it was installed from, or null if project-authored (or
     // forked). Registry-installed chart types are read-only; fork to edit.
     registrySlug: string | null;
+    // Headline of the last preview data selection; null when there is none or
+    // the stored value no longer parses.
+    previewSelection: DataAppVizPreviewSelectionSummary | null;
 };
 
 /** Whether a chart type is a registry install: read-only, only editable by forking. */

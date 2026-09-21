@@ -35,6 +35,8 @@ import {
     type ApiPromoteAppDiffResponse,
     type ApiPromoteAppResponse,
     type ApiRestoreAppVersionResponse,
+    type ApiSetDataAppVizPreviewSelectionRequest,
+    type ApiSetDataAppVizPreviewSelectionResponse,
     type ApiSuccessEmpty,
     type ApiTogglePinnedItem,
     type ApiUpdateAppRequest,
@@ -59,6 +61,7 @@ import {
     Patch,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -951,6 +954,35 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * Remember the data selection a chart type was last previewed with, so
+     * reopening Chart Studio offers it again. Stores the explore, the chart
+     * inputs and the query shape — never result rows.
+     * @summary Set a chart type's preview data selection
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Put('/{appUuid}/preview-selection')
+    @OperationId('setDataAppVizPreviewSelection')
+    async setDataAppVizPreviewSelection(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() appUuid: UUID,
+        @Body() body: ApiSetDataAppVizPreviewSelectionRequest,
+    ): Promise<ApiSetDataAppVizPreviewSelectionResponse> {
+        assertRegisteredAccount(req.account);
+        await this.getAppGenerateService().setDataAppVizPreviewSelection(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+            body.selection,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

@@ -25,10 +25,13 @@ import {
     ContentType,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_CODEX_MODELS,
+    DATA_APP_VIZ_PREVIEW_SELECTION_MAX_BYTES,
     DATA_APP_VIZ_TEMPLATE,
     DATA_REFERENCE_EXTRACTOR_VERSION,
     dataAppVizGenerationSchema,
     dataAppVizJsonSchema,
+    dataAppVizPreviewSelectionInputSchema,
+    dataAppVizPreviewSelectionSchema,
     dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     DEFAULT_DATA_APP_CODEX_MODEL,
@@ -114,6 +117,9 @@ import {
     type DataAppTemplate,
     type DataAppViz,
     type DataAppVizDeleteImpact,
+    type DataAppVizPreviewSelection,
+    type DataAppVizPreviewSelectionInput,
+    type DataAppVizPreviewSelectionSummary,
     type DataAppVizRenderMetadata,
     type DataAppVizSchema,
     type DataAppVizsFilter,
@@ -9202,6 +9208,90 @@ export class AppGenerateService extends BaseService {
         });
     }
 
+    /** A stored preview selection that still matches today's contract; null otherwise. */
+    private static parsePreviewSelection(
+        stored: unknown,
+    ): DataAppVizPreviewSelection | null {
+        if (stored === null || stored === undefined) {
+            return null;
+        }
+        const result = dataAppVizPreviewSelectionSchema.safeParse(stored);
+        return result.success ? result.data : null;
+    }
+
+    private static summarizePreviewSelection(
+        stored: unknown,
+    ): DataAppVizPreviewSelectionSummary | null {
+        const selection = AppGenerateService.parsePreviewSelection(stored);
+        if (selection === null) {
+            return null;
+        }
+        const fieldIds = new Set(
+            Object.values(selection.fieldMapping).flatMap((mapped) =>
+                typeof mapped === 'string' ? [mapped] : mapped,
+            ),
+        );
+        return {
+            exploreName: selection.exploreName,
+            fieldCount: fieldIds.size,
+            updatedAt: selection.updatedAt,
+        };
+    }
+
+    /**
+     * Remember the data selection the author just previewed a chart type with.
+     * Shared by every author of the chart type — the last run wins — and never
+     * carries result rows.
+     */
+    async setDataAppVizPreviewSelection(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        selection: DataAppVizPreviewSelectionInput,
+    ): Promise<void> {
+        await this.assertDataAppsEnabled(user);
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to manage data apps',
+        );
+        AppGenerateService.assertNotRegistryManaged(app, 'edited');
+        if (app.template !== DATA_APP_VIZ_TEMPLATE) {
+            throw new ParameterError(
+                'Only chart types remember a preview data selection',
+            );
+        }
+
+        const parsed =
+            dataAppVizPreviewSelectionInputSchema.safeParse(selection);
+        if (!parsed.success) {
+            throw new ParameterError('Invalid preview data selection');
+        }
+
+        // Server-stamped: the body never decides who ran it or when.
+        const stored: DataAppVizPreviewSelection = {
+            ...parsed.data,
+            version: 1,
+            updatedAt: new Date(),
+            updatedByUserUuid: user.userUuid,
+        };
+        if (
+            Buffer.byteLength(JSON.stringify(stored), 'utf8') >
+            DATA_APP_VIZ_PREVIEW_SELECTION_MAX_BYTES
+        ) {
+            throw new ParameterError(
+                'Preview data selection is too large to remember',
+            );
+        }
+
+        await this.appModel.setDataAppVizPreviewSelection(
+            appUuid,
+            projectUuid,
+            stored,
+        );
+    }
+
     async getAppVersions(
         user: SessionUser,
         projectUuid: string,
@@ -9244,6 +9334,7 @@ export class AppGenerateService extends BaseService {
         registrySlug: string | null;
         icon: ChartTypeIcon | null;
         verification: ContentVerificationInfo | null;
+        previewSelection: DataAppVizPreviewSelection | null;
     }> {
         await this.assertDataAppsEnabled(user);
 
@@ -9272,6 +9363,7 @@ export class AppGenerateService extends BaseService {
             versions,
             hasMore,
             registrySlug,
+            previewSelection,
         } = await this.appModel.getAppWithVersions(appUuid, projectUuid, opts);
 
         const appAuthorization = await this.assertCanViewApp(user, {
@@ -9369,6 +9461,14 @@ export class AppGenerateService extends BaseService {
             // An icon retired from the curated set reads back as no icon.
             icon: isChartTypeIcon(icon) ? icon : null,
             verification,
+            // The selection carries the author's own filter values, so only a
+            // caller who could re-run it gets the whole thing.
+            previewSelection: this.createAuditedAbility(user).can(
+                'manage',
+                subject('DataApp', appAuthorization),
+            )
+                ? AppGenerateService.parsePreviewSelection(previewSelection)
+                : null,
         };
     }
 
@@ -9453,6 +9553,9 @@ export class AppGenerateService extends BaseService {
             registrySlug: app.registry_slug,
             // An icon retired from the curated set reads back as no icon.
             icon: isChartTypeIcon(app.icon) ? app.icon : null,
+            previewSelection: AppGenerateService.summarizePreviewSelection(
+                app.data_app_viz_preview_selection,
+            ),
         };
     }
 

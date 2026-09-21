@@ -51,6 +51,7 @@ const makeDataAppVizRow = (overrides: Record<string, unknown> = {}) => ({
     icon: null,
     viz_schema: vizSchema,
     design_uuid: null,
+    data_app_viz_preview_selection: null,
     upstream_app_uuid: null,
     created_at: new Date('2026-06-30'),
     created_by_user_uuid: 'user-1',
@@ -249,9 +250,72 @@ describe('AppGenerateService data app vizs', () => {
                     createdAt: new Date('2026-06-30'),
                     createdByUserUuid: 'user-1',
                     icon: null,
+                    previewSelection: null,
                 },
             ],
             pagination,
+        });
+    });
+
+    describe('the remembered preview selection summary', () => {
+        const listOne = async (storedSelection: unknown) => {
+            const appModel = {
+                listDataAppVisualizations: vi.fn().mockResolvedValue({
+                    data: [
+                        makeDataAppVizRow({
+                            data_app_viz_preview_selection: storedSelection,
+                        }),
+                    ],
+                    pagination: undefined,
+                }),
+            };
+            const service = buildService(appModel);
+            const { data } = await service.listDataAppVisualizations(
+                USER,
+                'project-1',
+            );
+            return data[0].previewSelection;
+        };
+
+        const stored = {
+            version: 1,
+            exploreName: 'orders',
+            savedChart: null,
+            metricQuery: {
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_count'],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: null,
+                customDimensions: null,
+            },
+            fieldMapping: {
+                category: 'orders_status',
+                value: ['orders_count', 'orders_status'],
+            },
+            updatedAt: '2026-09-01T10:00:00.000Z',
+            updatedByUserUuid: '33333333-3333-4333-8333-333333333333',
+        };
+
+        // The summary rides the picker payload, so it carries no filter
+        // values and no saved chart name — only the headline.
+        it('counts the distinct mapped fields and names the explore', async () => {
+            expect(await listOne(stored)).toEqual({
+                exploreName: 'orders',
+                fieldCount: 2,
+                updatedAt: new Date('2026-09-01T10:00:00.000Z'),
+            });
+        });
+
+        it.each([
+            ['stored nothing', null],
+            ['corrupt json', { exploreName: 42 }],
+            ['an unknown version', { ...stored, version: 7 }],
+        ])('summarizes %s as no selection', async (_label, storedSelection) => {
+            expect(await listOne(storedSelection)).toBeNull();
         });
     });
 

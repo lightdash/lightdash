@@ -15,6 +15,7 @@ import {
     type DataAppActivityFilters,
     type DataAppCodingAgent,
     type DataAppGenerationUsage,
+    type DataAppVizPreviewSelection,
     type DataAppVizSchema,
     type DataAppVizsFilter,
     type KnexPaginateArgs,
@@ -1018,6 +1019,8 @@ export class AppModel {
         })[];
         hasMore: boolean;
         registrySlug: string | null;
+        // Raw jsonb; the service validates it before serving it.
+        previewSelection: unknown;
     }> {
         const limit = opts.limit ?? 20;
         const currentThread = await this.getCurrentThread(appId);
@@ -1076,6 +1079,7 @@ export class AppModel {
                 `${AppsTableName}.slug`,
                 `${AppsTableName}.views_count`,
                 `${AppsTableName}.registry_slug`,
+                `${AppsTableName}.data_app_viz_preview_selection`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${PinnedAppTableName}.pinned_list_uuid`,
                 `${PinnedAppTableName}.order as pinned_list_order`,
@@ -1105,6 +1109,7 @@ export class AppModel {
                 slug: string;
                 views_count: number;
                 registry_slug: string | null;
+                data_app_viz_preview_selection: unknown;
                 organization_uuid: string;
                 pinned_list_uuid: string | null;
                 pinned_list_order: number | null;
@@ -1129,6 +1134,7 @@ export class AppModel {
             slug,
             views_count: viewsCount,
             registry_slug: registrySlug,
+            data_app_viz_preview_selection: previewSelection,
             organization_uuid: organizationUuid,
             pinned_list_uuid: pinnedListUuid,
             pinned_list_order: pinnedListOrder,
@@ -1150,6 +1156,7 @@ export class AppModel {
                     slug: string;
                     views_count: number;
                     registry_slug: string | null;
+                    data_app_viz_preview_selection: unknown;
                     organization_uuid: string;
                     pinned_list_uuid: string | null;
                     pinned_list_order: number | null;
@@ -1180,6 +1187,7 @@ export class AppModel {
                 ),
             hasMore,
             registrySlug,
+            previewSelection,
         };
     }
 
@@ -1197,6 +1205,26 @@ export class AppModel {
             throw new NotFoundError(`App not found: ${appId}`);
         }
         return row;
+    }
+
+    /**
+     * Replace the chart type's remembered preview data selection. Shared by
+     * every author of the chart type, so the last run wins.
+     */
+    async setDataAppVizPreviewSelection(
+        appId: string,
+        projectUuid: string,
+        selection: DataAppVizPreviewSelection,
+    ): Promise<void> {
+        const updated = await this.database(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .update({
+                data_app_viz_preview_selection: JSON.stringify(selection),
+            });
+        if (updated === 0) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
     }
 
     async updateDesignUuid(

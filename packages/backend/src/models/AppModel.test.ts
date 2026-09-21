@@ -1,3 +1,7 @@
+import {
+    NotFoundError,
+    type DataAppVizPreviewSelection,
+} from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import {
@@ -26,6 +30,7 @@ const appRow: DbApp = {
     template: null,
     icon: null,
     design_uuid: null,
+    data_app_viz_preview_selection: null,
     upstream_app_uuid: null,
     registry_slug: null,
     registry_url: null,
@@ -67,6 +72,92 @@ describe('AppModel.recordVersionGenerationUsage', () => {
 
         expect(tracker.history.update[0].sql).toContain("'costUsd', NULL");
         expect(tracker.history.update[0].bindings).not.toContain(null);
+    });
+});
+
+describe('AppModel.setDataAppVizPreviewSelection', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new AppModel({ database });
+    let tracker: Tracker;
+
+    const selection: DataAppVizPreviewSelection = {
+        version: 1,
+        exploreName: 'orders',
+        savedChart: null,
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: ['orders_status'],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: null,
+            customDimensions: null,
+        },
+        fieldMapping: { category: 'orders_status' },
+        updatedAt: new Date('2026-09-01T10:00:00.000Z'),
+        updatedByUserUuid: '33333333-3333-4333-8333-333333333333',
+    };
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('writes the selection to the live app row only', async () => {
+        tracker.on.update(AppsTableName).responseOnce(1);
+
+        await model.setDataAppVizPreviewSelection(
+            appId,
+            projectUuid,
+            selection,
+        );
+
+        const update = tracker.history.update[0];
+        expect(update.sql).toContain('"data_app_viz_preview_selection"');
+        expect(update.sql).toContain('"deleted_at" is null');
+        expect(update.bindings).toContain(JSON.stringify(selection));
+        expect(update.bindings).toEqual(
+            expect.arrayContaining([appId, projectUuid]),
+        );
+    });
+
+    it('reports a missing app rather than writing nothing quietly', async () => {
+        tracker.on.update(AppsTableName).responseOnce(0);
+
+        await expect(
+            model.setDataAppVizPreviewSelection(appId, projectUuid, selection),
+        ).rejects.toThrow(NotFoundError);
+    });
+
+    it('is not something a promoted app can carry over', async () => {
+        tracker.on.update(AppsTableName).responseOnce([appRow]);
+
+        await model.syncPromotedApp(appId, {
+            name: 'Radial gauge',
+            description: '',
+            icon: null,
+            space_uuid: null,
+            design_uuid: null,
+        });
+
+        expect(tracker.history.update[0].sql).not.toContain(
+            'data_app_viz_preview_selection',
+        );
+    });
+
+    // Duplicate and promote-create build their new row through
+    // `createWithVersion`, whose argument has no slot for the selection.
+    it('is not something a duplicated app can carry over', () => {
+        type CreateArg = Parameters<AppModel['createWithVersion']>[0];
+        const copyCannotCarrySelection: 'data_app_viz_preview_selection' extends keyof CreateArg
+            ? never
+            : true = true;
+        expect(copyCannotCarrySelection).toBe(true);
     });
 });
 
