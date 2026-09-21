@@ -6919,8 +6919,7 @@ export class AiAgentService extends BaseService {
                     this.getIsVerifiedArtifactsEnabled(),
                 currentPromptUuid: prompt.promptUuid,
                 userUuid: user.userUuid,
-                preserveToolResultStatus:
-                    !!(await this.getDecisionClient(user)),
+                fastDecisionsEnabled: !!(await this.getDecisionClient(user)),
             },
         );
 
@@ -9466,15 +9465,22 @@ export class AiAgentService extends BaseService {
         artifacts: {
             chartConfig: Record<string, unknown>;
             artifactType: 'chart' | 'dashboard';
+            verifiedQuestion?: string | null;
         }[],
+        compact = false,
     ): UserModelMessage {
         const ragContext = artifacts
             .map(
-                (artifact, index) =>
+                (artifact) =>
                     `\`\`\`json\n${JSON.stringify(
-                        artifact.chartConfig,
+                        compact
+                            ? {
+                                  verifiedQuestion: artifact.verifiedQuestion,
+                                  query: artifact.chartConfig,
+                              }
+                            : artifact.chartConfig,
                         null,
-                        2,
+                        compact ? undefined : 2,
                     )}\`\`\`\n`,
             )
             .join('\n\n');
@@ -9962,7 +9968,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             retrieveRelevantArtifacts: boolean;
             currentPromptUuid: string;
             userUuid?: string;
-            preserveToolResultStatus?: boolean;
+            fastDecisionsEnabled?: boolean;
         },
     ): Promise<ModelMessage[]> {
         const promptUuids = threadMessages.map(
@@ -9991,8 +9997,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     messages.push(pinnedContextMessage);
                 }
 
-                // Inject relevant verified artifacts after first user prompt (search or retrieve cached)
-                if (index === 0 && options.retrieveRelevantArtifacts) {
+                // Fast mode refreshes examples for the question being answered.
+                // Old examples must not anchor a later, unrelated analysis.
+                const includeVerifiedExamples = options.fastDecisionsEnabled
+                    ? message.ai_prompt_uuid === options.currentPromptUuid
+                    : index === 0;
+                if (
+                    includeVerifiedExamples &&
+                    options.retrieveRelevantArtifacts
+                ) {
                     try {
                         const artifacts = await this.retrieveRelevantArtifacts({
                             agentUuid: options.agentUuid,
@@ -10007,6 +10020,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             messages.push(
                                 AiAgentService.createRelevantArtifactsMessage(
                                     artifacts,
+                                    options.fastDecisionsEnabled,
                                 ),
                             );
                         }
@@ -10029,7 +10043,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     ...AiAgentService.buildToolCallTurnMessages(
                         toolCallsAndResults,
                         isCurrentPrompt,
-                        options.preserveToolResultStatus,
+                        options.fastDecisionsEnabled,
                     ),
                 );
 
@@ -14583,7 +14597,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         this.getIsVerifiedArtifactsEnabled(),
                     currentPromptUuid: promptUuid,
                     userUuid: user.userUuid,
-                    preserveToolResultStatus:
+                    fastDecisionsEnabled:
                         !!(await this.getDecisionClient(user)),
                 });
 

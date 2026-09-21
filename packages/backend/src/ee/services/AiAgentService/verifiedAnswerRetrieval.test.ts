@@ -33,6 +33,8 @@ const setup = () => {
         modelName: 'embedding-model',
     });
     const aiAgentModel = {
+        getContextForPromptUuids: vi.fn().mockResolvedValue(new Map()),
+        getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([]),
         searchArtifactsBySimilarity: vi
             .fn()
             .mockResolvedValue([baseline, expanded]),
@@ -170,5 +172,201 @@ describe('verified answer retrieval', () => {
         ).toEqual({ relevantVerifiedAnswers: [] });
         expect(aiAgentModel.searchArtifactsBySimilarity).not.toHaveBeenCalled();
         expect(request).not.toHaveBeenCalled();
+    });
+});
+
+describe('verified examples in conversation history', () => {
+    afterEach(() => vi.restoreAllMocks());
+    const history = [
+        {
+            ai_prompt_uuid: 'first',
+            prompt: 'Count orders',
+            response: 'Previous answer',
+        },
+        {
+            ai_prompt_uuid: 'current',
+            prompt: 'Now show customer retention',
+            response: null,
+        },
+    ] as Parameters<AiAgentService['getChatHistoryFromThreadMessages']>[0];
+    const options = {
+        organizationUuid: 'org',
+        projectUuid: 'project',
+        agentUuid: 'agent',
+        currentPromptUuid: 'current',
+        userUuid: 'user',
+        retrieveRelevantArtifacts: true,
+    };
+
+    it.each([false, true])(
+        'selects examples for the appropriate question (fast=%s)',
+        async (fastDecisionsEnabled) => {
+            const { service } = setup();
+            const retrieve = vi
+                .spyOn(service, 'retrieveRelevantArtifacts')
+                .mockResolvedValue([baseline]);
+            const result = await service.getChatHistoryFromThreadMessages(
+                history,
+                { ...options, fastDecisionsEnabled },
+            );
+            expect(retrieve).toHaveBeenCalledExactlyOnceWith({
+                organizationUuid: 'org',
+                projectUuid: 'project',
+                agentUuid: 'agent',
+                userUuid: 'user',
+                promptUuid: fastDecisionsEnabled ? 'current' : 'first',
+                searchQuery: fastDecisionsEnabled
+                    ? 'Now show customer retention'
+                    : 'Count orders',
+            });
+            expect(result).toContainEqual({
+                role: 'assistant',
+                content: 'Previous answer',
+            });
+            expect(
+                result.filter(
+                    (message) =>
+                        typeof message.content === 'string' &&
+                        message.content.includes(
+                            'Here are some relevant queries',
+                        ),
+                ),
+            ).toHaveLength(1);
+            const userIndex = result.findIndex(
+                (message) =>
+                    message.content ===
+                    (fastDecisionsEnabled
+                        ? 'Now show customer retention'
+                        : 'Count orders'),
+            );
+            expect(result[userIndex + 1].content).toContain(
+                'Here are some relevant queries',
+            );
+        },
+    );
+    it('honors disabled retrieval even when fast decisions are enabled', async () => {
+        const { service } = setup();
+        const retrieve = vi.spyOn(service, 'retrieveRelevantArtifacts');
+        const result = await service.getChatHistoryFromThreadMessages(history, {
+            ...options,
+            fastDecisionsEnabled: true,
+            retrieveRelevantArtifacts: false,
+        });
+        expect(retrieve).not.toHaveBeenCalled();
+        expect(result).toEqual([
+            { role: 'user', content: 'Count orders' },
+            { role: 'assistant', content: 'Previous answer' },
+            { role: 'user', content: 'Now show customer retention' },
+        ]);
+    });
+
+    it('preserves prior query inputs and successful results when refreshing examples', async () => {
+        const { service, aiAgentModel } = setup();
+        const input = {
+            queryConfig: {
+                exploreName: 'orders',
+                filters: { status: 'completed' },
+                parameters: { region: 'EU' },
+            },
+        };
+        aiAgentModel.getToolCallsAndResultsForPrompt.mockImplementation(
+            async (uuid) =>
+                uuid === 'first'
+                    ? [
+                          {
+                              toolCall: {
+                                  toolCallId: 'query',
+                                  toolName: 'runQuery',
+                                  toolArgs: input,
+                              },
+                              toolResult: {
+                                  toolCallId: 'query',
+                                  toolName: 'runQuery',
+                                  result: 'count: 42',
+                                  metadata: { status: 'success' },
+                              },
+                          },
+                      ]
+                    : [],
+        );
+        vi.spyOn(service, 'retrieveRelevantArtifacts').mockResolvedValue([]);
+        const result = await service.getChatHistoryFromThreadMessages(history, {
+            ...options,
+            fastDecisionsEnabled: true,
+        });
+        expect(result).toContainEqual({
+            role: 'assistant',
+            content: [
+                {
+                    type: 'tool-call',
+                    toolCallId: 'query',
+                    toolName: 'runQuery',
+                    input,
+                },
+            ],
+        });
+        expect(result).toContainEqual({
+            role: 'tool',
+            content: [
+                {
+                    type: 'tool-result',
+                    toolCallId: 'query',
+                    toolName: 'runQuery',
+                    output: {
+                        type: 'json',
+                        value: { result: 'count: 42', status: 'success' },
+                    },
+                },
+            ],
+        });
+    });
+
+    it('compacts representation without discarding any query semantics', () => {
+        const example = {
+            ...baseline,
+            chartConfig: {
+                ...baseline.chartConfig,
+                queryConfig: {
+                    ...baseline.chartConfig.queryConfig,
+                    parameters: { region: 'EU' },
+                    timezone: 'Europe/London',
+                    filters: {
+                        dimensions: {
+                            and: [
+                                {
+                                    target: { fieldId: 'orders_status' },
+                                    operator: 'equals',
+                                    values: ['completed'],
+                                },
+                            ],
+                        },
+                    },
+                    tableCalculations: [
+                        {
+                            name: 'share',
+                            sql: 'orders_count / SUM(orders_count) OVER ()',
+                        },
+                    ],
+                },
+            },
+        };
+        const legacy = AiAgentService.createRelevantArtifactsMessage([example]);
+        const compact = AiAgentService.createRelevantArtifactsMessage(
+            [example],
+            true,
+        );
+        const json = (content: unknown) =>
+            JSON.parse(String(content).split('```json\n')[1].split('```')[0]);
+        expect(json(legacy.content)).toEqual(example.chartConfig);
+        expect(json(compact.content)).toEqual({
+            verifiedQuestion: example.verifiedQuestion,
+            query: example.chartConfig,
+        });
+        expect(String(compact.content).length).toBeLessThan(
+            String(legacy.content).length,
+        );
+        expect(
+            AiAgentService.createRelevantArtifactsMessage([example], false),
+        ).toEqual(legacy);
     });
 });
