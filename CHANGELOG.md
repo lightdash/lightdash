@@ -1,3 +1,15 @@
+# [2.276.0](https://github.com/lightdash/lightdash/compare/2.275.0...2.276.0) (2026-09-21)
+
+
+### Bug Fixes
+
+* **s3:** translate copy headers to x-goog so CopyObject works under gcp_oauth ([#29645](https://github.com/lightdash/lightdash/issues/29645)) ([3d26778](https://github.com/lightdash/lightdash/commit/3d267789edcb973fcec96b0f47c13e07634f929b))
+
+
+### Features
+
+* **ai-agents:** add adaptive routing runtime ([#29636](https://github.com/lightdash/lightdash/issues/29636)) ([eec49ae](https://github.com/lightdash/lightdash/commit/eec49aebf568e226e57aef323127eaac5e448304))
+
 # [2.275.0](https://github.com/lightdash/lightdash/compare/2.274.5...2.275.0) (2026-09-21)
 
 

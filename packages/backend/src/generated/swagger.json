@@ -28566,9 +28566,28 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "queryCacheHit": {
+                                                        "type": "boolean"
+                                                    },
                                                     "chartImageUrl": {
                                                         "type": "string",
                                                         "nullable": true
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "queryCacheHit": {
+                                                        "type": "boolean"
                                                     },
                                                     "status": {
                                                         "type": "string",
@@ -64082,7 +64101,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.275.0",
+        "version": "2.276.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
