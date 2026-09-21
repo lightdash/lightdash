@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.unmock('@uiw/react-markdown-preview');
 vi.mock('../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../features/documents/useCanEditDocument', () => ({
+    useCanEditDocument: () => true,
+}));
 vi.mock('../features/documents/DocumentActions', () => ({
     default: () => null,
 }));
@@ -157,6 +160,12 @@ const renderPage = (
 };
 
 describe('Document page', () => {
+    test('offers editing for an authorized document author', async () => {
+        renderPage();
+        expect(
+            await screen.findByRole('button', { name: 'Edit document' }),
+        ).toBeInTheDocument();
+    });
     beforeEach(() => {
         mocks.chartFails = false;
         mocks.chart.mockReset();

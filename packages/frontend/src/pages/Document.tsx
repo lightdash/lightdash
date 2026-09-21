@@ -1,21 +1,63 @@
-import { FeatureFlags, type UuidOrSlug } from '@lightdash/common';
-import { Box, Button, Group, Title } from '@mantine/core';
+import {
+    FeatureFlags,
+    type Document,
+    type UuidOrSlug,
+} from '@lightdash/common';
+import { Button, Group } from '@mantine/core';
+import { lazy, Suspense, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
-import { DASHBOARD_HEADER_HEIGHT } from '../components/common/Dashboard/dashboard.constants';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
-import Page from '../components/common/Page/Page';
-import PageHeader from '../components/common/Page/PageHeader';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import TruncatedText from '../components/common/TruncatedText';
 import DocumentActions from '../features/documents/DocumentActions';
 import { getDocumentReturnUrl } from '../features/documents/documentNavigation';
+import DocumentPageLayout from '../features/documents/DocumentPageLayout';
 import DocumentRenderer from '../features/documents/DocumentRenderer';
-import reportStyles from '../features/documents/presentation/ReportPresentation.module.css';
+import { useCanEditDocument } from '../features/documents/useCanEditDocument';
 import { useDocument } from '../features/documents/useDocument';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
-import styles from './Document.module.css';
+
+const DocumentEditor = lazy(
+    () => import('../features/documents/DocumentEditor'),
+);
+
+const DocumentWorkspace = ({ document }: { document: Document }) => {
+    const [editingDocument, setEditingDocument] = useState<Document | null>(
+        null,
+    );
+    const canEdit = useCanEditDocument(document);
+    if (editingDocument && canEdit) {
+        return (
+            <Suspense fallback={<EmptyStateLoader title="Loading editor" />}>
+                <DocumentEditor
+                    document={editingDocument}
+                    onClose={() => setEditingDocument(null)}
+                />
+            </Suspense>
+        );
+    }
+    return (
+        <DocumentPageLayout
+            name={document.name}
+            actions={
+                <Group gap="sm">
+                    {canEdit && (
+                        <Button
+                            variant="default"
+                            onClick={() => setEditingDocument(document)}
+                        >
+                            Edit document
+                        </Button>
+                    )}
+                    <DocumentActions document={document} />
+                </Group>
+            }
+        >
+            <DocumentRenderer document={document} />
+        </DocumentPageLayout>
+    );
+};
 
 const DocumentContent = ({
     projectUuid,
@@ -47,43 +89,11 @@ const DocumentContent = ({
             />
         );
     }
-    const document = query.data;
     return (
-        <Box className={styles.page}>
-            <Page
-                title={document.name}
-                noContentPadding
-                header={
-                    <PageHeader
-                        cardProps={{
-                            px: 0,
-                            py: 0,
-                            h: DASHBOARD_HEADER_HEIGHT,
-                        }}
-                    >
-                        <Group
-                            className={reportStyles.reportControls}
-                            wrap="nowrap"
-                            justify="space-between"
-                        >
-                            <Title order={6} flex={1} miw={0}>
-                                <TruncatedText
-                                    maxWidth="100%"
-                                    inline
-                                    inherit
-                                    display="block"
-                                >
-                                    {document.name}
-                                </TruncatedText>
-                            </Title>
-                            <DocumentActions document={document} />
-                        </Group>
-                    </PageHeader>
-                }
-            >
-                <DocumentRenderer document={document} />
-            </Page>
-        </Box>
+        <DocumentWorkspace
+            key={query.data.documentUuid}
+            document={query.data}
+        />
     );
 };
 
