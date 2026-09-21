@@ -241,7 +241,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         event.preventDefault();
 
         if (isWorkspaceStep) {
-            if (!form.values.organizationName.trim()) return;
+            if (form.validateField('organizationName').hasError) return;
 
             track({
                 name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
@@ -252,7 +252,12 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         }
 
         const result = form.validate();
-        if (result.hasErrors) return;
+        if (result.hasErrors) {
+            if (showWorkspaceStep && 'organizationName' in result.errors) {
+                setStep(1);
+            }
+            return;
+        }
 
         const values = form.values;
 
