@@ -1,3 +1,10 @@
+## [2.272.2](https://github.com/lightdash/lightdash/compare/2.272.1...2.272.2) (2026-09-21)
+
+
+### Bug Fixes
+
+* **training:** show walkthrough guidance for preview requests ([#29632](https://github.com/lightdash/lightdash/issues/29632)) ([88da224](https://github.com/lightdash/lightdash/commit/88da22419176150403916a15657dc3f81fafb625))
+
 ## [2.272.1](https://github.com/lightdash/lightdash/compare/2.272.0...2.272.1) (2026-09-21)
 
 
