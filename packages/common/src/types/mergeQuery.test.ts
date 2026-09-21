@@ -112,6 +112,46 @@ describe('validateMergeQuery', () => {
             expect(errors).toEqual([]);
         });
 
+        it('refuses a many-to-many join when both split sources repeat', () => {
+            const errors = validateMergeQuery(
+                mergeQuery({
+                    sources: [
+                        {
+                            ...queryA([
+                                'followers_created_date',
+                                'followers_source',
+                            ]),
+                            repeatValues: true,
+                        },
+                        {
+                            id: 'b',
+                            repeatValues: true,
+                            metricQuery: metricQuery(
+                                'follower_snapshots',
+                                [
+                                    'follower_snapshots_date',
+                                    'follower_snapshots_category',
+                                ],
+                                ['follower_snapshots_total_followers'],
+                            ),
+                        },
+                    ],
+                }),
+            );
+            expect(errors).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        kind: MergeQueryErrorKind.FAN_OUT,
+                        sourceId: 'a',
+                    }),
+                    expect.objectContaining({
+                        kind: MergeQueryErrorKind.FAN_OUT,
+                        sourceId: 'b',
+                    }),
+                ]),
+            );
+        });
+
         it('still refuses the extra dimension when only the split source repeats', () => {
             const errors = validateMergeQuery(
                 mergeQuery({

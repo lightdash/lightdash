@@ -330,6 +330,9 @@ export const isFanOutAccepted = (
     sourceId: string,
 ): boolean =>
     sources.length > 1 &&
+    sources.some(
+        (source) => source.id === sourceId && source.repeatValues !== true,
+    ) &&
     sources.every(
         (source) => source.id === sourceId || source.repeatValues === true,
     );
