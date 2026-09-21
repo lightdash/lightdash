@@ -1,3 +1,10 @@
+## [2.286.6](https://github.com/lightdash/lightdash/compare/2.286.5...2.286.6) (2026-09-21)
+
+
+### Bug Fixes
+
+* **ai-agents:** preserve source attribution through catalog discovery ([#29689](https://github.com/lightdash/lightdash/issues/29689)) ([df202ff](https://github.com/lightdash/lightdash/commit/df202ff4d857b22853956a1595b671adf6edea0e)), closes [#29671](https://github.com/lightdash/lightdash/issues/29671) [#29676](https://github.com/lightdash/lightdash/issues/29676) [#29679](https://github.com/lightdash/lightdash/issues/29679) [#29682](https://github.com/lightdash/lightdash/issues/29682) [#29690](https://github.com/lightdash/lightdash/issues/29690) [#29671](https://github.com/lightdash/lightdash/issues/29671)
+
 ## [2.286.5](https://github.com/lightdash/lightdash/compare/2.286.4...2.286.5) (2026-09-21)
 
 
