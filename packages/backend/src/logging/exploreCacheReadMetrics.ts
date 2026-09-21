@@ -7,6 +7,7 @@ import Logger from './logger';
 
 const EXPLORE_CACHE_STATEMENT_METRICS_ENV_VAR =
     'LIGHTDASH_EXPLORE_CACHE_STATEMENT_METRICS_ENABLED';
+const MAX_PENDING_EXPLORE_CACHE_STATEMENTS = 1_000;
 
 type ExploreCacheOperation =
     | 'select'
@@ -38,6 +39,7 @@ type ExploreCacheStatementMetricDependencies = {
             serverVersion: string;
         },
     ) => void;
+    maxPendingStatements: number;
     now: () => number;
 };
 
@@ -106,6 +108,7 @@ export const attachExploreCacheStatementMetrics = (
     {
         getCaller = getActiveSpanName,
         log = (message, metadata) => Logger.info(message, metadata),
+        maxPendingStatements = MAX_PENDING_EXPLORE_CACHE_STATEMENTS,
         now = () => performance.now(),
     }: Partial<ExploreCacheStatementMetricDependencies> = {},
 ): void => {
@@ -119,6 +122,12 @@ export const attachExploreCacheStatementMetrics = (
         try {
             if (!isCachedExploreStatement(query.sql) || !query.__knexQueryUid) {
                 return;
+            }
+            if (pendingStatements.size >= maxPendingStatements) {
+                const oldestQueryUid = pendingStatements.keys().next().value;
+                if (oldestQueryUid !== undefined) {
+                    pendingStatements.delete(oldestQueryUid);
+                }
             }
             pendingStatements.set(query.__knexQueryUid, {
                 caller: getCaller() ?? null,

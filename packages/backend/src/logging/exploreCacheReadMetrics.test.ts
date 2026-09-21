@@ -169,6 +169,55 @@ describe('attachExploreCacheStatementMetrics', () => {
         });
     });
 
+    it('drops the oldest pending statement when the cap is reached', () => {
+        const database = new EventEmitter();
+        const log = vi.fn();
+        attachExploreCacheStatementMetrics(database as unknown as Knex, {
+            getCaller: () => undefined,
+            log,
+            maxPendingStatements: 2,
+            now: () => 10,
+        });
+        const statements = [
+            {
+                __knexQueryUid: 'oldest',
+                method: 'insert',
+                sql: 'insert into cached_explore values (?)',
+            },
+            {
+                __knexQueryUid: 'middle',
+                method: 'update',
+                sql: 'update cached_explore set name = ?',
+            },
+            {
+                __knexQueryUid: 'newest',
+                method: 'del',
+                sql: 'delete from cached_explore where name = ?',
+            },
+        ];
+
+        statements.forEach((query) => database.emit('query', query));
+        statements.forEach((query) =>
+            database.emit('query-response', [], query),
+        );
+
+        expect(log).toHaveBeenCalledTimes(2);
+        expect(log).toHaveBeenNthCalledWith(
+            1,
+            expect.any(String),
+            expect.objectContaining({
+                context: expect.objectContaining({ operation: 'update' }),
+            }),
+        );
+        expect(log).toHaveBeenNthCalledWith(
+            2,
+            expect.any(String),
+            expect.objectContaining({
+                context: expect.objectContaining({ operation: 'delete' }),
+            }),
+        );
+    });
+
     it('emits an error record when a cached explore statement fails', async () => {
         const database = knex({ client: MockClient, dialect: 'pg' });
         const log = vi.fn();
