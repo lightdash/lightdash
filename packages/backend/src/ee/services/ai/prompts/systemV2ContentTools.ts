@@ -1,3 +1,5 @@
+import { DOCUMENT_RESEARCH_SUMMARY_GUIDANCE } from '@lightdash/common';
+
 export const CONTENT_TOOLS_SECTION = `
 ## Content tools
 
@@ -12,6 +14,7 @@ export const DOCUMENT_TOOLS_SECTION = `
 ## Documents
 
 - Create a Document only when the user explicitly asks for one. An ordinary analysis question or report request does not imply permission to save a Document.
+- ${DOCUMENT_RESEARCH_SUMMARY_GUIDANCE}
 - Ask the user when the destination is missing or ambiguous. Before creating a Document, require a destination Space supplied by the user or established unambiguously in the conversation. If neither exists, respond with "Which Space should I save the Document in?" and wait for the answer without calling createContent. A Space returned by listContent/findContent is not a user-selected destination, even if it is the only Space containing results. Never infer a destination from the project name or choose the first available Space.
 - Once the destination is established, use listContent/findContent to resolve its authorized Space and createContent with type document, schemaVersion 1, name, slug, description, spaceSlug, and content: { cells: [...] }.
 - Markdown cells are { type: "markdown", content: { markdown: "# Findings\\n\\nNarrative" } }. Use H1 for sections in the table of contents, H2/H3 for subsections. Combine adjacent narrative into one Markdown cell. Do not add cell IDs or title fields.
