@@ -1,5 +1,6 @@
 import {
     isDashboardChartTileType,
+    isDashboardDataAppTileType,
     isDashboardSqlChartTile,
     isTileInPagedExport,
     type CacheMetadata,
@@ -247,6 +248,19 @@ const DashboardTileStatusProvider: React.FC<
         setScreenshotErroredTiles((prev) => new Set(prev).add(tileUuid));
     }, []);
 
+    const markTileScreenshotLoading = useCallback((tileUuid: string) => {
+        const removeTile = (tiles: Set<string>) => {
+            if (!tiles.has(tileUuid)) {
+                return tiles;
+            }
+            const next = new Set(tiles);
+            next.delete(tileUuid);
+            return next;
+        };
+        setScreenshotReadyTiles(removeTile);
+        setScreenshotErroredTiles(removeTile);
+    }, []);
+
     const expectedScreenshotTileUuids = useMemo(() => {
         if (!dashboardTiles) return [];
 
@@ -264,7 +278,8 @@ const DashboardTileStatusProvider: React.FC<
                     .filter(
                         (tile) =>
                             isDashboardChartTileType(tile) ||
-                            isDashboardSqlChartTile(tile),
+                            isDashboardSqlChartTile(tile) ||
+                            isDashboardDataAppTileType(tile),
                     )
                     .filter((tile) =>
                         isTileInPagedExport(tile, resolvedTabUuids),
@@ -277,7 +292,8 @@ const DashboardTileStatusProvider: React.FC<
                 .filter(
                     (tile) =>
                         isDashboardChartTileType(tile) ||
-                        isDashboardSqlChartTile(tile),
+                        isDashboardSqlChartTile(tile) ||
+                        isDashboardDataAppTileType(tile),
                 )
                 .filter((tile) =>
                     schedulerTabsSelected.includes(tile.tabUuid ?? null),
@@ -291,7 +307,8 @@ const DashboardTileStatusProvider: React.FC<
             .filter(
                 (tile) =>
                     isDashboardChartTileType(tile) ||
-                    isDashboardSqlChartTile(tile),
+                    isDashboardSqlChartTile(tile) ||
+                    isDashboardDataAppTileType(tile),
             )
             .filter((tile) => {
                 if (!activeTab) return true;
@@ -427,6 +444,7 @@ const DashboardTileStatusProvider: React.FC<
             tileNamesById,
             markTileScreenshotReady,
             markTileScreenshotErrored,
+            markTileScreenshotLoading,
             isReadyForScreenshot,
             screenshotReadyTilesCount: screenshotReadyTiles.size,
             screenshotErroredTilesCount: screenshotErroredTiles.size,
@@ -453,6 +471,7 @@ const DashboardTileStatusProvider: React.FC<
             tileNamesById,
             markTileScreenshotReady,
             markTileScreenshotErrored,
+            markTileScreenshotLoading,
             isReadyForScreenshot,
             screenshotReadyTiles,
             screenshotErroredTiles,
