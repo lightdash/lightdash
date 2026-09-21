@@ -1881,6 +1881,12 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         compactionResult: DataAppCompactionResult | null;
         // What the compaction threshold was compared against.
         contextTokensPerTurn: number | null;
+        // Null unless this build ran `/compact`.
+        compactInputTokens: number | null;
+        compactOutputTokens: number | null;
+        compactCacheReadInputTokens: number | null;
+        compactCacheCreationInputTokens: number | null;
+        compactCostUsd: number | null;
         distBytes: number;
         sourceBytes: number;
         creationExperience: DataAppCreationExperience | null;

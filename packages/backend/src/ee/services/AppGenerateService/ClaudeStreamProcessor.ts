@@ -384,6 +384,18 @@ function parseResult(line: string):
     };
 }
 
+// Usage of a one-shot CLI run captured whole, e.g. `/compact`; null when no
+// `result` event was emitted.
+export function findClaudeResultUsage(
+    stdout: string,
+): ClaudeGenerationUsage | null {
+    for (const line of stdout.split('\n')) {
+        const result = parseResult(line);
+        if (result !== undefined) return result.usage;
+    }
+    return null;
+}
+
 export class ClaudeStreamProcessor {
     private lineBuffer = '';
 

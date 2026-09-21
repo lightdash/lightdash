@@ -210,6 +210,28 @@ const COMPACT_FAILED = JSON.stringify({
     compact_error: 'Not enough messages to compact.',
 });
 
+const COMPACT_SUCCESS = [
+    JSON.stringify({
+        type: 'system',
+        subtype: 'status',
+        status: null,
+        compact_result: 'success',
+    }),
+    JSON.stringify({
+        type: 'result',
+        subtype: 'success',
+        num_turns: 1,
+        duration_api_ms: 40_000,
+        total_cost_usd: 1.5,
+        usage: {
+            input_tokens: 10,
+            output_tokens: 3_000,
+            cache_read_input_tokens: 0,
+            cache_creation_input_tokens: 470_000,
+        },
+    }),
+].join('\n');
+
 describe('AppGenerateService compact stage', () => {
     it('still builds when the agent could not summarize its session', async () => {
         const { runStages, statuses } = buildService(COMPACT_FAILED);
@@ -218,6 +240,25 @@ describe('AppGenerateService compact stage', () => {
 
         expect(statuses).toContain('compact');
         expect(statuses.at(-1)).toBe('ready');
+    });
+
+    it('reports what the summary itself cost, apart from the generation', async () => {
+        const { runStages, track } = buildService(COMPACT_SUCCESS);
+
+        await runStages();
+
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'data_app.version.completed',
+                properties: expect.objectContaining({
+                    compactionResult: 'success',
+                    compactCacheCreationInputTokens: 470_000,
+                    compactOutputTokens: 3_000,
+                    compactCostUsd: 1.5,
+                    cacheCreationInputTokens: 0,
+                }),
+            }),
+        );
     });
 
     it('never summarizes twice when a retry resumes past the stage', async () => {
