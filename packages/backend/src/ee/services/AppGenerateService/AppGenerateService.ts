@@ -540,6 +540,8 @@ const appendVizBuildContext = (
 
 type GenerateAppResult = {
     appUuid: string;
+    /** Final project-scoped slug; derived at creation and never changes. */
+    slug: string;
     version: number;
 };
 
@@ -7007,8 +7009,9 @@ export class AppGenerateService extends BaseService {
         // stored as null - it's the absence of a template, not a template itself.
         const persistedTemplate =
             template && template !== 'custom' ? template : null;
+        let slug: string;
         try {
-            await this.appModel.createWithVersion(
+            const created = await this.appModel.createWithVersion(
                 {
                     app_id: appUuid,
                     project_uuid: projectUuid,
@@ -7026,6 +7029,7 @@ export class AppGenerateService extends BaseService {
                 undefined,
                 { thread },
             );
+            slug = created.app.slug;
         } catch (error) {
             this.logger.error(
                 `App ${appUuid}: failed to create app record: ${getErrorMessage(error)}`,
@@ -7083,7 +7087,7 @@ export class AppGenerateService extends BaseService {
             ...(aiAgentToolCall ? { aiAgentToolCall } : {}),
         });
 
-        return { appUuid, version };
+        return { appUuid, slug, version };
     }
 
     async iterateApp(
@@ -7338,7 +7342,7 @@ export class AppGenerateService extends BaseService {
             ...(aiAgentToolCall ? { aiAgentToolCall } : {}),
         });
 
-        return { appUuid, version: newVersion };
+        return { appUuid, slug: app.slug, version: newVersion };
     }
 
     /**
@@ -7633,7 +7637,7 @@ export class AppGenerateService extends BaseService {
             designUuid: app.design_uuid,
         });
 
-        return { appUuid, version: newVersion };
+        return { appUuid, slug: app.slug, version: newVersion };
     }
 
     /**

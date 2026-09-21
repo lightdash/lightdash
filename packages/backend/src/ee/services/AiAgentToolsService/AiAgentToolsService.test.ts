@@ -3009,9 +3009,11 @@ describe('AiAgentToolsService generateDataApp', () => {
     }: { enabled?: boolean; canCreate?: boolean } = {}) => ({
         dataAppsEnabledFor: vi.fn().mockResolvedValue(enabled),
         canCreateDataApp: vi.fn().mockResolvedValue(canCreate),
-        generateApp: vi
-            .fn()
-            .mockResolvedValue({ appUuid: 'app-uuid', version: 1 }),
+        generateApp: vi.fn().mockResolvedValue({
+            appUuid: 'app-uuid',
+            slug: 'revenue-overview',
+            version: 1,
+        }),
     });
 
     const dashboardService = {
@@ -3083,7 +3085,11 @@ describe('AiAgentToolsService generateDataApp', () => {
             template: 'slideshow',
         });
 
-        expect(result).toEqual({ appUuid: 'app-uuid', version: 1 });
+        expect(result).toEqual({
+            appUuid: 'app-uuid',
+            slug: 'revenue-overview',
+            version: 1,
+        });
         const [calledUser, calledProject, prompt, , , , , template] =
             appGenerateService.generateApp.mock.calls[0];
         const opts = generateAppOptions(appGenerateService);
@@ -3173,6 +3179,33 @@ describe('AiAgentToolsService generateDataApp', () => {
             ),
         ).rejects.toThrow('generateDataApp requires a thread');
         expect(appGenerateService.generateApp).not.toHaveBeenCalled();
+    });
+
+    it('starts an mcp build with no prompt, thread, or tool-call reference', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({ appGenerateService });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext({ source: 'mcp' }))
+            .generateDataApp({
+                name: 'Revenue Overview',
+                prompt: 'Build a revenue app',
+                template: null,
+                dashboardSlug: null,
+                chartSlugs: null,
+                themeSlug: null,
+                toolCallId: null,
+            });
+
+        expect(result).toEqual({
+            appUuid: 'app-uuid',
+            slug: 'revenue-overview',
+            version: 1,
+        });
+        expect(generateAppOptions(appGenerateService)).toEqual({
+            name: 'Revenue Overview',
+            creationExperience: 'mcp',
+        });
     });
 
     it.each([
@@ -3632,14 +3665,13 @@ describe('AiAgentToolsService listDataAppThemes', () => {
         ]);
     });
 
-    it('is omitted from the MCP runtime like the other data app tools', () => {
+    it('lists the same themes on the MCP runtime', async () => {
         const service = makeService({ organizationDesignModel });
 
-        const runtime = service.createRuntime(
-            makeRuntimeContext({ source: 'mcp' }),
-        );
+        const themes = await service
+            .createRuntime(makeRuntimeContext({ source: 'mcp' }))
+            .listDataAppThemes();
 
-        expect(runtime).not.toHaveProperty('listDataAppThemes');
-        expect(runtime).not.toHaveProperty('generateDataApp');
+        expect(themes.map((theme) => theme.slug)).toEqual(['brand', 'dark']);
     });
 });

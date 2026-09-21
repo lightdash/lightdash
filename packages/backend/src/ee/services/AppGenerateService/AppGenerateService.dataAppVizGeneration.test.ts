@@ -27,7 +27,9 @@ function buildService(
 ) {
     const analytics = { track: vi.fn() };
     const appModel = overrides.appModel ?? {
-        createWithVersion: vi.fn().mockResolvedValue(undefined),
+        createWithVersion: vi
+            .fn()
+            .mockResolvedValue({ app: { slug: 'generated-app' } }),
         createVersion: vi.fn().mockResolvedValue(undefined),
         getApp: vi.fn().mockResolvedValue({
             app_id: 'app-1',
@@ -137,6 +139,7 @@ describe('AppGenerateService.generateApp with the data app viz template', () => 
 
         expect(result).toEqual({
             appUuid: expect.any(String),
+            slug: 'generated-app',
             version: 1,
         });
 
