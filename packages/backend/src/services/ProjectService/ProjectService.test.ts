@@ -2220,33 +2220,187 @@ describe('ProjectService', () => {
         }
     });
 
-    test('rejects externally supplied embedded DuckDB credentials', async () => {
-        await expect(
-            service.createWithoutCompile(
+    describe('training preview creation', () => {
+        const training = {
+            ...projectWithSensitiveFields,
+            type: ProjectType.TRAINING,
+        };
+        const warehouseConnection = {
+            type: WarehouseTypes.DUCKDB as const,
+            connectionType: DuckdbConnectionType.EMBEDDED as const,
+            dataset: 'jaffle_shop',
+        };
+        const previewData: CreateProject = {
+            name: 'Training preview',
+            type: ProjectType.PREVIEW,
+            upstreamProjectUuid: training.projectUuid,
+            dbtConnection: { type: DbtProjectType.NONE },
+            dbtVersion: training.dbtVersion,
+            warehouseConnection,
+        };
+        const trainingUser = (role: OrganizationMemberRole): SessionUser => ({
+            ...user,
+            role,
+            organizationUuid: training.organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date(),
+            ability: defineUserAbility(
                 {
-                    ...user,
-                    organizationUuid:
-                        projectWithSensitiveFields.organizationUuid,
-                    organizationName: 'Organization',
-                    organizationCreatedAt: new Date(),
+                    userUuid: user.userUuid,
+                    organizationUuid: training.organizationUuid,
+                    role,
                 },
-                {
-                    name: 'Embedded project',
-                    type: ProjectType.DEFAULT,
-                    dbtConnection: { type: DbtProjectType.NONE },
-                    dbtVersion: projectWithSensitiveFields.dbtVersion,
-                    warehouseConnection: {
-                        type: WarehouseTypes.DUCKDB,
-                        connectionType: DuckdbConnectionType.EMBEDDED,
-                        dataset: 'jaffle_shop',
-                    },
-                },
-                RequestMethod.WEB_APP,
+                [],
             ),
-        ).rejects.toThrow(
-            'Embedded DuckDB connections can only be provisioned internally',
+        });
+
+        describe.each(['createWithoutCompile', 'scheduleCreate'] as const)(
+            '%s',
+            (creationMethod) => {
+                test.each([
+                    OrganizationMemberRole.ADMIN,
+                    OrganizationMemberRole.VIEWER,
+                ])(
+                    'directs %s users with supplied embedded credentials to start a walkthrough',
+                    async (role) => {
+                        const getProject = vi
+                            .spyOn(projectModel, 'get')
+                            .mockResolvedValue(training);
+                        projectModel.createWithOptionalCredentials.mockClear();
+                        jobModel.create.mockClear();
+                        schedulerClient.createProjectWithCompile.mockClear();
+
+                        try {
+                            await expect(
+                                service[creationMethod](
+                                    trainingUser(role),
+                                    { ...previewData },
+                                    RequestMethod.WEB_APP,
+                                ),
+                            ).rejects.toEqual(
+                                new ForbiddenError(
+                                    'Previews of the training project are made by starting a walkthrough',
+                                ),
+                            );
+                            expect(
+                                projectModel.createWithOptionalCredentials,
+                            ).not.toHaveBeenCalled();
+                            expect(jobModel.create).not.toHaveBeenCalled();
+                            expect(
+                                schedulerClient.createProjectWithCompile,
+                            ).not.toHaveBeenCalled();
+                        } finally {
+                            getProject.mockRestore();
+                        }
+                    },
+                );
+            },
         );
+
+        test('allows an internal training copy for a viewer without preview creation permission', async () => {
+            const preview = {
+                ...training,
+                projectUuid: 'created-preview-project-uuid',
+                type: ProjectType.PREVIEW,
+            };
+            const getProject = vi
+                .spyOn(projectModel, 'get')
+                .mockResolvedValueOnce(training)
+                .mockResolvedValueOnce(training)
+                .mockResolvedValueOnce(preview);
+            const getCredentials = vi
+                .spyOn(projectModel, 'getWarehouseCredentialsForProject')
+                .mockResolvedValueOnce(warehouseConnection);
+            const expiration = vi
+                .spyOn(service, 'getPreviewExpiresAt')
+                .mockResolvedValue(null);
+            const copyAccess = vi
+                .spyOn(service, 'copyUserAccessOnPreview')
+                .mockResolvedValue();
+            const copyContent = vi
+                .spyOn(service, 'copyContentOnPreview')
+                .mockResolvedValue();
+
+            try {
+                await expect(
+                    service.createWithoutCompile(
+                        trainingUser(OrganizationMemberRole.VIEWER),
+                        {
+                            ...previewData,
+                            warehouseConnection: undefined,
+                            copyWarehouseConnectionFromUpstreamProject: true,
+                            copyContent: true,
+                        },
+                        RequestMethod.BACKEND,
+                        { source: 'training' },
+                    ),
+                ).resolves.toMatchObject({
+                    project: preview,
+                    hasContentCopy: true,
+                    accessCopyError: undefined,
+                    contentCopyError: undefined,
+                });
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).toHaveBeenCalledWith(
+                    user.userUuid,
+                    training.organizationUuid,
+                    expect.objectContaining({
+                        type: ProjectType.PREVIEW,
+                        upstreamProjectUuid: training.projectUuid,
+                    }),
+                    null,
+                    'training',
+                );
+            } finally {
+                getProject.mockRestore();
+                getCredentials.mockRestore();
+                expiration.mockRestore();
+                copyAccess.mockRestore();
+                copyContent.mockRestore();
+            }
+        });
     });
+
+    test.each(['createWithoutCompile', 'scheduleCreate'] as const)(
+        '%s rejects externally supplied embedded DuckDB credentials for default projects',
+        async (creationMethod) => {
+            await expect(
+                service[creationMethod](
+                    {
+                        ...user,
+                        ability: defineUserAbility(
+                            {
+                                userUuid: user.userUuid,
+                                organizationUuid:
+                                    projectWithSensitiveFields.organizationUuid,
+                                role: OrganizationMemberRole.ADMIN,
+                            },
+                            [],
+                        ),
+                        organizationUuid:
+                            projectWithSensitiveFields.organizationUuid,
+                        organizationName: 'Organization',
+                        organizationCreatedAt: new Date(),
+                    },
+                    {
+                        name: 'Embedded project',
+                        type: ProjectType.DEFAULT,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                        warehouseConnection: {
+                            type: WarehouseTypes.DUCKDB,
+                            connectionType: DuckdbConnectionType.EMBEDDED,
+                            dataset: 'jaffle_shop',
+                        },
+                    },
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrow(
+                'Embedded DuckDB connections can only be provisioned internally',
+            );
+        },
+    );
 
     describe('public analytics connection configuration', () => {
         const warehouseConnection = {
