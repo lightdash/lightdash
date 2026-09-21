@@ -1017,17 +1017,15 @@ export type SavedChart = {
     } | null;
 };
 
-type CreateChartBase = Pick<
-    SavedChart,
-    | 'name'
-    | 'description'
-    | 'tableName'
-    | 'metricQuery'
-    | 'pivotConfig'
-    | 'chartConfig'
-    | 'tableConfig'
-    | 'parameters'
-> & {
+type CreateChartBase = {
+    name: SavedChart['name'];
+    description?: SavedChart['description'];
+    tableName: SavedChart['tableName'];
+    metricQuery: SavedChart['metricQuery'];
+    pivotConfig?: SavedChart['pivotConfig'];
+    chartConfig: SavedChart['chartConfig'];
+    tableConfig: SavedChart['tableConfig'];
+    parameters?: SavedChart['parameters'];
     /** Accepts schema v2 uploads; saved charts return the named schema v3 shape. */
     merge?: SavedMergeDefinition | SavedMergeQuery | null;
 };

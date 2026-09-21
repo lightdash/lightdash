@@ -6,7 +6,6 @@ import {
 export {
     MERGE_PRIMARY_SOURCE_ID as PRIMARY_SOURCE_ID,
     MERGE_ADDITIONAL_SOURCE_ID as DEFAULT_ADDITIONAL_SOURCE_ID,
-    MERGE_JOIN_KEY as JOIN_KEY,
 } from '@lightdash/common';
 import { type MergeEditorSource, type MergeJoinPart } from './context/context';
 

@@ -7,6 +7,7 @@ import {
     DashboardTileTypes,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
+    MergeJoinType,
     OrganizationMemberRole,
     SpaceMemberRole,
     type ChartSimilarityContext,
@@ -1041,6 +1042,44 @@ describe('Ambient AI content similarity', () => {
             ),
         ).toEqual([]);
         expect(deps.aiService.compareCharts).not.toHaveBeenCalled();
+    });
+    it('normalizes legacy merge requests before comparing charts', async () => {
+        const deps = setup();
+        await deps.service.findSimilarContentWithAi(requester, PROJECT, {
+            ...params,
+            chart: {
+                ...chart,
+                merge: {
+                    primarySourceId: 'a',
+                    sources: [
+                        { id: 'a', kind: 'chart' },
+                        {
+                            id: 'b',
+                            kind: 'query',
+                            metricQuery: chart.metricQuery,
+                        },
+                    ],
+                    joinKey: [],
+                    joinType: MergeJoinType.FULL,
+                    tableCalculations: [],
+                },
+            },
+        });
+        expect(
+            deps.aiService.compareCharts.mock.calls[0][2].source.merge,
+        ).toEqual({
+            chartAs: 'a',
+            queries: {
+                b: {
+                    explore: 'orders',
+                    dimensions: [],
+                    metrics: ['orders_revenue'],
+                },
+            },
+            join: MergeJoinType.FULL,
+            keys: {},
+            limit: 500,
+        });
     });
     it('ignores a client replacement query for an existing chart', async () => {
         const deps = setup();

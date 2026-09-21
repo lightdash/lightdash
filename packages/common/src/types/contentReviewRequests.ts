@@ -3,6 +3,7 @@ import {
     type DirectAccessResourceType,
 } from './directAccess';
 import { type KnexPaginatedData } from './knex-paginate';
+import { type SavedMergeDefinition, type SavedMergeQuery } from './mergeQuery';
 import { type SavedChart } from './savedCharts';
 
 // Review-specific so SQL charts can be reviewed without widening the
@@ -51,11 +52,17 @@ export type ChartSimilarityContext = Pick<
     'metricQuery' | 'parameters' | 'merge'
 >;
 
+export type ChartSimilarityRequest = {
+    metricQuery: SavedChart['metricQuery'];
+    parameters?: SavedChart['parameters'];
+    merge?: SavedMergeDefinition | SavedMergeQuery | null;
+};
+
 export type FindSimilarContentBody = {
     contentType: ContentReviewContentType;
     name: string;
     excludeContentUuid: string | null;
-    chart?: ChartSimilarityContext;
+    chart?: ChartSimilarityRequest;
 };
 
 export type ContentReviewMovedItem = {
