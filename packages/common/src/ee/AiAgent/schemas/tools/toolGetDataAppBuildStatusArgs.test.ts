@@ -41,7 +41,7 @@ describe('getDataAppBuildStatusResponse', () => {
                 errorMessage: null,
                 name: 'Quarterly review',
                 slug: 'quarterly-review',
-                href: `https://lightdash.example/projects/project-1/apps/${APP_UUID}`,
+                href: `https://lightdash.example/projects/project-1/apps/quarterly-review`,
                 nextPollAfterMs: DATA_APP_BUILD_POLL_INTERVAL_MS,
             });
         },
@@ -74,7 +74,7 @@ describe('getDataAppBuildStatusResponse', () => {
             errorMessage: null,
             name: 'Quarterly review',
             slug: 'quarterly-review',
-            href: `https://lightdash.example/projects/project-1/apps/${APP_UUID}`,
+            href: `https://lightdash.example/projects/project-1/apps/quarterly-review`,
             nextPollAfterMs: DATA_APP_BUILD_POLL_INTERVAL_MS,
         });
     });
@@ -106,7 +106,7 @@ describe('getDataAppBuildStatusResponse', () => {
             errorMessage: 'npm install exited with code 1',
             name: 'Quarterly review',
             slug: 'quarterly-review',
-            href: `https://lightdash.example/projects/project-1/apps/${APP_UUID}`,
+            href: `https://lightdash.example/projects/project-1/apps/quarterly-review`,
             nextPollAfterMs: DATA_APP_BUILD_POLL_INTERVAL_MS,
         });
     });
@@ -142,7 +142,7 @@ describe('getDataAppBuildStatusResponse', () => {
             errorMessage: null,
             name: 'Quarterly review',
             slug: 'quarterly-review',
-            href: `https://lightdash.example/projects/project-1/apps/${APP_UUID}`,
+            href: `https://lightdash.example/projects/project-1/apps/quarterly-review`,
             nextPollAfterMs: DATA_APP_BUILD_POLL_INTERVAL_MS,
         });
     });

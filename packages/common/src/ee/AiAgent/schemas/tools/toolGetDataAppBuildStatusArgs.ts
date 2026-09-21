@@ -138,7 +138,7 @@ export const getDataAppBuildStatusResponse = ({
     const common = {
         name: displayName,
         slug,
-        href: `${siteUrl}${getDataAppBuilderPath(projectUuid, appUuid)}`,
+        href: `${siteUrl}${getDataAppBuilderPath(projectUuid, slug)}`,
         nextPollAfterMs: DATA_APP_BUILD_POLL_INTERVAL_MS,
     };
     if (status !== 'error') {

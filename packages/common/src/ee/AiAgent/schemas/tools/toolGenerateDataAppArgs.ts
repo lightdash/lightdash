@@ -128,8 +128,10 @@ export const isToolGenerateDataAppResult = makeBuiltInToolResultGuard(
     toolGenerateDataAppOutputSchema.shape.metadata,
 );
 
-export const getDataAppBuilderPath = (projectUuid: string, appUuid: string) =>
-    `/projects/${projectUuid}/apps/${appUuid}`;
+export const getDataAppBuilderPath = (
+    projectUuid: string,
+    appUuidOrSlug: string,
+) => `/projects/${projectUuid}/apps/${appUuidOrSlug}`;
 
 // Terminal tool result for a version, or null while still building. Shared by
 // the worker patch and the thread-read self-heal.

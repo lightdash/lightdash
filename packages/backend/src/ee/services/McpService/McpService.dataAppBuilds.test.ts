@@ -196,7 +196,7 @@ describe('McpService get_data_app_build_status', () => {
                 errorMessage: null,
                 name: 'Quarterly review',
                 slug: 'quarterly-review',
-                href: `https://lightdash.example/projects/${projectUuid}/apps/${appUuid}`,
+                href: `https://lightdash.example/projects/${projectUuid}/apps/quarterly-review`,
                 nextPollAfterMs: 15000,
             });
         });
@@ -210,7 +210,7 @@ describe('McpService get_data_app_build_status', () => {
 
             expect(result.structuredContent).toMatchObject({
                 status: 'ready',
-                href: `https://lightdash.example/projects/${projectUuid}/apps/${appUuid}`,
+                href: `https://lightdash.example/projects/${projectUuid}/apps/quarterly-review`,
             });
         });
 
