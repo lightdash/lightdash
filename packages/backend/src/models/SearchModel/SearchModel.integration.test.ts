@@ -15,6 +15,7 @@ import {
     DashboardTilesTableName,
     DashboardVersionsTableName,
 } from '../../database/entities/dashboards';
+import type { DbDocument } from '../../database/entities/documents';
 import {
     ProjectTableName,
     type DbProject,
@@ -589,6 +590,234 @@ describe('SearchModel.search dashboard tabs', () => {
                 dashboardName: dashboard.name,
                 spaceUuid: seedSpace.space_uuid,
             },
+        ]);
+    });
+});
+
+describe('SearchModel.searchDocuments', () => {
+    let projectUuid: string;
+    const creatorUuid = SEED_ORG_1_ADMIN.user_uuid;
+    let database: Knex.Transaction;
+    let model: SearchModel;
+    let spaceId: number;
+    let spaceUuid: string;
+    let projectId: number;
+    let creatorId: number;
+    const foreignProjectUuid = SEED_PROJECT.project_uuid;
+
+    const createSpace = async () => {
+        const slug = `document-search-${randomUUID()}`;
+        const [space] = await database(SpaceTableName)
+            .insert({
+                name: 'Document search space',
+                project_id: projectId,
+                created_by_user_id: creatorId,
+                slug,
+                path: slug.replaceAll('-', '_'),
+                parent_space_uuid: null,
+                inherit_parent_permissions: false,
+                is_default_user_space: false,
+            })
+            .returning(['space_id', 'space_uuid']);
+        return space;
+    };
+
+    const insertDocument = async (overrides: Partial<DbDocument> = {}) => {
+        const documentUuid = randomUUID();
+        await database.raw(
+            'INSERT INTO documents (document_uuid, project_uuid, space_id, slug, name, description, created_by_user_uuid, created_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                documentUuid,
+                overrides.project_uuid ?? projectUuid,
+                overrides.space_id ?? spaceId,
+                overrides.slug ?? `report-${documentUuid}`,
+                overrides.name ?? 'Revenue report',
+                overrides.description ?? 'Quarterly forecast',
+                overrides.created_by_user_uuid === undefined
+                    ? creatorUuid
+                    : overrides.created_by_user_uuid,
+                overrides.created_at ?? new Date('2025-01-15T12:00:00Z'),
+                overrides.deleted_at ?? null,
+            ],
+        );
+        return documentUuid;
+    };
+
+    beforeEach(async () => {
+        database = await getTestContext().db.transaction();
+        model = new SearchModel({
+            database,
+            contentVerificationModel: new ContentVerificationModel({
+                database,
+            }),
+        });
+        const project = await database(ProjectTableName)
+            .where('project_uuid', SEED_PROJECT.project_uuid)
+            .first();
+        const user = await database(UserTableName)
+            .where('user_uuid', creatorUuid)
+            .first('user_id');
+        if (!project || !user) {
+            throw new Error('Document search seed fixture not found');
+        }
+        creatorId = user.user_id;
+        const [searchProject] = await database(ProjectTableName)
+            .insert({
+                name: `Document search project ${randomUUID()}`,
+                organization_id: project.organization_id,
+                project_type: project.project_type,
+                dbt_connection: project.dbt_connection,
+                dbt_connection_type: project.dbt_connection_type,
+                copied_from_project_uuid: project.copied_from_project_uuid,
+                dbt_version: project.dbt_version,
+                created_by_user_uuid: project.created_by_user_uuid,
+                organization_warehouse_credentials_uuid:
+                    project.organization_warehouse_credentials_uuid,
+            })
+            .returning(['project_id', 'project_uuid']);
+        projectUuid = searchProject.project_uuid;
+        projectId = searchProject.project_id;
+        const space = await createSpace();
+        spaceId = space.space_id;
+        spaceUuid = space.space_uuid;
+    });
+
+    afterEach(async () => {
+        if (database && !database.isCompleted()) {
+            await database.rollback();
+        }
+    });
+
+    it('indexes insert and metadata updates without indexing or returning cell contents', async () => {
+        const uuid = await insertDocument();
+        const document = await database('documents')
+            .where('document_uuid', uuid)
+            .first('document_id');
+        if (!document) {
+            throw new Error('Document fixture not found');
+        }
+        await database('document_versions').insert({
+            document_id: document.document_id,
+            version_number: 1,
+            schema_version: 1,
+            created_by_user_uuid: creatorUuid,
+            content: JSON.stringify({
+                cells: [
+                    { type: 'markdown', content: { markdown: 'ultraviolet' } },
+                ],
+            }),
+        });
+        const results = await model.searchDocuments(projectUuid, 'revenue');
+        expect(results).toEqual([
+            expect.objectContaining({
+                uuid,
+                name: 'Revenue report',
+                description: 'Quarterly forecast',
+                projectUuid,
+                spaceUuid,
+                createdBy: {
+                    firstName: SEED_ORG_1_ADMIN.first_name,
+                    lastName: SEED_ORG_1_ADMIN.last_name,
+                    userUuid: creatorUuid,
+                },
+            }),
+        ]);
+        expect(results[0]).not.toHaveProperty('content');
+        expect(await model.searchDocuments(projectUuid, 'ultraviolet')).toEqual(
+            [],
+        );
+        await database('documents')
+            .where('document_uuid', uuid)
+            .update({ name: 'Retention overview' });
+        expect(await model.searchDocuments(projectUuid, 'revenue')).toEqual([]);
+        expect(
+            await model.searchDocuments(projectUuid, 'retention'),
+        ).toHaveLength(1);
+        await database('documents')
+            .where('document_uuid', uuid)
+            .update({ description: 'Customer loyalty' });
+        expect(await model.searchDocuments(projectUuid, 'forecast')).toEqual(
+            [],
+        );
+        expect(
+            await model.searchDocuments(projectUuid, 'loyalty'),
+        ).toHaveLength(1);
+    });
+
+    it('excludes other projects, soft-deleted Documents and deleted parent Spaces', async () => {
+        const uuid = await insertDocument();
+        await insertDocument({ project_uuid: foreignProjectUuid });
+        await insertDocument({ deleted_at: new Date() });
+        expect(await model.searchDocuments(projectUuid, 'revenue')).toEqual([
+            expect.objectContaining({ uuid }),
+        ]);
+        await database('spaces')
+            .where('space_id', spaceId)
+            .update({ deleted_at: new Date(), deleted_by_user_uuid: null });
+        expect(await model.searchDocuments(projectUuid, 'revenue')).toEqual([]);
+    });
+
+    it('applies Document type, verified, creator and inclusive date filters', async () => {
+        const uuid = await insertDocument();
+        await insertDocument({ created_by_user_uuid: null });
+        await insertDocument({ created_at: new Date('2025-01-16T00:00:00Z') });
+        await insertDocument({ created_at: new Date('2025-01-14T23:59:59Z') });
+        const filters = {
+            type: SearchItemType.DOCUMENT,
+            createdByUuid: creatorUuid,
+            fromDate: '2025-01-15',
+            toDate: '2025-01-15',
+        };
+        expect(
+            await model.searchDocuments(projectUuid, 'revenue', filters),
+        ).toEqual([expect.objectContaining({ uuid })]);
+        expect(
+            await model.searchDocuments(projectUuid, 'revenue', {
+                type: SearchItemType.CHART,
+            }),
+        ).toEqual([]);
+        expect(
+            await model.searchDocuments(projectUuid, 'revenue', {
+                verifiedOnly: true,
+            }),
+        ).toEqual([]);
+        expect(
+            await model.searchDocuments(projectUuid, 'revenue', {
+                createdByUuid: randomUUID(),
+            }),
+        ).toEqual([]);
+        expect(await model.searchDocuments(projectUuid, 'revenue')).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ createdBy: null }),
+            ]),
+        );
+        await expect(
+            model.searchDocuments(projectUuid, 'revenue', {
+                fromDate: '2025-01-16',
+                toDate: '2025-01-15',
+            }),
+        ).rejects.toThrow('fromDate cannot be after toDate');
+    });
+
+    it('ranks name matches above descriptions and returns a deterministic top ten', async () => {
+        const descriptions = await Promise.all(
+            Array.from({ length: 12 }, (_, index) =>
+                insertDocument({
+                    name: `Report ${index}`,
+                    description: 'Revenue',
+                }),
+            ),
+        );
+        const exact = await insertDocument({
+            name: 'Revenue',
+            description: '',
+        });
+        const results = await model.searchDocuments(projectUuid, 'revenue');
+        expect(results).toHaveLength(10);
+        expect(results[0].uuid).toBe(exact);
+        expect(results.map(({ uuid }) => uuid)).toEqual([
+            exact,
+            ...descriptions.sort().slice(0, 9),
         ]);
     });
 });

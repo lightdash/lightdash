@@ -10,6 +10,7 @@ const organizationUuid = 'organization-uuid';
 
 const user = {
     userUuid: 'user-uuid',
+    abilityRules: [],
     ability: defineUserAbility(
         {
             role: OrganizationMemberRole.ADMIN,
@@ -49,6 +50,9 @@ const makeService = ({ dataAppsEnabled = true } = {}) => {
         filterAppsUserCanView: vi.fn().mockResolvedValue([dataApp]),
     };
     const service = new SearchService({
+        documentService: {
+            filterViewableUuids: vi.fn().mockResolvedValue([]),
+        } as never,
         analytics: {} as never,
         searchModel: searchModel as never,
         projectModel: {
@@ -119,6 +123,7 @@ describe('SearchService.findContent', () => {
 describe('SearchService resource-aware access', () => {
     const directViewer = {
         userUuid: 'direct-user-uuid',
+        abilityRules: [],
         ability: defineUserAbility(
             {
                 role: OrganizationMemberRole.INTERACTIVE_VIEWER,
@@ -165,6 +170,9 @@ describe('SearchService resource-aware access', () => {
             },
         ]);
         const grantedService = new SearchService({
+            documentService: {
+                filterViewableUuids: vi.fn().mockResolvedValue([]),
+            } as never,
             analytics: {} as never,
             searchModel: {
                 searchDashboards: vi.fn().mockResolvedValue([dashboard]),
@@ -233,6 +241,7 @@ describe('SearchService resource-aware access', () => {
             tables: [],
             pages: [],
             dataApps: [],
+            documents: [],
         };
         const resolveAccessBatch = vi.fn(async (_userUuid, targets) =>
             targets.map((target: unknown) => ({
@@ -242,6 +251,9 @@ describe('SearchService resource-aware access', () => {
         );
         const getAccessibleSpaceUuids = vi.fn().mockResolvedValue([]);
         const grantedService = new SearchService({
+            documentService: {
+                filterViewableUuids: vi.fn().mockResolvedValue([]),
+            } as never,
             analytics: { track: vi.fn() } as never,
             searchModel: {
                 search: vi.fn().mockResolvedValue(searchResults),

@@ -11,6 +11,7 @@ import {
     IconAppWindow,
     IconBrowser,
     IconFolder,
+    IconFileText,
     IconLayoutDashboard,
     IconLayoutNavbarInactive,
     IconSettings,
@@ -22,6 +23,7 @@ import { type SearchResultMap } from '../types/searchResultMap';
 
 export const getOmnibarItemColor = (itemType: SearchItemType) => {
     switch (itemType) {
+        case SearchItemType.DOCUMENT:
         case SearchItemType.FIELD:
             return 'ldGray.7';
         case SearchItemType.DASHBOARD_TAB:
@@ -60,6 +62,8 @@ export const getOmnibarItemIcon = (item: SearchItem) => {
             } else {
                 return Icon123;
             }
+        case SearchItemType.DOCUMENT:
+            return IconFileText;
         case SearchItemType.DASHBOARD:
             return IconLayoutDashboard;
         case SearchItemType.CHART:

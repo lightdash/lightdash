@@ -17,6 +17,7 @@ const malformedTypeFilter = 'privacy-filter-canary';
 
 const user = {
     userUuid,
+    abilityRules: [],
     ability: defineUserAbility(
         {
             role: OrganizationMemberRole.ADMIN,
@@ -38,6 +39,7 @@ const emptyResults: SearchResults = {
     pages: [],
     dashboardTabs: [],
     dataApps: [],
+    documents: [],
 };
 
 const deferred = <T>() => {
@@ -107,6 +109,9 @@ const makeService = ({
         }),
     };
     const service = new SearchService({
+        documentService: {
+            filterViewableUuids: vi.fn().mockResolvedValue([]),
+        } as never,
         analytics: analytics as never,
         searchModel: searchModel as never,
         projectModel: projectModel as never,

@@ -1235,6 +1235,7 @@ export class ServiceRepository
             'searchService',
             () =>
                 new SearchService({
+                    documentService: this.getDocumentService(),
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
                     searchModel: this.models.getSearchModel(),

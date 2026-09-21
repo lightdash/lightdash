@@ -4,6 +4,8 @@ export const getSearchItemLabel = (itemType: SearchItemType) => {
     switch (itemType) {
         case SearchItemType.FIELD:
             return 'Fields';
+        case SearchItemType.DOCUMENT:
+            return 'Documents';
         case SearchItemType.DASHBOARD:
             return 'Dashboards';
         case SearchItemType.DASHBOARD_TAB:

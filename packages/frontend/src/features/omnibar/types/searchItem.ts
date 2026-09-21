@@ -9,6 +9,7 @@ import { type Icon as TablerIcon } from '@tabler/icons-react';
 // Data apps slot just above Spaces so they sit alongside the other
 // "container" content types (spaces) rather than at the bottom.
 export const allSearchItemTypes: SearchItemType[] = [
+    SearchItemType.DOCUMENT,
     SearchItemType.DASHBOARD,
     SearchItemType.DASHBOARD_TAB,
     SearchItemType.CHART,

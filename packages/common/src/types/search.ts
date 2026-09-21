@@ -1,6 +1,7 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type Dashboard } from './dashboard';
+import { type DocumentSummary } from './document';
 import { type Table } from './explore';
 import { type Dimension, type Metric } from './field';
 import { type ChartKind, type SavedChart } from './savedCharts';
@@ -173,6 +174,14 @@ export type FieldSearchResult = Pick<
     regexMatchCount: number;
 };
 
+export type DocumentSearchResult = Pick<
+    DocumentSummary,
+    'slug' | 'name' | 'description' | 'projectUuid' | 'spaceUuid'
+> & {
+    uuid: string;
+    createdBy: { firstName: string; lastName: string; userUuid: string } | null;
+} & RankedItem;
+
 export type DataAppSearchResult = {
     uuid: string;
     slug: string;
@@ -213,7 +222,8 @@ export type SearchResult =
     | TableSearchResult
     | FieldSearchResult
     | PageResult
-    | DataAppSearchResult;
+    | DataAppSearchResult
+    | DocumentSearchResult;
 
 export const isExploreSearchResult = (
     value: SearchResult,
@@ -252,6 +262,7 @@ export type SearchResults = {
     pages: PageResult[];
     dashboardTabs: DashboardTabResult[];
     dataApps: DataAppSearchResult[];
+    documents: DocumentSearchResult[];
 };
 
 export const getSearchResultId = (meta: SearchResult | undefined) => {
@@ -277,6 +288,7 @@ export enum SearchItemType {
     FIELD = 'field',
     PAGE = 'page',
     DATA_APP = 'data_app',
+    DOCUMENT = 'document',
     SETTINGS = 'settings',
 }
 
@@ -302,6 +314,8 @@ export function getSearchItemTypeFromResultKey(
             return SearchItemType.DASHBOARD_TAB;
         case 'dataApps':
             return SearchItemType.DATA_APP;
+        case 'documents':
+            return SearchItemType.DOCUMENT;
         default:
             return assertUnreachable(
                 searchResultKey,

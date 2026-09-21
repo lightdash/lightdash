@@ -2,6 +2,7 @@ import {
     ChartType,
     FieldType,
     getAppDisplayName,
+    getDocumentUrl,
     getItemId,
     isTableErrorSearchResult,
     SearchItemType,
@@ -22,6 +23,21 @@ export const getSearchItemMap = (
         searchRank: item.search_rank,
         location: {
             pathname: `/projects/${projectUrlIdentifier}/spaces/${item.uuid}`,
+        },
+    }));
+
+    const documents = results.documents.map<SearchItem>((item) => ({
+        type: SearchItemType.DOCUMENT,
+        title: item.name,
+        description: item.description ?? undefined,
+        item,
+        searchRank: item.search_rank,
+        location: {
+            pathname: getDocumentUrl(
+                projectUrlIdentifier,
+                item.uuid,
+                item.slug,
+            ),
         },
     }));
 
@@ -164,6 +180,7 @@ export const getSearchItemMap = (
 
     return {
         spaces,
+        documents,
         dashboards,
         savedCharts,
         sqlCharts,
