@@ -23,6 +23,7 @@ const dimensionFields = {
     charts: { key: 'chart_id', label: 'Chart name' },
     dashboards: { key: 'dashboard_id', label: 'Dashboard name' },
     users: { key: 'user_id', label: 'User name' },
+    agents: { key: 'agent_id', label: 'Agent name' },
 };
 
 const dimensionTypes: Record<CompactedColumnType, DimensionType> = {
@@ -92,6 +93,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'query_events'
                 ? ['charts', 'dashboards', 'users']
                 : ['users'];
+        if (name === 'ai_usage') dimensions.push('agents');
         const dimensionTables = Object.fromEntries(
             dimensions.map((dimension) => {
                 const tableName = usageDimensionTable(dimension);
@@ -112,6 +114,9 @@ export const createAnalyticsExplores = (): Explore[] => {
                 fields.name.label = dimensionFields[dimension].label;
                 if (dimension === 'users')
                     fields.name.sql = "COALESCE(${TABLE}.name, 'Unknown user')";
+                if (dimension === 'agents')
+                    fields.name.sql =
+                        "COALESCE(${TABLE}.name, 'Unknown agent')";
                 return [
                     tableName,
                     {

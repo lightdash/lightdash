@@ -64,6 +64,8 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             const chart = randomUUID();
             const dashboard = randomUUID();
             const project = randomUUID();
+            const agent = randomUUID();
+            const otherAgent = randomUUID();
             const rows = Number(
                 process.env.USAGE_DIMENSIONS_SMOKE_ROWS ?? 2500,
             );
@@ -71,6 +73,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             try {
                 await db.raw('CREATE SCHEMA ??', [schema]);
                 await db.raw(`
+                    CREATE TABLE ai_agent (ai_agent_uuid uuid PRIMARY KEY, organization_uuid uuid, name text);
                     CREATE TABLE organizations (organization_id integer PRIMARY KEY, organization_uuid uuid UNIQUE);
                     CREATE TABLE projects (project_id integer PRIMARY KEY, project_uuid uuid UNIQUE, organization_id integer);
                     CREATE TABLE spaces (space_id integer PRIMARY KEY, space_uuid uuid UNIQUE, project_id integer, name text, deleted_at timestamp);
@@ -90,6 +93,22 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     project_uuid: project,
                     organization_id: 1,
                 });
+                await fixture('ai_agent').insert([
+                    {
+                        ai_agent_uuid: agent,
+                        organization_uuid: org,
+                        name: 'Sales analyst',
+                    },
+                    {
+                        ai_agent_uuid: otherAgent,
+                        organization_uuid: otherOrg,
+                        name: 'Other org agent',
+                    },
+                ]);
+                await db.raw(
+                    `INSERT INTO ai_agent SELECT md5('agent-' || n)::uuid, ?::uuid, 'Agent ' || n FROM generate_series(1, 1001) n`,
+                    [org],
+                );
                 await fixture('spaces').insert({
                     space_id: 1,
                     space_uuid: randomUUID(),
@@ -194,6 +213,23 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         }),
                     ),
                 });
+                await s3.putObject({
+                    Bucket: storage.bucket,
+                    Key: `events/raw/org_id=${org}/stream=ai_usage/dt=2026-01-01/test.jsonl.gz`,
+                    Body: gzipSync(
+                        [agent, otherAgent, null]
+                            .map((agentId) =>
+                                JSON.stringify({
+                                    org_id: org,
+                                    user_id: user,
+                                    event_name: 'ai.usage',
+                                    event_ts: '2026-01-01T00:00:00Z',
+                                    agent_id: agentId,
+                                }),
+                            )
+                            .join('\n'),
+                    ),
+                });
                 const run = () =>
                     new UsageEventsCompactor({
                         s3Config: storage,
@@ -202,7 +238,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     }).run(new Date('2026-01-02'));
                 const summary = await run();
                 expect(summary.dimensions).toEqual({
-                    refreshed: 6,
+                    refreshed: 8,
                     failed: 0,
                 });
                 const source = createS3AnalyticsSourceResolver({
@@ -255,6 +291,39 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         export_events_total_events: '1',
                     },
                 ]);
+                const agentSql = sql(
+                    ['lightdash_agents_name'],
+                    createAnalyticsExplores()[1],
+                    ['ai_usage_total_ai_calls'],
+                );
+                expect((await reader.runQuery(agentSql)).rows).toEqual(
+                    expect.arrayContaining([
+                        {
+                            lightdash_agents_name: 'Sales analyst',
+                            ai_usage_total_ai_calls: '1',
+                        },
+                        {
+                            lightdash_agents_name: 'Unknown agent',
+                            ai_usage_total_ai_calls: '2',
+                        },
+                    ]),
+                );
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT count(*) AS n FROM lightdash_agents',
+                        )
+                    ).rows,
+                ).toEqual([{ n: '1002' }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            sql([], createAnalyticsExplores()[1], [
+                                'ai_usage_total_ai_calls',
+                            ]),
+                        )
+                    ).rows,
+                ).toEqual([{ ai_usage_total_ai_calls: '3' }]);
                 const joinedSql = sql([
                     'lightdash_charts_name',
                     'lightdash_dashboards_name',
@@ -330,9 +399,12 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     ).ETag,
                 ).toBe(originalSnapshot.ETag);
                 expect((await run()).dimensions).toEqual({
-                    refreshed: 6,
+                    refreshed: 8,
                     failed: 0,
                 });
+                await fixture('ai_agent')
+                    .where('ai_agent_uuid', agent)
+                    .update({ name: 'Sales renamed' });
                 await fixture('saved_queries')
                     .where('saved_query_id', 1)
                     .update({ name: 'Chart renamed' });
@@ -343,7 +415,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     .where('user_id', 1)
                     .update({ first_name: 'User renamed' });
                 expect((await run()).dimensions).toEqual({
-                    refreshed: 6,
+                    refreshed: 8,
                     failed: 0,
                 });
                 expect((await reader.runQuery(joinedSql)).rows).toEqual(
@@ -355,6 +427,13 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         }),
                     ]),
                 );
+                expect((await reader.runQuery(agentSql)).rows).toContainEqual({
+                    lightdash_agents_name: 'Sales renamed',
+                    ai_usage_total_ai_calls: '1',
+                });
+                await fixture('ai_agent')
+                    .where('ai_agent_uuid', agent)
+                    .delete();
                 await fixture('organization_memberships')
                     .where({ organization_id: 1, user_id: 1 })
                     .delete();
@@ -374,6 +453,22 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         )
                     ).rows[0].is_deleted,
                 ).toBe(true);
+                expect((await reader.runQuery(agentSql)).rows).toEqual([
+                    {
+                        lightdash_agents_name: 'Unknown agent',
+                        ai_usage_total_ai_calls: '3',
+                    },
+                ]);
+                await s3.deleteObject({
+                    Bucket: storage.bucket,
+                    Key: usageDimensionKey(org, 'agents'),
+                });
+                expect((await reader.runQuery(agentSql)).rows).toEqual([
+                    {
+                        lightdash_agents_name: 'Unknown agent',
+                        ai_usage_total_ai_calls: '3',
+                    },
+                ]);
                 await s3.deleteObject({
                     Bucket: storage.bucket,
                     Key: usageDimensionKey(org, 'users'),

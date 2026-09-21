@@ -1,6 +1,11 @@
 import type { CompactedStreamColumn } from './types';
 
-export const usageDimensionNames = ['charts', 'dashboards', 'users'] as const;
+export const usageDimensionNames = [
+    'charts',
+    'dashboards',
+    'users',
+    'agents',
+] as const;
 export type UsageDimensionName = (typeof usageDimensionNames)[number];
 
 export const usageDimensionSchemas: Record<
@@ -27,6 +32,11 @@ export const usageDimensionSchemas: Record<
     users: [
         { name: 'org_id', type: 'VARCHAR' },
         { name: 'user_id', type: 'VARCHAR' },
+        { name: 'name', type: 'VARCHAR' },
+    ],
+    agents: [
+        { name: 'org_id', type: 'VARCHAR' },
+        { name: 'agent_id', type: 'VARCHAR' },
         { name: 'name', type: 'VARCHAR' },
     ],
 };

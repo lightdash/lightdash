@@ -6,6 +6,7 @@ import { createAnalyticsExplores } from './createAnalyticsExplores';
 describe('createAnalyticsExplores', () => {
     it.each([
         ['ai_usage', 'users', 'total_ai_calls'],
+        ['ai_usage', 'agents', 'total_ai_calls'],
         ['query_events', 'charts', 'total_queries'],
         ['query_events', 'dashboards', 'total_queries'],
     ])(
