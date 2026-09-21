@@ -1,3 +1,10 @@
+## [2.286.4](https://github.com/lightdash/lightdash/compare/2.286.3...2.286.4) (2026-09-21)
+
+
+### Bug Fixes
+
+* **ai:** measure Slack provider and tool latency separately ([#29676](https://github.com/lightdash/lightdash/issues/29676)) ([6ae2371](https://github.com/lightdash/lightdash/commit/6ae2371ddd8e6611f3e5016bbf70a40587b7780f)), closes [#29671](https://github.com/lightdash/lightdash/issues/29671) [#29679](https://github.com/lightdash/lightdash/issues/29679) [#29682](https://github.com/lightdash/lightdash/issues/29682) [#29689](https://github.com/lightdash/lightdash/issues/29689) [#29690](https://github.com/lightdash/lightdash/issues/29690) [#29671](https://github.com/lightdash/lightdash/issues/29671)
+
 ## [2.286.3](https://github.com/lightdash/lightdash/compare/2.286.2...2.286.3) (2026-09-21)
 
 
