@@ -2980,6 +2980,13 @@
             },
             "SavedMergeQuery": {
                 "properties": {
+                    "repeatValuesSourceIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Sources that repeat their values across the other sources' extra\ndimensions (MergeQueryMetricSource.repeatValues). Kept on the merge,\nnot the source, so the source shapes stay as they were saved.\nOmitted when none repeat."
+                    },
                     "tableCalculations": {
                         "items": {
                             "$ref": "#/components/schemas/MergeTableCalculation"
@@ -21557,10 +21564,18 @@
                 ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__": {
+            "DataAppAutoAnalysis": {
+                "type": "string",
+                "enum": ["inherit", "on", "off"],
+                "description": "Whether an app analyses on load: its own choice, or the org default."
+            },
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "autoAnalysis": {
+                                "$ref": "#/components/schemas/DataAppAutoAnalysis"
+                            },
                             "verification": {
                                 "allOf": [
                                     {
@@ -21644,6 +21659,7 @@
                             }
                         },
                         "required": [
+                            "autoAnalysis",
                             "verification",
                             "icon",
                             "registrySlug",
@@ -21675,7 +21691,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__"
             },
             "UuidOrSlug": {
                 "type": "string",
@@ -21893,10 +21909,13 @@
                 "required": ["status"],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null--autoAnalysis-DataAppAutoAnalysis__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "autoAnalysis": {
+                                "$ref": "#/components/schemas/DataAppAutoAnalysis"
+                            },
                             "icon": {
                                 "allOf": [
                                     {
@@ -21915,7 +21934,13 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["icon", "description", "name", "appUuid"],
+                        "required": [
+                            "autoAnalysis",
+                            "icon",
+                            "description",
+                            "name",
+                            "appUuid"
+                        ],
                         "type": "object"
                     },
                     "status": {
@@ -21928,10 +21953,13 @@
                 "type": "object"
             },
             "ApiUpdateAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null--autoAnalysis-DataAppAutoAnalysis__"
             },
             "ApiUpdateAppRequest": {
                 "properties": {
+                    "autoAnalysis": {
+                        "$ref": "#/components/schemas/DataAppAutoAnalysis"
+                    },
                     "icon": {
                         "allOf": [
                             {
@@ -30022,6 +30050,10 @@
             },
             "MergeQueryMetricSource": {
                 "properties": {
+                    "repeatValues": {
+                        "type": "boolean",
+                        "description": "Opt in to an intentional one-to-many join: this source's value columns\nrepeat on every row the other sources produce for the same key, so the\nothers may carry dimensions that are not join keys. Off by default,\nbecause a repeated metric is counted more than once by any sum over\nthe merged rows."
+                    },
                     "metricQuery": {
                         "$ref": "#/components/schemas/MetricQuery"
                     },
@@ -30032,7 +30064,7 @@
                 },
                 "required": ["metricQuery", "id"],
                 "type": "object",
-                "description": "One side of a merge: a metric query compiled and run as part of the merge."
+                "description": "One side of a merge: a metric query compiled and run as part of the merge.\nA plain object, not an intersection: TSOA emits an intersection as `allOf`,\nwhich reads as a changed response contract to the API compatibility check."
             },
             "MetricSourcedMergeQuery": {
                 "properties": {
@@ -49548,6 +49580,10 @@
             },
             "MergeQueryResultSource": {
                 "properties": {
+                    "repeatValues": {
+                        "type": "boolean",
+                        "description": "See MergeQueryMetricSource.repeatValues."
+                    },
                     "queryUuid": {
                         "type": "string"
                     },
@@ -64112,7 +64148,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.278.0",
+        "version": "2.279.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

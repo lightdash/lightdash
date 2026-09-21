@@ -1,3 +1,17 @@
+# [2.279.0](https://github.com/lightdash/lightdash/compare/2.278.0...2.279.0) (2026-09-21)
+
+
+### Bug Fixes
+
+* **embed:** return to the AI conversation from Explore ([#29651](https://github.com/lightdash/lightdash/issues/29651)) ([bdb38ec](https://github.com/lightdash/lightdash/commit/bdb38ec3dd444394065594128e38eccd62056d0f))
+
+
+### Features
+
+* **chart-types:** discover-library tile and neutral installed cards ([#29662](https://github.com/lightdash/lightdash/issues/29662)) ([2de1e9c](https://github.com/lightdash/lightdash/commit/2de1e9c1b53d722579eadb80371d01fde149aa98))
+* **data-apps:** analyse on load per app with an org default ([#29658](https://github.com/lightdash/lightdash/issues/29658)) ([a2228e1](https://github.com/lightdash/lightdash/commit/a2228e188b8843b64c01d3fee18773719f65f073)), closes [#29653](https://github.com/lightdash/lightdash/issues/29653)
+* **merge-queries:** let a source repeat its values across the other source's extra dimensions ([#29401](https://github.com/lightdash/lightdash/issues/29401)) ([c1e1ef0](https://github.com/lightdash/lightdash/commit/c1e1ef014358d01bac9694e0f8c304e28793f933))
+
 # [2.278.0](https://github.com/lightdash/lightdash/compare/2.277.1...2.278.0) (2026-09-21)
 
 

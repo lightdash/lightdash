@@ -1,19 +1,19 @@
 {
   "schemaVersion": "2",
-  "version": "2.278.0",
-  "previousVersion": "2.277.1",
-  "releaseDate": "2026-09-21T14:35:26.252Z",
+  "version": "2.279.0",
+  "previousVersion": "2.278.0",
+  "releaseDate": "2026-09-21T15:10:36.235Z",
   "migrations": {
     "present": true,
     "count": 1,
-    "coreCount": 0,
-    "eeCount": 1,
+    "coreCount": 1,
+    "eeCount": 0,
     "files": [
       {
-        "name": "20260921131921_add_data_app_auto_analysis_enabled_to_ai_org_settings.ts",
-        "edition": "ee",
+        "name": "20260921133236_add_auto_analysis_to_apps.ts",
+        "edition": "core",
         "tables": [
-          "ai_organization_settings"
+          "apps"
         ],
         "heaviness": {
           "locksTable": true,
