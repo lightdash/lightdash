@@ -294,6 +294,40 @@ const renderAuthoring = ({
     return store;
 };
 
+// Only the stale-closure test needs to force a re-render, so it gets its
+// own render rather than reshaping what every other test here relies on.
+const renderAuthoringForRerender = (
+    dataAppVizUuid: string | null,
+    claimedUuid: string | null = null,
+) => {
+    const store = createExplorerStore();
+    store.dispatch(explorerActions.openVisualizationConfig());
+    store.dispatch(explorerActions.startChartTypeAuthoring({ dataAppVizUuid }));
+    if (claimedUuid) {
+        store.dispatch(explorerActions.claimChartTypeAuthoringViz(claimedUuid));
+    }
+
+    const Harness = () => {
+        const authoring = store.getState().explorer.chartTypeAuthoring;
+        return authoring ? (
+            <ExplorerChartTypeAuthoring authoring={authoring} />
+        ) : (
+            <div>explorer</div>
+        );
+    };
+    const buildTree = () => (
+        <ChartColorMappingContext.Provider value={{ colorMappings: new Map() }}>
+            <Provider store={store}>
+                <MemoryRouter>
+                    <Harness />
+                </MemoryRouter>
+            </Provider>
+        </ChartColorMappingContext.Provider>
+    );
+    const view = renderWithProviders(buildTree());
+    return { store, rerender: () => view.rerender(buildTree()) };
+};
+
 describe('ExplorerChartTypeAuthoring', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -594,6 +628,64 @@ describe('ExplorerChartTypeAuthoring', () => {
         );
 
         expect(discard).toHaveBeenCalledTimes(1);
+    });
+
+    it('runs the exit created when the build finishes while the confirm is open, not the one from when it opened', async () => {
+        const discard = vi.fn();
+        const firstBuildWorkspace = workspaceStub({
+            ...newTypeWorkspace(),
+            dataAppVizUuid: 'viz-new',
+            isBuilding: true,
+            build: buildStub({
+                isBuilding: true,
+                appUuid: 'viz-new',
+                draft: {
+                    appUuid: 'viz-new',
+                    version: 1,
+                    startedAt: new Date(),
+                },
+                discard,
+            }),
+        });
+        vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
+            firstBuildWorkspace,
+        );
+        const { rerender } = renderAuthoringForRerender(null, 'viz-new');
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Back to chart' }),
+        );
+        expect(
+            screen.getByText(
+                'Leaving now discards the build that is still running.',
+            ),
+        ).toBeInTheDocument();
+
+        // The build finishes while the confirm is still open: no draft left
+        // to discard, and it landed with no ready version.
+        vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
+            workspaceStub({
+                ...firstBuildWorkspace,
+                isBuilding: false,
+                build: buildStub({
+                    isBuilding: false,
+                    appUuid: 'viz-new',
+                    draft: null,
+                    discard,
+                }),
+            }),
+        );
+        rerender();
+
+        expect(
+            screen.getByText(
+                'The build keeps running and lands in version history when it finishes.',
+            ),
+        ).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Leave' }));
+
+        expect(discard).not.toHaveBeenCalled();
     });
 
     it('lets a revision build keep running when leaving is confirmed', async () => {

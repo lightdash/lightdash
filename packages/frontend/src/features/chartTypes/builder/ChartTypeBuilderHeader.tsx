@@ -29,10 +29,15 @@ import classes from './ChartTypeBuilderHeader.module.css';
 type Props = {
     projectUuid: string;
     appUuidOrSlug?: string;
+    /** A real link (href, middle-click, open in new tab); a page-level
+     *  `useBlocker` gates it while a build is running. */
     backLink: {
         label: string;
         to: To;
     };
+    /** Runs cleanup for an abandoned type; a no-op while building, since the
+     *  blocker's own confirm owns that case instead. */
+    onBackLinkClick: () => void;
     /** Null while no app exists yet (create flow before the first build). */
     app: ChartTypeAppMeta | null;
     latestReadyVersion: number | null;
@@ -44,6 +49,9 @@ type Props = {
     upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
     onUpgradeStarted: () => void;
     onToggleHistory: () => void;
+    /** Navigates to the gallery; the page's `useBlocker` gates it while a
+     *  build is running. */
+    onDone: () => void;
     previewInExplorerLink: To | null;
     onPreviewInExplorer: (() => void) | null;
 };
@@ -52,6 +60,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     projectUuid,
     appUuidOrSlug,
     backLink,
+    onBackLinkClick,
     app,
     latestReadyVersion,
     hasHistory,
@@ -60,6 +69,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     upgrade,
     onUpgradeStarted,
     onToggleHistory,
+    onDone,
     previewInExplorerLink,
     onPreviewInExplorer,
 }) => {
@@ -68,6 +78,11 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     const upgradeAvailable =
         upgrade?.status === 'stale' || upgrade?.status === 'legacy';
     const hasName = !!app?.name.trim();
+    // One filled action: Preview in explorer while it is on offer, Done
+    // otherwise (nothing to preview before the first ready version).
+    const showPreviewInExplorer =
+        latestReadyVersion !== null &&
+        (previewInExplorerLink !== null || onPreviewInExplorer !== null);
 
     return (
         <Box className={classes.header} component="header">
@@ -80,6 +95,17 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                     leftSection={
                         <MantineIcon icon={IconChevronLeft} size={15} />
                     }
+                    onClick={(event) => {
+                        // A modified click opens a new tab and stays here.
+                        if (
+                            event.metaKey ||
+                            event.ctrlKey ||
+                            event.shiftKey ||
+                            event.altKey
+                        )
+                            return;
+                        onBackLinkClick();
+                    }}
                 >
                     {backLink.label}
                 </Button>
@@ -171,7 +197,14 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                         History
                     </Button>
                 )}
-                {latestReadyVersion !== null &&
+                <Button
+                    size="xs"
+                    variant={showPreviewInExplorer ? 'default' : undefined}
+                    onClick={onDone}
+                >
+                    Done
+                </Button>
+                {showPreviewInExplorer &&
                     (previewInExplorerLink ? (
                         <Button
                             size="xs"
@@ -180,11 +213,13 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                         >
                             Preview in explorer
                         </Button>
-                    ) : onPreviewInExplorer ? (
-                        <Button size="xs" onClick={onPreviewInExplorer}>
-                            Preview in explorer
-                        </Button>
-                    ) : null)}
+                    ) : (
+                        onPreviewInExplorer && (
+                            <Button size="xs" onClick={onPreviewInExplorer}>
+                                Preview in explorer
+                            </Button>
+                        )
+                    ))}
             </Group>
             {app && isEditingDetails && (
                 <AppUpdateModal

@@ -9,9 +9,11 @@ import { useEffect, useMemo, useState, type FC } from 'react';
 import {
     Link,
     Navigate,
+    useBlocker,
     useLocation,
     useNavigate,
     useParams,
+    type To,
 } from 'react-router';
 import { validate as isUuidString } from 'uuid';
 import { DocumentTitle } from '../components/common/DocumentTitle';
@@ -20,9 +22,11 @@ import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp'
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { type PreviewDataSource } from '../features/chartTypes/builder/BuilderCanvas';
+import BuildInProgressExitModal from '../features/chartTypes/builder/BuildInProgressExitModal';
 import ChartTypeBuilderHeader from '../features/chartTypes/builder/ChartTypeBuilderHeader';
 import ChartTypeBuilderWorkspace from '../features/chartTypes/builder/ChartTypeBuilderWorkspace';
 import ConfigurePanel from '../features/chartTypes/builder/ConfigurePanel';
+import { useChartTypeAuthoringExit } from '../features/chartTypes/builder/useChartTypeAuthoringExit';
 import { useChartTypeBuilderWorkspace } from '../features/chartTypes/builder/useChartTypeBuilderWorkspace';
 import { useConfigurePanelState } from '../features/chartTypes/builder/useConfigurePanelState';
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
@@ -39,6 +43,12 @@ import classes from './ChartTypeBuilder.module.css';
 
 // No chart query here; auto-mapping belongs to charts binding fields.
 const NO_ITEMS: ItemsMap = {};
+
+/** Set on the `/new` -> `/:dataAppVizUuid` redirect so "created in this
+ *  session" survives that route change (a fresh mount reads it back). */
+type ChartTypeBuilderLocationState = {
+    createdInSession: boolean;
+};
 
 /**
  * The dedicated chart type builder. Mounted at both `chart-types/new`
@@ -80,8 +90,13 @@ const ChartTypeBuilder: FC = () => {
     const { build, history, isBuilding, isHistoryOpen } = workspace;
     const panel = useConfigurePanelState(activeVizUuid ?? null);
 
-    // On `/new`, move to the edit route as soon as the build claims an app so
-    // a refresh mid-build lands on the in-progress version.
+    // Read back from location state, which survives the route's own remount.
+    const createdInSession = Boolean(
+        (location.state as ChartTypeBuilderLocationState | null)
+            ?.createdInSession,
+    );
+
+    // On `/new`, move to the edit route once the build claims an app.
     useEffect(() => {
         if (!urlVizUuid && build.appUuid && projectUuid) {
             void navigate(
@@ -89,7 +104,12 @@ const ChartTypeBuilder: FC = () => {
                     pathname: chartTypeBuilderPath(projectUuid, build.appUuid),
                     search: location.search,
                 },
-                { replace: true },
+                {
+                    replace: true,
+                    state: {
+                        createdInSession: true,
+                    } satisfies ChartTypeBuilderLocationState,
+                },
             );
         }
     }, [urlVizUuid, build.appUuid, projectUuid, location.search, navigate]);
@@ -138,6 +158,34 @@ const ChartTypeBuilder: FC = () => {
     const canEdit = useCanEditDataApp(projectUuid, {
         spaceUuid: appMeta?.spaceUuid ?? null,
         createdByUserUuid: appMeta?.createdByUserUuid ?? null,
+    });
+
+    // Falls back to `build.appUuid` for the window before the redirect below
+    // adopts it, while the URL is still `/new`.
+    const exit = useChartTypeAuthoringExit({
+        projectUuid,
+        dataAppVizUuid: activeVizUuid ?? build.appUuid ?? null,
+        createdInSession,
+        isBuilding: build.isBuilding,
+        draft: build.draft,
+        discard: build.discard,
+        latestReadyVersion: history.latestReadyVersion,
+        isHistoryLoading: history.isLoading,
+        // Also a version building server-side this session did not start.
+        isLatestVersionInProgress: isBuilding,
+    });
+
+    // Browser back/forward and other in-app links, not the `/new` -> `/:uuid`
+    // redirect, which stays inside this same builder session.
+    const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+        if (!isBuilding) return false;
+        if (currentLocation.pathname === nextLocation.pathname) return false;
+        return (
+            !build.appUuid ||
+            !projectUuid ||
+            nextLocation.pathname !==
+                chartTypeBuilderPath(projectUuid, build.appUuid)
+        );
     });
 
     if (!projectUuid) return null;
@@ -211,17 +259,29 @@ const ChartTypeBuilder: FC = () => {
         />
     ) : null;
 
+    const chartTypeGalleryPath = `/projects/${projectUuid}/chart-types`;
+    // While building, the blocker owns the confirm and cleanup instead.
+    const cleanupIfIdle = () => {
+        if (!isBuilding) exit.cleanupAbandonedType();
+    };
+    const handleDone = () => {
+        cleanupIfIdle();
+        void navigate(chartTypeGalleryPath);
+    };
+
     const backLink = explorerChart
         ? {
               label: 'Explorer',
-              to: explorerDestination ?? {
-                  pathname: `/projects/${projectUuid}/tables/${explorerChart.tableName}`,
-                  search: location.search,
-              },
+              to:
+                  explorerDestination ??
+                  ({
+                      pathname: `/projects/${projectUuid}/tables/${explorerChart.tableName}`,
+                      search: location.search,
+                  } satisfies To),
           }
         : {
               label: 'Chart types',
-              to: `/projects/${projectUuid}/chart-types`,
+              to: chartTypeGalleryPath,
           };
 
     return (
@@ -231,6 +291,7 @@ const ChartTypeBuilder: FC = () => {
                 projectUuid={projectUuid}
                 appUuidOrSlug={urlVizUuid}
                 backLink={backLink}
+                onBackLinkClick={cleanupIfIdle}
                 app={appMeta}
                 latestReadyVersion={history.latestReadyVersion}
                 hasHistory={workspace.hasHistory}
@@ -243,6 +304,7 @@ const ChartTypeBuilder: FC = () => {
                 }
                 onUpgradeStarted={workspace.openHistory}
                 onToggleHistory={workspace.toggleHistory}
+                onDone={handleDone}
                 previewInExplorerLink={explorerDestination}
                 onPreviewInExplorer={
                     activeVizUuid ? () => setIsPreviewTableOpen(true) : null
@@ -262,6 +324,16 @@ const ChartTypeBuilder: FC = () => {
                     dataAppVizUuid={activeVizUuid}
                     registrySlug={appMeta?.registrySlug ?? null}
                     onClose={() => setIsPreviewTableOpen(false)}
+                />
+            )}
+            {blocker.state === 'blocked' && (
+                <BuildInProgressExitModal
+                    exitDiscardsBuild={exit.exitDiscardsBuild}
+                    onKeepBuilding={() => blocker.reset()}
+                    onConfirmExit={() => {
+                        exit.cleanupAbandonedType();
+                        blocker.proceed();
+                    }}
                 />
             )}
         </Box>

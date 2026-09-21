@@ -5,8 +5,13 @@ import {
     type ApiGetAppResponse,
     type SdkFeature,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { act, fireEvent, screen } from '@testing-library/react';
+import {
+    createMemoryRouter,
+    Outlet,
+    RouterProvider,
+    useLocation,
+} from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     useAppVersionHistory,
@@ -32,6 +37,10 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import ChartTypeBuilder from './ChartTypeBuilder';
 
+const { deleteApp } = vi.hoisted(() => ({ deleteApp: vi.fn() }));
+vi.mock('../features/apps/hooks/useDeleteApp', () => ({
+    useDeleteApp: () => ({ mutate: deleteApp }),
+}));
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
@@ -213,45 +222,63 @@ const setApp = (meta: AppMeta | null, error: unknown = null) =>
         error,
     } as unknown as ReturnType<typeof useGetApp>);
 
-const builderRoutes = (path: string) => (
-    <MemoryRouter initialEntries={[path]}>
+// A layout route, not a bare `<MemoryRouter>`: `useBlocker` in the page under
+// test needs a data router.
+const RootLayout = () => (
+    <>
         <LocationDisplay />
-        <Routes>
-            <Route
-                path="/projects/:projectUuid/chart-types/new"
-                element={<ChartTypeBuilder />}
-            />
-            <Route
-                path="/projects/:projectUuid/chart-types/:dataAppVizUuid"
-                element={<ChartTypeBuilder />}
-            />
-            <Route
-                path="/projects/:projectUuid/chart-types"
-                element={<div>gallery</div>}
-            />
-            <Route
-                path="/projects/:projectUuid/home"
-                element={<div>home</div>}
-            />
-            <Route
-                path="/projects/:projectUuid/apps/:appUuid"
-                element={<div>app-builder</div>}
-            />
-            <Route
-                path="/projects/:projectUuid/tables"
-                element={<div>table-picker</div>}
-            />
-            <Route
-                path="/projects/:projectUuid/tables/:tableId"
-                element={<div>explorer</div>}
-            />
-        </Routes>
-    </MemoryRouter>
+        <Outlet />
+    </>
 );
+
+const builderRouter = (path: string) =>
+    createMemoryRouter(
+        [
+            {
+                element: <RootLayout />,
+                children: [
+                    {
+                        path: '/projects/:projectUuid/chart-types/new',
+                        element: <ChartTypeBuilder />,
+                    },
+                    {
+                        path: '/projects/:projectUuid/chart-types/:dataAppVizUuid',
+                        element: <ChartTypeBuilder />,
+                    },
+                    {
+                        path: '/projects/:projectUuid/chart-types',
+                        element: <div>gallery</div>,
+                    },
+                    {
+                        path: '/projects/:projectUuid/home',
+                        element: <div>home</div>,
+                    },
+                    {
+                        path: '/projects/:projectUuid/apps/:appUuid',
+                        element: <div>app-builder</div>,
+                    },
+                    {
+                        path: '/projects/:projectUuid/tables',
+                        element: <div>table-picker</div>,
+                    },
+                    {
+                        path: '/projects/:projectUuid/tables/:tableId',
+                        element: <div>explorer</div>,
+                    },
+                ],
+            },
+        ],
+        { initialEntries: [path] },
+    );
 
 const renderBuilder = (path: string) => {
     window.history.replaceState({}, '', path);
-    return renderWithProviders(builderRoutes(path));
+    const router = builderRouter(path);
+    const view = renderWithProviders(<RouterProvider router={router} />);
+    // Only a handful of tests need to force a re-render on the same route
+    // (e.g. after updating a mock); they reuse this router so the page's own
+    // state survives, the way a real update would.
+    return { ...view, router };
 };
 
 const mockedClarificationRound = vi.mocked(
@@ -661,7 +688,7 @@ describe('ChartTypeBuilder', () => {
             claimedVersion: 1,
             pendingPrompt: 'a stream graph of category share',
         });
-        view.rerender(builderRoutes('/projects/p1/chart-types/new'));
+        view.rerender(<RouterProvider router={view.router} />);
 
         expect(
             screen.getByPlaceholderText('Ask for another change…'),
@@ -1081,5 +1108,197 @@ describe('ChartTypeBuilder', () => {
         expect(
             screen.getByText(/Couldn’t reach the clarifier/),
         ).toBeInTheDocument();
+    });
+
+    describe('Done and the back link', () => {
+        it('leaves for the gallery straight away when nothing is building', () => {
+            setApp(appMeta());
+            vi.mocked(useAppVersionHistory).mockReturnValue(
+                historyStub([appVersion({ version: 1 })], 1),
+            );
+            renderBuilder(
+                '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+            expect(screen.getByTestId('location')).toHaveTextContent(
+                '/projects/p1/chart-types',
+            );
+            expect(deleteApp).not.toHaveBeenCalled();
+        });
+
+        it('confirms before discarding a running first build from Done', () => {
+            const discard = vi.fn();
+            vi.mocked(useDataAppVizBuild).mockReturnValue(
+                buildStub({
+                    isBuilding: true,
+                    appUuid: '1e9a3b2c-0000-4000-8000-000000000001',
+                    draft: {
+                        appUuid: '1e9a3b2c-0000-4000-8000-000000000001',
+                        version: 1,
+                        startedAt: new Date(),
+                    },
+                    claimedVersion: 1,
+                    pendingPrompt: 'a stream graph',
+                    discard,
+                }),
+            );
+            renderBuilder('/projects/p1/chart-types/new');
+
+            fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+            expect(
+                screen.getByText(
+                    'Leaving now discards the build that is still running.',
+                ),
+            ).toBeInTheDocument();
+            expect(discard).not.toHaveBeenCalled();
+
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Discard and leave' }),
+            );
+
+            expect(discard).toHaveBeenCalledTimes(1);
+            expect(screen.getByTestId('location')).toHaveTextContent(
+                '/projects/p1/chart-types',
+            );
+        });
+
+        it('sends the back link through the same guard as Done', () => {
+            setApp(appMeta());
+            vi.mocked(useDataAppVizBuild).mockReturnValue(
+                buildStub({ isBuilding: true }),
+            );
+            renderBuilder(
+                '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            );
+
+            fireEvent.click(screen.getByRole('link', { name: 'Chart types' }));
+
+            // A revision build survives the exit, so the copy is informational.
+            expect(
+                screen.getByText(
+                    'The build keeps running and lands in version history when it finishes.',
+                ),
+            ).toBeInTheDocument();
+            fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
+            expect(screen.getByTestId('location')).toHaveTextContent(
+                '/projects/p1/chart-types',
+            );
+        });
+
+        it('marks a first build as created in this session across the /new redirect, and discards it unfinished on Done', () => {
+            const claimedUuid = '1e9a3b2c-0000-4000-8000-000000000099';
+            vi.mocked(useDataAppVizBuild).mockReturnValue(
+                buildStub({ appUuid: claimedUuid, isBuilding: false }),
+            );
+            renderBuilder('/projects/p1/chart-types/new');
+
+            // The redirect adopts the claimed uuid into the URL.
+            expect(screen.getByTestId('location')).toHaveTextContent(
+                `/projects/p1/chart-types/${claimedUuid}`,
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+            expect(deleteApp).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    projectUuid: 'p1',
+                    appUuid: claimedUuid,
+                    successTitle: 'Chart type discarded',
+                }),
+            );
+            expect(screen.getByTestId('location')).toHaveTextContent(
+                '/projects/p1/chart-types',
+            );
+        });
+
+        it('never deletes a type opened directly, even without a ready version', () => {
+            setApp(appMeta({ latestReadyVersion: null }));
+            renderBuilder(
+                '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+            expect(deleteApp).not.toHaveBeenCalled();
+        });
+
+        it('does not block the /new -> uuid redirect itself while a first build is running', () => {
+            vi.mocked(useDataAppVizBuild).mockReturnValue(
+                buildStub({
+                    isBuilding: true,
+                    appUuid: '1e9a3b2c-0000-4000-8000-000000000001',
+                    draft: {
+                        appUuid: '1e9a3b2c-0000-4000-8000-000000000001',
+                        version: 1,
+                        startedAt: new Date(),
+                    },
+                    claimedVersion: 1,
+                    pendingPrompt: 'a stream graph',
+                }),
+            );
+            renderBuilder('/projects/p1/chart-types/new');
+
+            expect(screen.getByTestId('location')).toHaveTextContent(
+                '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            );
+            expect(screen.queryByText('Build in progress')).toBeNull();
+        });
+
+        it('blocks browser-style navigation elsewhere mid first build, and discards it on accept', async () => {
+            const discard = vi.fn();
+            vi.mocked(useDataAppVizBuild).mockReturnValue(
+                buildStub({
+                    isBuilding: true,
+                    appUuid: '1e9a3b2c-0000-4000-8000-000000000001',
+                    draft: {
+                        appUuid: '1e9a3b2c-0000-4000-8000-000000000001',
+                        version: 1,
+                        startedAt: new Date(),
+                    },
+                    discard,
+                }),
+            );
+            const view = renderBuilder('/projects/p1/chart-types/new');
+
+            await act(async () => {
+                await view.router.navigate('/projects/p1/chart-types');
+            });
+
+            expect(
+                screen.getByText(
+                    'Leaving now discards the build that is still running.',
+                ),
+            ).toBeInTheDocument();
+            expect(discard).not.toHaveBeenCalled();
+            // Still on the builder: the navigation was blocked. (The `/new`
+            // -> uuid redirect already ran on mount, unblocked.)
+            expect(screen.getByTestId('location')).toHaveTextContent(
+                '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            );
+
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Keep building' }),
+            );
+
+            expect(screen.queryByText('Build in progress')).toBeNull();
+            expect(screen.getByTestId('location')).toHaveTextContent(
+                '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            );
+
+            await act(async () => {
+                await view.router.navigate('/projects/p1/chart-types');
+            });
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Discard and leave' }),
+            );
+
+            expect(discard).toHaveBeenCalledTimes(1);
+            expect(screen.getByTestId('location')).toHaveTextContent(
+                '/projects/p1/chart-types',
+            );
+        });
     });
 });

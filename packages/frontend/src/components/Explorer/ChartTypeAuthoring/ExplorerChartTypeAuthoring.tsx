@@ -5,12 +5,12 @@ import {
     type DataAppVizOptionValues,
     type ItemsMap,
 } from '@lightdash/common';
-import { Button, Group } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useEffect, useMemo, useRef, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
-import { useDeleteApp } from '../../../features/apps/hooks/useDeleteApp';
+import BuildInProgressExitModal from '../../../features/chartTypes/builder/BuildInProgressExitModal';
+import { useChartTypeAuthoringExit } from '../../../features/chartTypes/builder/useChartTypeAuthoringExit';
 import { useChartTypeBuilderWorkspace } from '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace';
 import { type VizBuildRequest } from '../../../features/chartTypes/hooks/useDataAppVizBuild';
 import { useDataAppVizResolvedColors } from '../../../features/chartTypes/hooks/useDataAppVizResolvedColors';
@@ -31,7 +31,6 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { type ChartTypeAuthoringState } from '../../../providers/Explorer/types';
-import Callout from '../../common/Callout';
 import { CHART_GALLERY_SIDEBAR_TITLE_ID } from '../../common/ChartGallery/ChartGalleryContext';
 import MantineModal from '../../common/MantineModal';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
@@ -58,7 +57,6 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useToaster();
     const selectProjectChartType = useSelectProjectChartType();
-    const { mutate: deleteApp } = useDeleteApp();
 
     const { resultsData, isLoadingQueryResults } = useExplorerResultsData();
     // Every page, so the preview sees what the chart would.
@@ -234,30 +232,21 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
             document.getElementById(CHART_GALLERY_SIDEBAR_TITLE_ID)?.focus(),
         );
 
-    // One exit: keep the type the chart now uses, or, with nothing usable
-    // built, put the chart back the way it was.
-    const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
-    // A running first build dies with the exit; a revision build survives it.
-    const exitDiscardsBuild = build.isBuilding && build.draft !== null;
-    const cleanupAbandonedType = () => {
-        if (exitDiscardsBuild && build.discard) {
-            // A first build still running would leave an orphan behind.
-            build.discard();
-        } else if (
-            projectUuid &&
-            authoring.createdInSession &&
-            dataAppVizUuid !== null &&
-            history.latestReadyVersion === null
-        ) {
-            // Created here and never got a usable version: nothing to keep.
-            deleteApp({
-                projectUuid,
-                appUuid: dataAppVizUuid,
-                successTitle: 'Chart type discarded',
-            });
-        }
-    };
-    cleanupAbandonedTypeRef.current = cleanupAbandonedType;
+    // One exit: keep the type the chart now uses, or put the chart back.
+    const exit = useChartTypeAuthoringExit({
+        projectUuid,
+        dataAppVizUuid,
+        createdInSession: authoring.createdInSession,
+        isBuilding: build.isBuilding,
+        draft: build.draft,
+        discard: build.discard,
+        latestReadyVersion: history.latestReadyVersion,
+        isHistoryLoading: history.isLoading,
+        // Also a revision build not started by this session (e.g. found
+        // already running), which `build.isBuilding` alone would miss.
+        isLatestVersionInProgress: workspace.isBuilding,
+    });
+    cleanupAbandonedTypeRef.current = exit.cleanupAbandonedType;
     const performExit = () => {
         if (chartUsesThisType && dataAppVizUuid !== null) {
             // The chart renders through metadata that may still hold the
@@ -283,18 +272,13 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
             });
             dispatch(explorerActions.finishChartTypeAuthoring());
         } else {
-            cleanupAbandonedType();
+            exit.cleanupAbandonedType();
             dispatch(explorerActions.cancelChartTypeAuthoring());
         }
         focusSidebar();
     };
-    const handleDone = () => {
-        if (build.isBuilding) {
-            setIsExitConfirmOpen(true);
-            return;
-        }
-        performExit();
-    };
+    const handleDone = () => exit.requestExit(performExit);
+    const handleConfirmExit = () => exit.confirmExit(performExit);
 
     // A rename lands in the app row; the type the header and rail read
     // comes from the viz queries.
@@ -364,38 +348,12 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
                     onDone={handleDone}
                 />
             </MantineModal>
-            {isExitConfirmOpen && (
-                <MantineModal
-                    opened
-                    onClose={() => setIsExitConfirmOpen(false)}
-                    title="Build in progress"
-                >
-                    <Callout
-                        variant={exitDiscardsBuild ? 'danger' : 'info'}
-                        mb="md"
-                    >
-                        {exitDiscardsBuild
-                            ? 'Leaving now discards the build that is still running.'
-                            : 'The build keeps running and lands in version history when it finishes.'}
-                    </Callout>
-                    <Group justify="flex-end">
-                        <Button
-                            variant="default"
-                            onClick={() => setIsExitConfirmOpen(false)}
-                        >
-                            Keep building
-                        </Button>
-                        <Button
-                            color={exitDiscardsBuild ? 'red' : undefined}
-                            onClick={() => {
-                                setIsExitConfirmOpen(false);
-                                performExit();
-                            }}
-                        >
-                            {exitDiscardsBuild ? 'Discard and leave' : 'Leave'}
-                        </Button>
-                    </Group>
-                </MantineModal>
+            {exit.isConfirmOpen && (
+                <BuildInProgressExitModal
+                    exitDiscardsBuild={exit.exitDiscardsBuild}
+                    onKeepBuilding={exit.keepBuilding}
+                    onConfirmExit={handleConfirmExit}
+                />
             )}
         </>
     );
