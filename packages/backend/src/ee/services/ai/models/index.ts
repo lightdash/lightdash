@@ -174,9 +174,11 @@ export const getAvailableModels = (
     return configuredProviders.flatMap<ModelPreset<SelectableModelProvider>>(
         (provider) => {
             if (provider === 'vertex') {
-                return providers.vertex
-                    ? [vertexPreset(providers.vertex.modelName)]
-                    : [];
+                if (!providers.vertex) return [];
+                const { modelName, fastModelName } = providers.vertex;
+                return [
+                    ...new Set([modelName, fastModelName ?? modelName]),
+                ].map(vertexPreset);
             }
 
             const providerConfig = providers[provider];
@@ -477,12 +479,20 @@ export const getModel = (
             const configuredModelName = options?.useFastModel
                 ? (vertexConfig.fastModelName ?? vertexConfig.modelName)
                 : vertexConfig.modelName;
+            const requestedModelName = options?.modelName;
+            const canUseRequestedModel =
+                requestedModelName !== undefined &&
+                (options?.trustPinnedModelName === true ||
+                    (!options?.useFastModel &&
+                        (requestedModelName === vertexConfig.modelName ||
+                            requestedModelName ===
+                                vertexConfig.fastModelName)));
             return withKeyManagement(
                 applyStreamingCapability(
                     getGoogleVertexModel({
                         ...vertexConfig,
-                        modelName: options?.trustPinnedModelName
-                            ? (options.modelName ?? configuredModelName)
+                        modelName: canUseRequestedModel
+                            ? requestedModelName
                             : configuredModelName,
                     }),
                     vertexConfig.supportsStreaming,

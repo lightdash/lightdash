@@ -262,6 +262,54 @@ describe('Vertex model routing', () => {
         ).toBe('fast-model');
     });
 
+    it('lists and routes the configured fast model without changing the default', () => {
+        const fastConfig = aiCopilotConfigSchema.parse({
+            ...config,
+            providers: {
+                vertex: {
+                    ...config.providers.vertex,
+                    fastModelName: 'gemini-3.5-flash-lite',
+                },
+            },
+        });
+        expect(
+            getAvailableModels(fastConfig).map((preset) => preset.modelId),
+        ).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
+        expect(getDefaultModel(fastConfig)).toEqual(getDefaultModel(config));
+        expect(
+            getModel(fastConfig, { modelName: 'gemini-3.5-flash-lite' }).model
+                .modelId,
+        ).toBe('gemini-3.5-flash-lite');
+        expect(
+            getModel(fastConfig, { modelName: 'unconfigured-model' }).model
+                .modelId,
+        ).toBe('gemini-3.8-flash');
+        expect(
+            getModel(fastConfig, {
+                modelName: 'gemini-3.8-flash',
+                useFastModel: true,
+            }).model.modelId,
+        ).toBe('gemini-3.5-flash-lite');
+        expect(
+            getFastModelForAccessibleKey(fastConfig, null).model.modelId,
+        ).toBe('gemini-3.5-flash-lite');
+    });
+
+    it('lists a model only once when the primary and fast model match', () => {
+        const sameFastModel = aiCopilotConfigSchema.parse({
+            ...config,
+            providers: {
+                vertex: {
+                    ...config.providers.vertex,
+                    fastModelName: 'gemini-3.8-flash',
+                },
+            },
+        });
+        expect(getAvailableModels(sameFastModel)).toEqual(
+            getAvailableModels(config),
+        );
+    });
+
     it('passes project/location to ADC and prevents SDK API-key fallback', () => {
         vi.stubEnv('GOOGLE_VERTEX_API_KEY', 'ambient-key');
         const adcConfig = aiCopilotConfigSchema.parse({
