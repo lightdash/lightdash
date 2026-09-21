@@ -9713,7 +9713,8 @@ export class ProjectService extends BaseService {
             }
 
             // Add valid explore summary (databaseName and schemaName are required for non-error explores)
-            return [...acc, summaryExplore];
+            acc.push(summaryExplore);
+            return acc;
         }, []);
     }
 
