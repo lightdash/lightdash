@@ -48,7 +48,9 @@ type Props = {
     uiOverrides?: SdkUiOverrides;
     embedHeaders?: Record<string, string>;
     onExplore?: (options: EmbedExploreOptions) => void;
-    onBackToDashboard?: () => void;
+    onBackToDashboard?: (
+        content: CreateEmbedJwt['content'] | undefined,
+    ) => void;
     onChartSaved?: (chart: SavedChart, action: ChartSavedAction) => void;
     savedChart?: EmbedExploreChart;
     customSqlProvenanceChartUuid?: UUID;
@@ -211,7 +213,9 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             customSqlProvenanceChartUuid,
             savedQueryUuid,
             appUuid,
-            onBackToDashboard,
+            onBackToDashboard: onBackToDashboard
+                ? () => onBackToDashboard(embedJwtPayload?.content)
+                : undefined,
             mode,
             theme: embedThemeParams.theme,
             backgroundColor: embedThemeParams.backgroundColor,

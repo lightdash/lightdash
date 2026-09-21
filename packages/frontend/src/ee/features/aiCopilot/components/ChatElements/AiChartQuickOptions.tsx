@@ -47,6 +47,7 @@ import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { getOpenInExploreUrl } from '../../../../../utils/getOpenInExploreUrl';
+import { getEmbedExploreSearch } from '../../../embed/embedNavigation';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAddChartToDashboard } from '../../hooks/useAddChartToDashboard';
 import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
@@ -419,7 +420,10 @@ export const AiChartQuickOptions = ({
                     pathname: `/embed/${projectUuid}/explore/${encodeURIComponent(
                         metricQuery.exploreName,
                     )}`,
-                    search: openInExploreUrl.search,
+                    search: getEmbedExploreSearch(
+                        openInExploreUrl.search,
+                        `${location.pathname}${location.search}`,
+                    ),
                 },
                 {
                     state: {

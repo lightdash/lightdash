@@ -1,4 +1,4 @@
-import { type UUID } from '@lightdash/common';
+import { type CreateEmbedJwt, type UUID } from '@lightdash/common';
 import { useEffect, useState, type FC } from 'react';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import EmbedProvider from '../../providers/Embed/EmbedProvider';
@@ -7,6 +7,11 @@ import {
     type EmbedExploreOptions,
 } from '../../providers/Embed/types';
 import useEmbed from '../../providers/Embed/useEmbed';
+import {
+    EMBED_BACK_URL_PARAM,
+    getEmbedBackUrl,
+    getEmbedExploreSearch,
+} from './embedNavigation';
 
 type EmbedExploreLocationState = {
     embedBackUrl?: string;
@@ -81,7 +86,13 @@ const EmbeddedApp: FC = () => {
                 ('uuid' in options.chart ? options.chart.uuid : undefined),
         );
         void navigate(
-            `/embed/${projectUuid}/explore/${options.chart.tableName}`,
+            {
+                pathname: `/embed/${projectUuid}/explore/${options.chart.tableName}`,
+                search: getEmbedExploreSearch(
+                    '',
+                    `${location.pathname}${location.search}`,
+                ),
+            },
             {
                 state: {
                     embedBackUrl: `${location.pathname}${location.search}`,
@@ -90,14 +101,24 @@ const EmbeddedApp: FC = () => {
         );
     };
 
-    const handleBackToDashboard = async () => {
-        const state = location.state as EmbedExploreLocationState | null;
-        if (state?.embedBackUrl) {
-            await navigate(state.embedBackUrl);
+    const handleBackToDashboard = async (
+        content: CreateEmbedJwt['content'] | undefined,
+    ) => {
+        if (!projectUuid) {
             return;
         }
-
-        await navigate(`/embed/${projectUuid}`);
+        const state = location.state as EmbedExploreLocationState | null;
+        await navigate(
+            getEmbedBackUrl({
+                projectUuid,
+                content,
+                backUrl:
+                    state?.embedBackUrl ??
+                    new URLSearchParams(location.search).get(
+                        EMBED_BACK_URL_PARAM,
+                    ),
+            }),
+        );
     };
 
     return (
