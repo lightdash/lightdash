@@ -173,3 +173,6 @@ examples/metricflow-demo/.fusion/
 
 # Impeccable design-skill artifacts
 .impeccable/
+
+# humanlayer task scratch
+.humanlayer/
