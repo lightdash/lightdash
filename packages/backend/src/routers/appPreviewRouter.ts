@@ -1,5 +1,7 @@
 import { GetObjectCommand, S3ServiceException } from '@aws-sdk/client-s3';
 import express, { type Router } from 'express';
+import { type Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import path from 'path';
 import { validate as isValidUuid } from 'uuid';
 import { createS3ClientFromConfig } from '../clients/Aws/S3BaseClient';
@@ -161,8 +163,9 @@ export const createAppPreviewRouter = (
 
     const fetchFromS3 = async (
         s3Key: string,
+        abortSignal: AbortSignal,
     ): Promise<
-        | { ok: true; body: NodeJS.ReadableStream }
+        | { ok: true; body: Readable }
         | { ok: false; status: number; message: string }
     > => {
         if (!s3 || !config.s3) {
@@ -179,6 +182,7 @@ export const createAppPreviewRouter = (
                     Bucket: config.s3.bucket,
                     Key: s3Key,
                 }),
+                { abortSignal },
             );
 
             if (!response.Body) {
@@ -189,8 +193,9 @@ export const createAppPreviewRouter = (
                 };
             }
 
-            return { ok: true, body: response.Body as NodeJS.ReadableStream };
+            return { ok: true, body: response.Body as Readable };
         } catch (error) {
+            if (abortSignal.aborted) throw error;
             if (
                 error instanceof S3ServiceException &&
                 (error.$metadata?.httpStatusCode === 404 ||
@@ -207,6 +212,52 @@ export const createAppPreviewRouter = (
                 status: 502,
                 message: 'Failed to fetch app bundle',
             };
+        }
+    };
+
+    const streamFromS3 = async (
+        s3Key: string,
+        res: express.Response,
+        prepareResponse: () => void,
+    ): Promise<void> => {
+        const controller = new AbortController();
+        const cancel = () => {
+            if (!res.writableFinished) controller.abort();
+        };
+        res.once('close', cancel);
+
+        try {
+            const result = await fetchFromS3(s3Key, controller.signal);
+            if (!result.ok) {
+                if (!res.destroyed) {
+                    res.status(result.status).json({
+                        status: 'error',
+                        error: { message: result.message },
+                    });
+                }
+                return;
+            }
+            if (res.destroyed) {
+                controller.abort();
+                result.body.destroy();
+                return;
+            }
+
+            prepareResponse();
+            await pipeline(result.body, res, {
+                signal: controller.signal,
+            });
+        } catch (error) {
+            if (!controller.signal.aborted) {
+                Logger.error(
+                    `Failed to stream app bundle: ${error instanceof Error ? error.message : String(error)}`,
+                );
+            }
+            // SDK checksum wrappers don't destroy their underlying HTTP stream.
+            controller.abort();
+            res.destroy();
+        } finally {
+            res.removeListener('close', cancel);
         }
     };
 
@@ -306,23 +357,12 @@ export const createAppPreviewRouter = (
                 previewTokenPayload.appUuid,
                 previewTokenPayload.version,
             );
-            const result = await fetchFromS3(s3Key);
-
-            if (!result.ok) {
-                res.status(result.status).json({
-                    status: 'error',
-                    error: { message: result.message },
-                });
-                return;
-            }
-
-            setSecurityHeaders(res, previewTokenPayload);
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            res.setHeader('Cache-Control', 'no-store');
-
-            onPreviewView?.(previewTokenPayload);
-
-            result.body.pipe(res);
+            await streamFromS3(s3Key, res, () => {
+                setSecurityHeaders(res, previewTokenPayload);
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                res.setHeader('Cache-Control', 'no-store');
+                onPreviewView?.(previewTokenPayload);
+            });
         },
     );
 
@@ -384,32 +424,22 @@ export const createAppPreviewRouter = (
                 previewTokenPayload.version,
                 filename,
             );
-            const result = await fetchFromS3(s3Key);
-
-            if (!result.ok) {
-                res.status(result.status).json({
-                    status: 'error',
-                    error: { message: result.message },
-                });
-                return;
-            }
-
             const ext = path.extname(filename).toLowerCase();
             const contentType =
                 CONTENT_TYPE_BY_EXT[ext] || 'application/octet-stream';
 
-            // Allow cross-origin loading from sandboxed iframes (opaque origin).
-            // Safe because assets are static build artifacts, not user data.
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-            res.setHeader('Content-Type', contentType);
-            res.setHeader('X-Content-Type-Options', 'nosniff');
-            res.setHeader(
-                'Cache-Control',
-                'public, max-age=31536000, immutable',
-            );
-
-            result.body.pipe(res);
+            await streamFromS3(s3Key, res, () => {
+                // Allow cross-origin loading from sandboxed iframes (opaque origin).
+                // Safe because assets are static build artifacts, not user data.
+                res.setHeader('Access-Control-Allow-Origin', '*');
+                res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+                res.setHeader('Content-Type', contentType);
+                res.setHeader('X-Content-Type-Options', 'nosniff');
+                res.setHeader(
+                    'Cache-Control',
+                    'public, max-age=31536000, immutable',
+                );
+            });
         },
     );
 
