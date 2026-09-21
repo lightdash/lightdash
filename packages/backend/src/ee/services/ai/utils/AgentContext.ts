@@ -1,4 +1,6 @@
 import type { Explore } from '@lightdash/common';
+import type { ChartExportSource } from './chartAsCode';
+import { GeneratedResponseBlocks } from './GeneratedResponseBlocks';
 
 /**
  * Type-safe wrapper for experimental_context from AI SDK
@@ -22,7 +24,29 @@ import type { Explore } from '@lightdash/common';
  * ```
  */
 export class AgentContext {
+    readonly responseBlocks = new GeneratedResponseBlocks();
+
+    private readonly chartExports = new Map<string, ChartExportSource>();
+
     constructor(private readonly availableExplores: Explore[]) {}
+
+    registerChartExport(queryUuid: string, chart: ChartExportSource): void {
+        if (this.chartExports.size >= 20 && !this.chartExports.has(queryUuid)) {
+            const oldest = this.chartExports.keys().next().value;
+            if (oldest !== undefined) this.chartExports.delete(oldest);
+        }
+        this.chartExports.set(queryUuid, structuredClone(chart));
+    }
+
+    getChartExport(queryUuid: string): ChartExportSource {
+        const chart = this.chartExports.get(queryUuid);
+        if (!chart) {
+            throw new Error(
+                'No exportable chart for this query in the current turn. For an earlier chart, call exportChartAsCode with null queryUuid, artifactUuid and versionUuid to list stored charts. Do not rerun its data query just to export it.',
+            );
+        }
+        return structuredClone(chart);
+    }
 
     /**
      * Creates a validated AgentContext from unknown context

@@ -121,6 +121,11 @@ export const parseAiArtifactChartConfig = (
 ): AiChartArtifactConfig | null => {
     if (!config || typeof config !== 'object') return null;
 
+    const portableSnapshot =
+        'contentAsCode' in config
+            ? { contentAsCode: config.contentAsCode }
+            : {};
+
     if (isAiComposerChartArtifactConfig(config)) {
         return config;
     }
@@ -165,6 +170,7 @@ export const parseAiArtifactChartConfig = (
                     ? {}
                     : { dataAppVizVersion }),
                 config: parsed,
+                ...portableSnapshot,
             };
         }
         return null;
@@ -183,6 +189,7 @@ export const parseAiArtifactChartConfig = (
                 source: 'merge',
                 schemaVersion: 1,
                 config: parsed,
+                ...portableSnapshot,
             };
         }
         return null;
@@ -215,6 +222,7 @@ export const parseAiArtifactChartConfig = (
             return {
                 source: 'semantic',
                 config: parsed,
+                ...portableSnapshot,
             };
         }
         return null;

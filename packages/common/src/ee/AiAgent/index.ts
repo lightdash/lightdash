@@ -41,12 +41,14 @@ import { type AiMetricQuery, type AiResultType } from './types';
 
 export * from './adminTypes';
 export * from './aiEvalAssessment';
+export * from './canonicalizeAiMerge';
 export * from './chartConfig/slack';
 export * from './chartConfig/web';
 export * from './constants';
 export * from './coder';
 export * from './composerArtifact';
 export * from './dashboardContext';
+export * from './dashboardLayout';
 export * from './aiAgentReviewClassifierTypes';
 export * from './documentGuidance';
 export * from './documentTypes';
@@ -1074,12 +1076,15 @@ export type AiLegacySemanticChartArtifactConfig = ToolRunQueryArgs;
 export type AiSemanticChartArtifactConfig = {
     source: 'semantic';
     config: PersistedRunQueryPayload;
+    /** Schema-validated portable snapshot used by export and PR workflows. */
+    contentAsCode?: unknown;
 };
 
 export type AiMergeChartArtifactConfig = {
     source: 'merge';
     schemaVersion: 1;
     config: PersistedMergeRunQueryPayload;
+    contentAsCode?: unknown;
 };
 
 // Custom chart type answer envelope: the persisted query payload keeps the
@@ -1092,6 +1097,7 @@ export type AiCustomChartTypeChartArtifactConfig = {
     /** Omitted by artifacts created before custom chart type pins existed. */
     dataAppVizVersion?: number;
     config: PersistedRunQueryPayload;
+    contentAsCode?: unknown;
 };
 
 export type AiChartArtifactConfig =

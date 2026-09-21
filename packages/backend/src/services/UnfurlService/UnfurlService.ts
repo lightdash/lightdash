@@ -1139,10 +1139,14 @@ export class UnfurlService extends BaseService {
             projectUuid,
             agentUuid,
             artifact,
+            cachedQueryUuid,
+            signal,
         }: {
             projectUuid: UUID;
             agentUuid: UUID;
             artifact: AiArtifact;
+            cachedQueryUuid?: string;
+            signal?: AbortSignal;
         },
     ): Promise<{ imageBuffer: Buffer; imageUrl: string }> {
         const { artifactUuid, versionUuid } = artifact;
@@ -1152,10 +1156,14 @@ export class UnfurlService extends BaseService {
             );
         }
 
-        const minimalUrl = new URL(
+        const minimalPage = new URL(
             `/minimal/projects/${projectUuid}/ai-agents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}`,
             this.lightdashConfig.headlessBrowser.internalLightdashHost,
-        ).href;
+        );
+        if (cachedQueryUuid)
+            minimalPage.searchParams.set('cachedQueryUuid', cachedQueryUuid);
+        const minimalUrl = minimalPage.href;
+        signal?.throwIfAborted();
 
         this.logger.info(`Exporting AI artifact to hosted image`, {
             userUuid: user.userUuid,
@@ -1183,12 +1191,17 @@ export class UnfurlService extends BaseService {
             resourceName: artifact.title ?? undefined,
             context: ScreenshotContext.EXPORT_AI_ARTIFACT,
             selectedTabs: null,
+            signal,
+            requireSuccessfulRender: cachedQueryUuid !== undefined,
+            ...(cachedQueryUuid ? { retries: 1 } : {}),
         });
         if (!result?.imageBuffer) {
             throw new UnexpectedServerError(
                 'Unable to export AI artifact image',
             );
         }
+
+        signal?.throwIfAborted();
 
         const imageUrl = await this.hostImage(
             result.imageBuffer,
@@ -1466,6 +1479,8 @@ export class UnfurlService extends BaseService {
         outputFormat = 'image',
         withPdf = false,
         pdfPagination = 'crop',
+        signal,
+        requireSuccessfulRender = false,
     }: {
         imageId: string;
         cookie: string;
@@ -1495,6 +1510,8 @@ export class UnfurlService extends BaseService {
         // 'cssPaged': multi-page PDF, uniform page height, print page breaks
         // between EXPORT_TAB_PAGE_CLASS containers (one per tab).
         pdfPagination?: 'crop' | 'cssPaged';
+        signal?: AbortSignal;
+        requireSuccessfulRender?: boolean;
     }): Promise<{ imageBuffer?: Buffer; pdfBuffer?: Buffer } | undefined> {
         this.logger.info(
             `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
@@ -1535,8 +1552,14 @@ export class UnfurlService extends BaseService {
                 let browser: playwright.Browser | undefined;
                 let page: playwright.Page | undefined;
                 let appContentHeight: number | undefined;
+                const abortCapture = () => {
+                    void page?.close().catch(() => {});
+                    void browser?.close().catch(() => {});
+                };
+                signal?.addEventListener('abort', abortCapture, { once: true });
 
                 try {
+                    signal?.throwIfAborted();
                     const { browserEndpoint } =
                         this.lightdashConfig.headlessBrowser;
 
@@ -1610,6 +1633,7 @@ export class UnfurlService extends BaseService {
                         },
                     );
 
+                    signal?.throwIfAborted();
                     page = await browser.newPage({
                         viewport: initialViewport,
                         ...(lightdashPage === LightdashPage.AI_ARTIFACT
@@ -1628,6 +1652,7 @@ export class UnfurlService extends BaseService {
                             this.lightdashConfig.headlessBrowser
                                 .internalLightdashHostIgnoreHttpsErrors,
                     });
+                    signal?.throwIfAborted();
 
                     if (lightdashPage === LightdashPage.APP) {
                         await this.overrideCdpViewport(
@@ -2116,6 +2141,19 @@ export class UnfurlService extends BaseService {
                         }
                     }
 
+                    if (
+                        requireSuccessfulRender &&
+                        (await page.getAttribute(
+                            SCREENSHOT_SELECTORS.READY_INDICATOR,
+                            'data-status',
+                        )) !== 'ready'
+                    ) {
+                        throw new UnexpectedServerError(
+                            'Artifact visualization did not render successfully',
+                        );
+                    }
+                    signal?.throwIfAborted();
+
                     if (lightdashPage === LightdashPage.APP) {
                         // The app is rendered inside a sandboxed iframe sized
                         // to 100vh on the parent. The initial app viewport is
@@ -2519,7 +2557,7 @@ export class UnfurlService extends BaseService {
                         errorMessage.includes('not attached to the DOM') ||
                         isQueueFullError;
 
-                    if (isRetryableError && retries) {
+                    if (isRetryableError && retries && !signal?.aborted) {
                         const maxRetries =
                             this.lightdashConfig.headlessBrowser
                                 .maxScreenshotRetries ??
@@ -2575,6 +2613,8 @@ export class UnfurlService extends BaseService {
                             outputFormat,
                             withPdf,
                             pdfPagination,
+                            signal,
+                            requireSuccessfulRender,
                         });
                     }
 
@@ -2617,6 +2657,7 @@ export class UnfurlService extends BaseService {
                         },
                     );
                 } finally {
+                    signal?.removeEventListener('abort', abortCapture);
                     if (page) await page.close();
                     if (browser) await browser.close(); // clears all created contexts belonging to this browser and disconnects from the browser server.
 

@@ -78,11 +78,28 @@ export type AiPromptTokenUsage = {
 export type AiPromptTokenUsageUpdate = Required<AiPromptTokenUsage>;
 
 /** Wall-clock timing of one model run, stamped by the agent loop. ISO strings. */
+export type AiPromptResponseStageTiming = {
+    /** Request start through context, catalog and tool preparation. */
+    preparationMs: number;
+    /** Main model inference. Null when the provider hid the split. */
+    providerMs: number | null;
+    /** Exact union of completed query-tool spans. */
+    queryMs: number;
+    /** Exact union of completed non-query/non-render tool spans. */
+    apiMs: number;
+    /** Exact union of chart, dashboard, app and export tool spans. */
+    renderMs: number;
+    /** Query tools whose execution returned a result-cache hit. */
+    queryCacheHits: number;
+};
+
 export type AiPromptResponseTiming = {
     startedAt: string;
     /** First chunk the model produced (text, reasoning, or tool input). Null when nothing streamed. */
     firstTokenAt: string | null;
     finishedAt: string;
+    /** Stage spans may overlap when the SDK runs tools concurrently. */
+    stages?: AiPromptResponseStageTiming;
 };
 
 /**
