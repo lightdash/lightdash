@@ -154,6 +154,11 @@ import {
 } from './referenceToolGating';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
 import {
+    createTurnEscalation,
+    ESCALATION_GUIDANCE,
+    type TurnEscalation,
+} from './turnEscalation';
+import {
     TurnTimingTracker,
     withNonStreamingProviderTiming,
     type StepTiming,
@@ -224,7 +229,9 @@ const createAgentStepUsageRecorder = ({
     preloadedMcpToolNames,
     functionId,
     feature,
+    escalation,
 }: {
+    escalation: TurnEscalation;
     args: AiAgentArgs;
     turnIntent: TurnIntent | null | undefined;
     preloadedMcpToolNames?: string[];
@@ -243,25 +250,35 @@ const createAgentStepUsageRecorder = ({
               'agent',
           )
         : null;
+    const escalationTelemetry = args.escalationModel
+        ? getAgentTelemetryConfig(
+              `${functionId}.escalated`,
+              { ...args, ...args.escalationModel },
+              feature,
+          )
+        : telemetry;
     let isFirstStep = true;
 
     const record = async (step: {
         usage: LanguageModelUsage;
         toolCalls?: ReadonlyArray<{ toolName: string }>;
     }) => {
+        let stepTelemetry = telemetry;
+        if (escalation.reason) stepTelemetry = escalationTelemetry;
+        else if (
+            fastToolTelemetry &&
+            isFastToolCallStep(
+                args,
+                turnIntent,
+                step,
+                isFirstStep,
+                preloadedMcpToolNames,
+            )
+        )
+            stepTelemetry = fastToolTelemetry;
         const tokens = await recordAgentStepUsage({
             usage: step.usage,
-            telemetry:
-                fastToolTelemetry &&
-                isFastToolCallStep(
-                    args,
-                    turnIntent,
-                    step,
-                    isFirstStep,
-                    preloadedMcpToolNames,
-                )
-                    ? fastToolTelemetry
-                    : telemetry,
+            telemetry: stepTelemetry,
             execution: args.execution,
         });
         isFirstStep = false;
@@ -1119,7 +1136,12 @@ export const buildPrepareStep = ({
     intentToolGate,
     logger,
     invalidToolCallIds,
+    escalation = createTurnEscalation(
+        !!args.decisions && args.execution.mode === 'standard',
+        args.messageHistory,
+    ),
 }: {
+    escalation?: TurnEscalation;
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
     tools: ToolSet;
@@ -1181,6 +1203,35 @@ export const buildPrepareStep = ({
         );
 
         const extraMessages: ModelMessage[] = [];
+        if (stepNumber > 0) {
+            const reason = escalation.observe(messages);
+            if (reason) {
+                intentToolGate?.restore();
+                Logger.info('ai_agent.turn_escalated', {
+                    organizationId: args.organizationId,
+                    projectId: args.agentSettings.projectUuid,
+                    aiAgentId: args.agentSettings.uuid,
+                    threadId: args.threadUuid,
+                    promptId: args.promptUuid,
+                    reason,
+                    stepNumber,
+                    fromModel: getAiAgentModelName(args.model),
+                    toModel: getAiAgentModelName(
+                        args.escalationModel?.model ?? args.model,
+                    ),
+                });
+            }
+        }
+        if (escalation.reason)
+            extraMessages.push({ role: 'user', content: ESCALATION_GUIDANCE });
+        const escalationOverride = escalation.reason
+            ? {
+                  model: args.escalationModel?.model ?? args.model,
+                  providerOptions: args.escalationModel
+                      ? (args.escalationModel.providerOptions ?? {})
+                      : args.providerOptions,
+              }
+            : {};
         let activeTools = getMcpActiveTools(
             messages,
             Object.keys(tools),
@@ -1298,6 +1349,7 @@ export const buildPrepareStep = ({
 
         return {
             ...forced,
+            ...escalationOverride,
             ...(stepActiveTools !== undefined
                 ? { activeTools: stepActiveTools }
                 : {}),
@@ -2352,6 +2404,10 @@ const prepareAgentTurn = async ({
         });
     }
     const invalidToolCallIds = new Set<string>();
+    const escalation = createTurnEscalation(
+        !!args.decisions && args.execution.mode === 'standard',
+        args.messageHistory,
+    );
     const prepareStep = buildPrepareStep({
         args,
         dependencies,
@@ -2363,6 +2419,7 @@ const prepareAgentTurn = async ({
         intentToolGate,
         logger,
         invalidToolCallIds,
+        escalation,
     });
 
     return {
@@ -2372,6 +2429,7 @@ const prepareAgentTurn = async ({
         messages,
         preparedContext,
         invalidToolCallIds,
+        escalation,
         prepareStep,
         stopWhenPromptInterrupted: buildStopWhenPromptInterrupted(
             args,
@@ -2419,6 +2477,7 @@ export const generateAgentResponse = async ({
             messages,
             preparedContext,
             invalidToolCallIds,
+            escalation,
             prepareStep,
             stopWhenPromptInterrupted,
         } = await prepareAgentTurn({
@@ -2437,6 +2496,7 @@ export const generateAgentResponse = async ({
         const { record: recordStepUsage, telemetry } =
             createAgentStepUsageRecorder({
                 args,
+                escalation,
                 turnIntent: preparedContext?.turnIntent,
                 preloadedMcpToolNames: preparedContext?.mcpToolNames,
                 functionId: 'generateAgentResponse',
@@ -2464,8 +2524,10 @@ export const generateAgentResponse = async ({
                 stepCountIs(args.execution.maxSteps),
                 stopWhenPromptInterrupted,
                 ({ steps }) =>
-                    getTurnFastResponse(preparedContext?.turnIntent, steps) !==
-                    null,
+                    getTurnFastResponse(
+                        escalation.reason ? null : preparedContext?.turnIntent,
+                        steps,
+                    ) !== null,
             ],
             abortSignal,
             providerOptions: args.providerOptions,
@@ -2517,7 +2579,9 @@ export const generateAgentResponse = async ({
                 // completeStep opens the next step; these calls belong to this one.
                 const stepIndex = timing.getCurrentStepIndex();
                 trackAgentStep(
-                    args,
+                    escalation.reason && args.escalationModel
+                        ? { ...args, model: args.escalationModel.model }
+                        : args,
                     dependencies,
                     timing.completeStep(
                         step.reasoningText?.length ?? 0,
@@ -2704,8 +2768,10 @@ export const generateAgentResponse = async ({
         });
         const responseText = result.text.trim()
             ? result.text
-            : (getTurnFastResponse(preparedContext?.turnIntent, result.steps) ??
-              result.text);
+            : (getTurnFastResponse(
+                  escalation.reason ? null : preparedContext?.turnIntent,
+                  result.steps,
+              ) ?? result.text);
 
         logger(
             'Generate Agent Response',
@@ -2844,6 +2910,7 @@ export const streamAgentResponse = async ({
             messages,
             preparedContext,
             invalidToolCallIds,
+            escalation,
             prepareStep,
             stopWhenPromptInterrupted,
         } = await prepareAgentTurn({
@@ -2864,6 +2931,7 @@ export const streamAgentResponse = async ({
         const { record: recordStepUsage, telemetry } =
             createAgentStepUsageRecorder({
                 args,
+                escalation,
                 turnIntent: preparedContext?.turnIntent,
                 preloadedMcpToolNames: preparedContext?.mcpToolNames,
                 functionId: 'streamAgentResponse',
@@ -2882,8 +2950,10 @@ export const streamAgentResponse = async ({
                 stepCountIs(args.execution.maxSteps),
                 stopWhenPromptInterrupted,
                 ({ steps }) =>
-                    getTurnFastResponse(preparedContext?.turnIntent, steps) !==
-                    null,
+                    getTurnFastResponse(
+                        escalation.reason ? null : preparedContext?.turnIntent,
+                        steps,
+                    ) !== null,
             ],
             providerOptions: args.providerOptions,
             experimental_repairToolCall: args.decisions
@@ -3032,7 +3102,9 @@ export const streamAgentResponse = async ({
                         );
                         if (fastToolCall) {
                             fastStreamResponse = getTurnFastResponse(
-                                preparedContext?.turnIntent,
+                                escalation.reason
+                                    ? null
+                                    : preparedContext?.turnIntent,
                                 [
                                     {
                                         toolCalls: [fastToolCall],
@@ -3162,7 +3234,9 @@ export const streamAgentResponse = async ({
             onStepFinish: async (step) => {
                 await recordStepUsage(step);
                 trackAgentStep(
-                    args,
+                    escalation.reason && args.escalationModel
+                        ? { ...args, model: args.escalationModel.model }
+                        : args,
                     dependencies,
                     timing.completeStep(step.reasoningText?.length ?? 0),
                     step.usage,
@@ -3212,7 +3286,9 @@ export const streamAgentResponse = async ({
                 const responseText = modelResponse.trim()
                     ? modelResponse
                     : (getTurnFastResponse(
-                          preparedContext?.turnIntent,
+                          escalation.reason
+                              ? null
+                              : preparedContext?.turnIntent,
                           steps,
                       ) ?? modelResponse);
                 const completeResponse =

@@ -5,8 +5,10 @@ import {
     generateText,
     streamText,
     type ModelMessage,
+    type PrepareStepResult,
     type ToolSet,
 } from 'ai';
+import { MockLanguageModelV3 } from 'ai/test';
 import {
     registerAiUsageTracker,
     type AiUsageEvent,
@@ -131,6 +133,268 @@ const mcpToolSetup = () => ({
     mcpToolNameToServerUuid: {},
     unavailableMcpServers: [],
     closeMcpClients: vi.fn().mockResolvedValue(undefined),
+});
+
+describe('automatic escalation', () => {
+    const toolRound = (
+        id: string,
+        error: boolean,
+        toolName = 'getMetadata',
+    ): ModelMessage[] => [
+        {
+            role: 'assistant',
+            content: [
+                { type: 'tool-call', toolCallId: id, toolName, input: {} },
+            ],
+        },
+        {
+            role: 'tool',
+            content: [
+                {
+                    type: 'tool-result',
+                    toolCallId: id,
+                    toolName,
+                    output: {
+                        type: error ? 'error-text' : 'text',
+                        value: error ? 'Failed' : 'Done',
+                    },
+                },
+            ],
+        },
+    ];
+    const setup = (enabled: boolean) => {
+        const args = buildAgentArgs();
+        if (enabled)
+            args.decisions = new AiDecisionClient({
+                apiKey: null,
+                model: 'test',
+                timeoutMs: 100,
+            });
+        args.model = {
+            specificationVersion: 'v3',
+            modelId: 'fast',
+            provider: 'test',
+        } as never;
+        args.escalationModel = {
+            model: {
+                specificationVersion: 'v3',
+                modelId: 'original',
+                provider: 'test',
+            } as never,
+            keyManagement: 'self-managed',
+        };
+        const dependencies = buildAgentDependencies(
+            vi.fn().mockResolvedValue(undefined),
+        );
+        dependencies.consumePromptSteers = vi.fn().mockResolvedValue([]);
+        dependencies.storeToolCallError = vi.fn().mockResolvedValue(undefined);
+        const tools = {
+            loadAgentTools: getLoadAgentTools(),
+            getMetadata: {} as never,
+            runQuery: {} as never,
+            editRepo: {} as never,
+        };
+        const gate = createIntentToolGate(tools, 'reference_answer');
+        const prepareStep = buildPrepareStep({
+            args,
+            dependencies,
+            tools,
+            mcpToolNames: [],
+            intentToolGate: gate,
+            logger: vi.fn(),
+            invalidToolCallIds: new Set(),
+        });
+        return { args, dependencies, tools, prepareStep };
+    };
+
+    it.each([false, true])(
+        'gates model and tool expansion after stalled recovery (enabled=%s)',
+        async (enabled) => {
+            const { args, prepareStep } = setup(enabled);
+            const messages = [
+                ...args.messageHistory,
+                ...toolRound('1', true),
+                ...toolRound('2', true),
+            ];
+            const result: NonNullable<PrepareStepResult> = await prepareStep({
+                stepNumber: 2,
+                messages,
+            });
+            if (enabled) {
+                expect(result.model).toBe(args.escalationModel?.model);
+                expect(result.providerOptions).toEqual({});
+                expect(result.activeTools).toBeUndefined();
+                expect(JSON.stringify(result.messages)).toContain(
+                    'Load missing project context',
+                );
+                expect(result.messages?.slice(0, messages.length)).toEqual(
+                    messages,
+                );
+                expect(
+                    await prepareStep({ stepNumber: 3, messages }),
+                ).toMatchObject({ model: args.escalationModel?.model });
+            } else {
+                expect(result).not.toHaveProperty('model');
+                expect(result.activeTools).not.toContain('editRepo');
+                expect(JSON.stringify(result.messages)).not.toContain(
+                    'Load missing project context',
+                );
+            }
+        },
+    );
+
+    it('does not override query retry caps while escalating', async () => {
+        const { args, prepareStep } = setup(true);
+        const result: NonNullable<PrepareStepResult> = await prepareStep({
+            stepNumber: 2,
+            messages: [
+                ...args.messageHistory,
+                ...toolRound('1', true, 'runQuery'),
+                ...toolRound('2', true, 'runQuery'),
+                ...toolRound('3', true, 'runQuery'),
+            ],
+        });
+        expect(result.model).toBe(args.escalationModel?.model);
+        expect(result.activeTools).not.toContain('runQuery');
+        expect(result.activeTools).toContain('getMetadata');
+        expect(result.activeTools).not.toContain('unregisteredTool');
+    });
+
+    it('switches models in a real SDK tool loop after context expansion', async () => {
+        const { args, dependencies } = setup(true);
+        const usage = {
+            inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 1, text: 1, reasoning: 0 },
+        };
+        const originalCall = vi.fn().mockResolvedValue({
+            content: [{ type: 'text', text: 'Grounded answer' }],
+            finishReason: { unified: 'stop', raw: undefined },
+            usage,
+            warnings: [],
+        });
+        args.escalationModel = {
+            model: new MockLanguageModelV3({
+                modelId: 'original',
+                doGenerate: originalCall,
+            }),
+            keyManagement: 'self-managed',
+        };
+        const fastCall = vi.fn().mockResolvedValue({
+            content: [
+                {
+                    type: 'tool-call',
+                    toolCallId: 'expand',
+                    toolName: 'loadAgentTools',
+                    input: '{}',
+                },
+            ],
+            finishReason: { unified: 'tool-calls', raw: undefined },
+            usage,
+            warnings: [],
+        });
+        args.model = new MockLanguageModelV3({
+            modelId: 'fast',
+            doGenerate: fastCall,
+        });
+        dependencies.updateProgress = vi.fn().mockResolvedValue(undefined);
+        dependencies.storeToolCall = vi.fn().mockResolvedValue(undefined);
+        dependencies.storeToolResults = vi.fn().mockResolvedValue(undefined);
+        const sdk = await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(generateText).mockImplementationOnce(sdk.generateText);
+        expect(
+            await generateAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).toBe('Grounded answer');
+        expect(fastCall).toHaveBeenCalledOnce();
+        expect(originalCall).toHaveBeenCalledOnce();
+        expect(JSON.stringify(originalCall.mock.calls[0][0].prompt)).toContain(
+            'Load missing project context',
+        );
+    });
+
+    it.each(['generate', 'stream'] as const)(
+        'uses and bills the original model after a context request in %s',
+        async (mode) => {
+            const { args, dependencies } = setup(true);
+            const events: AiUsageEvent[] = [];
+            registerAiUsageTracker((event) => events.push(event));
+            const run = async (options: AnyType) => {
+                await options.prepareStep({
+                    stepNumber: 0,
+                    messages: options.messages,
+                });
+                await options.onStepFinish({
+                    text: '',
+                    toolCalls: [],
+                    toolResults: [],
+                    usage: { totalTokens: 10 },
+                });
+                const messages = [
+                    ...options.messages,
+                    ...toolRound('load', false, 'loadAgentTools'),
+                ];
+                const prepared = await options.prepareStep({
+                    stepNumber: 1,
+                    messages,
+                });
+                expect(prepared.model.modelId).toBe('original');
+                expect(prepared.activeTools).toBeUndefined();
+                await options.onStepFinish({
+                    text: 'Answer',
+                    toolCalls: [],
+                    toolResults: [],
+                    usage: { totalTokens: 20 },
+                });
+                return {
+                    text: 'Answer',
+                    steps: [{}],
+                    usage: { totalTokens: 20 },
+                    totalUsage: { totalTokens: 30 },
+                    finishReason: 'stop',
+                };
+            };
+            try {
+                if (mode === 'generate') {
+                    vi.mocked(generateText).mockImplementationOnce(
+                        run as never,
+                    );
+                    await generateAgentResponse({
+                        args,
+                        dependencies,
+                        mcpToolSetup: mcpToolSetup(),
+                    });
+                } else {
+                    let captured: AnyType;
+                    vi.mocked(streamText).mockImplementationOnce(((
+                        options: AnyType,
+                    ) => {
+                        captured = options;
+                        return {};
+                    }) as never);
+                    await streamAgentResponse({
+                        args,
+                        dependencies,
+                        mcpToolSetup: mcpToolSetup(),
+                    });
+                    await run(captured);
+                }
+                expect(
+                    events.map((event) => ({
+                        model: event.properties.model,
+                        tokens: event.properties.totalTokens,
+                    })),
+                ).toEqual([
+                    { model: 'fast', tokens: 10 },
+                    { model: 'original', tokens: 20 },
+                ]);
+            } finally {
+                registerAiUsageTracker(() => undefined);
+            }
+        },
+    );
 });
 
 describe('flags-off agent turns', () => {
