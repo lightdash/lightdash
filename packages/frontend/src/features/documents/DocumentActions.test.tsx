@@ -30,19 +30,10 @@ vi.mock('../../providers/App/useApp', () => ({
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: mocks.documentsEnabled } }),
 }));
-vi.mock('../../hooks/useProject', () => ({
-    useProject: () => ({ data: { pinnedListUuid: 'pins' } }),
-}));
-vi.mock('../../hooks/pinning/usePinnedItems', () => ({
-    usePinnedItems: () => ({
-        data: mocks.isPinned ? [{ data: { uuid: 'document' } }] : [],
-        isInitialLoading: mocks.pinLoading,
-    }),
-}));
 vi.mock('../../hooks/pinning/useDocumentPinningMutation', () => ({
     useDocumentPinningMutation: () => ({
         mutate: mocks.togglePin,
-        isLoading: false,
+        isLoading: mocks.pinLoading,
     }),
 }));
 vi.mock('../../hooks/favorites/useFavorites', () => ({
@@ -108,6 +99,7 @@ vi.mock('../directAccess/components/DirectAccessModal', () => ({
 }));
 
 const document: Document = {
+    pinnedListUuid: null,
     documentUuid: 'document',
     projectUuid: 'project',
     organizationUuid: 'org',
@@ -153,7 +145,12 @@ describe('Document actions', () => {
     const renderActions = () =>
         render(
             <MantineProvider>
-                <DocumentActions document={document} />
+                <DocumentActions
+                    document={{
+                        ...document,
+                        pinnedListUuid: mocks.isPinned ? 'pins' : null,
+                    }}
+                />
             </MantineProvider>,
         );
 
@@ -190,7 +187,7 @@ describe('Document actions', () => {
             screen.queryByRole('menuitem', { name: 'Pin to homepage' }),
         ).not.toBeInTheDocument();
     });
-    it('prevents toggling while pin state is loading', async () => {
+    it('prevents toggling while a pin mutation is pending', async () => {
         mocks.pinLoading = true;
         renderActions();
         fireEvent.click(
@@ -313,7 +310,12 @@ describe('Document actions', () => {
         mocks.isFavorite = true;
         view.rerender(
             <MantineProvider>
-                <DocumentActions document={document} />
+                <DocumentActions
+                    document={{
+                        ...document,
+                        pinnedListUuid: mocks.isPinned ? 'pins' : null,
+                    }}
+                />
             </MantineProvider>,
         );
         fireEvent.click(

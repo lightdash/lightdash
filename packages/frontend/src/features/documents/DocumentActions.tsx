@@ -24,8 +24,6 @@ import DocumentDeleteModal from '../../components/common/modal/DocumentDeleteMod
 import { useFavoriteMutation } from '../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useDocumentPinningMutation } from '../../hooks/pinning/useDocumentPinningMutation';
-import { usePinnedItems } from '../../hooks/pinning/usePinnedItems';
-import { useProject } from '../../hooks/useProject';
 import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
@@ -40,16 +38,8 @@ import { useDocumentCreationSpaces } from './useDocumentCreationSpaces';
 const DocumentActions = ({ document }: { document: Document }) => {
     const { user } = useApp();
     const documentFlag = useServerFeatureFlag(FeatureFlags.Documents);
-    const {
-        data: project,
-        isInitialLoading: isProjectLoading,
-        isError: isProjectError,
-    } = useProject(document.projectUuid);
-    const pins = usePinnedItems(document.projectUuid, project?.pinnedListUuid);
     const pinMutation = useDocumentPinningMutation();
-    const isPinned =
-        pins.data?.some((item) => item.data.uuid === document.documentUuid) ??
-        false;
+    const isPinned = document.pinnedListUuid !== null;
     const canPin =
         !documentFlag.isError &&
         documentFlag.data?.enabled === true &&
@@ -139,13 +129,7 @@ const DocumentActions = ({ document }: { document: Document }) => {
                                     icon={isPinned ? IconPinnedOff : IconPin}
                                 />
                             }
-                            disabled={
-                                isProjectLoading ||
-                                isProjectError ||
-                                pins.isInitialLoading ||
-                                pins.isError ||
-                                pinMutation.isLoading
-                            }
+                            disabled={pinMutation.isLoading}
                             onClick={() =>
                                 pinMutation.mutate({
                                     projectUuid: document.projectUuid,

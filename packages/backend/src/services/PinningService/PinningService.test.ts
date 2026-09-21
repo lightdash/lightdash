@@ -24,6 +24,7 @@ const document = {
     spaceUuid: 'space',
     name: 'Private report',
     slug: 'private-report',
+    pinnedListUuid,
 };
 const pinnedDocument: ResourceViewDocumentItem = {
     type: ResourceViewItemType.DOCUMENT,
@@ -147,8 +148,17 @@ const setup = () => {
 
 describe('Document pins', () => {
     it('pins and unpins a canonical document UUID resolved from its slug', async () => {
-        const { service, resourceViewItemModel, pinnedListModel } = setup();
-        resourceViewItemModel.getPinnedDocuments.mockResolvedValueOnce([]);
+        const {
+            service,
+            documentModel,
+            projectModel,
+            resourceViewItemModel,
+            pinnedListModel,
+        } = setup();
+        documentModel.getBySlug.mockResolvedValueOnce({
+            ...document,
+            pinnedListUuid: null,
+        });
         await expect(
             service.toggleDocumentPin(accountFor(), projectUuid, document.slug),
         ).resolves.toEqual({
@@ -168,6 +178,43 @@ describe('Document pins', () => {
             pinnedListUuid,
             documentUuid,
         });
+        expect(projectModel.get).not.toHaveBeenCalled();
+        expect(resourceViewItemModel.getPinnedDocuments).not.toHaveBeenCalled();
+    });
+
+    it('loads the existing pinned content while Document access is still resolving', async () => {
+        const {
+            service,
+            documentModel,
+            resourceViewItemModel,
+            spacePermissionService,
+        } = setup();
+        spacePermissionService.getAccessibleSpaceUuids.mockResolvedValue([
+            'space',
+        ]);
+        let resolveDocuments = () => {};
+        const documents = new Promise<(typeof document)[]>((resolve) => {
+            resolveDocuments = () => resolve([document]);
+        });
+        documentModel.listSummariesByUuid.mockReturnValue(documents);
+        const result = service.getPinnedItems(
+            accountFor(),
+            projectUuid,
+            pinnedListUuid,
+        );
+        try {
+            await vi.waitFor(() => {
+                expect(documentModel.listSummariesByUuid).toHaveBeenCalled();
+                expect(
+                    resourceViewItemModel.getAllowedChartsAndDashboards,
+                ).toHaveBeenCalled();
+            });
+        } finally {
+            resolveDocuments();
+        }
+        expect((await result).map(({ data }) => data.uuid)).toEqual([
+            documentUuid,
+        ]);
     });
 
     it('denies pin mutations to a document reader without manage PinnedItems', async () => {
@@ -184,7 +231,8 @@ describe('Document pins', () => {
     });
 
     it('returns directly shared document pins with their roles without a space access path', async () => {
-        const { service, spacePermissionService } = setup();
+        const { service, spacePermissionService, resourceViewItemModel } =
+            setup();
         spacePermissionService.resolveAccessBatch.mockResolvedValue([
             {
                 context: {
@@ -206,6 +254,12 @@ describe('Document pins', () => {
             projectUuid,
             pinnedListUuid,
         );
+        expect(
+            resourceViewItemModel.getAllowedChartsAndDashboards,
+        ).not.toHaveBeenCalled();
+        expect(
+            resourceViewItemModel.getAllSpacesByPinnedListUuid,
+        ).not.toHaveBeenCalled();
         expect(result).toEqual([
             {
                 ...pinnedDocument,
@@ -260,7 +314,8 @@ describe('Document pins', () => {
     });
 
     it('omits inaccessible and cross-project document contexts', async () => {
-        const { service, spacePermissionService } = setup();
+        const { service, spacePermissionService, resourceViewItemModel } =
+            setup();
         spacePermissionService.resolveAccessBatch.mockResolvedValue([
             {
                 context: {
@@ -307,7 +362,15 @@ describe('Document pins', () => {
     });
 
     it('preserves mixed resource order and permits reordering visible document pins', async () => {
-        const { service, resourceViewItemModel, pinnedListModel } = setup();
+        const {
+            service,
+            resourceViewItemModel,
+            pinnedListModel,
+            spacePermissionService,
+        } = setup();
+        spacePermissionService.getAccessibleSpaceUuids.mockResolvedValue([
+            'space',
+        ]);
         const app = {
             type: ResourceViewItemType.DATA_APP,
             data: { uuid: 'app', pinnedListOrder: 0 },

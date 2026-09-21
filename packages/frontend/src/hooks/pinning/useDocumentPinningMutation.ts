@@ -19,15 +19,16 @@ export const useDocumentPinningMutation = () => {
             }),
         {
             mutationKey: ['document_pinning_update'],
-            onSuccess: async ({ isPinned }) => {
+            onSuccess: async ({ isPinned, projectUuid, spaceUuid }) => {
                 await Promise.all(
                     [
-                        ['pinned_items'],
-                        ['favorites'],
-                        ['project'],
+                        ['document', projectUuid],
+                        ['pinned_items', projectUuid],
+                        ['favorites', projectUuid],
+                        ['project', projectUuid],
                         ['content'],
-                        ['space'],
-                        ['homepage_collection_content'],
+                        ['space', projectUuid, spaceUuid],
+                        ['homepage_collection_content', projectUuid],
                     ].map((key) => queryClient.invalidateQueries(key)),
                 );
                 showToastSuccess({

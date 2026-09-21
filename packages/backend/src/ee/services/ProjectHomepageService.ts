@@ -661,26 +661,28 @@ export class ProjectHomepageService extends BaseService {
         }
     }
 
-    private async getCodeReferences(
+    private async assertCanViewDocumentReferences(
         account: RegisteredAccount,
         projectUuid: string,
-    ) {
-        const references =
-            await this.projectHomepageModel.getCodeReferences(projectUuid);
-        const documentUuids = references
-            .filter(({ contentType }) => contentType === 'document')
-            .map(({ uuid }) => uuid);
+        documentUuids: Set<string>,
+    ): Promise<void> {
+        if (documentUuids.size === 0) {
+            return;
+        }
         const allowedDocumentUuids = new Set(
             await this.documentService.filterViewableUuids(
                 account,
                 [projectUuid],
-                documentUuids,
+                [...documentUuids],
             ),
         );
-        return references.filter(
-            ({ contentType, uuid }) =>
-                contentType !== 'document' || allowedDocumentUuids.has(uuid),
-        );
+        if (
+            [...documentUuids].some((uuid) => !allowedDocumentUuids.has(uuid))
+        ) {
+            throw new ParameterError(
+                'Homepage Document reference is missing or inaccessible',
+            );
+        }
     }
 
     async downloadHomepagesAsCode(
@@ -702,10 +704,12 @@ export class ProjectHomepageService extends BaseService {
                     `Homepage name "${homepage.name}" is ambiguous in this project`,
                 );
         }
-        const references = await this.getCodeReferences(account, projectUuid);
+        const references =
+            await this.projectHomepageModel.getCodeReferences(projectUuid);
+        const documentUuids = new Set<string>();
         const assignments =
             await this.projectHomepageModel.getAssignments(projectUuid);
-        return {
+        const result: ApiHomepageAsCodeListResponse['results'] = {
             homepages: selected
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map((homepage) => ({
@@ -717,6 +721,7 @@ export class ProjectHomepageService extends BaseService {
                         projectUuid,
                         references,
                         this.lightdashConfig.siteUrl,
+                        (uuid) => documentUuids.add(uuid),
                     ),
                     publication: {
                         isDefault: homepage.isDefault,
@@ -761,6 +766,12 @@ export class ProjectHomepageService extends BaseService {
                 (name) => !selected.some((h) => h.name === name),
             ),
         };
+        await this.assertCanViewDocumentReferences(
+            account,
+            projectUuid,
+            documentUuids,
+        );
+        return result;
     }
 
     async upsertHomepageAsCode(
@@ -779,13 +790,20 @@ export class ProjectHomepageService extends BaseService {
             throw new ParameterError(
                 'Publishing a homepage requires publication settings',
             );
+        const documentUuids = new Set<string>();
         const config = parseHomepageConfig(
             uploadHomepageConfig(
                 document.config,
                 projectUuid,
-                await this.getCodeReferences(account, projectUuid),
+                await this.projectHomepageModel.getCodeReferences(projectUuid),
                 this.lightdashConfig.siteUrl,
+                (uuid) => documentUuids.add(uuid),
             ),
+        );
+        await this.assertCanViewDocumentReferences(
+            account,
+            projectUuid,
+            documentUuids,
         );
         const groups =
             await this.projectHomepageModel.getCodeGroups(projectUuid);

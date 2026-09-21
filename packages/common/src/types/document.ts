@@ -65,7 +65,10 @@ export type DocumentVersion = {
     createdAt: Date;
 };
 
-export type Document = DocumentSummary & { version: DocumentVersion };
+export type Document = DocumentSummary & {
+    version: DocumentVersion;
+    pinnedListUuid: string | null;
+};
 
 export type DocumentAsCode = Pick<
     DocumentSummary,

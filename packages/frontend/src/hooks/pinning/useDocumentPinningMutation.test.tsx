@@ -23,15 +23,26 @@ it.each([true, false])(
             defaultOptions: { queries: { retry: false } },
         });
         const keys = [
-            'pinned_items',
-            'favorites',
-            'project',
-            'content',
-            'space',
-            'homepage_collection_content',
+            ['document', 'project', 'document'],
+            ['document', 'project', 'document-slug'],
+            ['pinned_items', 'project', 'list'],
+            ['favorites', 'project'],
+            ['project', 'project'],
+            ['content', { projectUuids: ['project'] }],
+            ['space', 'project', 'space'],
+            ['homepage_collection_content', 'project', 'document'],
         ];
-        keys.forEach((key) =>
-            client.setQueryData([key, 'project'], { stalePin: true }),
+        const unaffectedKeys = [
+            ['document', 'other-project', 'other-document'],
+            ['pinned_items', 'other-project', 'other-list'],
+            ['favorites', 'other-project'],
+            ['project', 'other-project'],
+            ['space', 'project', 'other-space'],
+            ['space', 'other-project', 'space'],
+            ['homepage_collection_content', 'other-project', 'document'],
+        ];
+        [...keys, ...unaffectedKeys].forEach((key) =>
+            client.setQueryData(key, { stalePin: true }),
         );
         mocks.api.mockResolvedValue({
             projectUuid: 'project',
@@ -58,9 +69,10 @@ it.each([true, false])(
             body: '{}',
         });
         keys.forEach((key) =>
-            expect(client.getQueryState([key, 'project'])?.isInvalidated).toBe(
-                true,
-            ),
+            expect(client.getQueryState(key)?.isInvalidated).toBe(true),
+        );
+        unaffectedKeys.forEach((key) =>
+            expect(client.getQueryState(key)?.isInvalidated).toBe(false),
         );
         expect(mocks.success).toHaveBeenLastCalledWith({
             title: isPinned

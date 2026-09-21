@@ -6,6 +6,7 @@ import {
     type PinnedItems,
     type RegisteredAccount,
     type ResourceViewSpaceItem,
+    type SessionUser,
     type TogglePinnedItemInfo,
     type UpdatePinnedItemOrder,
     type UuidOrSlug,
@@ -101,6 +102,38 @@ export class PinningService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const [{ items, sharedAccess }, allowedDocuments] = await Promise.all([
+            this.getPinnedSpaceContent(user, projectUuid, pinnedListUuid),
+            this.getViewablePinnedDocuments(
+                account,
+                projectUuid,
+                pinnedListUuid,
+            ),
+        ]);
+        return [
+            ...items,
+            ...allowedDocuments.map((item) => ({
+                ...item,
+                data: {
+                    ...item.data,
+                    directAccessRoles:
+                        sharedAccess?.rolesByType[
+                            DirectAccessResourceType.DOCUMENT
+                        ][item.data.uuid] ?? [],
+                },
+            })),
+        ].sort(
+            (left, right) =>
+                (left.data.pinnedListOrder ?? 100) -
+                (right.data.pinnedListOrder ?? 100),
+        );
+    }
+
+    private async getPinnedSpaceContent(
+        user: SessionUser,
+        projectUuid: string,
+        pinnedListUuid: string,
+    ) {
         const spaces = await this.spaceModel.find({ projectUuid });
         const spaceUuids = spaces.map((s) => s.uuid);
         const [allowedSpaceUuids, sharedAccess] = await Promise.all([
@@ -128,21 +161,14 @@ export class PinningService extends BaseService {
             granted?.[DirectAccessResourceType.DASHBOARD] ?? [];
         const grantedAppUuids = granted?.[DirectAccessResourceType.APP] ?? [];
 
-        const pinnedDocuments =
-            await this.resourceViewItemModel.getPinnedDocuments(
-                projectUuid,
-                pinnedListUuid,
-            );
-        const allowedDocumentUuids = new Set(
-            await this.documentService.filterViewableUuids(
-                account,
-                [projectUuid],
-                pinnedDocuments.map(({ data }) => data.uuid),
-            ),
-        );
-        const allowedDocuments = pinnedDocuments.filter(({ data }) =>
-            allowedDocumentUuids.has(data.uuid),
-        );
+        if (
+            allowedSpaceUuids.length === 0 &&
+            grantedChartUuids.length === 0 &&
+            grantedDashboardUuids.length === 0 &&
+            grantedAppUuids.length === 0
+        ) {
+            return { items: [], sharedAccess };
+        }
 
         const allPinnedSpaceBases =
             await this.resourceViewItemModel.getAllSpacesByPinnedListUuid(
@@ -190,25 +216,36 @@ export class PinningService extends BaseService {
             },
         );
 
-        return [
-            ...allowedPinnedSpaces,
-            ...allowedCharts,
-            ...allowedDashboards,
-            ...allowedApps,
-            ...allowedDocuments.map((item) => ({
-                ...item,
-                data: {
-                    ...item.data,
-                    directAccessRoles:
-                        sharedAccess?.rolesByType[
-                            DirectAccessResourceType.DOCUMENT
-                        ][item.data.uuid] ?? [],
-                },
-            })),
-        ].sort(
-            (left, right) =>
-                (left.data.pinnedListOrder ?? 100) -
-                (right.data.pinnedListOrder ?? 100),
+        return {
+            items: [
+                ...allowedPinnedSpaces,
+                ...allowedCharts,
+                ...allowedDashboards,
+                ...allowedApps,
+            ],
+            sharedAccess,
+        };
+    }
+
+    private async getViewablePinnedDocuments(
+        account: RegisteredAccount,
+        projectUuid: string,
+        pinnedListUuid: string,
+    ) {
+        const pinnedDocuments =
+            await this.resourceViewItemModel.getPinnedDocuments(
+                projectUuid,
+                pinnedListUuid,
+            );
+        const allowedDocumentUuids = new Set(
+            await this.documentService.filterViewableUuids(
+                account,
+                [projectUuid],
+                pinnedDocuments.map(({ data }) => data.uuid),
+            ),
+        );
+        return pinnedDocuments.filter(({ data }) =>
+            allowedDocumentUuids.has(data.uuid),
         );
     }
 
@@ -233,19 +270,10 @@ export class PinningService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const project = await this.projectModel.get(projectUuid);
-        const pinnedDocuments = project.pinnedListUuid
-            ? await this.resourceViewItemModel.getPinnedDocuments(
-                  projectUuid,
-                  project.pinnedListUuid,
-              )
-            : [];
-        const isPinned = pinnedDocuments.some(
-            ({ data }) => data.uuid === document.documentUuid,
-        );
-        if (isPinned && project.pinnedListUuid) {
+        const isPinned = document.pinnedListUuid !== null;
+        if (document.pinnedListUuid) {
             await this.pinnedListModel.deleteItem({
-                pinnedListUuid: project.pinnedListUuid,
+                pinnedListUuid: document.pinnedListUuid,
                 documentUuid: document.documentUuid,
             });
         } else {

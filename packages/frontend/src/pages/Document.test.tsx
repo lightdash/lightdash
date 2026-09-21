@@ -76,6 +76,7 @@ const chart: DocumentCell = {
     },
 };
 const document: Document = {
+    pinnedListUuid: null,
     documentUuid: 'document-uuid',
     projectUuid: 'project-uuid',
     organizationUuid: 'org-uuid',

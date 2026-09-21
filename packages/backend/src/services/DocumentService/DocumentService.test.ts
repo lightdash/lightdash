@@ -21,6 +21,7 @@ const spaceUuid = 'document-space';
 const documentUuid = 'document-uuid';
 
 const document: Document = {
+    pinnedListUuid: null,
     documentUuid,
     projectUuid,
     organizationUuid,

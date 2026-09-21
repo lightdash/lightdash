@@ -295,6 +295,153 @@ describe('ProjectHomepageService', () => {
             publication: { isDefault: true, groups: [], roles: [] },
         };
 
+        it('authorizes only Documents used by the requested export and import, including links', async () => {
+            const filterViewableUuids = vi
+                .fn()
+                .mockResolvedValue(['used', 'linked']);
+            const upsertAsCode = vi
+                .fn()
+                .mockResolvedValue({ action: PromotionAction.CREATE });
+            const config: HomepageConfig = {
+                version: 1,
+                rows: [
+                    {
+                        id: 'row',
+                        blocks: [
+                            {
+                                id: 'collection',
+                                type: 'collection',
+                                config: {
+                                    title: 'Documents',
+                                    items: [
+                                        {
+                                            contentType: 'document',
+                                            uuid: 'used',
+                                        },
+                                    ],
+                                },
+                            },
+                            {
+                                id: 'links',
+                                type: 'markdown',
+                                config: {
+                                    content: `/projects/${PROJECT_UUID}/documents/linked`,
+                                },
+                            },
+                        ],
+                    },
+                ],
+            };
+            const service = makeService({
+                documentService: { filterViewableUuids },
+                projectHomepageModel: {
+                    getCodeReferences: vi.fn().mockResolvedValue([
+                        {
+                            contentType: 'document',
+                            uuid: 'used',
+                            slug: 'used-report',
+                        },
+                        {
+                            contentType: 'document',
+                            uuid: 'linked',
+                            slug: 'linked-report',
+                        },
+                        {
+                            contentType: 'document',
+                            uuid: 'unused',
+                            slug: 'private-report',
+                        },
+                    ]),
+                    list: vi.fn().mockResolvedValue([
+                        makeHomepage({
+                            name: document.name,
+                            publishedConfig: config,
+                        }),
+                        makeHomepage({
+                            name: 'Unrequested',
+                            publishedConfig: {
+                                version: 1,
+                                rows: [
+                                    {
+                                        id: 'row',
+                                        blocks: [
+                                            {
+                                                id: 'link',
+                                                type: 'markdown',
+                                                config: {
+                                                    content: `/projects/${PROJECT_UUID}/documents/unused`,
+                                                },
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        }),
+                    ]),
+                    upsertAsCode,
+                },
+            });
+            const account = codeUser();
+            const result = await service.downloadHomepagesAsCode(
+                account,
+                PROJECT_UUID,
+                [document.name],
+            );
+            expect(result.homepages).toHaveLength(1);
+            expect(filterViewableUuids).toHaveBeenLastCalledWith(
+                account,
+                [PROJECT_UUID],
+                ['used', 'linked'],
+            );
+            await service.upsertHomepageAsCode(
+                account,
+                PROJECT_UUID,
+                document.name,
+                result.homepages[0],
+            );
+            expect(filterViewableUuids).toHaveBeenCalledTimes(2);
+            expect(filterViewableUuids).toHaveBeenLastCalledWith(
+                account,
+                [PROJECT_UUID],
+                ['used', 'linked'],
+            );
+            expect(upsertAsCode).toHaveBeenCalledWith(
+                expect.objectContaining({ config }),
+            );
+        });
+
+        it('skips Document access resolution when the requested configs contain no Document references', async () => {
+            const filterViewableUuids = vi.fn();
+            const service = makeService({
+                documentService: { filterViewableUuids },
+                projectHomepageModel: {
+                    getCodeReferences: vi.fn().mockResolvedValue([
+                        {
+                            contentType: 'document',
+                            uuid: 'unused',
+                            slug: 'private-report',
+                        },
+                    ]),
+                    list: vi
+                        .fn()
+                        .mockResolvedValue([
+                            makeHomepage({ publishedConfig: validConfig }),
+                        ]),
+                    upsertAsCode: vi
+                        .fn()
+                        .mockResolvedValue({ action: PromotionAction.CREATE }),
+                },
+            });
+            await service.downloadHomepagesAsCode(codeUser(), PROJECT_UUID);
+            await service.upsertHomepageAsCode(
+                codeUser(),
+                PROJECT_UUID,
+                document.name,
+                document,
+            );
+            expect(filterViewableUuids).not.toHaveBeenCalled();
+        });
+
         it.each(['disabled', 'private'])(
             'rejects %s Document references on download and upload without exposing their slug',
             async (state) => {

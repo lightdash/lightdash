@@ -110,6 +110,7 @@ describe('Document as-code chart round-trip', () => {
 });
 
 const document: Document = {
+    pinnedListUuid: null,
     documentUuid,
     organizationUuid,
     projectUuid,
