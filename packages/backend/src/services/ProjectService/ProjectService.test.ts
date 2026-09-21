@@ -317,6 +317,8 @@ const projectModel = {
     createWithOptionalCredentials: vi.fn(
         async () => 'created-preview-project-uuid',
     ),
+    create: vi.fn(async () => 'created-project-uuid'),
+    createProjectAccess: vi.fn(async () => undefined),
     update: vi.fn<ProjectModel['update']>(async () => undefined),
     delete: vi.fn(async () => undefined),
     getResultsCacheSettings: vi.fn<ProjectModel['getResultsCacheSettings']>(
@@ -2376,6 +2378,104 @@ describe('ProjectService', () => {
         );
         createWithoutCompileSpy.mockRestore();
         scheduleCompileProjectSpy.mockRestore();
+    });
+
+    test('materialises a primary dbt source on the wizard create path', async () => {
+        // The wizard posts to /org/projects/precompiled, which schedules a job
+        // that calls _create directly rather than createWithoutCompile.
+        const wizardProjectUuid = 'wizard-project-uuid';
+        const createPrimarySource = vi.fn(async () => undefined);
+        const copySources = vi.fn(async () => undefined);
+        const wizardService = getMockedProjectService(lightdashConfigMock, {
+            projectDbtSourcesModel: {
+                createPrimarySource,
+                copySources,
+                findSoleConnectionUuid: vi.fn(async () => 'connection-uuid'),
+            } as unknown as ProjectDbtSourcesModel,
+        });
+        const wizardUser: SessionUser = {
+            ...user,
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Test organization',
+            organizationCreatedAt: new Date(),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'create' },
+            ]),
+        };
+        const adapter = {
+            getLightdashProjectConfig: vi.fn(async () => ({})),
+            destroy: vi.fn(async () => undefined),
+        };
+        const tagsSpy = vi
+            .spyOn(
+                wizardService as unknown as {
+                    replaceYamlTagsWithoutPermissionCheck: () => Promise<void>;
+                },
+                'replaceYamlTagsWithoutPermissionCheck',
+            )
+            .mockResolvedValue(undefined);
+        const parametersSpy = vi
+            .spyOn(
+                wizardService as unknown as {
+                    replaceProjectParameters: () => Promise<void>;
+                },
+                'replaceProjectParameters',
+            )
+            .mockResolvedValue(undefined);
+        const resolveSpy = vi
+            .spyOn(
+                wizardService as unknown as {
+                    _resolveWarehouseClientCredentials: (
+                        data: unknown,
+                    ) => Promise<unknown>;
+                },
+                '_resolveWarehouseClientCredentials',
+            )
+            .mockImplementation(async (data: unknown) => data);
+        const testAdapterSpy = vi
+            .spyOn(
+                wizardService as unknown as {
+                    testProjectAdapter: () => Promise<unknown>;
+                },
+                'testProjectAdapter',
+            )
+            .mockResolvedValue({
+                adapter,
+                sshTunnel: { disconnect: vi.fn(async () => undefined) },
+            });
+        const expirationSpy = vi
+            .spyOn(wizardService, 'getPreviewExpiresAt')
+            .mockResolvedValue(null);
+        projectModel.create.mockResolvedValueOnce(wizardProjectUuid);
+
+        try {
+            await wizardService._create(
+                wizardUser,
+                {
+                    name: 'Wizard project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                } as never,
+                'wizard-job-uuid',
+                RequestMethod.WEB_APP,
+            );
+
+            expect(createPrimarySource).toHaveBeenCalledTimes(1);
+            expect(createPrimarySource).toHaveBeenCalledWith(
+                wizardProjectUuid,
+                expect.objectContaining({
+                    connectionUuid: 'connection-uuid',
+                }),
+            );
+            expect(copySources).not.toHaveBeenCalled();
+        } finally {
+            tagsSpy.mockRestore();
+            parametersSpy.mockRestore();
+            resolveSpy.mockRestore();
+            testAdapterSpy.mockRestore();
+            expirationSpy.mockRestore();
+        }
     });
 
     test.each([RequestMethod.WEB_APP, RequestMethod.CLI])(

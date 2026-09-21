@@ -3829,6 +3829,25 @@ export class ProjectService extends BaseService {
                             createProject.expiresInHours,
                         ),
                     );
+
+                    // The wizard creates a project through here rather than
+                    // createWithoutCompile, and a project without its primary
+                    // source compiles nothing.
+                    if (
+                        createProject.type === ProjectType.PREVIEW &&
+                        createProject.upstreamProjectUuid
+                    ) {
+                        await this.projectDbtSourcesModel.copySources(
+                            createProject.upstreamProjectUuid,
+                            newProjectUuid,
+                        );
+                    } else {
+                        await this.materialisePrimaryDbtSource(
+                            newProjectUuid,
+                            createProject,
+                        );
+                    }
+
                     // Give admin user permissions to user who created this project even if he is an admin
                     if (user.email) {
                         await this.projectModel.createProjectAccess(
