@@ -29,6 +29,11 @@ describe('PreAggregationDuckDbClient', () => {
     const getClient = ({
         lightdashConfig,
         activeMaterialization = {
+            publicationVersion: 'publication',
+            compatibilityHash: 'hash',
+            evaluatedAt: new Date('2024-01-01'),
+            physicalOutputContract: null,
+            pinnedContextHash: null,
             materializationUuid: 'mat-1',
             queryUuid: 'mat-query-1',
             materializationUri: 's3://mock_preagg_bucket/abc123.jsonl',
@@ -295,6 +300,11 @@ describe('PreAggregationDuckDbClient', () => {
     test('uses active materialization columns as DuckDB JSON schema when available', async () => {
         const { client } = getClient({
             activeMaterialization: {
+                publicationVersion: 'publication',
+                compatibilityHash: 'hash',
+                evaluatedAt: new Date('2024-01-01'),
+                physicalOutputContract: null,
+                pinnedContextHash: null,
                 materializationUuid: 'mat-1',
                 queryUuid: 'mat-query-1',
                 materializationUri: 's3://mock_preagg_bucket/abc123.jsonl',
@@ -340,6 +350,11 @@ describe('PreAggregationDuckDbClient', () => {
     test('preserves decomposed average component columns in DuckDB JSON schema', async () => {
         const { client } = getClient({
             activeMaterialization: {
+                publicationVersion: 'publication',
+                compatibilityHash: 'hash',
+                evaluatedAt: new Date('2024-01-01'),
+                physicalOutputContract: null,
+                pinnedContextHash: null,
                 materializationUuid: 'mat-1',
                 queryUuid: 'mat-query-1',
                 materializationUri: 's3://mock_preagg_bucket/abc123.jsonl',
