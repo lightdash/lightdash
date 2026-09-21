@@ -1,3 +1,4 @@
+import { getRecentQueryFieldKeywords } from '../ai/agents/agentV2';
 import { AiAgentService } from './AiAgentService';
 
 type Row = Parameters<
@@ -22,6 +23,75 @@ const content = (msg: { content: unknown }) => msg.content as Array<AnyType>;
 type AnyType = Record<string, unknown> & { type: string };
 
 describe('AiAgentService SQL-approval history reconstruction', () => {
+    it.each(['success', 'error'] as const)(
+        'only reuses a persisted successful query: %s',
+        (status) => {
+            const messages = AiAgentService.buildToolCallTurnMessages(
+                [
+                    {
+                        toolCall: {
+                            ...call('tc1', ''),
+                            toolName: 'runQuery',
+                            toolArgs: {
+                                queryConfig: { metrics: ['orders_count'] },
+                            },
+                        },
+                        toolResult: {
+                            ...result('tc1', 'output')!,
+                            metadata: { status },
+                        },
+                        approvalDecision: null,
+                    },
+                ],
+                false,
+                true,
+            );
+            const history = [
+                { role: 'user' as const, content: 'Count orders' },
+                ...messages,
+                { role: 'user' as const, content: 'As a line chart' },
+            ];
+            expect(getRecentQueryFieldKeywords(history)).toEqual(
+                status === 'success' ? ['orders_count'] : [],
+            );
+            expect(
+                getRecentQueryFieldKeywords([
+                    ...history,
+                    {
+                        role: 'assistant',
+                        content: 'No data query in this turn',
+                    },
+                    { role: 'user', content: 'As a bar chart' },
+                ]),
+            ).toEqual([]);
+        },
+    );
+    it.each([false, true])(
+        'preserves tool status only for fast mode: %s',
+        (fastMode) => {
+            const toolResult = {
+                ...result('tc1', 'unknown field')!,
+                metadata: { status: 'error' as const },
+            };
+            const messages = AiAgentService.buildToolCallTurnMessages(
+                [
+                    {
+                        toolCall: call('tc1', 'SELECT 1'),
+                        toolResult,
+                        approvalDecision: null,
+                    },
+                ],
+                false,
+                fastMode,
+            );
+            expect(content(messages[1])[0].output).toEqual({
+                type: 'json',
+                value: fastMode
+                    ? { result: 'unknown field', status: 'error' }
+                    : 'unknown field',
+            });
+        },
+    );
     it('a normal tool call emits assistant(call) + tool(result), no approval parts', () => {
         const msgs = AiAgentService.buildToolCallTurnMessages(
             [
