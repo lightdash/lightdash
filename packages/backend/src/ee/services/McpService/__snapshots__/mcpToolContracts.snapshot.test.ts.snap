@@ -11532,6 +11532,7 @@ Errors: an unknown slug, or an app or version this caller may not view, returns 
               "pending",
               "sandbox",
               "catalog",
+              "compact",
               "generating",
               "building",
               "packaging",
