@@ -11,9 +11,10 @@ import MantineBaseProvider from '../providers/MantineBaseProvider';
 const APP_NAME = 'Weekly revenue by region';
 
 const states = {
-    queued: { kind: 'queued' },
+    queued: { kind: 'queued', name: APP_NAME },
     building: {
         kind: 'building',
+        name: APP_NAME,
         statusMessage: 'Building your app',
         narration: {
             reasoning: [

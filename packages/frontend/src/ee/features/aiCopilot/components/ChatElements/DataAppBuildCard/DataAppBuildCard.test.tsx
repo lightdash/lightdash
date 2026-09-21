@@ -42,7 +42,7 @@ describe('DataAppBuildCard', () => {
     it('queued: explains the wait and offers no action', () => {
         renderWithProviders(
             <DataAppBuildCard
-                state={{ kind: 'queued' }}
+                state={{ kind: 'queued', name: null }}
                 compact={false}
                 isActive={false}
                 onView={noop}
@@ -57,11 +57,24 @@ describe('DataAppBuildCard', () => {
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
+    it('queued: shows the name the agent supplied', () => {
+        renderWithProviders(
+            <DataAppBuildCard
+                state={{ kind: 'queued', name: 'Revenue Overview' }}
+                compact={false}
+                isActive={false}
+                onView={noop}
+            />,
+        );
+        expect(screen.getByText('Revenue Overview')).toBeVisible();
+    });
+
     it('building: shows the live status message and narration rows', () => {
         renderWithProviders(
             <DataAppBuildCard
                 state={{
                     kind: 'building',
+                    name: null,
                     statusMessage: 'Building your app',
                     narration: {
                         reasoning: ['Totals should reconcile against revenue'],

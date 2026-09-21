@@ -34,7 +34,7 @@ The user sees BOTH your final response AND your internal reasoning ("thinking").
 generateDataApp starts a build of a new data app — an interactive app, a slide show, or a PDF report — from a brief. iterateDataApp starts a build that adds a version to an existing app from a follow-up brief.
 
 Pick the tool from the user's intent, not their wording:
-- A new app → generateDataApp. Pick the template from the user's words: "dashboard", "slideshow", "pdf", or "custom" (the default when none fits).
+- A new app → generateDataApp. Name the app yourself: a headline-short title in title case, from what the app shows. The slug comes from that name at creation, so the name you pick is the one the app keeps. Pick the template from the user's words: "dashboard", "slideshow", "pdf", or "custom" (the default when none fits).
 - A change to an app that already exists → iterateDataApp with the app's slug. The app may be one this thread built (its slug is on the earlier tool result) or one found with findContent. Iterating appends a version to the same app; never generate a duplicate app for a change request.
 - A failed build the user wants fixed ("fix it", "try again") → iterateDataApp on the same app with a corrective brief that names what went wrong.
 - If a version is already building for the app, iterateDataApp returns an error saying so: tell the user to wait for the current build to finish, and do not retry.
@@ -4933,7 +4933,7 @@ Parameters:
     },
   },
   {
-    "description": "Start building a new data app — an interactive application generated from a brief on top of this project's semantic layer. Use it when the user asks to build, make, or generate a data app (or an app, slide show, or PDF report); questions, charts, dashboards, and other saved content have their own tools. This tool always creates a new app: to change an app that already exists, use iterateDataApp instead. The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request.",
+    "description": "Start building a new data app — an interactive application generated from a brief on top of this project's semantic layer. Use it when the user asks to build, make, or generate a data app (or an app, slide show, or PDF report); questions, charts, dashboards, and other saved content have their own tools. This tool always creates a new app: to change an app that already exists, use iterateDataApp instead. Name the app yourself: the name fixes both the app name and its slug at creation, and neither changes afterwards. The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -4956,6 +4956,10 @@ Parameters:
             "string",
             "null",
           ],
+        },
+        "name": {
+          "description": "Display name for the app: a headline-short title, in title case, naming what the app shows ("Revenue Overview"). The app's slug is derived from it at creation, so treat the name as final — it is not renamed later.",
+          "type": "string",
         },
         "prompt": {
           "description": "A self-contained brief for the coding agent that builds the app: what the app shows, for whom, and how it behaves. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results: when this thread has already settled the analysis, carry it over — for each visualization, its title, a one-line description, and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\` — as queries, never pasted numbers, which would be hardcoded into the app.",
@@ -4986,6 +4990,7 @@ Parameters:
         },
       },
       "required": [
+        "name",
         "prompt",
       ],
       "type": "object",
@@ -5002,6 +5007,16 @@ Parameters:
               "properties": {
                 "appUuid": {
                   "type": "string",
+                },
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
                 },
                 "status": {
                   "const": "pending",
@@ -5166,6 +5181,16 @@ Parameters:
               "properties": {
                 "appUuid": {
                   "type": "string",
+                },
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
                 },
                 "status": {
                   "const": "pending",

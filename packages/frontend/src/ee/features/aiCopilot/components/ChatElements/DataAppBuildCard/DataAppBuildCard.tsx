@@ -28,9 +28,11 @@ import {
 } from './dataAppBuildCardState';
 
 export type DataAppBuildCardState =
-    | { kind: 'queued' }
+    // name: null until the app row (or the tool result) names it.
+    | { kind: 'queued'; name: string | null }
     | {
           kind: 'building';
+          name: string | null;
           statusMessage: string;
           narration: AppVersionNarrationData;
       }
@@ -206,7 +208,7 @@ const renderCells = (
             return (
                 <>
                     <Lead icon={<CardIcon tone="default" />}>
-                        <Title>Building data app</Title>
+                        <Title>{state.name ?? 'Building data app'}</Title>
                     </Lead>
                     <Body>
                         <Muted>
@@ -221,7 +223,7 @@ const renderCells = (
                     <Box className={styles.full}>
                         <Lead icon={<CardIcon tone="default" />}>
                             <InlineTitle
-                                title="Building data app"
+                                title={state.name ?? 'Building data app'}
                                 detail={state.statusMessage}
                             />
                         </Lead>

@@ -61,12 +61,14 @@ const getDataAppVersionState = (
     version: number,
 ): DataAppBuildCardState => {
     const row = app.versions.find((v) => v.version === version);
+    const name = app.name === '' ? null : app.name;
     if (!row || row.status === 'pending') {
-        return { kind: 'queued' };
+        return { kind: 'queued', name };
     }
     if (isAppVersionInProgress(row.status)) {
         return {
             kind: 'building',
+            name,
             statusMessage: row.statusMessage ?? 'Building your app',
             narration: getVersionNarration(row.statusHistory),
         };
@@ -92,7 +94,7 @@ export const getDataAppLatestVersionState = (
     const newest = app.versions[0];
     return newest
         ? getDataAppVersionState(app, newest.version)
-        : { kind: 'queued' };
+        : { kind: 'queued', name: app.name === '' ? null : app.name };
 };
 
 /**
@@ -134,7 +136,7 @@ export const getDataAppBuildCardState = (
                     return getDataAppVersionState(source.app, metadata.version);
                 case 'loading':
                 case 'error':
-                    return { kind: 'queued' };
+                    return { kind: 'queued', name: metadata.name ?? null };
                 default:
                     return assertUnreachable(source, 'Unknown app source');
             }

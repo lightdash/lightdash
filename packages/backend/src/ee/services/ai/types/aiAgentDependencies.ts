@@ -697,6 +697,8 @@ export type EditDbtProjectFn = (args: {
 // Starts a personal data app build; the worker patches the tool result
 // (keyed by toolCallId) when the build ends.
 export type GenerateDataAppFn = (args: {
+    /** Fixes the app's name and slug at creation; never changes after. */
+    name: string;
     prompt: string;
     template: DataAppBuildTemplate | null;
     dashboardSlug: string | null;

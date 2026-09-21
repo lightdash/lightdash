@@ -207,8 +207,8 @@ describe('AiDataAppBuildCard', () => {
             }),
         ]);
 
-        expect(await screen.findByText('Revenue app')).toBeVisible();
-        expect(screen.getByText('v1 · built in 6m 12s')).toBeVisible();
+        expect(await screen.findByText('v1 · built in 6m 12s')).toBeVisible();
+        expect(screen.getByText('Revenue app')).toBeVisible();
         expect(store.getState().buildWatches.watches).toEqual({});
         expect(store.getState().aiArtifact.preview).toBeNull();
 

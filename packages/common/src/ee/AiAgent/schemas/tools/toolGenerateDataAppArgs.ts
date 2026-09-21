@@ -31,10 +31,16 @@ export const TOOL_GENERATE_DATA_APP_DESCRIPTION = [
     "Start building a new data app — an interactive application generated from a brief on top of this project's semantic layer.",
     'Use it when the user asks to build, make, or generate a data app (or an app, slide show, or PDF report); questions, charts, dashboards, and other saved content have their own tools.',
     'This tool always creates a new app: to change an app that already exists, use iterateDataApp instead.',
-    'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request.',
+    'Name the app yourself: the name fixes both the app name and its slug at creation, and neither changes afterwards.',
+    'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn.',
 ].join(' ');
 
 export const toolGenerateDataAppArgsSchema = z.object({
+    name: z
+        .string()
+        .describe(
+            'Display name for the app: a headline-short title, in title case, naming what the app shows ("Revenue Overview"). The app\'s slug is derived from it at creation, so treat the name as final — it is not renamed later.',
+        ),
     prompt: z
         .string()
         .describe(
@@ -75,6 +81,9 @@ export const toolGenerateDataAppOutputSchema = z.object({
             status: z.literal('pending'),
             appUuid: z.string(),
             version: z.number(),
+            // Nullish: iterate results and results persisted before generate
+            // took a name lack it.
+            name: z.string().nullish(),
         }),
         z.object({
             status: z.literal('success'),
