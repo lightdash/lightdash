@@ -36,6 +36,9 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
 vi.mock('../hooks/useExplores', () => ({ useExplores: vi.fn() }));
+vi.mock('../hooks/useProjectRoute', () => ({
+    useOptionalProjectRoute: () => ({ projectUrlIdentifier: 'jaffle-shop' }),
+}));
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'p1',
 }));
@@ -519,7 +522,7 @@ describe('ChartTypeBuilder', () => {
         renderBuilder(`/projects/p1/chart-types/new${search}`);
 
         expect(screen.getByTestId('location')).toHaveTextContent(
-            `/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000009${search}`,
+            `/projects/jaffle-shop/chart-types/1e9a3b2c-0000-4000-8000-000000000009${search}`,
         );
     });
 
@@ -607,7 +610,7 @@ describe('ChartTypeBuilder', () => {
 
         expect(
             screen.getByRole('link', { name: 'Chart types' }),
-        ).toHaveAttribute('href', '/projects/p1/chart-types');
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-types');
         fireEvent.click(
             screen.getByRole('button', { name: 'Preview in explorer' }),
         );
@@ -639,7 +642,7 @@ describe('ChartTypeBuilder', () => {
 
         expect(
             screen.getByRole('link', { name: 'Chart types' }),
-        ).toHaveAttribute('href', '/projects/p1/chart-types');
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-types');
     });
 
     it('keeps a drafted follow-up when the create route adopts the app', () => {

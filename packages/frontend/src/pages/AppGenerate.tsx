@@ -169,6 +169,7 @@ import { useAppExternalConnections } from '../features/externalConnections/hooks
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useToaster from '../hooks/toaster/useToaster';
+import { useOptionalProjectRoute } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../hooks/useSpaces';
@@ -340,6 +341,7 @@ const AppGenerate: FC = () => {
     );
     const { appUuid: urlAppUuid } = useParams();
     const projectUuid = useProjectUuid();
+    const projectRoute = useOptionalProjectRoute();
     const navigate = useNavigate();
     const location = useLocation();
     const queryClient = useQueryClient();
@@ -1436,8 +1438,7 @@ const AppGenerate: FC = () => {
         );
     }
 
-    // Chart types have their own builder; use the canonical uuid so slug
-    // deep links land on the uuid route.
+    // Chart types have their own builder; prefer slugs for the destination.
     if (
         urlAppUuid &&
         appPersistedTemplate === DATA_APP_VIZ_TEMPLATE &&
@@ -1445,7 +1446,10 @@ const AppGenerate: FC = () => {
     ) {
         return (
             <Navigate
-                to={chartTypeBuilderPath(projectUuid ?? '', activeAppUuid)}
+                to={chartTypeBuilderPath(
+                    projectRoute?.projectUrlIdentifier ?? projectUuid ?? '',
+                    appData?.pages[0]?.slug ?? activeAppUuid,
+                )}
                 replace
             />
         );

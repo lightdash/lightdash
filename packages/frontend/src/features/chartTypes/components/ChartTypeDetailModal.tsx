@@ -12,6 +12,7 @@ import { Link } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -59,6 +60,9 @@ const ChartTypeDetailModal: FC<Props> = ({
         true;
     const isOfficial = isOfficialChartType(dataAppViz);
     const [isForkOpen, setIsForkOpen] = useState(false);
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
     const isDetailActive = opened && isActive && !isForkOpen && !isUpgradeOpen;
     const { track } = useTracking();
@@ -163,7 +167,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                               <Button
                                   component={Link}
                                   to={chartTypeBuilderPath(
-                                      projectUuid,
+                                      projectUrlIdentifier,
                                       dataAppViz.slug,
                                   )}
                                   variant="default"

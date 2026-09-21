@@ -15,6 +15,7 @@ import { useDeepCompareEffect } from 'react-use';
 import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
 import { useChartTypesEnabled } from '../../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { chartTypeBuilderPath } from '../../../../features/chartTypes/utils/chartTypeBuilderPath';
+import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { useIsInsideChartGallery } from '../../../common/ChartGallery/ChartGalleryContext';
@@ -130,6 +131,9 @@ export const ConfigTabs: React.FC = memo(() => {
     const { visualizationConfig } = useVisualizationContext();
     const colorScheme = useComputedColorScheme();
     const projectUuid = useProjectUuid();
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -281,7 +285,7 @@ export const ConfigTabs: React.FC = memo(() => {
                                 ? () =>
                                       void navigate({
                                           pathname: chartTypeBuilderPath(
-                                              projectUuid ?? '',
+                                              projectUrlIdentifier ?? '',
                                           ),
                                           search: location.search,
                                       })
@@ -289,7 +293,7 @@ export const ConfigTabs: React.FC = memo(() => {
                         }
                         onBrowseGallery={() =>
                             void navigate(
-                                `/projects/${projectUuid}/chart-types`,
+                                `/projects/${projectUrlIdentifier}/chart-types`,
                             )
                         }
                     />

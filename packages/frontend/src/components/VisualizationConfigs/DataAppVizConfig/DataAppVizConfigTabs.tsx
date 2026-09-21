@@ -26,6 +26,7 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { type SelectedDataAppViz } from '../../../hooks/useDataAppVizVisualizationConfig';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import Callout from '../../common/Callout';
@@ -54,6 +55,9 @@ const LATEST_RENDER_TARGET = {
 
 export const ConfigTabs: FC = memo(() => {
     const projectUuid = useProjectUuid();
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const location = useLocation();
     const navigate = useNavigate();
     const {
@@ -258,8 +262,8 @@ export const ConfigTabs: FC = memo(() => {
                                 component={Link}
                                 to={{
                                     pathname: chartTypeBuilderPath(
-                                        projectUuid ?? '',
-                                        dataAppViz.dataAppVizUuid,
+                                        projectUrlIdentifier ?? '',
+                                        dataAppViz.slug,
                                     ),
                                     search: location.search,
                                 }}
@@ -328,7 +332,7 @@ export const ConfigTabs: FC = memo(() => {
                                 ? () =>
                                       void navigate({
                                           pathname: chartTypeBuilderPath(
-                                              projectUuid ?? '',
+                                              projectUrlIdentifier ?? '',
                                           ),
                                           search: location.search,
                                       })
@@ -336,7 +340,7 @@ export const ConfigTabs: FC = memo(() => {
                         }
                         onBrowseGallery={() =>
                             void navigate(
-                                `/projects/${projectUuid}/chart-types`,
+                                `/projects/${projectUrlIdentifier}/chart-types`,
                             )
                         }
                     />
@@ -385,7 +389,7 @@ export const ConfigTabs: FC = memo(() => {
                                         component={Link}
                                         to={{
                                             pathname: chartTypeBuilderPath(
-                                                projectUuid ?? '',
+                                                projectUrlIdentifier ?? '',
                                             ),
                                             search: location.search,
                                         }}

@@ -32,6 +32,7 @@ import {
     getExplorerUrlFromCreateSavedChartVersion,
     parseChartFromExplorerSearchParams,
 } from '../hooks/useExplorerRoute';
+import { useOptionalProjectRoute } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import classes from './ChartTypeBuilder.module.css';
@@ -47,6 +48,9 @@ const NO_ITEMS: ItemsMap = {};
 const ChartTypeBuilder: FC = () => {
     const { dataAppVizUuid: urlVizUuid } = useParams();
     const projectUuid = useProjectUuid();
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const location = useLocation();
     const navigate = useNavigate();
     const [isPreviewTableOpen, setIsPreviewTableOpen] = useState(false);
@@ -82,16 +86,25 @@ const ChartTypeBuilder: FC = () => {
     // On `/new`, move to the edit route as soon as the build claims an app so
     // a refresh mid-build lands on the in-progress version.
     useEffect(() => {
-        if (!urlVizUuid && build.appUuid && projectUuid) {
+        if (!urlVizUuid && build.appUuid && projectUrlIdentifier) {
             void navigate(
                 {
-                    pathname: chartTypeBuilderPath(projectUuid, build.appUuid),
+                    pathname: chartTypeBuilderPath(
+                        projectUrlIdentifier,
+                        build.appUuid,
+                    ),
                     search: location.search,
                 },
                 { replace: true },
             );
         }
-    }, [urlVizUuid, build.appUuid, projectUuid, location.search, navigate]);
+    }, [
+        urlVizUuid,
+        build.appUuid,
+        projectUrlIdentifier,
+        location.search,
+        navigate,
+    ]);
 
     const colorPalette = useResolvedColorPalette(
         projectUuid,
@@ -138,12 +151,19 @@ const ChartTypeBuilder: FC = () => {
     if (!projectUuid) return null;
     if (dataAppsFlag.isLoading) return null;
     if (!dataAppsFlag.data?.enabled) {
-        return <Navigate to={`/projects/${projectUuid}/home`} replace />;
+        return (
+            <Navigate to={`/projects/${projectUrlIdentifier}/home`} replace />
+        );
     }
 
     const isCreateFlow = urlVizUuid === undefined && build.appUuid === null;
     if (isCreateFlow && !canCreate) {
-        return <Navigate to={`/projects/${projectUuid}/chart-types`} replace />;
+        return (
+            <Navigate
+                to={`/projects/${projectUrlIdentifier}/chart-types`}
+                replace
+            />
+        );
     }
 
     if (appQuery.error?.error.statusCode === 404) {
@@ -156,7 +176,7 @@ const ChartTypeBuilder: FC = () => {
                         action={
                             <Button
                                 component={Link}
-                                to={`/projects/${projectUuid}/chart-types`}
+                                to={`/projects/${projectUrlIdentifier}/chart-types`}
                                 variant="default"
                             >
                                 Back to chart types
@@ -180,14 +200,20 @@ const ChartTypeBuilder: FC = () => {
         }
         if (!canEdit) {
             return (
-                <Navigate to={`/projects/${projectUuid}/chart-types`} replace />
+                <Navigate
+                    to={`/projects/${projectUrlIdentifier}/chart-types`}
+                    replace
+                />
             );
         }
         // Server-enforced (registry apps are read-only); this only keeps
         // the builder UI from being reached for an official chart type.
         if (appMeta.registrySlug !== null) {
             return (
-                <Navigate to={`/projects/${projectUuid}/chart-types`} replace />
+                <Navigate
+                    to={`/projects/${projectUrlIdentifier}/chart-types`}
+                    replace
+                />
             );
         }
     }
@@ -216,7 +242,7 @@ const ChartTypeBuilder: FC = () => {
           }
         : {
               label: 'Chart types',
-              to: `/projects/${projectUuid}/chart-types`,
+              to: `/projects/${projectUrlIdentifier}/chart-types`,
           };
 
     return (

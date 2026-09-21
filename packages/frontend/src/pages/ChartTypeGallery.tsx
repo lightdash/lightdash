@@ -34,6 +34,7 @@ import { useChartTypesEnabled } from '../features/chartTypes/hooks/useChartTypes
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
+import { useOptionalProjectRoute } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../providers/Ability';
@@ -46,6 +47,9 @@ const GalleryTab = {
 
 const ChartTypeGallery = () => {
     const projectUuid = useProjectUuid();
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const { user } = useApp();
     const [searchParams, setSearchParams] = useSearchParams();
     const chartTypesEnabled = useChartTypesEnabled();
@@ -138,7 +142,9 @@ const ChartTypeGallery = () => {
     }
 
     if (!chartTypesEnabled.enabled) {
-        return <Navigate to={`/projects/${projectUuid}/home`} replace />;
+        return (
+            <Navigate to={`/projects/${projectUrlIdentifier}/home`} replace />
+        );
     }
 
     const chartTypesContent = (
@@ -166,7 +172,9 @@ const ChartTypeGallery = () => {
                             <Button
                                 size="xs"
                                 component={Link}
-                                to={chartTypeBuilderPath(projectUuid)}
+                                to={chartTypeBuilderPath(
+                                    projectUrlIdentifier ?? projectUuid,
+                                )}
                                 leftSection={
                                     <MantineIcon icon={IconPlus} size={15} />
                                 }

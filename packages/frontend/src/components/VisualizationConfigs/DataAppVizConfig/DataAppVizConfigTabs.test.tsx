@@ -28,6 +28,10 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import { ChartGalleryContext } from '../../common/ChartGallery/ChartGalleryContext';
 import { ConfigTabs } from './DataAppVizConfigTabs';
 
+vi.mock('../../../hooks/useProjectRoute', () => ({
+    useOptionalProjectRoute: () => ({ projectUrlIdentifier: 'jaffle-shop' }),
+}));
+
 type PickerProps = {
     disabled: boolean;
     onCreateNew: (() => void) | null;
@@ -271,6 +275,7 @@ const mockSchema = (
     vi.mocked(useDataAppVisualization).mockReturnValue({
         data: {
             dataAppVizUuid: 'data-app-viz-uuid',
+            slug: 'radial-gauge',
             name: 'Radial gauge',
             description: '',
             spaceUuid: null,
@@ -647,7 +652,7 @@ describe('DataAppVizConfigTabs', () => {
         // `findBy`: the gate reads false until the user query settles.
         expect(
             (await screen.findByText('builder')).closest('a'),
-        ).toHaveAttribute('href', '/projects/project-1/chart-types/new');
+        ).toHaveAttribute('href', '/projects/jaffle-shop/chart-types/new');
     });
 
     it('keeps the Explorer query in builder links', async () => {
@@ -665,11 +670,11 @@ describe('DataAppVizConfigTabs', () => {
             (await screen.findByText('builder')).closest('a'),
         ).toHaveAttribute(
             'href',
-            '/projects/project-1/chart-types/new?create_saved_chart_version=serialized-query&fromSpace=space-1',
+            '/projects/jaffle-shop/chart-types/new?create_saved_chart_version=serialized-query&fromSpace=space-1',
         );
         act(() => pickerProps[pickerProps.length - 1].onCreateNew?.());
         expect(navigate).toHaveBeenCalledWith({
-            pathname: '/projects/project-1/chart-types/new',
+            pathname: '/projects/jaffle-shop/chart-types/new',
             search: locationSearch.current,
         });
     });
@@ -752,7 +757,7 @@ describe('DataAppVizConfigTabs', () => {
             (await screen.findByText('Edit ↗')).closest('a'),
         ).toHaveAttribute(
             'href',
-            '/projects/project-1/chart-types/data-app-viz-uuid?fromDashboard=dashboard-1',
+            '/projects/jaffle-shop/chart-types/radial-gauge?fromDashboard=dashboard-1',
         );
     });
 

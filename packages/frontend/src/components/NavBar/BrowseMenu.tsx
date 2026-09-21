@@ -232,7 +232,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 {chartTypesEnabled.enabled && canViewChartTypes && (
                     <Menu.Item
                         component={Link}
-                        to={`/projects/${projectUuid}/chart-types`}
+                        to={`/projects/${projectUrlIdentifier}/chart-types`}
                         leftSection={<MantineIcon icon={IconPuzzle} />}
                     >
                         Chart types
