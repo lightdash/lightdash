@@ -1,6 +1,7 @@
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import {
     DATA_REFERENCE_EXTRACTOR_VERSION,
+    extractDataAppDataReferences,
     FeatureFlags,
     ForbiddenError,
     getCustomSqlFieldKey,
@@ -10,6 +11,7 @@ import {
     type DataAppCode,
     type DataAppDependencies,
     type ImportAppCodeRequestBody,
+    type MetricQuery,
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
@@ -1369,6 +1371,133 @@ describe('AppGenerateService.getVersionDataReferences', () => {
 
         expect(first).toEqual(second);
         expect(s3SendSpy).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('AppGenerateService.authorizeConsumerQuery', () => {
+    const metricQuery: MetricQuery = {
+        exploreName: 'orders',
+        dimensions: ['orders_country'],
+        metrics: ['orders_revenue'],
+        filters: {},
+        sorts: [],
+        limit: 100,
+        tableCalculations: [],
+    };
+    const dataReferences = extractDataAppDataReferences([
+        {
+            path: 'src/App.tsx',
+            content:
+                "import { query } from '@lightdash/query-sdk'; query('orders').dimensions(['country']).metrics(['revenue']);",
+        },
+    ]);
+    const request = {
+        account: {
+            isRegisteredUser: () => true,
+            user: { id: USER_UUID },
+        } as never,
+        projectUuid: PROJECT_UUID,
+        organizationUuid: PROJECT_ORG_UUID,
+        previewToken: mintPreviewToken(
+            {
+                active: 'test-lightdash-secret',
+                fallbacks: [],
+                all: ['test-lightdash-secret'],
+            },
+            NEW_APP_UUID,
+            2,
+            USER_UUID,
+            PROJECT_ORG_UUID,
+            PROJECT_UUID,
+        ),
+        metricQuery,
+    };
+    const setup = () => {
+        const result = buildService();
+        result.appModel.findApp.mockResolvedValue({
+            app_id: NEW_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            space_uuid: 'space-uuid',
+            created_by_user_uuid: 'author-uuid',
+        });
+        result.appModel.getVersion.mockResolvedValue({
+            status: 'ready',
+            data_references: dataReferences,
+        });
+        return result;
+    };
+
+    it('authorizes from the signed version and never updates its saved references', async () => {
+        const { service, appModel } = setup();
+        await expect(service.authorizeConsumerQuery(request)).resolves.toEqual({
+            appUuid: NEW_APP_UUID,
+            version: 2,
+        });
+        expect(appModel.getVersion).toHaveBeenCalledWith(NEW_APP_UUID, 2);
+        expect(appModel.updateVersionDataReferences).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { previewToken: 'forged-token' },
+        { projectUuid: 'another-project' },
+        { organizationUuid: 'another-org' },
+        {
+            account: {
+                isRegisteredUser: () => true,
+                user: { id: 'another-user' },
+            } as never,
+        },
+    ])(
+        'rejects tokens outside the current account and project: %j',
+        async (overrides) => {
+            const { service, appModel } = setup();
+            await expect(
+                service.authorizeConsumerQuery({ ...request, ...overrides }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(appModel.getVersion).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([
+        null,
+        { status: 'building', data_references: dataReferences },
+        { status: 'ready', data_references: null },
+        {
+            status: 'ready',
+            data_references: { ...dataReferences, extractorVersion: 0 },
+        },
+    ])(
+        'denies versions without current ready metadata: %j',
+        async (version) => {
+            const { service, appModel } = setup();
+            appModel.getVersion.mockResolvedValue(version);
+            await expect(
+                service.authorizeConsumerQuery(request),
+            ).rejects.toThrow(ForbiddenError);
+            expect(appModel.updateVersionDataReferences).not.toHaveBeenCalled();
+        },
+    );
+
+    it('rechecks app access even with a valid token', async () => {
+        const { service } = setup();
+        vi.spyOn(
+            service as unknown as { createAuditedAbility: () => unknown },
+            'createAuditedAbility',
+        ).mockReturnValue({ cannot: () => true });
+        await expect(service.authorizeConsumerQuery(request)).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
+
+    it('rejects a query for fields missing from the saved references', async () => {
+        const { service } = setup();
+        await expect(
+            service.authorizeConsumerQuery({
+                ...request,
+                metricQuery: { ...metricQuery, dimensions: ['orders_email'] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
     });
 });
 

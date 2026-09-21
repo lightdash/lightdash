@@ -215,7 +215,11 @@ export type ExecuteAsyncQueryRequestParams = (
     | ExecuteAsyncUnderlyingDataRequestParams
     | ExecuteAsyncDashboardSqlChartRequestParams
     | ExecuteAsyncFieldValueSearchRequestParams
-) & { documentSource?: DocumentQueryReference };
+) & {
+    documentSource?: DocumentQueryReference;
+    /** Server-assigned provenance for queries authorized through a data app. */
+    dataAppSource?: { appUuid: UUID; version: number };
+};
 
 // Recovers dateZoom from a persisted request-parameters union without duck-typing at call sites.
 export const getDateZoomFromRequestParameters = (

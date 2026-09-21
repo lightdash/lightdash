@@ -27,6 +27,16 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
             inheritsFromOrgOrProject: true,
         });
+        can('view', 'DataApp', {
+            projectUuid: member.projectUuid,
+            inheritsFromOrgOrProject: true,
+        });
+        can('view', 'DataApp', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
         can('view', 'Document', {
             projectUuid: member.projectUuid,
             access: {
@@ -187,19 +197,6 @@ export const projectMemberAbilities: Record<
                     userUuid: member.userUuid,
                     role: SpaceMemberRole.ADMIN,
                 },
-            },
-        });
-        // View data apps shared project-wide or in spaces the user can
-        // access. Gated at interactive-viewer (not viewer) for parity with
-        // manage:Explore — plain viewers don't get data app access.
-        can('view', 'DataApp', {
-            projectUuid: member.projectUuid,
-            inheritsFromOrgOrProject: true,
-        });
-        can('view', 'DataApp', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: { userUuid: member.userUuid },
             },
         });
         can('view', 'DataApp', {

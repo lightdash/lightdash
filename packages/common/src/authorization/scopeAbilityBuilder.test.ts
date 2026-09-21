@@ -2990,6 +2990,20 @@ describe('scopeAbilityBuilder', () => {
             projectCreatedByUserUuid: 'another-user',
         };
 
+        it('allows a custom app-consumer role without granting Explore or editing', () => {
+            const ability = buildDataAppAbility([
+                'view:Project',
+                'view:Space',
+                'view:DataApp',
+            ]);
+            const app = { ...ownProduction, inheritsFromOrgOrProject: true };
+            expect(ability.can('view', subject('DataApp', app))).toBe(true);
+            expect(
+                ability.can('view', subject('Explore', { ...ownProduction })),
+            ).toBe(false);
+            expect(ability.can('manage', subject('DataApp', app))).toBe(false);
+        });
+
         it('create:DataApp@preview only reaches previews the user created', () => {
             const ability = buildDataAppAbility(['create:DataApp@preview']);
 

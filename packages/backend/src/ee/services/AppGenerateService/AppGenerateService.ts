@@ -266,6 +266,10 @@ import {
     SEMANTIC_LAYER_POINTER_FILE,
 } from './appContext';
 import {
+    assertDataAppQueryAllowed,
+    type DataAppQueryInputs,
+} from './appQueryAuthorization';
+import {
     CLARIFY_APP_SYSTEM_PROMPT,
     CLARIFY_VIZ_SYSTEM_PROMPT,
 } from './clarifierPrompts';
@@ -12056,6 +12060,84 @@ export class AppGenerateService extends BaseService {
         } finally {
             this.dataReferenceRefreshes.delete(key);
         }
+    }
+
+    async assertCanViewQuerySource({
+        account,
+        projectUuid,
+        appUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        appUuid: string;
+    }): Promise<void> {
+        if (!account.isRegisteredUser()) throw new ForbiddenError();
+        const app = await this.appModel.findApp(appUuid, projectUuid);
+        if (!app || app.project_uuid !== projectUuid)
+            throw new ForbiddenError();
+        const [accessContext, projectContext] = await Promise.all([
+            this.spacePermissionService.resolveAccess(account.user.id, {
+                type: 'app',
+                appUuid: app.app_id,
+                organizationUuid: app.organization_uuid,
+                projectUuid: app.project_uuid,
+                spaceUuid: app.space_uuid,
+            }),
+            this.getDataAppProjectContext(projectUuid),
+        ]);
+        if (
+            app.organization_uuid !== projectContext.organizationUuid ||
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('DataApp', {
+                    ...projectContext,
+                    ...accessContext,
+                    createdByUserUuid: app.created_by_user_uuid,
+                }),
+            )
+        )
+            throw new ForbiddenError('You do not have access to this data app');
+    }
+
+    async authorizeConsumerQuery({
+        account,
+        projectUuid,
+        organizationUuid,
+        previewToken,
+        ...queryInputs
+    }: DataAppQueryInputs & {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        previewToken: string;
+    }): Promise<{ appUuid: string; version: number }> {
+        if (!account.isRegisteredUser()) throw new ForbiddenError();
+        const verified = verifyPreviewTokenClaims(
+            previewToken,
+            this.lightdashConfig.lightdashSecrets,
+        );
+        if (
+            !verified.ok ||
+            verified.payload.userUuid !== account.user.id ||
+            verified.payload.projectUuid !== projectUuid ||
+            verified.payload.organizationUuid !== organizationUuid
+        )
+            throw new ForbiddenError('Invalid data app query token');
+        const { appUuid, version } = verified.payload;
+        await this.assertCanViewQuerySource({ account, projectUuid, appUuid });
+        const versionRow = await this.appModel.getVersion(appUuid, version);
+        // Do not learn permissions from a consumer request or refresh missing
+        // metadata here. Only this ready version's persisted references count.
+        if (
+            versionRow?.status !== 'ready' ||
+            versionRow.data_references?.extractorVersion !==
+                DATA_REFERENCE_EXTRACTOR_VERSION
+        )
+            throw new ForbiddenError(
+                'This data app version has no current saved data references',
+            );
+        assertDataAppQueryAllowed(versionRow.data_references, queryInputs);
+        return { appUuid, version };
     }
 
     async getCustomSqlProvenance({
