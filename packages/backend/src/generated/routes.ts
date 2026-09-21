@@ -20072,6 +20072,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'union',
                     subSchemas: [
+                        { dataType: 'enum', enums: ['compact'] },
                         { dataType: 'enum', enums: ['pending'] },
                         { dataType: 'enum', enums: ['sandbox'] },
                         { dataType: 'enum', enums: ['catalog'] },

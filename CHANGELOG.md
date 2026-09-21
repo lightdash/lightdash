@@ -1,3 +1,11 @@
+# [2.282.0](https://github.com/lightdash/lightdash/compare/2.281.0...2.282.0) (2026-09-21)
+
+
+### Features
+
+* **data-apps:** 1-hour prompt cache for the coding agent behind a feature flag ([#29280](https://github.com/lightdash/lightdash/issues/29280)) ([8aa86e3](https://github.com/lightdash/lightdash/commit/8aa86e3c6f6eb2c0320782d431131e49c0e06c41))
+* **data-apps:** compact long coding-agent sessions before a build ([#29538](https://github.com/lightdash/lightdash/issues/29538)) ([df5c5e9](https://github.com/lightdash/lightdash/commit/df5c5e9332d8c0cf73f33790252df98f40cd11b0))
+
 # [2.281.0](https://github.com/lightdash/lightdash/compare/2.280.0...2.281.0) (2026-09-21)
 
 

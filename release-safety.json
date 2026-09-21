@@ -1,29 +1,18 @@
 {
   "schemaVersion": "2",
-  "version": "2.281.0",
-  "previousVersion": "2.280.0",
-  "releaseDate": "2026-09-21T15:39:35.904Z",
+  "version": "2.282.0",
+  "previousVersion": "2.281.0",
+  "releaseDate": "2026-09-21T15:48:17.132Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260918120000_set_saved_merge_schema_default_v3.ts",
-        "edition": "core",
-        "tables": [],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": false,
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
@@ -32,13 +21,12 @@
       "changes": [],
       "breakingCount": 0,
       "advisories": [
-        "POST /api/v1/projects/{projectUuid}/charts/{slug}/code — removed `#/components/schemas/SavedMergeQuery` from the `allOf[#/components/schemas/Omit_ChartAsCode.chartConfig-or-description_]/merge` request property `allOf` list",
-        "POST /api/v1/projects/{projectUuid}/code/charts/{slug} — removed `#/components/schemas/SavedMergeQuery` from the `allOf[#/components/schemas/Omit_ChartAsCode.chartConfig-or-description_]/merge` request property `allOf` list",
-        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — removed `#/components/schemas/SavedMergeQuery` from the `charts/items/anyOf[#/components/schemas/CreateChartInDashboard]/allOf[#/components/schemas/CreateChartBase]/merge` request property `allOf` list",
-        "POST /api/v1/projects/{projectUuid}/dashboards/with-charts — removed `#/components/schemas/SavedMergeQuery` from the `charts/items/anyOf[#/components/schemas/CreateChartInSpace]/allOf[#/components/schemas/CreateChartBase]/merge` request property `allOf` list",
-        "POST /api/v1/projects/{projectUuid}/review-requests/similar — removed `#/components/schemas/SavedMergeQuery` from the `chart/merge` request property `allOf` list"
+        "GET /api/v1/projects/{projectUuid}/favorites — added the new `compact` enum value to the `results/items/anyOf[#/components/schemas/ResourceViewDataAppItem]/data/latestVersionStatus/allOf[#/components/schemas/AppVersionStatus]/` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/pinned-lists/{pinnedListUuid}/items — added the new `compact` enum value to the `results/items/anyOf[#/components/schemas/ResourceViewDataAppItem]/data/latestVersionStatus/allOf[#/components/schemas/AppVersionStatus]/` response property for the response status `200`",
+        "PATCH /api/v1/projects/{projectUuid}/pinned-lists/{pinnedListUuid}/items/order — added the new `compact` enum value to the `results/items/anyOf[#/components/schemas/ResourceViewDataAppItem]/data/latestVersionStatus/allOf[#/components/schemas/AppVersionStatus]/` response property for the response status `200`",
+        "GET /api/v2/content — added the new `compact` enum value to the `results/data/items/anyOf[#/components/schemas/DataAppContent]/latestVersionStatus/allOf[#/components/schemas/AppVersionStatus]/` response property for the response status `200`"
       ],
-      "advisoryCount": 5
+      "advisoryCount": 4
     },
     "mcp": {
       "checked": true,
@@ -58,11 +46,5 @@
     "minPreviousVersion": "1.111.0",
     "requiredStops": []
   },
-  "declaredBreaks": [
-    {
-      "id": "saved-chart-merge-schema-v3",
-      "reason": "Saved chart API responses now return the named schema v3 definition under merge (queries, join, keys, sort and limit), replacing schema v2 sources and joinKey. Clients reading merge must adopt the new response shape. Existing schema v2 uploads remain accepted and stored rows are upgraded on read with their field ids preserved.",
-      "requiredStop": false
-    }
-  ]
+  "declaredBreaks": []
 }
