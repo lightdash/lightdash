@@ -352,4 +352,123 @@ describe('useChartTypePreviewData', () => {
         expect(result.current.metricQuery).toBeNull();
         expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
     });
+
+    it("re-maps a first build's own input names onto the suggested fields", async () => {
+        // The suggestion inferred from/to/weight; the build declares
+        // source/target/value against the very same columns.
+        const { result, rerender } = renderPreviewData(null);
+        act(() =>
+            result.current.selectSuggestedData({
+                exploreName: 'customers',
+                fieldMapping: {
+                    from: 'customers_channel',
+                    to: 'customers_plan',
+                    weight: 'customers_count',
+                },
+                inferredFields: [
+                    {
+                        name: 'from',
+                        label: 'From',
+                        type: 'dimension',
+                        required: true,
+                    },
+                    {
+                        name: 'to',
+                        label: 'To',
+                        type: 'dimension',
+                        required: true,
+                    },
+                    {
+                        name: 'weight',
+                        label: 'Weight',
+                        type: 'metric',
+                        required: true,
+                    },
+                ],
+            }),
+        );
+        act(() => result.current.runQuery());
+        await waitFor(() => expect(result.current.run.status).toBe('ready'));
+
+        rerender({ current: sankeySchema });
+
+        await waitFor(() =>
+            expect(result.current.fit).toEqual({ status: 'fits' }),
+        );
+        expect(result.current.fieldMapping).toEqual({
+            source: 'customers_channel',
+            target: 'customers_plan',
+            value: 'customers_count',
+        });
+        expect(executeChartTypePreviewQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves an ordinary version switch to reconcile itself', async () => {
+        const { result, rerender } = renderPreviewData();
+        act(() => result.current.selectSavedChart(savedChart));
+        act(() => result.current.setField('source', 'customers_segment'));
+        act(() => result.current.runQuery());
+        await waitFor(() => expect(result.current.run.status).toBe('ready'));
+
+        rerender({
+            current: {
+                ...sankeySchema,
+                fields: [
+                    ...sankeySchema.fields,
+                    {
+                        name: 'extra',
+                        label: 'Extra',
+                        type: 'dimension',
+                        required: false,
+                    },
+                ],
+            },
+        });
+
+        // The author's own binding survives; nothing is re-mapped under it.
+        expect(result.current.fieldMapping.source).toBe('customers_segment');
+    });
+
+    it("keeps a saved chart's query when a suggestion stays in its explore", () => {
+        const { result } = renderPreviewData();
+        act(() => result.current.selectSavedChart(savedChart));
+
+        act(() =>
+            result.current.selectSuggestedData({
+                exploreName: 'customers',
+                fieldMapping: { source: 'customers_segment' },
+                inferredFields: null,
+            }),
+        );
+
+        const { selection } = result.current;
+        expect(selection.kind === 'query' && selection.savedChart).toEqual({
+            uuid: 'chart-1',
+            name: 'Channel to plan',
+        });
+        expect(
+            selection.kind === 'query' && selection.metricQuery.dimensions,
+        ).toEqual(['customers_channel', 'customers_plan']);
+        expect(result.current.fieldMapping.source).toBe('customers_segment');
+        expect(executeChartTypePreviewQuery).toHaveBeenCalledTimes(0);
+    });
+
+    it('starts a fresh query when a suggestion moves to another explore', () => {
+        const { result } = renderPreviewData();
+        act(() => result.current.selectSavedChart(savedChart));
+
+        act(() =>
+            result.current.selectSuggestedData({
+                exploreName: 'orders',
+                fieldMapping: {},
+                inferredFields: null,
+            }),
+        );
+
+        const { selection } = result.current;
+        expect(selection.kind === 'query' && selection.savedChart).toBeNull();
+        expect(
+            selection.kind === 'query' && selection.metricQuery.exploreName,
+        ).toBe('orders');
+    });
 });

@@ -69,6 +69,7 @@ import ChartTypeComposerActions, {
     type ComposerPanel,
 } from './ChartTypeComposerActions';
 import ClarifyingQuestions from './ClarifyingQuestions';
+import { type PendingSuggestedBuild } from './useChartTypeDataSuggestion';
 
 type Props = {
     projectUuid: string;
@@ -95,6 +96,26 @@ type Props = {
     clarification: ClarificationRound<VizBuildRequest>;
     /** The host's data selector, shown in the context tray beside the theme. */
     dataPill?: ReactNode;
+    /** The data suggestion round a send passes through first; null when the
+     *  host suggests no data. */
+    suggestion: ComposerDataSuggestion | null;
+};
+
+/** What the composer needs from the host's data suggestion round. */
+export type ComposerDataSuggestion = {
+    /** Takes a send before the build starts; false leaves it to clarifying. */
+    startFromPrompt: (request: VizBuildRequest) => boolean;
+    /** Takes composer text as "something else"; false when no round wants it. */
+    submitHint: (text: string) => boolean;
+    /** A request is in flight, so the composer waits rather than taking text. */
+    isRequesting: boolean;
+    /** A round is on screen, taking what the author had in mind instead. */
+    isOpen: boolean;
+    /** The build a resolved round released, ready to send. */
+    pendingBuild: PendingSuggestedBuild | null;
+    clearPendingBuild: () => void;
+    /** The round itself, grown up out of the composer. */
+    sheet: ReactNode;
 };
 
 type QueuedPrompt = {
@@ -105,6 +126,8 @@ type QueuedPrompt = {
 export type BuilderPromptBarHandle = {
     /** Replaces the draft with `text` and focuses the composer. */
     setPrompt: (text: string) => void;
+    /** Hands the caret back, for a control that asks the author to type. */
+    focusComposer: () => void;
 };
 
 const QueuedPromptRow = ({
@@ -190,6 +213,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             elementPicker,
             onCaptureScreenshot,
             dataPill = null,
+            suggestion,
         },
         ref,
     ) {
@@ -294,6 +318,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 composerRef.current?.clear();
                 composerRef.current?.insertContent([{ type: 'text', text }]);
             },
+            focusComposer: () => composerRef.current?.focus(),
         }));
 
         const canSubmit =
@@ -308,6 +333,12 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const handleSubmit = () => {
             const description = composerRef.current?.getText().trim() ?? '';
             if (!description || !canSubmit) return;
+            // A round on screen is asking what data the author meant, so this
+            // text answers it instead of starting another build.
+            if (suggestion?.submitHint(description)) {
+                composerRef.current?.clear();
+                return;
+            }
             const editing = editingPrompt.current;
             const sendSampleData = canIncludeSampleData && includeSampleData;
             const context = normalizeVizBuildContext(
@@ -346,6 +377,9 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             // Sending directly after a stop is an explicit request to resume
             // the session and lets the queue continue after that build.
             queuePausedByStop.current = false;
+            // The data comes first: the shape it has is what the questions and
+            // the build are then grounded in.
+            if (suggestion?.startFromPrompt(request)) return;
             clarification.send(request);
         };
 
@@ -467,6 +501,69 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             ],
         );
 
+        // What the composer holds right now, for a build released while the
+        // sheet was open: anything attached since the send still belongs to it.
+        const composerExtras = useRef({
+            fileIds: attachments.fileIds,
+            connections: selectedConnections,
+            clear: attachments.clear,
+        });
+        composerExtras.current = {
+            fileIds: attachments.fileIds,
+            connections: selectedConnections,
+            clear: attachments.clear,
+        };
+
+        // The round resolves outside the composer — on a run coming back, or
+        // on a fall back to sample data — and hands the build over here.
+        const pendingSuggestedBuild = suggestion?.pendingBuild ?? null;
+        const clearPendingSuggestedBuild = suggestion?.clearPendingBuild;
+        const clarifySend = clarification.send;
+        const sentSuggestedBuild = useRef<PendingSuggestedBuild | null>(null);
+        useEffect(
+            function sendTheBuildTheSuggestionReleased() {
+                if (!pendingSuggestedBuild || !clearPendingSuggestedBuild)
+                    return;
+                // One release, one build, whatever the batching.
+                if (sentSuggestedBuild.current === pendingSuggestedBuild)
+                    return;
+                sentSuggestedBuild.current = pendingSuggestedBuild;
+                clearPendingSuggestedBuild();
+                const { fileIds, connections, clear } = composerExtras.current;
+                const held = pendingSuggestedBuild.request;
+                clear();
+                setSelectedConnections([]);
+                clarifySend(
+                    refreshQueuedRequest({
+                        ...held,
+                        fileIds: [...new Set([...held.fileIds, ...fileIds])],
+                        externalConnections: [
+                            ...held.externalConnections,
+                            ...connections.filter(
+                                (connection) =>
+                                    !held.externalConnections.some(
+                                        (existing) =>
+                                            existing.externalConnectionUuid ===
+                                            connection.externalConnectionUuid,
+                                    ),
+                            ),
+                        ],
+                        // The rows that run just returned are the ones this
+                        // build should be shown.
+                        ...(pendingSuggestedBuild.hasRows
+                            ? { includeSampleData: true }
+                            : {}),
+                    }),
+                );
+            },
+            [
+                clarifySend,
+                clearPendingSuggestedBuild,
+                pendingSuggestedBuild,
+                refreshQueuedRequest,
+            ],
+        );
+
         const handlePaste: ClipboardEventHandler = (event) => {
             if (event.clipboardData.files.length === 0) return;
             event.preventDefault();
@@ -508,7 +605,10 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const questions = clarification.pending;
         const hasStack = queuedStackSize > 0 || isBuilding || isClarifying;
         // Read-only, not just unsubmittable: text typed here would be lost.
-        const isComposerLocked = isClarifying || questions !== null;
+        const isComposerLocked =
+            isClarifying ||
+            questions !== null ||
+            suggestion?.isRequesting === true;
         const themePickerDisabled =
             isBuilding ||
             isComposerLocked ||
@@ -541,6 +641,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
             >
+                {suggestion?.sheet}
                 {questions !== null && (
                     <ClarifyingQuestions
                         prompt={questions.prompt}
@@ -727,15 +828,19 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     size="sm"
                     className={classes.composer}
                     placeholder={
-                        questions !== null
-                            ? 'Answer the questions, or skip, to build…'
-                            : isClarifying
-                              ? 'Reading your prompt…'
-                              : isBuilding
-                                ? 'Ask for another change…'
-                                : hasVersions
-                                  ? 'Ask for a change…'
-                                  : 'Describe a new chart type…'
+                        suggestion?.isRequesting
+                            ? 'Finding data for your prompt…'
+                            : suggestion?.isOpen
+                              ? 'Tell Chart Studio what data you had in mind…'
+                              : questions !== null
+                                ? 'Answer the questions, or skip, to build…'
+                                : isClarifying
+                                  ? 'Reading your prompt…'
+                                  : isBuilding
+                                    ? 'Ask for another change…'
+                                    : hasVersions
+                                      ? 'Ask for a change…'
+                                      : 'Describe a new chart type…'
                     }
                     disabled={isComposerLocked}
                     submitDisabled={!canSubmit || isComposerLocked}

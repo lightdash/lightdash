@@ -62,6 +62,8 @@ const renderPill = (
             fields={sankeyFields}
             disabled={false}
             opened={false}
+            onSelectSuggest={null}
+            isSuggestSelected={false}
             onOpenedChange={onOpenedChange}
             onSelectSample={vi.fn()}
             onSelectSavedChart={vi.fn()}
@@ -210,5 +212,27 @@ describe('PreviewDataPill', () => {
         fireEvent.click(screen.getByText('Customers'));
 
         expect(onSelectExplore).toHaveBeenCalledWith('customers');
+    });
+
+    it('offers Chart Studio first when it can find the data', () => {
+        const onSelectSuggest = vi.fn();
+        renderPill({ opened: true, onSelectSuggest });
+
+        const items = screen.getAllByRole('menuitem');
+        expect(items[0]).toHaveTextContent('Suggest for me');
+        expect(
+            screen.getByText('Finds an explore and fields from your prompt'),
+        ).toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('Suggest for me'));
+
+        expect(onSelectSuggest).toHaveBeenCalledOnce();
+    });
+
+    it('names suggesting on the pill while nothing else is chosen', () => {
+        renderPill({ onSelectSuggest: vi.fn(), isSuggestSelected: true });
+
+        expect(screen.getByText('Data: suggest for me')).toBeInTheDocument();
+        expect(screen.queryByText('Data: Sample data')).toBeNull();
     });
 });

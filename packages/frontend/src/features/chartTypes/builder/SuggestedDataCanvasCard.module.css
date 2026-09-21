@@ -1,0 +1,11 @@
+.card {
+    max-width: 460px;
+    padding: var(--mantine-spacing-md);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-lg);
+    background: var(--mantine-color-body);
+}
+
+.fields {
+    padding-top: 2px;
+}

@@ -2,13 +2,14 @@ import {
     getDataAppVizFieldIds,
     getErrorMessage,
     getItemMap,
+    type DataAppVizField,
     type DataAppVizFieldMapping,
     type DataAppVizSchema,
     type ItemsMap,
     type MetricQuery,
     type SavedChart,
 } from '@lightdash/common';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useExploreByProjectUuid } from '../../../hooks/useExplore';
 import {
     autoMapDataAppVizFieldsFromPools,
@@ -50,6 +51,14 @@ export type ChartTypePreviewDataState = {
     selectSample: () => void;
     selectSavedChart: (chart: SavedChart) => void;
     selectExplore: (exploreName: string) => void;
+    /** Bind a suggested explore and mapping. `inferredFields` stand in for a
+     *  declaration that does not exist yet, and are dropped the moment a build
+     *  declares real inputs. */
+    selectSuggestedData: (suggestion: {
+        exploreName: string;
+        fieldMapping: DataAppVizFieldMapping;
+        inferredFields: DataAppVizField[] | null;
+    }) => void;
     setField: (fieldName: string, fieldId: string | string[] | null) => void;
     runQuery: () => void;
 };
@@ -76,10 +85,26 @@ export const useChartTypePreviewData = ({
 }): ChartTypePreviewDataState => {
     const [selection, setSelection] = useState<PreviewDataSelection>(SAMPLE);
     const [run, setRun] = useState<PreviewRunState>(NOT_RUN);
+    const [inferredFields, setInferredFields] = useState<
+        DataAppVizField[] | null
+    >(null);
     // Only the latest run may write results back, and only one is ever in
     // flight — neither depends on how the button is rendered.
     const runToken = useRef(0);
     const isRunning = useRef(false);
+
+    // Inputs suggested for a chart type that has not been built yet stand in
+    // for a declaration, so the binding, the fit and the query are all the
+    // same code. A real declaration always wins.
+    const activeSchema = useMemo<DataAppVizSchema | null>(() => {
+        if (schema) return schema;
+        if (!inferredFields) return null;
+        return {
+            fields: inferredFields,
+            configOptions: [],
+            colorPalette: null,
+        };
+    }, [schema, inferredFields]);
 
     const explore = useExploreByProjectUuid(
         selection.kind === 'query' ? selection.exploreName : undefined,
@@ -109,33 +134,58 @@ export const useChartTypePreviewData = ({
             : dataAppVizFieldPoolsFromMetricQuery(base);
     }, [base, run]);
 
+    // A first build names its own inputs, which the inferred names the
+    // suggestion bound will not match. Re-map the declaration onto the very
+    // same columns rather than carrying names nothing declares.
+    const hasSupersededInferredFields =
+        schema !== null && inferredFields !== null;
+
     const fieldMapping = useMemo(() => {
-        if (selection.kind !== 'query' || !schema || !bindablePools) {
+        if (selection.kind !== 'query' || !activeSchema || !bindablePools) {
             return NO_FIELDS;
         }
-        return fillUnboundDataAppVizFields(
-            schema.fields,
-            bindablePools,
-            selection.fieldMapping,
+        return hasSupersededInferredFields
+            ? autoMapDataAppVizFieldsFromPools(
+                  activeSchema.fields,
+                  bindablePools,
+              )
+            : fillUnboundDataAppVizFields(
+                  activeSchema.fields,
+                  bindablePools,
+                  selection.fieldMapping,
+              );
+    }, [selection, activeSchema, bindablePools, hasSupersededInferredFields]);
+
+    // Nothing here runs a query: the re-map only writes the binding the render
+    // above already shows, so the inferred names stop being carried around.
+    useEffect(() => {
+        if (!hasSupersededInferredFields) return;
+        setInferredFields(null);
+        setSelection((current) =>
+            current.kind === 'query' ? { ...current, fieldMapping } : current,
         );
-    }, [selection, schema, bindablePools]);
+    }, [hasSupersededInferredFields, fieldMapping]);
 
     const metricQuery = useMemo(
         () =>
-            base && schema
+            base && activeSchema
                 ? deriveChartTypePreviewMetricQuery({
                       base,
-                      schema,
+                      schema: activeSchema,
                       fieldMapping,
                       itemsMap,
                   })
                 : null,
-        [base, schema, fieldMapping, itemsMap],
+        [base, activeSchema, fieldMapping, itemsMap],
     );
 
     const exploreError = explore.error ?? null;
     const fit: PreviewFitState = useMemo(() => {
-        if (selection.kind !== 'query' || !schema || schema.fields.length === 0)
+        if (
+            selection.kind !== 'query' ||
+            !activeSchema ||
+            activeSchema.fields.length === 0
+        )
             return { status: 'notApplicable' };
         if (exploreError) {
             return {
@@ -149,7 +199,7 @@ export const useChartTypePreviewData = ({
         }
         if (!explore.data) return { status: 'resolving' };
         const issues = checkChartTypeFit(
-            schema.fields,
+            activeSchema.fields,
             fieldMapping,
             dataAppVizFieldPools(itemsMap),
         );
@@ -158,7 +208,7 @@ export const useChartTypePreviewData = ({
             : { status: 'doesNotFit', issues };
     }, [
         selection.kind,
-        schema,
+        activeSchema,
         explore.data,
         exploreError,
         fieldMapping,
@@ -174,12 +224,14 @@ export const useChartTypePreviewData = ({
         runToken.current += 1;
         setSelection(SAMPLE);
         setRun(NOT_RUN);
+        setInferredFields(null);
     }, []);
 
     const selectSavedChart = useCallback(
         (chart: SavedChart) => {
             runToken.current += 1;
             setRun(NOT_RUN);
+            setInferredFields(null);
             setSelection({
                 kind: 'query',
                 exploreName: chart.tableName,
@@ -201,6 +253,7 @@ export const useChartTypePreviewData = ({
     const selectExplore = useCallback((exploreName: string) => {
         runToken.current += 1;
         setRun(NOT_RUN);
+        setInferredFields(null);
         setSelection({
             kind: 'query',
             exploreName,
@@ -209,6 +262,37 @@ export const useChartTypePreviewData = ({
             fieldMapping: {},
         });
     }, []);
+
+    const selectSuggestedData = useCallback(
+        ({
+            exploreName,
+            fieldMapping: suggested,
+            inferredFields: inferred,
+        }: {
+            exploreName: string;
+            fieldMapping: DataAppVizFieldMapping;
+            inferredFields: DataAppVizField[] | null;
+        }) => {
+            runToken.current += 1;
+            setRun(NOT_RUN);
+            setInferredFields(inferred);
+            // Staying inside the explore already selected keeps the query it
+            // came with — a saved chart's filters and sorts are not re-bound.
+            setSelection((current) =>
+                current.kind === 'query' && current.exploreName === exploreName
+                    ? { ...current, fieldMapping: suggested }
+                    : {
+                          kind: 'query',
+                          exploreName,
+                          savedChart: null,
+                          metricQuery:
+                              emptyChartTypePreviewMetricQuery(exploreName),
+                          fieldMapping: suggested,
+                      },
+            );
+        },
+        [],
+    );
 
     const setField = useCallback(
         (fieldName: string, fieldId: string | string[] | null) => {
@@ -229,7 +313,7 @@ export const useChartTypePreviewData = ({
     );
 
     const runQuery = useCallback(() => {
-        if (!projectUuid || !metricQuery || !schema) return;
+        if (!projectUuid || !metricQuery || !activeSchema) return;
         if (isRunning.current) return;
         isRunning.current = true;
         runToken.current += 1;
@@ -238,7 +322,7 @@ export const useChartTypePreviewData = ({
         void executeChartTypePreviewQuery({
             projectUuid,
             metricQuery,
-            schema,
+            schema: activeSchema,
             fieldMapping,
             itemsMap,
         })
@@ -267,7 +351,7 @@ export const useChartTypePreviewData = ({
                 if (token !== runToken.current) return;
                 setRun({ status: 'error', message: getErrorMessage(error) });
             });
-    }, [projectUuid, metricQuery, schema, fieldMapping, itemsMap]);
+    }, [projectUuid, metricQuery, activeSchema, fieldMapping, itemsMap]);
 
     const boundFieldCount = useMemo(
         () =>
@@ -300,13 +384,14 @@ export const useChartTypePreviewData = ({
         exploreLabel,
         itemsMap,
         boundFieldCount,
-        hasDeclaredInputs: (schema?.fields.length ?? 0) > 0,
+        hasDeclaredInputs: (activeSchema?.fields.length ?? 0) > 0,
         run,
         fit,
         previewDataSource,
         selectSample,
         selectSavedChart,
         selectExplore,
+        selectSuggestedData,
         setField,
         runQuery,
     };

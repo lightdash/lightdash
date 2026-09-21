@@ -1,5 +1,5 @@
 import { ActionIcon, Button, Loader, Text } from '@mantine/core';
-import { IconRefresh } from '@tabler/icons-react';
+import { IconRefresh, IconSparkles } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
@@ -14,6 +14,9 @@ type Props = {
     fit: PreviewFitState;
     /** The version on screen declares inputs, so real data can be bound. */
     hasDeclaredInputs: boolean;
+    /** Asks Chart Studio to find the data; null without Ambient AI. */
+    onSuggestFields: (() => void) | null;
+    isSuggestingFields: boolean;
     onOpenDataMenu: () => void;
     onRefresh: () => void;
 };
@@ -27,15 +30,37 @@ const PreviewDataStatus: FC<Props> = ({
     run,
     fit,
     hasDeclaredInputs,
+    onSuggestFields,
+    isSuggestingFields,
     onOpenDataMenu,
     onRefresh,
 }) => {
     if (selection.kind === 'sample') {
         if (!hasDeclaredInputs) return null;
         return (
-            <Button size="compact-xs" variant="subtle" onClick={onOpenDataMenu}>
-                Preview on real data
-            </Button>
+            <>
+                {onSuggestFields && (
+                    <Button
+                        size="compact-xs"
+                        variant="subtle"
+                        color="indigo"
+                        leftSection={
+                            <MantineIcon icon={IconSparkles} size={12} />
+                        }
+                        loading={isSuggestingFields}
+                        onClick={onSuggestFields}
+                    >
+                        Suggest data
+                    </Button>
+                )}
+                <Button
+                    size="compact-xs"
+                    variant="subtle"
+                    onClick={onOpenDataMenu}
+                >
+                    Preview on real data
+                </Button>
+            </>
         );
     }
 

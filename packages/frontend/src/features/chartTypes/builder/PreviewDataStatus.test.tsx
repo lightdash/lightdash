@@ -29,6 +29,8 @@ const renderStatus = (
             run={{ status: 'notRun' }}
             fit={{ status: 'notApplicable' }}
             hasDeclaredInputs
+            onSuggestFields={null}
+            isSuggestingFields={false}
             onOpenDataMenu={vi.fn()}
             onRefresh={vi.fn()}
             {...props}

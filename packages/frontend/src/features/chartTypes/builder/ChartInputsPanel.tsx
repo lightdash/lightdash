@@ -9,8 +9,10 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { Anchor, Box, Button, Group, Stack, Text } from '@mantine/core';
+import { IconSparkles } from '@tabler/icons-react';
 import { useId, useMemo, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
+import MantineIcon from '../../../components/common/MantineIcon';
 import DataAppVizFieldGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizFieldGuidance';
 import OrderedDataAppVizFieldSelect from '../../../components/VisualizationConfigs/DataAppVizConfig/OrderedDataAppVizFieldSelect';
 import DataAppVizFieldTypeBadge from '../components/DataAppVizFieldTypeBadge';
@@ -34,6 +36,11 @@ type Props = {
     metricQuery: MetricQuery;
     run: PreviewRunState;
     fit: PreviewFitState;
+    /** Asks Chart Studio to map these inputs; null without Ambient AI. */
+    onSuggestFields: (() => void) | null;
+    /** The same, for the one input that does not fit. */
+    onSuggestInput: ((fieldName: string) => void) | null;
+    isSuggestingFields: boolean;
     onSetField: (fieldName: string, fieldId: string | string[] | null) => void;
     onRun: () => void;
 };
@@ -51,6 +58,9 @@ const ChartInputsPanel: FC<Props> = ({
     metricQuery,
     run,
     fit,
+    onSuggestFields,
+    onSuggestInput,
+    isSuggestingFields,
     onSetField,
     onRun,
 }) => {
@@ -94,9 +104,25 @@ const ChartInputsPanel: FC<Props> = ({
                     </Group>
                 </Group>
 
-                <Text fz="sm" fw={600}>
-                    Chart inputs
-                </Text>
+                <Group justify="space-between" gap="xs" wrap="nowrap">
+                    <Text fz="sm" fw={600}>
+                        Chart inputs
+                    </Text>
+                    {onSuggestFields && (
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            color="indigo"
+                            leftSection={
+                                <MantineIcon icon={IconSparkles} size={12} />
+                            }
+                            loading={isSuggestingFields}
+                            onClick={onSuggestFields}
+                        >
+                            Suggest fields
+                        </Button>
+                    )}
+                </Group>
                 <Stack gap="xs">
                     {fields.map((field) => {
                         const guidanceId = field.description?.trim()
@@ -191,6 +217,26 @@ const ChartInputsPanel: FC<Props> = ({
                                                     : null,
                                             )}
                                         </Text>
+                                        {onSuggestInput && (
+                                            <Button
+                                                className={classes.suggestInput}
+                                                size="compact-xs"
+                                                variant="subtle"
+                                                color="indigo"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconSparkles}
+                                                        size={12}
+                                                    />
+                                                }
+                                                loading={isSuggestingFields}
+                                                onClick={() =>
+                                                    onSuggestInput(field.name)
+                                                }
+                                            >
+                                                {`Suggest a ${issue.expects}`}
+                                            </Button>
+                                        )}
                                     </Stack>
                                 )}
                             </Stack>

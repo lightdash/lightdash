@@ -6,7 +6,13 @@ import {
 } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { forwardRef, useImperativeHandle, useRef, type ReactNode } from 'react';
+import {
+    forwardRef,
+    useImperativeHandle,
+    useRef,
+    type ComponentProps,
+    type ReactNode,
+} from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -164,14 +170,18 @@ vi.mock('../../../components/common/PromptComposer/PromptComposer', () => ({
     }),
 }));
 
+const composerAttachments = vi.hoisted(() => ({
+    fileIds: [] as string[],
+    clear: vi.fn(),
+}));
 vi.mock('../hooks/useVizComposerAttachments', () => ({
     useVizComposerAttachments: () => ({
         attachments: [],
-        fileIds: [],
+        fileIds: composerAttachments.fileIds,
         isUploading: false,
         add: attachmentAdd,
         remove: vi.fn(),
-        clear: vi.fn(),
+        clear: composerAttachments.clear,
     }),
 }));
 
@@ -232,6 +242,7 @@ const promptBar = ({
     elementPicker,
     onCaptureScreenshot,
     dataPill,
+    suggestion = null,
 }: {
     build?: DataAppVizBuildState;
     isBuilding?: boolean;
@@ -247,6 +258,7 @@ const promptBar = ({
     elementPicker?: UseElementPickerResult;
     onCaptureScreenshot?: () => Promise<File>;
     dataPill?: ReactNode;
+    suggestion?: ComponentProps<typeof BuilderPromptBar>['suggestion'];
 } = {}) => (
     <MemoryRouter>
         <BuilderPromptBar
@@ -269,6 +281,7 @@ const promptBar = ({
             elementPicker={elementPicker}
             onCaptureScreenshot={onCaptureScreenshot}
             dataPill={dataPill}
+            suggestion={suggestion}
         />
     </MemoryRouter>
 );
@@ -276,6 +289,8 @@ const promptBar = ({
 describe('BuilderPromptBar', () => {
     beforeEach(() => {
         attachmentAdd.mockClear();
+        composerAttachments.fileIds = [];
+        composerAttachments.clear.mockClear();
         showToastError.mockClear();
         connections.linked = [];
         connections.unlink.mockClear();
@@ -1634,5 +1649,188 @@ describe('BuilderPromptBar', () => {
                 name: 'Remove connection: Stores API',
             }),
         ).toBeInTheDocument();
+    });
+
+    describe('data suggestion round', () => {
+        const suggestionStub = (
+            overrides: Partial<
+                NonNullable<
+                    ComponentProps<typeof BuilderPromptBar>['suggestion']
+                >
+            > = {},
+        ) => ({
+            startFromPrompt: vi.fn(() => true),
+            submitHint: vi.fn(() => false),
+            isRequesting: false,
+            isOpen: false,
+            pendingBuild: null,
+            clearPendingBuild: vi.fn(),
+            sheet: null,
+            ...overrides,
+        });
+
+        it('hands a send to the suggestion round instead of the build', async () => {
+            const clarification = clarificationStub();
+            const suggestion = suggestionStub();
+            renderWithProviders(promptBar({ clarification, suggestion }));
+
+            await userEvent.type(
+                screen.getByPlaceholderText('Ask for a change…'),
+                'A Sankey of channel to plan',
+            );
+            await userEvent.click(screen.getByLabelText('Send'));
+
+            expect(suggestion.startFromPrompt).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    description: 'A Sankey of channel to plan',
+                }),
+            );
+            expect(clarification.send).not.toHaveBeenCalled();
+        });
+
+        it('sends as usual when the round declines the prompt', async () => {
+            const clarification = clarificationStub();
+            const suggestion = suggestionStub({
+                startFromPrompt: vi.fn(() => false),
+            });
+            renderWithProviders(promptBar({ clarification, suggestion }));
+
+            await userEvent.type(
+                screen.getByPlaceholderText('Ask for a change…'),
+                'Make it teal',
+            );
+            await userEvent.click(screen.getByLabelText('Send'));
+
+            expect(clarification.send).toHaveBeenCalledOnce();
+        });
+
+        it('takes what the author meant back to the round, not to a build', async () => {
+            const clarification = clarificationStub();
+            const suggestion = suggestionStub({
+                isOpen: true,
+                submitHint: vi.fn(() => true),
+                sheet: <div>Data for this chart</div>,
+            });
+            renderWithProviders(promptBar({ clarification, suggestion }));
+
+            expect(screen.getByText('Data for this chart')).toBeInTheDocument();
+            await userEvent.type(
+                screen.getByPlaceholderText(
+                    'Tell Chart Studio what data you had in mind…',
+                ),
+                'Use orders instead',
+            );
+            await userEvent.click(screen.getByLabelText('Send'));
+
+            expect(suggestion.submitHint).toHaveBeenCalledWith(
+                'Use orders instead',
+            );
+            expect(suggestion.startFromPrompt).not.toHaveBeenCalled();
+            expect(clarification.send).not.toHaveBeenCalled();
+        });
+
+        it('waits for the round rather than taking text while it asks', () => {
+            renderWithProviders(
+                promptBar({
+                    suggestion: suggestionStub({ isRequesting: true }),
+                }),
+            );
+
+            expect(
+                screen.getByPlaceholderText('Finding data for your prompt…'),
+            ).toBeDisabled();
+        });
+
+        it('sends the build a resolved round released, with the rows it ran', () => {
+            const clarification = clarificationStub();
+            const suggestion = suggestionStub({
+                pendingBuild: {
+                    request: {
+                        description: 'A Sankey of channel to plan',
+                        fileIds: [],
+                        clarifications: [],
+                        externalConnections: [],
+                        claudeModel: 'opus',
+                    },
+                    hasRows: true,
+                },
+            });
+            renderWithProviders(
+                promptBar({
+                    clarification,
+                    suggestion,
+                    buildContext: { sampleRows: [{ channel: 'Paid' }] },
+                }),
+            );
+
+            expect(suggestion.clearPendingBuild).toHaveBeenCalledOnce();
+            expect(clarification.send).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    description: 'A Sankey of channel to plan',
+                    includeSampleData: true,
+                    context: { sampleRows: [{ channel: 'Paid' }] },
+                }),
+            );
+        });
+
+        it('sends nothing on its own while the round is still open', () => {
+            const clarification = clarificationStub();
+            renderWithProviders(
+                promptBar({
+                    clarification,
+                    suggestion: suggestionStub({ isOpen: true }),
+                }),
+            );
+
+            expect(clarification.send).not.toHaveBeenCalled();
+        });
+
+        it('carries a file attached while the sheet was open into the build', () => {
+            composerAttachments.fileIds = ['file-2'];
+            const clarification = clarificationStub();
+            const suggestion = suggestionStub({
+                pendingBuild: {
+                    request: {
+                        description: 'A Sankey of channel to plan',
+                        fileIds: ['file-1'],
+                        clarifications: [],
+                        externalConnections: [],
+                        claudeModel: 'opus',
+                    },
+                    hasRows: false,
+                },
+            });
+            renderWithProviders(promptBar({ clarification, suggestion }));
+
+            expect(clarification.send).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    description: 'A Sankey of channel to plan',
+                    fileIds: ['file-1', 'file-2'],
+                }),
+            );
+            expect(composerAttachments.clear).toHaveBeenCalledOnce();
+        });
+
+        it('builds once from one released round, whatever the re-renders', () => {
+            const clarification = clarificationStub();
+            const suggestion = suggestionStub({
+                pendingBuild: {
+                    request: {
+                        description: 'A Sankey of channel to plan',
+                        fileIds: [],
+                        clarifications: [],
+                        externalConnections: [],
+                        claudeModel: 'opus',
+                    },
+                    hasRows: false,
+                },
+            });
+            const view = promptBar({ clarification, suggestion });
+            const { rerender } = renderWithProviders(view);
+            rerender(view);
+            rerender(view);
+
+            expect(clarification.send).toHaveBeenCalledTimes(1);
+        });
     });
 });

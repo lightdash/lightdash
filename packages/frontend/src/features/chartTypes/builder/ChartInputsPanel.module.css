@@ -24,3 +24,9 @@
     border-top: 1px solid var(--mantine-color-ldGray-2);
     background: var(--mantine-color-body);
 }
+
+/* The per-input suggestion sits under its reason, not across the column. */
+.suggestInput {
+    align-self: flex-start;
+    margin-top: 2px;
+}

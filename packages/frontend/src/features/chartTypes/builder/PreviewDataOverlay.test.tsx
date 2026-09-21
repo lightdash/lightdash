@@ -44,6 +44,7 @@ describe('PreviewDataOverlay', () => {
                         },
                     ],
                 }}
+                onSuggestInput={null}
                 onUseSampleData={onUseSampleData}
             />,
         );
@@ -71,6 +72,7 @@ describe('PreviewDataOverlay', () => {
                     kind: 'unavailable',
                     message: 'You do not have access to this explore.',
                 }}
+                onSuggestInput={null}
                 onUseSampleData={vi.fn()}
             />,
         );
@@ -83,5 +85,33 @@ describe('PreviewDataOverlay', () => {
                 'You do not have access to this explore. Pick different data, or keep designing on sample data.',
             ),
         ).toBeInTheDocument();
+    });
+
+    it('offers Chart Studio the input that does not fit', () => {
+        const onSuggestInput = vi.fn();
+        renderWithProviders(
+            <PreviewDataOverlay
+                reason={{
+                    kind: 'doesNotFit',
+                    itemsMap,
+                    issues: [
+                        {
+                            fieldName: 'value',
+                            label: 'Value',
+                            expects: 'metric',
+                            mapped: null,
+                        },
+                    ],
+                }}
+                onSuggestInput={onSuggestInput}
+                onUseSampleData={vi.fn()}
+            />,
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Suggest a metric' }),
+        );
+
+        expect(onSuggestInput).toHaveBeenCalledWith('value');
     });
 });

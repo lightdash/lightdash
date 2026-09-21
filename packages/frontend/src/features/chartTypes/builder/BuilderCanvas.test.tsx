@@ -24,6 +24,8 @@ const renderCanvas = (
             previewDataSource={null}
             previewSourceExtra={null}
             previewOverlay={null}
+            canvasNotice={null}
+            buildingOnRows={null}
             configurePanel={<div>Options panel</div>}
             onPickExample={null}
             onSdkManifest={vi.fn()}
@@ -106,5 +108,31 @@ describe('BuilderCanvas', () => {
         expect(
             screen.getByText('You do not have access to this explore.'),
         ).toBeInTheDocument();
+    });
+
+    it('says what a first build is running on when it has rows', () => {
+        renderCanvas({
+            appUuid: null,
+            previewVersion: null,
+            isBuilding: true,
+            buildingOnRows: { exploreLabel: 'Customers', rowCount: 12 },
+        });
+
+        expect(
+            screen.getByText('Building your chart type…'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('On 12 rows from Customers, queried once'),
+        ).toBeInTheDocument();
+    });
+
+    it('claims no rows for a first build that has none', () => {
+        renderCanvas({
+            appUuid: null,
+            previewVersion: null,
+            isBuilding: true,
+        });
+
+        expect(screen.queryByText(/queried once/)).toBeNull();
     });
 });

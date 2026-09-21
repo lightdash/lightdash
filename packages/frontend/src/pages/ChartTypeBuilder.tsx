@@ -2,6 +2,7 @@ import {
     ChartType,
     DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
+    type DataAppVizField,
     type ItemsMap,
     type ResultRow,
 } from '@lightdash/common';
@@ -19,6 +20,7 @@ import {
 import { validate as isUuidString } from 'uuid';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import { useAmbientAiEnabled } from '../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
@@ -33,8 +35,11 @@ import PreviewDataOverlay, {
 import PreviewDataPill from '../features/chartTypes/builder/PreviewDataPill';
 import PreviewDataStatus from '../features/chartTypes/builder/PreviewDataStatus';
 import { type PreviewDataSource } from '../features/chartTypes/builder/previewDataTypes';
+import SuggestedDataCanvasCard from '../features/chartTypes/builder/SuggestedDataCanvasCard';
+import SuggestedDataSheet from '../features/chartTypes/builder/SuggestedDataSheet';
 import { useChartTypeAuthoringExit } from '../features/chartTypes/builder/useChartTypeAuthoringExit';
 import { useChartTypeBuilderWorkspace } from '../features/chartTypes/builder/useChartTypeBuilderWorkspace';
+import { useChartTypeDataSuggestion } from '../features/chartTypes/builder/useChartTypeDataSuggestion';
 import { useChartTypePreviewData } from '../features/chartTypes/builder/useChartTypePreviewData';
 import { useConfigurePanelState } from '../features/chartTypes/builder/useConfigurePanelState';
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
@@ -55,6 +60,7 @@ import classes from './ChartTypeBuilder.module.css';
 // No chart query here; auto-mapping belongs to charts binding fields.
 const NO_ITEMS: ItemsMap = {};
 const NO_ROWS: ResultRow[] = [];
+const NO_FIELDS: DataAppVizField[] = [];
 
 /** Set on the `/new` -> `/:dataAppVizUuid` redirect so "created in this
  *  session" survives that route change (a fresh mount reads it back). */
@@ -134,6 +140,30 @@ const ChartTypeBuilder: FC = () => {
     const schema = workspace.dataAppViz?.schema ?? null;
     const previewData = useChartTypePreviewData({ projectUuid, schema });
     const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
+    const isAmbientAiEnabled = useAmbientAiEnabled() === true;
+    const suggestion = useChartTypeDataSuggestion({
+        projectUuid,
+        isAmbientAiEnabled,
+        isNewChartType: activeVizUuid === undefined && build.appUuid === null,
+        declaredFields: schema?.fields ?? NO_FIELDS,
+        isSampleSelected: previewData.selection.kind === 'sample',
+        exploreName:
+            previewData.selection.kind === 'query'
+                ? previewData.selection.exploreName
+                : null,
+        fallbackPrompt:
+            history.latest?.prompt ??
+            appMeta?.description ??
+            appMeta?.name ??
+            null,
+        run: previewData.run,
+        onApply: previewData.selectSuggestedData,
+        onApplyInput: previewData.setField,
+        onUseSampleData: previewData.selectSample,
+        onRunQuery: previewData.runQuery,
+        onRestorePrompt: (prompt) =>
+            workspace.promptBarRef.current?.setPrompt(prompt),
+    });
     const liveRun = previewData.run.status === 'ready' ? previewData.run : null;
     const liveRows = liveRun?.rows ?? NO_ROWS;
     const liveItemsMap = liveRun?.itemsMap ?? NO_ITEMS;
@@ -333,6 +363,9 @@ const ChartTypeBuilder: FC = () => {
                 metricQuery={previewData.metricQuery}
                 run={previewData.run}
                 fit={previewData.fit}
+                onSuggestFields={suggestion.onSuggestFields}
+                onSuggestInput={suggestion.onSuggestInput}
+                isSuggestingFields={suggestion.isSuggestingFields}
                 onSetField={previewData.setField}
                 onRun={previewData.runQuery}
             />
@@ -415,6 +448,8 @@ const ChartTypeBuilder: FC = () => {
                         run={previewData.run}
                         fit={previewData.fit}
                         hasDeclaredInputs={previewData.hasDeclaredInputs}
+                        onSuggestFields={suggestion.onSuggestFields}
+                        isSuggestingFields={suggestion.isSuggestingFields}
                         onOpenDataMenu={() => setIsDataMenuOpen(true)}
                         onRefresh={previewData.runQuery}
                     />
@@ -423,6 +458,7 @@ const ChartTypeBuilder: FC = () => {
                     overlayReason ? (
                         <PreviewDataOverlay
                             reason={overlayReason}
+                            onSuggestInput={suggestion.onSuggestInput}
                             onUseSampleData={previewData.selectSample}
                         />
                     ) : null
@@ -434,14 +470,74 @@ const ChartTypeBuilder: FC = () => {
                         exploreLabel={previewData.exploreLabel}
                         boundFieldCount={previewData.boundFieldCount}
                         isNotRun={previewData.run.status !== 'ready'}
-                        fields={schema?.fields ?? []}
+                        fields={schema?.fields ?? NO_FIELDS}
                         disabled={isBuilding}
                         opened={isDataMenuOpen}
+                        onSelectSuggest={suggestion.onSelect}
+                        isSuggestSelected={suggestion.isSelected}
                         onOpenedChange={setIsDataMenuOpen}
-                        onSelectSample={previewData.selectSample}
-                        onSelectSavedChart={previewData.selectSavedChart}
-                        onSelectExplore={previewData.selectExplore}
+                        onSelectSample={() => {
+                            suggestion.onChooseOtherData();
+                            previewData.selectSample();
+                        }}
+                        onSelectSavedChart={(chart) => {
+                            suggestion.onChooseOtherData();
+                            previewData.selectSavedChart(chart);
+                        }}
+                        onSelectExplore={(exploreName) => {
+                            suggestion.onChooseOtherData();
+                            previewData.selectExplore(exploreName);
+                        }}
                     />
+                }
+                suggestion={{
+                    startFromPrompt: suggestion.startFromPrompt,
+                    submitHint: suggestion.submitHint,
+                    isRequesting:
+                        suggestion.round !== null &&
+                        suggestion.round.data === null,
+                    isOpen: suggestion.round !== null,
+                    pendingBuild: suggestion.pendingBuild,
+                    clearPendingBuild: suggestion.clearPendingBuild,
+                    sheet: suggestion.round ? (
+                        <SuggestedDataSheet
+                            data={suggestion.round.data}
+                            fieldMapping={previewData.fieldMapping}
+                            itemsMap={previewData.itemsMap}
+                            fit={previewData.fit}
+                            isRunning={suggestion.round.isAwaitingRun}
+                            runError={
+                                previewData.run.status === 'error'
+                                    ? previewData.run.message
+                                    : null
+                            }
+                            onSetField={previewData.setField}
+                            onChooseAlternative={suggestion.onChooseAlternative}
+                            onUseSampleData={suggestion.onUseSampleData}
+                            onSomethingElse={() =>
+                                workspace.promptBarRef.current?.focusComposer()
+                            }
+                            onRunOnceAndBuild={suggestion.onRunOnceAndBuild}
+                        />
+                    ) : null,
+                }}
+                canvasNotice={
+                    suggestion.round !== null && previewData.metricQuery ? (
+                        <SuggestedDataCanvasCard
+                            metricQuery={previewData.metricQuery}
+                            fieldMapping={previewData.fieldMapping}
+                            itemsMap={previewData.itemsMap}
+                        />
+                    ) : null
+                }
+                buildingOnRows={
+                    previewData.previewDataSource.kind === 'live'
+                        ? {
+                              exploreLabel:
+                                  previewData.previewDataSource.exploreLabel,
+                              rowCount: previewData.previewDataSource.rowCount,
+                          }
+                        : null
                 }
                 sampleRows={sampleRows}
                 currentBuildContext={currentBuildContext}

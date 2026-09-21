@@ -35,6 +35,11 @@ type Props = {
     /** Sits over the chart while the bound data cannot render it; the chart
      *  itself stays mounted underneath. */
     previewOverlay: ReactNode;
+    /** Takes the starter prompts' place while something else explains what a
+     *  build would run on; null leaves them. */
+    canvasNotice: ReactNode | null;
+    /** The rows a running first build was given; null when it has none. */
+    buildingOnRows: { exploreLabel: string; rowCount: number } | null;
     /** The card's configuration column; null until a version declares a schema. */
     configurePanel: ReactNode;
     /** Fills the composer with a starter prompt; null while no composer is
@@ -105,6 +110,8 @@ const BuilderCanvas: FC<Props> = ({
     previewDataSource,
     previewSourceExtra,
     previewOverlay,
+    canvasNotice,
+    buildingOnRows,
     configurePanel,
     onPickExample,
     onSdkManifest,
@@ -171,6 +178,13 @@ const BuilderCanvas: FC<Props> = ({
                         <Text size="md" fw={600} c="ldGray.8">
                             Building your chart type…
                         </Text>
+                        {buildingOnRows && (
+                            <Text fz="xs" c="dimmed" ta="center">
+                                {`On ${buildingOnRows.rowCount} row${
+                                    buildingOnRows.rowCount === 1 ? '' : 's'
+                                } from ${buildingOnRows.exploreLabel}, queried once`}
+                            </Text>
+                        )}
                         {clarifierUnavailable && (
                             <Text fz="xs" c="dimmed" ta="center" maw={340}>
                                 Couldn’t reach the clarifier, so this is
@@ -191,6 +205,8 @@ const BuilderCanvas: FC<Props> = ({
                         Ask for a change below to try again.
                     </Text>
                 </Stack>
+            ) : canvasNotice ? (
+                canvasNotice
             ) : (
                 <Stack
                     gap="xl"

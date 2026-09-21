@@ -9,7 +9,9 @@ import { useElementPicker } from '../../apps/hooks/useElementPicker';
 import { refToWireString } from '../../apps/utils/elementRefs';
 import { type VizBuildRequest } from '../hooks/useDataAppVizBuild';
 import BuilderCanvas from './BuilderCanvas';
-import BuilderPromptBar from './BuilderPromptBar';
+import BuilderPromptBar, {
+    type ComposerDataSuggestion,
+} from './BuilderPromptBar';
 import classes from './ChartTypeBuilderWorkspace.module.css';
 import { type PreviewDataSource } from './previewDataTypes';
 import { type ChartTypeBuilderWorkspaceState } from './useChartTypeBuilderWorkspace';
@@ -29,6 +31,14 @@ type Props = {
     /** The composer's data selector; hosts that own no data selection pass
      *  null. */
     dataPill: ReactNode | null;
+    /** The data suggestion round a send passes through; null when the host
+     *  suggests no data. */
+    suggestion: ComposerDataSuggestion | null;
+    /** Shown in place of the starter prompts while something else explains
+     *  what a build would run on; null leaves the canvas alone. */
+    canvasNotice: ReactNode | null;
+    /** The rows a running first build was given; null when it has none. */
+    buildingOnRows: { exploreLabel: string; rowCount: number } | null;
     /** Bounded sample of the host's current rows, even before a schema exists. */
     sampleRows?: Record<string, string>[];
     currentBuildContext?: VizBuildRequest['context'];
@@ -54,6 +64,9 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
     previewSourceExtra,
     previewOverlay,
     dataPill,
+    suggestion,
+    canvasNotice,
+    buildingOnRows,
     sampleRows = [],
     currentBuildContext,
     syncPreviewUrlState,
@@ -148,6 +161,8 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                 previewDataSource={previewDataSource}
                                 previewSourceExtra={previewSourceExtra}
                                 previewOverlay={previewOverlay}
+                                canvasNotice={canvasNotice}
+                                buildingOnRows={buildingOnRows}
                                 configurePanel={configurePanel}
                                 onPickExample={onPickExample}
                                 onSdkManifest={onSdkManifest}
@@ -182,6 +197,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                     modelSelection={modelSelection}
                                     clarification={clarification}
                                     dataPill={dataPill}
+                                    suggestion={suggestion}
                                     buildContext={{
                                         ...buildContext,
                                         ...(sampleRows.length > 0

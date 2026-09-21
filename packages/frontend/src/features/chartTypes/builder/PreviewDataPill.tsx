@@ -21,6 +21,7 @@ import {
     IconChevronDown,
     IconDatabase,
     IconSearch,
+    IconSparkles,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -117,6 +118,10 @@ type Props = {
     fields: DataAppVizField[];
     disabled: boolean;
     opened: boolean;
+    /** Chart Studio finds the data from the prompt; null without Ambient AI. */
+    onSelectSuggest: (() => void) | null;
+    /** Suggesting is what the pill shows, with nothing chosen yet. */
+    isSuggestSelected: boolean;
     onOpenedChange: (opened: boolean) => void;
     onSelectSample: () => void;
     onSelectSavedChart: (chart: SavedChart) => void;
@@ -137,6 +142,8 @@ const PreviewDataPill: FC<Props> = ({
     fields,
     disabled,
     opened,
+    onSelectSuggest,
+    isSuggestSelected,
     onOpenedChange,
     onSelectSample,
     onSelectSavedChart,
@@ -200,7 +207,9 @@ const PreviewDataPill: FC<Props> = ({
     const hasDeclaredInputs = fields.length > 0;
     const label =
         selection.kind === 'sample'
-            ? 'Data: Sample data'
+            ? isSuggestSelected
+                ? 'Data: suggest for me'
+                : 'Data: Sample data'
             : `${exploreLabel ?? selection.exploreName}, ${countLabel(
                   boundFieldCount,
                   'field',
@@ -232,9 +241,17 @@ const PreviewDataPill: FC<Props> = ({
                     py={6}
                     className={classes.trigger}
                     data-selected={selection.kind === 'query'}
+                    data-suggest={isSuggestSelected || undefined}
                     disabled={disabled}
                     onClick={() => onOpenedChange(!opened)}
-                    leftSection={<MantineIcon icon={IconDatabase} size={14} />}
+                    leftSection={
+                        <MantineIcon
+                            icon={
+                                isSuggestSelected ? IconSparkles : IconDatabase
+                            }
+                            size={14}
+                        />
+                    }
                     rightSection={
                         <MantineIcon icon={IconChevronDown} size={12} />
                     }
@@ -247,6 +264,31 @@ const PreviewDataPill: FC<Props> = ({
             </Menu.Target>
             <Menu.Dropdown>
                 <Menu.Label>Preview data</Menu.Label>
+                {onSelectSuggest && (
+                    <Menu.Item
+                        onClick={() => select(onSelectSuggest)}
+                        aria-current={isSuggestSelected}
+                        leftSection={
+                            <MantineIcon
+                                icon={IconSparkles}
+                                size={14}
+                                color="indigo.5"
+                            />
+                        }
+                        rightSection={
+                            isSuggestSelected ? (
+                                <MantineIcon icon={IconCheck} size={14} />
+                            ) : null
+                        }
+                    >
+                        <Text size="sm" fw={500}>
+                            Suggest for me
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                            Finds an explore and fields from your prompt
+                        </Text>
+                    </Menu.Item>
+                )}
                 <Menu.Item
                     onClick={() =>
                         setOpenMenu(

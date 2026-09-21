@@ -1,11 +1,19 @@
 import {
     ChartType,
+    DimensionType,
     FeatureFlags,
+    FieldType,
+    MetricType,
     type ApiAppVersionSummary,
     type ApiGetAppResponse,
+    type CompiledDimension,
+    type CompiledMetric,
+    type Explore,
     type SdkFeature,
+    type SuggestedChartTypeData,
 } from '@lightdash/common';
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { forwardRef, useImperativeHandle, useRef, type ReactNode } from 'react';
 import {
     createMemoryRouter,
     Outlet,
@@ -13,6 +21,7 @@ import {
     useLocation,
 } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAmbientAiEnabled } from '../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import {
     useAppVersionHistory,
     type AppVersionHistory,
@@ -34,6 +43,7 @@ import { clarificationStub } from '../features/chartTypes/testing/clarificationR
 import { buildStub } from '../features/chartTypes/testing/dataAppVizBuildStub';
 import { executeChartTypePreviewQuery } from '../features/chartTypes/utils/chartTypePreviewQuery';
 import type * as chartTypePreviewQueryModule from '../features/chartTypes/utils/chartTypePreviewQuery';
+import { useExploreByProjectUuid } from '../hooks/useExplore';
 import { useExplores } from '../hooks/useExplores';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
@@ -131,14 +141,80 @@ vi.mock('../features/apps/components/AppPreview', () => ({
         </div>
     ),
 }));
+// The real composer is TipTap; a text input carries the same handle contract,
+// and the tray beside it is where the data pill lives.
 vi.mock('../components/common/PromptComposer/PromptComposer', () => ({
-    default: ({
-        placeholder,
-        disabled,
-    }: {
-        placeholder: string;
-        disabled?: boolean;
-    }) => <input placeholder={placeholder} disabled={disabled} />,
+    default: forwardRef<
+        {
+            getText: () => string;
+            clear: () => void;
+            insertContent: (content: { text?: string }[]) => void;
+            focus: () => void;
+        },
+        {
+            placeholder: string;
+            disabled?: boolean;
+            toolbarLeft: ReactNode;
+            onEmptyChange: (isEmpty: boolean) => void;
+            onSubmit: () => void;
+        }
+    >(function MockComposer(
+        { placeholder, disabled, toolbarLeft, onEmptyChange, onSubmit },
+        ref,
+    ) {
+        const inputRef = useRef<HTMLInputElement>(null);
+        useImperativeHandle(ref, () => ({
+            getText: () => inputRef.current?.value ?? '',
+            clear: () => {
+                if (inputRef.current) inputRef.current.value = '';
+                onEmptyChange(true);
+            },
+            insertContent: (content) => {
+                if (inputRef.current) {
+                    inputRef.current.value = content
+                        .map((item) => item.text ?? '')
+                        .join('');
+                }
+                onEmptyChange(false);
+            },
+            focus: () => inputRef.current?.focus(),
+        }));
+        return (
+            <div>
+                {toolbarLeft}
+                <input
+                    ref={inputRef}
+                    placeholder={placeholder}
+                    disabled={disabled}
+                    onChange={(event) =>
+                        onEmptyChange(event.target.value === '')
+                    }
+                />
+                <button type="button" onClick={onSubmit}>
+                    Send prompt
+                </button>
+            </div>
+        );
+    }),
+}));
+const { suggest } = vi.hoisted(() => ({ suggest: vi.fn() }));
+vi.mock('../ee/features/ambientAi/hooks/useAmbientAiEnabled', () => ({
+    useAmbientAiEnabled: vi.fn(),
+}));
+vi.mock('../ee/features/ambientAi/hooks/useSuggestChartTypeData', () => ({
+    useSuggestChartTypeData: () => ({ mutateAsync: suggest }),
+}));
+vi.mock('../hooks/useExplore', () => ({
+    useExploreByProjectUuid: vi.fn(),
+}));
+vi.mock('../features/organizationDesigns/hooks/useOrganizationDesigns', () => ({
+    useOrganizationDesigns: () => ({
+        data: [],
+        isLoading: false,
+        isError: false,
+        isSuccess: true,
+        refetch: vi.fn(),
+    }),
 }));
 vi.mock('../features/chartTypes/hooks/useVizComposerAttachments', () => ({
     useVizComposerAttachments: () => ({
@@ -318,6 +394,90 @@ const staleUpgradeOffer: SdkUpgradeOffer = {
     reportedFeatures: ['viz-context'],
 };
 
+const dimension = (name: string, label: string): CompiledDimension =>
+    ({
+        compiledSql: '',
+        tablesReferences: [],
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.STRING,
+        name,
+        label,
+        table: 'customers',
+        tableLabel: 'Customers',
+        sql: '',
+        hidden: false,
+    }) as CompiledDimension;
+
+const metric = (name: string, label: string): CompiledMetric =>
+    ({
+        compiledSql: '',
+        tablesReferences: [],
+        fieldType: FieldType.METRIC,
+        type: MetricType.COUNT,
+        name,
+        label,
+        table: 'customers',
+        tableLabel: 'Customers',
+        sql: '',
+        hidden: false,
+    }) as CompiledMetric;
+
+const customersExplore = {
+    name: 'customers',
+    label: 'Customers',
+    baseTable: 'customers',
+    joinedTables: [],
+    tables: {
+        customers: {
+            name: 'customers',
+            label: 'Customers',
+            dimensions: {
+                channel: dimension('channel', 'Acquisition channel'),
+            },
+            metrics: { count: metric('count', 'Unique customer count') },
+        },
+    },
+} as unknown as Explore;
+
+const suggestedData: SuggestedChartTypeData = {
+    kind: 'suggested',
+    exploreName: 'customers',
+    exploreLabel: 'Customers',
+    shapeSummary: 'A Sankey needs one row per source and target pair.',
+    fits: true,
+    alternatives: [],
+    inputs: [
+        {
+            name: 'source',
+            label: 'Source',
+            type: 'dimension',
+            required: true,
+            fieldId: 'customers_channel',
+            fieldLabel: 'Acquisition channel',
+            fieldType: 'dimension',
+            reason: 'Matches acquisition channel',
+        },
+        {
+            name: 'value',
+            label: 'Value',
+            type: 'metric',
+            required: true,
+            fieldId: 'customers_count',
+            fieldLabel: 'Unique customer count',
+            fieldType: 'metric',
+            reason: 'Counts customers per pair',
+        },
+    ],
+};
+
+const sendPrompt = (prompt: string) => {
+    fireEvent.change(
+        screen.getByPlaceholderText('Describe a new chart type…'),
+        { target: { value: prompt } },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Send prompt' }));
+};
+
 describe('ChartTypeBuilder', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -344,6 +504,26 @@ describe('ChartTypeBuilder', () => {
             mutate: vi.fn(),
             isLoading: false,
         } as unknown as ReturnType<typeof useUpgradeApp>);
+        vi.mocked(useAmbientAiEnabled).mockReturnValue(false);
+        vi.mocked(useExploreByProjectUuid).mockReturnValue({
+            data: customersExplore,
+            error: null,
+        } as unknown as ReturnType<typeof useExploreByProjectUuid>);
+        suggest.mockResolvedValue(suggestedData);
+        vi.mocked(executeChartTypePreviewQuery).mockResolvedValue({
+            rows: [
+                {
+                    customers_channel: {
+                        value: { raw: 'Paid', formatted: 'Paid' },
+                    },
+                },
+            ],
+            itemsMap: {
+                customers_channel: dimension('channel', 'Acquisition channel'),
+                customers_count: metric('count', 'Unique customer count'),
+            },
+            pivotDetails: null,
+        });
     });
 
     it('redirects home when data apps are disabled', () => {
@@ -1384,6 +1564,204 @@ describe('ChartTypeBuilder', () => {
             expect(screen.getByTestId('location')).toHaveTextContent(
                 '/projects/p1/chart-types',
             );
+        });
+    });
+
+    describe('suggested data', () => {
+        const withSchema = () =>
+            vi.mocked(useDataAppVisualization).mockReturnValue({
+                data: {
+                    schema: {
+                        fields: [
+                            {
+                                name: 'source',
+                                label: 'Source',
+                                type: 'dimension',
+                                required: true,
+                            },
+                        ],
+                        configOptions: [],
+                        colorPalette: null,
+                    },
+                },
+            } as unknown as ReturnType<typeof useDataAppVisualization>);
+
+        it('starts a new chart type on Chart Studio finding the data', () => {
+            vi.mocked(useAmbientAiEnabled).mockReturnValue(true);
+            renderBuilder('/projects/p1/chart-types/new');
+
+            expect(
+                screen.getByText('Data: suggest for me'),
+            ).toBeInTheDocument();
+            expect(suggest).not.toHaveBeenCalled();
+        });
+
+        it('leaves an existing chart type on sample data', () => {
+            vi.mocked(useAmbientAiEnabled).mockReturnValue(true);
+            setApp(appMeta());
+            vi.mocked(useAppVersionHistory).mockReturnValue(
+                historyStub([appVersion({ version: 1 })], 1),
+            );
+            withSchema();
+            renderBuilder(
+                '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            );
+
+            expect(screen.getByText('Data: Sample data')).toBeInTheDocument();
+        });
+
+        it('offers nothing and asks for nothing without Ambient AI', () => {
+            const clarification = clarificationStub();
+            mockedClarificationRound.mockReturnValue(clarification);
+            renderBuilder('/projects/p1/chart-types/new');
+
+            expect(screen.getByText('Data: Sample data')).toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Preview data: Data: Sample data',
+                }),
+            );
+            expect(screen.queryByText('Suggest for me')).toBeNull();
+
+            sendPrompt('A Sankey of channel to plan');
+
+            expect(suggest).not.toHaveBeenCalled();
+            expect(clarification.send).toHaveBeenCalledOnce();
+        });
+
+        it('suggests the data before the build, without running a query', async () => {
+            vi.mocked(useAmbientAiEnabled).mockReturnValue(true);
+            const clarification = clarificationStub();
+            mockedClarificationRound.mockReturnValue(clarification);
+            renderBuilder('/projects/p1/chart-types/new');
+
+            sendPrompt('A Sankey of channel to plan');
+
+            expect(
+                await screen.findByText('Data for this chart'),
+            ).toBeInTheDocument();
+            expect(suggest).toHaveBeenCalledTimes(1);
+            expect(screen.getByText('Shape fits')).toBeInTheDocument();
+            expect(screen.getByText('Nothing has run yet')).toBeInTheDocument();
+            expect(screen.getByText('No warehouse query')).toBeInTheDocument();
+            expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+            expect(clarification.send).not.toHaveBeenCalled();
+        });
+
+        it('changes an input and asks again without running a query', async () => {
+            vi.mocked(useAmbientAiEnabled).mockReturnValue(true);
+            renderBuilder('/projects/p1/chart-types/new');
+            sendPrompt('A Sankey of channel to plan');
+            await screen.findByText('Data for this chart');
+
+            fireEvent.click(
+                screen.getAllByRole('button', { name: 'Change' })[0],
+            );
+            expect(
+                screen.getByPlaceholderText('Select source'),
+            ).toBeInTheDocument();
+
+            expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+        });
+
+        it('runs the query exactly once, then builds on the rows it returned', async () => {
+            vi.mocked(useAmbientAiEnabled).mockReturnValue(true);
+            const clarification = clarificationStub();
+            mockedClarificationRound.mockReturnValue(clarification);
+            renderBuilder('/projects/p1/chart-types/new');
+            sendPrompt('A Sankey of channel to plan');
+            await screen.findByText('Data for this chart');
+
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Run once and build' }),
+            );
+
+            await waitFor(() =>
+                expect(clarification.send).toHaveBeenCalledTimes(1),
+            );
+            expect(executeChartTypePreviewQuery).toHaveBeenCalledTimes(1);
+            expect(clarification.send).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    description: 'A Sankey of channel to plan',
+                    includeSampleData: true,
+                    context: expect.objectContaining({
+                        sampleRows: [{ customers_channel: 'Paid' }],
+                    }),
+                }),
+            );
+        });
+
+        it('builds on sample data instead when the suggestion cannot be made', async () => {
+            vi.mocked(useAmbientAiEnabled).mockReturnValue(true);
+            suggest.mockRejectedValue({ error: { message: 'Forbidden' } });
+            const clarification = clarificationStub();
+            mockedClarificationRound.mockReturnValue(clarification);
+            renderBuilder('/projects/p1/chart-types/new');
+
+            sendPrompt('A Sankey of channel to plan');
+
+            await waitFor(() =>
+                expect(clarification.send).toHaveBeenCalledTimes(1),
+            );
+            expect(screen.queryByText('Data for this chart')).toBeNull();
+            expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+            // The fallback covers this send only: the next one can still be
+            // suggested.
+            expect(
+                screen.getByText('Data: suggest for me'),
+            ).toBeInTheDocument();
+        });
+
+        it('leaves the build to sample data when the author asks for it', async () => {
+            vi.mocked(useAmbientAiEnabled).mockReturnValue(true);
+            const clarification = clarificationStub();
+            mockedClarificationRound.mockReturnValue(clarification);
+            renderBuilder('/projects/p1/chart-types/new');
+            sendPrompt('A Sankey of channel to plan');
+            await screen.findByText('Data for this chart');
+
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Use sample data instead' }),
+            );
+
+            await waitFor(() =>
+                expect(clarification.send).toHaveBeenCalledTimes(1),
+            );
+            expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+            expect(screen.getByText('Data: Sample data')).toBeInTheDocument();
+        });
+
+        it('hands the prompt back when other data is picked mid-round', async () => {
+            vi.mocked(useAmbientAiEnabled).mockReturnValue(true);
+            const clarification = clarificationStub();
+            mockedClarificationRound.mockReturnValue(clarification);
+            renderBuilder('/projects/p1/chart-types/new');
+            sendPrompt('A Sankey of channel to plan');
+            await screen.findByText('Data for this chart');
+
+            fireEvent.click(
+                screen.getByRole('button', { name: /^Preview data:/ }),
+            );
+            fireEvent.click(screen.getByText('Sample data'));
+
+            await waitFor(() =>
+                expect(screen.queryByText('Data for this chart')).toBeNull(),
+            );
+            expect(clarification.send).not.toHaveBeenCalled();
+            expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+            expect(
+                screen.getByDisplayValue('A Sankey of channel to plan'),
+            ).toBeInTheDocument();
+        });
+
+        it('stands the panel down while a round owns the suggestion', async () => {
+            vi.mocked(useAmbientAiEnabled).mockReturnValue(true);
+            renderBuilder('/projects/p1/chart-types/new');
+            sendPrompt('A Sankey of channel to plan');
+            await screen.findByText('Data for this chart');
+
+            expect(screen.queryByText('Suggest data')).toBeNull();
+            expect(screen.queryByText('Suggest fields')).toBeNull();
         });
     });
 });

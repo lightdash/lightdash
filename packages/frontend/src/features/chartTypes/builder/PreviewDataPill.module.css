@@ -5,6 +5,12 @@
     padding-right: 8px;
 }
 
+/* Indigo marks the one AI surface in the tray: Chart Studio picks the data. */
+.trigger[data-suggest] {
+    color: var(--mantine-color-indigo-light-color);
+    background-color: var(--mantine-color-indigo-light);
+}
+
 .trigger[data-selected='true'] {
     @mixin light {
         color: var(--mantine-color-ldGray-9);

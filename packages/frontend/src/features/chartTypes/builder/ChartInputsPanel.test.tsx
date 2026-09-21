@@ -76,6 +76,9 @@ const renderPanel = (
             metricQuery={metricQuery}
             run={{ status: 'notRun' }}
             fit={{ status: 'fits' }}
+            onSuggestFields={null}
+            onSuggestInput={null}
+            isSuggestingFields={false}
             onSetField={vi.fn()}
             onRun={vi.fn()}
             {...props}
@@ -110,6 +113,9 @@ describe('ChartInputsPanel', () => {
                 metricQuery={metricQuery}
                 run={{ status: 'notRun' }}
                 fit={{ status: 'fits' }}
+                onSuggestFields={null}
+                onSuggestInput={null}
+                isSuggestingFields={false}
                 onSetField={vi.fn()}
                 onRun={vi.fn()}
             />,
@@ -229,5 +235,55 @@ describe('ChartInputsPanel', () => {
         expect(
             screen.getByRole('button', { name: 'Run query' }),
         ).toBeDisabled();
+    });
+
+    it('offers Chart Studio the input that does not fit', () => {
+        const onSuggestInput = vi.fn();
+        renderPanel({
+            onSuggestInput,
+            fieldMapping: {
+                source: 'customers_channel',
+                value: 'customers_channel',
+            },
+            fit: {
+                status: 'doesNotFit',
+                issues: [
+                    {
+                        fieldName: 'value',
+                        label: 'Value',
+                        expects: 'metric',
+                        mapped: {
+                            fieldId: 'customers_channel',
+                            kind: 'dimension',
+                        },
+                    },
+                ],
+            },
+        });
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Suggest a metric' }),
+        );
+
+        expect(onSuggestInput).toHaveBeenCalledWith('value');
+    });
+
+    it('keeps the panel free of AI entries without Ambient AI', () => {
+        renderPanel({
+            fit: {
+                status: 'doesNotFit',
+                issues: [
+                    {
+                        fieldName: 'value',
+                        label: 'Value',
+                        expects: 'metric',
+                        mapped: null,
+                    },
+                ],
+            },
+        });
+
+        expect(screen.queryByText('Suggest fields')).toBeNull();
+        expect(screen.queryByText('Suggest a metric')).toBeNull();
     });
 });
