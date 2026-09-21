@@ -1,7 +1,7 @@
 import {
     convertFormattedValue,
     getItemLabel,
-    getRepeatedMergeFieldIds,
+    getMergeColumnTotals,
     isCustomDimension,
     isDimension,
     isField,
@@ -254,11 +254,15 @@ const useTableConfig = (
     // rather than anything the warehouse can be asked to group again.
     const mergeResults = useMergeSafe()?.mergeResults ?? null;
     const isMerged = !!mergeResults;
-    const repeatedFieldIds = useMemo(
+    const mergeColumnTotals = useMemo(
         () =>
             mergeResults
-                ? getRepeatedMergeFieldIds(mergeResults.mergeQuery.sources)
-                : [],
+                ? getMergeColumnTotals({
+                      mergeQuery: mergeResults.mergeQuery,
+                      fieldIds: mergeResults.columnOrder,
+                      itemsMap: mergeResults.fields,
+                  })
+                : {},
         [mergeResults],
     );
     const canUseSubtotals = useMemo(
@@ -409,7 +413,7 @@ const useTableConfig = (
             totalsError: columnTotalsError,
             isMergedResult:
                 isMerged && !!tableChartConfig?.showColumnCalculation,
-            repeatedFieldIds,
+            mergeColumnTotals,
             groupedSubtotals,
             subtotalsLoading: isCalculatingSubtotals,
             subtotalsError: columnSubtotalsError,
@@ -427,7 +431,7 @@ const useTableConfig = (
         getFieldLabelOverride,
         asyncTotals,
         isMerged,
-        repeatedFieldIds,
+        mergeColumnTotals,
         tableChartConfig?.showColumnCalculation,
         isCalculatingColumnTotals,
         columnTotalsError,

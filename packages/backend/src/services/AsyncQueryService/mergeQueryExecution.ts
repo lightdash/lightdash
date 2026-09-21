@@ -4,8 +4,11 @@ import {
     getUnaccountedDimensions,
     isField,
     isMergeMetricSource,
+    NotSupportedError,
     QuerySourceType,
+    type FieldId,
     type ItemsMap,
+    type MergeColumnTotal,
     type MergeQuery,
     type MergeTypedColumn,
     type MetricQuery,
@@ -13,6 +16,7 @@ import {
     type ResultColumns,
     type SemanticLayerSourceQuery,
 } from '@lightdash/common';
+import { TotalQueryBuilder } from '../../utils/QueryBuilder/TotalQueryBuilder';
 import type { DuckdbQueryReferenceGuard } from './types';
 
 /**
@@ -227,3 +231,82 @@ export const buildMergeRowCapGuard =
             ),
             sourceRowCap,
         });
+
+/** A source's grand total run as a DAG node beside the merged totals. */
+export type MergeSourceTotalLeg = {
+    sourceId: string;
+    nodeId: string;
+    label: string;
+    node: SemanticLayerSourceQuery;
+    /** The merged columns the leg totals, with the source metric each reads. */
+    columns: Array<{ fieldId: FieldId; sourceFieldId: FieldId }>;
+};
+
+// Null when the collapse leaves nothing to select, such as a query whose
+// only metrics are period-over-period.
+const collapseToGrandTotal = (metricQuery: MetricQuery): MetricQuery | null => {
+    try {
+        return new TotalQueryBuilder({
+            metricQuery,
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery().metricQuery;
+    } catch (e) {
+        if (e instanceof NotSupportedError) return null;
+        throw e;
+    }
+};
+
+/**
+ * One grand-total leg per source whose own query totals the rows shown (see
+ * getMergeColumnTotals): the source's metric query collapsed to one row,
+ * carrying only the metrics the merged columns need. A period-over-period
+ * metric needs its time dimension, so the collapse drops it and its column
+ * stays without a total.
+ */
+export const planMergeSourceTotalLegs = ({
+    mergeQuery,
+    columnTotals,
+}: {
+    mergeQuery: MergeQuery;
+    columnTotals: Record<FieldId, MergeColumnTotal>;
+}): MergeSourceTotalLeg[] =>
+    mergeQuery.sources.flatMap((source, index): MergeSourceTotalLeg[] => {
+        if (!isMergeMetricSource(source)) return [];
+        const wanted = Object.entries(columnTotals).flatMap(
+            ([fieldId, total]) =>
+                total.from === 'sourceQuery' && total.sourceId === source.id
+                    ? [{ fieldId, sourceFieldId: total.sourceFieldId, total }]
+                    : [],
+        );
+        if (wanted.length === 0) return [];
+        const grandTotal = collapseToGrandTotal(source.metricQuery);
+        if (grandTotal === null) return [];
+        const columns = wanted.filter(({ sourceFieldId }) =>
+            grandTotal.metrics.includes(sourceFieldId),
+        );
+        if (columns.length === 0) return [];
+        const nodeId = `source_total_${index}`;
+        return [
+            {
+                sourceId: source.id,
+                nodeId,
+                label: `${wanted[0].total.sourceLabel} total`,
+                node: buildMergeLegNode({
+                    nodeId,
+                    metricQuery: {
+                        ...grandTotal,
+                        metrics: columns.map(
+                            ({ sourceFieldId }) => sourceFieldId,
+                        ),
+                        tableCalculations: [],
+                    },
+                    sourceRowCap: 1,
+                }),
+                columns: columns.map(({ fieldId, sourceFieldId }) => ({
+                    fieldId,
+                    sourceFieldId,
+                })),
+            },
+        ];
+    });

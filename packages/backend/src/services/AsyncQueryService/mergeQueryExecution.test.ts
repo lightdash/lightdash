@@ -5,6 +5,7 @@ import {
     MergeJoinType,
     MetricType,
     type ItemsMap,
+    type MergeColumnTotal,
     type MergeQuery,
     type MergeTypedColumn,
     type MetricQuery,
@@ -18,6 +19,7 @@ import {
     getMergeResultSourceCutShortError,
     getMergeRowCapError,
     getMergeSourceLabels,
+    planMergeSourceTotalLegs,
 } from './mergeQueryExecution';
 
 const sourceQuery = (metrics: string[], calculations: string[] = []) =>
@@ -389,5 +391,77 @@ describe('buildMergeRowCapGuard', () => {
                 }),
             ),
         ).toBeNull();
+    });
+});
+
+describe('planMergeSourceTotalLegs', () => {
+    const columnTotals: Record<string, MergeColumnTotal> = {
+        orders_orders_count: { from: 'mergedRows', aggregation: 'sum' },
+        payments_payments_unique: {
+            from: 'sourceQuery',
+            sourceId: 'payments',
+            sourceFieldId: 'payments_unique',
+            sourceLabel: 'Payments',
+        },
+        payments_payments_average: {
+            from: 'sourceQuery',
+            sourceId: 'payments',
+            sourceFieldId: 'payments_average',
+            sourceLabel: 'Payments',
+        },
+    };
+    const payments = {
+        id: 'payments',
+        metricQuery: {
+            ...sourceQuery(['payments_unique', 'payments_average'], ['ratio']),
+            exploreName: 'payments',
+            sorts: [{ fieldId: 'orders_month', descending: true }],
+        },
+    };
+
+    it('collapses a source to one row carrying only the metrics its columns need', () => {
+        const legs = planMergeSourceTotalLegs({
+            mergeQuery: {
+                ...mergeQuery,
+                sources: [mergeQuery.sources[0], payments],
+            },
+            columnTotals,
+        });
+
+        expect(legs).toHaveLength(1);
+        const [leg] = legs;
+        expect(leg.sourceId).toBe('payments');
+        expect(leg.nodeId).toBe('source_total_1');
+        expect(leg.label).toBe('Payments total');
+        expect(leg.columns).toEqual([
+            {
+                fieldId: 'payments_payments_unique',
+                sourceFieldId: 'payments_unique',
+            },
+            {
+                fieldId: 'payments_payments_average',
+                sourceFieldId: 'payments_average',
+            },
+        ]);
+        expect(leg.node).toMatchObject({
+            nodeId: 'source_total_1',
+            exploreName: 'payments',
+            dimensions: [],
+            metrics: ['payments_unique', 'payments_average'],
+            sorts: [],
+            limit: 1,
+            tableCalculations: [],
+        });
+    });
+
+    it('plans no leg for a source none of whose columns total from it', () => {
+        expect(
+            planMergeSourceTotalLegs({
+                mergeQuery,
+                columnTotals: {
+                    orders_orders_count: columnTotals.orders_orders_count,
+                },
+            }),
+        ).toEqual([]);
     });
 });
