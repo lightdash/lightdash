@@ -5,6 +5,7 @@ import {
     summarizeRequiredFilters,
     type FieldEntry,
 } from '../tools/grepFieldsIndex';
+import { truncate } from '../utils/truncation';
 import type { AgentDecisionContext } from './agentQuestion';
 import {
     confidentChoice,
@@ -127,7 +128,7 @@ export const rankCatalog = async ({
         questions.explore = {
             type: 'choice',
             instructions:
-                "Choose the single best starting explore for the question's entity and grain, with the necessary candidate fields reachable through its declared joins. Prefer the base table whose rows represent the requested entity. Shared joined fields alone do not establish the right grain. Choose none when multiple explores remain materially ambiguous or no candidate fits; never assume undeclared joins or fields.",
+                "Choose the single best starting explore for the question's entity and grain, with the necessary candidate fields reachable through its declared joins. Prefer the base table whose rows represent the requested entity. Shared joined fields alone do not establish the right grain or attribution. Inspect join predicates and filter attribution; identical field names do not imply equivalent relationships. Truncated evidence cannot establish equivalence. Choose none when multiple explores remain materially ambiguous or no candidate fits; never assume undeclared joins or fields.",
             criteria: {
                 ...Object.fromEntries(
                     exploreShortlist.map((explore, index) => [
@@ -177,6 +178,9 @@ export const rankCatalog = async ({
                     .map((join) => ({
                         table: join.table,
                         relationship: join.relationship ?? null,
+                        type: join.type ?? null,
+                        always: join.always ?? false,
+                        sqlOn: truncate(join.sqlOn, 1_000),
                     })),
                 candidateFieldIndexes: fields
                     .filter((field) => field.exploreName === explore.name)

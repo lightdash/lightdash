@@ -1795,6 +1795,41 @@ describe('getAgentTools workstream tool gate', () => {
     const toolNames = (flags: ToolFlags) => Object.keys(buildTools(flags));
 
     it.each([false, true])(
+        'gates source attribution metadata on fast decisions (enabled=%s)',
+        async (enabled) => {
+            const args = buildArgs({
+                enableDataAccess: true,
+                enableCodingAgent: false,
+                enableAiWriteback: false,
+            });
+            if (enabled)
+                args.decisions = new AiDecisionClient({
+                    apiKey: null,
+                    model: 'test',
+                    timeoutMs: 100,
+                });
+            const tools = getAgentTools(
+                args,
+                depsStub(),
+                [validExplore],
+                mcpStub,
+                new Map(),
+                {},
+                { types: [], totalCount: 0 },
+            );
+            const result = await tools.getMetadata.execute!(
+                {
+                    requests: [
+                        { type: 'explore', exploreIds: [validExplore.name] },
+                    ],
+                },
+                { toolCallId: 'metadata', messages: [] },
+            );
+            expect(JSON.stringify(result).includes('sqlOn')).toBe(enabled);
+        },
+    );
+
+    it.each([false, true])(
         'offers chart export only with fast decisions and data access (data=%s)',
         (enableDataAccess) => {
             const args = buildArgs({

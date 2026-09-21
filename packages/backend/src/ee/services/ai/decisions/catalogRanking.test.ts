@@ -75,6 +75,36 @@ const noFts: FindExploresFn = vi
     .mockResolvedValue({ topMatchingFields: [] });
 
 describe('catalog discovery ranking', () => {
+    it('distinguishes attribution paths for the same metric without changing the candidate pool', async () => {
+        const { decisions, evaluate } = createDecisions({ field_1: 0.99 });
+        const sources = ['sold_to', 'billed_to'].map((name) => ({
+            ...validExplore,
+            name,
+            joinedTables: [
+                {
+                    ...validExplore.joinedTables[0],
+                    sqlOn:
+                        name === 'sold_to'
+                            ? '${orders.customer_id} = ${customers.id}'
+                            : '${orders.billing_customer_id} = ${customers.id}',
+                    always: true,
+                },
+            ],
+        }));
+        await rankCatalog({
+            decisions,
+            query: 'met1 by customer',
+            fields: buildFieldIndex(sources),
+            explores: sources,
+        });
+        expect(evaluate.mock.calls[0][0].state).toMatchObject({
+            explores: sources.map((source) => ({
+                name: source.name,
+                joins: [{ sqlOn: source.joinedTables[0].sqlOn, always: true }],
+            })),
+        });
+    });
+
     it('bundles authoritative metadata with fast field search without changing the structured contract', async () => {
         const { decisions } = createDecisions({ field_0: 0.99 });
         const dependencies = {

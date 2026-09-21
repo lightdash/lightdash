@@ -32,6 +32,32 @@ const makeReviewer = () => {
 const metricQuery = { ...metricQueryMock, exploreName: validExplore.name };
 
 describe('reviewing an executed query plan', () => {
+    it('reviews the declared attribution predicate, not just the joined table name', async () => {
+        const { evaluate } = makeReviewer();
+        const explore = {
+            ...validExplore,
+            joinedTables: [
+                {
+                    ...validExplore.joinedTables[0],
+                    sqlOn: '${orders.customer_id} = ${customers.id}',
+                    always: true,
+                },
+            ],
+        };
+        const decisions = { evaluate };
+        const review = createQueryReviewer({
+            decisions,
+            question: 'Orders by customer',
+            explores: [explore],
+        });
+        await review({ kind: 'semantic', query: metricQuery });
+        expect(evaluate.mock.calls[0][0].state).toMatchObject({
+            explore: {
+                joins: [{ sqlOn: explore.joinedTables[0].sqlOn, always: true }],
+            },
+        });
+    });
+
     it('preserves embedded execution scope when no separate override is supplied', async () => {
         const { evaluate, review } = makeReviewer();
         const embedded = {
