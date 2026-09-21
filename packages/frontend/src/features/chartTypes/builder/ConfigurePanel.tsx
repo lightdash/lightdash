@@ -11,6 +11,7 @@ import { PalettePicker } from '../../../components/common/PalettePicker/PaletteP
 import DataAppVizOptionControl from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionControl';
 import { groupDataAppVizOptions } from '../../../components/VisualizationConfigs/DataAppVizConfig/dataAppVizOptionGroups';
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
+import ChartInputsList from './ChartInputsList';
 import classes from './ConfigurePanel.module.css';
 
 type Props = {
@@ -65,6 +66,8 @@ const ConfigurePanel: FC<Props> = ({
 
     return (
         <Box className={classes.panel} data-stale={isStale} inert={isStale}>
+            <ChartInputsList fields={schema.fields} />
+
             {/* The options are the generated contract, not Lightdash chart
                 config, and the chip says so. */}
             <Text className={classes.generatedChip}>Generated options</Text>

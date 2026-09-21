@@ -35,6 +35,7 @@ const view = (isHistoryOpen: boolean) => (
         projectUuid="project-1"
         workspace={workspace(isHistoryOpen)}
         previewContext={null}
+        previewDataSource={null}
         syncPreviewUrlState={false}
         configurePanel={null}
         configurationSidebar={
@@ -77,6 +78,7 @@ describe('ChartTypeBuilderWorkspace layout', () => {
                     },
                 }}
                 previewContext={null}
+                previewDataSource={null}
                 syncPreviewUrlState={false}
                 configurePanel={null}
             />,
