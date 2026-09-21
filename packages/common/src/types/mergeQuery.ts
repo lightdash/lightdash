@@ -2,6 +2,7 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { getTotalFilterRules } from '../utils/filters';
 import { getItemId } from '../utils/item';
 import { SupportedDbtAdapter } from './dbt';
+import { ParameterError } from './errors';
 import {
     DimensionType,
     type CustomDimension,
@@ -835,8 +836,10 @@ export type MergeFieldOrigin =
 export type MergeFieldOrigins = Record<FieldId, MergeFieldOrigin>;
 
 /** Current JSON schema stored in `saved_queries_version_merges.merge`: a merge. */
-export const SAVED_MERGE_QUERY_SCHEMA_VERSION = 3;
-/** The legacy shape with explicit source ids. Still read, never written. */
+export const SAVED_MERGE_QUERY_SCHEMA_VERSION = 2;
+
+export const SAVED_MERGE_QUERY_SCHEMA_VERSION_V3 = 3;
+/** Explicit alias retained for callers that identify the stable v2 shape. */
 export const SAVED_MERGE_QUERY_SCHEMA_VERSION_V2 = 2;
 
 /**
@@ -859,10 +862,8 @@ export type SavedMergeQuerySource =
       };
 
 /**
- * Schema v2 of a merge stored on a chart version. Accepted on requests and
- * read from rows written before schema v3; rewritten to schema v3 by
- * upgradeSavedMergeQuery. Never written.
- * @deprecated use SavedMergeDefinition
+ * Stable schema v2 used by saved-chart API responses and storage.
+ * Named definitions are translated at the content-as-code boundary.
  */
 export type SavedMergeQuery = {
     /** Source whose rows a LEFT merge preserves. */
@@ -969,7 +970,7 @@ export const parseSavedMergeQuery = (
 };
 
 /*
- * Schema v3: a merged chart stores named source queries and one join. The chart's own query is the
+ * Named content-as-code format (previously stored as schema v3): source queries and one join. The chart's own query is the
  * first input and goes by its explore's name; every other query is stored
  * in full under the name it goes by; one join over all of them; the sort
  * and limit of the merged result. Nothing here is SQL. The server compiles
@@ -1547,7 +1548,7 @@ export const parseStoredMergeDefinition = ({
     chartMetricQuery: MetricQuery;
 }): SavedMergeDefinition | null => {
     switch (schemaVersion) {
-        case SAVED_MERGE_QUERY_SCHEMA_VERSION:
+        case SAVED_MERGE_QUERY_SCHEMA_VERSION_V3:
             return parseSavedMergeDefinition(value);
         case SAVED_MERGE_QUERY_SCHEMA_VERSION_V2: {
             const saved = parseSavedMergeQuery(value);
@@ -1568,3 +1569,98 @@ export const normalizeSavedMergeDefinition = (
     'queries' in value
         ? parseSavedMergeDefinition(value)
         : upgradeSavedMergeQuery(value, chartMetricQuery);
+
+/** Keep source identities and all source query settings in the stable saved shape. */
+export const buildSavedMergeQuery = (
+    runnable: MergeQuery,
+    chartSourceId: string,
+): SavedMergeQuery => {
+    if (
+        !runnable.sources.some((source) => source.id === chartSourceId) ||
+        runnable.sources.length < 2
+    ) {
+        throw new ParameterError(
+            'A saved merge requires the chart query and another source.',
+        );
+    }
+    const repeatValuesSourceIds = runnable.sources
+        .filter((source) => source.repeatValues)
+        .map((source) => source.id);
+    return {
+        primarySourceId: runnable.sources[0].id,
+        sources: runnable.sources.map((source) => {
+            if (!isMergeMetricSource(source))
+                throw new ParameterError(
+                    'Saved merge sources must be metric queries.',
+                );
+            if (source.id === chartSourceId)
+                return { id: source.id, kind: 'chart' as const };
+            return {
+                id: source.id,
+                kind: 'query' as const,
+                metricQuery: source.metricQuery,
+            };
+        }),
+        joinKey: runnable.joinKey,
+        joinType: runnable.joinType,
+        tableCalculations: runnable.tableCalculations,
+        ...(repeatValuesSourceIds.length > 0 ? { repeatValuesSourceIds } : {}),
+    };
+};
+
+/** Converts named content to the stable API/storage contract, including result ordering. */
+export const normalizeSavedChartMerge = (
+    metricQuery: MetricQuery,
+    merge: SavedMergeDefinition | SavedMergeQuery | null | undefined,
+): { metricQuery: MetricQuery; merge: SavedMergeQuery | null | undefined } => {
+    if (!merge) return { metricQuery, merge };
+    if ('sources' in merge) {
+        const saved = parseSavedMergeQuery(merge);
+        if (!saved) throw new ParameterError('Invalid saved merge query.');
+        return { metricQuery, merge: saved };
+    }
+    const definition = parseSavedMergeDefinition(merge);
+    if (!definition)
+        throw new ParameterError('Invalid saved merge definition.');
+    const runnable = buildMergeQueryFromMergeDefinition(
+        metricQuery,
+        definition,
+    );
+    const chartName = getMergeDefinitionChartName(
+        definition,
+        metricQuery.exploreName,
+    );
+    return {
+        metricQuery: {
+            ...metricQuery,
+            sorts: runnable.sorts ?? [],
+            limit: runnable.limit,
+        },
+        merge: buildSavedMergeQuery(runnable, chartName),
+    };
+};
+
+/** Read earlier v3 rows without silently turning an unsupported merge into a single query. */
+export const readStoredSavedChartMerge = (
+    metricQuery: MetricQuery,
+    row: { schema_version: number; merge: unknown } | undefined,
+): { metricQuery: MetricQuery; merge: SavedMergeQuery | null } => {
+    if (!row) return { metricQuery, merge: null };
+    let merge: SavedMergeQuery | SavedMergeDefinition | null;
+    switch (row.schema_version) {
+        case SAVED_MERGE_QUERY_SCHEMA_VERSION:
+            merge = parseSavedMergeQuery(row.merge);
+            break;
+        case SAVED_MERGE_QUERY_SCHEMA_VERSION_V3:
+            merge = parseSavedMergeDefinition(row.merge);
+            break;
+        default:
+            merge = null;
+    }
+    if (!merge)
+        throw new ParameterError(
+            'Unsupported or invalid saved merge. Upgrade Lightdash to open this chart.',
+        );
+    const normalized = normalizeSavedChartMerge(metricQuery, merge);
+    return { ...normalized, merge: normalized.merge! };
+};

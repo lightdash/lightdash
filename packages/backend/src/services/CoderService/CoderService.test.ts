@@ -320,7 +320,7 @@ describe('CoderService', () => {
             expect(result.spaceSlug).toBe('draft-space');
         });
 
-        it('exports a legacy merge draft using the named merge schema', async () => {
+        it('keeps content-as-code API responses compatible with older CLIs', async () => {
             const result = await service.getPortableChartAsCodeWithOverlay(
                 'project-uuid',
                 publishedChart.uuid,
@@ -354,10 +354,21 @@ describe('CoderService', () => {
             );
             expect(result).not.toHaveProperty('pipeline');
             expect(result.merge).toMatchObject({
-                chartAs: 'a',
-                queries: { b: { explore: 'payments' } },
-                keys: { orders_month: ['b.payments_month'] },
-                join: 'left',
+                primarySourceId: 'a',
+                sources: [
+                    { id: 'a', kind: 'chart' },
+                    { id: 'b', kind: 'query' },
+                ],
+                joinKey: [
+                    {
+                        name: 'month',
+                        fieldIdBySourceId: {
+                            a: 'orders_month',
+                            b: 'payments_month',
+                        },
+                    },
+                ],
+                joinType: 'left',
             });
         });
 

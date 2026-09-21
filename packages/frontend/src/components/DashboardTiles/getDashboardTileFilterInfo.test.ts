@@ -6,7 +6,6 @@ import {
     type Explore,
     type Filters,
     type SavedMergeQuery,
-    upgradeSavedMergeQuery,
 } from '@lightdash/common';
 import { getDashboardTileFilterInfo } from './getDashboardTileFilterInfo';
 
@@ -141,15 +140,7 @@ describe('getDashboardTileFilterInfo', () => {
         joinType: MergeJoinType.FULL,
         tableCalculations: [],
     };
-    const merge = upgradeSavedMergeQuery(savedV2, {
-        exploreName: 'orders',
-        dimensions: ['orders_order_date_month'],
-        metrics: ['orders_total_order_amount'],
-        filters: {},
-        tableCalculations: [],
-        sorts: [],
-        limit: 500,
-    });
+    const merge = savedV2;
 
     test('lists an ordinary echo without a source', () => {
         const result = getDashboardTileFilterInfo({

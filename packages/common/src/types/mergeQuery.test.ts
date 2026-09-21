@@ -9,12 +9,15 @@ import {
     getWarehouseDefaultNullsFirst,
     MergeJoinType,
     MergeQueryErrorKind,
+    normalizeSavedChartMerge,
     normalizeSavedMergeDefinition,
     parseSavedMergeDefinition,
     parseSavedMergeQuery,
     parseStoredMergeDefinition,
     placeMergeSortNulls,
+    readStoredSavedChartMerge,
     resolveMergeSorts,
+    SAVED_MERGE_QUERY_SCHEMA_VERSION,
     SAVED_MERGE_QUERY_SCHEMA_VERSION_V2,
     toMergedSorts,
     upgradeSavedMergeQuery,
@@ -555,6 +558,77 @@ describe('saved merge schemas', () => {
         tableCalculations: [],
         repeatValuesSourceIds: ['b'],
     };
+
+    it('preserves v2 API data, including a primary source other than the chart', () => {
+        const merge = { ...savedV2, primarySourceId: 'b' };
+        expect(normalizeSavedChartMerge(chart, merge)).toEqual({
+            metricQuery: chart,
+            merge,
+        });
+        expect(
+            readStoredSavedChartMerge(chart, { schema_version: 2, merge }),
+        ).toEqual({ metricQuery: chart, merge });
+    });
+
+    it('round-trips named YAML through v2 storage without changing execution', () => {
+        const definition = {
+            ...upgradeSavedMergeQuery(savedV2, chart)!,
+            sort: [{ by: 'b.payments_unique', direction: 'desc' as const }],
+            limit: 17,
+            tableCalculations: [
+                {
+                    name: 'ratio',
+                    displayName: 'Ratio',
+                    sql: '${a.orders_total} / ${b.payments_unique}',
+                },
+            ],
+        };
+        const stored = normalizeSavedChartMerge(chart, definition);
+        expect(SAVED_MERGE_QUERY_SCHEMA_VERSION).toBe(2);
+        expect(stored.merge).toMatchObject({
+            primarySourceId: 'a',
+            repeatValuesSourceIds: ['b'],
+            joinKey: savedV2.joinKey,
+        });
+        expect(stored.merge).not.toHaveProperty('queries');
+        expect(parseSavedMergeQuery(stored.merge)).toEqual(stored.merge);
+        expect(stored.metricQuery.sorts).toEqual([
+            { fieldId: 'b_payments_unique', descending: true },
+        ]);
+        expect(stored.metricQuery.limit).toBe(17);
+        expect(
+            buildMergeQueryFromSaved(stored.metricQuery, stored.merge!),
+        ).toEqual(
+            buildMergeQueryFromMergeDefinition(stored.metricQuery, definition),
+        );
+        expect(
+            upgradeSavedMergeQuery(stored.merge!, stored.metricQuery),
+        ).toEqual(definition);
+    });
+
+    it('reads previously saved v3 rows using their own sort and limit', () => {
+        const definition = {
+            ...upgradeSavedMergeQuery(savedV2, chart)!,
+            limit: 19,
+        };
+        expect(
+            readStoredSavedChartMerge(chart, {
+                schema_version: 3,
+                merge: definition,
+            }),
+        ).toEqual(normalizeSavedChartMerge(chart, definition));
+    });
+
+    it('refuses unknown or malformed stored merges instead of returning partial charts', () => {
+        for (const row of [
+            { schema_version: 99, merge: savedV2 },
+            { schema_version: 2, merge: { ...savedV2, joinKey: [] } },
+            { schema_version: 3, merge: { queries: {} } },
+        ])
+            expect(() => readStoredSavedChartMerge(chart, row)).toThrow(
+                'Unsupported or invalid saved merge',
+            );
+    });
 
     it('accepts either request shape and normalizes it to schema v3', () => {
         const definition = upgradeSavedMergeQuery(savedV2, chart)!;

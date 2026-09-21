@@ -36,6 +36,10 @@
         "saved-chart-merge-schema-v3": {
             "reason": "Saved chart API responses now return the named schema v3 definition under merge (queries, join, keys, sort and limit), replacing schema v2 sources and joinKey. Clients reading merge must adopt the new response shape. Existing schema v2 uploads remain accepted and stored rows are upgraded on read with their field ids preserved.",
             "requiredStop": false
+        },
+        "saved-chart-merge-v2-compatibility": {
+            "reason": "Restores schema v2 saved-chart API responses for existing clients, replacing the named v3 responses introduced in 2.281.0. Clients built against that v3 response must read sources and joinKey again; named YAML remains supported by the CLI. Both stored versions and request shapes remain readable, and new saves use v2.",
+            "requiredStop": false
         }
     }
 }

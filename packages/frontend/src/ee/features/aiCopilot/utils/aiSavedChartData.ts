@@ -8,7 +8,7 @@ import {
     type MetricQuery,
     type ParametersValuesMap,
 } from '@lightdash/common';
-import { toSavedMergeDefinition } from '../../../../features/mergeQuery/hooks/useSavedMerge';
+import { toSavedMergeQuery } from '../../../../features/mergeQuery/hooks/useSavedMerge';
 import {
     remapFieldIdsDeep,
     type CanonicalAiMerge,
@@ -51,7 +51,11 @@ export const buildAiSavedChartData = ({
         const { fieldIdByAiFieldId } = canonicalMerge;
         const [primary] = canonicalMerge.mergeQuery.sources;
         return {
-            metricQuery: primary.metricQuery,
+            metricQuery: {
+                ...primary.metricQuery,
+                sorts: canonicalMerge.mergeQuery.sorts ?? [],
+                limit: canonicalMerge.mergeQuery.limit,
+            },
             tableName: primary.metricQuery.exploreName,
             chartConfig: remapFieldIdsDeep(chartConfig, fieldIdByAiFieldId),
             tableConfig: {
@@ -65,10 +69,7 @@ export const buildAiSavedChartData = ({
                       ),
                   }
                 : undefined,
-            merge: toSavedMergeDefinition(
-                canonicalMerge.mergeQuery,
-                primary.id,
-            ),
+            merge: toSavedMergeQuery(canonicalMerge.mergeQuery, primary.id),
             parameters: merge.parameters,
         };
     }

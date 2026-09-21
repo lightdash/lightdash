@@ -3350,7 +3350,7 @@
             "type": "string"
         },
         "SavedMergeQuery": {
-            "description": "Schema v2 of a merge stored on a chart version. Accepted on requests and\nread from rows written before schema v3; rewritten to schema v3 by\nupgradeSavedMergeQuery. Never written.",
+            "description": "Stable schema v2 used by saved-chart API responses and storage.\nNamed definitions are translated at the content-as-code boundary.",
             "properties": {
                 "joinKey": {
                     "items": {

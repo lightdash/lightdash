@@ -22,7 +22,6 @@ import {
     getItemId,
     getItemMap,
     getPivotConfig,
-    getMergeDefinitionQueryExploreNames,
     getShowColumnTotalsFromChartConfig,
     getVisibleFields,
     isCartesianChartConfig,
@@ -674,7 +673,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         // A merged tile's filters echo per source; the other source's explore
         // is needed to label them.
         const additionalExploreName = (
-            savedMerge ? getMergeDefinitionQueryExploreNames(savedMerge) : []
+            savedMerge
+                ? savedMerge.sources.flatMap((source) =>
+                      source.kind === 'query'
+                          ? [source.metricQuery.exploreName]
+                          : [],
+                  )
+                : []
         )[0];
         const { data: additionalExplore } = useExplore(additionalExploreName, {
             refetchOnMount: false,

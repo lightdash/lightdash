@@ -10,6 +10,7 @@ import {
     type ParametersValuesMap,
     type SavedChartDAO,
     type SavedMergeDefinition,
+    type SavedMergeQuery,
 } from '@lightdash/common';
 import {
     useCallback,
@@ -46,7 +47,7 @@ import { restoreSavedMerge } from './restoreSavedMerge';
  */
 export const MergeProvider: FC<
     PropsWithChildren<{
-        savedMerge?: SavedMergeDefinition | null;
+        savedMerge?: SavedMergeDefinition | SavedMergeQuery | null;
         /** View mode: show the merge, allow nothing, keep the URL clean. */
         readOnly?: boolean;
     }>

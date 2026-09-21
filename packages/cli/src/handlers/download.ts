@@ -109,6 +109,7 @@ import {
     createBuildLimitWaitState,
     withBuildLimitRetry,
 } from './apps/uploadRetry';
+import { chartMergeForDownload, chartMergeForUpload } from './chartMergeAsCode';
 import {
     classifyContentFilePath,
     isSqlChartContent,
@@ -414,7 +415,12 @@ const writeContent = async (
 ): Promise<MetadataEntry> => {
     const content =
         contentAsCode.type === 'chart'
-            ? sanitizeChartForDownload(contentAsCode.content, stripPivotSeries)
+            ? chartMergeForDownload(
+                  sanitizeChartForDownload(
+                      contentAsCode.content,
+                      stripPivotSeries,
+                  ),
+              )
             : contentAsCode.content;
     const extension = getFileExtension(contentAsCode.type);
     const itemPath = path.join(outputDir, `${content.slug}${extension}`);
@@ -3088,7 +3094,9 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
             method: 'POST',
             url: endpoint,
             body: JSON.stringify({
-                ...item,
+                ...(type === 'charts' && !isSqlChartItem
+                    ? chartMergeForUpload(item as ChartAsCode)
+                    : item),
                 skipSpaceCreate,
                 publicSpaceCreate,
                 force,

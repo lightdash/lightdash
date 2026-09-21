@@ -216,13 +216,12 @@ describe('buildAiSavedChartData', () => {
                 columnOrder: ['a_total'],
             });
             expect(result?.pivotConfig).toEqual({ columns: ['a_total'] });
-            // This fixture runs its sources under the editor handles, so the
-            // merge fixes them as names
-            if (!result?.merge || !('queries' in result.merge)) {
-                throw new Error('Expected schema v3 merge');
+            if (!result?.merge || !('sources' in result.merge)) {
+                throw new Error('Expected stable v2 merge');
             }
-            expect(result.merge.chartAs).toBe(PRIMARY_SOURCE_ID);
-            expect(Object.keys(result?.merge?.queries ?? {})).toEqual([
+            expect(result.merge.primarySourceId).toBe(PRIMARY_SOURCE_ID);
+            expect(result.merge.sources.map((source) => source.id)).toEqual([
+                PRIMARY_SOURCE_ID,
                 DEFAULT_ADDITIONAL_SOURCE_ID,
             ]);
         });

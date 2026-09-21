@@ -76,12 +76,14 @@ legs at submit and the join through its persisted spec.
 
 ## What a chart version stores
 
-A merged chart version stores its definition in `saved_queries_version_merges`
-(schema version 3, jsonb in the `merge` column): the other queries by the
-name they go by, one join, and the sort and limit of the merged result. The
-chart's own query is the first input and goes by its explore's name. This is
-also the `merge` field of the chart API and the `merge:` block of
-chart-as-code; nothing translates between them.
+Saved-chart and content-as-code API responses, and new rows in
+`saved_queries_version_merges`, use schema v2. Sources retain their ids and
+full metric queries; merged sorts and limit live on the chart's metric query.
+This keeps existing API clients, older CLIs and v2 storage readers compatible.
+
+The CLI translates v2 to the named `merge:` format when writing YAML and back
+to v2 before upload. Named definitions remain accepted on server requests for
+already-open editors, AI exports and files produced by earlier builds.
 
 ```yaml
 merge:
@@ -114,18 +116,21 @@ are identifiers and not `merge`, a known join type with no fallback, a key
 whose every entry reaches every query exactly once, a numeric limit, sorts
 with a direction. Intent only, never SQL.
 
-Rows written under schema version 2 (primary id plus source kinds, sort on
-the chart) are rewritten when read, once, by `upgradeSavedMergeQuery`, and
-keep the ids they had so no chart config moves: `chartAs: a` names the
-chart's query as it was, `keyNames` keeps a key column's old name
-(`merge_join_key_0`), and the other query keeps `b`. Nothing is backfilled
-and no row is rewritten in place; writes emit version 3. A request may still
-send `merge` in the v2 shape and is rewritten on save; a v2 merge whose
-primary was not the chart is refused on write and omitted when reading old rows. Every reader
-goes through `SavedChartModel`, which returns `merge`, and every runner
-through `buildMergeQueryFromMergeDefinition`: saved charts, dashboard tiles,
-scheduled deliveries, chart-as-code, promotion and version history. Document
-chart cells keep the v2 shape inside the document's own schema.
+The conversion preserves source and join-key ids, calculations, repeat flags,
+sorts and limit. A v2 merge whose primary source is not the chart stays in v2
+YAML, since the named format cannot express that ordering. Existing v2 rows
+are never forced through the named format.
+
+`SavedChartModel` also reads existing v3 rows, translating their merge and
+result ordering in memory. New saves always write v2. Unknown or malformed
+stored merges produce an explicit error rather than a partial chart. Runtime
+execution uses `buildMergeQueryFromSaved` for chart pages, dashboard tiles and
+scheduled deliveries. Document chart cells continue using v2.
+
+A follow-up migration restores the column default to 2 without rewriting rows.
+Previously written v3 rows still require this compatible reader; this does not
+make an instance that already wrote v3 data safe to roll back to 2.280.0.
+The original release-safety declaration remains as released history.
 
 In the Explorer the editor addresses its sources by fixed handles (`a`, `b`)
 and runs them under names (`getMergeSourceNames`): the chart's explore, the

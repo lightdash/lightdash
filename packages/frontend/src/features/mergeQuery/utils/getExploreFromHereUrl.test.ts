@@ -3,7 +3,6 @@ import {
     MergeJoinType,
     type SavedChart,
     type SavedMergeQuery,
-    upgradeSavedMergeQuery,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { MERGE_URL_PARAM, parseMergeState } from '../context/mergeUrlState';
@@ -70,7 +69,7 @@ const savedV2: SavedMergeQuery = {
     tableCalculations: [],
 };
 
-const merge = upgradeSavedMergeQuery(savedV2, chart.metricQuery)!;
+const merge = savedV2;
 
 const parseChartParam = (search: string) =>
     JSON.parse(
@@ -131,7 +130,7 @@ describe('getExploreFromHereUrl', () => {
     it('falls back to the primary query when the stored merge is unreadable', () => {
         const url = getExploreFromHereUrl({
             ...chart,
-            merge: { ...merge, keys: {} },
+            merge: { ...merge, joinKey: [] },
         });
 
         expect(url.pathname).toBe('/projects/project-uuid/tables/orders');

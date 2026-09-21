@@ -950,8 +950,8 @@ export type SavedChart = {
         /** Ordered fields to render on the pivot row axis */
         rows?: string[];
     };
-    /** Named source queries, join keys, and ordering of the merged result. */
-    merge?: SavedMergeDefinition | null;
+    /** Stable schema v2 merge; named content-as-code definitions are translated on import. */
+    merge?: SavedMergeQuery | null;
     /** Visualization configuration for the chart */
     chartConfig: ChartConfig;
     /** Table view configuration */

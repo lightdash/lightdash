@@ -34,7 +34,6 @@ import {
     QuerySourceType,
     QueryTrigger,
     ResultColumns,
-    upgradeSavedMergeQuery,
     VizAggregationOptions,
     VizIndexType,
     WarehouseClient,
@@ -6641,24 +6640,21 @@ describe('AsyncQueryService', () => {
             parameters: undefined,
             pivotConfig: undefined,
             chartConfig: { type: ChartType.TABLE },
-            merge: upgradeSavedMergeQuery(
-                {
-                    primarySourceId: 'a',
-                    sources: [
-                        { id: 'a', kind: 'chart' },
-                        { id: 'b', kind: 'query', metricQuery: otherQuery },
-                    ],
-                    joinKey: [
-                        {
-                            name: 'dim1',
-                            fieldIdBySourceId: { a: 'a_dim1', b: 'a_dim1' },
-                        },
-                    ],
-                    joinType: MergeJoinType.FULL,
-                    tableCalculations: [],
-                },
-                chartQuery,
-            ),
+            merge: {
+                primarySourceId: 'a',
+                sources: [
+                    { id: 'a', kind: 'chart' },
+                    { id: 'b', kind: 'query', metricQuery: otherQuery },
+                ],
+                joinKey: [
+                    {
+                        name: 'dim1',
+                        fieldIdBySourceId: { a: 'a_dim1', b: 'a_dim1' },
+                    },
+                ],
+                joinType: MergeJoinType.FULL,
+                tableCalculations: [],
+            },
         };
 
         const startedOutcome = {

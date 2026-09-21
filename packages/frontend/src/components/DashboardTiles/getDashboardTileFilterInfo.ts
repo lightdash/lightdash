@@ -4,9 +4,8 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
     type Explore,
-    getMergeDefinitionChartName,
     type Filters,
-    type SavedMergeDefinition,
+    type SavedMergeQuery,
 } from '@lightdash/common';
 
 export type AppliedDashboardFilterItem = {
@@ -23,19 +22,23 @@ const rulesOf = (filters: DashboardFilters): DashboardFilterRule[] => [
 ];
 
 /** The merge's sources as they ran, chart first: the order the editor shows. */
-const pipelineSources = (
-    merge: SavedMergeDefinition,
+const mergeSources = (
+    merge: SavedMergeQuery,
     chartExploreName: string,
-): Array<{ sourceId: string; exploreName: string }> => [
-    {
-        sourceId: getMergeDefinitionChartName(merge, chartExploreName),
-        exploreName: chartExploreName,
-    },
-    ...Object.entries(merge.queries).map(([name, query]) => ({
-        sourceId: name,
-        exploreName: query.explore,
-    })),
-];
+): Array<{ sourceId: string; exploreName: string }> =>
+    [...merge.sources]
+        .sort(
+            (a, b) =>
+                Number(b.id === merge.primarySourceId) -
+                Number(a.id === merge.primarySourceId),
+        )
+        .map((source) => ({
+            sourceId: source.id,
+            exploreName:
+                source.kind === 'chart'
+                    ? chartExploreName
+                    : source.metricQuery.exploreName,
+        }));
 
 const getAppliedFilterItems = ({
     appliedDashboardFilters,
@@ -47,11 +50,11 @@ const getAppliedFilterItems = ({
     appliedDashboardFiltersBySourceId:
         | Record<string, DashboardFilters>
         | undefined;
-    merge: SavedMergeDefinition | null;
+    merge: SavedMergeQuery | null;
     chartExploreName: string;
 }): AppliedDashboardFilterItem[] => {
     if (merge && appliedDashboardFiltersBySourceId) {
-        return pipelineSources(merge, chartExploreName).flatMap(
+        return mergeSources(merge, chartExploreName).flatMap(
             ({ sourceId, exploreName }) => {
                 const applied = appliedDashboardFiltersBySourceId[sourceId];
                 if (!applied) return [];
@@ -85,7 +88,7 @@ export const getDashboardTileFilterInfo = ({
     appliedDashboardFiltersBySourceId:
         | Record<string, DashboardFilters>
         | undefined;
-    merge: SavedMergeDefinition | null;
+    merge: SavedMergeQuery | null;
     /** The chart's own explore; it names the chart's query in the merge. */
     chartExploreName: string;
     explore: Explore | undefined;

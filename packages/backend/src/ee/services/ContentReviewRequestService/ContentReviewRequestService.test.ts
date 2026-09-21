@@ -1043,7 +1043,7 @@ describe('Ambient AI content similarity', () => {
         ).toEqual([]);
         expect(deps.aiService.compareCharts).not.toHaveBeenCalled();
     });
-    it('normalizes legacy merge requests before comparing charts', async () => {
+    it('preserves stable merge requests when comparing charts', async () => {
         const deps = setup();
         await deps.service.findSimilarContentWithAi(requester, PROJECT, {
             ...params,
@@ -1059,7 +1059,15 @@ describe('Ambient AI content similarity', () => {
                             metricQuery: chart.metricQuery,
                         },
                     ],
-                    joinKey: [],
+                    joinKey: [
+                        {
+                            name: 'revenue',
+                            fieldIdBySourceId: {
+                                a: 'orders_revenue',
+                                b: 'orders_revenue',
+                            },
+                        },
+                    ],
                     joinType: MergeJoinType.FULL,
                     tableCalculations: [],
                 },
@@ -1067,18 +1075,13 @@ describe('Ambient AI content similarity', () => {
         });
         expect(
             deps.aiService.compareCharts.mock.calls[0][2].source.merge,
-        ).toEqual({
-            chartAs: 'a',
-            queries: {
-                b: {
-                    explore: 'orders',
-                    dimensions: [],
-                    metrics: ['orders_revenue'],
-                },
-            },
-            join: MergeJoinType.FULL,
-            keys: {},
-            limit: 500,
+        ).toMatchObject({
+            primarySourceId: 'a',
+            sources: [
+                { id: 'a', kind: 'chart' },
+                { id: 'b', kind: 'query', metricQuery: chart.metricQuery },
+            ],
+            joinType: MergeJoinType.FULL,
         });
     });
     it('ignores a client replacement query for an existing chart', async () => {

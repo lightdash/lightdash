@@ -1366,21 +1366,7 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
             `/api/v1/saved/${chartUuid}`,
         );
         expect(opened.status).toBe(200);
-        expect(opened.body.results.merge).toEqual({
-            queries: {
-                payments: {
-                    explore: 'payments',
-                    dimensions: ['orders_order_date_month'],
-                    metrics: ['payments_unique_payment_count'],
-                },
-            },
-            join: MergeJoinType.FULL,
-            keys: {
-                orders_order_date_month: ['payments.orders_order_date_month'],
-            },
-            keyNames: { orders_order_date_month: 'order_month' },
-            limit: ordersByMonth.limit,
-        });
+        expect(opened.body.results.merge).toEqual(merge);
 
         const [ordersRows, paymentsRows, started] = await Promise.all([
             runSourceQuery(ordersByMonth),

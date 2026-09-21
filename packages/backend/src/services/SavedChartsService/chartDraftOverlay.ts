@@ -1,6 +1,5 @@
 import {
-    normalizeSavedMergeDefinition,
-    ParameterError,
+    normalizeSavedChartMerge,
     type SavedChartDAO,
     type SavedMergeDefinition,
     type SavedMergeQuery,
@@ -63,15 +62,10 @@ export const mergeDraftIntoChart = <T extends SavedChartDAO>(
     draft: unknown,
 ): T => {
     assertChartDraftOverlay(draft);
-    const merge = draft.merge
-        ? normalizeSavedMergeDefinition(
-              draft.merge,
-              draft.metricQuery ?? chart.metricQuery,
-          )
-        : draft.merge;
-    if (draft.merge && !merge) {
-        throw new ParameterError('Invalid saved merge definition.');
-    }
+    const { metricQuery, merge } = normalizeSavedChartMerge(
+        draft.metricQuery ?? chart.metricQuery,
+        draft.merge,
+    );
     return {
         ...chart,
         ...(draft.name !== undefined && { name: draft.name }),
@@ -81,8 +75,8 @@ export const mergeDraftIntoChart = <T extends SavedChartDAO>(
         ...(draft.tableName !== undefined && {
             tableName: draft.tableName,
         }),
-        ...(draft.metricQuery !== undefined && {
-            metricQuery: draft.metricQuery,
+        ...((draft.metricQuery !== undefined || draft.merge) && {
+            metricQuery,
         }),
         ...(draft.chartConfig !== undefined && {
             chartConfig: draft.chartConfig,

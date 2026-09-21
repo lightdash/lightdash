@@ -1,5 +1,4 @@
 import {
-    upgradeSavedMergeQuery,
     ChartType,
     DashboardTileTypes,
     DimensionType,
@@ -249,39 +248,36 @@ const chart: SavedChart = {
     name: 'Orders and payments by month',
     tableName: 'orders',
     metricQuery: primaryMetricQuery,
-    merge: upgradeSavedMergeQuery(
-        {
-            primarySourceId: 'a',
-            sources: [
-                { id: 'a', kind: 'chart' },
-                {
-                    id: 'b',
-                    kind: 'query',
-                    metricQuery: {
-                        exploreName: 'payments',
-                        dimensions: ['payments_payment_date_month'],
-                        metrics: ['payments_unique_payment_count'],
-                        filters: {},
-                        sorts: [],
-                        limit: 500,
-                        tableCalculations: [],
-                    },
+    merge: {
+        primarySourceId: 'a',
+        sources: [
+            { id: 'a', kind: 'chart' },
+            {
+                id: 'b',
+                kind: 'query',
+                metricQuery: {
+                    exploreName: 'payments',
+                    dimensions: ['payments_payment_date_month'],
+                    metrics: ['payments_unique_payment_count'],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
                 },
-            ],
-            joinKey: [
-                {
-                    name: 'order_date_month',
-                    fieldIdBySourceId: {
-                        a: 'orders_order_date_month',
-                        b: 'payments_payment_date_month',
-                    },
+            },
+        ],
+        joinKey: [
+            {
+                name: 'order_date_month',
+                fieldIdBySourceId: {
+                    a: 'orders_order_date_month',
+                    b: 'payments_payment_date_month',
                 },
-            ],
-            joinType: MergeJoinType.FULL,
-            tableCalculations: [],
-        },
-        primaryMetricQuery,
-    ),
+            },
+        ],
+        joinType: MergeJoinType.FULL,
+        tableCalculations: [],
+    },
     chartConfig: { type: ChartType.TABLE, config: undefined },
     // Saved before the merge: still names the primary source's own field ids.
     tableConfig: {

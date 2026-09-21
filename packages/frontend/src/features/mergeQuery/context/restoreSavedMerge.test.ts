@@ -48,10 +48,11 @@ const chart = {
 };
 
 describe('restoreSavedMerge', () => {
-    // The API rewrites older rows to a merge; a browser holding an older
-    // response sees no merge rather than a broken one
-    it('ignores a cached merge in an older shape', () => {
-        expect(restoreSavedMerge(savedV2)).toBeNull();
+    it('restores v2 responses with stable field names', () => {
+        expect(restoreSavedMerge(savedV2)).toEqual({
+            ...restoreSavedMerge(upgradeSavedMergeQuery(savedV2, chart)),
+            primarySourceName: 'orders',
+        });
         expect(
             restoreSavedMerge({
                 secondQuery: { metricQuery: { exploreName: 'subscriptions' } },

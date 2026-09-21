@@ -1,22 +1,21 @@
 import {
-    buildSavedMergeDefinition,
+    buildSavedMergeQuery,
     type MergeQuery,
-    type SavedMergeDefinition,
+    type SavedMergeQuery,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSetup } from './useMergeSetup';
 
 /** The merge a chart saves: the chart's query by reference, the rest in full. */
-export const toSavedMergeDefinition = (
+export const toSavedMergeQuery = (
     mergeQuery: MergeQuery,
     chartSourceId: string,
-): SavedMergeDefinition =>
-    buildSavedMergeDefinition({ mergeQuery, chartSourceId });
+): SavedMergeQuery => buildSavedMergeQuery(mergeQuery, chartSourceId);
 
-/** Runtime and persistence consume the same validated merge definition. */
+/** Save using the same contract older servers accept. */
 export const useSavedMerge = (): {
-    merge: SavedMergeDefinition | null;
+    merge: SavedMergeQuery | null;
     isValid: boolean;
 } => {
     const { isMerging, canRun, mergeQuery, sourceNames } = useMergeSetup();
@@ -26,7 +25,7 @@ export const useSavedMerge = (): {
         if (!isMerging) return { merge: null, isValid: true };
         if (!canRun || !mergeQuery) return { merge: null, isValid: false };
         return {
-            merge: toSavedMergeDefinition(mergeQuery, chartSourceId),
+            merge: toSavedMergeQuery(mergeQuery, chartSourceId),
             isValid: true,
         };
     }, [isMerging, canRun, mergeQuery, chartSourceId]);

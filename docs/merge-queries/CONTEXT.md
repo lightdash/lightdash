@@ -109,11 +109,9 @@ nodes and one DuckDB node. See `docs/multi-source-queries.md`.
 _Avoid_: connector, provider, data source (collides with warehouse connections)
 
 **Saved merge definition**:
-What a chart version stores when its query is merged: the other queries by
-the name they go by, the join, the keys, and the sort and limit of the merged
-result. The chart's own query is the first input, by its explore's name.
-Schema version 3 of `saved_queries_version_merges`, the chart API's
-`merge` field, and chart-as-code's `merge:` block, all the same shape.
+The API and storage keep schema v2: source ids, source queries and join keys;
+merged sorts and limit live on the chart's metric query. The CLI translates
+this to named queries, join, keys, sort and limit in the YAML `merge:` block.
 _Avoid_: pipeline (suggests ordered operations), DAG (the runtime query graph),
 node (there are none in the saved definition)
 

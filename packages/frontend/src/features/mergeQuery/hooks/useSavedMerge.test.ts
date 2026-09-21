@@ -1,6 +1,6 @@
 import { MergeJoinType, type MergeQuery } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { toSavedMergeDefinition } from './useSavedMerge';
+import { toSavedMergeQuery } from './useSavedMerge';
 
 const metricQuery = (exploreName: string) => ({
     exploreName,
@@ -12,7 +12,7 @@ const metricQuery = (exploreName: string) => ({
     tableCalculations: [],
 });
 
-describe('toSavedMergeDefinition', () => {
+describe('toSavedMergeQuery', () => {
     it('persists the exact effective join used by the runtime, the chart query by reference', () => {
         const mergeQuery: MergeQuery = {
             sources: [
@@ -41,21 +41,19 @@ describe('toSavedMergeDefinition', () => {
             limit: 500,
         };
 
-        expect(toSavedMergeDefinition(mergeQuery, 'orders')).toEqual({
-            queries: {
-                payments: {
-                    explore: 'payments',
-                    dimensions: ['payments_date'],
-                    metrics: ['payments_total'],
+        expect(toSavedMergeQuery(mergeQuery, 'orders')).toEqual({
+            primarySourceId: 'orders',
+            sources: [
+                { id: 'orders', kind: 'chart' },
+                {
+                    id: 'payments',
+                    kind: 'query',
+                    metricQuery: metricQuery('payments'),
                 },
-            },
-            join: MergeJoinType.INNER,
-            keys: {
-                orders_suggested_date: ['payments.payments_suggested_date'],
-                orders_status: ['payments.payments_status'],
-            },
-            sort: [{ by: 'payments.payments_total', direction: 'desc' }],
-            limit: 500,
+            ],
+            joinKey: mergeQuery.joinKey,
+            joinType: mergeQuery.joinType,
+            tableCalculations: mergeQuery.tableCalculations,
         });
     });
 
@@ -80,20 +78,20 @@ describe('toSavedMergeDefinition', () => {
             limit: 500,
         };
 
-        expect(toSavedMergeDefinition(mergeQuery, 'a')).toEqual({
-            chartAs: 'a',
-            queries: {
-                b: {
-                    explore: 'payments',
-                    dimensions: ['payments_date'],
-                    metrics: ['payments_total'],
-                    repeat: true,
+        expect(toSavedMergeQuery(mergeQuery, 'a')).toEqual({
+            primarySourceId: 'a',
+            sources: [
+                { id: 'a', kind: 'chart' },
+                {
+                    id: 'b',
+                    kind: 'query',
+                    metricQuery: metricQuery('payments'),
                 },
-            },
-            join: MergeJoinType.FULL,
-            keys: { orders_date: ['b.payments_date'] },
-            keyNames: { orders_date: 'join_key_0' },
-            limit: 500,
+            ],
+            joinKey: mergeQuery.joinKey,
+            joinType: mergeQuery.joinType,
+            tableCalculations: mergeQuery.tableCalculations,
+            repeatValuesSourceIds: ['b'],
         });
     });
 });

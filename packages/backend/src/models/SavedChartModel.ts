@@ -38,12 +38,12 @@ import {
     MetricFilterRule,
     MetricOverrides,
     MetricQuery,
-    normalizeSavedMergeDefinition,
+    normalizeSavedChartMerge,
     NotFoundError,
     Organization,
     ParameterError,
-    parseStoredMergeDefinition,
     Project,
+    readStoredSavedChartMerge,
     ResolvedProjectColorPalette,
     SAVED_MERGE_QUERY_SCHEMA_VERSION,
     SavedChartDAO,
@@ -332,6 +332,24 @@ const createSavedChartVersion = async (
         merge,
     }: CreateSavedChartVersion,
 ): Promise<void> => {
+    const normalized = normalizeSavedChartMerge(
+        {
+            exploreName: tableName,
+            dimensions,
+            metrics,
+            filters,
+            sorts,
+            limit,
+            tableCalculations,
+            additionalMetrics,
+            customDimensions,
+            metricOverrides,
+            dimensionOverrides,
+            timezone,
+        },
+        merge,
+    );
+    const storedMerge = normalized.merge;
     await db.transaction(async (trx) => {
         // Only save overrides for existing metrics
         const validMetricOverrides = Object.fromEntries(
@@ -351,7 +369,7 @@ const createSavedChartVersion = async (
                 : null;
         const [version] = await trx('saved_queries_versions')
             .insert({
-                row_limit: limit,
+                row_limit: normalized.metricQuery.limit,
                 metric_overrides: validMetricOverrides || null,
                 dimension_overrides: storedDimensionOverrides,
                 filters: JSON.stringify(filters),
@@ -366,27 +384,6 @@ const createSavedChartVersion = async (
                 timezone: toTimezoneSetting(timezone),
             })
             .returning('*');
-        // Only merged versions get a row. Accept schema v2 requests,
-        // but always persist the normalized schema v3 definition.
-        const storedMerge = merge
-            ? normalizeSavedMergeDefinition(merge, {
-                  exploreName: tableName,
-                  dimensions,
-                  metrics,
-                  filters,
-                  sorts,
-                  limit,
-                  tableCalculations,
-                  additionalMetrics,
-                  customDimensions,
-                  metricOverrides,
-                  dimensionOverrides,
-                  timezone,
-              })
-            : null;
-        if (merge && !storedMerge) {
-            throw new ParameterError('Invalid saved merge definition.');
-        }
         if (storedMerge) {
             await trx('saved_queries_version_merges').insert({
                 saved_queries_version_id: version.saved_queries_version_id,
@@ -419,7 +416,7 @@ const createSavedChartVersion = async (
         );
         await createSavedChartVersionSorts(
             trx,
-            sorts.map((sort, index) => ({
+            normalized.metricQuery.sorts.map((sort, index) => ({
                 field_name: sort.fieldId,
                 descending: sort.descending,
                 saved_queries_version_id: version.saved_queries_version_id,
@@ -2481,15 +2478,10 @@ export class SavedChartModel {
                         customSqlDimensionsRows,
                     },
                 );
-                // An unknown future shape leaves the chart working without its
-                // merge rather than failing the whole chart.
-                const merge = mergeRow
-                    ? parseStoredMergeDefinition({
-                          schemaVersion: mergeRow.schema_version,
-                          value: mergeRow.merge,
-                          chartMetricQuery: metricQuery,
-                      })
-                    : null;
+                const normalized = readStoredSavedChartMerge(
+                    metricQuery,
+                    mergeRow,
+                );
 
                 const columnOrder: string[] = [
                     ...fields,
@@ -2516,14 +2508,14 @@ export class SavedChartModel {
                     name: savedQuery.name,
                     description: savedQuery.description,
                     tableName: savedQuery.explore_name,
-                    merge,
+                    merge: normalized.merge,
                     updatedAt: savedQuery.created_at,
                     updatedByUser: {
                         userUuid: savedQuery.user_uuid,
                         firstName: savedQuery.first_name,
                         lastName: savedQuery.last_name,
                     },
-                    metricQuery,
+                    metricQuery: normalized.metricQuery,
                     parameters: savedQuery.parameters || undefined,
                     chartConfig,
                     tableConfig: {
@@ -2726,17 +2718,8 @@ export class SavedChartModel {
                 uuid: chart.saved_query_uuid,
                 name: chart.name,
                 spaceUuid: chart.space_uuid,
-                metricQuery,
                 parameters: chart.parameters || undefined,
-                // An unknown future shape leaves the chart working without its
-                // merge rather than failing the whole chart.
-                merge: mergeRow
-                    ? parseStoredMergeDefinition({
-                          schemaVersion: mergeRow.schema_version,
-                          value: mergeRow.merge,
-                          chartMetricQuery: metricQuery,
-                      })
-                    : null,
+                ...readStoredSavedChartMerge(metricQuery, mergeRow),
             };
         });
     }

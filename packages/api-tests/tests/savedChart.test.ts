@@ -8,6 +8,7 @@ import {
     SEED_ORG_1_EDITOR,
     SEED_PROJECT,
     SpaceMemberRole,
+    normalizeSavedChartMerge,
     upgradeSavedMergeQuery,
     type SavedMergeQuery,
 } from '@lightdash/common';
@@ -232,16 +233,13 @@ describe('Saved chart space selection', () => {
         const getCreated = await admin.get<{ results: SavedChart }>(
             `${apiUrl}/saved/${createResponse.body.results.uuid}`,
         );
-        // A request may still send the schema v2 merge; the chart stores and
-        // returns the merge it rewrites to.
+        // Existing clients keep receiving the schema v2 contract.
         const chartMetricQuery = {
             ...chartMock.metricQuery,
             filters: completedOnly,
         };
         expect(getCreated.body.results).not.toHaveProperty('pipeline');
-        expect(getCreated.body.results.merge).toEqual(
-            upgradeSavedMergeQuery(merge, chartMetricQuery),
-        );
+        expect(getCreated.body.results.merge).toEqual(merge);
         expect(getCreated.body.results.metricQuery.filters).toEqual(
             completedOnly,
         );
@@ -262,10 +260,16 @@ describe('Saved chart space selection', () => {
                 },
             ],
         };
-        const editedMergeDefinition = upgradeSavedMergeQuery(
-            editedMerge,
-            chartMetricQuery,
-        );
+        const editedMergeDefinition = {
+            ...upgradeSavedMergeQuery(editedMerge, chartMetricQuery)!,
+            limit: 7,
+            sort: [
+                {
+                    by: `b.${additionalMetricQuery.metrics[0]}`,
+                    direction: 'desc' as const,
+                },
+            ],
+        };
         const editResponse = await admin.post(
             `${apiUrl}/saved/${createResponse.body.results.uuid}/version`,
             {
@@ -280,8 +284,18 @@ describe('Saved chart space selection', () => {
         const getEdited = await admin.get<{ results: SavedChart }>(
             `${apiUrl}/saved/${createResponse.body.results.uuid}`,
         );
-        expect(getEdited.body.results.merge).toEqual(editedMergeDefinition);
-        expect(getEdited.body.results.merge?.join).toBe(MergeJoinType.LEFT);
+        expect(getEdited.body.results.merge).toEqual(
+            normalizeSavedChartMerge(chartMetricQuery, editedMergeDefinition)
+                .merge,
+        );
+        expect(getEdited.body.results.merge?.joinType).toBe(MergeJoinType.LEFT);
+        expect(getEdited.body.results.metricQuery.limit).toBe(7);
+        expect(getEdited.body.results.metricQuery.sorts).toEqual([
+            {
+                fieldId: `b_${additionalMetricQuery.metrics[0]}`,
+                descending: true,
+            },
+        ]);
         expect(getEdited.body.results.parameters).toEqual(parameters);
     });
 

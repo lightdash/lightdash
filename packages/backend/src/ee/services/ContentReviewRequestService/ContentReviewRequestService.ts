@@ -13,7 +13,7 @@ import {
     getErrorMessage,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
-    normalizeSavedMergeDefinition,
+    normalizeSavedChartMerge,
     NotFoundError,
     ParameterError,
     SpaceMemberRole,
@@ -1269,12 +1269,10 @@ export class ContentReviewRequestService extends BaseService {
         let chart: ChartSimilarityContext | undefined = params.chart
             ? {
                   ...params.chart,
-                  merge: params.chart.merge
-                      ? normalizeSavedMergeDefinition(
-                            params.chart.merge,
-                            params.chart.metricQuery,
-                        )
-                      : params.chart.merge,
+                  ...normalizeSavedChartMerge(
+                      params.chart.metricQuery,
+                      params.chart.merge,
+                  ),
               }
             : undefined;
         if (params.excludeContentUuid) {

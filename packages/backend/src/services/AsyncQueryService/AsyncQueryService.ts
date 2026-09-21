@@ -13,7 +13,7 @@ import {
     assertIsAccountWithOrg,
     assertRegisteredAccount,
     assertUnreachable,
-    buildMergeQueryFromMergeDefinition,
+    buildMergeQueryFromSaved,
     buildWarehouseColumnTotals,
     buildWarehouseRowTotals,
     CalculateSubtotalsFromQuery,
@@ -154,7 +154,7 @@ import {
     type ResultColumns,
     type RunQueryTags,
     type SavedChartDAO,
-    type SavedMergeDefinition,
+    type SavedMergeQuery,
     type SessionUser,
     type SpaceSummaryBase,
     type UserAttributeValueMap,
@@ -6739,9 +6739,9 @@ export class AsyncQueryService extends ProjectService {
         | 'userAttributeOverrides'
     > & {
         savedChart: SavedChartDAO;
-        merge: SavedMergeDefinition;
+        merge: SavedMergeQuery;
     }): Promise<ApiExecuteAsyncMetricQueryResults> {
-        const baseMergeQuery = buildMergeQueryFromMergeDefinition(
+        const baseMergeQuery = buildMergeQueryFromSaved(
             savedChart.metricQuery,
             merge,
         );
@@ -6826,10 +6826,10 @@ export class AsyncQueryService extends ProjectService {
         | 'userAttributeOverrides'
     > & {
         savedChart: SavedChartDAO;
-        merge: SavedMergeDefinition;
+        merge: SavedMergeQuery;
         primaryExplore: Explore;
     }): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
-        const baseMergeQuery = buildMergeQueryFromMergeDefinition(
+        const baseMergeQuery = buildMergeQueryFromSaved(
             savedChart.metricQuery,
             merge,
         );

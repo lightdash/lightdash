@@ -68,7 +68,7 @@ import {
     isSchedulerImageOptions,
     isSlackTarget,
     normalizeContentAsCodePath,
-    normalizeSavedMergeDefinition,
+    normalizeSavedChartMerge,
     NotFoundError,
     NotificationFrequency,
     NotImplementedError,
@@ -3718,16 +3718,13 @@ export class CoderService extends BaseService {
                 slug,
             });
 
-        const metricQuery = {
-            ...chartAsCode.metricQuery,
-            filters: normalizeFilterIds(chartAsCode.metricQuery.filters),
-        };
-        const merge = chartAsCode.merge
-            ? normalizeSavedMergeDefinition(chartAsCode.merge, metricQuery)
-            : chartAsCode.merge;
-        if (chartAsCode.merge && !merge) {
-            throw new ParameterError('Invalid saved merge definition.');
-        }
+        const { metricQuery, merge } = normalizeSavedChartMerge(
+            {
+                ...chartAsCode.metricQuery,
+                filters: normalizeFilterIds(chartAsCode.metricQuery.filters),
+            },
+            chartAsCode.merge,
+        );
 
         // Default optional fields when missing (e.g. user-authored YAML)
         const chartWithDefaults = {
