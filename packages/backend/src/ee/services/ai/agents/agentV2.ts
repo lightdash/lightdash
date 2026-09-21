@@ -169,7 +169,6 @@ const createAiAgentLogger =
 const FAST_INTENT_TOOLS: Partial<Record<TurnIntent, string>> = {
     chart_from_previous: 'generateVisualization',
     chart_export: 'exportChartAsCode',
-    data_answer: 'runQuery',
 };
 
 const getFastIntentTool = (
@@ -601,8 +600,24 @@ export const getRecentQueryFieldKeywords = (
         Object.entries(value).forEach(([key, entry]) => collect(entry, key));
     };
 
+    const successfulCallIds = new Set<string>();
     for (let index = latestUserIndex - 1; index >= 0; index -= 1) {
         const message = messageHistory[index];
+        if (message.role === 'user') break;
+        if (message.role === 'tool') {
+            for (const part of message.content) {
+                if (
+                    part.type === 'tool-result' &&
+                    part.output.type === 'json' &&
+                    part.output.value &&
+                    typeof part.output.value === 'object' &&
+                    'status' in part.output.value &&
+                    part.output.value.status === 'success'
+                ) {
+                    successfulCallIds.add(part.toolCallId);
+                }
+            }
+        }
         if (
             message.role === 'assistant' &&
             typeof message.content !== 'string'
@@ -613,6 +628,7 @@ export const getRecentQueryFieldKeywords = (
                     QUERY_TOOL_NAMES.has(part.toolName),
             );
             if (call) {
+                if (!successfulCallIds.has(call.toolCallId)) return [];
                 collect(call.input);
                 return [...found].slice(0, 12);
             }
@@ -1132,7 +1148,10 @@ export const buildPrepareStep = ({
     }) => {
         const explicitlyForced = forcedFirstStep?.({ stepNumber }) ?? {};
         const intentForcedTool = getFastIntentTool(
-            intentToolGate?.intent,
+            intentToolGate?.intent === 'chart_from_previous' &&
+                getRecentQueryFieldKeywords(args.messageHistory).length === 0
+                ? null
+                : intentToolGate?.intent,
             preloadedMcpToolNames,
         );
         const forced =
@@ -2293,6 +2312,12 @@ const prepareAgentTurn = async ({
             Object.keys(mcpToolSetup.tools),
         ),
     ]);
+    if (
+        preparedContext?.turnIntent === 'chart_from_previous' &&
+        getRecentQueryFieldKeywords(args.messageHistory).length === 0
+    ) {
+        preparedContext.turnIntent = 'chart';
+    }
     const intentToolGate = createIntentToolGate(
         tools,
         preparedContext?.turnIntent ?? null,

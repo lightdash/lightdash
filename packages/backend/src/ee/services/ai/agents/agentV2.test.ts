@@ -1156,7 +1156,7 @@ describe('getStepBudgetOverride', () => {
 });
 
 describe('buildPrepareStep worker isolation', () => {
-    it('forces a classified data answer through runQuery on the first step', async () => {
+    it('allows discovery before a classified data answer without downgrading the model', async () => {
         const fastModel = {} as AiAgentArgs['model'];
         const args = buildAgentArgs();
         args.toolCallModel = {
@@ -1183,14 +1183,12 @@ describe('buildPrepareStep worker isolation', () => {
             invalidToolCallIds: new Set(),
         });
 
-        await expect(
-            prepareStep({ stepNumber: 0, messages: [] }),
-        ).resolves.toMatchObject({
-            activeTools: ['runQuery'],
-            toolChoice: { type: 'tool', toolName: 'runQuery' },
-            model: fastModel,
-            providerOptions: { openai: {} },
+        const first = await prepareStep({ stepNumber: 0, messages: [] });
+        expect(first).toMatchObject({
+            activeTools: expect.arrayContaining(['runQuery', 'grepFields']),
         });
+        expect(first).not.toHaveProperty('toolChoice');
+        expect(first).not.toHaveProperty('model');
         await expect(
             prepareStep({ stepNumber: 1, messages: [] }),
         ).resolves.toMatchObject({
@@ -1198,42 +1196,84 @@ describe('buildPrepareStep worker isolation', () => {
         });
     });
 
-    it('forces a follow-up chart directly on the first step', async () => {
-        const fastModel = {} as AiAgentArgs['model'];
-        const args = buildAgentArgs();
-        args.toolCallModel = {
-            model: fastModel,
-            providerOptions: { anthropic: {} },
-            keyManagement: 'self-managed',
-        };
-        const tools = {
-            loadAgentTools: getLoadAgentTools(),
-            generateVisualization: {} as never,
-            grepFields: {} as never,
-        };
-        const gate = createIntentToolGate(tools, 'chart_from_previous');
-        const prepareStep = buildPrepareStep({
-            args,
-            dependencies: {
-                ...buildAgentDependencies(vi.fn()),
-                consumePromptSteers: vi.fn().mockResolvedValue([]),
-            },
-            tools: gate.tools,
-            mcpToolNames: [],
-            intentToolGate: gate,
-            logger: vi.fn(),
-            invalidToolCallIds: new Set(),
-        });
+    it.each(['success', 'error', 'pending', null])(
+        'only shortcuts a chart after a successful query: %s',
+        async (status) => {
+            const fastModel = {} as AiAgentArgs['model'];
+            const args = buildAgentArgs();
+            args.messageHistory = [
+                { role: 'user', content: 'How many orders?' },
+                {
+                    role: 'assistant',
+                    content: [
+                        {
+                            type: 'tool-call',
+                            toolCallId: 'query-1',
+                            toolName: 'runQuery',
+                            input: {
+                                queryConfig: { metrics: ['orders_count'] },
+                            },
+                        },
+                    ],
+                },
+                {
+                    role: 'tool',
+                    content: [
+                        {
+                            type: 'tool-result',
+                            toolCallId: 'query-1',
+                            toolName: 'runQuery',
+                            output: {
+                                type: 'json',
+                                value: { status, result: 'query result' },
+                            },
+                        },
+                    ],
+                },
+                { role: 'assistant', content: 'Previous answer' },
+                { role: 'user', content: 'As a line chart' },
+            ];
+            args.toolCallModel = {
+                model: fastModel,
+                providerOptions: { anthropic: {} },
+                keyManagement: 'self-managed',
+            };
+            const tools = {
+                loadAgentTools: getLoadAgentTools(),
+                generateVisualization: {} as never,
+                grepFields: {} as never,
+            };
+            const gate = createIntentToolGate(tools, 'chart_from_previous');
+            const prepareStep = buildPrepareStep({
+                args,
+                dependencies: {
+                    ...buildAgentDependencies(vi.fn()),
+                    consumePromptSteers: vi.fn().mockResolvedValue([]),
+                },
+                tools: gate.tools,
+                mcpToolNames: [],
+                intentToolGate: gate,
+                logger: vi.fn(),
+                invalidToolCallIds: new Set(),
+            });
 
-        await expect(
-            prepareStep({ stepNumber: 0, messages: [] }),
-        ).resolves.toMatchObject({
-            activeTools: ['generateVisualization'],
-            toolChoice: { type: 'tool', toolName: 'generateVisualization' },
-            model: fastModel,
-            providerOptions: { anthropic: {} },
-        });
-    });
+            const first = await prepareStep({
+                stepNumber: 0,
+                messages: args.messageHistory,
+            });
+            if (status !== 'success') {
+                expect(first).not.toHaveProperty('toolChoice');
+                expect(first).not.toHaveProperty('model');
+                return;
+            }
+            expect(first).toMatchObject({
+                activeTools: ['generateVisualization'],
+                toolChoice: { type: 'tool', toolName: 'generateVisualization' },
+                model: fastModel,
+                providerOptions: { anthropic: {} },
+            });
+        },
+    );
 
     it('forces the validated chart exporter only on the first export step', async () => {
         const tools = {
@@ -2360,39 +2400,60 @@ describe('buildAgentMessages', () => {
         ).toBeNull();
     });
 
-    it('carries field IDs from the preceding successful query into a follow-up', () => {
-        expect(
-            getRecentQueryFieldKeywords([
-                { role: 'user', content: 'How many orders?' },
-                {
-                    role: 'assistant',
-                    content: [
-                        {
-                            type: 'tool-call',
-                            toolCallId: 'query-1',
-                            toolName: 'runQuery',
-                            input: {
-                                queryConfig: {
-                                    metrics: ['orders_unique_order_count'],
-                                    dimensions: [],
-                                    filters: {
-                                        dimensions: [
-                                            {
-                                                fieldId: 'orders_order_date',
-                                            },
-                                        ],
+    it.each(['success', 'error', 'pending', null])(
+        'only carries confirmed successful query fields: %s',
+        (status) => {
+            expect(
+                getRecentQueryFieldKeywords([
+                    { role: 'user', content: 'How many orders?' },
+                    {
+                        role: 'assistant',
+                        content: [
+                            {
+                                type: 'tool-call',
+                                toolCallId: 'query-1',
+                                toolName: 'runQuery',
+                                input: {
+                                    queryConfig: {
+                                        metrics: ['orders_unique_order_count'],
+                                        dimensions: [],
+                                        filters: {
+                                            dimensions: [
+                                                {
+                                                    fieldId:
+                                                        'orders_order_date',
+                                                },
+                                            ],
+                                        },
                                     },
                                 },
                             },
-                        },
-                    ],
-                },
-                { role: 'tool', content: [] },
-                { role: 'assistant', content: '151 orders.' },
-                { role: 'user', content: 'As a line chart.' },
-            ]),
-        ).toEqual(['orders_unique_order_count', 'orders_order_date']);
-    });
+                        ],
+                    },
+                    {
+                        role: 'tool',
+                        content: [
+                            {
+                                type: 'tool-result',
+                                toolCallId: 'query-1',
+                                toolName: 'runQuery',
+                                output: {
+                                    type: 'json',
+                                    value: { result: 'query output', status },
+                                },
+                            },
+                        ],
+                    },
+                    { role: 'assistant', content: '151 orders.' },
+                    { role: 'user', content: 'As a line chart.' },
+                ]),
+            ).toEqual(
+                status === 'success'
+                    ? ['orders_unique_order_count', 'orders_order_date']
+                    : [],
+            );
+        },
+    );
 
     it('prioritizes the follow-up request without discarding prior query scope', () => {
         const previous = Array.from(
