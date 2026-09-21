@@ -140,9 +140,11 @@ export const AutopilotNavButton = ({
                     <Button
                         size="xs"
                         variant="default"
+                        data-icon-only={!withLabel || undefined}
                         classNames={{
                             root: classes.cell,
                             label: classes.cellLabel,
+                            section: classes.cellSection,
                         }}
                         leftSection={
                             <MantineIcon
@@ -242,9 +244,11 @@ export const AutopilotNavButton = ({
                 <Button
                     size="xs"
                     variant="default"
+                    data-icon-only={!withLabel || undefined}
                     classNames={{
                         root: classes.cell,
                         label: classes.cellLabel,
+                        section: classes.cellSection,
                     }}
                     leftSection={
                         <span className={classes.iconWrap}>
