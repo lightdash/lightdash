@@ -94,7 +94,7 @@ describe('BrowseMenu', () => {
         const item = await screen.findByText('Chart types');
         expect(item.closest('a')).toHaveAttribute(
             'href',
-            `/projects/${projectUuid}/chart-types`,
+            '/projects/jaffle-shop/chart-types',
         );
     });
 

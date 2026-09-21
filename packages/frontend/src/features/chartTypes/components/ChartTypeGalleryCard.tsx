@@ -26,6 +26,7 @@ import { Link } from 'react-router';
 import { FloatingActionsPill } from '../../../components/common/FloatingActionsPill';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
@@ -53,6 +54,9 @@ const ChartTypeGalleryCard: FC<Props> = ({
     onDelete,
 }) => {
     const canEdit = useCanEditDataApp(dataAppViz.projectUuid, dataAppViz);
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? dataAppViz.projectUuid;
     const canFork = useCanCreateDataApp(dataAppViz.projectUuid);
     // Forking and editing are authoring, so they need data apps on.
     const dataAppsEnabled =
@@ -128,7 +132,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
                                       size="sm"
                                       component={Link}
                                       to={chartTypeBuilderPath(
-                                          dataAppViz.projectUuid,
+                                          projectUrlIdentifier,
                                           dataAppViz.slug,
                                       )}
                                       aria-label={`Edit ${displayName}`}

@@ -27,6 +27,10 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
 
+vi.mock('../hooks/useProjectRoute', () => ({
+    useOptionalProjectRoute: () => ({ projectUrlIdentifier: 'jaffle-shop' }),
+}));
+
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-1',
 }));
@@ -303,7 +307,7 @@ describe('ChartTypeGallery', () => {
             screen.getByRole('link', { name: 'Edit' }).closest('a'),
         ).toHaveAttribute(
             'href',
-            '/projects/project-1/chart-types/radial-gauge',
+            '/projects/jaffle-shop/chart-types/radial-gauge',
         );
         expect(screen.getByText('v3')).toBeInTheDocument();
         // Typed field breakdown, matching the library modal.
@@ -434,7 +438,7 @@ describe('ChartTypeGallery', () => {
             screen.getByLabelText('Edit Radial gauge').closest('a'),
         ).toHaveAttribute(
             'href',
-            '/projects/project-1/chart-types/radial-gauge',
+            '/projects/jaffle-shop/chart-types/radial-gauge',
         );
 
         fireEvent.click(screen.getByLabelText('Actions for Radial gauge'));
@@ -884,7 +888,7 @@ describe('ChartTypeGallery', () => {
                     expect(
                         screen.getByTestId('location-pathname'),
                     ).toHaveTextContent(
-                        '/projects/project-1/chart-types/radial-gauge-custom-2',
+                        '/projects/jaffle-shop/chart-types/radial-gauge-custom-2',
                     ),
                 );
             },

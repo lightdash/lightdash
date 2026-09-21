@@ -5,6 +5,7 @@ import { IconPlus, IconPuzzle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -16,6 +17,9 @@ type Props = {
 
 const ChartTypeGalleryEmptyState: FC<Props> = ({ projectUuid }) => {
     const { user } = useApp();
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     // Building a new chart type is authoring, so the CTA needs data apps.
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
@@ -50,7 +54,7 @@ const ChartTypeGalleryEmptyState: FC<Props> = ({ projectUuid }) => {
                     <Button
                         mt="xs"
                         component={Link}
-                        to={chartTypeBuilderPath(projectUuid)}
+                        to={chartTypeBuilderPath(projectUrlIdentifier)}
                         leftSection={<MantineIcon icon={IconPlus} size={18} />}
                     >
                         New chart type

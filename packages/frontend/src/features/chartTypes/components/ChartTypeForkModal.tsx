@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import MantineModal from '../../../components/common/MantineModal';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useDuplicateApp } from '../../apps/hooks/useDuplicateApp';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 
@@ -33,6 +34,9 @@ const ChartTypeForkModal: FC<Props> = ({
     defaultName,
 }) => {
     const navigate = useNavigate();
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const { showToastSuccess } = useToaster();
     const { mutate: duplicate, isLoading: isForking } = useDuplicateApp();
 
@@ -49,7 +53,7 @@ const ChartTypeForkModal: FC<Props> = ({
                 onSuccess: (result) => {
                     showToastSuccess({ title: 'Chart type forked' });
                     void navigate(
-                        chartTypeBuilderPath(projectUuid, result.slug),
+                        chartTypeBuilderPath(projectUrlIdentifier, result.slug),
                     );
                 },
             },
