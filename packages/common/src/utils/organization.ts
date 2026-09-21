@@ -30,15 +30,16 @@ export const validateOrganizationNameOrThrow = (name: string) => {
 
 const APOSTROPHE_LIKE = new Set(["'", '\u2019', '`']);
 
+const foldCombiningMarks = (value: string): string =>
+    value.normalize('NFKD').replace(/\p{M}/gu, '');
+
 export const sanitizeOrganizationName = (
     name: string,
     fallback: string,
 ): string => {
     if (validateOrganizationName(name)) return name.trim();
 
-    const withoutAccents = name
-        .normalize('NFKD')
-        .replace(/[\u0300-\u036f]/g, '');
+    const withoutAccents = foldCombiningMarks(name);
 
     const replaced = Array.from(withoutAccents)
         .map((character) => {
@@ -83,7 +84,7 @@ const INVALID_CHARACTER_KINDS = new Map<string, string>([
 ]);
 
 const invalidCharacterKind = (character: string): string | null => {
-    const folded = character.normalize('NFKD').replace(/[̀-ͯ]/g, '');
+    const folded = foldCombiningMarks(character);
     if (/^[A-Za-z]+$/.test(folded)) return 'accented characters';
     return INVALID_CHARACTER_KINDS.get(character) ?? null;
 };

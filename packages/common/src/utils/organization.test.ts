@@ -14,6 +14,7 @@ describe('sanitizeOrganizationName', () => {
         ["Acme's Bakery", 'Acmes Bakery'],
         ['Acme/Foo & Co.', 'Acme Foo Co'],
         ['Café Müller', 'Cafe Muller'],
+        ['Ca\u1dc0fe Co', 'Cafe Co'],
         ['...', FALLBACK],
         ['', FALLBACK],
     ])('turns %j into %j', (input, expected) => {
@@ -27,6 +28,7 @@ describe('sanitizeOrganizationName', () => {
             "Acme's Bakery",
             'Acme/Foo & Co.',
             'Café Müller',
+            'Ca\u1dc0fe Co',
             '...',
             '',
             '’’’',
