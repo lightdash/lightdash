@@ -610,7 +610,7 @@ export class DashboardService
      * Duplicates a chart that belongs to a dashboard.
      * Used when duplicating dashboards or duplicating tabs with dashboard charts.
      */
-    private async duplicateChartForDashboard({
+    async duplicateChartForDashboard({
         chartUuid,
         projectUuid,
         dashboardUuid,
