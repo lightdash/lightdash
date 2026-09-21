@@ -1,3 +1,15 @@
+# [2.283.0](https://github.com/lightdash/lightdash/compare/2.282.0...2.283.0) (2026-09-21)
+
+
+### Bug Fixes
+
+* **dashboards:** wait for data app tiles before delivery captures ([#29675](https://github.com/lightdash/lightdash/issues/29675)) ([d89cc81](https://github.com/lightdash/lightdash/commit/d89cc81c4a64409931d5cc479661c5b549a1f2dd))
+
+
+### Features
+
+* **data-apps:** report what the compaction call itself cost ([#29660](https://github.com/lightdash/lightdash/issues/29660)) ([2dae35c](https://github.com/lightdash/lightdash/commit/2dae35cab6b2f27292effe0649e9de06d912e030))
+
 # [2.282.0](https://github.com/lightdash/lightdash/compare/2.281.0...2.282.0) (2026-09-21)
 
 

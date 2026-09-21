@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.282.0",
-  "previousVersion": "2.281.0",
-  "releaseDate": "2026-09-21T15:48:17.132Z",
+  "version": "2.283.0",
+  "previousVersion": "2.282.0",
+  "releaseDate": "2026-09-21T16:14:10.145Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,13 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/projects/{projectUuid}/favorites — added the new `compact` enum value to the `results/items/anyOf[#/components/schemas/ResourceViewDataAppItem]/data/latestVersionStatus/allOf[#/components/schemas/AppVersionStatus]/` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/pinned-lists/{pinnedListUuid}/items — added the new `compact` enum value to the `results/items/anyOf[#/components/schemas/ResourceViewDataAppItem]/data/latestVersionStatus/allOf[#/components/schemas/AppVersionStatus]/` response property for the response status `200`",
-        "PATCH /api/v1/projects/{projectUuid}/pinned-lists/{pinnedListUuid}/items/order — added the new `compact` enum value to the `results/items/anyOf[#/components/schemas/ResourceViewDataAppItem]/data/latestVersionStatus/allOf[#/components/schemas/AppVersionStatus]/` response property for the response status `200`",
-        "GET /api/v2/content — added the new `compact` enum value to the `results/data/items/anyOf[#/components/schemas/DataAppContent]/latestVersionStatus/allOf[#/components/schemas/AppVersionStatus]/` response property for the response status `200`"
-      ],
-      "advisoryCount": 4
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
