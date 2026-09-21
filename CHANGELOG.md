@@ -1,3 +1,10 @@
+# [2.284.0](https://github.com/lightdash/lightdash/compare/2.283.0...2.284.0) (2026-09-21)
+
+
+### Features
+
+* **homepage:** pin documents to homepages and collections ([#29674](https://github.com/lightdash/lightdash/issues/29674)) ([d9d98a9](https://github.com/lightdash/lightdash/commit/d9d98a94e35355e1c888b74491b7afc58b480a48))
+
 # [2.283.0](https://github.com/lightdash/lightdash/compare/2.282.0...2.283.0) (2026-09-21)
 
 

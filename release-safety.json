@@ -1,14 +1,29 @@
 {
   "schemaVersion": "2",
-  "version": "2.283.0",
-  "previousVersion": "2.282.0",
-  "releaseDate": "2026-09-21T16:14:10.145Z",
+  "version": "2.284.0",
+  "previousVersion": "2.283.0",
+  "releaseDate": "2026-09-21T16:43:33.714Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260921120000_add_pinned_document_table.ts",
+        "edition": "core",
+        "tables": [
+          "documents",
+          "pinned_document",
+          "pinned_list"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -20,8 +35,39 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/projects/{projectUuid}/code/homepages — added the new `document` enum value to the `results/homepages/items/config/rows/items/blocks/items/anyOf[subschema #2]/config/allOf[#/components/schemas/Omit_HomepageCollectionBlock-at-config.items_]/contentTypes/items/` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/code/homepages — added the new `document` enum value to the `results/homepages/items/config/rows/items/blocks/items/anyOf[subschema #2]/config/allOf[subschema #2]/items/items/contentType` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage — added the new `document` enum value to the `results/allOf[#/components/schemas/ResolvedHomepage]/homepage/config/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/contentTypes/items/` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage — added the new `document` enum value to the `results/allOf[#/components/schemas/ResolvedHomepage]/homepage/config/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/items/items/contentType` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/homepage — added the new `document` enum value to the `results/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/contentTypes/items/` response property for the response status `201`",
+        "POST /api/v1/projects/{projectUuid}/homepage — added the new `document` enum value to the `results/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/items/items/contentType` response property for the response status `201`",
+        "POST /api/v1/projects/{projectUuid}/homepage — added the new `document` enum value to the `results/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/contentTypes/items/` response property for the response status `201`",
+        "POST /api/v1/projects/{projectUuid}/homepage — added the new `document` enum value to the `results/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/items/items/contentType` response property for the response status `201`",
+        "GET /api/v1/projects/{projectUuid}/homepage/builder — added the new `document` enum value to the `results/allOf[#/components/schemas/ProjectHomepage]/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/contentTypes/items/` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage/builder — added the new `document` enum value to the `results/allOf[#/components/schemas/ProjectHomepage]/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/items/items/contentType` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage/builder — added the new `document` enum value to the `results/allOf[#/components/schemas/ProjectHomepage]/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/contentTypes/items/` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage/builder — added the new `document` enum value to the `results/allOf[#/components/schemas/ProjectHomepage]/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/items/items/contentType` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage/list — added the new `document` enum value to the `results/items/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/contentTypes/items/` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage/list — added the new `document` enum value to the `results/items/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/items/items/contentType` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage/list — added the new `document` enum value to the `results/items/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/contentTypes/items/` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage/list — added the new `document` enum value to the `results/items/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/items/items/contentType` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage/view-as — added the new `document` enum value to the `results/resolved/allOf[#/components/schemas/ResolvedHomepage]/homepage/config/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/contentTypes/items/` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/homepage/view-as — added the new `document` enum value to the `results/resolved/allOf[#/components/schemas/ResolvedHomepage]/homepage/config/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/items/items/contentType` response property for the response status `200`",
+        "PATCH /api/v1/projects/{projectUuid}/homepage/{homepageUuid} — added the new `document` enum value to the `results/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/contentTypes/items/` response property for the response status `200`",
+        "PATCH /api/v1/projects/{projectUuid}/homepage/{homepageUuid} — added the new `document` enum value to the `results/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/items/items/contentType` response property for the response status `200`",
+        "PATCH /api/v1/projects/{projectUuid}/homepage/{homepageUuid} — added the new `document` enum value to the `results/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/contentTypes/items/` response property for the response status `200`",
+        "PATCH /api/v1/projects/{projectUuid}/homepage/{homepageUuid} — added the new `document` enum value to the `results/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/items/items/contentType` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/homepage/{homepageUuid}/discard-draft — added the new `document` enum value to the `results/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/contentTypes/items/` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/homepage/{homepageUuid}/discard-draft — added the new `document` enum value to the `results/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/items/items/contentType` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/homepage/{homepageUuid}/discard-draft — added the new `document` enum value to the `results/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/contentTypes/items/` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/homepage/{homepageUuid}/discard-draft — added the new `document` enum value to the `results/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/items/items/contentType` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/homepage/{homepageUuid}/publish — added the new `document` enum value to the `results/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/contentTypes/items/` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/homepage/{homepageUuid}/publish — added the new `document` enum value to the `results/draftConfig/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/items/items/contentType` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/homepage/{homepageUuid}/publish — added the new `document` enum value to the `results/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/contentTypes/items/` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/homepage/{homepageUuid}/publish — added the new `document` enum value to the `results/publishedConfig/allOf[#/components/schemas/HomepageConfig]/rows/items/blocks/items/anyOf[#/components/schemas/HomepageCollectionBlock]/config/items/items/contentType` response property for the response status `200`"
+      ],
+      "advisoryCount": 30
     },
     "mcp": {
       "checked": true,

@@ -318,7 +318,13 @@
                     "contentTypes": {
                         "items": {
                             "type": "string",
-                            "enum": ["chart", "dashboard", "space", "data_app"]
+                            "enum": [
+                                "chart",
+                                "dashboard",
+                                "space",
+                                "data_app",
+                                "document"
+                            ]
                         },
                         "type": "array",
                         "description": "Narrows live sources to these content types. Ignored for `manual`\n(hand-picking is already the filter) and when absent or empty."
@@ -631,7 +637,8 @@
                                                                 "chart",
                                                                 "dashboard",
                                                                 "space",
-                                                                "data_app"
+                                                                "data_app",
+                                                                "document"
                                                             ]
                                                         }
                                                     },
@@ -12404,7 +12411,13 @@
                     },
                     "contentType": {
                         "type": "string",
-                        "enum": ["chart", "dashboard", "space", "data_app"]
+                        "enum": [
+                            "chart",
+                            "dashboard",
+                            "space",
+                            "data_app",
+                            "document"
+                        ]
                     }
                 },
                 "required": ["uuid", "contentType"],
@@ -12421,7 +12434,8 @@
                                         "chart",
                                         "dashboard",
                                         "space",
-                                        "data_app"
+                                        "data_app",
+                                        "document"
                                     ]
                                 },
                                 "type": "array",
@@ -52270,6 +52284,133 @@
                 "required": ["data", "type"],
                 "type": "object"
             },
+            "ResourceViewItemType.DOCUMENT": {
+                "enum": ["document"],
+                "type": "string"
+            },
+            "Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.owner-or-validationErrors__": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "name",
+                    "slug",
+                    "updatedAt",
+                    "verification",
+                    "uuid",
+                    "pinnedListUuid",
+                    "pinnedListOrder",
+                    "spaceUuid",
+                    "views",
+                    "firstViewedAt"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_ResourceViewDashboardItem-at-data.owner-or-validationErrors_": {
+                "$ref": "#/components/schemas/Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.owner-or-validationErrors__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "ResourceViewDocumentItem": {
+                "properties": {
+                    "category": {
+                        "$ref": "#/components/schemas/ResourceItemCategory"
+                    },
+                    "data": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Omit_ResourceViewDashboardItem-at-data.owner-or-validationErrors_"
+                            },
+                            {
+                                "properties": {
+                                    "directAccessRoles": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/SpaceMemberRole"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "createdByUserUuid": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "organizationUuid": {
+                                        "type": "string"
+                                    },
+                                    "projectUuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "directAccessRoles",
+                                    "createdByUserUuid",
+                                    "organizationUuid",
+                                    "projectUuid"
+                                ],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ResourceViewItemType.DOCUMENT"
+                    }
+                },
+                "required": ["data", "type"],
+                "type": "object"
+            },
             "PinnedItems": {
                 "items": {
                     "anyOf": [
@@ -52284,6 +52425,9 @@
                         },
                         {
                             "$ref": "#/components/schemas/ResourceViewDataAppItem"
+                        },
+                        {
+                            "$ref": "#/components/schemas/ResourceViewDocumentItem"
                         }
                     ]
                 },
@@ -52307,7 +52451,7 @@
                 "enum": ["chart", "dashboard", "space", "data_app", "document"],
                 "type": "string"
             },
-            "Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data.uuid-or-pinnedListOrder_": {
+            "Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data-or-ResourceViewDocumentItem-at-data.uuid-or-pinnedListOrder_": {
                 "properties": {
                     "uuid": {
                         "type": "string"
@@ -52325,7 +52469,7 @@
             "UpdatePinnedItemOrder": {
                 "properties": {
                     "data": {
-                        "$ref": "#/components/schemas/Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data.uuid-or-pinnedListOrder_"
+                        "$ref": "#/components/schemas/Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data-or-ResourceViewDocumentItem-at-data.uuid-or-pinnedListOrder_"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ResourceViewItemType"
@@ -55847,133 +55991,6 @@
                 ],
                 "type": "object"
             },
-            "ResourceViewItemType.DOCUMENT": {
-                "enum": ["document"],
-                "type": "string"
-            },
-            "Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.owner-or-validationErrors__": {
-                "properties": {
-                    "description": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "pinnedListUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "updatedByUser": {
-                        "$ref": "#/components/schemas/UpdatedByUser"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "firstViewedAt": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            }
-                        ],
-                        "nullable": true
-                    }
-                },
-                "required": [
-                    "name",
-                    "slug",
-                    "updatedAt",
-                    "verification",
-                    "uuid",
-                    "pinnedListUuid",
-                    "pinnedListOrder",
-                    "spaceUuid",
-                    "views",
-                    "firstViewedAt"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_ResourceViewDashboardItem-at-data.owner-or-validationErrors_": {
-                "$ref": "#/components/schemas/Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.owner-or-validationErrors__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "ResourceViewDocumentItem": {
-                "properties": {
-                    "category": {
-                        "$ref": "#/components/schemas/ResourceItemCategory"
-                    },
-                    "data": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Omit_ResourceViewDashboardItem-at-data.owner-or-validationErrors_"
-                            },
-                            {
-                                "properties": {
-                                    "directAccessRoles": {
-                                        "items": {
-                                            "$ref": "#/components/schemas/SpaceMemberRole"
-                                        },
-                                        "type": "array"
-                                    },
-                                    "createdByUserUuid": {
-                                        "type": "string",
-                                        "nullable": true
-                                    },
-                                    "organizationUuid": {
-                                        "type": "string"
-                                    },
-                                    "projectUuid": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "directAccessRoles",
-                                    "createdByUserUuid",
-                                    "organizationUuid",
-                                    "projectUuid"
-                                ],
-                                "type": "object"
-                            }
-                        ]
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/ResourceViewItemType.DOCUMENT"
-                    }
-                },
-                "required": ["data", "type"],
-                "type": "object"
-            },
             "FavoriteItems": {
                 "items": {
                     "anyOf": [
@@ -59039,11 +59056,15 @@
                     },
                     {
                         "properties": {
+                            "pinnedListUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "version": {
                                 "$ref": "#/components/schemas/DocumentVersion"
                             }
                         },
-                        "required": ["version"],
+                        "required": ["pinnedListUuid", "version"],
                         "type": "object"
                     }
                 ]
@@ -63867,11 +63888,11 @@
                                 "type": "number",
                                 "format": "double"
                             },
-                            "documentCount": {
+                            "appCount": {
                                 "type": "number",
                                 "format": "double"
                             },
-                            "appCount": {
+                            "documentCount": {
                                 "type": "number",
                                 "format": "double"
                             },
@@ -63887,8 +63908,8 @@
                         "required": [
                             "nestedSpaceCount",
                             "schedulerCount",
-                            "documentCount",
                             "appCount",
+                            "documentCount",
                             "dashboardCount",
                             "chartCount"
                         ],
@@ -64276,7 +64297,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.283.0",
+        "version": "2.284.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -100489,6 +100510,53 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}/pinning": {
+            "patch": {
+                "operationId": "ToggleDocumentPin",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiTogglePinnedItem"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/documents": {

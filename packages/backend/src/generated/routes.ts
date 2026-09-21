@@ -554,6 +554,10 @@ const models: TsoaRoute.Models = {
                                             dataType: 'enum',
                                             enums: ['data_app'],
                                         },
+                                        {
+                                            dataType: 'enum',
+                                            enums: ['document'],
+                                        },
                                     ],
                                 },
                             },
@@ -1004,6 +1008,13 @@ const models: TsoaRoute.Models = {
                                                                     'enum',
                                                                 enums: [
                                                                     'data_app',
+                                                                ],
+                                                            },
+                                                            {
+                                                                dataType:
+                                                                    'enum',
+                                                                enums: [
+                                                                    'document',
                                                                 ],
                                                             },
                                                         ],
@@ -11893,6 +11904,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: ['dashboard'] },
                         { dataType: 'enum', enums: ['space'] },
                         { dataType: 'enum', enums: ['data_app'] },
+                        { dataType: 'enum', enums: ['document'] },
                     ],
                     required: true,
                 },
@@ -11918,6 +11930,7 @@ const models: TsoaRoute.Models = {
                                     { dataType: 'enum', enums: ['dashboard'] },
                                     { dataType: 'enum', enums: ['space'] },
                                     { dataType: 'enum', enums: ['data_app'] },
+                                    { dataType: 'enum', enums: ['document'] },
                                 ],
                             },
                         },
@@ -52154,6 +52167,133 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ResourceViewItemType.DOCUMENT': {
+        dataType: 'refEnum',
+        enums: ['document'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.owner-or-validationErrors__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    description: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    name: { dataType: 'string', required: true },
+                    slug: { dataType: 'string', required: true },
+                    updatedAt: { dataType: 'datetime', required: true },
+                    verification: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ContentVerificationInfo' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    uuid: { dataType: 'string', required: true },
+                    pinnedListUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    pinnedListOrder: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    updatedByUser: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'UpdatedByUser' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    spaceUuid: { dataType: 'string', required: true },
+                    views: { dataType: 'double', required: true },
+                    firstViewedAt: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'datetime' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_ResourceViewDashboardItem-at-data.owner-or-validationErrors_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.owner-or-validationErrors__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ResourceViewDocumentItem: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                category: { ref: 'ResourceItemCategory' },
+                data: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        {
+                            ref: 'Omit_ResourceViewDashboardItem-at-data.owner-or-validationErrors_',
+                        },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                directAccessRoles: {
+                                    dataType: 'array',
+                                    array: {
+                                        dataType: 'refEnum',
+                                        ref: 'SpaceMemberRole',
+                                    },
+                                    required: true,
+                                },
+                                createdByUserUuid: {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'string' },
+                                        { dataType: 'enum', enums: [null] },
+                                    ],
+                                    required: true,
+                                },
+                                organizationUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                projectUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                    required: true,
+                },
+                type: { ref: 'ResourceViewItemType.DOCUMENT', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PinnedItems: {
         dataType: 'refAlias',
         type: {
@@ -52165,6 +52305,7 @@ const models: TsoaRoute.Models = {
                     { ref: 'ResourceViewChartItem' },
                     { ref: 'ResourceViewSpaceItem' },
                     { ref: 'ResourceViewDataAppItem' },
+                    { ref: 'ResourceViewDocumentItem' },
                 ],
             },
             validators: {},
@@ -52188,7 +52329,7 @@ const models: TsoaRoute.Models = {
         enums: ['chart', 'dashboard', 'space', 'data_app', 'document'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data.uuid-or-pinnedListOrder_':
+    'Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data-or-ResourceViewDocumentItem-at-data.uuid-or-pinnedListOrder_':
         {
             dataType: 'refAlias',
             type: {
@@ -52214,7 +52355,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 data: {
-                    ref: 'Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data.uuid-or-pinnedListOrder_',
+                    ref: 'Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data-or-ResourceViewDocumentItem-at-data.uuid-or-pinnedListOrder_',
                     required: true,
                 },
                 type: { ref: 'ResourceViewItemType', required: true },
@@ -55686,133 +55827,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ResourceViewItemType.DOCUMENT': {
-        dataType: 'refEnum',
-        enums: ['document'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.owner-or-validationErrors__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    description: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    name: { dataType: 'string', required: true },
-                    slug: { dataType: 'string', required: true },
-                    updatedAt: { dataType: 'datetime', required: true },
-                    verification: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'ContentVerificationInfo' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
-                    uuid: { dataType: 'string', required: true },
-                    pinnedListUuid: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
-                    pinnedListOrder: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'double' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
-                    updatedByUser: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'UpdatedByUser' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    spaceUuid: { dataType: 'string', required: true },
-                    views: { dataType: 'double', required: true },
-                    firstViewedAt: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'datetime' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
-                        required: true,
-                    },
-                },
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_ResourceViewDashboardItem-at-data.owner-or-validationErrors_': {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_ResourceViewDashboardItem-at-data.Exclude_keyofResourceViewDashboardItem-at-data.owner-or-validationErrors__',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ResourceViewDocumentItem: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                category: { ref: 'ResourceItemCategory' },
-                data: {
-                    dataType: 'intersection',
-                    subSchemas: [
-                        {
-                            ref: 'Omit_ResourceViewDashboardItem-at-data.owner-or-validationErrors_',
-                        },
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                directAccessRoles: {
-                                    dataType: 'array',
-                                    array: {
-                                        dataType: 'refEnum',
-                                        ref: 'SpaceMemberRole',
-                                    },
-                                    required: true,
-                                },
-                                createdByUserUuid: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { dataType: 'string' },
-                                        { dataType: 'enum', enums: [null] },
-                                    ],
-                                    required: true,
-                                },
-                                organizationUuid: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                                projectUuid: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                            },
-                        },
-                    ],
-                    required: true,
-                },
-                type: { ref: 'ResourceViewItemType.DOCUMENT', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FavoriteItems: {
         dataType: 'refAlias',
         type: {
@@ -58909,6 +58923,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        pinnedListUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                         version: { ref: 'DocumentVersion', required: true },
                     },
                 },
@@ -63577,11 +63599,11 @@ const models: TsoaRoute.Models = {
                                 dataType: 'double',
                                 required: true,
                             },
+                            appCount: { dataType: 'double', required: true },
                             documentCount: {
                                 dataType: 'double',
                                 required: true,
                             },
-                            appCount: { dataType: 'double', required: true },
                             dashboardCount: {
                                 dataType: 'double',
                                 required: true,
@@ -119332,6 +119354,71 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'executeCellQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDocumentController_togglePin: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        documentUuidOrSlug: {
+            in: 'path',
+            name: 'documentUuidOrSlug',
+            required: true,
+            ref: 'UuidOrSlug',
+        },
+    };
+    app.patch(
+        '/api/v1/projects/:projectUuid/documents/:documentUuidOrSlug/pinning',
+        ...fetchMiddlewares<RequestHandler>(DocumentController),
+        ...fetchMiddlewares<RequestHandler>(
+            DocumentController.prototype.togglePin,
+        ),
+
+        async function DocumentController_togglePin(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDocumentController_togglePin,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DocumentController>(DocumentController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'togglePin',
                     controller,
                     response,
                     next,
