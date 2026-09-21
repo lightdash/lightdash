@@ -6919,6 +6919,8 @@ export class AiAgentService extends BaseService {
                     this.getIsVerifiedArtifactsEnabled(),
                 currentPromptUuid: prompt.promptUuid,
                 userUuid: user.userUuid,
+                preserveToolResultStatus:
+                    !!(await this.getDecisionClient(user)),
             },
         );
 
@@ -9738,6 +9740,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         // True only for the prompt being generated/resumed, which legitimately
         // replays an approved tool-call with no result yet (the resume input).
         isCurrentPrompt: boolean,
+        preserveToolResultStatus = false,
     ): ModelMessage[] {
         return toolCallsAndResults.flatMap(
             ({ toolCall, toolResult, approvalDecision }) => {
@@ -9791,8 +9794,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 toolName: toolResult.toolName,
                                 output: {
                                     type: 'json',
-                                    // TODO :: based on tool, if there's a need for it we can use the metadata here
-                                    value: toolResult.result,
+                                    value: preserveToolResultStatus
+                                        ? {
+                                              result: toolResult.result,
+                                              status:
+                                                  typeof toolResult.metadata
+                                                      ?.status === 'string'
+                                                      ? toolResult.metadata
+                                                            .status
+                                                      : null,
+                                          }
+                                        : toolResult.result,
                                 },
                             },
                         ],
@@ -9950,6 +9962,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             retrieveRelevantArtifacts: boolean;
             currentPromptUuid: string;
             userUuid?: string;
+            preserveToolResultStatus?: boolean;
         },
     ): Promise<ModelMessage[]> {
         const promptUuids = threadMessages.map(
@@ -10016,6 +10029,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     ...AiAgentService.buildToolCallTurnMessages(
                         toolCallsAndResults,
                         isCurrentPrompt,
+                        options.preserveToolResultStatus,
                     ),
                 );
 
@@ -14553,6 +14567,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         this.getIsVerifiedArtifactsEnabled(),
                     currentPromptUuid: promptUuid,
                     userUuid: user.userUuid,
+                    preserveToolResultStatus:
+                        !!(await this.getDecisionClient(user)),
                 });
 
             await this.replyToSlackPromptWithStatus({
