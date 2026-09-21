@@ -1,4 +1,5 @@
 import {
+    deriveDataAppVizFieldMetadata,
     getEffectiveOptionValues,
     type DataAppVizContext,
     type DataAppVizFieldMapping,
@@ -62,6 +63,7 @@ export const buildExplorerVizContext = ({
     });
     return {
         fieldMapping,
+        fields: deriveDataAppVizFieldMetadata(fieldMapping, itemsMap),
         rows,
         options: getEffectiveOptionValues(schema.configOptions, optionValues),
         colorPalette,

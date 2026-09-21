@@ -201,6 +201,14 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Drill into a clicked data point in a reusable visualization — pick a dimension in Lightdash and open the drilled view in explore.',
         wiring: 'Show a "Drill into …" item in the data-point action menu only when useVizContext().drillDown.enabled and the mark maps to exactly one source row, and call drillDown.open({ row: datum.sourceRow, metric: "<field name>" }) on selection. The host opens its drill dialog — render no dialog in the viz and never render a disabled item.',
     },
+    {
+        key: 'viz-field-metadata',
+        appliesTo: ['chart_type'],
+        label: 'Field names and formats',
+        description:
+            'Show real field labels and semantic-layer formats in reusable visualizations — axis titles, legends and default labels read "Total order amount" instead of the raw field id.',
+        wiring: 'Read display names with getFieldLabel(context, fieldId) — it falls back to the raw field id on hosts that send no metadata — and build axis-tick or legend formatters from useVizContext().fields[fieldId]?.format; treat the whole fields map as possibly empty.',
+    },
 ];
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);

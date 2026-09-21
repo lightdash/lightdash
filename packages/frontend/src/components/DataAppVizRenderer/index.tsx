@@ -1,5 +1,6 @@
 import {
     ChartType,
+    deriveDataAppVizFieldMetadata,
     getEffectiveOptionValues,
     hasCustomBinDimension,
     type ApiError,
@@ -432,6 +433,10 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             return undefined;
         return {
             fieldMapping: reconciledFieldMapping,
+            fields: deriveDataAppVizFieldMetadata(
+                reconciledFieldMapping,
+                itemsMap ?? {},
+            ),
             rows,
             options: getEffectiveOptionValues(
                 configOptions,
@@ -450,6 +455,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         };
     }, [
         reconciledFieldMapping,
+        itemsMap,
         rows,
         configOptions,
         optionValues,

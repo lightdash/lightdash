@@ -7,6 +7,7 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '../../types/dashboard';
+import { type CustomFormat } from '../../types/field';
 import { type DashboardFilters } from '../../types/filter';
 import {
     type KnexPaginateArgs,
@@ -1371,6 +1372,17 @@ export type DataAppVizDrillDownIntent = {
     fieldId?: string;
 };
 
+// Display metadata for one bound query field, keyed by field id in
+// `DataAppVizContext.fields`. `label` is the field label without the table
+// prefix; `format` is the normalized semantic-layer format so a viz can build
+// axis-tick and legend formatters (per-cell `formatted` only covers values the
+// rows contain).
+export type DataAppVizFieldMetadata = {
+    label: string;
+    tableLabel?: string;
+    format?: CustomFormat;
+};
+
 // Host-owned render context pushed into a data app viz: field name → bound query
 // field id, the host-fetched result rows the renderer reads, the effective
 // config option values (stored value ?? declared default), and the palette
@@ -1379,9 +1391,11 @@ export type DataAppVizDrillDownIntent = {
 // values. `colorPalette` is pushed whether or not the viz declared one, so a viz
 // that colours series never has to check first. `underlyingData.enabled` and
 // `drillDown.enabled` are required so every push site decides availability
-// explicitly.
+// explicitly. `fields` carries display metadata for every bound field id, so a
+// viz labels axes and legends without parsing raw ids.
 export type DataAppVizContext = {
     fieldMapping: Record<string, string | string[]>;
+    fields: Record<string, DataAppVizFieldMetadata>;
     rows: ResultRow[];
     options: Record<string, DataAppVizOptionValue>;
     colorPalette: string[];
