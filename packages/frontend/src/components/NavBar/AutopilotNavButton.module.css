@@ -5,6 +5,16 @@
     overflow: visible;
 }
 
+.cell[data-icon-only] {
+    width: rem(36px);
+    padding-inline: 0;
+    flex-shrink: 0;
+}
+
+.cell[data-icon-only] .cellSection {
+    margin-inline: 0;
+}
+
 .cellLabel {
     overflow: visible;
 }

@@ -76,7 +76,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                 size="xs"
                 variant="default"
                 fz="sm"
-                leftSection={<AiAgentIcon size={14} />}
+                leftSection={<AiAgentIcon size={16} />}
                 onClick={goToAskAi}
                 data-tour-nav="ask-ai"
                 data-tour-hint="Click Ask AI"
@@ -106,7 +106,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                         size="xs"
                         variant="default"
                         fz="sm"
-                        leftSection={<AiAgentIcon size={14} />}
+                        leftSection={<AiAgentIcon size={16} />}
                         onClick={goToAskAi}
                         data-tour-nav="ask-ai"
                         data-tour-hint="Click Ask AI"
@@ -160,7 +160,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
                     size="xs"
                     variant="default"
                     fz="sm"
-                    leftSection={<AiAgentIcon size={15} animated calm />}
+                    leftSection={<AiAgentIcon size={16} animated calm />}
                     onClick={goToAskAi}
                     data-tour-nav="ask-ai"
                     data-tour-hint="Click Ask AI"

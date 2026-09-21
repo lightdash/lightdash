@@ -106,6 +106,14 @@
     font-weight: 600;
 }
 
+@media (width >= $navigation-action-labels) {
+    .leftGroup
+        .buttonGroup
+        :global(.mantine-Button-root):not([data-icon-only]) {
+        padding-inline: var(--button-padding-x);
+    }
+}
+
 /* Keep the desktop navigation shape on tablets. Labels condense only where
    the full row would otherwise run out of room. */
 @media ($navigation-compact <= width < $navigation-action-labels) {
