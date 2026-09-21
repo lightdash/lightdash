@@ -17,9 +17,16 @@ class MockIntersectionObserver {
     disconnect = vi.fn();
 
     intersect(target: Element, isIntersecting: boolean) {
-        this.callback([
-            { isIntersecting, target } as IntersectionObserverEntry,
-        ]);
+        this.intersectBatch([[target, isIntersecting]]);
+    }
+
+    intersectBatch(entries: [Element, boolean][]) {
+        this.callback(
+            entries.map(
+                ([target, isIntersecting]) =>
+                    ({ target, isIntersecting }) as IntersectionObserverEntry,
+            ),
+        );
     }
 }
 
@@ -85,6 +92,7 @@ describe('useChartTypeGalleryPreviewScheduler', () => {
         expect(result.current.isMounted('first')).toBe(true);
 
         act(() => result.current.complete('first'));
+        expect(result.current.isMounted('first')).toBe(true);
         expect(result.current.isMounted('second')).toBe(true);
 
         act(() => result.current.fail('second'));
@@ -104,6 +112,66 @@ describe('useChartTypeGalleryPreviewScheduler', () => {
 
         act(() => result.current.retry('second'));
         expect(result.current.isMounted('second')).toBe(true);
+    });
+
+    it('preserves failures across scrolling and clears timeouts after a successful retry', () => {
+        vi.useFakeTimers();
+        vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
+        const { result } = renderHook(() =>
+            useChartTypeGalleryPreviewScheduler({ timeoutMs: 100 }),
+        );
+        const card = document.createElement('div');
+
+        act(() => {
+            result.current.register('card')(card);
+            latestObserver().intersect(card, true);
+        });
+        act(() => void vi.advanceTimersByTime(100));
+        expect(result.current.status('card')).toBe('unavailable');
+
+        act(() => latestObserver().intersect(card, false));
+        act(() => latestObserver().intersect(card, true));
+        expect(result.current.status('card')).toBe('unavailable');
+        expect(result.current.isMounted('card')).toBe(false);
+
+        act(() => result.current.retry('card'));
+        expect(result.current.isMounted('card')).toBe(true);
+        act(() => result.current.complete('card'));
+        act(() => void vi.advanceTimersByTime(100));
+        expect(result.current.isMounted('card')).toBe(true);
+        expect(result.current.status('card')).toBe('idle');
+    });
+
+    it('schedules the new viewport after processing a batch of intersections', () => {
+        vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
+        const { result } = renderHook(() =>
+            useChartTypeGalleryPreviewScheduler({ maxConcurrent: 1 }),
+        );
+        const cards = Array.from({ length: 3 }, () =>
+            document.createElement('div'),
+        );
+        act(() => {
+            cards.forEach((card, index) =>
+                result.current.register(String(index))(card),
+            );
+            latestObserver().intersectBatch([
+                [cards[0], true],
+                [cards[1], true],
+            ]);
+        });
+        expect(result.current.isMounted('0')).toBe(true);
+        expect(result.current.isMounted('1')).toBe(false);
+
+        act(() =>
+            latestObserver().intersectBatch([
+                [cards[0], false],
+                [cards[2], true],
+                [cards[1], false],
+            ]),
+        );
+        expect(result.current.isMounted('0')).toBe(false);
+        expect(result.current.isMounted('1')).toBe(false);
+        expect(result.current.isMounted('2')).toBe(true);
     });
 
     it('removes work when a card scrolls away and times out stalled previews', () => {

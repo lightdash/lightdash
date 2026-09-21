@@ -102,7 +102,6 @@ const ChartTypeGalleryCard: FC<Props> = ({
                             </Text>
                             <Tooltip label="Retry preview">
                                 <ActionIcon
-                                    variant="subtle"
                                     size="md"
                                     aria-label="Retry preview"
                                     onClick={(event) => {

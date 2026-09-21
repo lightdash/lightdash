@@ -78,9 +78,9 @@ const ChartTypeSamplePreview: FC<Props> = ({
         readyMetadata?.version,
         RENDER_TARGET,
     );
-    const [retryStage, setRetryStage] = useState<'metadata' | 'token' | 'done'>(
-        retryAttempt > 0 ? 'metadata' : 'done',
-    );
+    const [retryStage, setRetryStage] = useState<
+        'metadata' | 'token' | 'done' | 'failed'
+    >(retryAttempt > 0 ? 'metadata' : 'done');
 
     const previewBaseUrl =
         readyMetadata && token
@@ -107,66 +107,90 @@ const ChartTypeSamplePreview: FC<Props> = ({
             : metadataError;
     const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
 
-    useEffect(() => {
-        if (retryStage !== 'metadata') return;
+    useEffect(
+        function refreshMetadataOnRetry() {
+            if (retryStage !== 'metadata') return;
 
-        let active = true;
-        queueMicrotask(() => {
-            if (!active) return;
-            void refetchMetadata({ cancelRefetch: false }).then((result) => {
+            let active = true;
+            queueMicrotask(() => {
                 if (!active) return;
-                setRetryStage(
-                    !result.error && result.data?.state === 'ready'
-                        ? 'token'
-                        : 'done',
+                void refetchMetadata({ cancelRefetch: false }).then(
+                    (result) => {
+                        if (!active) return;
+                        setRetryStage(
+                            result.error
+                                ? 'failed'
+                                : result.data?.state === 'ready'
+                                  ? 'token'
+                                  : 'done',
+                        );
+                    },
                 );
             });
-        });
 
-        return () => {
-            active = false;
-        };
-    }, [refetchMetadata, retryStage]);
+            return () => {
+                active = false;
+            };
+        },
+        [refetchMetadata, retryStage],
+    );
 
-    useEffect(() => {
-        if (retryStage !== 'token' || !readyMetadata) return;
+    useEffect(
+        function refreshTokenOnRetry() {
+            if (retryStage !== 'token' || !readyMetadata) return;
 
-        let active = true;
-        queueMicrotask(() => {
-            if (!active) return;
-            void refetchToken({ cancelRefetch: false }).finally(() => {
-                if (active) setRetryStage('done');
+            let active = true;
+            queueMicrotask(() => {
+                if (!active) return;
+                void refetchToken({ cancelRefetch: false }).then((result) => {
+                    if (active) setRetryStage(result.error ? 'failed' : 'done');
+                });
             });
-        });
 
-        return () => {
-            active = false;
-        };
-    }, [readyMetadata, refetchToken, retryStage]);
+            return () => {
+                active = false;
+            };
+        },
+        [readyMetadata, refetchToken, retryStage],
+    );
 
-    useEffect(() => {
-        if (retryStage !== 'done' || isMetadataFetching || isTokenFetching) {
-            return;
-        }
+    useEffect(
+        function reportUnavailablePreview() {
+            if (retryStage === 'failed') {
+                onPreviewUnavailable?.();
+                return;
+            }
+            if (
+                retryStage !== 'done' ||
+                isMetadataFetching ||
+                isTokenFetching
+            ) {
+                return;
+            }
 
-        if (
-            visibleMetadataError ||
-            visibleTokenError ||
-            metadata?.state === 'unavailable' ||
-            metadata?.state === 'failed'
-        ) {
-            onPreviewUnavailable?.();
-        }
-    }, [
-        isMetadataFetching,
-        isTokenFetching,
-        metadata?.state,
-        onPreviewUnavailable,
-        retryStage,
-        visibleMetadataError,
-        visibleTokenError,
-    ]);
+            if (
+                visibleMetadataError ||
+                visibleTokenError ||
+                metadata?.state === 'unavailable' ||
+                metadata?.state === 'failed'
+            ) {
+                onPreviewUnavailable?.();
+            }
+        },
+        [
+            isMetadataFetching,
+            isTokenFetching,
+            metadata?.state,
+            onPreviewUnavailable,
+            retryStage,
+            visibleMetadataError,
+            visibleTokenError,
+        ],
+    );
 
+    if (retryStage === 'failed') {
+        return <PreviewPlaceholder message="Preview unavailable" icon={icon} />;
+    }
     if (retryStage !== 'done') {
         return <PreviewPlaceholder message="Loading preview…" icon={icon} />;
     }

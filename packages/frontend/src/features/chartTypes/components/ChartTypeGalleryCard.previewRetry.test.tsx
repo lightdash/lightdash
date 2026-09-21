@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../../api';
 import MantineProvider from '../../../providers/MantineProvider';
 import ChartTypeGalleryCard from './ChartTypeGalleryCard';
+import ChartTypeSamplePreview from './ChartTypeSamplePreview';
 import { useChartTypeGalleryPreviewScheduler } from './useChartTypeGalleryPreviewScheduler';
 
 vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
@@ -132,6 +133,71 @@ describe('ChartTypeGalleryCard preview retry', () => {
         vi.clearAllMocks();
         vi.stubGlobal('IntersectionObserver', ImmediatelyIntersectingObserver);
     });
+
+    it.each(['render-metadata', 'preview-token'])(
+        'does not remount cached credentials when retrying %s fails',
+        async (failedEndpoint) => {
+            const queryClient = new QueryClient({
+                defaultOptions: {
+                    queries: { staleTime: 30_000, retryDelay: 0 },
+                },
+            });
+            queryClient.setQueryData(
+                [
+                    'data-app-viz-render-metadata',
+                    'project-1',
+                    'viz-1',
+                    'registered',
+                    undefined,
+                    undefined,
+                    undefined,
+                ],
+                readyMetadata,
+            );
+            queryClient.setQueryData(
+                [
+                    'data-app-viz-preview-token',
+                    'project-1',
+                    'viz-1',
+                    1,
+                    'registered',
+                    undefined,
+                    undefined,
+                ],
+                'expired-token',
+            );
+            vi.mocked(lightdashApi).mockImplementation(({ url }) => {
+                if (url.endsWith(`/${failedEndpoint}`)) {
+                    return Promise.reject({
+                        status: 'error',
+                        error: {
+                            name: 'ApiError',
+                            statusCode: 500,
+                            message: 'Failed',
+                            data: {},
+                        },
+                    });
+                }
+                return Promise.resolve(readyMetadata);
+            });
+            const onPreviewUnavailable = vi.fn();
+            render(
+                <ChartTypeSamplePreview
+                    projectUuid="project-1"
+                    dataAppVizUuid="viz-1"
+                    icon={null}
+                    retryAttempt={1}
+                    onPreviewUnavailable={onPreviewUnavailable}
+                />,
+                { wrapper: createWrapper(queryClient) },
+            );
+
+            await waitFor(() =>
+                expect(onPreviewUnavailable).toHaveBeenCalled(),
+            );
+            expect(screen.queryByTitle('App preview')).not.toBeInTheDocument();
+        },
+    );
 
     it.each(['unavailable', 'failed'] as const)(
         'fetches fresh metadata and a token after a %s preview recovers',

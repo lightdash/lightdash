@@ -10,6 +10,7 @@ const DEFAULT_MAX_CONCURRENT = 4;
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 type PreviewStatus = 'idle' | 'unavailable';
+type PreviewState = 'loading' | 'loaded' | 'unavailable';
 
 type Options = {
     maxConcurrent?: number;
@@ -39,9 +40,7 @@ export const useChartTypeGalleryPreviewScheduler = ({
     const registerCallbacks = useRef(
         new Map<string, RefCallback<HTMLDivElement>>(),
     );
-    const mountedIds = useRef(new Set<string>());
-    const pendingIds = useRef(new Set<string>());
-    const unavailableIds = useRef(new Set<string>());
+    const previewStates = useRef(new Map<string, PreviewState>());
     const timeouts = useRef(new Map<string, ReturnType<typeof setTimeout>>());
     const [, setRevision] = useState(0);
 
@@ -55,22 +54,21 @@ export const useChartTypeGalleryPreviewScheduler = ({
 
     const schedule = useCallback(() => {
         let changed = false;
+        let loadingCount = [...previewStates.current.values()].filter(
+            (state) => state === 'loading',
+        ).length;
         for (const id of visibleIds.current) {
-            if (
-                pendingIds.current.size >= maxConcurrent ||
-                mountedIds.current.has(id) ||
-                unavailableIds.current.has(id)
-            ) {
+            if (loadingCount >= maxConcurrent) break;
+            if (previewStates.current.has(id)) {
                 continue;
             }
-            mountedIds.current.add(id);
-            pendingIds.current.add(id);
+            previewStates.current.set(id, 'loading');
+            loadingCount += 1;
             timeouts.current.set(
                 id,
                 setTimeout(() => {
-                    if (!pendingIds.current.delete(id)) return;
-                    mountedIds.current.delete(id);
-                    unavailableIds.current.add(id);
+                    if (previewStates.current.get(id) !== 'loading') return;
+                    previewStates.current.set(id, 'unavailable');
                     timeouts.current.delete(id);
                     rerender();
                     schedule();
@@ -85,61 +83,55 @@ export const useChartTypeGalleryPreviewScheduler = ({
         (id: string) => {
             clearTimeoutFor(id);
             const wasVisible = visibleIds.current.delete(id);
-            const wasPending = pendingIds.current.delete(id);
-            const wasMounted = mountedIds.current.delete(id);
-            const changed = wasVisible || wasPending || wasMounted;
-            if (changed) {
-                rerender();
-                schedule();
-            }
+            const state = previewStates.current.get(id);
+            if (state !== 'unavailable') previewStates.current.delete(id);
+            return wasVisible || state === 'loading' || state === 'loaded';
         },
-        [clearTimeoutFor, rerender, schedule],
+        [clearTimeoutFor],
     );
 
-    useEffect(() => {
-        if (typeof IntersectionObserver === 'undefined') return;
-        observerRef.current = new IntersectionObserver(
-            (entries) => {
-                let changed = false;
-                for (const entry of entries) {
-                    const id = [...elements.current.entries()].find(
-                        ([, element]) => element === entry.target,
-                    )?.[0];
-                    if (!id) continue;
-                    if (entry.isIntersecting) {
-                        changed = !visibleIds.current.has(id) || changed;
-                        visibleIds.current.add(id);
-                    } else {
-                        clearTimeoutFor(id);
-                        const wasVisible = visibleIds.current.delete(id);
-                        const wasPending = pendingIds.current.delete(id);
-                        const wasMounted = mountedIds.current.delete(id);
-                        changed =
-                            wasVisible || wasPending || wasMounted || changed;
+    useEffect(
+        function observeNearbyPreviews() {
+            if (typeof IntersectionObserver === 'undefined') return;
+            observerRef.current = new IntersectionObserver(
+                (entries) => {
+                    let changed = false;
+                    for (const entry of entries) {
+                        const id = [...elements.current.entries()].find(
+                            ([, element]) => element === entry.target,
+                        )?.[0];
+                        if (!id) continue;
+                        if (entry.isIntersecting) {
+                            changed = !visibleIds.current.has(id) || changed;
+                            visibleIds.current.add(id);
+                        } else {
+                            changed = stop(id) || changed;
+                        }
                     }
+                    if (changed) rerender();
+                    schedule();
+                },
+                { rootMargin: '200px 0px' },
+            );
+            const observer = observerRef.current;
+            const activeTimeouts = timeouts.current;
+            const activePreviewStates = previewStates.current;
+            const activeVisibleIds = visibleIds.current;
+            for (const element of elements.current.values())
+                observer.observe(element);
+            return () => {
+                observer.disconnect();
+                for (const timeout of activeTimeouts.values())
+                    clearTimeout(timeout);
+                activeTimeouts.clear();
+                for (const [id, state] of activePreviewStates) {
+                    if (state !== 'unavailable') activePreviewStates.delete(id);
                 }
-                if (changed) rerender();
-                schedule();
-            },
-            { rootMargin: '200px 0px' },
-        );
-        const observer = observerRef.current;
-        const activeTimeouts = timeouts.current;
-        const activePendingIds = pendingIds.current;
-        const activeMountedIds = mountedIds.current;
-        const activeVisibleIds = visibleIds.current;
-        for (const element of elements.current.values())
-            observer.observe(element);
-        return () => {
-            observer.disconnect();
-            for (const timeout of activeTimeouts.values())
-                clearTimeout(timeout);
-            activeTimeouts.clear();
-            activePendingIds.clear();
-            activeMountedIds.clear();
-            activeVisibleIds.clear();
-        };
-    }, [clearTimeoutFor, rerender, schedule]);
+                activeVisibleIds.clear();
+            };
+        },
+        [rerender, schedule, stop],
+    );
 
     const register = useCallback(
         (id: string) => {
@@ -157,18 +149,22 @@ export const useChartTypeGalleryPreviewScheduler = ({
                 } else if (registerCallbacks.current.get(id) === callback) {
                     elements.current.delete(id);
                     registerCallbacks.current.delete(id);
-                    stop(id);
+                    if (stop(id)) {
+                        rerender();
+                        schedule();
+                    }
                 }
             };
             registerCallbacks.current.set(id, callback);
             return callback;
         },
-        [stop],
+        [rerender, schedule, stop],
     );
 
     const complete = useCallback(
         (id: string) => {
-            if (!pendingIds.current.delete(id)) return;
+            if (previewStates.current.get(id) !== 'loading') return;
+            previewStates.current.set(id, 'loaded');
             clearTimeoutFor(id);
             rerender();
             schedule();
@@ -178,13 +174,15 @@ export const useChartTypeGalleryPreviewScheduler = ({
 
     const fail = useCallback(
         (id: string) => {
-            if (!visibleIds.current.has(id) || !mountedIds.current.has(id)) {
+            const state = previewStates.current.get(id);
+            if (
+                !visibleIds.current.has(id) ||
+                (state !== 'loading' && state !== 'loaded')
+            ) {
                 return;
             }
-            pendingIds.current.delete(id);
             clearTimeoutFor(id);
-            mountedIds.current.delete(id);
-            unavailableIds.current.add(id);
+            previewStates.current.set(id, 'unavailable');
             rerender();
             schedule();
         },
@@ -193,8 +191,12 @@ export const useChartTypeGalleryPreviewScheduler = ({
 
     const retry = useCallback(
         (id: string) => {
-            if (!visibleIds.current.has(id)) return;
-            unavailableIds.current.delete(id);
+            if (
+                !visibleIds.current.has(id) ||
+                previewStates.current.get(id) !== 'unavailable'
+            )
+                return;
+            previewStates.current.delete(id);
             rerender();
             schedule();
         },
@@ -203,9 +205,14 @@ export const useChartTypeGalleryPreviewScheduler = ({
 
     return {
         register,
-        isMounted: (id) => mountedIds.current.has(id),
+        isMounted: (id) => {
+            const state = previewStates.current.get(id);
+            return state === 'loading' || state === 'loaded';
+        },
         status: (id) =>
-            unavailableIds.current.has(id) ? 'unavailable' : 'idle',
+            previewStates.current.get(id) === 'unavailable'
+                ? 'unavailable'
+                : 'idle',
         complete,
         fail,
         retry,
