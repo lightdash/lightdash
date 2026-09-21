@@ -26,6 +26,9 @@ vi.mock('../logging/logger', () => ({
 
 const APP_UUID = 'd15384cb-8326-433a-a9e9-6f6bb22718f6';
 const SMALL_BODY = 'body { color: green; }';
+const PROGRESS_BODY = 'body { color: blue; }';
+const FINAL_BODY = 'body { color: purple; }';
+const TRANSFER_TIMEOUT_MS = 60_000;
 const checksum = (body: string) =>
     createHash('sha256').update(body).digest('base64');
 
@@ -43,11 +46,12 @@ describe('preview storage connection lifecycle', () => {
     let storageRequests: number;
     let storageConnections: number;
     let includeChecksum: boolean;
+    let checksumBody: string;
     let cancelOnStorageHeaders: boolean;
     let previewResponse: express.Response;
     const downloads: IncomingMessage[] = [];
 
-    const download = async (url: string) =>
+    const download = async (url: string, onData?: () => void) =>
         new Promise<{ status: number | undefined; body: string }>(
             (resolve, reject) => {
                 get(url, { agent: false }, (res) => {
@@ -55,6 +59,7 @@ describe('preview storage connection lifecycle', () => {
                     let body = '';
                     res.on('data', (chunk) => {
                         body += chunk.toString();
+                        onData?.();
                     });
                     res.on('end', () =>
                         resolve({ status: res.statusCode, body }),
@@ -74,6 +79,7 @@ describe('preview storage connection lifecycle', () => {
         storageRequests = 0;
         storageConnections = 0;
         includeChecksum = true;
+        checksumBody = SMALL_BODY;
         cancelOnStorageHeaders = false;
         storage = createServer((req, res) => {
             storageRequests += 1;
@@ -86,6 +92,7 @@ describe('preview storage connection lifecycle', () => {
                 res.end(SMALL_BODY);
                 return;
             }
+            storage.emit('preview-request');
             storageResponse = res;
             res.on('close', () => {
                 storageClosed = true;
@@ -101,7 +108,7 @@ describe('preview storage connection lifecycle', () => {
                 if (includeChecksum)
                     res.setHeader(
                         'x-amz-checksum-sha256',
-                        checksum(SMALL_BODY),
+                        checksum(checksumBody),
                     );
                 res.write(SMALL_BODY);
                 if (completeDownload) res.end();
@@ -166,6 +173,7 @@ describe('preview storage connection lifecycle', () => {
     });
 
     afterEach(async () => {
+        vi.useRealTimers();
         vi.restoreAllMocks();
         downloads.splice(0).forEach((res) => res.destroy());
         client.destroy();
@@ -186,6 +194,42 @@ describe('preview storage connection lifecycle', () => {
         expect(result).toEqual({ status: 200, body: SMALL_BODY });
         expect(Object.values(agent.requests).flat()).toHaveLength(0);
     };
+
+    const useFakeTransferClock = () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        vi.spyOn(AbortSignal, 'timeout').mockImplementation((delay) => {
+            const controller = new AbortController();
+            setTimeout(() => controller.abort(), delay);
+            return controller.signal;
+        });
+    };
+
+    const trackDownloadProgress = () => {
+        let chunks = 0;
+        const waiters: { count: number; resolve: () => void }[] = [];
+
+        return {
+            onData: () => {
+                chunks += 1;
+                waiters
+                    .filter(({ count }) => chunks >= count)
+                    .forEach(({ resolve }) => resolve());
+            },
+            waitForChunk: (count: number) => {
+                if (chunks >= count) return Promise.resolve();
+                return new Promise<void>((resolve) => {
+                    waiters.push({ count, resolve });
+                });
+            },
+        };
+    };
+
+    const waitForClose = (stream: {
+        once: (event: 'close', listener: () => void) => unknown;
+    }) =>
+        new Promise<void>((resolve) => {
+            stream.once('close', resolve);
+        });
 
     describe.each(['', 'assets/chart.js'])('route %j', (route) => {
         it('releases the storage socket when the browser cancels a checksum-wrapped download', async () => {
@@ -258,26 +302,100 @@ describe('preview storage connection lifecycle', () => {
             await expectNextDownload();
         });
 
-        it('bounds a stalled checksum-wrapped stream and frees its storage connection', async () => {
-            const timeout = new AbortController();
-            vi.spyOn(AbortSignal, 'timeout').mockReturnValue(timeout.signal);
-            const response = await new Promise<IncomingMessage>(
+        it('renews the timeout on progress, then frees a stalled checksum-wrapped download', async () => {
+            useFakeTransferClock();
+            const progress = trackDownloadProgress();
+            const responsePromise = new Promise<IncomingMessage>(
                 (resolve, reject) => {
-                    get(`${baseUrl}${route}`, { agent: false }, resolve).on(
-                        'error',
-                        reject,
-                    );
+                    get(`${baseUrl}${route}`, { agent: false }, (response) => {
+                        downloads.push(response);
+                        response.on('data', progress.onData);
+                        response.on('error', () => {});
+                        resolve(response);
+                    }).on('error', reject);
                 },
             );
-            downloads.push(response);
-            response.on('error', () => {});
-            await once(response, 'data');
-            timeout.abort();
+            const response = await responsePromise;
+            await progress.waitForChunk(1);
 
-            await vi.waitFor(() => expect(response.destroyed).toBe(true));
-            await vi.waitFor(() => expect(storageClosed).toBe(true));
-            vi.restoreAllMocks();
+            await vi.advanceTimersByTimeAsync(TRANSFER_TIMEOUT_MS - 1);
+            const secondChunk = progress.waitForChunk(2);
+            storageResponse!.write(PROGRESS_BODY);
+            await secondChunk;
+
+            await vi.advanceTimersByTimeAsync(TRANSFER_TIMEOUT_MS - 1);
+            expect(response.destroyed).toBe(false);
+            expect(storageClosed).toBe(false);
+
+            const responseClosed = waitForClose(response);
+            const storageClose = waitForClose(storageResponse!);
+            await vi.advanceTimersByTimeAsync(1);
+            await Promise.all([responseClosed, storageClose]);
+
+            expect(response.destroyed).toBe(true);
+            expect(storageClosed).toBe(true);
+            expect(Logger.warn).toHaveBeenCalledWith(
+                'App bundle transfer timed out',
+            );
             await expectNextDownload();
+            expect(vi.getTimerCount()).toBe(0);
+        });
+
+        it('allows a checksum-wrapped download to keep progressing for longer than the timeout', async () => {
+            useFakeTransferClock();
+            checksumBody = SMALL_BODY + PROGRESS_BODY + FINAL_BODY;
+            const progress = trackDownloadProgress();
+            const resultPromise = download(
+                `${baseUrl}${route}`,
+                progress.onData,
+            );
+            await progress.waitForChunk(1);
+
+            await vi.advanceTimersByTimeAsync(TRANSFER_TIMEOUT_MS - 1);
+            const secondChunk = progress.waitForChunk(2);
+            storageResponse!.write(PROGRESS_BODY);
+            await secondChunk;
+
+            await vi.advanceTimersByTimeAsync(TRANSFER_TIMEOUT_MS - 1);
+            const thirdChunk = progress.waitForChunk(3);
+            storageResponse!.end(FINAL_BODY);
+            await thirdChunk;
+
+            await expect(resultPromise).resolves.toEqual({
+                status: 200,
+                body: checksumBody,
+            });
+            expect(Logger.warn).not.toHaveBeenCalled();
+            await expectNextDownload();
+            expect(storageConnections).toBe(1);
+            expect(vi.getTimerCount()).toBe(0);
+        });
+
+        it('times out while waiting for initial storage headers', async () => {
+            useFakeTransferClock();
+            sendHeaders = false;
+            const storageRequest = once(storage, 'preview-request');
+            const resultPromise = download(`${baseUrl}${route}`);
+            await storageRequest;
+            const storageClose = waitForClose(storageResponse!);
+
+            await vi.advanceTimersByTimeAsync(TRANSFER_TIMEOUT_MS);
+
+            await expect(resultPromise).resolves.toEqual({
+                status: 504,
+                body: JSON.stringify({
+                    status: 'error',
+                    error: { message: 'App bundle transfer timed out' },
+                }),
+            });
+            await storageClose;
+            expect(storageClosed).toBe(true);
+            expect(Logger.warn).toHaveBeenCalledWith(
+                'App bundle transfer timed out',
+            );
+            sendHeaders = true;
+            await expectNextDownload();
+            expect(vi.getTimerCount()).toBe(0);
         });
 
         it('keeps the existing missing-object response', async () => {

@@ -1,6 +1,6 @@
 import { type ChartTypeIcon } from '@lightdash/common';
 import { Box, Stack, Text } from '@mantine/core';
-import { useEffect, useMemo, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import { useResizeObserver } from '../../../hooks/useResizeObserver';
@@ -42,6 +42,7 @@ type Props = {
     projectUuid: string;
     dataAppVizUuid: string;
     icon: ChartTypeIcon | null;
+    retryAttempt?: number;
     onPreviewLoad?: () => void;
     onPreviewUnavailable?: () => void;
 };
@@ -54,18 +55,31 @@ const ChartTypeSamplePreview: FC<Props> = ({
     projectUuid,
     dataAppVizUuid,
     icon,
+    retryAttempt = 0,
     onPreviewLoad,
     onPreviewUnavailable,
 }) => {
     const previewOrigin = usePreviewOrigin();
-    const { data: metadata, error: metadataError } =
-        useDataAppVizRenderMetadata(projectUuid, dataAppVizUuid, RENDER_TARGET);
+    const {
+        data: metadata,
+        error: metadataError,
+        isFetching: isMetadataFetching,
+        refetch: refetchMetadata,
+    } = useDataAppVizRenderMetadata(projectUuid, dataAppVizUuid, RENDER_TARGET);
     const readyMetadata = metadata?.state === 'ready' ? metadata : undefined;
-    const { data: token, error: tokenError } = useDataAppVizPreviewToken(
+    const {
+        data: token,
+        error: tokenError,
+        isFetching: isTokenFetching,
+        refetch: refetchToken,
+    } = useDataAppVizPreviewToken(
         projectUuid,
         dataAppVizUuid,
         readyMetadata?.version,
         RENDER_TARGET,
+    );
+    const [retryStage, setRetryStage] = useState<'metadata' | 'token' | 'done'>(
+        retryAttempt > 0 ? 'metadata' : 'done',
     );
 
     const previewBaseUrl =
@@ -94,6 +108,47 @@ const ChartTypeSamplePreview: FC<Props> = ({
     const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
 
     useEffect(() => {
+        if (retryStage !== 'metadata') return;
+
+        let active = true;
+        queueMicrotask(() => {
+            if (!active) return;
+            void refetchMetadata({ cancelRefetch: false }).then((result) => {
+                if (!active) return;
+                setRetryStage(
+                    !result.error && result.data?.state === 'ready'
+                        ? 'token'
+                        : 'done',
+                );
+            });
+        });
+
+        return () => {
+            active = false;
+        };
+    }, [refetchMetadata, retryStage]);
+
+    useEffect(() => {
+        if (retryStage !== 'token' || !readyMetadata) return;
+
+        let active = true;
+        queueMicrotask(() => {
+            if (!active) return;
+            void refetchToken({ cancelRefetch: false }).finally(() => {
+                if (active) setRetryStage('done');
+            });
+        });
+
+        return () => {
+            active = false;
+        };
+    }, [readyMetadata, refetchToken, retryStage]);
+
+    useEffect(() => {
+        if (retryStage !== 'done' || isMetadataFetching || isTokenFetching) {
+            return;
+        }
+
         if (
             visibleMetadataError ||
             visibleTokenError ||
@@ -103,8 +158,11 @@ const ChartTypeSamplePreview: FC<Props> = ({
             onPreviewUnavailable?.();
         }
     }, [
+        isMetadataFetching,
+        isTokenFetching,
         metadata?.state,
         onPreviewUnavailable,
+        retryStage,
         visibleMetadataError,
         visibleTokenError,
     ]);

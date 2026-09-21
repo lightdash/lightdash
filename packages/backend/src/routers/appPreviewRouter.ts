@@ -1,6 +1,6 @@
 import { GetObjectCommand, S3ServiceException } from '@aws-sdk/client-s3';
 import express, { type Router } from 'express';
-import { type Readable } from 'node:stream';
+import { Transform, type Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import path from 'path';
 import { validate as isValidUuid } from 'uuid';
@@ -223,15 +223,23 @@ export const createAppPreviewRouter = (
         prepareResponse: () => void,
     ): Promise<void> => {
         const controller = new AbortController();
-        const timeout = AbortSignal.timeout(PREVIEW_TRANSFER_TIMEOUT_MS);
-        const signal = AbortSignal.any([controller.signal, timeout]);
+        let transferTimeout: ReturnType<typeof setTimeout> | undefined;
+        let transferTimedOut = false;
+        const resetTransferTimeout = () => {
+            if (transferTimeout) clearTimeout(transferTimeout);
+            transferTimeout = setTimeout(() => {
+                transferTimedOut = true;
+                controller.abort();
+            }, PREVIEW_TRANSFER_TIMEOUT_MS);
+        };
         const cancel = () => {
             if (!res.writableFinished) controller.abort();
         };
         res.once('close', cancel);
 
         try {
-            const result = await fetchFromS3(s3Key, signal);
+            resetTransferTimeout();
+            const result = await fetchFromS3(s3Key, controller.signal);
             if (!result.ok) {
                 if (!res.destroyed) {
                     res.status(result.status).json({
@@ -247,10 +255,19 @@ export const createAppPreviewRouter = (
                 return;
             }
 
+            resetTransferTimeout();
             prepareResponse();
-            await pipeline(result.body, res, { signal });
+            const monitorProgress = new Transform({
+                transform(chunk, encoding, callback) {
+                    resetTransferTimeout();
+                    callback(null, chunk);
+                },
+            });
+            await pipeline(result.body, monitorProgress, res, {
+                signal: controller.signal,
+            });
         } catch (error) {
-            if (timeout.aborted) {
+            if (transferTimedOut) {
                 Logger.warn('App bundle transfer timed out');
                 if (!res.headersSent && !res.destroyed) {
                     res.status(504).json({
@@ -268,6 +285,7 @@ export const createAppPreviewRouter = (
             controller.abort();
             res.destroy();
         } finally {
+            if (transferTimeout) clearTimeout(transferTimeout);
             res.removeListener('close', cancel);
         }
     };

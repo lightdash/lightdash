@@ -73,6 +73,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
         true;
     const isOfficial = isOfficialChartType(dataAppViz);
     const [isForkOpen, setIsForkOpen] = useState(false);
+    const [previewRetryAttempt, setPreviewRetryAttempt] = useState(0);
     const displayName = getAppDisplayName(
         dataAppViz.name,
         dataAppViz.dataAppVizUuid,
@@ -90,7 +91,12 @@ const ChartTypeGalleryCard: FC<Props> = ({
             >
                 <Box ref={previewRef} className={classes.preview}>
                     {previewUnavailable ? (
-                        <Stack align="center" justify="center" gap={4} h="100%">
+                        <Stack
+                            align="center"
+                            justify="center"
+                            gap="xs"
+                            h="100%"
+                        >
                             <Text c="dimmed" size="xs">
                                 Preview unavailable
                             </Text>
@@ -101,6 +107,9 @@ const ChartTypeGalleryCard: FC<Props> = ({
                                     aria-label="Retry preview"
                                     onClick={(event) => {
                                         event.stopPropagation();
+                                        setPreviewRetryAttempt(
+                                            (attempt) => attempt + 1,
+                                        );
                                         onRetryPreview();
                                     }}
                                 >
@@ -113,6 +122,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
                             projectUuid={dataAppViz.projectUuid}
                             dataAppVizUuid={dataAppViz.dataAppVizUuid}
                             icon={dataAppViz.icon}
+                            retryAttempt={previewRetryAttempt}
                             onPreviewLoad={onPreviewLoad}
                             onPreviewUnavailable={onPreviewUnavailable}
                         />
