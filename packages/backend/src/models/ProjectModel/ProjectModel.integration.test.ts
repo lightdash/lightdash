@@ -1,10 +1,12 @@
 import { ExploreType } from '@lightdash/common';
+import { trace } from '@opentelemetry/api';
 import { type Knex } from 'knex';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import {
     CachedExploreTableName,
     type CachedExploreTable,
 } from '../../database/entities/projects';
+import Logger from '../../logging/logger';
 import { getTestContext } from '../../vitest.setup.integration';
 import { ProjectModel } from './ProjectModel';
 import { encryptionUtilMock } from './ProjectModel.mock';
@@ -333,5 +335,50 @@ describe('ProjectModel cached explore summary projection', () => {
             `);
             expect(Number(stats.rows[0]?.calls)).toBe(2);
         });
+    });
+});
+
+describe('ProjectModel cached explore read metrics', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+        vi.unstubAllEnvs();
+    });
+
+    test('records getAllExploreSummaries through the Knex hook', async () => {
+        const { app, testProjectUuid } = getTestContext();
+        vi.spyOn(Logger, 'info');
+        const loggerInfo = vi.mocked(Logger.info);
+        const caller = 'ProjectModel.getAllExploreSummaries.integration';
+        vi.stubEnv('LIGHTDASH_OTEL_TRACES_ENABLED', 'true');
+        vi.spyOn(trace, 'getActiveSpan').mockReturnValue({
+            name: caller,
+            spanContext: () => ({
+                traceId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+                spanId: 'bbbbbbbbbbbbbbbb',
+                traceFlags: 1,
+            }),
+        } as never);
+
+        await app
+            .getModels()
+            .getProjectModel()
+            .getAllExploreSummaries(testProjectUuid);
+
+        expect(loggerInfo).toHaveBeenCalledWith(
+            expect.stringMatching(
+                /Knex\.cachedExploreRead - operation completed in \d+\.\d{2}ms/u,
+            ),
+            expect.objectContaining({
+                name: 'Knex.cachedExploreRead',
+                duration: expect.any(Number),
+                context: expect.objectContaining({
+                    source: 'knex',
+                    caller,
+                    outcome: 'success',
+                    returnedRowCount: expect.any(Number),
+                }),
+                serverVersion: expect.any(String),
+            }),
+        );
     });
 });

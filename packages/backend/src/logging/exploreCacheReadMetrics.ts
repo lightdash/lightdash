@@ -1,4 +1,146 @@
 import { type Explore } from '@lightdash/common';
+import { type Knex } from 'knex';
+import { CachedExploreTableName } from '../database/entities/projects';
+import { getActiveSpanName } from '../tracing/tracing';
+import { VERSION } from '../version';
+import Logger from './logger';
+
+const EXPLORE_CACHE_READ_METRICS_ENV_VAR =
+    'LIGHTDASH_EXPLORE_CACHE_READ_METRICS_ENABLED';
+
+type KnexQueryEvent = {
+    __knexQueryUid?: string;
+    sql?: string;
+};
+
+type PendingExploreCacheRead = {
+    caller: string | null;
+    startedAt: number;
+};
+
+type ExploreCacheReadMetricDependencies = {
+    getCaller: () => string | undefined;
+    log: (
+        message: string,
+        metadata: {
+            name: string;
+            duration: number;
+            context: Record<string, unknown>;
+            serverVersion: string;
+        },
+    ) => void;
+    now: () => number;
+};
+
+const isIdentifierCharacter = (character: string | undefined): boolean =>
+    character !== undefined && /[A-Za-z0-9_$]/u.test(character);
+
+export const isCachedExploreStatement = (sql: unknown): boolean => {
+    if (typeof sql !== 'string') return false;
+
+    let tableNameIndex = sql.indexOf(CachedExploreTableName);
+    while (tableNameIndex !== -1) {
+        const before = sql[tableNameIndex - 1];
+        const after = sql[tableNameIndex + CachedExploreTableName.length];
+        if (!isIdentifierCharacter(before) && !isIdentifierCharacter(after)) {
+            return true;
+        }
+        tableNameIndex = sql.indexOf(
+            CachedExploreTableName,
+            tableNameIndex + CachedExploreTableName.length,
+        );
+    }
+
+    return false;
+};
+
+const getReturnedRowCount = (response: unknown): number | undefined => {
+    if (Array.isArray(response)) return response.length;
+    if (typeof response !== 'object' || response === null) return undefined;
+
+    if (
+        'rowCount' in response &&
+        typeof response.rowCount === 'number' &&
+        Number.isFinite(response.rowCount)
+    ) {
+        return response.rowCount;
+    }
+    if ('rows' in response && Array.isArray(response.rows)) {
+        return response.rows.length;
+    }
+    return undefined;
+};
+
+export const attachExploreCacheReadMetrics = (
+    database: Knex,
+    {
+        getCaller = getActiveSpanName,
+        log = (message, metadata) => Logger.info(message, metadata),
+        now = () => performance.now(),
+    }: Partial<ExploreCacheReadMetricDependencies> = {},
+): void => {
+    if (process.env[EXPLORE_CACHE_READ_METRICS_ENV_VAR] === 'false') return;
+
+    const pendingReads = new Map<string, PendingExploreCacheRead>();
+
+    database.on('query', (query: KnexQueryEvent) => {
+        try {
+            if (!isCachedExploreStatement(query.sql) || !query.__knexQueryUid) {
+                return;
+            }
+            pendingReads.set(query.__knexQueryUid, {
+                caller: getCaller() ?? null,
+                startedAt: now(),
+            });
+        } catch {
+            return;
+        }
+    });
+
+    const emitMetric = (
+        query: KnexQueryEvent,
+        outcome: 'success' | 'error',
+        response?: unknown,
+    ) => {
+        if (!query.__knexQueryUid) return;
+
+        const pendingRead = pendingReads.get(query.__knexQueryUid);
+        if (!pendingRead) return;
+        pendingReads.delete(query.__knexQueryUid);
+
+        const duration = now() - pendingRead.startedAt;
+        const name = 'Knex.cachedExploreRead';
+        const context = {
+            source: 'knex',
+            caller: pendingRead.caller,
+            outcome,
+            returnedRowCount: getReturnedRowCount(response),
+            serverVersion: String(VERSION),
+        };
+        try {
+            log(
+                `${name} - operation completed in ${duration.toFixed(
+                    2,
+                )}ms - Context: ${JSON.stringify(context)}`,
+                {
+                    name,
+                    duration,
+                    context,
+                    serverVersion: String(VERSION),
+                },
+            );
+        } catch {
+            return;
+        }
+    };
+
+    database.on('query-response', (response: unknown, query: KnexQueryEvent) =>
+        emitMetric(query, 'success', response),
+    );
+    database.on('query-error', (_error: unknown, query: KnexQueryEvent) =>
+        emitMetric(query, 'error'),
+    );
+};
 
 const isExploreCacheReadStorageBytesEnabled = () =>
     process.env.LIGHTDASH_EXPLORE_CACHE_READ_STORAGE_BYTES !== 'false';

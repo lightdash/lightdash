@@ -4,7 +4,7 @@ import { MotherduckInstanceCache } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import express from 'express';
 import http from 'http';
-import knex, { Knex } from 'knex';
+import { Knex } from 'knex';
 import { registerAiUsageTracker } from './analytics/aiUsage';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
@@ -18,6 +18,7 @@ import {
 } from './clients/ClientRepository';
 import { type NatsClient } from './clients/NatsClient';
 import { LightdashConfig } from './config/parseConfig';
+import { createDatabase } from './database/createDatabase';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { STREAM_CONFIGS, type NatsWorkerStream } from './nats/natsConfig';
@@ -136,7 +137,7 @@ export default class NatsWorkerApp {
         });
         registerAiUsageTracker((event) => this.analytics.track(event));
 
-        this.database = knex(
+        this.database = createDatabase(
             this.environment === 'production'
                 ? args.knexConfig.production
                 : args.knexConfig.development,
