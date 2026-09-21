@@ -1,3 +1,10 @@
+## [2.274.2](https://github.com/lightdash/lightdash/compare/2.274.1...2.274.2) (2026-09-21)
+
+
+### Bug Fixes
+
+* support workload identity in analytics storage access ([#29642](https://github.com/lightdash/lightdash/issues/29642)) ([63841ba](https://github.com/lightdash/lightdash/commit/63841ba35e4fdcea4ca9cb6712bd2450a62bed84)), closes [#29641](https://github.com/lightdash/lightdash/issues/29641) [#29641](https://github.com/lightdash/lightdash/issues/29641) [#29641](https://github.com/lightdash/lightdash/issues/29641)
+
 ## [2.274.1](https://github.com/lightdash/lightdash/compare/2.274.0...2.274.1) (2026-09-21)
 
 
