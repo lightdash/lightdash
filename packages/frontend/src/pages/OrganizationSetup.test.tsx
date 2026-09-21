@@ -13,6 +13,21 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
 
+const toasterMocks = vi.hoisted(() => ({
+    showToastApiError: vi.fn(),
+    showToastSuccess: vi.fn(),
+    showToastError: vi.fn(),
+    showToastInfo: vi.fn(),
+    showToastWarning: vi.fn(),
+    addToastError: vi.fn(),
+}));
+
+vi.mock('../hooks/toaster/useToaster', () => ({
+    default: () => toasterMocks,
+}));
+
+const INVALID_NAME_MESSAGE = 'letters, numbers, spaces, underscores or dashes';
+
 const renderSetupPage = (
     mocks?: Parameters<typeof renderWithProviders>[1],
     initialEntry = '/organization-setup',
@@ -51,6 +66,7 @@ const selectRole = async (user: ReturnType<typeof userEvent.setup>) => {
 
 describe('OrganizationSetup', () => {
     beforeEach(() => {
+        Object.values(toasterMocks).forEach((mock) => mock.mockReset());
         vi.mocked(useServerFeatureFlag).mockReturnValue({
             data: { id: 'organization-setup-page', enabled: true },
             isLoading: false,
@@ -259,6 +275,187 @@ describe('OrganizationSetup', () => {
             ).toBeInTheDocument(),
         );
         expect(completionRequestCount).toBe(0);
+    });
+
+    it('shows the organization name error on step 1 when Continue is clicked with an invalid name', async () => {
+        const user = userEvent.setup();
+
+        mockOrgApi('');
+        renderSetupPage({
+            user: {
+                isSetupComplete: false,
+                organizationName: '',
+                email: 'demo@lightdash.com',
+            },
+            health: {
+                mode: LightdashMode.DEFAULT,
+            },
+        });
+
+        const nameInput = await screen.findByPlaceholderText('Acme Analytics');
+        await user.clear(nameInput);
+        await user.type(nameInput, 'Acme Inc.');
+
+        let completionRequestCount = 0;
+        nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete')
+            .optionally()
+            .reply(() => {
+                completionRequestCount += 1;
+                return [200];
+            });
+
+        await user.click(
+            await screen.findByRole('button', { name: 'Continue' }),
+        );
+
+        await waitFor(() =>
+            expect(
+                screen.getByText((content) =>
+                    content.includes(INVALID_NAME_MESSAGE),
+                ),
+            ).toBeInTheDocument(),
+        );
+        expect(
+            screen.queryByPlaceholderText('Select your role'),
+        ).not.toBeInTheDocument();
+        expect(completionRequestCount).toBe(0);
+    });
+
+    it('returns to step 1 with the error when Finish fails validation on the organization name', async () => {
+        const user = userEvent.setup();
+
+        let releaseBrand: () => void = () => {};
+        const brandReady = new Promise<void>((resolve) => {
+            releaseBrand = resolve;
+        });
+
+        mockOrgApi('');
+        nock(BASE_API_URL)
+            .post('/api/v1/org/brand/fetch')
+            .reply(200, async () => {
+                await brandReady;
+                return {
+                    status: 'ok',
+                    results: {
+                        organizationUuid: 'org-uuid',
+                        domain: 'lightdash.com',
+                        name: 'Acme Inc.',
+                        description: null,
+                        logos: [],
+                        colors: [],
+                        fonts: [],
+                        updatedAt: new Date().toISOString(),
+                    },
+                };
+            });
+
+        renderSetupPage({
+            user: {
+                isSetupComplete: false,
+                organizationName: '',
+                email: 'demo@lightdash.com',
+            },
+            health: {
+                mode: LightdashMode.DEFAULT,
+                hasBrandfetch: true,
+            },
+        });
+
+        await screen.findByPlaceholderText('Acme Analytics');
+        await user.click(
+            await screen.findByRole('button', { name: 'Continue' }),
+        );
+
+        await screen.findByPlaceholderText('Select your role');
+        await selectRole(user);
+
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        await user.type(referralInput, 'a podcast');
+
+        releaseBrand();
+        await screen.findByText('lightdash.com');
+
+        let completionRequestCount = 0;
+        nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete')
+            .optionally()
+            .reply(() => {
+                completionRequestCount += 1;
+                return [200];
+            });
+
+        await user.click(await screen.findByRole('button', { name: 'Finish' }));
+
+        const nameInput = await screen.findByPlaceholderText('Acme Analytics');
+        expect(nameInput).toHaveValue('Acme Inc.');
+        expect(
+            screen.getByText((content) =>
+                content.includes(INVALID_NAME_MESSAGE),
+            ),
+        ).toBeInTheDocument();
+        expect(completionRequestCount).toBe(0);
+    });
+
+    it('shows an error toast when completing setup fails', async () => {
+        const user = userEvent.setup();
+
+        mockOrgApi('');
+        renderSetupPage({
+            user: {
+                isSetupComplete: false,
+                organizationName: '',
+                email: 'demo@lightdash.com',
+            },
+            health: {
+                mode: LightdashMode.DEFAULT,
+            },
+        });
+
+        const nameInput = await screen.findByPlaceholderText('Acme Analytics');
+        await user.clear(nameInput);
+        await user.type(nameInput, 'test organization');
+        await user.click(
+            await screen.findByRole('button', { name: 'Continue' }),
+        );
+
+        await screen.findByPlaceholderText('Select your role');
+        await selectRole(user);
+
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        await user.type(referralInput, 'a podcast');
+
+        const scope = nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete')
+            .reply(400, {
+                status: 'error',
+                error: {
+                    name: 'ParameterError',
+                    statusCode: 400,
+                    message:
+                        'Organization name can be composed only of letters, numbers, spaces, underscores or dashes, and not be empty',
+                    data: {},
+                },
+            });
+        nock(BASE_API_URL)
+            .put('/api/v1/org/brand', () => true)
+            .optionally()
+            .reply(200, { status: 'ok', results: null });
+
+        await user.click(await screen.findByRole('button', { name: 'Finish' }));
+
+        await waitFor(() => expect(scope.isDone()).toBe(true));
+        await waitFor(() =>
+            expect(toasterMocks.showToastApiError).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    title: 'Failed to complete setup',
+                }),
+            ),
+        );
     });
 
     it('redirects to the redirect target when setup is already complete', async () => {
