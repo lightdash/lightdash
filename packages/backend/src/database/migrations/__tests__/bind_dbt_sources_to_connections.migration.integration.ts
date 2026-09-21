@@ -1,7 +1,10 @@
 import { DbtProjectType } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
-import { down, up } from '../20260918110000_bind_dbt_sources_to_connections';
+import {
+    down as expandDown,
+    up as expandUp,
+} from '../20260918110000_bind_dbt_sources_to_connections';
 
 describe('dbt source connection binding migration', () => {
     let admin: Knex;
@@ -16,7 +19,6 @@ describe('dbt source connection binding migration', () => {
     const emptySourceUuid = randomUUID();
     const primaryConnectionUuid = randomUUID();
     const existingConnectionUuid = randomUUID();
-    const emptyConnectionUuid = randomUUID();
     const additionalConnectionUuid = randomUUID();
     const thirdConnectionUuid = randomUUID();
     const additionalSourceUuid = randomUUID();
@@ -130,21 +132,28 @@ describe('dbt source connection binding migration', () => {
                     project_id: projectIds[existingProjectUuid],
                     warehouse_credentials_uuid: existingConnectionUuid,
                 },
-                {
-                    project_id: projectIds[emptyProjectUuid],
-                    warehouse_credentials_uuid: emptyConnectionUuid,
-                },
             ],
         );
-        await database<Record<string, unknown>>('project_dbt_sources').insert({
-            project_dbt_source_uuid: additionalSourceUuid,
-            project_uuid: existingProjectUuid,
-            name: 'finance',
-            is_primary: false,
-            precedence: 1,
-            dbt_connection_type: DbtProjectType.GITHUB,
-            dbt_connection: Buffer.from('finance-ciphertext'),
-        });
+        await database<Record<string, unknown>>('project_dbt_sources').insert([
+            {
+                project_dbt_source_uuid: additionalSourceUuid,
+                project_uuid: existingProjectUuid,
+                name: 'finance',
+                is_primary: false,
+                precedence: 1,
+                dbt_connection_type: DbtProjectType.GITHUB,
+                dbt_connection: Buffer.from('finance-ciphertext'),
+            },
+            {
+                project_dbt_source_uuid: emptySourceUuid,
+                project_uuid: emptyProjectUuid,
+                name: 'unbound',
+                is_primary: false,
+                precedence: 1,
+                dbt_connection_type: DbtProjectType.GITHUB,
+                dbt_connection: Buffer.from('unbound-ciphertext'),
+            },
+        ]);
     });
 
     afterAll(async () => {
@@ -153,14 +162,14 @@ describe('dbt source connection binding migration', () => {
         await admin.destroy();
     });
 
-    test('materialises primary rows and survives repeated up after down for a multi-connection project', async () => {
-        await up(database);
+    test('expands nullable bindings and survives repeated up after down for a multi-connection project', async () => {
+        await expandUp(database);
 
         const firstRows = await database('project_dbt_sources')
             .select('*')
             .orderBy('project_uuid')
             .orderBy('precedence');
-        expect(firstRows).toHaveLength(3);
+        expect(firstRows).toHaveLength(4);
         expect(
             firstRows.find(
                 ({ project_dbt_source_uuid: uuid }) =>
@@ -187,10 +196,25 @@ describe('dbt source connection binding migration', () => {
             is_primary: false,
         });
         expect(
-            firstRows.some(
-                ({ project_uuid: uuid }) => uuid === emptyProjectUuid,
+            firstRows.find(
+                ({ project_dbt_source_uuid: uuid }) => uuid === emptySourceUuid,
             ),
-        ).toBe(false);
+        ).toMatchObject({
+            project_uuid: emptyProjectUuid,
+            connection_uuid: null,
+            namespace_prefix: 'unbound',
+            is_primary: false,
+        });
+        const [{ is_nullable: isNullable }] = await database(
+            'information_schema.columns',
+        )
+            .select('is_nullable')
+            .where({
+                table_schema: schema,
+                table_name: 'project_dbt_sources',
+                column_name: 'connection_uuid',
+            });
+        expect(isNullable).toBe('YES');
 
         const [{ project_id: primaryProjectId }] = await database('projects')
             .select('project_id')
@@ -208,7 +232,7 @@ describe('dbt source connection binding migration', () => {
             ],
         );
 
-        await down(database);
+        await expandDown(database);
         expect(
             await database.schema.hasColumn(
                 'project_dbt_sources',
@@ -225,10 +249,10 @@ describe('dbt source connection binding migration', () => {
             namespace_prefix: '',
         });
 
-        await up(database);
-        await up(database);
+        await expandUp(database);
+        await expandUp(database);
         const secondRows = await database('project_dbt_sources').select('*');
-        expect(secondRows).toHaveLength(3);
+        expect(secondRows).toHaveLength(4);
         expect(
             secondRows.filter(({ is_primary: isPrimary }) => isPrimary),
         ).toHaveLength(2);

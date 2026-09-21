@@ -4,16 +4,12 @@ export const config = { transaction: false };
 
 export const classification = {
     kind: 'safe',
-    reason: 'Adds source and content bindings, backfills them in batches, and validates the required source binding before enforcing it.',
+    reason: 'Adds nullable source bindings, backfills them in batches, and leaves enforcement for a later release.',
 } as const;
 
 const BATCH_SIZE = 10000;
-const SOURCE_CONNECTION_CHECK = 'project_dbt_sources_connection_uuid_not_null';
 
 const report = (message: string) => process.stdout.write(`${message}\n`);
-
-const runDdl = async (knex: Knex, connection: unknown, sql: string) =>
-    knex.raw(sql).connection(connection);
 
 const createSourceConnectionIndex = async (knex: Knex, connection: unknown) => {
     const invalid = await knex
@@ -221,31 +217,6 @@ export async function up(knex: Knex): Promise<void> {
             )
             .connection(connection);
 
-        await knex
-            .raw(
-                `DO $$ BEGIN
-                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = '${SOURCE_CONNECTION_CHECK}' AND conrelid = 'project_dbt_sources'::regclass) THEN
-                        ALTER TABLE project_dbt_sources ADD CONSTRAINT ${SOURCE_CONNECTION_CHECK} CHECK (connection_uuid IS NOT NULL) NOT VALID;
-                    END IF;
-                END $$`,
-            )
-            .connection(connection);
-        await knex
-            .raw(
-                `ALTER TABLE project_dbt_sources VALIDATE CONSTRAINT ${SOURCE_CONNECTION_CHECK}`,
-            )
-            .connection(connection);
-        await runDdl(
-            knex,
-            connection,
-            'ALTER TABLE project_dbt_sources ALTER COLUMN connection_uuid SET NOT NULL',
-        );
-        await knex
-            .raw(
-                `ALTER TABLE project_dbt_sources DROP CONSTRAINT IF EXISTS ${SOURCE_CONNECTION_CHECK}`,
-            )
-            .connection(connection);
-
         await createSourceConnectionIndex(knex, connection);
     } finally {
         try {
@@ -270,23 +241,7 @@ export async function down(knex: Knex): Promise<void> {
         await knex
             .raw(
                 `ALTER TABLE project_dbt_sources
-                 DROP CONSTRAINT IF EXISTS ${SOURCE_CONNECTION_CHECK},
                  DROP CONSTRAINT IF EXISTS project_dbt_sources_connection_uuid_fkey`,
-            )
-            .connection(connection);
-        await knex
-            .raw(
-                `DO $$ BEGIN
-                    IF EXISTS (
-                        SELECT 1
-                        FROM information_schema.columns
-                        WHERE table_schema = current_schema()
-                          AND table_name = 'project_dbt_sources'
-                          AND column_name = 'connection_uuid'
-                    ) THEN
-                        ALTER TABLE project_dbt_sources ALTER COLUMN connection_uuid DROP NOT NULL;
-                    END IF;
-                END $$`,
             )
             .connection(connection);
     } finally {
