@@ -299,35 +299,20 @@ describe('shouldCompactCodingAgentSession', () => {
         kind: 'resume',
         sessionId: 'session-1',
     };
-    const HOUR_MS = 60 * 60 * 1000;
     const decide = (over: Partial<CodingAgentCompactionInput>) =>
         shouldCompactCodingAgentSession({
             start: RESUME,
-            msSincePreviousVersion: HOUR_MS + 1,
             contextTokensPerTurn: 250_000,
             thresholdTokens: 200_000,
             ...over,
         });
 
-    it('compacts a big session picked up after a long break', () => {
+    it('compacts a big session it picks up', () => {
         expect(decide({})).toBe(true);
     });
 
-    it('does not compact between rapid follow-up prompts', () => {
-        expect(decide({ msSincePreviousVersion: 5 * 60 * 1000 })).toBe(false);
-    });
-
-    it('does not compact a small session however long the break', () => {
-        expect(
-            decide({
-                msSincePreviousVersion: 30 * HOUR_MS,
-                contextTokensPerTurn: 40_000,
-            }),
-        ).toBe(false);
-    });
-
-    it('treats exactly one hour as still warm', () => {
-        expect(decide({ msSincePreviousVersion: HOUR_MS })).toBe(false);
+    it('does not compact a small session', () => {
+        expect(decide({ contextTokensPerTurn: 40_000 })).toBe(false);
     });
 
     it('treats exactly the threshold as big enough', () => {
@@ -337,10 +322,6 @@ describe('shouldCompactCodingAgentSession', () => {
 
     it('does not compact when the previous version recorded no usage', () => {
         expect(decide({ contextTokensPerTurn: null })).toBe(false);
-    });
-
-    it('does not compact when there is no previous version to measure from', () => {
-        expect(decide({ msSincePreviousVersion: null })).toBe(false);
     });
 
     it.each<[string, CodingAgentSessionStart]>([

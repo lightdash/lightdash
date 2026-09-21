@@ -15,7 +15,6 @@ const APP_UUID = 'app-uuid-1';
 const THREAD_UUID = 'thread-uuid-1';
 const SESSION_ID = 'session-1';
 const VERSION = 7;
-const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
 const makePayload = (): AppGeneratePipelineJobPayload => ({
     appUuid: APP_UUID,
@@ -27,11 +26,8 @@ const makePayload = (): AppGeneratePipelineJobPayload => ({
     isIteration: true,
 });
 
-/**
- * A thread whose previous version finished two hours ago having read far more
- * than the compaction threshold per turn — the shape that makes this build
- * summarize its session before it generates.
- */
+// A thread whose previous version read far more than the compaction
+// threshold per turn, so this build summarizes its session before it generates.
 function buildService(
     compactStdout: string,
     statusHistory: { kind: string; message: string }[] = [],
@@ -60,7 +56,6 @@ function buildService(
         hasCancelledVersionSinceLastReady: vi.fn().mockResolvedValue(false),
         findPreviousFinishedVersionInThread: vi.fn().mockResolvedValue({
             version: VERSION - 1,
-            statusUpdatedAt: new Date(Date.now() - TWO_HOURS_MS),
             generationUsage: {
                 inputTokens: 1_000,
                 outputTokens: 5_000,

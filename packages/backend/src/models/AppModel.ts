@@ -923,13 +923,12 @@ export class AppModel {
     }
 
     // Newest terminal version before `beforeVersion` in the same thread; the
-    // compaction trigger's inputs. Thread-scoped so a cleared context starts clean.
+    // compaction trigger's input. Thread-scoped so a cleared context starts clean.
     async findPreviousFinishedVersionInThread(
         appThreadUuid: string,
         beforeVersion: number,
     ): Promise<{
         version: number;
-        statusUpdatedAt: Date | null;
         generationUsage: DataAppGenerationUsage | null;
     } | null> {
         const thread = await this.findThreadByUuid(appThreadUuid);
@@ -938,14 +937,10 @@ export class AppModel {
             .whereIn('status', [...APP_VERSION_TERMINAL_STATUSES])
             .andWhere('version', '<', beforeVersion)
             .orderBy('version', 'desc')
-            .select('version', 'status_updated_at', 'generation_usage')
+            .select('version', 'generation_usage')
             .first();
         if (!row) return null;
-        return {
-            version: row.version,
-            statusUpdatedAt: row.status_updated_at,
-            generationUsage: row.generation_usage,
-        };
+        return { version: row.version, generationUsage: row.generation_usage };
     }
 
     // Whether a version other than `excludeVersion` ran the agent in this thread.

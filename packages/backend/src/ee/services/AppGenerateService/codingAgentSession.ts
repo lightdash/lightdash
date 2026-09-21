@@ -136,38 +136,28 @@ export const versionCompactedCodingAgentSession = (
             entry.message === CODING_AGENT_COMPACTION_NARRATION,
     );
 
-// Savings are near-flat across thresholds, so this is picked for how few
-// builds it touches (~6.5%) rather than for money.
+// Context regrows ~10k tokens per version after a summary, so a thread
+// compacts about every ten versions once it first crosses this.
 export const CODING_AGENT_COMPACTION_TOKEN_THRESHOLD = 200_000;
-
-// After this long the agent's prompt cache is assumed cold, so the transcript
-// was going to be re-read anyway and the summary is nearly free.
-export const CODING_AGENT_COLD_CACHE_MS = 60 * 60 * 1000;
 
 /** What the trigger decision for a coding agent turn is made from. */
 export type CodingAgentCompactionInput = {
     start: CodingAgentSessionStart;
-    // Since the thread's previous version reached a terminal status; null when
-    // there is no previous version or it carries no timestamp.
-    msSincePreviousVersion: number | null;
-    // Total input tokens per internal turn on that previous version; null when
-    // its usage was never recorded.
+    // Total input tokens per internal turn on the thread's previous version;
+    // null when there is none or its usage was never recorded.
     contextTokensPerTurn: number | null;
     thresholdTokens: number;
 };
 
 // Whether a turn should summarize its own history before it runs: only a
-// resumed session, only on a cold cache, only above the size floor.
-
+// resumed session, only above the size floor. Warm or cold: cache reads
+// on a big transcript cost more over a thread than one summary does.
 export const shouldCompactCodingAgentSession = ({
     start,
-    msSincePreviousVersion,
     contextTokensPerTurn,
     thresholdTokens,
 }: CodingAgentCompactionInput): boolean =>
     start.kind === 'resume' &&
-    msSincePreviousVersion !== null &&
-    msSincePreviousVersion > CODING_AGENT_COLD_CACHE_MS &&
     contextTokensPerTurn !== null &&
     contextTokensPerTurn >= thresholdTokens;
 

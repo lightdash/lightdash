@@ -616,7 +616,7 @@ type CodingAgentCompactionRun = {
 /** Org-resolved provider config plus the per-build CLI session options. */
 type CodingAgentConfig = ResolvedCopilotConfig &
     ClaudeCodeSessionConfig & {
-        // Summarize a long session before a build that resumes it cold.
+        // Summarize a long session before a build that resumes it.
         compactLongSessions: boolean;
     };
 
@@ -5233,9 +5233,6 @@ export class AppGenerateService extends BaseService {
             );
             const compact = shouldCompactCodingAgentSession({
                 start: sessionStart,
-                msSincePreviousVersion: previous?.statusUpdatedAt
-                    ? Date.now() - new Date(previous.statusUpdatedAt).getTime()
-                    : null,
                 contextTokensPerTurn,
                 thresholdTokens: CODING_AGENT_COMPACTION_TOKEN_THRESHOLD,
             });
