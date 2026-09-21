@@ -1,3 +1,10 @@
+## [2.286.1](https://github.com/lightdash/lightdash/compare/2.286.0...2.286.1) (2026-09-21)
+
+
+### Performance Improvements
+
+* **backend:** read cached explore summaries with one JSONB extraction per row (SPK-2299) ([#29683](https://github.com/lightdash/lightdash/issues/29683)) ([d423f45](https://github.com/lightdash/lightdash/commit/d423f45a47eed4237c1888f92f5b72f26fbb3536))
+
 # [2.286.0](https://github.com/lightdash/lightdash/compare/2.285.0...2.286.0) (2026-09-21)
 
 
