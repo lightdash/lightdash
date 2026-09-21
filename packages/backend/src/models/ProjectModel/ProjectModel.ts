@@ -2377,7 +2377,8 @@ export class ProjectModel {
 
     /**
      * Get all explore summaries with only the fields needed for the summary view.
-     * This is optimized to avoid fetching the full explore JSON by using PostgreSQL JSON operators.
+     * This is optimized to avoid detoasting the full explore JSON per projected field by
+     * extracting every field once per row with a single lateral jsonb_to_record.
      * @param projectUuid - The project uuid.
      * @returns An array of lightweight explore summary objects.
      */
@@ -2392,25 +2393,52 @@ export class ProjectModel {
         const summaries = await this.database(CachedExploreTableName)
             .select<RawSummaryRow[]>(
                 this.database.raw(`
-                    explore->'name' as name,
-                    explore->'label' as label,
-                    explore->'tags' as tags,
-                    explore->'groupLabel' as "groupLabel",
-                    explore->'groups' as "groups",
-                    explore->'type' as type,
-                    explore->'preAggregateSource' as "preAggregateSource",
-                    explore->'externalSource' as "externalSource",
-                    explore->'errors' as errors,
-                    explore->'warnings' as warnings,
-                    explore->'baseTable' as "baseTable",
-                    explore->'tables'->(explore->>'baseTable')->>'database' as "baseTableDatabase",
-                    explore->'tables'->(explore->>'baseTable')->>'schema' as "baseTableSchema",
-                    explore->'tables'->(explore->>'baseTable')->>'description' as "baseTableDescription",
-                    explore->'tables'->(explore->>'baseTable')->'requiredAttributes' as "baseTableRequiredAttributes",
-                    explore->'tables'->(explore->>'baseTable')->'anyAttributes' as "baseTableAnyAttributes",
-                    explore->'aiHint' as "aiHint",
-                    explore->'customMeta' as "customMeta"
+                    explore_summary."name" as "name",
+                    explore_summary."label" as "label",
+                    explore_summary."tags" as "tags",
+                    explore_summary."groupLabel" as "groupLabel",
+                    explore_summary."groups" as "groups",
+                    explore_summary."type" as "type",
+                    explore_summary."preAggregateSource" as "preAggregateSource",
+                    explore_summary."externalSource" as "externalSource",
+                    explore_summary."errors" as "errors",
+                    explore_summary."warnings" as "warnings",
+                    explore_summary."baseTable" as "baseTable",
+                    base_table.value->>'database' as "baseTableDatabase",
+                    base_table.value->>'schema' as "baseTableSchema",
+                    base_table.value->>'description' as "baseTableDescription",
+                    base_table.value->'requiredAttributes' as "baseTableRequiredAttributes",
+                    base_table.value->'anyAttributes' as "baseTableAnyAttributes",
+                    explore_summary."aiHint" as "aiHint",
+                    explore_summary."customMeta" as "customMeta"
                 `),
+            )
+            .joinRaw(
+                `LEFT JOIN LATERAL jsonb_to_record(
+                    CASE
+                        WHEN jsonb_typeof(${CachedExploreTableName}.explore) = 'object'
+                            THEN ${CachedExploreTableName}.explore
+                        ELSE '{}'::jsonb
+                    END
+                ) AS explore_summary(
+                    "name" jsonb,
+                    "label" jsonb,
+                    "tags" jsonb,
+                    "groupLabel" jsonb,
+                    "groups" jsonb,
+                    "type" jsonb,
+                    "preAggregateSource" jsonb,
+                    "externalSource" jsonb,
+                    "errors" jsonb,
+                    "warnings" jsonb,
+                    "baseTable" text,
+                    "tables" jsonb,
+                    "aiHint" jsonb,
+                    "customMeta" jsonb
+                ) ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT explore_summary."tables" -> explore_summary."baseTable" AS value
+                ) AS base_table ON TRUE`,
             )
             .where('project_uuid', projectUuid);
 
