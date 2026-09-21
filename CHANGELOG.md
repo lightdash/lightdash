@@ -1,3 +1,10 @@
+## [2.277.1](https://github.com/lightdash/lightdash/compare/2.277.0...2.277.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* prefer slugs in chart type UI URLs ([73814c4](https://github.com/lightdash/lightdash/commit/73814c4999ae746ad61625dc5dee7bf0313ada19))
+
 # [2.277.0](https://github.com/lightdash/lightdash/compare/2.276.0...2.277.0) (2026-09-21)
 
 
