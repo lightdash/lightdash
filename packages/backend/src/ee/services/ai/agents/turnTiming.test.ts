@@ -1,5 +1,11 @@
+import { generateText, stepCountIs, tool } from 'ai';
+import { MockLanguageModelV3 } from 'ai/test';
 import { describe, expect, it } from 'vitest';
-import { TurnTimingTracker } from './turnTiming';
+import { z } from 'zod';
+import {
+    TurnTimingTracker,
+    withNonStreamingProviderTiming,
+} from './turnTiming';
 
 /** Deterministic clock: each advance() moves wall time forward by `ms`. */
 const clock = (start: number) => {
@@ -13,6 +19,129 @@ const clock = (start: number) => {
 };
 
 describe('TurnTimingTracker', () => {
+    it('observes real SDK provider and failing tool boundaries without changing the response', async () => {
+        const c = clock(0);
+        const tracker = new TurnTimingTracker(0, c.now);
+        let calls = 0;
+        const model = new MockLanguageModelV3({
+            doGenerate: async () => {
+                calls += 1;
+                c.advance(100);
+                return {
+                    content:
+                        calls === 1
+                            ? [
+                                  {
+                                      type: 'tool-call' as const,
+                                      toolCallId: 'query',
+                                      toolName: 'runQuery',
+                                      input: '{}',
+                                  },
+                              ]
+                            : [
+                                  {
+                                      type: 'text' as const,
+                                      text: 'Query failed.',
+                                  },
+                              ],
+                    finishReason: {
+                        unified:
+                            calls === 1
+                                ? ('tool-calls' as const)
+                                : ('stop' as const),
+                        raw: undefined,
+                    },
+                    usage: {
+                        inputTokens: {
+                            total: 1,
+                            noCache: 1,
+                            cacheRead: 0,
+                            cacheWrite: 0,
+                        },
+                        outputTokens: { total: 1, text: 1, reasoning: 0 },
+                    },
+                    warnings: [],
+                };
+            },
+        });
+        tracker.recordPreparationFinished();
+        const result = await generateText({
+            model: withNonStreamingProviderTiming(model, tracker),
+            prompt: 'Count orders',
+            stopWhen: stepCountIs(2),
+            tools: {
+                runQuery: tool({
+                    inputSchema: z.object({}),
+                    execute: async (): Promise<string> => {
+                        c.advance(40);
+                        throw new Error('unknown field');
+                    },
+                }),
+            },
+            experimental_onToolCallStart: ({ toolCall }) => {
+                tracker.recordToolCallStart(
+                    toolCall.toolCallId,
+                    toolCall.toolName,
+                );
+            },
+            experimental_onToolCallFinish: (event) => {
+                expect(event.success).toBe(false);
+                tracker.recordToolCallEnd(event.toolCall.toolCallId);
+            },
+            onStepFinish: (step) => {
+                tracker.completeStep(0, step.toolCalls.length);
+            },
+        });
+        expect(result.text).toBe('Query failed.');
+        expect(tracker.getStageTiming()).toMatchObject({
+            providerMs: 200,
+            queryMs: 40,
+        });
+    });
+    it('measures provider calls separately from retries, tools and bookkeeping', async () => {
+        const c = clock(0);
+        const tracker = new TurnTimingTracker(0, c.now);
+        tracker.recordPreparationFinished();
+        await expect(
+            tracker.measureProviderCall(async () => {
+                c.advance(100);
+                throw new Error('retry');
+            }),
+        ).rejects.toThrow('retry');
+        c.advance(50); // SDK retry backoff
+        await tracker.measureProviderCall(async () => {
+            c.advance(200);
+        });
+        tracker.recordToolCallStart('query', 'runQuery');
+        c.advance(500);
+        tracker.recordToolCallEnd('query');
+        c.advance(20); // persistence
+        expect(tracker.completeStep(0, 1)).toMatchObject({
+            inferenceMs: 300,
+            stepTotalMs: 870,
+        });
+        expect(tracker.getStageTiming()).toMatchObject({
+            providerMs: 300,
+            queryMs: 500,
+        });
+        await tracker.measureProviderCall(async () => {
+            c.advance(80);
+        });
+        expect(tracker.completeStep(0, 0).inferenceMs).toBe(80);
+        expect(tracker.getStageTiming().providerMs).toBe(380);
+    });
+
+    it('retains provider time when generation fails before a step completes', async () => {
+        const c = clock(0);
+        const tracker = new TurnTimingTracker(0, c.now);
+        await expect(
+            tracker.measureProviderCall(async () => {
+                c.advance(100);
+                throw new Error('aborted');
+            }),
+        ).rejects.toThrow('aborted');
+        expect(tracker.getStageTiming().providerMs).toBe(100);
+    });
     it('reports a tool-free step as inference end to end', () => {
         const c = clock(1_000);
         const tracker = new TurnTimingTracker(1_000, c.now);
