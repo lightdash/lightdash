@@ -5,6 +5,7 @@ import {
     Box,
     Group,
     Radio,
+    Select,
     SimpleGrid,
     Stack,
     Text,
@@ -176,11 +177,12 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
         setJoinType,
         setRepeatValues,
     } = mergeContext ?? EMPTY_MERGE;
-    const additionalSource = additionalSources[0];
-    const additionalSourceId = additionalSource?.id;
     const { runErrors, mergeResults } = mergeContext ?? {};
 
     const {
+        additionalSource,
+        additionalSourceId,
+        sourceSetups,
         effectiveParts,
         labelFor,
         fanOut,
@@ -226,21 +228,28 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
 
     const thisQuery = primaryExploreLabel || 'this query';
     const otherQuery = additionalExploreLabel || 'the other query';
+    const sourceLabels = Object.fromEntries([
+        [PRIMARY_SOURCE_ID, thisQuery],
+        ...sourceSetups.map((setup) => [
+            setup.additionalSourceId,
+            setup.additionalExploreLabel ?? setup.additionalSourceId,
+        ]),
+    ]);
     const keepOptions: JoinTypeOption[] = [
         {
             value: MergeJoinType.INNER,
             label: 'Inner',
-            help: `Inner join · Only the ${joinFieldLabel} values in both ${thisQuery} and ${otherQuery}. Everything unmatched is dropped.`,
+            help: `Inner join · Only the ${joinFieldLabel} values found in every query. Everything unmatched is dropped.`,
         },
         {
             value: MergeJoinType.LEFT,
             label: 'Left',
-            help: `Left join · Only the ${joinFieldLabel} values in ${thisQuery}. Anything found solely in ${otherQuery} is dropped.`,
+            help: `Left join · Only the ${joinFieldLabel} values in ${thisQuery}. Anything found solely in another query is dropped.`,
         },
         {
             value: MergeJoinType.FULL,
             label: 'Full outer',
-            help: `Full outer join · Every ${joinFieldLabel} from either query. Where one side has no match, its columns are blank.`,
+            help: `Full outer join · Every ${joinFieldLabel} from any query. Where a query has no match, its columns are blank.`,
         },
     ];
     const activeKeep =
@@ -303,6 +312,26 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
 
                 {expanded && (
                     <Box className={styles.editor} data-guided={guided}>
+                        {additionalSources.length > 1 && (
+                            <Select
+                                label="Source to match"
+                                size="xs"
+                                value={additionalSourceId}
+                                data={sourceSetups.map((setup) => ({
+                                    value: setup.additionalSourceId,
+                                    label:
+                                        setup.additionalExploreLabel ??
+                                        'Choose data to combine',
+                                }))}
+                                onChange={(id) =>
+                                    id &&
+                                    mergeContext.setFocus({
+                                        kind: 'source',
+                                        sourceId: id,
+                                    })
+                                }
+                            />
+                        )}
                         <Text size="xs" fw={600}>
                             Join conditions
                         </Text>
@@ -550,10 +579,12 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
             ))}
 
             {sourcesWithoutValues.map((sourceId) => {
-                // Results name sources as they ran
-                const isPrimary = handleByName[sourceId] === PRIMARY_SOURCE_ID;
-                const emptyLabel = isPrimary ? thisQuery : otherQuery;
-                const otherLabel = isPrimary ? otherQuery : thisQuery;
+                const sourceHandle = handleByName[sourceId] ?? sourceId;
+                const emptyLabel = sourceLabels[sourceHandle] ?? sourceId;
+                const otherLabel = Object.entries(sourceLabels)
+                    .filter(([id]) => id !== sourceHandle)
+                    .map(([, label]) => label)
+                    .join(', ');
                 return (
                     <Note key={`empty-${sourceId}`} tone="muted">
                         {emptyLabel}'s columns are blank on every row: its query
@@ -565,18 +596,13 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
 
             {!isIncomplete &&
                 fanOut.map(({ sourceId, fields }) => {
-                    const splitLabel =
-                        sourceId === PRIMARY_SOURCE_ID
-                            ? primaryExploreLabel
-                            : additionalExploreLabel;
-                    const otherSourceId =
-                        sourceId === PRIMARY_SOURCE_ID
-                            ? additionalSourceId
-                            : PRIMARY_SOURCE_ID;
-                    const otherLabel =
-                        sourceId === PRIMARY_SOURCE_ID
-                            ? additionalExploreLabel
-                            : primaryExploreLabel;
+                    const splitLabel = sourceLabels[sourceId];
+                    const otherSourceIds = Object.keys(sourceLabels).filter(
+                        (id) => id !== sourceId,
+                    );
+                    const otherLabel = otherSourceIds
+                        .map((id) => sourceLabels[id])
+                        .join(', ');
                     return (
                         <Note key={sourceId} tone="warn">
                             {splitLabel} is split by{' '}
@@ -584,9 +610,9 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                             {otherLabel} does not have. Merging would repeat{' '}
                             {otherLabel}'s rows once per value. Remove{' '}
                             {fields.length === 1 ? 'it' : 'them'}, select{' '}
-                            {fields.length === 1 ? 'it' : 'them'} on both
-                            queries and join on{' '}
-                            {fields.length === 1 ? 'it' : 'them'}, or{' '}
+                            {fields.length === 1 ? 'it' : 'them'} on all queries
+                            and join on {fields.length === 1 ? 'it' : 'them'},
+                            or{' '}
                             {!readOnly && (
                                 <Anchor
                                     component="button"
@@ -594,7 +620,9 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                     size="xs"
                                     fw={600}
                                     onClick={() =>
-                                        setRepeatValues(otherSourceId, true)
+                                        otherSourceIds.forEach((id) =>
+                                            setRepeatValues(id, true),
+                                        )
                                     }
                                 >
                                     repeat {otherLabel}'s values on every{' '}
@@ -609,20 +637,13 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
             {/* Repeating is a lookup the user asked for; saying so keeps a
                 repeated metric from reading as a per-row measurement. */}
             {repeatValuesSourceIds
-                .filter(
-                    (sourceId) =>
-                        sourceId === PRIMARY_SOURCE_ID ||
-                        sourceId === additionalSourceId,
-                )
+                .filter((sourceId) => sourceId in sourceLabels)
                 .map((sourceId) => {
-                    const repeatingLabel =
-                        sourceId === PRIMARY_SOURCE_ID
-                            ? primaryExploreLabel
-                            : additionalExploreLabel;
-                    const otherLabel =
-                        sourceId === PRIMARY_SOURCE_ID
-                            ? additionalExploreLabel
-                            : primaryExploreLabel;
+                    const repeatingLabel = sourceLabels[sourceId];
+                    const otherLabel = Object.entries(sourceLabels)
+                        .filter(([id]) => id !== sourceId)
+                        .map(([, label]) => label)
+                        .join(', ');
                     return (
                         <Note key={`repeat-${sourceId}`} tone="muted">
                             {repeatingLabel}'s values repeat on every{' '}

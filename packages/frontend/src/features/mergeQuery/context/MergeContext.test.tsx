@@ -314,6 +314,51 @@ describe('MergeProvider', () => {
         });
     });
 
+    it('removes a middle source without changing the remaining keys, names or repeat flags', () => {
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        act(() => {
+            result.current.addSource('b');
+            result.current.addSource('c');
+            result.current.addSource('d');
+        });
+        act(() => {
+            result.current.setSourceExplore('b', 'payments');
+            result.current.setSourceExplore('c', 'payments');
+            result.current.setSourceExplore('d', 'payments');
+            result.current.setJoinField(0, 'a', 'orders_week');
+            result.current.setJoinField(0, 'b', 'payments_week');
+            result.current.setJoinField(0, 'c', 'payments_week');
+            result.current.setJoinField(0, 'd', 'payments_week');
+            result.current.setRepeatValues('b', true);
+            result.current.setRepeatValues('d', true);
+        });
+        act(() =>
+            result.current.removeSource('c', {
+                a: 'orders',
+                b: 'payments',
+                c: 'payments_2',
+                d: 'payments_3',
+            }),
+        );
+        expect(
+            result.current.additionalSources.map(({ id, name }) => ({
+                id,
+                name,
+            })),
+        ).toEqual([
+            { id: 'b', name: 'payments' },
+            { id: 'd', name: 'payments_3' },
+        ]);
+        expect(result.current.joinParts[0].fieldIdBySourceId).toEqual({
+            a: 'orders_week',
+            b: 'payments_week',
+            d: 'payments_week',
+        });
+        expect(result.current.repeatValuesSourceIds).toEqual(['b', 'd']);
+        act(() => result.current.addSource('d'));
+        expect(result.current.additionalSources).toHaveLength(2);
+    });
+
     it('keeps the parameter values used by the merged run', async () => {
         executeMergeQuery.mockResolvedValueOnce({
             outcome: 'started',

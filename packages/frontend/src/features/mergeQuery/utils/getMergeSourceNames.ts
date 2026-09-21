@@ -25,7 +25,12 @@ export const getMergeSourceNames = ({
     additionalSources: MergeEditorSource[];
 }): MergeSourceNames => {
     const primary = primarySourceName ?? tableName ?? PRIMARY_SOURCE_ID;
-    const taken = new Set([primary]);
+    const taken = new Set([
+        primary,
+        ...additionalSources.flatMap((source) =>
+            source.name ? [source.name] : [],
+        ),
+    ]);
     const dedupe = (candidate: string) => {
         let name = candidate;
         let suffix = 2;

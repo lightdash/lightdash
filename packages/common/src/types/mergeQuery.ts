@@ -229,11 +229,7 @@ export type MergeQueryField = {
 
 export enum MergeQueryErrorKind {
     TOO_FEW_SOURCES = 'too_few_sources',
-    /**
-     * More than two sources. The spec stays N-shaped, but N-way FULL OUTER
-     * JOIN chains are where dialect risk compounds, so the engine refuses
-     * anything the UI cannot produce rather than compiling it untested.
-     */
+    /** Retained for compatibility with older API errors. */
     TOO_MANY_SOURCES = 'too_many_sources',
     DUPLICATE_SOURCE_ID = 'duplicate_source_id',
     /**
@@ -495,16 +491,6 @@ export const validateMergeQuery = (
             sourceId: null,
             fieldIds: [],
             message: 'A merge needs at least two queries.',
-        });
-    }
-
-    if (sources.length > 2) {
-        errors.push({
-            kind: MergeQueryErrorKind.TOO_MANY_SOURCES,
-            sourceId: null,
-            fieldIds: [],
-            message:
-                'A merge joins exactly two queries. Remove the extra queries, or merge them in pairs.',
         });
     }
 

@@ -107,7 +107,25 @@ vi.mock('../context/useMerge', () => ({
 }));
 
 vi.mock('../hooks/useMergeSetup', () => ({
-    useMergeSetup: () => state.setup,
+    useMergeSetup: () => ({
+        ...state.setup,
+        additionalSource: state.merge.additionalSources[0],
+        sourceSetups: state.merge.additionalSources.map((source) => ({
+            additionalSourceId: source.id,
+            additionalSource: source,
+            additionalExploreLabel: state.setup.additionalExploreLabel,
+        })),
+        sourceLabels: [
+            state.setup.primaryExploreLabel,
+            state.setup.additionalExploreLabel,
+        ],
+        relationshipSummary: state.setup.effectiveParts
+            .map(
+                (part) =>
+                    `${state.setup.primaryExploreLabel} · ${state.setup.labelFor(part.fieldIdBySourceId.a!)} = ${state.setup.additionalExploreLabel} · ${state.setup.labelFor(part.fieldIdBySourceId.b!)}`,
+            )
+            .join(' AND '),
+    }),
 }));
 
 vi.mock('../../../components/common/FieldSelect', () => ({

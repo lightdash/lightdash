@@ -3,9 +3,10 @@ import {
     getTotalFilterRules,
     isTimeZone,
     type Filters,
+    type MetricQuery,
 } from '@lightdash/common';
 import { Badge, Box, Divider, Group, Stack, Text } from '@mantine/core';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { Fragment, useCallback, useEffect, useState, type FC } from 'react';
 import CollapsableCard from '../../../components/common/CollapsableCard/CollapsableCard';
 import FiltersForm from '../../../components/common/Filters';
 import FiltersProvider from '../../../components/common/Filters/FiltersProvider';
@@ -16,140 +17,132 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import {
     explorerActions,
-    selectAdditionalMetrics,
-    selectCustomDimensions,
-    selectFilters,
     selectIsEditMode,
     selectIsFiltersExpanded,
     selectMetricQuery,
     selectParameters,
-    selectTableCalculations,
-    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../explorer/store';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMerge } from '../context/useMerge';
+import { getMergeSourceMetricQuery } from '../utils/getMergeSourceMetricQuery';
 import { syncMergeJoinFilters } from '../utils/syncMergeJoinFilters';
 
-const FilterSectionTitle: FC<{
-    label: string;
+const SourceFilters: FC<{
+    query: MetricQuery;
     primary: boolean;
-    count: number;
-}> = ({ label, primary, count }) => (
-    <Group justify="space-between" gap="xs" px="xs" pt={4} pb={2}>
-        <Group gap={7}>
-            <Box
-                w={7}
-                h={7}
-                style={{
-                    borderRadius: 2,
-                    background: primary
-                        ? 'var(--mantine-color-blue-6)'
-                        : 'var(--mantine-color-orange-6)',
-                }}
-            />
-            <Text size="xs" fw={600}>
-                {label}
-            </Text>
-        </Group>
-        <Text size="xs" c="dimmed">
-            {count === 0 ? 'No filters' : `${count} active`}
-        </Text>
-    </Group>
-);
-
-/** Both source filters in one card. Join-key rules are shared automatically. */
-export const MergeFiltersCard: FC = () => {
+    setFilters: (filters: Filters) => void;
+}> = ({ query, primary, setFilters }) => {
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
-    const merge = useMerge();
-    const additionalSource = merge.additionalSources[0];
-    const dispatch = useExplorerDispatch();
-
-    const tableName = useExplorerSelector(selectTableName);
-    const primaryFilters = useExplorerSelector(selectFilters);
-    const filterIsOpen = useExplorerSelector(selectIsFiltersExpanded);
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const parameterValues = useExplorerSelector(selectParameters);
-    const metricQuery = useExplorerSelector(selectMetricQuery);
-    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
-    const customDimensions = useExplorerSelector(selectCustomDimensions);
-    const tableCalculations = useExplorerSelector(selectTableCalculations);
-
-    const { data: primaryExplore } = useExplore(tableName);
-    const { data: additionalExplore } = useExplore(
-        additionalSource?.exploreName ?? undefined,
+    const { data: explore } = useExplore(query.exploreName);
+    const fields = useFieldsWithSuggestions({
+        exploreData: explore,
+        rows: undefined,
+        customDimensions: query.customDimensions,
+        additionalMetrics: query.additionalMetrics,
+        tableCalculations: query.tableCalculations,
+        includeHiddenFields: false,
+    });
+    const count = countTotalFilterRules(query.filters);
+    return (
+        <Stack gap="xs">
+            <Group justify="space-between" gap="xs" px="xs" pt={4} pb={2}>
+                <Group gap={7}>
+                    <Box
+                        w={7}
+                        h={7}
+                        style={{
+                            borderRadius: 2,
+                            background: primary
+                                ? 'var(--mantine-color-blue-6)'
+                                : 'var(--mantine-color-orange-6)',
+                        }}
+                    />
+                    <Text size="xs" fw={600}>
+                        {explore?.label ?? query.exploreName}
+                    </Text>
+                </Group>
+                <Text size="xs" c="dimmed">
+                    {count === 0 ? 'No filters' : `${count} active`}
+                </Text>
+            </Group>
+            <FiltersProvider
+                projectUuid={projectUuid}
+                itemsMap={fields}
+                startOfWeek={
+                    project.data?.warehouseConnection?.startOfWeek ?? undefined
+                }
+                popoverProps={{ withinPortal: true }}
+                baseTable={explore?.baseTable}
+                parameterValues={parameterValues}
+                metricQueryTimezone={
+                    query.timezone && isTimeZone(query.timezone)
+                        ? query.timezone
+                        : undefined
+                }
+            >
+                <FiltersForm
+                    isEditMode={isEditMode}
+                    filters={query.filters}
+                    setFilters={setFilters}
+                />
+            </FiltersProvider>
+        </Stack>
     );
+};
+
+/** Join-key rules are shared across every source; other filters stay local. */
+export const MergeFiltersCard: FC = () => {
+    const merge = useMerge();
+    const dispatch = useExplorerDispatch();
+    const metricQuery = useExplorerSelector(selectMetricQuery);
+    const filterIsOpen = useExplorerSelector(selectIsFiltersExpanded);
+    const isEditMode = useExplorerSelector(selectIsEditMode);
     const [hasEverOpened, setHasEverOpened] = useState(false);
     useEffect(() => {
         if (filterIsOpen) setHasEverOpened(true);
     }, [filterIsOpen]);
-
-    const primaryFields = useFieldsWithSuggestions({
-        exploreData: primaryExplore,
-        rows: undefined,
-        customDimensions,
-        additionalMetrics,
-        tableCalculations,
-        includeHiddenFields: false,
-    });
-    const additionalFields = useFieldsWithSuggestions({
-        exploreData: additionalExplore,
-        rows: undefined,
-        customDimensions: additionalSource?.customDimensions,
-        additionalMetrics: additionalSource?.additionalMetrics,
-        tableCalculations: undefined,
-        includeHiddenFields: false,
-    });
-
-    const primaryCount = useMemo(
-        () => countTotalFilterRules(primaryFilters),
-        [primaryFilters],
-    );
-    const additionalCount = useMemo(
-        () => countTotalFilterRules(additionalSource?.filters ?? {}),
-        [additionalSource?.filters],
-    );
-    const total = useMemo(
-        () =>
-            new Set(
-                [
-                    ...getTotalFilterRules(primaryFilters),
-                    ...getTotalFilterRules(additionalSource?.filters ?? {}),
-                ].map((rule) => rule.id),
-            ).size,
-        [primaryFilters, additionalSource?.filters],
-    );
-
-    const setBoth = useCallback(
-        (
-            changedSourceId: string,
-            nextPrimary: Filters,
-            nextAdditional: Filters,
-        ) => {
-            if (!additionalSource) return;
+    const sources = [
+        { id: PRIMARY_SOURCE_ID, query: metricQuery },
+        ...merge.additionalSources
+            .filter((source) => source.exploreName)
+            .map((source) => ({
+                id: source.id,
+                query: getMergeSourceMetricQuery(source, metricQuery.limit),
+            })),
+    ];
+    const total = new Set(
+        sources.flatMap((source) =>
+            getTotalFilterRules(source.query.filters).map((rule) => rule.id),
+        ),
+    ).size;
+    const setFilters = useCallback(
+        (changedSourceId: string, filters: Filters) => {
             const synced = syncMergeJoinFilters({
                 changedSourceId,
                 filtersBySourceId: {
-                    [PRIMARY_SOURCE_ID]: nextPrimary,
-                    [additionalSource.id]: nextAdditional,
+                    [PRIMARY_SOURCE_ID]: metricQuery.filters,
+                    ...Object.fromEntries(
+                        merge.additionalSources.map((source) => [
+                            source.id,
+                            source.filters,
+                        ]),
+                    ),
+                    [changedSourceId]: filters,
                 },
                 joinParts: merge.joinParts,
             });
-            dispatch(
-                explorerActions.setFilters(
-                    synced[PRIMARY_SOURCE_ID] ?? nextPrimary,
-                ),
-            );
-            merge.setSourceFilters(
-                additionalSource.id,
-                synced[additionalSource.id] ?? nextAdditional,
+            dispatch(explorerActions.setFilters(synced[PRIMARY_SOURCE_ID]));
+            merge.additionalSources.forEach((source) =>
+                merge.setSourceFilters(source.id, synced[source.id]),
             );
         },
-        [additionalSource, dispatch, merge],
+        [dispatch, merge, metricQuery.filters],
     );
-
     return (
         <CollapsableCard
             isOpen={filterIsOpen}
@@ -172,79 +165,20 @@ export const MergeFiltersCard: FC = () => {
         >
             {hasEverOpened && (
                 <Stack gap="md">
-                    <Stack gap="xs">
-                        <FilterSectionTitle
-                            label={primaryExplore?.label ?? 'First table'}
-                            primary
-                            count={primaryCount}
-                        />
-                        <FiltersProvider
-                            projectUuid={projectUuid}
-                            itemsMap={primaryFields}
-                            startOfWeek={
-                                project.data?.warehouseConnection
-                                    ?.startOfWeek ?? undefined
-                            }
-                            popoverProps={{ withinPortal: true }}
-                            baseTable={primaryExplore?.baseTable}
-                            parameterValues={parameterValues}
-                            metricQueryTimezone={
-                                metricQuery.timezone &&
-                                isTimeZone(metricQuery.timezone)
-                                    ? metricQuery.timezone
-                                    : undefined
-                            }
-                        >
-                            <FiltersForm
-                                isEditMode={isEditMode}
-                                filters={primaryFilters}
-                                setFilters={(next) =>
-                                    setBoth(
-                                        PRIMARY_SOURCE_ID,
-                                        next,
-                                        additionalSource?.filters ?? {},
-                                    )
+                    {sources.map((source, index) => (
+                        <Fragment key={source.id}>
+                            {index > 0 && <Divider />}
+                            <SourceFilters
+                                query={source.query}
+                                primary={source.id === PRIMARY_SOURCE_ID}
+                                setFilters={(filters) =>
+                                    setFilters(source.id, filters)
                                 }
                             />
-                        </FiltersProvider>
-                    </Stack>
-
-                    <Divider />
-
-                    <Stack gap="xs">
-                        <FilterSectionTitle
-                            label={additionalExplore?.label ?? 'Second table'}
-                            primary={false}
-                            count={additionalCount}
-                        />
-                        <FiltersProvider
-                            projectUuid={projectUuid}
-                            itemsMap={additionalFields}
-                            startOfWeek={
-                                project.data?.warehouseConnection
-                                    ?.startOfWeek ?? undefined
-                            }
-                            popoverProps={{ withinPortal: true }}
-                            baseTable={additionalExplore?.baseTable}
-                            parameterValues={parameterValues}
-                        >
-                            <FiltersForm
-                                isEditMode={isEditMode}
-                                filters={additionalSource?.filters ?? {}}
-                                setFilters={(next) =>
-                                    additionalSource &&
-                                    setBoth(
-                                        additionalSource.id,
-                                        primaryFilters,
-                                        next,
-                                    )
-                                }
-                            />
-                        </FiltersProvider>
-                    </Stack>
-
+                        </Fragment>
+                    ))}
                     <Text size="xs" c="dimmed" px="xs" pb="xs">
-                        Filters on a matching field apply to both queries. Other
+                        Filters on a matching field apply to all queries. Other
                         filters stay with their query.
                     </Text>
                 </Stack>

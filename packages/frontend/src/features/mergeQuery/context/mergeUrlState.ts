@@ -39,6 +39,10 @@ type SerializedSource = {
     w: Filters;
     a?: MergeEditorSource['additionalMetrics'];
     c?: MergeEditorSource['customDimensions'];
+    tc?: MergeEditorSource['tableCalculations'];
+    mo?: MergeEditorSource['metricOverrides'];
+    do?: MergeEditorSource['dimensionOverrides'];
+    tz?: MergeEditorSource['timezone'];
 };
 
 /** Short keys because this rides beside the already-large chart URL state. */
@@ -104,6 +108,10 @@ export const serializeMergeState = (state: MergeUrlState): string =>
             w: source.filters,
             a: source.additionalMetrics,
             c: source.customDimensions,
+            tc: source.tableCalculations,
+            mo: source.metricOverrides,
+            do: source.dimensionOverrides,
+            tz: source.timezone,
         })),
         k: state.joinParts.map((part) => part.fieldIdBySourceId),
         ...(state.joinParts.some((part) => part.name)
@@ -134,6 +142,10 @@ const parseSource = (value: unknown): MergeEditorSource | null => {
         filters: asFilters(source.w),
         additionalMetrics: source.a,
         customDimensions: source.c,
+        ...(source.tc ? { tableCalculations: source.tc } : {}),
+        ...(source.mo ? { metricOverrides: source.mo } : {}),
+        ...(source.do ? { dimensionOverrides: source.do } : {}),
+        ...(source.tz ? { timezone: source.tz } : {}),
     };
 };
 
