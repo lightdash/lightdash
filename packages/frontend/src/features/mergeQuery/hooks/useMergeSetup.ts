@@ -7,6 +7,7 @@ import {
     getItemMap,
     getUnaccountedDimensions,
     isCustomDimension,
+    isFanOutAccepted,
     isDimension,
     MergeQueryErrorKind,
     toMergedSorts,
@@ -55,8 +56,14 @@ export const useMergeSetup = () => {
     const parameters = useExplorerSelector(selectParameters);
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     const mergeContext = useMergeSafe();
-    const { isMerging, additionalSources, joinParts, joinType } =
-        mergeContext ?? EMPTY_MERGE;
+    const {
+        isMerging,
+        additionalSources,
+        joinParts,
+        joinType,
+        repeatValuesSourceIds,
+        setRepeatValues,
+    } = mergeContext ?? EMPTY_MERGE;
     const { run, isRunning, runErrors, mergeResults } = mergeContext ?? {};
     const additionalSource =
         additionalSources[0] ?? emptyMergeSource(DEFAULT_ADDITIONAL_SOURCE_ID);
@@ -342,11 +349,21 @@ export const useMergeSetup = () => {
     /**
      * A dimension only one side carries would repeat the other side's rows
      * once per value. Refused with where and what: the fix is to remove the
-     * dimension, or to select it on both queries and join on it.
+     * dimension, to select it on both queries and join on it, or to have the
+     * other query repeat its values on purpose.
      */
+    const sourceIdsForFanOut = useMemo(
+        () =>
+            [PRIMARY_SOURCE_ID, additionalSourceId].map((id) => ({
+                id,
+                repeatValues: repeatValuesSourceIds.includes(id),
+            })),
+        [additionalSourceId, repeatValuesSourceIds],
+    );
     const fanOut = useMemo(
         () => [
-            ...(unaccountedPrimary.length > 0
+            ...(unaccountedPrimary.length > 0 &&
+            !isFanOutAccepted(sourceIdsForFanOut, PRIMARY_SOURCE_ID)
                 ? [
                       {
                           sourceId: PRIMARY_SOURCE_ID,
@@ -354,7 +371,8 @@ export const useMergeSetup = () => {
                       },
                   ]
                 : []),
-            ...(unaccountedAdditional.length > 0
+            ...(unaccountedAdditional.length > 0 &&
+            !isFanOutAccepted(sourceIdsForFanOut, additionalSourceId)
                 ? [
                       {
                           sourceId: additionalSourceId,
@@ -363,7 +381,12 @@ export const useMergeSetup = () => {
                   ]
                 : []),
         ],
-        [unaccountedPrimary, unaccountedAdditional, additionalSourceId],
+        [
+            unaccountedPrimary,
+            unaccountedAdditional,
+            additionalSourceId,
+            sourceIdsForFanOut,
+        ],
     );
 
     // The join selects take the fields themselves, not ids, so they can show
@@ -503,10 +526,19 @@ export const useMergeSetup = () => {
             },
         }));
 
+        const repeat = (sourceId: string) =>
+            repeatValuesSourceIds.includes(sourceId)
+                ? { repeatValues: true }
+                : {};
         return {
             sources: [
-                { id: PRIMARY_SOURCE_ID, metricQuery },
                 {
+                    ...repeat(PRIMARY_SOURCE_ID),
+                    id: PRIMARY_SOURCE_ID,
+                    metricQuery,
+                },
+                {
+                    ...repeat(additionalSourceId),
                     id: additionalSourceId,
                     metricQuery: additionalMetricQuery,
                 },
@@ -531,6 +563,7 @@ export const useMergeSetup = () => {
         metricQuery,
         additionalMetricQuery,
         joinType,
+        repeatValuesSourceIds,
     ]);
 
     // The same rules the server refuses on, run here as the merge is built.
@@ -624,6 +657,8 @@ export const useMergeSetup = () => {
         additionalSource,
         additionalSourceId,
         joinType,
+        repeatValuesSourceIds,
+        setRepeatValues,
         run,
         isRunning,
         runErrors,

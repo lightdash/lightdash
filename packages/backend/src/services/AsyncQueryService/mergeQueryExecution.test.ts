@@ -65,6 +65,31 @@ describe('merge query execution', () => {
         expect(getMergeOutputColumnCount(mergeQuery)).toBe(6);
     });
 
+    test('counts a dimension that is not a join key as a merged column', () => {
+        expect(
+            getMergeOutputColumnCount({
+                ...mergeQuery,
+                sources: [
+                    {
+                        id: 'orders',
+                        metricQuery: {
+                            ...sourceQuery(['orders_count']),
+                            dimensions: ['orders_month', 'orders_status'],
+                        },
+                    },
+                    {
+                        id: 'payments',
+                        metricQuery: sourceQuery(
+                            ['payments_sum', 'payments_count'],
+                            ['payments_average'],
+                        ),
+                        repeatValues: true,
+                    },
+                ],
+            }),
+        ).toBe(7);
+    });
+
     test('applies requested and cell-based export limits once to the merge', () => {
         expect(
             applyMergeExportLimit({

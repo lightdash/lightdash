@@ -16,6 +16,9 @@ export const toSavedMerge = (mergeQuery: MergeQuery): SavedMergeQuery => {
     ) {
         throw new Error('A saved merge requires the chart query.');
     }
+    const repeatValuesSourceIds = mergeQuery.sources.flatMap((source) =>
+        source.repeatValues === true ? [source.id] : [],
+    );
     return {
         primarySourceId: MERGE_PRIMARY_SOURCE_ID,
         sources: mergeQuery.sources.map((source) => {
@@ -44,5 +47,6 @@ export const toSavedMerge = (mergeQuery: MergeQuery): SavedMergeQuery => {
         })),
         joinType: mergeQuery.joinType,
         tableCalculations: mergeQuery.tableCalculations,
+        ...(repeatValuesSourceIds.length > 0 ? { repeatValuesSourceIds } : {}),
     };
 };

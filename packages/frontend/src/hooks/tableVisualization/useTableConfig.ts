@@ -1,6 +1,7 @@
 import {
     convertFormattedValue,
     getItemLabel,
+    getRepeatedMergeFieldIds,
     isCustomDimension,
     isDimension,
     isField,
@@ -251,7 +252,15 @@ const useTableConfig = (
     // Subtotals re-derive from the metric query behind the source query. A
     // merge has no such query — its metric query describes the merged result
     // rather than anything the warehouse can be asked to group again.
-    const isMerged = !!useMergeSafe()?.mergeResults;
+    const mergeResults = useMergeSafe()?.mergeResults ?? null;
+    const isMerged = !!mergeResults;
+    const repeatedFieldIds = useMemo(
+        () =>
+            mergeResults
+                ? getRepeatedMergeFieldIds(mergeResults.mergeQuery.sources)
+                : [],
+        [mergeResults],
+    );
     const canUseSubtotals = useMemo(
         () => numUnpivotedDimensions > 1 && !isMerged,
         [numUnpivotedDimensions, isMerged],
@@ -400,6 +409,7 @@ const useTableConfig = (
             totalsError: columnTotalsError,
             isMergedResult:
                 isMerged && !!tableChartConfig?.showColumnCalculation,
+            repeatedFieldIds,
             groupedSubtotals,
             subtotalsLoading: isCalculatingSubtotals,
             subtotalsError: columnSubtotalsError,
@@ -417,6 +427,7 @@ const useTableConfig = (
         getFieldLabelOverride,
         asyncTotals,
         isMerged,
+        repeatedFieldIds,
         tableChartConfig?.showColumnCalculation,
         isCalculatingColumnTotals,
         columnTotalsError,

@@ -99,6 +99,7 @@ describe('canonicalizeAiMerge', () => {
                     fieldIdBySourceId: part.fieldIdBySourceId,
                 })),
                 joinType: canonical.mergeQuery.joinType,
+                repeatValuesSourceIds: [],
             }),
         );
 
@@ -124,6 +125,7 @@ describe('canonicalizeAiMerge', () => {
                 },
             ],
             joinType: MergeJoinType.FULL,
+            repeatValuesSourceIds: [],
         });
     });
 

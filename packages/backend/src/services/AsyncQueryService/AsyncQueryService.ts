@@ -61,6 +61,7 @@ import {
     getMetrics,
     getMetricsWithValidParameters,
     getPivotValueColumnName,
+    getRepeatedMergeFieldIds,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
     isCartesianChartConfig,
@@ -5714,9 +5715,10 @@ export class AsyncQueryService extends ProjectService {
      * Totals over a merged result, aggregated over its rows on the compose
      * engine. Every source value appears once per key, because fan-out is
      * refused, so sums, counts, minimums and maximums over the rows are
-     * exact. Columns with no exact aggregate are left out; the response's
-     * fields say which were totalled, and the table says why the rest were
-     * not.
+     * exact. A source that opted to repeat its values is the exception: its
+     * columns appear once per matching row and are left out. Columns with no
+     * exact aggregate are left out; the response's fields say which were
+     * totalled, and the table says why the rest were not.
      */
     private async executeAsyncCalculateMergeTotal({
         account,
@@ -5744,6 +5746,11 @@ export class AsyncQueryService extends ProjectService {
         const statement = buildMergeTotalsSql(
             source.metricQuery.metrics,
             source.fields,
+            'mergeQuery' in source.requestParameters
+                ? getRepeatedMergeFieldIds(
+                      source.requestParameters.mergeQuery.sources,
+                  )
+                : [],
         );
         if (!statement) {
             throw new NotSupportedError(

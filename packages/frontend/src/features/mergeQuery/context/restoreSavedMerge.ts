@@ -49,5 +49,6 @@ export const restoreSavedMerge = (value: unknown) => {
             ),
         })),
         joinType: saved.joinType,
+        repeatValuesSourceIds: saved.repeatValuesSourceIds ?? [],
     };
 };

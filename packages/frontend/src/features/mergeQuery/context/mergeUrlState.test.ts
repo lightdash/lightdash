@@ -32,11 +32,30 @@ const state: MergeUrlState = {
         },
     ],
     joinType: MergeJoinType.LEFT,
+    repeatValuesSourceIds: [],
 };
 
 describe('merge url state', () => {
     it('round-trips source-addressed editor state', () => {
         expect(parseMergeState(serializeMergeState(state))).toEqual(state);
+    });
+
+    it('round-trips which sources repeat their values and drops unknown ones', () => {
+        const repeating = {
+            ...state,
+            repeatValuesSourceIds: ['subscriptions'],
+        };
+        expect(parseMergeState(serializeMergeState(repeating))).toEqual(
+            repeating,
+        );
+
+        const serialized = JSON.parse(serializeMergeState(repeating));
+        expect(
+            parseMergeState(
+                JSON.stringify({ ...serialized, r: ['subscriptions', 'z'] }),
+            ),
+        ).toEqual(repeating);
+        expect('r' in JSON.parse(serializeMergeState(state))).toBe(false);
     });
 
     it('round-trips the relationship step', () => {
@@ -107,6 +126,7 @@ describe('merge url state', () => {
                 },
             ],
             joinType: MergeJoinType.LEFT,
+            repeatValuesSourceIds: [],
         });
     });
 
@@ -126,6 +146,7 @@ describe('merge url state', () => {
             ],
             joinParts: [{ fieldIdBySourceId: { a: null, b: null } }],
             joinType: MergeJoinType.FULL,
+            repeatValuesSourceIds: [],
         });
     });
 

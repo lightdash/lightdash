@@ -3232,6 +3232,13 @@
                     "description": "Source whose rows a LEFT merge preserves.",
                     "type": "string"
                 },
+                "repeatValuesSourceIds": {
+                    "description": "Sources that repeat their values across the other sources' extra\ndimensions (MergeQueryMetricSource.repeatValues). Kept on the merge,\nnot the source, so the source shapes stay as they were saved.\nOmitted when none repeat.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
                 "sources": {
                     "items": {
                         "$ref": "#/$defs/SavedMergeQuerySource"

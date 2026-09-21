@@ -66,6 +66,14 @@ nor pivoted, so its rows multiply across the join and its metrics are counted
 more than once. Detected before execution and refused.
 _Avoid_: row explosion, duplication, cartesian
 
+**Repeat values**:
+A per-source opt-in that turns the fan-out refusal into the lookup the user
+asked for: the source's value columns repeat on every row the other source
+produces for the same key, so the other source may keep dimensions that are
+not join keys. Off by default. A repeated column has no total over the merged
+rows, because a sum would count it once per repeat.
+_Avoid_: one-to-many join (in copy), broadcast, lookup join
+
 **Refusal**:
 A structured, pre-execution rejection of a merge that would produce wrong
 numbers. Carries a kind, the source at fault and the field ids involved, so the
