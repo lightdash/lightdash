@@ -714,6 +714,99 @@
                 "openWorldHint": false,
                 "readOnlyHint": true
             },
+            "description": "Tool: get_data_app_build_status\n\nPurpose:\nCheck how a data app build is going, and get the app's URL once it is ready. A data app is an interactive application generated from a brief on top of a Lightdash project's semantic layer; each build produces one version of it.\n\nImportant:\n- Poll every 15 seconds — \"nextPollAfterMs\" in the response carries the same number in milliseconds. A build usually takes several minutes.\n- Stop polling once \"status\" is \"ready\", \"error\", or \"cancelled\". Those are terminal; the version never changes again.\n- \"slug\" is the app's permanent identifier and never changes, even when the app is renamed. Keep using the slug you started the build with.\n- An agent-scoped session restricted to specific spaces cannot read a personal app, which is what a build started over MCP creates. Call this tool without agentUuid to poll a build you started.\n\nParameters:\n- appSlug: The app's slug, as returned when the build started.\n- version: Which version of the app to report on. Omit it for the latest version, which is the one a build you just started produces.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<human-readable status summary>\" }]\n- structuredContent: {\n    status:          string,        // \"pending\" | \"sandbox\" | \"catalog\" | \"generating\" | \"building\" | \"packaging\" | \"ready\" | \"error\" | \"cancelled\"\n    statusMessage:   string,        // short line describing what the build is doing, or how it ended\n    errorMessage:    string | null, // why the build failed, set only when status is \"error\"\n    name:            string,        // the app's name\n    slug:            string,        // the app's permanent slug\n    href:            string,        // URL to open the app in Lightdash\n    nextPollAfterMs: number         // how long to wait before polling again\n  }\n\nErrors: an unknown slug, or an app or version this caller may not view, returns an error rather than a status.\n",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "properties": {
+                    "appSlug": {
+                        "description": "The data app's slug, as returned when the build started.",
+                        "minLength": 1,
+                        "type": "string"
+                    },
+                    "version": {
+                        "description": "Which version of the app to report on. Omit for the latest version — the one a build you just started produces.",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                    }
+                },
+                "required": ["appSlug"],
+                "type": "object"
+            },
+            "name": "get_data_app_build_status",
+            "outputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "errorMessage": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Why the build failed. Set only when status is \"error\"."
+                    },
+                    "href": {
+                        "description": "URL to open the app in Lightdash.",
+                        "type": "string"
+                    },
+                    "name": {
+                        "description": "The app's name.",
+                        "type": "string"
+                    },
+                    "nextPollAfterMs": {
+                        "description": "How long to wait before polling again. Stop polling on a terminal status.",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                    },
+                    "slug": {
+                        "description": "The app's permanent slug; it never changes.",
+                        "type": "string"
+                    },
+                    "status": {
+                        "description": "Pipeline stage the build has reached, or a terminal outcome: \"ready\", \"error\", or \"cancelled\".",
+                        "enum": [
+                            "pending",
+                            "sandbox",
+                            "catalog",
+                            "generating",
+                            "building",
+                            "packaging",
+                            "ready",
+                            "error",
+                            "cancelled"
+                        ],
+                        "type": "string"
+                    },
+                    "statusMessage": {
+                        "description": "Short line describing what the build is doing, or how it ended.",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "status",
+                    "statusMessage",
+                    "errorMessage",
+                    "name",
+                    "slug",
+                    "href",
+                    "nextPollAfterMs"
+                ],
+                "type": "object"
+            },
+            "title": "Get data app build status"
+        },
+        {
+            "annotations": {
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false,
+                "readOnlyHint": true
+            },
             "description": "Get the current Lightdash version",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",

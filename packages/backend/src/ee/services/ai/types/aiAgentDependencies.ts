@@ -61,6 +61,7 @@ import {
 } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
 import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
+import type { DataAppBuildStatusSource } from '../../AppGenerateService/AppGenerateService';
 import { AiAgentSkill } from '../skills/types';
 
 type Pagination = KnexPaginateArgs & {
@@ -727,6 +728,13 @@ export type IterateDataAppFn = (args: {
     themeSlug: string | null;
     toolCallId: string;
 }) => Promise<{ appUuid: string; version: number }>;
+
+// Reports on a build an external agent started; MCP-only, since the AI agent
+// gets its outcome patched onto the tool result instead of polling.
+export type GetDataAppBuildStatusFn = (args: {
+    appSlug: string;
+    version?: number;
+}) => Promise<DataAppBuildStatusSource>;
 
 // Applies a structured project-context entry to lightdash.project_context.yml
 // via the deterministic GitHub-API merge (no sandbox) and opens/updates a PR.

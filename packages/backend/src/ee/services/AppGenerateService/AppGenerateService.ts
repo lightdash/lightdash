@@ -449,6 +449,22 @@ export type DataAppReadSource = {
     dataReferences: PersistedDataAppDataReferences | null;
 };
 
+/** App identity plus the one version row a build-status poll reports on. */
+export type DataAppBuildStatusSource = {
+    app: {
+        uuid: string;
+        slug: string;
+        name: string;
+        spaceUuid: string | null;
+    };
+    version: {
+        version: number;
+        status: AppVersionStatus;
+        error: string | null;
+        statusMessage: string | null;
+    };
+};
+
 type AppBuildOptions = {
     creationExperience?: DataAppCreationExperience;
     designUuidInput?: string | null;
@@ -824,6 +840,11 @@ export class AppGenerateService extends BaseService {
             'create',
             subject('DataApp', projectContext),
         );
+    }
+
+    /** Coarse variant for surfaces that must not vary per project, e.g. MCP tools/list without a pinned project. */
+    canCreateAnyDataApp(user: SessionUser): boolean {
+        return this.createAuditedAbility(user).can('create', 'DataApp');
     }
 
     /**
@@ -11993,6 +12014,47 @@ export class AppGenerateService extends BaseService {
             createdBy,
             resources: readyVersion.resources,
             dataReferences,
+        };
+    }
+
+    /** Any version the caller can view is reportable; no session affinity. */
+    async getDataAppBuildStatus(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+        version?: number,
+    ): Promise<DataAppBuildStatusSource> {
+        const app = await this.appModel.findAppBySlug(projectUuid, slug);
+        if (!app) {
+            throw new NotFoundError(`Data app "${slug}" was not found`);
+        }
+        await this.assertCanViewApp(user, app);
+
+        const versionRow =
+            version === undefined
+                ? await this.appModel.getLatestVersion(app.app_id)
+                : await this.appModel.getVersion(app.app_id, version);
+        if (!versionRow) {
+            throw new NotFoundError(
+                version === undefined
+                    ? `Data app "${slug}" has no versions yet`
+                    : `Version ${version} of data app "${slug}" was not found`,
+            );
+        }
+
+        return {
+            app: {
+                uuid: app.app_id,
+                slug: app.slug,
+                name: app.name,
+                spaceUuid: app.space_uuid,
+            },
+            version: {
+                version: versionRow.version,
+                status: versionRow.status,
+                error: versionRow.error,
+                statusMessage: versionRow.status_message,
+            },
         };
     }
 
