@@ -6,6 +6,7 @@ import {
     ApiAiGenerateTableCalculationResponse,
     ApiAiGenerateTooltipResponse,
     ApiErrorPayload,
+    ApiSuggestChartTypeDataResponse,
     assertRegisteredAccount,
     GenerateChartMetadataRequest,
     GenerateCustomDimensionRequest,
@@ -13,6 +14,7 @@ import {
     GenerateTableCalculationRequest,
     GenerateTooltipRequest,
     ItemsMap,
+    SuggestChartTypeDataRequest,
 } from '@lightdash/common';
 import {
     Body,
@@ -166,6 +168,27 @@ export class AiController extends BaseController {
         return {
             status: 'ok',
             results: await this.getAiService().generateTooltip(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/chart-type/suggest-data')
+    @OperationId('suggestChartTypeData')
+    async suggestChartTypeData(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: SuggestChartTypeDataRequest,
+    ): Promise<ApiSuggestChartTypeDataResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiService().suggestChartTypeData(
                 toSessionUser(req.account),
                 projectUuid,
                 body,

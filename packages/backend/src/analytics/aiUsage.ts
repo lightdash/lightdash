@@ -16,6 +16,7 @@ export type AiCallFeature =
     | 'agent-subtask'
     | 'chart-metadata'
     | 'chart-similarity'
+    | 'chart-type-data'
     | 'document-summary'
     | 'thread-title'
     | 'tooltip'

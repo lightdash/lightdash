@@ -96,6 +96,20 @@ export type GenerateTooltipGenerated = BaseTrack & {
     };
 };
 
+export type ChartTypeDataSuggested = BaseTrack & {
+    event: 'ai.chart_type_data.suggested';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        userId: string;
+        candidateExploreCount: number;
+        inputCount: number;
+        mappedInputCount: number;
+        inputsInferred: boolean;
+        fits: boolean;
+    };
+};
+
 // SCIM events
 
 export type ScimAccessTokenAuthenticationEvent = BaseTrack & {

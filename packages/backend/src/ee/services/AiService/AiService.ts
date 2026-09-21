@@ -18,9 +18,15 @@ import {
     getItemId,
     isField,
     ItemsMap,
+    ParameterError,
+    QueryExecutionContext,
     SessionUser,
+    SuggestChartTypeDataRequest,
+    SuggestedChartTypeData,
     TableCalculationType,
     UnexpectedServerError,
+    type ChartTypeDataAlternative,
+    type Explore,
 } from '@lightdash/common';
 import { generateText } from 'ai';
 import NodeCache from 'node-cache';
@@ -28,10 +34,12 @@ import { createHash } from 'node:crypto';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { BaseService } from '../../../services/BaseService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
+    ChartTypeDataSuggested,
     ConvertSqlToFormulaGenerated,
     CustomVizGenerated,
     GenerateChartMetadataGenerated,
@@ -47,6 +55,14 @@ import {
     type ChartSimilarityInput,
     type ChartSimilarityMatch,
 } from '../ai/agents/chartSimilarity';
+import {
+    buildFieldRanking,
+    CHART_TYPE_DATA_CAPS,
+    suggestChartTypeData as suggestChartTypeDataFromContext,
+    truncate,
+    validateChartTypeDataSuggestion,
+    type AlternativeExploreCandidate,
+} from '../ai/agents/chartTypeDataSuggester';
 import { generateCustomDimension as generateCustomDimensionFromContext } from '../ai/agents/customDimensionGenerator';
 import {
     detectDataAppAnomalies,
@@ -74,6 +90,7 @@ import {
     getGeneratorTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
+import { type AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
 import { DEFAULT_CUSTOM_VIZ_PROMPT } from './utils/prompts';
 import { getTotalTokenUsage } from './utils/tokens';
 
@@ -84,7 +101,17 @@ type Dependencies = {
     lightdashConfig: LightdashConfig;
     featureFlagService: FeatureFlagService;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+    // Resolved lazily: the tools service is built from services that reach
+    // back into this one.
+    getAiAgentToolsService: () => AiAgentToolsService;
 };
+
+const NO_MATCHING_EXPLORE_REASON =
+    'No explore in this project matches that description.';
+const NO_ACCESSIBLE_EXPLORE_REASON =
+    'No explore you can access matches that description.';
+const NO_CHOSEN_EXPLORE_REASON =
+    'Could not settle on an explore for that description. Try naming the data you want.';
 
 export class AiService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -98,6 +125,8 @@ export class AiService extends BaseService {
     private readonly featureFlagService: FeatureFlagService;
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
+    private readonly getAiAgentToolsService: () => AiAgentToolsService;
 
     private readonly chartSimilarityCache = new NodeCache({
         stdTTL: 60,
@@ -180,6 +209,7 @@ export class AiService extends BaseService {
         this.featureFlagService = dependencies.featureFlagService;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
+        this.getAiAgentToolsService = dependencies.getAiAgentToolsService;
     }
 
     /**
@@ -610,6 +640,198 @@ export class AiService extends BaseService {
 
         return {
             html: result.html,
+        };
+    }
+
+    /**
+     * Suggests preview data for a chart type being authored in Chart Studio:
+     * one explore, one field per chart input, and other explores worth trying.
+     * Metadata only — the runtime is used for explore search and definitions,
+     * never to run a query.
+     */
+    async suggestChartTypeData(
+        user: SessionUser,
+        projectUuid: string,
+        payload: SuggestChartTypeDataRequest,
+    ): Promise<SuggestedChartTypeData> {
+        const prompt = payload.prompt.trim();
+        if (prompt.length === 0) {
+            throw new ParameterError(
+                'Describe the chart you want before asking for data.',
+            );
+        }
+        const boundedPrompt = prompt.slice(0, CHART_TYPE_DATA_CAPS.promptChars);
+        const hint = payload.hint?.trim()
+            ? payload.hint.trim().slice(0, CHART_TYPE_DATA_CAPS.hintChars)
+            : null;
+        const requestedInputs =
+            payload.inputs?.slice(0, CHART_TYPE_DATA_CAPS.requestInputs) ??
+            null;
+
+        const account = fromSession(user);
+        const project = await this.projectService.getProject(
+            projectUuid,
+            account,
+        );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('Explore', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
+
+        const runtime = this.getAiAgentToolsService().createRuntime({
+            user,
+            account,
+            organizationUuid: project.organizationUuid,
+            projectUuid,
+            source: 'ai_agent',
+            catalogSearchContext: CatalogSearchContext.AI_AGENT,
+            defaultQueryExecutionContext: QueryExecutionContext.AI,
+            tags: null,
+            spaceAccess: null,
+        });
+
+        const searchQuery = [
+            boundedPrompt,
+            hint,
+            ...(requestedInputs ?? []).map((input) => input.label),
+        ]
+            .filter((part): part is string => !!part)
+            .join(' ')
+            .slice(0, CHART_TYPE_DATA_CAPS.searchQueryChars);
+
+        // Always searched: a pinned explore still needs its fields ranked, or
+        // a wide table reaches the model as an alphabetical slice.
+        const found = await runtime.findExplores({
+            searchQuery,
+            fieldSearchSize: CHART_TYPE_DATA_CAPS.fieldSearchSize,
+        });
+        const fieldRanking = buildFieldRanking(found.topMatchingFields ?? []);
+        // The explore names the model may pick from, and the labels the
+        // response is allowed to show, both come from this search only. A
+        // pinned explore is the author's choice, so nothing else is offered.
+        const searchResults: AlternativeExploreCandidate[] = payload.exploreName
+            ? []
+            : (found.exploreSearchResults ?? []).map((explore) => ({
+                  name: explore.name,
+                  label: explore.label,
+                  description: explore.description ?? null,
+              }));
+
+        const candidateNames = payload.exploreName
+            ? [payload.exploreName]
+            : searchResults
+                  .slice(0, CHART_TYPE_DATA_CAPS.candidateExplores)
+                  .map((explore) => explore.name);
+
+        if (candidateNames.length === 0) {
+            return { kind: 'no_data', reason: NO_MATCHING_EXPLORE_REASON };
+        }
+
+        const explores = (
+            await Promise.all(
+                candidateNames.map((table) =>
+                    runtime.getExplore({ table }).catch(() => null),
+                ),
+            )
+        ).filter((explore): explore is Explore => explore !== null);
+
+        if (explores.length === 0) {
+            return { kind: 'no_data', reason: NO_ACCESSIBLE_EXPLORE_REASON };
+        }
+
+        const suggestion = await suggestChartTypeDataFromContext(modelOptions, {
+            prompt: boundedPrompt,
+            hint,
+            inputs: requestedInputs,
+            explores,
+            alternativeExplores: searchResults
+                .slice(CHART_TYPE_DATA_CAPS.candidateExplores)
+                .slice(0, CHART_TYPE_DATA_CAPS.alternativeExplores),
+            fieldRanking,
+        });
+
+        const chosen = explores.find(
+            (explore) => explore.name === suggestion.exploreName,
+        );
+        if (!chosen) {
+            return { kind: 'no_data', reason: NO_CHOSEN_EXPLORE_REASON };
+        }
+
+        const { inputs, fits } = validateChartTypeDataSuggestion({
+            suggestion,
+            explore: chosen,
+            requestedInputs,
+        });
+
+        const alternativeLabels = new Map(
+            searchResults.map((explore) => [explore.name, explore.label]),
+        );
+        const alternatives = suggestion.alternatives.reduce<
+            ChartTypeDataAlternative[]
+        >((acc, alternative) => {
+            const label = alternativeLabels.get(alternative.exploreName);
+            if (
+                label === undefined ||
+                alternative.exploreName === chosen.name ||
+                acc.some(
+                    (kept) => kept.exploreName === alternative.exploreName,
+                ) ||
+                acc.length >= CHART_TYPE_DATA_CAPS.alternatives
+            ) {
+                return acc;
+            }
+            return [
+                ...acc,
+                {
+                    exploreName: alternative.exploreName,
+                    exploreLabel: label,
+                    summary: truncate(
+                        alternative.summary,
+                        CHART_TYPE_DATA_CAPS.alternativeSummaryChars,
+                    ),
+                },
+            ];
+        }, []);
+
+        this.analytics.track<ChartTypeDataSuggested>({
+            userId: user.userUuid,
+            event: 'ai.chart_type_data.suggested',
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                userId: user.userUuid,
+                candidateExploreCount: explores.length,
+                inputCount: inputs.length,
+                mappedInputCount: inputs.filter(
+                    (input) => input.fieldId !== null,
+                ).length,
+                inputsInferred: requestedInputs === null,
+                fits,
+            },
+        });
+
+        return {
+            kind: 'suggested',
+            exploreName: chosen.name,
+            exploreLabel: chosen.label,
+            shapeSummary: truncate(
+                suggestion.shapeSummary,
+                CHART_TYPE_DATA_CAPS.shapeSummaryChars,
+            ),
+            inputs,
+            alternatives,
+            fits,
         };
     }
 

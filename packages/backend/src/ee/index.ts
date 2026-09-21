@@ -619,6 +619,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getAiOrganizationSettingsModel(),
                         aiModelCatalog,
                     }),
+                    getAiAgentToolsService: () =>
+                        repository.getAiAgentToolsService<AiAgentToolsService>(),
                 }),
             aiAgentCoderService: ({ models, repository, context }) =>
                 new AiAgentCoderService({
