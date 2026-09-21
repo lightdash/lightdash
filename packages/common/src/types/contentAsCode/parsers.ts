@@ -2,6 +2,7 @@ import { ParameterError } from '../errors';
 import type { GroupAsCode } from '../groups';
 import type { CustomRoleAsCode, RoleLevel } from '../roles';
 import type { UserAsCode, UserAsCodeRole } from '../user';
+import type { UserAttributeAsCode } from '../userAttributes';
 import { CONTENT_AS_CODE_VERSION } from './base';
 
 type CodeObject = Record<string, unknown>;
@@ -184,5 +185,108 @@ export const parseUserAsCode = (input: unknown, source: string): UserAsCode => {
         disabled: value.disabled,
         role: parseUserRole(value.role, source),
         ...(additionalRoles ? { additionalRoles } : {}),
+    };
+};
+
+export const parseUserAttributeAsCode = (
+    input: unknown,
+    source: string,
+): UserAttributeAsCode => {
+    const label = 'user attribute';
+    const value = asCodeObject(input, label, source);
+    requireVersionOne(value, label, source);
+    const checkKeys = (object: CodeObject, allowed: string[]) => {
+        const unknown = Object.keys(object).filter(
+            (key) => !allowed.includes(key),
+        );
+        if (unknown.length > 0) {
+            throw new ParameterError(
+                `Invalid user attribute file "${source}": unknown fields ${unknown.join(', ')}`,
+            );
+        }
+    };
+    checkKeys(value, [
+        'version',
+        'name',
+        'description',
+        'attributeDefaults',
+        'users',
+        'groups',
+    ]);
+    const name = requireString(value, 'name', label, source);
+    if (name !== name.trim()) {
+        throw new ParameterError(
+            'User attribute name must not have surrounding whitespace',
+        );
+    }
+    if (value.description !== null && typeof value.description !== 'string') {
+        throw new ParameterError(
+            `Invalid user attribute file "${source}": expected description to be a string or null`,
+        );
+    }
+    const parseValues = (object: CodeObject, key: string): string[] => {
+        const values = requireStringArray(object, key, label, source);
+        if (values.some((entry) => entry.length === 0)) {
+            throw new ParameterError(
+                `Invalid user attribute file "${source}": ${key} must not contain empty strings`,
+            );
+        }
+        return [...new Set(values)].sort();
+    };
+    const parseAssignments = (
+        key: 'users' | 'groups',
+        identityKey: 'email' | 'name',
+    ) => {
+        const assignments = value[key];
+        if (!Array.isArray(assignments)) {
+            throw new ParameterError(
+                `Invalid user attribute file "${source}": expected ${key} to be an array`,
+            );
+        }
+        const identities = new Set<string>();
+        return assignments
+            .map((entry) => {
+                const assignment = asCodeObject(entry, label, source);
+                checkKeys(assignment, [identityKey, 'values']);
+                const rawIdentity = requireString(
+                    assignment,
+                    identityKey,
+                    label,
+                    source,
+                );
+                const identity =
+                    identityKey === 'email'
+                        ? rawIdentity.toLowerCase()
+                        : rawIdentity;
+                if (identity !== identity.trim()) {
+                    throw new ParameterError(
+                        `Invalid user attribute ${identityKey}: ${identity}`,
+                    );
+                }
+                if (identities.has(identity)) {
+                    throw new ParameterError(
+                        `Duplicate user attribute ${identityKey}: ${identity}`,
+                    );
+                }
+                identities.add(identity);
+                return { identity, values: parseValues(assignment, 'values') };
+            })
+            .sort((a, b) => a.identity.localeCompare(b.identity));
+    };
+    const defaults =
+        value.attributeDefaults === null
+            ? null
+            : parseValues(value, 'attributeDefaults');
+    return {
+        version: CONTENT_AS_CODE_VERSION,
+        name,
+        description: value.description || null,
+        attributeDefaults: defaults?.length ? defaults : null,
+        users: parseAssignments('users', 'email').map(
+            ({ identity, values }) => ({ email: identity, values }),
+        ),
+        groups: parseAssignments('groups', 'name').map(
+            ({ identity, values }) => ({ name: identity, values }),
+        ),
     };
 };

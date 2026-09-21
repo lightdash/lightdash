@@ -9,9 +9,12 @@ import {
     type ApiGroupAsCodeUpsertResponse,
     type ApiUserAsCodeListResponse,
     type ApiUserAsCodeUpsertResponse,
+    type ApiUserAttributeAsCodeListResponse,
+    type ApiUserAttributeAsCodeUpsertResponse,
     type CustomRoleAsCode,
     type GroupAsCode,
     type UserAsCode,
+    type UserAttributeAsCode,
 } from '@lightdash/common';
 import {
     Body,
@@ -38,6 +41,39 @@ import {
 @Route('/api/v2/orgs/{orgUuid}')
 @Response<ApiErrorPayload>('default', 'Error')
 export class OrganizationCoderController extends BaseController {
+    @Tags('v2', 'User attributes')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/userAttributes')
+    @OperationId('GetCodeUserAttributes')
+    async getUserAttributesAsCode(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+    ): Promise<ApiUserAttributeAsCodeListResponse> {
+        const userAttributes = await this.services
+            .getUserAttributesService()
+            .getUserAttributesAsCode(req.account!, orgUuid);
+        this.setStatus(200);
+        return codeSuccess({ userAttributes });
+    }
+
+    @Tags('v2', 'User attributes')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/userAttributes')
+    @OperationId('UpsertCodeUserAttribute')
+    async upsertUserAttributeAsCode(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+        @Body() body: UserAttributeAsCode,
+    ): Promise<ApiUserAttributeAsCodeUpsertResponse> {
+        const results = await this.services
+            .getUserAttributesService()
+            .upsertUserAttributeAsCode(req.account!, orgUuid, body);
+        this.setStatus(200);
+        return codeSuccess(results);
+    }
+
     /**
      * Get custom roles in code representation
      * @summary List custom roles as code

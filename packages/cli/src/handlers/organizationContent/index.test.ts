@@ -22,6 +22,7 @@ import {
     uploadThemes,
     type ThemeUploadSummary,
 } from './themes';
+import { downloadUserAttributes, uploadUserAttributes } from './userAttributes';
 import { downloadUsers, uploadUsers, type UserUploadSummary } from './users';
 
 vi.mock('./customRoles', async (importOriginal) => ({
@@ -39,6 +40,11 @@ vi.mock('./groups', async (importOriginal) => ({
     downloadGroups: vi.fn(),
     uploadGroups: vi.fn(),
     countDependencySkippedGroups: vi.fn(),
+}));
+vi.mock('./userAttributes', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('./userAttributes')>()),
+    downloadUserAttributes: vi.fn(),
+    uploadUserAttributes: vi.fn(),
 }));
 vi.mock('./themes', async (importOriginal) => ({
     ...(await importOriginal<typeof import('./themes')>()),
@@ -64,6 +70,14 @@ describe('organization content download', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(downloadUserAttributes).mockResolvedValue(2);
+        vi.mocked(uploadUserAttributes).mockResolvedValue({
+            created: 0,
+            updated: 0,
+            unchanged: 0,
+            failed: 0,
+            failures: [],
+        });
         vi.spyOn(GlobalState, 'startSpinner').mockReturnValue(spinner as never);
         vi.spyOn(GlobalState, 'log').mockImplementation(() => undefined);
         vi.spyOn(GlobalState, 'debug').mockImplementation(() => undefined);
@@ -98,7 +112,7 @@ describe('organization content download', () => {
     it('reports a duration for every downloaded resource', async () => {
         await downloadOrganizationContent({ config });
 
-        expect(spinner.succeed).toHaveBeenCalledTimes(4);
+        expect(spinner.succeed).toHaveBeenCalledTimes(5);
         spinner.succeed.mock.calls.forEach(([message]) =>
             expect(message).toMatch(/\(\d+ms\)$/),
         );
@@ -169,6 +183,14 @@ describe('organization content upload sequencing', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(downloadUserAttributes).mockResolvedValue(2);
+        vi.mocked(uploadUserAttributes).mockResolvedValue({
+            created: 0,
+            updated: 0,
+            unchanged: 0,
+            failed: 0,
+            failures: [],
+        });
         vi.spyOn(GlobalState, 'startSpinner').mockReturnValue(spinner as never);
         vi.spyOn(GlobalState, 'log').mockImplementation(() => undefined);
         vi.spyOn(LightdashAnalytics, 'track').mockResolvedValue(undefined);
@@ -198,6 +220,16 @@ describe('organization content upload sequencing', () => {
             phaseOrder.push('groups:start', 'groups:end');
             return groupSummary();
         });
+        vi.mocked(uploadUserAttributes).mockImplementation(async () => {
+            phaseOrder.push('attributes:start', 'attributes:end');
+            return {
+                created: 0,
+                updated: 0,
+                unchanged: 1,
+                failed: 0,
+                failures: [],
+            };
+        });
         vi.mocked(uploadThemes).mockImplementation(async () => {
             phaseOrder.push('themes:start', 'themes:end');
             return themeSummary();
@@ -214,15 +246,39 @@ describe('organization content upload sequencing', () => {
             'users:end',
             'groups:start',
             'groups:end',
+            'attributes:start',
+            'attributes:end',
             'themes:start',
             'themes:end',
         ]);
     });
 
+    it('does not upload attributes when groups fail', async () => {
+        vi.mocked(uploadGroups).mockResolvedValue(groupSummary(1));
+        await expect(uploadOrganizationContent({ config })).rejects.toThrow(
+            'Processed groups',
+        );
+        expect(uploadUserAttributes).not.toHaveBeenCalled();
+    });
+
+    it('stops subsequent phases when attributes fail', async () => {
+        vi.mocked(uploadUserAttributes).mockResolvedValue({
+            created: 0,
+            updated: 0,
+            unchanged: 0,
+            failed: 1,
+            failures: [{ message: 'Unknown user' }],
+        });
+        await expect(uploadOrganizationContent({ config })).rejects.toThrow(
+            'Processed user attributes',
+        );
+        expect(uploadThemes).not.toHaveBeenCalled();
+    });
+
     it('reports a duration for every uploaded resource', async () => {
         await uploadOrganizationContent({ config });
 
-        expect(spinner.succeed).toHaveBeenCalledTimes(4);
+        expect(spinner.succeed).toHaveBeenCalledTimes(5);
         spinner.succeed.mock.calls.forEach(([message]) =>
             expect(message).toMatch(/\(\d+ms\)$/),
         );

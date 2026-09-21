@@ -205,6 +205,7 @@ organization resources will use the same root.
 | Custom roles         | Organization | Exact role name                  | `lightdash/custom-roles/`                |
 | Users                | Organization | Lowercase primary email          | `lightdash/users/`                       |
 | Groups               | Organization | Exact, case-sensitive group name | `lightdash/groups/`                      |
+| User attributes      | Organization | Exact attribute name             | `lightdash/user_attributes/`             |
 | Data App themes      | Organization | Immutable organization slug      | `lightdash/themes/<slug>/`               |
 
 Data apps and organization Data App themes are deliberately outside the
@@ -216,7 +217,7 @@ Project APIs use `/api/v1/projects/{projectUuid}/code/{resource}`. Organization
 APIs use `/api/v2/orgs/{orgUuid}/code/{resource}`. The resource segments are
 `charts`, `sqlCharts`, `dashboards`, `spaces`, `virtualViews`, `aiAgents`,
 `scheduledDeliveries`, `alerts`, `googleSheets`, `externalConnections`,
-`roles`, `users`, and `groups`.
+`roles`, `users`, `groups`, and `userAttributes`.
 The legacy resource-first routes are deprecated in OpenAPI and should not be
 used by new clients.
 
@@ -553,14 +554,47 @@ new group and leaves the original group intact; missing files do not delete
 groups.
 
 Organization uploads preflight theme packages, then run remote phases
-sequentially: custom roles, users, groups, and themes. A failed document phase
+sequentially: custom roles, users, groups, user attributes, and themes. A failed document phase
 prevents later phases from starting, so group emails are resolved only after
 the complete users phase has succeeded and theme imports begin only after the
-groups phase succeeds.
+user attributes phase succeeds.
 
 SCIM and content as code should not manage the same group. Groups do not yet
 record management provenance, so this limitation cannot be enforced by the
 first version.
+
+## User attributes as code
+
+`lightdash download --organization` writes one YAML file per attribute under
+`lightdash/user_attributes/`. Use `--path` to select a separate content root for
+each organization, as with users and groups.
+
+```yaml
+version: 1
+name: team_id
+description: Team access
+attributeDefaults: null
+users:
+  - email: jane@example.com
+    values: [a, b]
+groups:
+  - name: team-a-viewers
+    values: [a]
+```
+
+The endpoints are `GET` and `POST /api/v2/orgs/{orgUuid}/code/userAttributes`.
+Both require permission to manage the target organization. References use
+organization member emails (case-insensitive) and exact group names, not UUIDs.
+Unknown or ambiguous references and duplicate assignments are rejected before
+that attribute is changed. Values support multiple strings.
+
+`lightdash upload --organization` applies attributes after users and groups.
+Each file replaces the attribute's description, defaults, and complete user and
+group assignment lists. Use `users: []`, `groups: []`, and
+`attributeDefaults: null` to clear them. Reapplying the same document reports
+`unchanged`. Missing files do not delete remote attributes, and changing a name
+creates a new attribute. Uploads without this folder leave attributes unchanged.
+This does not lock UI editing or configure project-level group roles.
 
 ## Adding another content-as-code resource
 

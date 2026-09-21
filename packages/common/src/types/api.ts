@@ -418,6 +418,10 @@ import {
     type LoginOptions,
     type UserAllowedOrganization,
 } from './user';
+import type {
+    ApiUserAttributeAsCodeListResponse,
+    ApiUserAttributeAsCodeUpsertResponse,
+} from './userAttributes';
 import { type UserAvatarColorValue } from './userAvatars';
 import { type UserOnboarding } from './userOnboarding';
 import {
@@ -1440,6 +1444,8 @@ type ApiResults =
     | ApiMetricsCatalog['results']
     | ApiMetricsExplorerQueryResults['results']
     | ApiGroupListResponse['results']
+    | ApiUserAttributeAsCodeListResponse['results']
+    | ApiUserAttributeAsCodeUpsertResponse['results']
     | ApiGroupAsCodeListResponse['results']
     | ApiGroupAsCodeUpsertResponse['results']
     | ApiPullRequestsResponse['results']
