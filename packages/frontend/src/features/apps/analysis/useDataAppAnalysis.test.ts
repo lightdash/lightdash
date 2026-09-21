@@ -42,7 +42,7 @@ const analysis = (appUuid: string) => ({
     dataAsOf: null,
 });
 
-const render = () =>
+const render = (autoAnalyse = false) =>
     renderHook(
         ({ appUuid }: { appUuid: string }) =>
             useDataAppAnalysis({
@@ -50,6 +50,7 @@ const render = () =>
                 appUuid,
                 queries: [readyQuery],
                 mountedQueryUuids: null,
+                autoAnalyse,
             }),
         { initialProps: { appUuid: 'app-a' } },
     );
@@ -202,6 +203,60 @@ describe('useDataAppAnalysis', () => {
         expect(detectDataAppAnomalies).toHaveBeenCalledWith(
             expect.objectContaining({ force: false }),
         );
+    });
+
+    it('runs detect on a lookup miss when the app analyses on load', async () => {
+        const { result } = render(true);
+        await settle();
+        expect(lookupDataAppAnalysis).toHaveBeenCalledTimes(1);
+        expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+        expect(detectDataAppAnomalies).toHaveBeenCalledWith(
+            expect.objectContaining({ appUuid: 'app-a', force: false }),
+        );
+        expect(result.current.state.status).toBe('ready');
+    });
+
+    it('does not run detect on load when a stored analysis exists', async () => {
+        vi.mocked(lookupDataAppAnalysis).mockResolvedValue({
+            analysis: analysis('app-a'),
+            investigations: [],
+        });
+        const { result } = render(true);
+        await settle();
+        expect(detectDataAppAnomalies).not.toHaveBeenCalled();
+        expect(result.current.state.status).toBe('ready');
+    });
+
+    it('re-runs detect once when the view changes and nothing is stored', async () => {
+        const { result, rerender } = renderHook(
+            ({ queries }: { queries: QueryEvent[] }) =>
+                useDataAppAnalysis({
+                    projectUuid: 'proj-1',
+                    appUuid: 'app-a',
+                    queries,
+                    mountedQueryUuids: null,
+                    autoAnalyse: true,
+                }),
+            { initialProps: { queries: [readyQuery] } },
+        );
+        await settle();
+        expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+        rerender({
+            queries: [
+                readyQuery,
+                { ...readyQuery, id: 'req-2', timestamp: 2, queryUuid: 'q-2' },
+            ],
+        });
+        expect(result.current.state).toMatchObject({
+            status: 'ready',
+            stale: true,
+        });
+        await settle();
+        expect(detectDataAppAnomalies).toHaveBeenCalledTimes(2);
+        expect(result.current.state).toMatchObject({
+            status: 'ready',
+            stale: false,
+        });
     });
 
     it('drops a finished analysis when the app changes', async () => {

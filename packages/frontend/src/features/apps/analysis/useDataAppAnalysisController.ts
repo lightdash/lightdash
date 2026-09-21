@@ -1,5 +1,6 @@
 import {
     type AiAgentSummary,
+    type DataAppAutoAnalysis,
     type DataAppInsightAction,
     type DataAppInsightsPayload,
 } from '@lightdash/common';
@@ -67,6 +68,7 @@ export const useDataAppAnalysisController = ({
     appUuid,
     queries,
     availability,
+    autoAnalyse = 'inherit',
     onNeedsAgent,
     openThread,
 }: {
@@ -74,6 +76,8 @@ export const useDataAppAnalysisController = ({
     appUuid: string | undefined;
     queries: QueryEvent[];
     availability: DataAppAnalysisAvailability;
+    /** The app's own choice; 'inherit' takes the org default. */
+    autoAnalyse?: DataAppAutoAnalysis;
     /** Called when the app asks to investigate but no agent is picked yet. */
     onNeedsAgent: () => void;
     /** Where "Continue in Ask AI" goes; defaults to the launcher panel. */
@@ -86,12 +90,18 @@ export const useDataAppAnalysisController = ({
     const [mountedQueryUuids, setMountedQueryUuids] = useState<string[] | null>(
         null,
     );
+    const autoAnalyseResolved =
+        availability.status === 'available' &&
+        (autoAnalyse === 'inherit'
+            ? availability.autoAnalyseDefault
+            : autoAnalyse === 'on');
     // Route params resolve before anything renders; empty ids are never sent.
     const analysis = useDataAppAnalysis({
         projectUuid: projectUuid ?? '',
         appUuid: appUuid ?? '',
         queries,
         mountedQueryUuids,
+        autoAnalyse: autoAnalyseResolved,
     });
 
     const agentsQuery = useProjectAiAgents({

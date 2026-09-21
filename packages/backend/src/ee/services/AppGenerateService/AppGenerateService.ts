@@ -48,6 +48,7 @@ import {
     getVisibleDataAppClaudeModels,
     isChartTypeIcon,
     isDashboardChartTileType,
+    isDataAppAutoAnalysis,
     isExploreError,
     isSemverVersion,
     isValidDataAppSlug,
@@ -57,6 +58,7 @@ import {
     MAX_APP_VIZ_BUILD_SAMPLE_FIELDS,
     MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
     MissingConfigError,
+    normalizeDataAppAutoAnalysis,
     NotFoundError,
     ParameterError,
     ProjectType,
@@ -98,6 +100,7 @@ import {
     type DashboardBlueprint,
     type DataAppActivityEvent,
     type DataAppActivityFilters,
+    type DataAppAutoAnalysis,
     type DataAppClaudeEffort,
     type DataAppClaudeModel,
     type DataAppCode,
@@ -9244,6 +9247,7 @@ export class AppGenerateService extends BaseService {
         registrySlug: string | null;
         icon: ChartTypeIcon | null;
         verification: ContentVerificationInfo | null;
+        autoAnalysis: DataAppAutoAnalysis;
     }> {
         await this.assertDataAppsEnabled(user);
 
@@ -9259,6 +9263,7 @@ export class AppGenerateService extends BaseService {
             name,
             description,
             icon,
+            autoAnalysis,
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
@@ -9369,6 +9374,7 @@ export class AppGenerateService extends BaseService {
             // An icon retired from the curated set reads back as no icon.
             icon: isChartTypeIcon(icon) ? icon : null,
             verification,
+            autoAnalysis: normalizeDataAppAutoAnalysis(autoAnalysis),
         };
     }
 
@@ -10350,12 +10356,14 @@ export class AppGenerateService extends BaseService {
             name?: string;
             description?: string;
             icon?: ChartTypeIcon | null;
+            autoAnalysis?: DataAppAutoAnalysis;
         },
     ): Promise<{
         appUuid: string;
         name: string;
         description: string;
         icon: ChartTypeIcon | null;
+        autoAnalysis: DataAppAutoAnalysis;
     }> {
         await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
@@ -10376,6 +10384,7 @@ export class AppGenerateService extends BaseService {
             name: string;
             description: string;
             icon: string | null;
+            auto_analysis: DataAppAutoAnalysis;
         }> = {};
         if (update.name !== undefined) {
             const trimmedName = update.name.trim();
@@ -10411,10 +10420,18 @@ export class AppGenerateService extends BaseService {
             }
             fieldsToUpdate.icon = update.icon;
         }
+        if (update.autoAnalysis !== undefined) {
+            if (!isDataAppAutoAnalysis(update.autoAnalysis)) {
+                throw new ParameterError(
+                    `Invalid auto analysis value: ${String(update.autoAnalysis)}`,
+                );
+            }
+            fieldsToUpdate.auto_analysis = update.autoAnalysis;
+        }
 
         if (Object.keys(fieldsToUpdate).length === 0) {
             throw new ParameterError(
-                'At least one of name, description or icon must be provided',
+                'At least one of name, description, icon or autoAnalysis must be provided',
             );
         }
 
@@ -10434,6 +10451,9 @@ export class AppGenerateService extends BaseService {
             name: updatedApp.name,
             description: updatedApp.description,
             icon: isChartTypeIcon(updatedApp.icon) ? updatedApp.icon : null,
+            autoAnalysis: normalizeDataAppAutoAnalysis(
+                updatedApp.auto_analysis,
+            ),
         };
     }
 
