@@ -1,6 +1,7 @@
 import {
     isWarehouseTableType,
     NotFoundError,
+    UnexpectedServerError,
     WarehouseCatalog,
     WarehouseTables,
     WarehouseTablesCatalog,
@@ -10,12 +11,56 @@ import {
     DbWarehouseAvailableTables,
     WarehouseAvailableTablesTableName,
 } from '../../database/entities/warehouseAvailableTables';
+import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 
 export class WarehouseAvailableTablesModel {
     database: Knex;
 
     constructor(database: Knex) {
         this.database = database;
+    }
+
+    private async hasSupersededWarehouseCredentialsColumn(): Promise<boolean> {
+        return this.database.schema.hasColumn(
+            WarehouseCredentialTableName,
+            'superseded_at',
+        );
+    }
+
+    private async getProjectWarehouseCredentialsId(
+        projectUuid: string,
+    ): Promise<number> {
+        const hasSupersededAt =
+            await this.hasSupersededWarehouseCredentialsColumn();
+        const query = this.database(WarehouseCredentialTableName)
+            .join(
+                'projects',
+                'projects.project_id',
+                `${WarehouseCredentialTableName}.project_id`,
+            )
+            .where('projects.project_uuid', projectUuid);
+
+        if (hasSupersededAt) {
+            query.whereNull(`${WarehouseCredentialTableName}.superseded_at`);
+        }
+
+        const warehouseCredentials = await query
+            .select<{ warehouse_credentials_id: number }[]>(
+                `${WarehouseCredentialTableName}.warehouse_credentials_id`,
+            )
+            .limit(2);
+
+        if (warehouseCredentials.length === 0) {
+            throw new NotFoundError('Warehouse credentials not found');
+        }
+
+        if (warehouseCredentials.length > 1) {
+            throw new UnexpectedServerError(
+                'Could not save available tables because the project does not have exactly one active warehouse connection.',
+            );
+        }
+
+        return warehouseCredentials[0].warehouse_credentials_id;
     }
 
     static toWarehouseCatalog(
@@ -64,25 +109,32 @@ export class WarehouseAvailableTablesModel {
     }
 
     async getTablesForProjectWarehouseCredentials(projectUuid: string) {
-        const rows = await this.database('projects')
+        const hasSupersededAt =
+            await this.hasSupersededWarehouseCredentialsColumn();
+        const query = this.database('projects')
             .join(
-                'warehouse_credentials',
+                WarehouseCredentialTableName,
                 'projects.project_id',
-                'warehouse_credentials.project_id',
+                `${WarehouseCredentialTableName}.project_id`,
             )
             .join(
                 WarehouseAvailableTablesTableName,
-                'warehouse_credentials.warehouse_credentials_id',
+                `${WarehouseCredentialTableName}.warehouse_credentials_id`,
                 `${WarehouseAvailableTablesTableName}.project_warehouse_credentials_id`,
             )
-            .where('project_uuid', projectUuid)
-            .select([
-                'database',
-                'schema',
-                'table',
-                'partition_column',
-                'table_type',
-            ]);
+            .where('projects.project_uuid', projectUuid);
+
+        if (hasSupersededAt) {
+            query.whereNull(`${WarehouseCredentialTableName}.superseded_at`);
+        }
+
+        const rows = await query.select([
+            'database',
+            'schema',
+            'table',
+            'partition_column',
+            'table_type',
+        ]);
         return WarehouseAvailableTablesModel.toWarehouseCatalog(rows);
     }
 
@@ -90,28 +142,14 @@ export class WarehouseAvailableTablesModel {
         projectUuid: string,
         tables: WarehouseTables,
     ) {
-        const warehouseCredentialsId = await this.database(
-            'warehouse_credentials',
-        )
-            .join(
-                'projects',
-                'projects.project_id',
-                'warehouse_credentials.project_id',
-            )
-            .where('project_uuid', projectUuid)
-            .select('warehouse_credentials_id')
-            .first();
-
-        if (!warehouseCredentialsId) {
-            throw new NotFoundError('Warehouse credentials not found');
-        }
+        const warehouseCredentialsId =
+            await this.getProjectWarehouseCredentialsId(projectUuid);
         const rows = tables.map(
             ({ database, schema, table, partitionColumn, tableType }) => ({
                 database,
                 schema,
                 table,
-                project_warehouse_credentials_id:
-                    warehouseCredentialsId.warehouse_credentials_id,
+                project_warehouse_credentials_id: warehouseCredentialsId,
                 user_warehouse_credentials_uuid: null,
                 partition_column: partitionColumn || null,
                 table_type: tableType,
@@ -122,7 +160,7 @@ export class WarehouseAvailableTablesModel {
             await trx(WarehouseAvailableTablesTableName)
                 .where(
                     'project_warehouse_credentials_id',
-                    warehouseCredentialsId.warehouse_credentials_id,
+                    warehouseCredentialsId,
                 )
                 .del();
 

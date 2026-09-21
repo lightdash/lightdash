@@ -63,6 +63,53 @@ describe('ProjectDbtSourcesModel', () => {
         vi.clearAllMocks();
     });
 
+    it('separates a materialised primary source from additional sources', async () => {
+        const primarySource: DbProjectDbtSource = {
+            ...sources[0],
+            project_dbt_source_uuid: '55555555-5555-4555-8555-555555555555',
+            name: 'dbt_project',
+            is_primary: true,
+            precedence: 0,
+        };
+        tracker.on
+            .select(ProjectDbtSourcesTableName)
+            .responseOnce([primarySource, ...sources]);
+
+        const result = await model.getSourcesWithPrimary(upstreamProjectUuid);
+
+        expect(result.primarySource).toMatchObject({
+            projectDbtSourceUuid: primarySource.project_dbt_source_uuid,
+            name: 'dbt_project',
+            isPrimary: true,
+        });
+        expect(result.additionalSources.map((source) => source.name)).toEqual([
+            'finance_models',
+            'marketing_models',
+        ]);
+    });
+
+    it('keeps additional rows additional before primary materialisation', async () => {
+        tracker.on.select(ProjectDbtSourcesTableName).responseOnce(sources);
+
+        const result = await model.getSourcesWithPrimary(upstreamProjectUuid);
+
+        expect(result.primarySource).toBeNull();
+        expect(result.additionalSources).toHaveLength(2);
+    });
+
+    it('does not count a materialised primary as an additional source', async () => {
+        tracker.on.select(ProjectDbtSourcesTableName).responseOnce([]);
+
+        await expect(model.hasSources(upstreamProjectUuid)).resolves.toBe(
+            false,
+        );
+        expect(tracker.history.select[0].bindings).toEqual([
+            upstreamProjectUuid,
+            false,
+            1,
+        ]);
+    });
+
     it('copies raw source configuration with new identities', async () => {
         tracker.on.select(ProjectDbtSourcesTableName).responseOnce(sources);
         tracker.on.insert(ProjectDbtSourcesTableName).responseOnce([]);

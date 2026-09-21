@@ -90,7 +90,7 @@ export class ProjectDbtSourcesModel {
             projectDbtSourceUuid: row.project_dbt_source_uuid,
             projectUuid: row.project_uuid,
             name: row.name,
-            isPrimary: row.is_primary,
+            isPrimary: row.is_primary ?? false,
             precedence: row.precedence,
             dbtConnection,
             warehouseLocation: {
@@ -108,11 +108,24 @@ export class ProjectDbtSourcesModel {
      * (the same order the merge fold uses). Empty when the project has none.
      */
     async getSources(projectUuid: string): Promise<ProjectDbtSource[]> {
+        const { additionalSources } =
+            await this.getSourcesWithPrimary(projectUuid);
+        return additionalSources;
+    }
+
+    async getSourcesWithPrimary(projectUuid: string): Promise<{
+        primarySource: ProjectDbtSource | null;
+        additionalSources: ProjectDbtSource[];
+    }> {
         const rows = await this.database(ProjectDbtSourcesTableName)
             .where('project_uuid', projectUuid)
             .orderBy('precedence', 'asc')
             .orderBy('name', 'asc');
-        return rows.map((row) => this.convertRow(row));
+        const sources = rows.map((row) => this.convertRow(row));
+        return {
+            primarySource: sources.find((source) => source.isPrimary) ?? null,
+            additionalSources: sources.filter((source) => !source.isPrimary),
+        };
     }
 
     /**
@@ -122,6 +135,7 @@ export class ProjectDbtSourcesModel {
     async hasSources(projectUuid: string): Promise<boolean> {
         const row = await this.database(ProjectDbtSourcesTableName)
             .where('project_uuid', projectUuid)
+            .where('is_primary', false)
             .first();
         return row !== undefined;
     }

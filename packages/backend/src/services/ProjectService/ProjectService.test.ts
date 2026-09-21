@@ -90,7 +90,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
-import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
+import type { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -7296,12 +7296,14 @@ type ResolveCompileAdapterArgs = {
         dbtVersionOption: DbtVersionOptionLatest;
     };
     manifestFetchAdapters: ProjectAdapter[];
+    onDbtSourceCount?: (dbtSourceCount: number) => void;
 };
 
 type BuildMergedManifestAdapterArgs = {
     projectUuid: string;
     organizationUuid: string | undefined;
     primary: ResolveCompileAdapterArgs['primary'];
+    primarySource?: ProjectDbtSource | null;
     sources: ProjectDbtSource[];
     manifestFetchAdapters: ProjectAdapter[];
 };
@@ -7316,7 +7318,9 @@ type ResolvedCompileAdapter = {
 // what these tests need to call/override, avoiding `any`.
 type ProjectServiceInternals = {
     featureFlagModel: { get: (args: unknown) => Promise<unknown> };
-    projectDbtSourcesModel: { getSources: (projectUuid: string) => unknown };
+    projectDbtSourcesModel: {
+        getSourcesWithPrimary: (projectUuid: string) => unknown;
+    };
     resolveCompileAdapter: (
         args: ResolveCompileAdapterArgs,
     ) => Promise<ResolvedCompileAdapter>;
@@ -7364,9 +7368,16 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
     const buildServiceWithMocks = (
         flagEnabled: boolean,
-        sources: unknown[],
+        sources: ProjectDbtSource[],
+        primarySource: ProjectDbtSource | null = null,
     ) => {
-        const getSources = vi.fn(async () => sources);
+        const getSourcesWithPrimary = vi.mocked(
+            vi.fn<ProjectDbtSourcesModel['getSourcesWithPrimary']>(),
+        );
+        getSourcesWithPrimary.mockResolvedValue({
+            primarySource,
+            additionalSources: sources,
+        });
         const projectService = getMockedProjectService(
             lightdashConfigMock,
         ) as unknown as ProjectServiceInternals;
@@ -7384,8 +7395,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 };
             }),
         };
-        projectService.projectDbtSourcesModel = { getSources };
-        return { projectService, getSources };
+        projectService.projectDbtSourcesModel = { getSourcesWithPrimary };
+        return { projectService, getSourcesWithPrimary };
     };
 
     const buildManifest = (
@@ -7510,6 +7521,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             primary?: string[];
             source?: string[];
         } = {},
+        primarySource: ProjectDbtSource | null = null,
     ) => {
         const projectService = getMockedProjectService(
             lightdashConfigMock,
@@ -7528,6 +7540,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                     selectedModelIds.primary,
                 ),
             },
+            primarySource,
             sources: [buildSource('source-b')],
             manifestFetchAdapters: [],
         });
@@ -7549,6 +7562,43 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
         return (await adapter).adapter;
     };
+
+    it('uses the materialised primary source identity in the merged manifest', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.customers',
+                name: 'customers',
+                packageName: 'pkg_b',
+            },
+        ]);
+        const storedPrimary = {
+            ...buildSource('stored_primary'),
+            projectDbtSourceUuid: 'stored-primary-uuid',
+            isPrimary: true,
+            precedence: 0,
+        };
+        projectModel.getDbtSourceIdentity.mockClear();
+
+        const { adapter } = await buildMergedAdapterWithService(
+            primaryManifest,
+            sourceManifest,
+            {},
+            storedPrimary,
+        ).adapter;
+        const result = await adapter.getDbtManifest();
+
+        expect(result.manifest.nodes['model.pkg_a.orders']).toMatchObject({
+            lightdash_source_uuid: 'stored-primary-uuid',
+        });
+        expect(projectModel.getDbtSourceIdentity).not.toHaveBeenCalled();
+    });
 
     it('returns the deduplicated union when both sources select models', async () => {
         const primaryManifest = buildManifest([
@@ -8131,30 +8181,66 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     });
 
     it('flag OFF returns the primary adapter by identity and never queries getSources', async () => {
-        const { projectService, getSources } = buildServiceWithMocks(false, [
-            { name: 'jaffle-2' },
-        ]);
+        const { projectService, getSourcesWithPrimary } = buildServiceWithMocks(
+            false,
+            [buildSource('jaffle-2')],
+        );
 
         const result = await projectService.resolveCompileAdapter(baseArgs);
 
         expect(result.adapter).toBe(primaryAdapter);
-        expect(getSources).not.toHaveBeenCalled();
+        expect(getSourcesWithPrimary).not.toHaveBeenCalled();
         expect(projectModel.deleteMergedManifest).toHaveBeenCalledWith(
             'project-uuid',
         );
     });
 
     it('flag ON with zero sources (N=0) returns the primary adapter by identity', async () => {
-        const { projectService, getSources } = buildServiceWithMocks(true, []);
+        const { projectService, getSourcesWithPrimary } = buildServiceWithMocks(
+            true,
+            [],
+        );
 
         const result = await projectService.resolveCompileAdapter(baseArgs);
 
         expect(result.adapter).toBe(primaryAdapter);
-        expect(getSources).toHaveBeenCalledTimes(1);
+        expect(getSourcesWithPrimary).toHaveBeenCalledTimes(1);
         expect(projectModel.deleteMergedManifest).toHaveBeenCalledWith(
             'project-uuid',
         );
         expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+    });
+
+    it('uses a materialised primary source without adding it to the source fold', async () => {
+        const storedPrimary = {
+            ...buildSource('stored_primary'),
+            projectDbtSourceUuid: 'stored-primary-uuid',
+            isPrimary: true,
+            precedence: 0,
+        };
+        const additionalSource = buildSource('additional_source');
+        const { projectService } = buildServiceWithMocks(
+            true,
+            [additionalSource],
+            storedPrimary,
+        );
+        const buildMergedManifestAdapter = vi
+            .spyOn(projectService, 'buildMergedManifestAdapter')
+            .mockResolvedValue({ adapter: primaryAdapter });
+        const onDbtSourceCount = vi.fn();
+
+        await projectService.resolveCompileAdapter({
+            ...baseArgs,
+            onDbtSourceCount,
+        });
+
+        expect(buildMergedManifestAdapter).toHaveBeenCalledWith(
+            expect.objectContaining({
+                primarySource: storedPrimary,
+                sources: [additionalSource],
+            }),
+        );
+        expect(onDbtSourceCount).toHaveBeenCalledWith(2);
     });
 
     it.each([
@@ -8187,7 +8273,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         } as unknown as ProjectAdapter;
         const stagedMergedManifest = Buffer.from('staged-manifest');
         const { projectService } = buildServiceWithMocks(true, [
-            { name: 'jaffle-2' },
+            buildSource('jaffle-2'),
         ]);
         const buildMergedManifestAdapterSpy = vi
             .spyOn(projectService, 'buildMergedManifestAdapter')
@@ -8302,8 +8388,15 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 }),
             ),
         } as unknown as FeatureFlagModel;
+        const getSourcesWithPrimary = vi.mocked(
+            vi.fn<ProjectDbtSourcesModel['getSourcesWithPrimary']>(),
+        );
+        getSourcesWithPrimary.mockResolvedValue({
+            primarySource: null,
+            additionalSources: [buildSource('source-b')],
+        });
         const projectDbtSourcesModel = {
-            getSources: vi.fn(async () => [buildSource('source-b')]),
+            getSourcesWithPrimary,
         } as unknown as ProjectDbtSourcesModel;
 
         return getMockedProjectService(lightdashConfigMock, {
@@ -8491,7 +8584,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
     it('propagates a ParameterError from buildMergedManifestAdapter when sources collide', async () => {
         const { projectService } = buildServiceWithMocks(true, [
-            { name: 'jaffle-2' },
+            buildSource('jaffle-2'),
         ]);
         vi.spyOn(
             projectService,

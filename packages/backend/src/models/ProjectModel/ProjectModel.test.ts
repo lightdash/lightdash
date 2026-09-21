@@ -109,8 +109,22 @@ describe('ProjectModel', () => {
         encryptionUtil: encryptionUtilMock,
     });
     let tracker: Tracker;
+    const schemaColumns = new Set<string>();
+    const schemaTables = new Set<string>();
     beforeAll(() => {
         tracker = getTracker();
+    });
+    beforeEach(() => {
+        schemaColumns.clear();
+        schemaTables.clear();
+        tracker.on
+            .any(({ sql }) => sql.includes('information_schema.columns'))
+            .response(({ bindings }) =>
+                schemaColumns.has(`${bindings[0]}.${bindings[1]}`),
+            );
+        tracker.on
+            .any(({ sql }) => sql.includes('information_schema.tables'))
+            .response(({ bindings }) => schemaTables.has(String(bindings[0])));
     });
     afterEach(() => {
         tracker.reset();
@@ -164,6 +178,23 @@ describe('ProjectModel', () => {
         await expect(
             model.getDbtSourceIdentity(projectUuid),
         ).rejects.toBeInstanceOf(NotFoundError);
+    });
+    test('updates the project identity and materialised primary source name atomically', async () => {
+        tracker.on
+            .update(({ sql }) => sql.includes(`"${ProjectTableName}"`))
+            .response([{ project_uuid: projectUuid }]);
+        tracker.on
+            .update(({ sql }) => sql.includes('"project_dbt_sources"'))
+            .response(1);
+
+        await model.updateDbtSourceName(projectUuid, 'renamed source');
+
+        expect(tracker.history.transactions).toHaveLength(1);
+        expect(tracker.history.update).toHaveLength(2);
+        expect(tracker.history.update[1].bindings).toEqual(
+            expect.arrayContaining(['renamed source', projectUuid, true]),
+        );
+        expect(tracker.history.update[1].bindings[1]).toBeInstanceOf(Date);
     });
     test('should get project tables configuration', async () => {
         tracker.on
@@ -745,6 +776,39 @@ describe('ProjectModel', () => {
             );
         });
 
+        test('dual-writes the sole connection manifest when scoped storage exists', async () => {
+            schemaTables.add('project_connection_manifests');
+            schemaColumns.add('warehouse_credentials.superseded_at');
+            const manifest = Buffer.from('manifest');
+            tracker.on
+                .insert(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([{ warehouse_credentials_uuid: 'connection-uuid' }]);
+            tracker.on
+                .insert(({ sql }) =>
+                    sql.includes('project_connection_manifests'),
+                )
+                .response([]);
+
+            await model.upsertMergedManifest(projectUuid, manifest);
+
+            expect(tracker.history.insert).toHaveLength(2);
+            expect(tracker.history.insert[1].bindings).toEqual(
+                expect.arrayContaining([
+                    projectUuid,
+                    'connection-uuid',
+                    manifest,
+                ]),
+            );
+            expect(tracker.history.select[0].sql).toContain(
+                '"warehouse_credentials"."superseded_at" is null',
+            );
+        });
+
         test('returns the stored gzip bytes', async () => {
             const storedManifest = Buffer.from('stored');
             tracker.on
@@ -784,6 +848,54 @@ describe('ProjectModel', () => {
         });
     });
 
+    test('dual-writes the sole connection catalog cache when scoped storage exists', async () => {
+        schemaTables.add('project_connection_catalog_cache');
+        schemaColumns.add('warehouse_credentials.superseded_at');
+        tracker.on
+            .insert(({ sql }) => sql.includes('"cached_warehouse"'))
+            .response([
+                {
+                    project_uuid: projectUuid,
+                    warehouse: {},
+                },
+            ]);
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([{ warehouse_credentials_uuid: 'connection-uuid' }]);
+        tracker.on
+            .insert(({ sql }) =>
+                sql.includes('project_connection_catalog_cache'),
+            )
+            .response([]);
+
+        await model.saveWarehouseToCache(projectUuid, {});
+
+        expect(tracker.history.insert).toHaveLength(2);
+        expect(tracker.history.insert[1].bindings).toEqual(
+            expect.arrayContaining([
+                projectUuid,
+                'connection-uuid',
+                JSON.stringify({}),
+            ]),
+        );
+    });
+
+    test('writes only the legacy catalog cache before scoped storage exists', async () => {
+        tracker.on
+            .insert(({ sql }) => sql.includes('"cached_warehouse"'))
+            .response([
+                {
+                    project_uuid: projectUuid,
+                    warehouse: {},
+                },
+            ]);
+
+        await model.saveWarehouseToCache(projectUuid, {});
+
+        expect(tracker.history.insert).toHaveLength(1);
+        expect(tracker.history.insert[0].sql).toContain('"cached_warehouse"');
+    });
+
     test('invalidates the previous MotherDuck connection after a credential update', async () => {
         const previousCredentials: CreateDuckdbMotherduckCredentials = {
             type: WarehouseTypes.DUCKDB,
@@ -805,6 +917,9 @@ describe('ProjectModel', () => {
         tracker.on
             .update(({ sql }) => sql.includes('projects'))
             .response([{ project_id: 1 }]);
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
         tracker.on
             .insert(({ sql }) => sql.includes('warehouse_credentials'))
             .response([]);
@@ -833,6 +948,9 @@ describe('ProjectModel', () => {
             .update(({ sql }) => sql.includes('projects'))
             .response([{ project_id: 1 }]);
         tracker.on
+            .select(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
+        tracker.on
             .insert(({ sql }) => sql.includes('warehouse_credentials'))
             .response([]);
 
@@ -851,6 +969,98 @@ describe('ProjectModel', () => {
             ),
         ).toBe(true);
         expect(invalidate).not.toHaveBeenCalled();
+    });
+
+    test('updates only the active connection after the warehouse schema expands', async () => {
+        schemaColumns.add('warehouse_credentials.superseded_at');
+        schemaColumns.add(
+            'warehouse_credentials.organization_warehouse_credentials_uuid',
+        );
+        const warehouseConnection = {
+            type: WarehouseTypes.BIGQUERY,
+        } as CreateWarehouseCredentials;
+        vi.spyOn(model, 'getWarehouseCredentialsForProject').mockResolvedValue(
+            warehouseConnection,
+        );
+        tracker.on
+            .update(({ sql }) => sql.includes('"projects"'))
+            .response([{ project_id: 1 }]);
+        tracker.on
+            .select(({ sql }) => sql.includes('"warehouse_credentials"'))
+            .response([{ warehouse_credentials_id: 41 }]);
+        tracker.on
+            .update(({ sql }) => sql.includes('"warehouse_credentials"'))
+            .response(1);
+
+        await model.update(projectUuid, {
+            name: expectedProject.name,
+            dbtConnection: expectedProject.dbtConnection,
+            dbtVersion: expectedProject.dbtVersion,
+            warehouseConnection,
+            organizationWarehouseCredentialsUuid: 'org-connection-uuid',
+        });
+
+        const warehouseUpdate = tracker.history.update.find(({ sql }) =>
+            sql.includes('"warehouse_credentials"'),
+        );
+        expect(warehouseUpdate?.sql).toContain(
+            'where "warehouse_credentials_id" =',
+        );
+        expect(warehouseUpdate?.bindings).toEqual(
+            expect.arrayContaining(['org-connection-uuid', 41]),
+        );
+        expect(
+            tracker.history.insert.some(({ sql }) =>
+                sql.includes('"warehouse_credentials"'),
+            ),
+        ).toBe(false);
+    });
+
+    test('qualifies the project org pointer and ignores superseded connection rows', async () => {
+        schemaColumns.add('warehouse_credentials.superseded_at');
+        tracker.on
+            .select(({ sql }) => sql.includes('"warehouse_credentials"'))
+            .response([
+                {
+                    encrypted_credentials: Buffer.from(
+                        JSON.stringify({ type: WarehouseTypes.BIGQUERY }),
+                    ),
+                    organization_warehouse_credentials_uuid: null,
+                    organization_uuid: 'organization-uuid',
+                },
+            ]);
+
+        await expect(
+            model.getWarehouseCredentialsForProject(projectUuid),
+        ).resolves.toMatchObject({ type: WarehouseTypes.BIGQUERY });
+
+        expect(tracker.history.select[0].sql).toContain(
+            '"projects"."organization_warehouse_credentials_uuid"',
+        );
+        expect(tracker.history.select[0].sql).toContain(
+            '"warehouse_credentials"."superseded_at" is null',
+        );
+    });
+
+    test('lists each project through its active connection only', async () => {
+        schemaColumns.add('warehouse_credentials.superseded_at');
+        tracker.on
+            .select(({ sql }) => sql.includes('from "organizations"'))
+            .response([{ organization_id: 7 }]);
+        tracker.on
+            .select(({ sql }) =>
+                sql.includes('agg_project_group_access_counts'),
+            )
+            .response([]);
+
+        await model.getAllByOrganizationUuid('organization-uuid');
+
+        const projectsQuery = tracker.history.select.find(({ sql }) =>
+            sql.includes('agg_project_group_access_counts'),
+        );
+        expect(projectsQuery?.sql).toContain(
+            '"warehouse_credentials"."superseded_at" is null',
+        );
     });
 
     test('checks project membership without requiring an email row', async () => {

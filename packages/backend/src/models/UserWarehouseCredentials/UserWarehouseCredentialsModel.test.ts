@@ -6,7 +6,12 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { DbUserWarehouseCredentials } from '../../database/entities/userWarehouseCredentials';
+import { ProjectTableName } from '../../database/entities/projects';
+import {
+    DbUserWarehouseCredentials,
+    ProjectUserWarehouseCredentialPreferenceTableName,
+} from '../../database/entities/userWarehouseCredentials';
+import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentialsModel';
 
@@ -99,6 +104,83 @@ const createModel = ({
         database,
         encryptionUtil: passthroughEncryption,
     });
+};
+
+type PreferenceQueryBuilder = Record<
+    | 'first'
+    | 'forUpdate'
+    | 'ignore'
+    | 'innerJoin'
+    | 'insert'
+    | 'limit'
+    | 'onConflict'
+    | 'returning'
+    | 'select'
+    | 'update'
+    | 'where'
+    | 'whereNull',
+    ReturnType<typeof vi.fn>
+>;
+
+const createPreferenceQueryBuilder = (): PreferenceQueryBuilder => {
+    const builder = {
+        first: vi.fn(),
+        forUpdate: vi.fn(),
+        ignore: vi.fn(),
+        innerJoin: vi.fn(),
+        insert: vi.fn(),
+        limit: vi.fn(),
+        onConflict: vi.fn(),
+        returning: vi.fn(),
+        select: vi.fn(),
+        update: vi.fn(),
+        where: vi.fn(),
+        whereNull: vi.fn(),
+    };
+
+    vi.mocked(builder.innerJoin).mockReturnValue(builder);
+    vi.mocked(builder.forUpdate).mockReturnValue(builder);
+    vi.mocked(builder.ignore).mockReturnValue(builder);
+    vi.mocked(builder.insert).mockReturnValue(builder);
+    vi.mocked(builder.onConflict).mockReturnValue(builder);
+    vi.mocked(builder.select).mockReturnValue(builder);
+    vi.mocked(builder.update).mockReturnValue(builder);
+    vi.mocked(builder.where).mockReturnValue(builder);
+    vi.mocked(builder.whereNull).mockReturnValue(builder);
+
+    return builder;
+};
+
+const createPreferenceModel = (
+    queryBuilders: PreferenceQueryBuilder[],
+    hasConnectionUuid: boolean,
+) => {
+    const projectQuery = createPreferenceQueryBuilder();
+    vi.mocked(projectQuery.first).mockResolvedValue({
+        project_id: 1,
+    } as never);
+    queryBuilders.unshift(projectQuery);
+    const databaseMock = vi.fn(
+        () => queryBuilders.shift() as unknown as Knex.QueryBuilder,
+    );
+    const database = databaseMock as unknown as Knex;
+    Object.defineProperty(database, 'schema', {
+        value: {
+            hasColumn: vi.fn().mockResolvedValue(hasConnectionUuid),
+        },
+    });
+    Object.defineProperty(database, 'transaction', {
+        value: vi.fn(async (callback) => callback(database)),
+    });
+
+    return {
+        database,
+        databaseMock,
+        model: new UserWarehouseCredentialsModel({
+            database,
+            encryptionUtil: passthroughEncryption,
+        }),
+    };
 };
 
 describe('UserWarehouseCredentialsModel', () => {
@@ -323,6 +405,183 @@ describe('UserWarehouseCredentialsModel', () => {
                     WarehouseTypes.BIGQUERY,
                 ),
             ).resolves.toBeUndefined();
+        });
+    });
+
+    describe('upsertUserCredentialsPreference', () => {
+        test('updates the legacy preference when connection scope is unavailable', async () => {
+            const updateQuery = createPreferenceQueryBuilder();
+            vi.mocked(updateQuery.returning).mockResolvedValueOnce([
+                { user_uuid: 'user-1' },
+            ] as never);
+            const { database, databaseMock, model } = createPreferenceModel(
+                [updateQuery],
+                false,
+            );
+
+            await model.upsertUserCredentialsPreference(
+                'user-1',
+                'project-1',
+                'credentials-1',
+            );
+
+            expect(vi.mocked(database.schema.hasColumn)).toHaveBeenCalledWith(
+                ProjectUserWarehouseCredentialPreferenceTableName,
+                'connection_uuid',
+            );
+            expect(databaseMock).toHaveBeenNthCalledWith(1, ProjectTableName);
+            expect(databaseMock).toHaveBeenNthCalledWith(
+                2,
+                ProjectUserWarehouseCredentialPreferenceTableName,
+            );
+            expect(vi.mocked(updateQuery.where)).toHaveBeenCalledWith({
+                user_uuid: 'user-1',
+                project_uuid: 'project-1',
+            });
+            expect(vi.mocked(updateQuery.update)).toHaveBeenCalledWith({
+                user_warehouse_credentials_uuid: 'credentials-1',
+            });
+        });
+
+        test('inserts a legacy preference when no row exists', async () => {
+            const updateQuery = createPreferenceQueryBuilder();
+            const insertQuery = createPreferenceQueryBuilder();
+            vi.mocked(updateQuery.returning).mockResolvedValueOnce([] as never);
+            vi.mocked(insertQuery.returning).mockResolvedValueOnce([
+                { user_uuid: 'user-1' },
+            ] as never);
+            const { model } = createPreferenceModel(
+                [updateQuery, insertQuery],
+                false,
+            );
+
+            await model.upsertUserCredentialsPreference(
+                'user-1',
+                'project-1',
+                'credentials-1',
+            );
+
+            expect(vi.mocked(insertQuery.insert)).toHaveBeenCalledWith({
+                user_uuid: 'user-1',
+                user_warehouse_credentials_uuid: 'credentials-1',
+                project_uuid: 'project-1',
+            });
+        });
+
+        test('updates a concurrent legacy insert without naming its constraint', async () => {
+            const initialUpdateQuery = createPreferenceQueryBuilder();
+            const insertQuery = createPreferenceQueryBuilder();
+            const concurrentUpdateQuery = createPreferenceQueryBuilder();
+            vi.mocked(initialUpdateQuery.returning).mockResolvedValueOnce(
+                [] as never,
+            );
+            vi.mocked(insertQuery.returning).mockResolvedValueOnce([] as never);
+            vi.mocked(concurrentUpdateQuery.returning).mockResolvedValueOnce([
+                { user_uuid: 'user-1' },
+            ] as never);
+            const { model } = createPreferenceModel(
+                [initialUpdateQuery, insertQuery, concurrentUpdateQuery],
+                false,
+            );
+
+            await model.upsertUserCredentialsPreference(
+                'user-1',
+                'project-1',
+                'credentials-1',
+            );
+
+            expect(vi.mocked(insertQuery.onConflict)).toHaveBeenCalledWith();
+            expect(vi.mocked(insertQuery.ignore)).toHaveBeenCalledWith();
+            expect(
+                vi.mocked(concurrentUpdateQuery.update),
+            ).toHaveBeenCalledWith({
+                user_warehouse_credentials_uuid: 'credentials-1',
+            });
+        });
+
+        test('scopes a migrated preference to the sole active connection', async () => {
+            const connectionQuery = createPreferenceQueryBuilder();
+            const updateQuery = createPreferenceQueryBuilder();
+            vi.mocked(connectionQuery.limit).mockResolvedValueOnce([
+                { warehouse_credentials_uuid: 'connection-1' },
+            ] as never);
+            vi.mocked(updateQuery.returning).mockResolvedValueOnce([
+                { user_uuid: 'user-1' },
+            ] as never);
+            const { databaseMock, model } = createPreferenceModel(
+                [connectionQuery, updateQuery],
+                true,
+            );
+
+            await model.upsertUserCredentialsPreference(
+                'user-1',
+                'project-1',
+                'credentials-1',
+            );
+
+            expect(databaseMock).toHaveBeenNthCalledWith(
+                2,
+                WarehouseCredentialTableName,
+            );
+            expect(vi.mocked(connectionQuery.whereNull)).toHaveBeenCalledWith(
+                'superseded_at',
+            );
+            expect(vi.mocked(connectionQuery.limit)).toHaveBeenCalledWith(2);
+            expect(vi.mocked(updateQuery.update)).toHaveBeenCalledWith({
+                user_warehouse_credentials_uuid: 'credentials-1',
+                connection_uuid: 'connection-1',
+            });
+        });
+
+        test('inserts a migrated preference with the sole active connection', async () => {
+            const connectionQuery = createPreferenceQueryBuilder();
+            const updateQuery = createPreferenceQueryBuilder();
+            const insertQuery = createPreferenceQueryBuilder();
+            vi.mocked(connectionQuery.limit).mockResolvedValueOnce([
+                { warehouse_credentials_uuid: 'connection-1' },
+            ] as never);
+            vi.mocked(updateQuery.returning).mockResolvedValueOnce([] as never);
+            vi.mocked(insertQuery.returning).mockResolvedValueOnce([
+                { user_uuid: 'user-1' },
+            ] as never);
+            const { model } = createPreferenceModel(
+                [connectionQuery, updateQuery, insertQuery],
+                true,
+            );
+
+            await model.upsertUserCredentialsPreference(
+                'user-1',
+                'project-1',
+                'credentials-1',
+            );
+
+            expect(vi.mocked(insertQuery.insert)).toHaveBeenCalledWith({
+                user_uuid: 'user-1',
+                user_warehouse_credentials_uuid: 'credentials-1',
+                project_uuid: 'project-1',
+                connection_uuid: 'connection-1',
+            });
+        });
+
+        test('refuses a migrated preference when active connections are ambiguous', async () => {
+            const connectionQuery = createPreferenceQueryBuilder();
+            vi.mocked(connectionQuery.limit).mockResolvedValueOnce([
+                { warehouse_credentials_uuid: 'connection-1' },
+                { warehouse_credentials_uuid: 'connection-2' },
+            ] as never);
+            const { databaseMock, model } = createPreferenceModel(
+                [connectionQuery],
+                true,
+            );
+
+            await expect(
+                model.upsertUserCredentialsPreference(
+                    'user-1',
+                    'project-1',
+                    'credentials-1',
+                ),
+            ).rejects.toThrow('exactly one active connection');
+            expect(databaseMock).toHaveBeenCalledTimes(2);
         });
     });
 });

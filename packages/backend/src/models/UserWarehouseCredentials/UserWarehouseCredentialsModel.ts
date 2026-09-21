@@ -33,6 +33,7 @@ import {
     ProjectUserWarehouseCredentialPreferenceTableName,
     UserWarehouseCredentialsTableName,
 } from '../../database/entities/userWarehouseCredentials';
+import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logging/logger';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
@@ -510,21 +511,96 @@ export class UserWarehouseCredentialsModel {
         projectUuid: string,
         userWarehouseCredentialsUuid: string,
     ) {
-        const [result] = await this.database(
-            ProjectUserWarehouseCredentialPreferenceTableName,
-        )
-            .insert({
-                user_uuid: userUuid,
-                user_warehouse_credentials_uuid: userWarehouseCredentialsUuid,
-                project_uuid: projectUuid,
-            })
-            .onConflict(['user_uuid', 'project_uuid'])
-            .merge()
-            .returning('*');
+        await this.database.transaction(async (trx) => {
+            const project = await trx(ProjectTableName)
+                .select('project_id')
+                .where('project_uuid', projectUuid)
+                .forUpdate()
+                .first<{ project_id: number }>();
+            if (!project) {
+                throw new UnexpectedServerError(
+                    'Could not save preference because the project does not exist.',
+                );
+            }
+            const hasConnectionUuid = await trx.schema.hasColumn(
+                ProjectUserWarehouseCredentialPreferenceTableName,
+                'connection_uuid',
+            );
+            let connectionUuid: string | undefined;
 
-        if (!result) {
-            throw new UnexpectedServerError('Could not save preference.');
-        }
+            if (hasConnectionUuid) {
+                const activeConnections = await trx(
+                    WarehouseCredentialTableName,
+                )
+                    .where('project_id', project.project_id)
+                    .whereNull('superseded_at')
+                    .select<{ warehouse_credentials_uuid: string }[]>(
+                        'warehouse_credentials_uuid',
+                    )
+                    .limit(2);
+
+                if (activeConnections.length !== 1) {
+                    throw new UnexpectedServerError(
+                        'Could not save preference because the project does not have exactly one active connection.',
+                    );
+                }
+                connectionUuid =
+                    activeConnections[0].warehouse_credentials_uuid;
+            }
+
+            const preference = {
+                user_warehouse_credentials_uuid: userWarehouseCredentialsUuid,
+                ...(connectionUuid === undefined
+                    ? {}
+                    : { connection_uuid: connectionUuid }),
+            };
+            const [updated] = await trx(
+                ProjectUserWarehouseCredentialPreferenceTableName,
+            )
+                .where({
+                    user_uuid: userUuid,
+                    project_uuid: projectUuid,
+                })
+                .update(preference)
+                .returning('*');
+
+            if (updated) {
+                return;
+            }
+
+            const [inserted] = await trx(
+                ProjectUserWarehouseCredentialPreferenceTableName,
+            )
+                .insert({
+                    user_uuid: userUuid,
+                    user_warehouse_credentials_uuid:
+                        userWarehouseCredentialsUuid,
+                    project_uuid: projectUuid,
+                    ...(connectionUuid === undefined
+                        ? {}
+                        : { connection_uuid: connectionUuid }),
+                })
+                .onConflict()
+                .ignore()
+                .returning('*');
+
+            if (inserted) {
+                return;
+            }
+
+            const [concurrentUpdate] = await trx(
+                ProjectUserWarehouseCredentialPreferenceTableName,
+            )
+                .where({
+                    user_uuid: userUuid,
+                    project_uuid: projectUuid,
+                })
+                .update(preference)
+                .returning('*');
+            if (!concurrentUpdate) {
+                throw new UnexpectedServerError('Could not save preference.');
+            }
+        });
     }
 
     // Reject credentials that would be unusable at query time, so we never

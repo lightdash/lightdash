@@ -201,10 +201,19 @@ export class ProjectDbtSourcesService extends BaseService {
         projectUuid: string,
     ): Promise<ProjectDbtSourceSummary[]> {
         await this.checkProjectAccess(account, projectUuid, 'view');
-        const [project, identity, sources] = await Promise.all([
+        const { primarySource: storedPrimary, additionalSources: sources } =
+            await this.projectDbtSourcesModel.getSourcesWithPrimary(
+                projectUuid,
+            );
+        if (storedPrimary) {
+            return [
+                ProjectDbtSourcesService.toSummary(storedPrimary),
+                ...sources.map(ProjectDbtSourcesService.toSummary),
+            ];
+        }
+        const [project, identity] = await Promise.all([
             this.projectModel.get(projectUuid),
             this.projectModel.getDbtSourceIdentity(projectUuid),
-            this.projectDbtSourcesModel.getSources(projectUuid),
         ]);
         // The primary source is the project's own dbt_connection (precedence 0),
         // synthesised here rather than stored as a row.

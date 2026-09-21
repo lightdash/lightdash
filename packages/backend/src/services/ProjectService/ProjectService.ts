@@ -5309,6 +5309,7 @@ export class ProjectService extends BaseService {
         projectUuid,
         organizationUuid,
         primary,
+        primarySource,
         sources,
         manifestFetchAdapters,
         jobUuid,
@@ -5322,6 +5323,7 @@ export class ProjectService extends BaseService {
             cachedWarehouse: CachedWarehouse;
             dbtVersionOption: DbtVersionOption;
         };
+        primarySource?: ProjectDbtSource | null;
         sources: ProjectDbtSource[];
         manifestFetchAdapters: ProjectAdapter[];
     }): Promise<ResolvedCompileAdapter> {
@@ -5334,16 +5336,16 @@ export class ProjectService extends BaseService {
         // The primary git adapter is only read for its manifest here; the merged
         // MANIFEST adapter is what compiles, so destroy the primary clone in finally.
         manifestFetchAdapters.push(primary.adapter);
-        const [
-            {
-                manifest: rawPrimaryManifest,
-                selectedModelIds: primarySelectedModelIds,
-            },
-            identity,
-        ] = await Promise.all([
-            primary.adapter.getDbtManifest(),
-            this.projectModel.getDbtSourceIdentity(projectUuid),
-        ]);
+        const {
+            manifest: rawPrimaryManifest,
+            selectedModelIds: primarySelectedModelIds,
+        } = await primary.adapter.getDbtManifest();
+        const identity = primarySource
+            ? {
+                  dbtSourceUuid: primarySource.projectDbtSourceUuid,
+                  dbtSourceName: primarySource.name,
+              }
+            : await this.projectModel.getDbtSourceIdentity(projectUuid);
         const selectedPrimaryManifest = manifestWithCompilationSelection(
             rawPrimaryManifest,
             primarySelectedModelIds,
@@ -5714,8 +5716,10 @@ export class ProjectService extends BaseService {
             onDbtSourceCount?.(1);
             return { adapter: primary.adapter };
         }
-        const sources =
-            await this.projectDbtSourcesModel.getSources(projectUuid);
+        const { primarySource, additionalSources: sources } =
+            await this.projectDbtSourcesModel.getSourcesWithPrimary(
+                projectUuid,
+            );
         if (sources.length === 0) {
             await this.deleteMergedManifestBestEffort(projectUuid);
             onDbtSourceCount?.(1);
@@ -5726,6 +5730,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             organizationUuid,
             primary,
+            primarySource,
             sources,
             manifestFetchAdapters,
             jobUuid,

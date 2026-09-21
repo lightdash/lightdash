@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import { fromSession } from '../auth/account/account';
 import { buildAccount, defaultSessionUser } from '../auth/account/account.mock';
+import type { ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
 import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
 
 const projectUuid = '11111111-1111-4111-8111-111111111111';
@@ -77,6 +78,8 @@ const projectModel = {
 
 const projectDbtSourcesModel = {
     getSources: vi.fn(async () => []),
+    getSourcesWithPrimary:
+        vi.fn<ProjectDbtSourcesModel['getSourcesWithPrimary']>(),
     getSource: vi.fn(),
     createSource: vi.fn(),
     updateSource: vi.fn(),
@@ -108,6 +111,12 @@ describe('ProjectDbtSourcesService', () => {
             dbtSourceName: 'dbt_project',
         });
         projectDbtSourcesModel.getSources.mockResolvedValue([]);
+        vi.mocked(
+            projectDbtSourcesModel.getSourcesWithPrimary,
+        ).mockResolvedValue({
+            primarySource: null,
+            additionalSources: [],
+        });
     });
 
     describe('getProjectDbtSources', () => {
@@ -152,6 +161,52 @@ describe('ProjectDbtSourcesService', () => {
             });
         });
 
+        it('uses the materialised primary source without synthesising a duplicate', async () => {
+            vi.mocked(
+                projectDbtSourcesModel.getSourcesWithPrimary,
+            ).mockResolvedValue({
+                primarySource: {
+                    projectDbtSourceUuid: primarySourceUuid,
+                    projectUuid,
+                    name: 'stored_primary',
+                    isPrimary: true,
+                    precedence: 0,
+                    dbtConnection: githubConnection,
+                    warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+                    hasCredentialError: false,
+                    createdAt: new Date('2026-09-21T00:00:00.000Z'),
+                    updatedAt: new Date('2026-09-21T00:00:00.000Z'),
+                },
+                additionalSources: [
+                    {
+                        projectDbtSourceUuid: sourceUuid,
+                        projectUuid,
+                        name: 'additional_source',
+                        isPrimary: false,
+                        precedence: 1,
+                        dbtConnection: githubConnection,
+                        warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+                        hasCredentialError: false,
+                        createdAt: new Date('2026-09-21T00:00:00.000Z'),
+                        updatedAt: new Date('2026-09-21T00:00:00.000Z'),
+                    },
+                ],
+            });
+            const service = getService();
+
+            const sources = await service.getProjectDbtSources(
+                adminAccount,
+                projectUuid,
+            );
+
+            expect(sources.map((source) => source.name)).toEqual([
+                'stored_primary',
+                'additional_source',
+            ]);
+            expect(projectModel.get).not.toHaveBeenCalled();
+            expect(projectModel.getDbtSourceIdentity).not.toHaveBeenCalled();
+        });
+
         it('allows a developer (view-only) account to list sources', async () => {
             const service = getService();
 
@@ -161,25 +216,30 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it('does not fail the whole list when one source has a credential error', async () => {
-            projectDbtSourcesModel.getSources.mockResolvedValue([
-                {
-                    projectDbtSourceUuid: sourceUuid,
-                    name: 'broken-source',
-                    isPrimary: false,
-                    precedence: 1,
-                    dbtConnection: null,
-                    hasCredentialError: true,
-                } as never,
-                {
-                    projectDbtSourceUuid:
-                        '33333333-3333-4333-8333-333333333333',
-                    name: 'healthy-source',
-                    isPrimary: false,
-                    precedence: 2,
-                    dbtConnection: githubConnection,
-                    hasCredentialError: false,
-                } as never,
-            ]);
+            vi.mocked(
+                projectDbtSourcesModel.getSourcesWithPrimary,
+            ).mockResolvedValue({
+                primarySource: null,
+                additionalSources: [
+                    {
+                        projectDbtSourceUuid: sourceUuid,
+                        name: 'broken-source',
+                        isPrimary: false,
+                        precedence: 1,
+                        dbtConnection: null,
+                        hasCredentialError: true,
+                    } as never,
+                    {
+                        projectDbtSourceUuid:
+                            '33333333-3333-4333-8333-333333333333',
+                        name: 'healthy-source',
+                        isPrimary: false,
+                        precedence: 2,
+                        dbtConnection: githubConnection,
+                        hasCredentialError: false,
+                    } as never,
+                ],
+            });
             const service = getService();
 
             const sources = await service.getProjectDbtSources(
