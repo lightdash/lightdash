@@ -1,3 +1,10 @@
+## [2.279.1](https://github.com/lightdash/lightdash/compare/2.279.0...2.279.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* **s3:** strip leftover x-amz headers under gcp_oauth so GCS accepts translated requests ([#29665](https://github.com/lightdash/lightdash/issues/29665)) ([de20f85](https://github.com/lightdash/lightdash/commit/de20f851b3b3882dd584f7ea79ad01785884e812))
+
 # [2.279.0](https://github.com/lightdash/lightdash/compare/2.278.0...2.279.0) (2026-09-21)
 
 
