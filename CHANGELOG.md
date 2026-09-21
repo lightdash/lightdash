@@ -1,3 +1,17 @@
+# [2.278.0](https://github.com/lightdash/lightdash/compare/2.277.1...2.278.0) (2026-09-21)
+
+
+### Bug Fixes
+
+* **chart-types:** render gallery previews on the tile surface token ([#29659](https://github.com/lightdash/lightdash/issues/29659)) ([90597c5](https://github.com/lightdash/lightdash/commit/90597c5d9b8813dce8a94edbbd793fe18ab1600f))
+* **data-apps:** keep the app scrollable while the AI analysis panel is open ([#29648](https://github.com/lightdash/lightdash/issues/29648)) ([fed734a](https://github.com/lightdash/lightdash/commit/fed734aeaef3c0438140cabad73380d0cb781b94))
+* wait for custom charts before capturing images ([#29646](https://github.com/lightdash/lightdash/issues/29646)) ([4f38b2a](https://github.com/lightdash/lightdash/commit/4f38b2ab612a54964c6eecb49a542a2d67e99876))
+
+
+### Features
+
+* **data-apps:** AI analysis settings page under Data apps with an auto-run default ([#29653](https://github.com/lightdash/lightdash/issues/29653)) ([1b32026](https://github.com/lightdash/lightdash/commit/1b32026442745b03a02d75c355c7e757b982fb1d))
+
 ## [2.277.1](https://github.com/lightdash/lightdash/compare/2.277.0...2.277.1) (2026-09-21)
 
 
