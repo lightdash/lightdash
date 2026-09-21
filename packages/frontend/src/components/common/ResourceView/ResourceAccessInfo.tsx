@@ -79,12 +79,12 @@ const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
             // Hack the tooltip to never open when `withTooltip` is false
             opened={withTooltip ? undefined : false}
             label={
-                <Text lineClamp={1} fz="xs" fw={600} c="white">
+                <Text lineClamp={1} fz="xs" fw={600} c="inherit">
                     {tooltipLabel}
                 </Text>
             }
         >
-            <Group gap={4}>
+            <Group gap={4} w="fit-content">
                 <MantineIcon
                     icon={Icon}
                     color={styles.color}
