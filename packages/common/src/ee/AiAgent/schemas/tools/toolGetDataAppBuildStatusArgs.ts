@@ -24,6 +24,7 @@ const STAGE_STATUS_MESSAGES = {
     pending: 'The build is queued.',
     sandbox: 'Preparing the build sandbox.',
     catalog: 'Reading the project semantic layer.',
+    compact: 'Catching up on earlier work.',
     generating: 'Writing the app.',
     building: 'Building the app.',
     packaging: 'Packaging the app.',
