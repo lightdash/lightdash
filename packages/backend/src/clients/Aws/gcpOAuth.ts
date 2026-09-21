@@ -25,6 +25,17 @@ export async function getGcpAccessToken(): Promise<string> {
 }
 
 /**
+ * GCS only honors the `x-amz-*` spelling of these headers on requests signed
+ * with HMAC interop credentials. Under a bearer token the XML API expects
+ * `x-goog-*`, so an untranslated `x-amz-copy-source` is silently dropped and
+ * CopyObject fails with `InvalidArgument: Missing copy source`. Covers the
+ * copy source itself, its conditional variants, the range header that
+ * UploadPartCopy sends, and the metadata directive.
+ */
+const HEADERS_GCS_READS_UNDER_OAUTH =
+    /^x-amz-(copy-source(-.+)?|metadata-directive)$/;
+
+/**
  * Sends a Google OAuth bearer token instead of a SigV4 signature.
  *
  * Use this function together with the `gcp_oauth` branch of
@@ -39,6 +50,16 @@ export function applyGcpOAuth(client: S3 | S3Client): void {
             const { request } = args;
             if (!HttpRequest.isInstance(request)) return next(args);
             request.headers.authorization = `Bearer ${await getGcpAccessToken()}`;
+            Object.keys(request.headers).forEach((name) => {
+                const match = name
+                    .toLowerCase()
+                    .match(HEADERS_GCS_READS_UNDER_OAUTH);
+                if (match) {
+                    request.headers[`x-goog-${match[1]}`] =
+                        request.headers[name];
+                    delete request.headers[name];
+                }
+            });
             return next(args);
         },
         { step: 'finalizeRequest', name: 'gcpOAuthBearer', priority: 'low' },
