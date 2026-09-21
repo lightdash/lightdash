@@ -5,20 +5,29 @@ import { getActiveSpanName } from '../tracing/tracing';
 import { VERSION } from '../version';
 import Logger from './logger';
 
-const EXPLORE_CACHE_READ_METRICS_ENV_VAR =
-    'LIGHTDASH_EXPLORE_CACHE_READ_METRICS_ENABLED';
+const EXPLORE_CACHE_STATEMENT_METRICS_ENV_VAR =
+    'LIGHTDASH_EXPLORE_CACHE_STATEMENT_METRICS_ENABLED';
+
+type ExploreCacheOperation =
+    | 'select'
+    | 'insert'
+    | 'update'
+    | 'delete'
+    | 'other';
 
 type KnexQueryEvent = {
     __knexQueryUid?: string;
+    method?: string;
     sql?: string;
 };
 
-type PendingExploreCacheRead = {
+type PendingExploreCacheStatement = {
     caller: string | null;
+    operation: ExploreCacheOperation;
     startedAt: number;
 };
 
-type ExploreCacheReadMetricDependencies = {
+type ExploreCacheStatementMetricDependencies = {
     getCaller: () => string | undefined;
     log: (
         message: string,
@@ -54,6 +63,27 @@ export const isCachedExploreStatement = (sql: unknown): boolean => {
     return false;
 };
 
+const getExploreCacheOperation = (
+    method: string | undefined,
+): ExploreCacheOperation => {
+    switch (method) {
+        case 'select':
+        case 'first':
+        case 'pluck':
+            return 'select';
+        case 'insert':
+            return 'insert';
+        case 'update':
+        case 'counter':
+            return 'update';
+        case 'del':
+        case 'delete':
+            return 'delete';
+        default:
+            return 'other';
+    }
+};
+
 const getReturnedRowCount = (response: unknown): number | undefined => {
     if (Array.isArray(response)) return response.length;
     if (typeof response !== 'object' || response === null) return undefined;
@@ -71,25 +101,28 @@ const getReturnedRowCount = (response: unknown): number | undefined => {
     return undefined;
 };
 
-export const attachExploreCacheReadMetrics = (
+export const attachExploreCacheStatementMetrics = (
     database: Knex,
     {
         getCaller = getActiveSpanName,
         log = (message, metadata) => Logger.info(message, metadata),
         now = () => performance.now(),
-    }: Partial<ExploreCacheReadMetricDependencies> = {},
+    }: Partial<ExploreCacheStatementMetricDependencies> = {},
 ): void => {
-    if (process.env[EXPLORE_CACHE_READ_METRICS_ENV_VAR] === 'false') return;
+    if (process.env[EXPLORE_CACHE_STATEMENT_METRICS_ENV_VAR] === 'false') {
+        return;
+    }
 
-    const pendingReads = new Map<string, PendingExploreCacheRead>();
+    const pendingStatements = new Map<string, PendingExploreCacheStatement>();
 
     database.on('query', (query: KnexQueryEvent) => {
         try {
             if (!isCachedExploreStatement(query.sql) || !query.__knexQueryUid) {
                 return;
             }
-            pendingReads.set(query.__knexQueryUid, {
+            pendingStatements.set(query.__knexQueryUid, {
                 caller: getCaller() ?? null,
+                operation: getExploreCacheOperation(query.method),
                 startedAt: now(),
             });
         } catch {
@@ -104,15 +137,16 @@ export const attachExploreCacheReadMetrics = (
     ) => {
         if (!query.__knexQueryUid) return;
 
-        const pendingRead = pendingReads.get(query.__knexQueryUid);
-        if (!pendingRead) return;
-        pendingReads.delete(query.__knexQueryUid);
+        const pendingStatement = pendingStatements.get(query.__knexQueryUid);
+        if (!pendingStatement) return;
+        pendingStatements.delete(query.__knexQueryUid);
 
-        const duration = now() - pendingRead.startedAt;
-        const name = 'Knex.cachedExploreRead';
+        const duration = now() - pendingStatement.startedAt;
+        const name = 'Knex.cachedExploreStatement';
         const context = {
             source: 'knex',
-            caller: pendingRead.caller,
+            caller: pendingStatement.caller,
+            operation: pendingStatement.operation,
             outcome,
             returnedRowCount: getReturnedRowCount(response),
             serverVersion: String(VERSION),

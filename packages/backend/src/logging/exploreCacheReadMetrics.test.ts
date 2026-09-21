@@ -3,11 +3,13 @@ import {
     type CompiledTable,
     type Explore,
 } from '@lightdash/common';
+import { type Knex } from 'knex';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
+import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-    attachExploreCacheReadMetrics,
+    attachExploreCacheStatementMetrics,
     isCachedExploreStatement,
     safeGetCachedExploreStorageBytes,
     summarizeCatalogSearchExploreRead,
@@ -82,7 +84,7 @@ describe('isCachedExploreStatement', () => {
     });
 });
 
-describe('attachExploreCacheReadMetrics', () => {
+describe('attachExploreCacheStatementMetrics', () => {
     afterEach(() => {
         getTracker().reset();
         vi.unstubAllEnvs();
@@ -95,7 +97,7 @@ describe('attachExploreCacheReadMetrics', () => {
         getTracker()
             .on.select('cached_explore')
             .responseOnce([{ name: 'orders' }, { name: 'customers' }]);
-        attachExploreCacheReadMetrics(database, {
+        attachExploreCacheStatementMetrics(database, {
             getCaller: () => 'ProjectModel.getAllExploreSummaries',
             log,
             now,
@@ -104,13 +106,14 @@ describe('attachExploreCacheReadMetrics', () => {
         await database('cached_explore').select('name');
 
         expect(log).toHaveBeenCalledExactlyOnceWith(
-            expect.stringContaining('Knex.cachedExploreRead'),
+            expect.stringContaining('Knex.cachedExploreStatement'),
             expect.objectContaining({
-                name: 'Knex.cachedExploreRead',
+                name: 'Knex.cachedExploreStatement',
                 duration: 3.5,
                 context: expect.objectContaining({
                     source: 'knex',
                     caller: 'ProjectModel.getAllExploreSummaries',
+                    operation: 'select',
                     outcome: 'success',
                     returnedRowCount: 2,
                 }),
@@ -124,12 +127,46 @@ describe('attachExploreCacheReadMetrics', () => {
         const database = knex({ client: MockClient, dialect: 'pg' });
         const log = vi.fn();
         getTracker().on.select('projects').responseOnce([]);
-        attachExploreCacheReadMetrics(database, { log });
+        attachExploreCacheStatementMetrics(database, { log });
 
         await database('projects').select('name');
 
         expect(log).not.toHaveBeenCalled();
         await database.destroy();
+    });
+
+    it('classifies cached explore statement operations', () => {
+        const database = new EventEmitter();
+        const log = vi.fn();
+        attachExploreCacheStatementMetrics(database as unknown as Knex, {
+            getCaller: () => undefined,
+            log,
+            now: () => 10,
+        });
+        const statements = [
+            ['select', 'select * from cached_explore', 'select'],
+            ['insert', 'insert into cached_explore values (?)', 'insert'],
+            ['update', 'update cached_explore set name = ?', 'update'],
+            ['del', 'delete from cached_explore where name = ?', 'delete'],
+            ['raw', 'select * from cached_explore', 'other'],
+        ] as const;
+
+        statements.forEach(([method, sql, operation], index) => {
+            const query = {
+                __knexQueryUid: String(index),
+                method,
+                sql,
+            };
+            database.emit('query', query);
+            database.emit('query-response', [], query);
+            expect(log).toHaveBeenNthCalledWith(
+                index + 1,
+                expect.any(String),
+                expect.objectContaining({
+                    context: expect.objectContaining({ operation }),
+                }),
+            );
+        });
     });
 
     it('emits an error record when a cached explore statement fails', async () => {
@@ -139,18 +176,19 @@ describe('attachExploreCacheReadMetrics', () => {
         getTracker()
             .on.select('cached_explore')
             .simulateErrorOnce(new Error('query failed'));
-        attachExploreCacheReadMetrics(database, { log, now });
+        attachExploreCacheStatementMetrics(database, { log, now });
 
         await expect(database('cached_explore').select('name')).rejects.toThrow(
             'query failed',
         );
 
         expect(log).toHaveBeenCalledWith(
-            expect.stringContaining('Knex.cachedExploreRead'),
+            expect.stringContaining('Knex.cachedExploreStatement'),
             expect.objectContaining({
                 duration: 2,
                 context: expect.objectContaining({
                     source: 'knex',
+                    operation: 'select',
                     outcome: 'error',
                 }),
             }),
@@ -159,11 +197,14 @@ describe('attachExploreCacheReadMetrics', () => {
     });
 
     it('does not attach listeners when disabled', async () => {
-        vi.stubEnv('LIGHTDASH_EXPLORE_CACHE_READ_METRICS_ENABLED', 'false');
+        vi.stubEnv(
+            'LIGHTDASH_EXPLORE_CACHE_STATEMENT_METRICS_ENABLED',
+            'false',
+        );
         const database = knex({ client: MockClient, dialect: 'pg' });
         const log = vi.fn();
         getTracker().on.select('cached_explore').responseOnce([]);
-        attachExploreCacheReadMetrics(database, { log });
+        attachExploreCacheStatementMetrics(database, { log });
 
         await database('cached_explore').select('name');
 

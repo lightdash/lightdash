@@ -366,14 +366,15 @@ describe('ProjectModel cached explore read metrics', () => {
 
         expect(loggerInfo).toHaveBeenCalledWith(
             expect.stringMatching(
-                /Knex\.cachedExploreRead - operation completed in \d+\.\d{2}ms/u,
+                /Knex\.cachedExploreStatement - operation completed in \d+\.\d{2}ms/u,
             ),
             expect.objectContaining({
-                name: 'Knex.cachedExploreRead',
+                name: 'Knex.cachedExploreStatement',
                 duration: expect.any(Number),
                 context: expect.objectContaining({
                     source: 'knex',
                     caller,
+                    operation: 'select',
                     outcome: 'success',
                     returnedRowCount: expect.any(Number),
                 }),
