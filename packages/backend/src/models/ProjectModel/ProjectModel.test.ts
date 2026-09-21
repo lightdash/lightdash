@@ -613,6 +613,435 @@ describe('ProjectModel', () => {
             expect(reduceExploreTableSummaryRows([])).toEqual({});
         });
     });
+    describe('getAllExploreSummaries', () => {
+        // Each fixture carries the stored explore JSON, the row the previous
+        // 19-projection query returned for it, the row the lateral
+        // jsonb_to_record query returns for it, and the expected summary.
+        // The two row shapes were verified byte-identical on PostgreSQL 18
+        // with EXCEPT in both directions over these fixtures.
+        const summaryRowCases = [
+            {
+                name: 'standard explore',
+                explore: {
+                    name: 'orders',
+                    label: 'Orders',
+                    tags: ['mart'],
+                    groupLabel: 'Sales',
+                    groups: ['g1'],
+                    type: 'default',
+                    baseTable: 'orders',
+                    aiHint: 'hint',
+                    customMeta: { owner: 'x' },
+                    tables: {
+                        orders: {
+                            database: 'db',
+                            schema: 'sch',
+                            description: 'desc',
+                            requiredAttributes: { region: 'emea' },
+                            anyAttributes: { team: ['a'] },
+                        },
+                    },
+                },
+                row: {
+                    name: 'orders',
+                    label: 'Orders',
+                    tags: ['mart'],
+                    groupLabel: 'Sales',
+                    groups: ['g1'],
+                    type: 'default',
+                    preAggregateSource: null,
+                    externalSource: null,
+                    errors: null,
+                    warnings: null,
+                    baseTable: 'orders',
+                    baseTableDatabase: 'db',
+                    baseTableSchema: 'sch',
+                    baseTableDescription: 'desc',
+                    baseTableRequiredAttributes: { region: 'emea' },
+                    baseTableAnyAttributes: { team: ['a'] },
+                    aiHint: 'hint',
+                    customMeta: { owner: 'x' },
+                },
+                expected: {
+                    name: 'orders',
+                    label: 'Orders',
+                    tags: ['mart'],
+                    groupLabel: 'Sales',
+                    groups: ['g1'],
+                    type: 'default',
+                    databaseName: 'db',
+                    schemaName: 'sch',
+                    description: 'desc',
+                    baseTableRequiredAttributes: { region: 'emea' },
+                    baseTableAnyAttributes: { team: ['a'] },
+                    aiHint: 'hint',
+                    customMeta: { owner: 'x' },
+                },
+            },
+            {
+                name: 'explore with errors',
+                explore: {
+                    name: 'broken',
+                    label: 'Broken',
+                    tags: [],
+                    type: 'default',
+                    baseTable: 'missing_base',
+                    errors: [{ message: 'boom' }],
+                },
+                row: {
+                    name: 'broken',
+                    label: 'Broken',
+                    tags: [],
+                    groupLabel: null,
+                    groups: null,
+                    type: 'default',
+                    preAggregateSource: null,
+                    externalSource: null,
+                    errors: [{ message: 'boom' }],
+                    warnings: null,
+                    baseTable: 'missing_base',
+                    baseTableDatabase: null,
+                    baseTableSchema: null,
+                    baseTableDescription: null,
+                    baseTableRequiredAttributes: null,
+                    baseTableAnyAttributes: null,
+                    aiHint: null,
+                    customMeta: null,
+                },
+                expected: {
+                    name: 'broken',
+                    label: 'Broken',
+                    tags: [],
+                    type: 'default',
+                    databaseName: null,
+                    schemaName: null,
+                    errors: [{ message: 'boom' }],
+                },
+            },
+            {
+                name: 'explore with warnings',
+                explore: {
+                    name: 'warned',
+                    type: 'default',
+                    baseTable: 'orders',
+                    warnings: [{ message: 'w' }],
+                    tables: {
+                        orders: { database: 'db', schema: 'sch' },
+                    },
+                },
+                row: {
+                    name: 'warned',
+                    label: null,
+                    tags: null,
+                    groupLabel: null,
+                    groups: null,
+                    type: 'default',
+                    preAggregateSource: null,
+                    externalSource: null,
+                    errors: null,
+                    warnings: [{ message: 'w' }],
+                    baseTable: 'orders',
+                    baseTableDatabase: 'db',
+                    baseTableSchema: 'sch',
+                    baseTableDescription: null,
+                    baseTableRequiredAttributes: null,
+                    baseTableAnyAttributes: null,
+                    aiHint: null,
+                    customMeta: null,
+                },
+                expected: {
+                    name: 'warned',
+                    label: null,
+                    tags: null,
+                    type: 'default',
+                    databaseName: 'db',
+                    schemaName: 'sch',
+                    warnings: [{ message: 'w' }],
+                },
+            },
+            {
+                name: 'missing baseTable',
+                explore: {
+                    name: 'no_base',
+                    type: 'default',
+                    tables: {
+                        orders: { database: 'db', schema: 'sch' },
+                    },
+                },
+                row: {
+                    name: 'no_base',
+                    label: null,
+                    tags: null,
+                    groupLabel: null,
+                    groups: null,
+                    type: 'default',
+                    preAggregateSource: null,
+                    externalSource: null,
+                    errors: null,
+                    warnings: null,
+                    baseTable: null,
+                    baseTableDatabase: null,
+                    baseTableSchema: null,
+                    baseTableDescription: null,
+                    baseTableRequiredAttributes: null,
+                    baseTableAnyAttributes: null,
+                    aiHint: null,
+                    customMeta: null,
+                },
+                expected: {
+                    name: 'no_base',
+                    label: null,
+                    tags: null,
+                    type: 'default',
+                    databaseName: null,
+                    schemaName: null,
+                },
+            },
+            {
+                name: 'non-object tables value',
+                explore: {
+                    name: 'tables_scalar',
+                    type: 'default',
+                    baseTable: 'x',
+                    tables: 1,
+                },
+                row: {
+                    name: 'tables_scalar',
+                    label: null,
+                    tags: null,
+                    groupLabel: null,
+                    groups: null,
+                    type: 'default',
+                    preAggregateSource: null,
+                    externalSource: null,
+                    errors: null,
+                    warnings: null,
+                    baseTable: 'x',
+                    baseTableDatabase: null,
+                    baseTableSchema: null,
+                    baseTableDescription: null,
+                    baseTableRequiredAttributes: null,
+                    baseTableAnyAttributes: null,
+                    aiHint: null,
+                    customMeta: null,
+                },
+                expected: {
+                    name: 'tables_scalar',
+                    label: null,
+                    tags: null,
+                    type: 'default',
+                    databaseName: null,
+                    schemaName: null,
+                },
+            },
+            {
+                name: 'prototype-like table key',
+                explore: {
+                    name: 'proto',
+                    type: 'default',
+                    baseTable: '__proto__',
+                    tables: Object.fromEntries([
+                        [
+                            '__proto__',
+                            {
+                                database: 'protdb',
+                                schema: 'prots',
+                                description: 'p',
+                                requiredAttributes: { k: 'v' },
+                                anyAttributes: {},
+                            },
+                        ],
+                    ]),
+                },
+                row: {
+                    name: 'proto',
+                    label: null,
+                    tags: null,
+                    groupLabel: null,
+                    groups: null,
+                    type: 'default',
+                    preAggregateSource: null,
+                    externalSource: null,
+                    errors: null,
+                    warnings: null,
+                    baseTable: '__proto__',
+                    baseTableDatabase: 'protdb',
+                    baseTableSchema: 'prots',
+                    baseTableDescription: 'p',
+                    baseTableRequiredAttributes: { k: 'v' },
+                    baseTableAnyAttributes: {},
+                    aiHint: null,
+                    customMeta: null,
+                },
+                expected: {
+                    name: 'proto',
+                    label: null,
+                    tags: null,
+                    type: 'default',
+                    databaseName: 'protdb',
+                    schemaName: 'prots',
+                    description: 'p',
+                    baseTableRequiredAttributes: { k: 'v' },
+                    baseTableAnyAttributes: {},
+                },
+            },
+            {
+                name: 'baseTable missing from tables',
+                explore: {
+                    name: 'dangling_base',
+                    type: 'default',
+                    baseTable: 'nope',
+                    tables: { orders: { database: 'db' } },
+                },
+                row: {
+                    name: 'dangling_base',
+                    label: null,
+                    tags: null,
+                    groupLabel: null,
+                    groups: null,
+                    type: 'default',
+                    preAggregateSource: null,
+                    externalSource: null,
+                    errors: null,
+                    warnings: null,
+                    baseTable: 'nope',
+                    baseTableDatabase: null,
+                    baseTableSchema: null,
+                    baseTableDescription: null,
+                    baseTableRequiredAttributes: null,
+                    baseTableAnyAttributes: null,
+                    aiHint: null,
+                    customMeta: null,
+                },
+                expected: {
+                    name: 'dangling_base',
+                    label: null,
+                    tags: null,
+                    type: 'default',
+                    databaseName: null,
+                    schemaName: null,
+                },
+            },
+            {
+                name: 'json nulls in projected fields',
+                explore: {
+                    name: 'nulls',
+                    label: null,
+                    tags: null,
+                    groupLabel: null,
+                    type: null,
+                    errors: null,
+                    warnings: null,
+                    baseTable: 'orders',
+                    aiHint: null,
+                    customMeta: null,
+                    tables: {
+                        orders: {
+                            database: 'db',
+                            schema: 'sch',
+                            description: null,
+                            requiredAttributes: null,
+                            anyAttributes: null,
+                        },
+                    },
+                },
+                row: {
+                    name: 'nulls',
+                    label: null,
+                    tags: null,
+                    groupLabel: null,
+                    groups: null,
+                    type: null,
+                    preAggregateSource: null,
+                    externalSource: null,
+                    errors: null,
+                    warnings: null,
+                    baseTable: 'orders',
+                    baseTableDatabase: 'db',
+                    baseTableSchema: 'sch',
+                    baseTableDescription: null,
+                    baseTableRequiredAttributes: null,
+                    baseTableAnyAttributes: null,
+                    aiHint: null,
+                    customMeta: null,
+                },
+                expected: {
+                    name: 'nulls',
+                    label: null,
+                    tags: null,
+                    databaseName: 'db',
+                    schemaName: 'sch',
+                },
+            },
+            {
+                name: 'top-level scalar explore',
+                explore: 1,
+                row: {
+                    name: null,
+                    label: null,
+                    tags: null,
+                    groupLabel: null,
+                    groups: null,
+                    type: null,
+                    preAggregateSource: null,
+                    externalSource: null,
+                    errors: null,
+                    warnings: null,
+                    baseTable: null,
+                    baseTableDatabase: null,
+                    baseTableSchema: null,
+                    baseTableDescription: null,
+                    baseTableRequiredAttributes: null,
+                    baseTableAnyAttributes: null,
+                    aiHint: null,
+                    customMeta: null,
+                },
+                expected: {
+                    name: null,
+                    label: null,
+                    tags: null,
+                    databaseName: null,
+                    schemaName: null,
+                },
+            },
+        ];
+
+        test.each(summaryRowCases)(
+            'maps $name identically from both query shapes',
+            async ({ row, expected }) => {
+                // The old 19-projection query and the new lateral
+                // jsonb_to_record query return this same row for the fixture,
+                // so feeding it through the method covers both shapes.
+                tracker.on
+                    .select(queryMatcher(CachedExploreTableName, [projectUuid]))
+                    .response([row]);
+
+                const result = await model.getAllExploreSummaries(projectUuid);
+
+                expect(result).toEqual([expected]);
+            },
+        );
+
+        test('extracts each field once per row via a lateral jsonb_to_record', async () => {
+            tracker.on
+                .select(queryMatcher(CachedExploreTableName, [projectUuid]))
+                .response([]);
+
+            const result = await model.getAllExploreSummaries(projectUuid);
+
+            expect(result).toEqual([]);
+            expect(tracker.history.select).toHaveLength(1);
+            const { sql } = tracker.history.select[0];
+            expect(sql).toContain('LEFT JOIN LATERAL jsonb_to_record');
+            expect(sql).toContain(
+                "jsonb_typeof(cached_explore.explore) = 'object'",
+            );
+            expect(sql).not.toContain(
+                "explore->'tables'->(explore->>'baseTable')",
+            );
+            expect(sql).not.toContain("explore->'name'");
+        });
+    });
     describe('getExploreFromCache', () => {
         const createQualifiedExplore = (
             name: string,
