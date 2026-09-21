@@ -3,6 +3,7 @@ import {
     FeatureFlags,
     getEmailDomain,
     LightdashMode,
+    sanitizeOrganizationName,
     validateOrganizationEmailDomains,
     type HealthState,
     type OrganizationBrandColor,
@@ -39,10 +40,7 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
-import {
-    inferOrganizationName,
-    sanitizeDetectedOrganizationName,
-} from '../utils/organizationName';
+import { inferOrganizationName } from '../utils/organizationName';
 import classes from './OrganizationSetup.module.css';
 import { OrganizationSetupPreview } from './OrganizationSetupPreview';
 
@@ -176,7 +174,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         setValues((current) => ({
             ...(brand.name && !isDirty('organizationName')
                 ? {
-                      organizationName: sanitizeDetectedOrganizationName(
+                      organizationName: sanitizeOrganizationName(
                           brand.name,
                           inferOrganizationName(emailDomain),
                       ),

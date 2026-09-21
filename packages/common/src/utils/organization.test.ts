@@ -1,8 +1,9 @@
-import { validateOrganizationName } from '@lightdash/common';
-import { describe, expect, it } from 'vitest';
-import { sanitizeDetectedOrganizationName } from './organizationName';
+import {
+    sanitizeOrganizationName,
+    validateOrganizationName,
+} from './organization';
 
-describe('sanitizeDetectedOrganizationName', () => {
+describe('sanitizeOrganizationName', () => {
     const FALLBACK = 'Lightdash';
 
     it.each([
@@ -10,13 +11,11 @@ describe('sanitizeDetectedOrganizationName', () => {
         ['Acme Inc.', 'Acme Inc'],
         ["Acme's Bakery", 'Acmes Bakery'],
         ['Acme/Foo & Co.', 'Acme Foo Co'],
-        ['Caf\u00e9 M\u00fcller', 'Cafe Muller'],
+        ['Café Müller', 'Cafe Muller'],
         ['...', FALLBACK],
         ['', FALLBACK],
     ])('turns %j into %j', (input, expected) => {
-        expect(sanitizeDetectedOrganizationName(input, FALLBACK)).toBe(
-            expected,
-        );
+        expect(sanitizeOrganizationName(input, FALLBACK)).toBe(expected);
     });
 
     it('never returns a name the validator rejects', () => {
@@ -25,16 +24,16 @@ describe('sanitizeDetectedOrganizationName', () => {
             'Acme Inc.',
             "Acme's Bakery",
             'Acme/Foo & Co.',
-            'Caf\u00e9 M\u00fcller',
+            'Café Müller',
             '...',
             '',
-            '\u2019\u2019\u2019',
-            'Acme \u2014 Data',
+            '’’’',
+            'Acme — Data',
         ];
         inputs.forEach((input) => {
             expect(
                 validateOrganizationName(
-                    sanitizeDetectedOrganizationName(input, FALLBACK),
+                    sanitizeOrganizationName(input, FALLBACK),
                 ),
             ).toBe(true);
         });
