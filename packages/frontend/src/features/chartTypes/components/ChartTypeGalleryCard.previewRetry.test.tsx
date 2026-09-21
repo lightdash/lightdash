@@ -17,7 +17,7 @@ vi.mock('../../../hooks/appearance/useResolvedColorPalette', () => ({
     useResolvedColorPalette: () => [],
 }));
 vi.mock('../../../hooks/useResizeObserver', () => ({
-    useResizeObserver: () => [vi.fn(), { width: 0, height: 0 }],
+    useResizeObserver: () => [vi.fn(), { width: 800, height: 400 }],
 }));
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: false } }),
@@ -30,6 +30,19 @@ vi.mock('../../apps/hooks/useCanEditDataApp', () => ({
 }));
 vi.mock('../../apps/previewOrigin', () => ({
     usePreviewOrigin: () => 'http://preview.test',
+}));
+vi.mock('../../apps/hooks/useAppSdkBridge', () => ({
+    useAppSdkBridge: () => ({
+        handleIframeLoad: vi.fn(),
+        enableInspector: vi.fn(),
+        disableInspector: vi.fn(),
+        enableLineage: vi.fn(),
+        disableLineage: vi.fn(),
+        highlightLineage: vi.fn(),
+    }),
+}));
+vi.mock('../../apps/hooks/useIframeScreenshot', () => ({
+    useIframeScreenshot: () => ({ captureScreenshot: vi.fn() }),
 }));
 
 type ObserverCallback = (entries: IntersectionObserverEntry[]) => void;
@@ -259,6 +272,10 @@ describe('ChartTypeGalleryCard preview retry', () => {
         render(<GalleryPreview />, { wrapper: createWrapper(queryClient) });
 
         await waitFor(() => expect(tokenSignals).toHaveLength(1));
+        expect(screen.getByTitle('App preview')).toHaveAttribute(
+            'src',
+            expect.stringContaining('/t/cached-token/'),
+        );
         tokenResponse = 'forbidden';
         await act(async () => {
             await queryClient.refetchQueries({
@@ -281,10 +298,15 @@ describe('ChartTypeGalleryCard preview retry', () => {
         tokenResponse = 'recovering';
         await userEvent.click(retryButton);
 
+        expect(screen.queryByTitle('App preview')).not.toBeInTheDocument();
         await waitFor(() => expect(tokenSignals).toHaveLength(3));
         expect(tokenSignals[2].aborted).toBe(false);
         await act(async () =>
             tokenRecovery.resolve({ token: 'recovered-token' }),
+        );
+        expect(screen.getByTitle('App preview')).toHaveAttribute(
+            'src',
+            expect.stringContaining('/t/recovered-token/'),
         );
         expect(
             screen.queryByRole('button', { name: 'Retry preview' }),

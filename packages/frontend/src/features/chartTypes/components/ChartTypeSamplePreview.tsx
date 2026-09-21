@@ -167,6 +167,10 @@ const ChartTypeSamplePreview: FC<Props> = ({
         visibleTokenError,
     ]);
 
+    if (retryStage !== 'done') {
+        return <PreviewPlaceholder message="Loading preview…" icon={icon} />;
+    }
+
     // Keep rendering cached metadata through transient refetch errors;
     // only fall back when there is nothing to show.
     if (!metadata) {
@@ -186,6 +190,9 @@ const ChartTypeSamplePreview: FC<Props> = ({
         return (
             <PreviewPlaceholder message="No finished version yet" icon={icon} />
         );
+    }
+    if (visibleMetadataError || visibleTokenError) {
+        return <PreviewPlaceholder message="Preview unavailable" icon={icon} />;
     }
     if (!token || !previewBaseUrl) {
         return <PreviewPlaceholder message="Loading preview…" icon={icon} />;
