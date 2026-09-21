@@ -55,7 +55,9 @@ import {
     getContentAsCodePathFromLtreePath,
     getLtreePathFromContentAsCodePath,
     getParameterReferences,
+    hasChartsInDashboard,
     isChartScheduler,
+    isDashboardChartTileType,
     isDashboardScheduler,
     isEmailTarget,
     isExploreError,
@@ -5063,7 +5065,7 @@ export class CoderService extends BaseService {
                 errorMessage: `You don't have access to create dashboards in space "${dashboardWithDefaults.spaceSlug}"`,
             });
 
-            const newDashboard = await this.dashboardModel.create(
+            let newDashboard = await this.dashboardModel.create(
                 space.uuid,
                 {
                     ...dashboardWithResolvedTabs,
@@ -5075,6 +5077,39 @@ export class CoderService extends BaseService {
                 user,
                 projectUuid,
             );
+
+            if (hasChartsInDashboard(newDashboard)) {
+                const copiedTiles = await Promise.all(
+                    newDashboard.tiles.map(async (tile) => {
+                        if (
+                            !isDashboardChartTileType(tile) ||
+                            !tile.properties.belongsToDashboard ||
+                            !tile.properties.savedChartUuid
+                        ) {
+                            return tile;
+                        }
+                        const savedChartUuid =
+                            await this.dashboardService.duplicateChartForDashboard(
+                                {
+                                    user,
+                                    projectUuid,
+                                    dashboardUuid: newDashboard.uuid,
+                                    chartUuid: tile.properties.savedChartUuid,
+                                },
+                            );
+                        return {
+                            ...tile,
+                            properties: { ...tile.properties, savedChartUuid },
+                        };
+                    }),
+                );
+                newDashboard = await this.dashboardModel.addVersion(
+                    newDashboard.uuid,
+                    { ...newDashboard, tiles: copiedTiles },
+                    user,
+                    projectUuid,
+                );
+            }
 
             await this.syncVerification({
                 user,

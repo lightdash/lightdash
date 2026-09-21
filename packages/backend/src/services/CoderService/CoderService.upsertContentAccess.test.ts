@@ -5,6 +5,8 @@ import {
     ContentType,
     CustomDimensionType,
     DashboardAsCode,
+    DashboardChartTile,
+    DashboardDAO,
     DashboardTileTypes,
     DimensionType,
     ForbiddenError,
@@ -16,6 +18,7 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { dashboard as dashboardMock } from '../DashboardService/DashboardService.mock';
 import { CoderService } from './CoderService';
 
 const PROJECT_UUID = 'project-uuid';
@@ -1389,6 +1392,7 @@ const registerContentAccessTests = (
         ]);
         vi.mocked(service.dashboardModel.create).mockResolvedValue({
             uuid: 'dashboard-uuid',
+            tiles: [],
         } as AnyType);
         const user = makeUser([
             { subject: 'ContentAsCode', action: 'create' },
@@ -1433,6 +1437,7 @@ const registerContentAccessTests = (
         vi.mocked(service.dashboardModel.find).mockResolvedValue([]);
         vi.mocked(service.dashboardModel.create).mockResolvedValue({
             uuid: 'dashboard-uuid',
+            tiles: [],
         } as AnyType);
         vi.mocked(service.savedChartModel.create).mockResolvedValue({
             uuid: 'chart-uuid',
@@ -1571,3 +1576,116 @@ describe('CoderService upsertDashboard tile chart versions', () => {
         ]);
     });
 });
+
+describe.each(['create', 'upsert'] as const)(
+    'CoderService new dashboard chart ownership (%s)',
+    (mode) => {
+        it('copies dashboard-owned charts while preserving shared charts and tile settings', async () => {
+            const service = buildService();
+            const user = makeSessionUser([
+                { subject: 'ContentAsCode', action: 'create' },
+                { subject: 'Dashboard', action: 'create' },
+                { subject: 'SavedChart', action: 'view' },
+            ]);
+            const tiles: DashboardChartTile[] = [true, false].map(
+                (belongsToDashboard, index) => ({
+                    uuid: `tile-${index}`,
+                    type: DashboardTileTypes.SAVED_CHART,
+                    x: index * 6,
+                    y: 0,
+                    h: 5,
+                    w: 6,
+                    tabUuid: null,
+                    properties: {
+                        savedChartUuid: `chart-${index}`,
+                        belongsToDashboard,
+                        hideTitle: true,
+                    },
+                }),
+            );
+            const createdDashboard: DashboardDAO = {
+                ...dashboardMock,
+                uuid: 'copy-dashboard',
+                slug: 'copy',
+                projectUuid: PROJECT_UUID,
+                tiles,
+                tabs: [],
+                filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            };
+            vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+                space: { uuid: SPACE_UUID } as AnyType,
+                created: false,
+            });
+            vi.mocked(service.savedChartModel.find).mockResolvedValue(
+                [0, 1].map((index) => ({
+                    uuid: `chart-${index}`,
+                    slug: `chart-${index}`,
+                    spaceUuid: SPACE_UUID,
+                    dashboardUuid: index === 0 ? 'original-dashboard' : null,
+                })) as AnyType,
+            );
+            vi.mocked(service.dashboardModel.create).mockResolvedValue(
+                createdDashboard,
+            );
+            const duplicateChartForDashboard = vi.fn(
+                async () => 'copied-chart',
+            );
+            Object.assign(service.dashboardService, {
+                duplicateChartForDashboard,
+            });
+            const updatedTiles = tiles.map((tile, index) =>
+                index === 0
+                    ? {
+                          ...tile,
+                          properties: {
+                              ...tile.properties,
+                              savedChartUuid: 'copied-chart',
+                          },
+                      }
+                    : tile,
+            );
+            const addVersion = vi.fn(async () => ({
+                ...createdDashboard,
+                tiles: updatedTiles,
+            }));
+            Object.assign(service.dashboardModel, { addVersion });
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+                ...createdDashboard,
+                tiles: updatedTiles,
+            });
+
+            const result = await service.upsertDashboard(
+                user,
+                PROJECT_UUID,
+                'copy',
+                {
+                    ...dashboardAsCode,
+                    slug: 'copy',
+                    tiles: tiles.map((tile, index) => ({
+                        ...tile,
+                        tileSlug: `tile-${index}`,
+                        properties: { chartSlug: `chart-${index}` },
+                    })),
+                },
+                { mode },
+            );
+
+            expect(duplicateChartForDashboard).toHaveBeenCalledExactlyOnceWith({
+                user,
+                projectUuid: PROJECT_UUID,
+                dashboardUuid: 'copy-dashboard',
+                chartUuid: 'chart-0',
+            });
+            expect(addVersion).toHaveBeenCalledWith(
+                'copy-dashboard',
+                expect.objectContaining({ tiles: updatedTiles }),
+                user,
+                PROJECT_UUID,
+            );
+            expect(result.dashboards[0].data.tiles).toEqual(updatedTiles);
+            expect(tiles[0].properties).toMatchObject({
+                savedChartUuid: 'chart-0',
+            });
+        });
+    },
+);
