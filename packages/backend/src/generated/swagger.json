@@ -28800,8 +28800,57 @@
                 "type": "object",
                 "description": "Persisted shape. `finalStepTotalTokens` is absent on rows written before it existed."
             },
+            "AiPromptResponseStageTiming": {
+                "properties": {
+                    "queryCacheHits": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Query tools whose execution returned a result-cache hit."
+                    },
+                    "renderMs": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Exact union of chart, dashboard, app and export tool spans."
+                    },
+                    "apiMs": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Exact union of completed non-query/non-render tool spans."
+                    },
+                    "queryMs": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Exact union of completed query-tool spans."
+                    },
+                    "providerMs": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Main model inference. Null when the provider hid the split."
+                    },
+                    "preparationMs": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Request start through context, catalog and tool preparation."
+                    }
+                },
+                "required": [
+                    "queryCacheHits",
+                    "renderMs",
+                    "apiMs",
+                    "queryMs",
+                    "providerMs",
+                    "preparationMs"
+                ],
+                "type": "object",
+                "description": "Wall-clock timing of one model run, stamped by the agent loop. ISO strings."
+            },
             "AiPromptResponseTiming": {
                 "properties": {
+                    "stages": {
+                        "$ref": "#/components/schemas/AiPromptResponseStageTiming",
+                        "description": "Stage spans may overlap when the SDK runs tools concurrently."
+                    },
                     "finishedAt": {
                         "type": "string"
                     },
@@ -28815,8 +28864,7 @@
                     }
                 },
                 "required": ["finishedAt", "firstTokenAt", "startedAt"],
-                "type": "object",
-                "description": "Wall-clock timing of one model run, stamped by the agent loop. ISO strings."
+                "type": "object"
             },
             "AiAgentMessageAssistant": {
                 "properties": {
@@ -50459,8 +50507,37 @@
                     }
                 ]
             },
+            "DashboardTilePosition": {
+                "properties": {
+                    "h": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "w": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "y": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "x": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["h", "w", "y", "x"],
+                "type": "object"
+            },
             "CreateDashboardWithCharts": {
                 "properties": {
+                    "tilePositions": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTilePosition"
+                        },
+                        "type": "array",
+                        "description": "Optional complete grid placement, in charts array order."
+                    },
                     "charts": {
                         "items": {
                             "$ref": "#/components/schemas/CreateSavedChart"
@@ -64005,7 +64082,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.274.5",
+        "version": "2.275.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

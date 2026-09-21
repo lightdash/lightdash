@@ -1,3 +1,16 @@
+# [2.275.0](https://github.com/lightdash/lightdash/compare/2.274.5...2.275.0) (2026-09-21)
+
+
+### Bug Fixes
+
+* improve space access tooltip contrast and alignment ([#29647](https://github.com/lightdash/lightdash/issues/29647)) ([be0bcc7](https://github.com/lightdash/lightdash/commit/be0bcc7a679077406172d597ea7b7335601b9bb8))
+
+
+### Features
+
+* **ai-agents:** add Jev fast decision runtime ([#29626](https://github.com/lightdash/lightdash/issues/29626)) ([7245c2b](https://github.com/lightdash/lightdash/commit/7245c2b4112df70fef390d43a14bddce88900680))
+* **ai-agents:** add validated content as code ([#29635](https://github.com/lightdash/lightdash/issues/29635)) ([68d83fc](https://github.com/lightdash/lightdash/commit/68d83fcd91e2cc8f177d5725c948ee88c56a8afb))
+
 ## [2.274.5](https://github.com/lightdash/lightdash/compare/2.274.4...2.274.5) (2026-09-21)
 
 

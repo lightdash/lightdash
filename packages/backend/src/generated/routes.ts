@@ -28330,11 +28330,35 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiPromptResponseStageTiming: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                queryCacheHits: { dataType: 'double', required: true },
+                renderMs: { dataType: 'double', required: true },
+                apiMs: { dataType: 'double', required: true },
+                queryMs: { dataType: 'double', required: true },
+                providerMs: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                preparationMs: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiPromptResponseTiming: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                stages: { ref: 'AiPromptResponseStageTiming' },
                 finishedAt: { dataType: 'string', required: true },
                 firstTokenAt: {
                     dataType: 'union',
@@ -50332,11 +50356,32 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardTilePosition: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                h: { dataType: 'double', required: true },
+                w: { dataType: 'double', required: true },
+                y: { dataType: 'double', required: true },
+                x: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateDashboardWithCharts: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                tilePositions: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DashboardTilePosition',
+                    },
+                },
                 charts: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'CreateSavedChart' },
