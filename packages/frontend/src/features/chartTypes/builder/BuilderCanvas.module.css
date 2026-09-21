@@ -57,18 +57,23 @@
     overflow: hidden;
 }
 
-/* A strip above the iframe, not an overlay, so the badge never sits on top of
-   chart content a viewer might want to click or hover. */
-.sampleDataBadge {
-    flex: none;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-    border-bottom: 1px solid var(--mantine-color-ldGray-2);
-    background: var(--mantine-color-ldGray-0);
-}
-
 .previewFrame {
+    position: relative;
     flex: 1;
     min-height: 0;
+}
+
+/* The chart recedes rather than unmounting while an overlay explains why it
+   cannot be drawn: reloading the sandbox would lose its screenshot and
+   element-picker availability. */
+.previewSurface {
+    height: 100%;
+    transition: opacity var(--mantine-other-transitionDuration)
+        var(--mantine-other-transitionTimingFunction);
+}
+
+.previewSurface[data-receded='true'] {
+    opacity: 0.12;
 }
 
 /* The same width an example card's thumbnail gets, so the build reads as the

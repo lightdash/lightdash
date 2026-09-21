@@ -1,0 +1,8 @@
+/* Fills the frame the chart occupies. The chart stays mounted and receded
+   underneath, so fixing a binding never reloads the sandbox. */
+.overlay {
+    position: absolute;
+    inset: 0;
+    justify-content: center;
+    padding: var(--mantine-spacing-xl);
+}

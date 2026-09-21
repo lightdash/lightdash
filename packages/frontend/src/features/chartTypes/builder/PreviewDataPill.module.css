@@ -1,0 +1,17 @@
+/* Sits in the composer's tray of borderless controls; once real data is
+   chosen it becomes a filled state chip, like the theme pill beside it. */
+.trigger {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.trigger[data-selected='true'] {
+    @mixin light {
+        color: var(--mantine-color-ldGray-9);
+        background-color: var(--mantine-color-ldGray-1);
+    }
+    @mixin dark {
+        color: var(--mantine-color-ldGray-8);
+        background-color: var(--mantine-color-ldDark-4);
+    }
+}

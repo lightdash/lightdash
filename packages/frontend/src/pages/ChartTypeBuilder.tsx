@@ -3,6 +3,7 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
     type ItemsMap,
+    type ResultRow,
 } from '@lightdash/common';
 import { Box, Button } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
@@ -21,17 +22,27 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
-import { type PreviewDataSource } from '../features/chartTypes/builder/BuilderCanvas';
 import BuildInProgressExitModal from '../features/chartTypes/builder/BuildInProgressExitModal';
+import ChartInputsPanel from '../features/chartTypes/builder/ChartInputsPanel';
 import ChartTypeBuilderHeader from '../features/chartTypes/builder/ChartTypeBuilderHeader';
 import ChartTypeBuilderWorkspace from '../features/chartTypes/builder/ChartTypeBuilderWorkspace';
 import ConfigurePanel from '../features/chartTypes/builder/ConfigurePanel';
+import PreviewDataOverlay, {
+    type PreviewDataOverlayReason,
+} from '../features/chartTypes/builder/PreviewDataOverlay';
+import PreviewDataPill from '../features/chartTypes/builder/PreviewDataPill';
+import PreviewDataStatus from '../features/chartTypes/builder/PreviewDataStatus';
+import { type PreviewDataSource } from '../features/chartTypes/builder/previewDataTypes';
 import { useChartTypeAuthoringExit } from '../features/chartTypes/builder/useChartTypeAuthoringExit';
 import { useChartTypeBuilderWorkspace } from '../features/chartTypes/builder/useChartTypeBuilderWorkspace';
+import { useChartTypePreviewData } from '../features/chartTypes/builder/useChartTypePreviewData';
 import { useConfigurePanelState } from '../features/chartTypes/builder/useConfigurePanelState';
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
+import { useDataAppVizResolvedColors } from '../features/chartTypes/hooks/useDataAppVizResolvedColors';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
+import { buildExplorerVizContext } from '../features/chartTypes/utils/explorerVizContext';
 import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
+import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
 import {
     getExplorerUrlFromCreateSavedChartVersion,
@@ -43,6 +54,7 @@ import classes from './ChartTypeBuilder.module.css';
 
 // No chart query here; auto-mapping belongs to charts binding fields.
 const NO_ITEMS: ItemsMap = {};
+const NO_ROWS: ResultRow[] = [];
 
 /** Set on the `/new` -> `/:dataAppVizUuid` redirect so "created in this
  *  session" survives that route change (a fresh mount reads it back). */
@@ -118,22 +130,69 @@ const ChartTypeBuilder: FC = () => {
         projectUuid,
         panel.colorPaletteUuid,
     );
-    // The sample-data preview context, rebuilt on any option or palette edit.
-    const previewContext = useMemo(
-        () =>
-            workspace.dataAppViz?.schema
-                ? buildSampleVizContext(
-                      workspace.dataAppViz.schema,
-                      colorPalette,
-                      panel.optionValues,
-                  )
-                : null,
-        [workspace.dataAppViz?.schema, colorPalette, panel.optionValues],
-    );
-    // Every preview here is fabricated from the schema alone.
+
+    const schema = workspace.dataAppViz?.schema ?? null;
+    const previewData = useChartTypePreviewData({ projectUuid, schema });
+    const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
+    const liveRun = previewData.run.status === 'ready' ? previewData.run : null;
+    const liveRows = liveRun?.rows ?? NO_ROWS;
+    const liveItemsMap = liveRun?.itemsMap ?? NO_ITEMS;
+    const livePivotDetails = liveRun?.pivotDetails ?? null;
+    const resolvedColors = useDataAppVizResolvedColors({
+        itemsMap: liveItemsMap,
+        rows: liveRows,
+        fieldMapping: previewData.fieldMapping,
+        pivotDetails: livePivotDetails,
+        colorPalette,
+    });
+    // Live rows only once they fit the version on screen; sample data is the
+    // always-available fallback, and it is always labelled as such.
+    const isPreviewLive =
+        previewData.previewDataSource.kind === 'live' && liveRun !== null;
+    const previewContext = useMemo(() => {
+        if (!schema) return null;
+        return isPreviewLive
+            ? buildExplorerVizContext({
+                  schema,
+                  itemsMap: liveItemsMap,
+                  persistedFieldMapping: previewData.fieldMapping,
+                  rows: liveRows,
+                  pivotDetails: livePivotDetails,
+                  colorPalette,
+                  optionValues: panel.optionValues,
+                  resolvedColors,
+              })
+            : buildSampleVizContext(schema, colorPalette, panel.optionValues);
+    }, [
+        schema,
+        isPreviewLive,
+        liveItemsMap,
+        liveRows,
+        livePivotDetails,
+        previewData.fieldMapping,
+        colorPalette,
+        panel.optionValues,
+        resolvedColors,
+    ]);
     const previewDataSource: PreviewDataSource | null = previewContext
-        ? { kind: 'sample' }
+        ? previewData.previewDataSource
         : null;
+    // The builder agent sees the binding the author does. Only while the
+    // latest version is on screen, so browsing history still builds against
+    // the schema the workspace resolves for itself.
+    const currentBuildContext =
+        schema &&
+        previewData.selection.kind === 'query' &&
+        workspace.viewedVersion === null
+            ? { schema, fieldMapping: previewData.fieldMapping }
+            : undefined;
+    const sampleRows = useMemo(
+        () =>
+            isPreviewLive
+                ? vizBuildSampleRows(liveRows, previewData.fieldMapping)
+                : [],
+        [isPreviewLive, liveRows, previewData.fieldMapping],
+    );
 
     const explorerDestination = useMemo(() => {
         if (!explorerChart || !activeVizUuid) return null;
@@ -245,17 +304,52 @@ const ChartTypeBuilder: FC = () => {
         }
     }
 
+    const selection = previewData.selection;
+    const overlayReason: PreviewDataOverlayReason | null =
+        previewData.fit.status === 'doesNotFit'
+            ? {
+                  kind: 'doesNotFit',
+                  issues: previewData.fit.issues,
+                  itemsMap: previewData.itemsMap,
+              }
+            : previewData.fit.status === 'unavailable'
+              ? { kind: 'unavailable', message: previewData.fit.message }
+              : null;
+    const chartInputs =
+        schema &&
+        schema.fields.length > 0 &&
+        selection.kind === 'query' &&
+        previewData.metricQuery ? (
+            <ChartInputsPanel
+                fields={schema.fields}
+                itemsMap={previewData.itemsMap}
+                fieldMapping={previewData.fieldMapping}
+                exploreLabel={previewData.exploreLabel ?? selection.exploreName}
+                onChangeExplore={
+                    selection.savedChart === null
+                        ? () => setIsDataMenuOpen(true)
+                        : null
+                }
+                metricQuery={previewData.metricQuery}
+                run={previewData.run}
+                fit={previewData.fit}
+                onSetField={previewData.setField}
+                onRun={previewData.runQuery}
+            />
+        ) : null;
+
     // Remounted per viz so the selected tab belongs to the declaration on screen.
-    const configurePanel = workspace.dataAppViz?.schema ? (
+    const configurePanel = schema ? (
         <ConfigurePanel
             key={activeVizUuid}
-            schema={workspace.dataAppViz.schema}
+            schema={schema}
             optionValues={panel.optionValues}
             onOptionChange={panel.onOptionChange}
             colorPaletteUuid={panel.colorPaletteUuid}
             onPaletteChange={panel.onPaletteChange}
             resolvedColorPalette={colorPalette}
             isStale={workspace.isFetchingSchema}
+            chartInputs={chartInputs}
         />
     ) : null;
 
@@ -315,6 +409,42 @@ const ChartTypeBuilder: FC = () => {
                 workspace={workspace}
                 previewContext={previewContext}
                 previewDataSource={previewDataSource}
+                previewSourceExtra={
+                    <PreviewDataStatus
+                        selection={selection}
+                        run={previewData.run}
+                        fit={previewData.fit}
+                        hasDeclaredInputs={previewData.hasDeclaredInputs}
+                        onOpenDataMenu={() => setIsDataMenuOpen(true)}
+                        onRefresh={previewData.runQuery}
+                    />
+                }
+                previewOverlay={
+                    overlayReason ? (
+                        <PreviewDataOverlay
+                            reason={overlayReason}
+                            onUseSampleData={previewData.selectSample}
+                        />
+                    ) : null
+                }
+                dataPill={
+                    <PreviewDataPill
+                        projectUuid={projectUuid}
+                        selection={selection}
+                        exploreLabel={previewData.exploreLabel}
+                        boundFieldCount={previewData.boundFieldCount}
+                        isNotRun={previewData.run.status !== 'ready'}
+                        fields={schema?.fields ?? []}
+                        disabled={isBuilding}
+                        opened={isDataMenuOpen}
+                        onOpenedChange={setIsDataMenuOpen}
+                        onSelectSample={previewData.selectSample}
+                        onSelectSavedChart={previewData.selectSavedChart}
+                        onSelectExplore={previewData.selectExplore}
+                    />
+                }
+                sampleRows={sampleRows}
+                currentBuildContext={currentBuildContext}
                 syncPreviewUrlState
                 configurePanel={configurePanel}
             />

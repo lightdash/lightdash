@@ -32,6 +32,8 @@ import { useDataAppVizBuild } from '../features/chartTypes/hooks/useDataAppVizBu
 import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
 import { clarificationStub } from '../features/chartTypes/testing/clarificationRoundStub';
 import { buildStub } from '../features/chartTypes/testing/dataAppVizBuildStub';
+import { executeChartTypePreviewQuery } from '../features/chartTypes/utils/chartTypePreviewQuery';
+import type * as chartTypePreviewQueryModule from '../features/chartTypes/utils/chartTypePreviewQuery';
 import { useExplores } from '../hooks/useExplores';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
@@ -86,6 +88,21 @@ vi.mock('../hooks/appearance/useOrganizationAppearance', () => ({
 }));
 vi.mock('../hooks/appearance/useProjectColorPalette', () => ({
     useProjectColorPalette: () => ({ data: undefined }),
+}));
+vi.mock(
+    '../features/chartTypes/utils/chartTypePreviewQuery',
+    async (importOriginal) => {
+        const actual =
+            await importOriginal<typeof chartTypePreviewQueryModule>();
+        return { ...actual, executeChartTypePreviewQuery: vi.fn() };
+    },
+);
+// Series colours resolve through an app-level provider this harness omits.
+vi.mock('../features/chartTypes/hooks/useDataAppVizResolvedColors', () => ({
+    useDataAppVizResolvedColors: () => ({
+        seriesColors: {},
+        valueColors: {},
+    }),
 }));
 vi.mock('../features/apps/components/AppPreview', () => ({
     default: ({
@@ -464,6 +481,74 @@ describe('ChartTypeBuilder', () => {
         expect(
             screen.getByText('This chart type declares no display options.'),
         ).toBeInTheDocument();
+    });
+
+    it('starts every preview on labelled sample data, with nothing run', () => {
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1 })], 1),
+        );
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: {
+                schema: {
+                    fields: [
+                        {
+                            name: 'source',
+                            label: 'Source',
+                            type: 'dimension',
+                            required: true,
+                        },
+                    ],
+                    configOptions: [],
+                    colorPalette: null,
+                },
+            },
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        // The strip above the chart says what it is drawn from.
+        expect(screen.getByText('Sample data')).toBeInTheDocument();
+        expect(screen.getByText('Made-up rows.')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Preview on real data' }),
+        ).toBeInTheDocument();
+        // Nothing binds inputs to a query yet, so they stay read-only.
+        expect(screen.getByText('Chart inputs')).toBeInTheDocument();
+        expect(screen.queryByPlaceholderText('Select source')).toBeNull();
+        expect(screen.queryByText('Run query')).toBeNull();
+        expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+    });
+
+    it('runs no query when an existing chart type is opened or its history is', () => {
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1 })], 1),
+        );
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: {
+                schema: {
+                    fields: [
+                        {
+                            name: 'source',
+                            label: 'Source',
+                            type: 'dimension',
+                            required: true,
+                        },
+                    ],
+                    configOptions: [],
+                    colorPalette: null,
+                },
+            },
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
+        renderBuilder(
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'History' }));
+
+        expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
     });
 
     it('keeps the configure panel beside the chart while it rebuilds', () => {

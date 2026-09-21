@@ -116,4 +116,14 @@ describe('ConfigurePanel', () => {
 
         expect(screen.queryByText('Chart inputs')).not.toBeInTheDocument();
     });
+
+    it('gives the bound inputs the read-only list’s place', () => {
+        renderPanel({
+            schema: schemaWithFields,
+            chartInputs: <div>Bound inputs</div>,
+        });
+
+        expect(screen.getByText('Bound inputs')).toBeInTheDocument();
+        expect(screen.queryByText('X axis')).not.toBeInTheDocument();
+    });
 });

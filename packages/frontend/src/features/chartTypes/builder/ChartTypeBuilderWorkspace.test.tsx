@@ -36,6 +36,9 @@ const view = (isHistoryOpen: boolean) => (
         workspace={workspace(isHistoryOpen)}
         previewContext={null}
         previewDataSource={null}
+        previewSourceExtra={null}
+        previewOverlay={null}
+        dataPill={null}
         syncPreviewUrlState={false}
         configurePanel={null}
         configurationSidebar={
@@ -79,6 +82,9 @@ describe('ChartTypeBuilderWorkspace layout', () => {
                 }}
                 previewContext={null}
                 previewDataSource={null}
+                previewSourceExtra={null}
+                previewOverlay={null}
+                dataPill={null}
                 syncPreviewUrlState={false}
                 configurePanel={null}
             />,

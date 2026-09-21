@@ -8,9 +8,10 @@ import { type AppIframePreviewHandle } from '../../apps/AppIframePreview';
 import { useElementPicker } from '../../apps/hooks/useElementPicker';
 import { refToWireString } from '../../apps/utils/elementRefs';
 import { type VizBuildRequest } from '../hooks/useDataAppVizBuild';
-import BuilderCanvas, { type PreviewDataSource } from './BuilderCanvas';
+import BuilderCanvas from './BuilderCanvas';
 import BuilderPromptBar from './BuilderPromptBar';
 import classes from './ChartTypeBuilderWorkspace.module.css';
+import { type PreviewDataSource } from './previewDataTypes';
 import { type ChartTypeBuilderWorkspaceState } from './useChartTypeBuilderWorkspace';
 import VersionHistoryPanel from './VersionHistoryPanel';
 
@@ -21,6 +22,13 @@ type Props = {
     previewContext: DataAppVizContext | null;
     /** What backs `previewContext`; null when the host previews its own rows. */
     previewDataSource: PreviewDataSource | null;
+    /** Run status and the strip's own control, beside the source badge. */
+    previewSourceExtra: ReactNode | null;
+    /** Sits over the chart while the bound data cannot render it. */
+    previewOverlay: ReactNode | null;
+    /** The composer's data selector; hosts that own no data selection pass
+     *  null. */
+    dataPill: ReactNode | null;
     /** Bounded sample of the host's current rows, even before a schema exists. */
     sampleRows?: Record<string, string>[];
     currentBuildContext?: VizBuildRequest['context'];
@@ -43,6 +51,9 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
     workspace,
     previewContext,
     previewDataSource,
+    previewSourceExtra,
+    previewOverlay,
+    dataPill,
     sampleRows = [],
     currentBuildContext,
     syncPreviewUrlState,
@@ -135,6 +146,8 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                 clarifierUnavailable={clarification.fellThrough}
                                 previewContext={previewContext}
                                 previewDataSource={previewDataSource}
+                                previewSourceExtra={previewSourceExtra}
+                                previewOverlay={previewOverlay}
                                 configurePanel={configurePanel}
                                 onPickExample={onPickExample}
                                 onSdkManifest={onSdkManifest}
@@ -168,6 +181,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                     narration={narration}
                                     modelSelection={modelSelection}
                                     clarification={clarification}
+                                    dataPill={dataPill}
                                     buildContext={{
                                         ...buildContext,
                                         ...(sampleRows.length > 0

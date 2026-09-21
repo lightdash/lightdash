@@ -5,7 +5,9 @@ import {
     type DataAppVizField,
     type DataAppVizFieldMapping,
     type ItemsMap,
+    type MetricQuery,
 } from '@lightdash/common';
+import { bindableTableCalculations } from './chartTypePreviewTableCalcs';
 import { getDataAppVizFieldItems } from './getDataAppVizFieldItems';
 
 /**
@@ -34,11 +36,16 @@ export const poolKeyForSlot = (
     }
 };
 
-// Column ids of each type, in result order. Ids rather than items, because
-// every binding is compared and stored as an id.
-type Pools = Record<'dimension' | 'metric' | 'column', string[]>;
+/** Column ids of each type, in result order. Ids rather than items, because
+ *  every binding is compared and stored as an id. */
+export type DataAppVizFieldPools = Record<
+    'dimension' | 'metric' | 'column',
+    string[]
+>;
 
-const poolsFor = (itemsMap: ItemsMap): Pools => {
+export const dataAppVizFieldPools = (
+    itemsMap: ItemsMap,
+): DataAppVizFieldPools => {
     const { dimensions, metrics } = getDataAppVizFieldItems(itemsMap);
     return {
         dimension: dimensions.map(getItemId),
@@ -47,8 +54,27 @@ const poolsFor = (itemsMap: ItemsMap): Pools => {
     };
 };
 
-const poolFor = (pools: Pools, field: DataAppVizField): string[] =>
-    pools[poolKeyForSlot(field)];
+/** The same pools read straight off a query, for the times a chart's columns
+ *  are known but its explore has not been fetched. Only table calculations
+ *  the preview could keep valid are offered. */
+export const dataAppVizFieldPoolsFromMetricQuery = (
+    metricQuery: MetricQuery,
+): DataAppVizFieldPools => {
+    const metric = [
+        ...metricQuery.metrics,
+        ...bindableTableCalculations(metricQuery).map(getItemId),
+    ];
+    return {
+        dimension: metricQuery.dimensions,
+        metric,
+        column: [...metric, ...metricQuery.dimensions],
+    };
+};
+
+const poolFor = (
+    pools: DataAppVizFieldPools,
+    field: DataAppVizField,
+): string[] => pools[poolKeyForSlot(field)];
 
 const setBinding = (
     mapping: DataAppVizFieldMapping,
@@ -69,7 +95,7 @@ const setBinding = (
 const fillSlots = (
     mapping: DataAppVizFieldMapping,
     taken: Set<string>,
-    pools: Pools,
+    pools: DataAppVizFieldPools,
     slots: DataAppVizField[],
 ): void => {
     for (const field of slots) {
@@ -84,7 +110,7 @@ const fillSlots = (
 const fillMultipleSlots = (
     mapping: DataAppVizFieldMapping,
     taken: Set<string>,
-    pools: Pools,
+    pools: DataAppVizFieldPools,
     slots: DataAppVizField[],
 ): void => {
     for (const field of slots) {
@@ -110,11 +136,10 @@ const fillMultipleSlots = (
  * Returns only the slots it could fill; callers treat a missing entry as
  * unbound.
  */
-export const autoMapDataAppVizFields = (
+export const autoMapDataAppVizFieldsFromPools = (
     fields: DataAppVizField[],
-    itemsMap: ItemsMap,
+    pools: DataAppVizFieldPools,
 ): DataAppVizFieldMapping => {
-    const pools = poolsFor(itemsMap);
     const mapping: DataAppVizFieldMapping = {};
     const taken = new Set<string>();
 
@@ -148,6 +173,12 @@ export const autoMapDataAppVizFields = (
     return mapping;
 };
 
+export const autoMapDataAppVizFields = (
+    fields: DataAppVizField[],
+    itemsMap: ItemsMap,
+): DataAppVizFieldMapping =>
+    autoMapDataAppVizFieldsFromPools(fields, dataAppVizFieldPools(itemsMap));
+
 /**
  * Reconcile a saved binding against the contract and columns in force now.
  *
@@ -167,12 +198,11 @@ export const autoMapDataAppVizFields = (
  * Pure and derived — never written back to the saved chart, so opening a chart
  * cannot dirty it.
  */
-export const reconcileDataAppVizFieldMapping = (
+const reconcileFromPools = (
     fields: DataAppVizField[],
-    itemsMap: ItemsMap,
+    pools: DataAppVizFieldPools,
     persisted: DataAppVizFieldMapping,
 ): DataAppVizFieldMapping => {
-    const pools = poolsFor(itemsMap);
     const mapping: DataAppVizFieldMapping = {};
     const taken = new Set<string>();
 
@@ -209,6 +239,36 @@ export const reconcileDataAppVizFieldMapping = (
         fields.filter((f) => f.required),
     );
 
+    return mapping;
+};
+
+export const reconcileDataAppVizFieldMapping = (
+    fields: DataAppVizField[],
+    itemsMap: ItemsMap,
+    persisted: DataAppVizFieldMapping,
+): DataAppVizFieldMapping =>
+    reconcileFromPools(fields, dataAppVizFieldPools(itemsMap), persisted);
+
+/**
+ * Fill the required slots a binding leaves empty, and leave every other
+ * binding exactly as the author left it — including one that no longer fits,
+ * which the preview reports rather than silently corrects.
+ */
+export const fillUnboundDataAppVizFields = (
+    fields: DataAppVizField[],
+    pools: DataAppVizFieldPools,
+    persisted: DataAppVizFieldMapping,
+): DataAppVizFieldMapping => {
+    const mapping: DataAppVizFieldMapping = { ...persisted };
+    const taken = new Set(
+        Object.values(persisted).flatMap(getDataAppVizFieldIds),
+    );
+    fillSlots(
+        mapping,
+        taken,
+        pools,
+        fields.filter((f) => f.required),
+    );
     return mapping;
 };
 

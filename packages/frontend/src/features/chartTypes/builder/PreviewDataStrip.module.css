@@ -1,0 +1,8 @@
+/* A strip above the iframe, not an overlay, so what the chart is drawn from
+   never sits on top of content a viewer might want to click or hover. */
+.strip {
+    flex: none;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+    background: var(--mantine-color-ldGray-0);
+}

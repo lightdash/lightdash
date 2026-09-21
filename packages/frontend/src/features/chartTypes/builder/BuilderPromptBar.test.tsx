@@ -231,6 +231,7 @@ const promptBar = ({
     buildContext,
     elementPicker,
     onCaptureScreenshot,
+    dataPill,
 }: {
     build?: DataAppVizBuildState;
     isBuilding?: boolean;
@@ -245,6 +246,7 @@ const promptBar = ({
     buildContext?: VizBuildRequest['context'];
     elementPicker?: UseElementPickerResult;
     onCaptureScreenshot?: () => Promise<File>;
+    dataPill?: ReactNode;
 } = {}) => (
     <MemoryRouter>
         <BuilderPromptBar
@@ -266,6 +268,7 @@ const promptBar = ({
             buildContext={buildContext}
             elementPicker={elementPicker}
             onCaptureScreenshot={onCaptureScreenshot}
+            dataPill={dataPill}
         />
     </MemoryRouter>
 );
@@ -279,6 +282,17 @@ describe('BuilderPromptBar', () => {
         themeQuery.isLoading = false;
         themeQuery.isError = false;
         themeQuery.isSuccess = true;
+    });
+
+    it('keeps the host data selector in the context tray', () => {
+        renderWithProviders(
+            promptBar({ dataPill: <div>Data: Sample data</div> }),
+        );
+
+        const tray = screen.getByRole('group', {
+            name: 'Selected chart context',
+        });
+        expect(tray).toHaveTextContent('Data: Sample data');
     });
 
     it('stages a captured render as a screenshot', async () => {

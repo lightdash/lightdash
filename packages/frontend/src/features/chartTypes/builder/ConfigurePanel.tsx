@@ -5,7 +5,7 @@ import {
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { Box, Stack, Tabs, Text } from '@mantine/core';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, useState, type FC, type ReactNode } from 'react';
 import OverflowTabsList from '../../../components/common/OverflowTabsList/OverflowTabsList';
 import { PalettePicker } from '../../../components/common/PalettePicker/PalettePicker';
 import DataAppVizOptionControl from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionControl';
@@ -27,6 +27,8 @@ type Props = {
     /** The schema on screen belongs to a version being navigated away from;
      *  held legible but inert until the one being previewed arrives. */
     isStale: boolean;
+    /** The inputs bound to a real query; null leaves them read-only. */
+    chartInputs?: ReactNode;
 };
 
 /**
@@ -43,6 +45,7 @@ const ConfigurePanel: FC<Props> = ({
     onPaletteChange,
     resolvedColorPalette,
     isStale,
+    chartInputs = null,
 }) => {
     const { data: palettes = [] } = useColorPalettes();
 
@@ -66,7 +69,7 @@ const ConfigurePanel: FC<Props> = ({
 
     return (
         <Box className={classes.panel} data-stale={isStale} inert={isStale}>
-            <ChartInputsList fields={schema.fields} />
+            {chartInputs ?? <ChartInputsList fields={schema.fields} />}
 
             {/* The options are the generated contract, not Lightdash chart
                 config, and the chip says so. */}

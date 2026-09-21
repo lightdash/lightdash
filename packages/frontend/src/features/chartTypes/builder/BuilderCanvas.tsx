@@ -2,7 +2,7 @@ import {
     ECHARTS_DEFAULT_COLORS,
     type DataAppVizContext,
 } from '@lightdash/common';
-import { Badge, Box, Group, Stack, Text, Title } from '@mantine/core';
+import { Box, Stack, Text, Title } from '@mantine/core';
 import { type FC, type ReactNode, type RefObject } from 'react';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import { type AppIframePreviewHandle } from '../../apps/AppIframePreview';
@@ -10,9 +10,8 @@ import AppPreview from '../../apps/components/AppPreview';
 import { type SdkManifest } from '../../apps/hooks/useAppSdkBridge';
 import classes from './BuilderCanvas.module.css';
 import BuilderPromptExamples from './BuilderPromptExamples';
-
-/** Where the previewed rows came from. */
-export type PreviewDataSource = { kind: 'sample' };
+import PreviewDataStrip from './PreviewDataStrip';
+import { type PreviewDataSource } from './previewDataTypes';
 
 type Props = {
     projectUuid: string;
@@ -31,6 +30,11 @@ type Props = {
     previewContext: DataAppVizContext | null;
     /** What backs `previewContext`; null when the host previews its own rows. */
     previewDataSource: PreviewDataSource | null;
+    /** Run status and the strip's own control, beside the source badge. */
+    previewSourceExtra: ReactNode;
+    /** Sits over the chart while the bound data cannot render it; the chart
+     *  itself stays mounted underneath. */
+    previewOverlay: ReactNode;
     /** The card's configuration column; null until a version declares a schema. */
     configurePanel: ReactNode;
     /** Fills the composer with a starter prompt; null while no composer is
@@ -99,6 +103,8 @@ const BuilderCanvas: FC<Props> = ({
     clarifierUnavailable,
     previewContext,
     previewDataSource,
+    previewSourceExtra,
+    previewOverlay,
     configurePanel,
     onPickExample,
     onSdkManifest,
@@ -120,35 +126,36 @@ const BuilderCanvas: FC<Props> = ({
                 >
                     <Box className={classes.preview}>
                         {previewDataSource && (
-                            <Group
-                                className={classes.sampleDataBadge}
-                                gap="xs"
-                                wrap="nowrap"
-                            >
-                                <Badge size="xs" variant="light" color="yellow">
-                                    Sample data
-                                </Badge>
-                                <Text fz="xs" c="dimmed">
-                                    Made-up rows.
-                                </Text>
-                            </Group>
+                            <PreviewDataStrip
+                                source={previewDataSource}
+                                extra={previewSourceExtra}
+                            />
                         )}
                         <Box className={classes.previewFrame}>
-                            <AppPreview
-                                ref={previewRef}
-                                projectUuid={projectUuid}
-                                appUuid={appUuid}
-                                version={previewVersion}
-                                refreshKey={0}
-                                dataAppVizContext={previewContext ?? undefined}
-                                dataAppVizMode
-                                {...elementPickerProps}
-                                onScreenshotAvailabilityChange={
-                                    onScreenshotAvailabilityChange
-                                }
-                                onSdkManifest={onSdkManifest}
-                                urlStateSync={syncPreviewUrlState}
-                            />
+                            <Box
+                                className={classes.previewSurface}
+                                data-receded={Boolean(previewOverlay)}
+                                inert={Boolean(previewOverlay) || undefined}
+                            >
+                                <AppPreview
+                                    ref={previewRef}
+                                    projectUuid={projectUuid}
+                                    appUuid={appUuid}
+                                    version={previewVersion}
+                                    refreshKey={0}
+                                    dataAppVizContext={
+                                        previewContext ?? undefined
+                                    }
+                                    dataAppVizMode
+                                    {...elementPickerProps}
+                                    onScreenshotAvailabilityChange={
+                                        onScreenshotAvailabilityChange
+                                    }
+                                    onSdkManifest={onSdkManifest}
+                                    urlStateSync={syncPreviewUrlState}
+                                />
+                            </Box>
+                            {previewOverlay}
                         </Box>
                     </Box>
                     {configurePanel && (

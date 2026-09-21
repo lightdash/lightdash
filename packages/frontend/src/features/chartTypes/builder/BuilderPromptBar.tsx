@@ -29,6 +29,7 @@ import {
     useState,
     type ClipboardEventHandler,
     type DragEventHandler,
+    type ReactNode,
 } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ComposerSubmitButton } from '../../../components/common/PromptComposer/ComposerSubmitButton';
@@ -92,6 +93,8 @@ type Props = {
     onCaptureScreenshot?: () => Promise<File>;
     /** The pre-build clarifying round every send passes through. */
     clarification: ClarificationRound<VizBuildRequest>;
+    /** The host's data selector, shown in the context tray beside the theme. */
+    dataPill?: ReactNode;
 };
 
 type QueuedPrompt = {
@@ -186,6 +189,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             buildContext,
             elementPicker,
             onCaptureScreenshot,
+            dataPill = null,
         },
         ref,
     ) {
@@ -807,6 +811,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 role="group"
                                 aria-label="Selected chart context"
                             >
+                                {dataPill}
                                 <ThemePicker
                                     compact
                                     value={
