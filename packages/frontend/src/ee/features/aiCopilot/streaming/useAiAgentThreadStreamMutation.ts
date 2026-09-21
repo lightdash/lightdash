@@ -8,6 +8,7 @@ import {
     type UIMessage,
 } from 'ai';
 import { useCallback } from 'react';
+import { z } from 'zod';
 import { lightdashApiStream } from '../../../../api';
 import { getAiAgentApiBase } from '../hooks/aiAgentRouting';
 import {
@@ -50,6 +51,18 @@ export interface AiAgentThreadStreamOptions {
 }
 
 type StreamToolCallPart = Extract<StreamPart, { type: 'toolCall' }>;
+
+const artifactReadySchema = z.object({
+    promptUuid: z.string().min(1),
+    artifactUuid: z.string().min(1),
+    versionUuid: z.string().min(1),
+});
+
+export const getArtifactReadyFromChunk = (chunk: UIMessageChunk) => {
+    if (chunk.type !== 'data-artifact-ready') return null;
+    const result = artifactReadySchema.safeParse(chunk.data);
+    return result.success ? result.data : null;
+};
 
 type StreamToolPart = {
     type: string;
@@ -373,6 +386,7 @@ export function useAiAgentThreadStreamMutation() {
                 };
 
                 const consumeRawChunks = (async () => {
+                    const readyVersions = new Set<string>();
                     while (true) {
                         const rawChunkResult = await readStreamResult(() =>
                             rawChunkReader.read(),
@@ -400,6 +414,15 @@ export function useAiAgentThreadStreamMutation() {
                         }
 
                         const stepProgress = getStepProgressFromChunk(value);
+                        const artifactReady = getArtifactReadyFromChunk(value);
+                        if (
+                            artifactReady &&
+                            artifactReady.promptUuid === messageUuid &&
+                            !readyVersions.has(artifactReady.versionUuid)
+                        ) {
+                            readyVersions.add(artifactReady.versionUuid);
+                            refetchThread();
+                        }
                         if (stepProgress) {
                             dispatch(
                                 appendStepProgress({

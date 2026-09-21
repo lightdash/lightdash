@@ -247,6 +247,9 @@ export const AiDashboardSaveModal: FC<Props> = ({
                     description: values.dashboardDescription,
                     spaceUuid: targetSpaceUuid!,
                     charts,
+                    ...(dashboardConfig.layout
+                        ? { tilePositions: dashboardConfig.layout.positions }
+                        : {}),
                 });
 
                 // Update AI artifact with saved dashboard UUID

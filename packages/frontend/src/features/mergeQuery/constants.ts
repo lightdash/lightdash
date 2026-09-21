@@ -1,10 +1,16 @@
-import { MergeJoinType } from '@lightdash/common';
+import {
+    MergeJoinType,
+    MERGE_PRIMARY_SOURCE_ID as PRIMARY_SOURCE_ID,
+    MERGE_ADDITIONAL_SOURCE_ID as DEFAULT_ADDITIONAL_SOURCE_ID,
+} from '@lightdash/common';
+export {
+    MERGE_PRIMARY_SOURCE_ID as PRIMARY_SOURCE_ID,
+    MERGE_ADDITIONAL_SOURCE_ID as DEFAULT_ADDITIONAL_SOURCE_ID,
+    MERGE_JOIN_KEY as JOIN_KEY,
+} from '@lightdash/common';
 import { type MergeEditorSource, type MergeJoinPart } from './context/context';
 
-export const PRIMARY_SOURCE_ID = 'a';
-export const DEFAULT_ADDITIONAL_SOURCE_ID = 'b';
 export const MAX_MERGE_SOURCES = 2;
-export const JOIN_KEY = 'join_key';
 
 export const emptyMergeSource = (id: string): MergeEditorSource => ({
     id,

@@ -22,10 +22,12 @@ const mocks = vi.hoisted(() => ({
     useAiAgentArtifactVizQuery: vi.fn(),
     useInfiniteQueryResults: vi.fn(),
     useExplore: vi.fn(),
+    search: '',
 }));
 
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<object>()),
+    useSearchParams: () => [new URLSearchParams(mocks.search)],
     useParams: () => ({
         projectUuid: PROJECT_UUID,
         agentUuid: AGENT_UUID,
@@ -225,6 +227,7 @@ const getReadyIndicator = () =>
 describe('MinimalAiAgentArtifact', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.search = '';
         mocks.useExplore.mockReturnValue({ data: undefined });
         mocks.useAiAgentArtifact.mockReturnValue({
             data: buildArtifact(),
@@ -251,6 +254,51 @@ describe('MinimalAiAgentArtifact', () => {
             getDataAppVizChartFromArtifact(customArtifactChartConfig),
         );
     });
+
+    it('binds the screenshot query to the requested cached execution', () => {
+        mocks.search = 'cachedQueryUuid=55555555-5555-4555-8555-555555555555';
+        renderWithProviders(<MinimalAiAgentArtifact />);
+        expect(mocks.useAiAgentArtifactVizQuery).toHaveBeenCalledWith(
+            {
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+                artifactUuid: ARTIFACT_UUID,
+                versionUuid: VERSION_UUID,
+                cachedQueryUuid: '55555555-5555-4555-8555-555555555555',
+            },
+            { enabled: true },
+        );
+        expect(mocks.useInfiniteQueryResults).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            vizQueryData.query.queryUuid,
+        );
+    });
+
+    it.each([
+        '',
+        'not-a-uuid',
+        '../../query',
+        '55555555-5555-4555-8555-555555555555&other=value',
+    ])(
+        'rejects a malformed cached execution without running a replacement query: %s',
+        (cachedQueryUuid) => {
+            mocks.search = new URLSearchParams({ cachedQueryUuid }).toString();
+            renderWithProviders(<MinimalAiAgentArtifact />);
+            expect(mocks.useAiAgentArtifactVizQuery).toHaveBeenCalledWith(
+                expect.objectContaining({ cachedQueryUuid: undefined }),
+                { enabled: false },
+            );
+            expect(mocks.useInfiniteQueryResults).toHaveBeenCalledWith(
+                PROJECT_UUID,
+                undefined,
+            );
+            expect(screen.queryByTestId('visualization-provider')).toBeNull();
+            expect(getReadyIndicator()).toHaveAttribute(
+                'data-status',
+                'completed-with-errors',
+            );
+        },
+    );
 
     it('keeps analytical interactions structurally off', () => {
         renderWithProviders(<MinimalAiAgentArtifact />);

@@ -1982,13 +1982,14 @@ const getAiAgentArtifactVizQuery = async (args: {
     agentUuid: string;
     artifactUuid: string;
     versionUuid: string;
+    cachedQueryUuid?: string;
 }) =>
     lightdashApi<ApiAiAgentArtifactVizQuery>({
         url: `${getAiAgentApiBase(args.projectUuid)}/${
             args.agentUuid
         }/artifacts/${args.artifactUuid}/versions/${
             args.versionUuid
-        }/viz-query`,
+        }/viz-query${args.cachedQueryUuid === undefined ? '' : `?${new URLSearchParams({ cachedQueryUuid: args.cachedQueryUuid })}`}`,
         method: 'GET',
         body: undefined,
     });
@@ -1999,11 +2000,13 @@ export const useAiAgentArtifactVizQuery = (
         agentUuid,
         artifactUuid,
         versionUuid,
+        cachedQueryUuid,
     }: {
         projectUuid: string;
         agentUuid: string;
         artifactUuid: string;
         versionUuid: string;
+        cachedQueryUuid?: string;
     },
     useQueryOptions?: UseQueryOptions<ApiAiAgentArtifactVizQuery, ApiError>,
 ) => {
@@ -2024,6 +2027,9 @@ export const useAiAgentArtifactVizQuery = (
             artifactUuid,
             'versions',
             versionUuid,
+            ...(cachedQueryUuid === undefined
+                ? []
+                : ['cached-execution', cachedQueryUuid]),
         ],
         staleTime: AI_AGENT_ARTIFACT_VIZ_QUERY_STALE_TIME,
         ...useQueryOptions,
@@ -2033,6 +2039,7 @@ export const useAiAgentArtifactVizQuery = (
                 agentUuid,
                 artifactUuid,
                 versionUuid,
+                cachedQueryUuid,
             });
         },
         onError: (error: ApiError) => {

@@ -5,7 +5,35 @@ import {
     getStreamToolCallPart,
     getStepProgressFromChunk,
     readStreamResult,
+    getArtifactReadyFromChunk,
 } from './useAiAgentThreadStreamMutation';
+
+describe('artifact readiness', () => {
+    it('accepts complete artifact references for an early thread refresh', () => {
+        const data = {
+            promptUuid: 'prompt',
+            artifactUuid: 'artifact',
+            versionUuid: 'version',
+        };
+        expect(
+            getArtifactReadyFromChunk({
+                type: 'data-artifact-ready',
+                data,
+                transient: true,
+            }),
+        ).toEqual(data);
+    });
+
+    it('ignores malformed events and other stream chunks', () => {
+        expect(
+            getArtifactReadyFromChunk({
+                type: 'data-artifact-ready',
+                data: { versionUuid: 'version' },
+            }),
+        ).toBeNull();
+        expect(getArtifactReadyFromChunk({ type: 'finish' })).toBeNull();
+    });
+});
 
 describe('getReasoningFromPart', () => {
     it('reads Gemini reasoning signatures', () => {

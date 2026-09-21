@@ -191,12 +191,12 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
 
         if (isQueryLoading) {
             return (
-                <Stack gap="sm">
+                <Stack gap="sm" h="100%" mih={0}>
                     <VisualizationHeaderSimple />
 
                     {/* Loading State */}
-                    <Paper p="md" bg="ldGray.0">
-                        <Center h={200}>
+                    <Paper p="md" bg="ldGray.0" flex={1} mih={0}>
+                        <Center h="100%" mih={48}>
                             <Stack gap="xs" align="center">
                                 <Loader type="dots" color="gray" />
                                 <Text size="sm" c="dimmed" ta="center">

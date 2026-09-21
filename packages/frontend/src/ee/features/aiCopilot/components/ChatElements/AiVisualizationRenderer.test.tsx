@@ -1,6 +1,7 @@
 import {
     AiResultType,
     ChartType,
+    MergeJoinType,
     type ApiAiAgentThreadMessageVizQuery,
     type ToolRunQueryArgs,
 } from '@lightdash/common';
@@ -158,10 +159,13 @@ const results = {
     isFetchingRows: false,
 } as unknown as InfiniteQueryResults;
 
-const renderVisualization = (interactionMode?: 'full' | 'read-only') =>
+const renderVisualization = (
+    interactionMode?: 'full' | 'read-only',
+    queryData = vizQueryData,
+) =>
     renderWithProviders(
         <AiVisualizationRenderer
-            vizQueryData={vizQueryData}
+            vizQueryData={queryData}
             results={results}
             chartConfig={chartConfig}
             selectedChartType="line"
@@ -212,6 +216,40 @@ describe('AiVisualizationRenderer interaction mode', () => {
         expect(screen.getByTestId('series-context-menu')).toBeVisible();
         expect(screen.getByTestId('underlying-data-modal')).toBeVisible();
         expect(screen.getByTestId('drill-down-modal')).toBeVisible();
+    });
+
+    it('renders merged results without fetching a synthetic explore or offering invalid drill-down', () => {
+        renderVisualization('full', {
+            ...vizQueryData,
+            query: {
+                ...vizQueryData.query,
+                metricQuery: { ...metricQuery, exploreName: 'merge' },
+            },
+            mergeQuery: {
+                sources: [
+                    { id: 'first', metricQuery },
+                    { id: 'second', metricQuery },
+                ],
+                joinKey: [
+                    {
+                        name: 'month',
+                        fieldIdBySourceId: {
+                            first: 'orders_order_month',
+                            second: 'orders_order_month',
+                        },
+                    },
+                ],
+                joinType: MergeJoinType.FULL,
+                tableCalculations: [],
+                limit: 500,
+            },
+        });
+
+        expect(screen.getByTestId('lightdash-visualization')).toBeVisible();
+        expect(mocks.useExplore).toHaveBeenCalledWith(undefined);
+        expect(screen.queryByTestId('series-context-menu')).toBeNull();
+        expect(screen.queryByTestId('underlying-data-modal')).toBeNull();
+        expect(screen.queryByTestId('drill-down-modal')).toBeNull();
     });
 });
 
