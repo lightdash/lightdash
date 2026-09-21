@@ -39,6 +39,10 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
+import {
+    inferOrganizationName,
+    sanitizeDetectedOrganizationName,
+} from '../utils/organizationName';
 import classes from './OrganizationSetup.module.css';
 import { OrganizationSetupPreview } from './OrganizationSetupPreview';
 
@@ -79,13 +83,6 @@ const pickTileLogo = (logos: OrganizationBrandLogo[]): string | null => {
     const neutral = logos.find((logo) => logo.theme === null);
     return dark?.url ?? neutral?.url ?? logos[0]?.url ?? null;
 };
-
-const inferOrganizationName = (domain: string): string =>
-    (domain.split('.')[0] ?? '')
-        .split(/[-_]/)
-        .filter(Boolean)
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
 
 const buildBrandColors = (
     selectedColor: string,
@@ -178,13 +175,18 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         const detected = brandColorsSorted(brand.colors);
         setValues((current) => ({
             ...(brand.name && !isDirty('organizationName')
-                ? { organizationName: brand.name }
+                ? {
+                      organizationName: sanitizeDetectedOrganizationName(
+                          brand.name,
+                          inferOrganizationName(emailDomain),
+                      ),
+                  }
                 : {}),
             ...(current.selectedColor === DEFAULT_COLOR && detected[0]
                 ? { selectedColor: detected[0] }
                 : {}),
         }));
-    }, [brandDetection.data, isDirty, setValues]);
+    }, [brandDetection.data, emailDomain, isDirty, setValues]);
 
     const hasTrackedBrandDetection = useRef(false);
     useEffect(() => {
