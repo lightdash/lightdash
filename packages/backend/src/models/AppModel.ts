@@ -906,12 +906,24 @@ export class AppModel {
         return cancelled !== undefined;
     }
 
-    /**
-     * The newest already-finished version before `beforeVersion` in the same
-     * thread, with when it finished and what it spent — the compaction
-     * trigger's two inputs. Scoped to the thread, never the app, so a cleared
-     * context never inherits the previous thread's gap or size.
-     */
+    // Thread 1 predates threads, so its legacy versions carry a null thread uuid.
+    private versionsInThread(thread: {
+        app_id: string;
+        app_thread_uuid: string;
+        thread_number: number;
+    }) {
+        return this.database(AppVersionsTableName)
+            .where('app_id', thread.app_id)
+            .andWhere((q) => {
+                void q.where('app_thread_uuid', thread.app_thread_uuid);
+                if (thread.thread_number === 1) {
+                    void q.orWhereNull('app_thread_uuid');
+                }
+            });
+    }
+
+    // Newest terminal version before `beforeVersion` in the same thread; the
+    // compaction trigger's inputs. Thread-scoped so a cleared context starts clean.
     async findPreviousFinishedVersionInThread(
         appThreadUuid: string,
         beforeVersion: number,
@@ -922,14 +934,7 @@ export class AppModel {
     } | null> {
         const thread = await this.findThreadByUuid(appThreadUuid);
         if (!thread) return null;
-        const row = await this.database(AppVersionsTableName)
-            .where('app_id', thread.app_id)
-            .andWhere((q) => {
-                void q.where('app_thread_uuid', appThreadUuid);
-                if (thread.thread_number === 1) {
-                    void q.orWhereNull('app_thread_uuid');
-                }
-            })
+        const row = await this.versionsInThread(thread)
             .whereIn('status', [...APP_VERSION_TERMINAL_STATUSES])
             .andWhere('version', '<', beforeVersion)
             .orderBy('version', 'desc')
@@ -952,12 +957,7 @@ export class AppModel {
         const thread = await this.findThreadByUuid(appThreadUuid);
         if (!thread) return false;
         const isThreadOne = thread.thread_number === 1;
-        const row = await this.database(AppVersionsTableName)
-            .where('app_id', thread.app_id)
-            .andWhere((q) => {
-                void q.where('app_thread_uuid', appThreadUuid);
-                if (isThreadOne) void q.orWhereNull('app_thread_uuid');
-            })
+        const row = await this.versionsInThread(thread)
             .modify((q) => {
                 if (excludeVersion !== null) {
                     void q.whereNot('version', excludeVersion);

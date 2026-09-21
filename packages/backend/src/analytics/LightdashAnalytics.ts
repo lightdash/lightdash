@@ -1879,8 +1879,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         catalogYamlBytes: number;
         compactionAttempted: boolean;
         compactionResult: DataAppCompactionResult | null;
-        // What the compaction threshold was compared against; null when the
-        // trigger was never evaluated or the previous version recorded no usage.
+        // What the compaction threshold was compared against.
         contextTokensPerTurn: number | null;
         distBytes: number;
         sourceBytes: number;

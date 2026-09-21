@@ -124,11 +124,7 @@ export const codingAgentRetryStart = (args: {
     return args.start;
 };
 
-/**
- * Narration for the compact stage. Also how a retry recognises that an earlier
- * attempt of the same version already summarized: the entry is persisted on
- * the version, while the outcome died with the pod that produced it.
- */
+// Persisted on the version, so a retry can tell an earlier attempt already compacted.
 export const CODING_AGENT_COMPACTION_NARRATION = 'Catching up on earlier work';
 
 export const versionCompactedCodingAgentSession = (
@@ -175,10 +171,7 @@ export const shouldCompactCodingAgentSession = ({
     contextTokensPerTurn !== null &&
     contextTokensPerTurn >= thresholdTokens;
 
-// Context read per internal turn on a previous version — everything that
-// entered the window over the turns that read it. Null when it is unknown,
-// which must never trigger compaction.
-
+// Null when unknown, which must never trigger compaction.
 export const codingAgentContextTokensPerTurn = (
     usage: {
         inputTokens: number;
@@ -226,10 +219,7 @@ const parseCodingAgentCompactionStatus = (
     return null;
 };
 
-// Verdict from the CLI's compaction status event
-// (`{"type":"system","subtype":"status","compact_result":"success"|"failed"}`).
-// Null when the run never reported one.
-
+// Null when the run never reported a `compact_result` status event.
 export const findCodingAgentCompactionOutcome = (
     stdout: string,
 ): CodingAgentCompactionOutcome | null => {

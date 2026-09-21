@@ -1321,9 +1321,7 @@ export class AppGenerateService extends BaseService {
         return this.lightdashConfig.appRuntime?.dataAppCodingAgent ?? 'claude';
     }
 
-    // Resolved once per build; every env-builder call site inherits the prompt
-    // cache TTL from here, and the compact stage reads the same flag. Codex
-    // never consults it — neither lever applies to it.
+    // Resolved once per build; both levers come from one flag. Codex has neither.
     private async getCodingAgentConfig(
         organizationUuid: string | null | undefined,
     ): Promise<CodingAgentConfig> {
@@ -5160,8 +5158,7 @@ export class AppGenerateService extends BaseService {
         sessionStart: CodingAgentSessionStart;
         sessionHooks: CodingAgentSessionHooks;
         appThreadUuid: string;
-        // An earlier attempt of this same version already summarized the
-        // session; this run must not, but the version still compacted.
+        // Set by a retry whose earlier attempt already compacted this version.
         compactedOnEarlierAttempt: boolean;
     }> {
         const { appUuid, version } = payload;
@@ -6010,10 +6007,8 @@ export class AppGenerateService extends BaseService {
         }
 
         // --- Stage: compact ---
-        // Strict inequality, unlike every other stage: the transcript lives on
-        // sandbox disk, so a retry cannot tell whether the summary landed
-        // before the pod died, and summarizing a summary loses the user's
-        // history for good. A retry that reached this stage forfeits it.
+        // Strict, unlike other stages: a retry cannot tell whether the summary
+        // landed, and summarizing a summary loses the user's history for good.
         if (
             AppGenerateService.stageIndex(currentStatus) <
             AppGenerateService.stageIndex('compact')
@@ -6476,7 +6471,9 @@ export class AppGenerateService extends BaseService {
                 catalogYamlBytes: catalogStats.yamlBytes,
                 compactionAttempted:
                     compaction !== null || compactedOnEarlierAttempt,
-                compactionResult: compaction?.result ?? null,
+                compactionResult:
+                    compaction?.result ??
+                    (compactedOnEarlierAttempt ? 'interrupted' : null),
                 contextTokensPerTurn,
                 distBytes,
                 sourceBytes,

@@ -28,11 +28,7 @@ export type ClaudeGenerationUsage = {
     outputTokens: number;
     cacheReadInputTokens: number;
     cacheCreationInputTokens: number;
-    /**
-     * Split of `cacheCreationInputTokens` by the TTL each entry was written
-     * with. Confirms the 1-hour cache is applied where intended and nowhere
-     * else. Always 0 for Codex, which has no TTL control.
-     */
+    // `cacheCreationInputTokens` split by TTL; both 0 for Codex.
     cacheCreation1hInputTokens: number;
     cacheCreation5mInputTokens: number;
     numTurns: number;

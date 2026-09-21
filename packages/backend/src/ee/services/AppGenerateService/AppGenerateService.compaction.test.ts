@@ -1,5 +1,6 @@
 import { type AppGeneratePipelineJobPayload } from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
+import { CODING_AGENT_COMPACTION_NARRATION } from './codingAgentSession';
 
 vi.mock('e2b', () => ({
     Sandbox: class {},
@@ -31,8 +32,12 @@ const makePayload = (): AppGeneratePipelineJobPayload => ({
  * than the compaction threshold per turn — the shape that makes this build
  * summarize its session before it generates.
  */
-function buildService(compactStdout: string) {
+function buildService(
+    compactStdout: string,
+    statusHistory: { kind: string; message: string }[] = [],
+) {
     const statuses: string[] = [];
+    const track = vi.fn();
     const appModel = {
         getApp: vi.fn().mockResolvedValue({
             app_id: APP_UUID,
@@ -43,7 +48,7 @@ function buildService(compactStdout: string) {
         getVersion: vi.fn().mockResolvedValue({
             version: VERSION,
             app_thread_uuid: THREAD_UUID,
-            status_history: [],
+            status_history: statusHistory,
         }),
         findThreadByUuid: vi.fn().mockResolvedValue({
             app_thread_uuid: THREAD_UUID,
@@ -98,7 +103,7 @@ function buildService(compactStdout: string) {
             },
             ai: { copilot: { providers: {} } },
         } as never,
-        analytics: { track: vi.fn() } as never,
+        analytics: { track } as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
         userModel: {} as never,
@@ -199,7 +204,7 @@ function buildService(compactStdout: string) {
             0,
         );
 
-    return { runStages, statuses, sandbox, appModel };
+    return { runStages, statuses, sandbox, appModel, track };
 }
 
 const COMPACT_FAILED = JSON.stringify({
@@ -221,7 +226,10 @@ describe('AppGenerateService compact stage', () => {
     });
 
     it('never summarizes twice when a retry resumes past the stage', async () => {
-        const { runStages, statuses, appModel } = buildService(COMPACT_FAILED);
+        const { runStages, statuses, appModel, track } = buildService(
+            COMPACT_FAILED,
+            [{ kind: 'stage', message: CODING_AGENT_COMPACTION_NARRATION }],
+        );
 
         await runStages('generating');
 
@@ -230,5 +238,14 @@ describe('AppGenerateService compact stage', () => {
             appModel.findPreviousFinishedVersionInThread,
         ).not.toHaveBeenCalled();
         expect(statuses.at(-1)).toBe('ready');
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'data_app.version.completed',
+                properties: expect.objectContaining({
+                    compactionAttempted: true,
+                    compactionResult: 'interrupted',
+                }),
+            }),
+        );
     });
 });
