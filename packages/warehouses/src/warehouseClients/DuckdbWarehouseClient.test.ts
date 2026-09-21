@@ -313,28 +313,31 @@ describe('internal Parquet projects', () => {
         ).rejects.toThrow(/query permissions/);
     });
 
-    it('allows exact signed GET URLs without configuring bucket credentials', async () => {
-        const signedScope = scope.replace('org_id=', 'org_id%3D');
-        const signedUrl = `${url.replace(/=/g, '%3D')}?X-Amz-Signature=test&X-Amz-Expires=900`;
-        const client = new DuckdbWarehouseClient({
-            type: 'duckdb_parquet',
-            resolveSource: async () => ({
-                scope: signedScope,
-                signedUrls: true,
-                tables: [{ name: 'query_events', urls: [signedUrl] }],
-            }),
-        });
-        await client.runQuery('SELECT count(*) FROM query_events');
-        expect(run).toHaveBeenCalledWith(
-            `SET allowed_paths = ['${signedUrl}'];`,
-        );
-        expect(run).not.toHaveBeenCalledWith(
-            expect.stringContaining('CREATE SECRET'),
-        );
-        expect(run).toHaveBeenCalledWith(
-            'SET enable_external_file_cache = true;',
-        );
-    });
+    it.each(['X-Amz', 'X-Goog'])(
+        'allows exact %s signed GET URLs without configuring bucket credentials',
+        async (signaturePrefix) => {
+            const signedScope = scope.replace('org_id=', 'org_id%3D');
+            const signedUrl = `${url.replace(/=/g, '%3D')}?${signaturePrefix}-Signature=test&${signaturePrefix}-Expires=900`;
+            const client = new DuckdbWarehouseClient({
+                type: 'duckdb_parquet',
+                resolveSource: async () => ({
+                    scope: signedScope,
+                    signedUrls: true,
+                    tables: [{ name: 'query_events', urls: [signedUrl] }],
+                }),
+            });
+            await client.runQuery('SELECT count(*) FROM query_events');
+            expect(run).toHaveBeenCalledWith(
+                `SET allowed_paths = ['${signedUrl}'];`,
+            );
+            expect(run).not.toHaveBeenCalledWith(
+                expect.stringContaining('CREATE SECRET'),
+            );
+            expect(run).toHaveBeenCalledWith(
+                'SET enable_external_file_cache = true;',
+            );
+        },
+    );
 
     it.each([
         'SELECT sql FROM duckdb_views()',
@@ -1103,6 +1106,48 @@ describe('DuckdbWarehouseClient', () => {
             ),
         ).toHaveLength(1);
         expect(streamMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('refreshes the GCS bearer token for each isolated compaction session', async () => {
+        const runMock = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () => getMockStreamResult([[{ val: 1 }]], [4])),
+                runMock,
+            ),
+        );
+        const getAccessToken = vi
+            .fn()
+            .mockResolvedValueOnce("first'token")
+            .mockResolvedValueOnce('refreshed-token');
+        const client = new DuckdbWarehouseClient(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'storage.googleapis.com',
+                    forcePathStyle: true,
+                    useSsl: true,
+                    scope: ['gs://usage-bucket/'],
+                    authMode: 'gcp_oauth',
+                    getAccessToken,
+                },
+            },
+            { resourceLimits: { memoryLimit: '256MB', threads: 1 } },
+        );
+        await client.runQuery('SELECT 1 AS val');
+        await client.runQuery('SELECT 1 AS val');
+        expect(getAccessToken).toHaveBeenCalledTimes(2);
+        const secrets = runMock.mock.calls
+            .map(([sql]) => sql as string)
+            .filter((sql) => sql.includes('CREATE OR REPLACE SECRET'));
+        expect(secrets).toHaveLength(2);
+        expect(secrets[0]).toContain('TYPE gcs');
+        expect(secrets[0]).toContain('BEARER_TOKEN $1');
+        expect(runMock).toHaveBeenCalledWith(secrets[0], ["first'token"]);
+        expect(secrets[0]).toContain("SCOPE ('gs://usage-bucket/')");
+        expect(runMock).toHaveBeenCalledWith(secrets[1], ['refreshed-token']);
+        expect(runMock).not.toHaveBeenCalledWith('LOAD aws;');
+        expect(runMock).not.toHaveBeenCalledWith('INSTALL aws;');
     });
 
     it('should use DuckDB credential chain for S3 config without static credentials', async () => {

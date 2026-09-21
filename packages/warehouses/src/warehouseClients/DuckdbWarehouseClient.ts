@@ -1140,7 +1140,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     !parsed.pathname.endsWith('.parquet') ||
                     (!source.signedUrls && parsed.search) ||
                     (source.signedUrls &&
-                        (!parsed.searchParams.has('X-Amz-Signature') ||
+                        ((!parsed.searchParams.has('X-Amz-Signature') &&
+                            !parsed.searchParams.has('X-Goog-Signature')) ||
                             !/^[a-zA-Z0-9_./=%-]+$/.test(parsed.pathname) ||
                             /%(?!3D)/i.test(parsed.pathname))) ||
                     parsed.hash ||
