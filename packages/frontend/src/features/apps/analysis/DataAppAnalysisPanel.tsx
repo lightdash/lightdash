@@ -22,6 +22,7 @@ import Callout from '../../../components/common/Callout';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { rehypeRemoveHeaderLinks } from '../../../utils/markdownUtils';
 import classes from './DataAppAnalysisPanel.module.css';
 import { type InvestigationState } from './useDataAppAnalysis';
 import { type DataAppAnalysisAvailability } from './useDataAppAnalysisAvailability';
@@ -116,6 +117,7 @@ const AnomalyCard: FC<{
                     <MDEditor.Markdown
                         source={investigation.investigation.explanation}
                         className={classes.markdown}
+                        rehypeRewrite={rehypeRemoveHeaderLinks}
                     />
                     {investigation.investigation.partial && (
                         <Text fz="xs" c="dimmed">
@@ -188,9 +190,11 @@ const DataAppAnalysisPanel: FC<Props> = ({
             position="right"
             size={PANEL_WIDTH}
             lockScroll={false}
+            closeOnClickOutside={false}
+            trapFocus={false}
             classNames={{ inner: classes.inner, content: classes.content }}
         >
-            <Drawer.Overlay opacity={0.1} blur={0} />
+            {/* No overlay: it would sit over the app's iframe and swallow scrolling. */}
             <Drawer.Content data-testid="data-app-analysis-panel">
                 <Drawer.Header>
                     <Drawer.Title>
