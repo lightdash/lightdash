@@ -12365,6 +12365,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             provider: prompt.modelConfig?.modelProvider as AnyType,
         });
         const initialModelId = modelProperties.model.modelId;
+        const originalModelProperties = modelProperties;
 
         // AiAgentFastDecisions is the master switch for the bounded fast
         // experience, including its smaller tool-call model. The separate
@@ -12526,6 +12527,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const args: AiAgentArgs = {
             decisions,
             toolCallModel,
+            escalationModel:
+                decisions && responseExecution.mode === 'standard'
+                    ? {
+                          model: originalModelProperties.model,
+                          providerOptions:
+                              originalModelProperties.providerOptions,
+                          keyManagement: originalModelProperties.keyManagement,
+                      }
+                    : undefined,
             userQuestion: prompt.prompt,
             organizationId: user.organizationUuid,
             userId: user.userUuid,

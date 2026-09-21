@@ -209,6 +209,12 @@ export type AiAgentArgs = AnyAiModel & {
         providerOptions?: AnyAiModel['providerOptions'];
         keyManagement: AiKeyManagement;
     };
+    /** Originally selected model, retained before adaptive routing for recovery. */
+    escalationModel?: {
+        model: AnyAiModel['model'];
+        providerOptions?: AnyAiModel['providerOptions'];
+        keyManagement: AiKeyManagement;
+    };
     // Whether this turn runs on a Lightdash-managed or self-managed (BYO) key.
     // Stamped by the model builder and carried through for usage analytics.
     keyManagement: AiKeyManagement;
