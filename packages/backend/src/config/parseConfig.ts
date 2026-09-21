@@ -1467,6 +1467,34 @@ export const getAiConfig = () => ({
                   ),
               }
             : undefined,
+        vertex:
+            process.env.GOOGLE_VERTEX_API_KEY?.trim() ||
+            process.env.GOOGLE_VERTEX_PROJECT?.trim()
+                ? {
+                      auth: process.env.GOOGLE_VERTEX_API_KEY?.trim()
+                          ? {
+                                type: 'api-key',
+                                apiKey: process.env.GOOGLE_VERTEX_API_KEY.trim(),
+                            }
+                          : {
+                                type: 'adc',
+                                project:
+                                    process.env.GOOGLE_VERTEX_PROJECT?.trim(),
+                                location:
+                                    process.env.GOOGLE_VERTEX_LOCATION?.trim() ||
+                                    'global',
+                            },
+                      modelName:
+                          process.env.GOOGLE_VERTEX_MODEL_NAME?.trim() ||
+                          DEFAULT_GOOGLE_MODEL_NAME,
+                      fastModelName:
+                          process.env.GOOGLE_VERTEX_FAST_MODEL_NAME?.trim() ||
+                          undefined,
+                      supportsStreaming: getProviderSupportsStreaming(
+                          'GOOGLE_VERTEX_SUPPORTS_STREAMING',
+                      ),
+                  }
+                : undefined,
         openrouter: process.env.OPENROUTER_API_KEY
             ? {
                   apiKey: process.env.OPENROUTER_API_KEY,

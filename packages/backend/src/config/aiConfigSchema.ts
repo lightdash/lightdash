@@ -32,6 +32,7 @@ export const AI_PROVIDER_KEYS = [
     'azure',
     'anthropic',
     'google',
+    'vertex',
     'openrouter',
     'bedrock',
 ] as const;
@@ -99,6 +100,27 @@ export const aiCopilotConfigSchema = z
                     modelName: z.string().default(DEFAULT_GOOGLE_MODEL_NAME),
                     baseUrl: z.string().optional(),
                     availableModels: z.array(z.string()).optional(),
+                    supportsStreaming: supportsStreamingSchema,
+                })
+                .optional(),
+            vertex: z
+                .object({
+                    auth: z.discriminatedUnion('type', [
+                        z.object({
+                            type: z.literal('api-key'),
+                            apiKey: z.string().min(1),
+                        }),
+                        z.object({
+                            type: z.literal('adc'),
+                            project: z.string().min(1),
+                            location: z.string().min(1).default('global'),
+                        }),
+                    ]),
+                    modelName: z
+                        .string()
+                        .min(1)
+                        .default(DEFAULT_GOOGLE_MODEL_NAME),
+                    fastModelName: z.string().min(1).optional(),
                     supportsStreaming: supportsStreamingSchema,
                 })
                 .optional(),

@@ -56,9 +56,10 @@ const pickProviderDefault = ({
         };
     }
     if (instanceDefault) {
-        // Azure has no preset catalog: the configured deployment is the model.
+        // Azure and Vertex use instance-configured models without a preset catalog.
         const usable =
             instanceDefault.provider === 'azure' ||
+            instanceDefault.provider === 'vertex' ||
             isModelConfigAvailable(
                 {
                     modelProvider: instanceDefault.provider,

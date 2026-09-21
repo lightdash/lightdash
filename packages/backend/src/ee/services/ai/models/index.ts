@@ -18,6 +18,7 @@ import { getAnthropicModel } from './anthropic-claude';
 import { getAzureGpt41Model } from './azure-openai-gpt-4.1';
 import { getBedrockModel } from './bedrock';
 import { getGoogleGeminiModel } from './google-gemini';
+import { getGoogleVertexModel } from './google-vertex';
 import { getOpenaiGptmodel } from './openai-gpt';
 import { getOpenRouterModel } from './openrouter';
 import {
@@ -157,7 +158,7 @@ export const getAvailableModels = (
 ): ModelPreset<SelectableModelProvider>[] => {
     const { defaultProvider, providers } = config;
 
-    if (defaultProvider === 'azure') {
+    if (defaultProvider === 'azure' || defaultProvider === 'vertex') {
         return [];
     }
 
@@ -460,6 +461,27 @@ export const getModel = (
                 keyManagement,
             );
         }
+        case 'vertex': {
+            const vertexConfig = config.providers.vertex;
+            if (!vertexConfig) {
+                throw new ParameterError('Vertex configuration is required');
+            }
+            const configuredModelName = options?.useFastModel
+                ? (vertexConfig.fastModelName ?? vertexConfig.modelName)
+                : vertexConfig.modelName;
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getGoogleVertexModel({
+                        ...vertexConfig,
+                        modelName: options?.trustPinnedModelName
+                            ? (options.modelName ?? configuredModelName)
+                            : configuredModelName,
+                    }),
+                    vertexConfig.supportsStreaming,
+                ),
+                keyManagement,
+            );
+        }
         case 'openrouter': {
             const openrouterConfig = config.providers.openrouter;
             if (!openrouterConfig) {
@@ -566,7 +588,11 @@ export const getCompactionModelMetadata = (
     | { supportsCompaction: false; contextWindowTokens: null } => {
     const provider = options?.provider ?? config.defaultProvider;
 
-    if (provider === 'azure' || provider === 'openrouter') {
+    if (
+        provider === 'azure' ||
+        provider === 'openrouter' ||
+        provider === 'vertex'
+    ) {
         return {
             supportsCompaction: false,
             contextWindowTokens: null,

@@ -1,6 +1,9 @@
 import { BedrockProviderOptions } from '@ai-sdk/amazon-bedrock';
 import { AnthropicProviderOptions } from '@ai-sdk/anthropic';
-import { GoogleLanguageModelInteractionsOptions } from '@ai-sdk/google';
+import {
+    GoogleLanguageModelInteractionsOptions,
+    GoogleLanguageModelOptions,
+} from '@ai-sdk/google';
 import { OpenAIResponsesProviderOptions } from '@ai-sdk/openai';
 import { JSONValue, LanguageModel, type CallSettings } from 'ai';
 import { AiKeyManagement } from '../../../../analytics/aiUsage';
@@ -19,6 +22,7 @@ export type ProviderOptionsMap = {
     >;
     openrouter: Record<string, JSONValue>;
     bedrock: BedrockProviderOptions;
+    vertex: GoogleLanguageModelOptions;
 };
 
 export type AiModel<P extends AiProvider> = {

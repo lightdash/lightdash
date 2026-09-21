@@ -57,6 +57,19 @@ describe('pickAutopilotModel', () => {
         ).toEqual({ provider: 'openai', modelName: gpt.name });
     });
 
+    it('uses the Vertex instance model without a preset catalog', () => {
+        expect(
+            pickAutopilotModel({
+                orgDefault: null,
+                instanceDefault: {
+                    provider: 'vertex',
+                    name: 'gemini-3.8-flash',
+                },
+                availableModels: [],
+            }),
+        ).toEqual({ provider: 'vertex', modelName: 'gemini-3.8-flash' });
+    });
+
     it('prefers Opus 4.7 over the chat default on Anthropic when the org may use it', () => {
         expect(
             pickAutopilotModel({
