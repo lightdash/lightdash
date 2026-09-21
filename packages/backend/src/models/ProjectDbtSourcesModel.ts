@@ -172,6 +172,22 @@ export class ProjectDbtSourcesModel {
         return this.convertRow(row);
     }
 
+    async getSourceIdentityRows(projectDbtSourceUuids: string[]): Promise<
+        Array<{
+            projectUuid: string;
+            projectDbtSourceUuid: string;
+        }>
+    > {
+        if (projectDbtSourceUuids.length === 0) return [];
+        const rows = await this.database(ProjectDbtSourcesTableName)
+            .select('project_uuid', 'project_dbt_source_uuid')
+            .whereIn('project_dbt_source_uuid', projectDbtSourceUuids);
+        return rows.map((row) => ({
+            projectUuid: row.project_uuid,
+            projectDbtSourceUuid: row.project_dbt_source_uuid,
+        }));
+    }
+
     async createSource(
         projectUuid: string,
         data: CreateProjectDbtSource,

@@ -61,6 +61,13 @@ export interface ProjectAdapter {
 
     getProjectContext(): Promise<ProjectContextEntry[]>;
 
+    getFetchMetrics?(): {
+        cloneMode: 'fresh' | 'reused';
+        depsMode: 'fresh' | 'reused';
+        cloneDurationMs: number;
+        depsDurationMs: number;
+    };
+
     /**
      * Local dbt project directory this adapter reads `lightdash.config.yml` and
      * `lightdash.project_context.yml` from. Undefined for adapters with no
@@ -73,6 +80,8 @@ export interface ProjectAdapter {
 
 export interface DbtClient {
     installDeps?(): Promise<void>;
+
+    setAbortSignal?(signal: AbortSignal | undefined): void;
 
     getDbtManifest(): Promise<DbtRpcGetManifestResults>;
 
