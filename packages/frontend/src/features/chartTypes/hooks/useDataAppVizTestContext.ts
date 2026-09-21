@@ -165,6 +165,7 @@ export const useDataAppVizTestContext = ({
                 pivotDetails: queryResults.pivotDetails ?? null,
                 underlyingData: { enabled: false },
                 drillDown: { enabled: false },
+                pointMenu: { enabled: false },
             });
         }
     }, [
