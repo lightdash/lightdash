@@ -74,6 +74,55 @@ describe('ComposeEngineClient', () => {
         vi.restoreAllMocks();
     });
 
+    test.each(['results', 'externalSources'] as const)(
+        'preserves GCP OAuth and limits credentials to %s storage',
+        (storage) => {
+            const createDuckdbWarehouseClient = vi.fn(
+                () => warehouseClientMock,
+            );
+            const s3 = {
+                endpoint: 'https://storage.googleapis.com',
+                region: 'us-east4',
+                bucket: 'storage-bucket',
+                authMode: 'gcp_oauth' as const,
+            };
+            const client = new ComposeEngineClient({
+                resolveCaCertFile,
+                createDuckdbWarehouseClient,
+                lightdashConfig: {
+                    ...ossConfig,
+                    results: { ...ossConfig.results, s3 },
+                    preAggregates: { ...ossConfig.preAggregates, s3 },
+                },
+            });
+            client.createExecutionWarehouseClient({ storage, scope: null });
+            expect(createDuckdbWarehouseClient).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    s3Config: expect.objectContaining({
+                        authMode: 'gcp_oauth',
+                        getAccessToken: expect.any(Function),
+                        scope: ['s3://storage-bucket/'],
+                    }),
+                }),
+            );
+            const object = 's3://storage-bucket/result.jsonl';
+            client.createExecutionWarehouseClient(
+                storage === 'results'
+                    ? { storage, scope: [object] }
+                    : { storage, scope: object },
+            );
+            expect(createDuckdbWarehouseClient).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    s3Config: expect.objectContaining({
+                        authMode: 'gcp_oauth',
+                        getAccessToken: expect.any(Function),
+                        scope: [object],
+                    }),
+                }),
+            );
+        },
+    );
+
     test('configures the shared results session from the results S3 config', () => {
         const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
         const client = new ComposeEngineClient({
