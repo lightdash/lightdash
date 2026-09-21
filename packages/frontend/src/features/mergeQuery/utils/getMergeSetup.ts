@@ -233,6 +233,10 @@ export const getMergeSetup = ({
         sourceSetups,
         relationshipSummary,
         sourceLabels: labels,
+        labelFor: (fieldId: string) => {
+            const item = itemMaps.map((items) => items[fieldId]).find(Boolean);
+            return item ? getItemLabelWithoutTableName(item) : fieldId;
+        },
         effectiveParts,
         mergeQuery,
         fanOut,

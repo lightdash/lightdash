@@ -573,7 +573,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
             )}
 
             {joinKeyErrors.map((error) => (
-                <Note key={error.kind} tone="warn">
+                <Note key={error.message} tone="warn">
                     {error.message}
                 </Note>
             ))}
