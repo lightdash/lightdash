@@ -60,6 +60,7 @@ const app = (
     latestReadyVersion: null,
     icon: null,
     verification: null,
+    autoAnalysis: 'inherit',
 });
 
 const loaded = (versions: ApiAppVersionSummary[], name?: string) =>

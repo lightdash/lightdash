@@ -1374,6 +1374,39 @@ describe('choosing a chart type icon', () => {
         expect(appModel.updateApp).not.toHaveBeenCalled();
     });
 
+    it('rejects an unknown auto analysis value', async () => {
+        const { service, appModel } = buildIconService(
+            makeDataAppVizRow({ template: null, registry_slug: null }),
+        );
+
+        await expect(
+            service.updateApp(USER, 'project-1', 'data-app-viz-1', {
+                autoAnalysis: 'always' as never,
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(appModel.updateApp).not.toHaveBeenCalled();
+    });
+
+    it('stores the auto analysis choice on any app', async () => {
+        const { service, appModel } = buildIconService(
+            makeDataAppVizRow({ template: null, registry_slug: null }),
+        );
+
+        const result = await service.updateApp(
+            USER,
+            'project-1',
+            'data-app-viz-1',
+            { autoAnalysis: 'on' },
+        );
+
+        expect(appModel.updateApp).toHaveBeenCalledWith(
+            'data-app-viz-1',
+            'project-1',
+            { auto_analysis: 'on' },
+        );
+        expect(result.autoAnalysis).toBe('on');
+    });
+
     it('sets a curated icon', async () => {
         const { service, appModel } = buildIconService(
             makeDataAppVizRow({ registry_slug: null }),
@@ -1437,7 +1470,7 @@ describe('choosing a chart type icon', () => {
         await expect(
             service.updateApp(USER, 'project-1', 'data-app-viz-1', {}),
         ).rejects.toThrow(
-            'At least one of name, description or icon must be provided',
+            'At least one of name, description, icon or autoAnalysis must be provided',
         );
     });
 });

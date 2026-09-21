@@ -6,6 +6,7 @@ import {
     type ApiDuplicateAppResponse,
     type AppVersionStatus,
     type ContentVerificationInfo,
+    type DataAppAutoAnalysis,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -18,6 +19,7 @@ import {
 import {
     IconArrowsUpDown,
     IconCamera,
+    IconCheck,
     IconCircleCheck,
     IconCircleCheckFilled,
     IconCirclesRelation,
@@ -55,6 +57,7 @@ import {
 } from '../../directAccess';
 import { AppSchedulersModal } from '../../scheduler/components/SchedulerModals';
 import { AppSyncModal } from '../../sync/components';
+import { useDataAppAnalysisAvailability } from '../analysis/useDataAppAnalysisAvailability';
 import {
     useAppThumbnailDelete,
     useAppThumbnailUrl,
@@ -63,6 +66,7 @@ import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
 import { useCanEditVerifiedDataApp } from '../hooks/useCanEditDataApp';
 import { useDuplicateApp } from '../hooks/useDuplicateApp';
 import { type SdkUpgradeOffer } from '../hooks/useSdkUpgradeStatus';
+import { useUpdateApp } from '../hooks/useUpdateApp';
 import AppUpgradeModal from './AppUpgradeModal';
 import { MoveAppToSpaceModal } from './MoveAppToSpaceModal';
 import { PromoteAppModal } from './PromoteAppModal';
@@ -75,6 +79,9 @@ export type AppActionsMenuProps = {
     appSpaceUuid: string | null;
     appCreatedByUserUuid: string | null;
     verification: ContentVerificationInfo | null;
+    /** The app's analyse-on-load choice; null hides the control (unknown, or
+     *  a surface that does not load the app record). */
+    autoAnalysis?: DataAppAutoAnalysis | null;
     /** The latest ready version's number + status — used by the favorite flow
      *  and to gate the Promote action. */
     latestVersionNumber: number | null;
@@ -126,6 +133,12 @@ export type AppActionsMenuProps = {
     };
 };
 
+const AUTO_ANALYSIS_OPTIONS: { value: DataAppAutoAnalysis; label: string }[] = [
+    { value: 'inherit', label: 'Use organization default' },
+    { value: 'on', label: 'On' },
+    { value: 'off', label: 'Off' },
+];
+
 /**
  * Walkthrough action for manage:DataApp: duplicating the seeded app makes
  * one of the learner's own; adding it to a space then shares it.
@@ -161,6 +174,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     appSpaceUuid,
     appCreatedByUserUuid,
     verification,
+    autoAnalysis = null,
     latestVersionNumber,
     latestVersionStatus,
     viewNetwork,
@@ -261,6 +275,23 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
         showToastSuccess,
         showToastError,
     ]);
+
+    const analysisAvailability = useDataAppAnalysisAvailability();
+    const showAutoAnalysis =
+        autoAnalysis !== null &&
+        canEditVerified &&
+        (analysisAvailability.status === 'available' ||
+            (analysisAvailability.status === 'unavailable' &&
+                analysisAvailability.reason !== 'not_rolled_out'));
+    const orgAutoAnalyses =
+        analysisAvailability.status === 'available' &&
+        analysisAvailability.autoAnalyseDefault;
+    const { mutate: updateApp } = useUpdateApp({ appUuidOrSlug: appUuid });
+    const setAutoAnalysis = useCallback(
+        (value: DataAppAutoAnalysis) =>
+            updateApp({ projectUuid, appUuid, autoAnalysis: value }),
+        [updateApp, projectUuid, appUuid],
+    );
 
     const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
     const [syncModalOpen, setSyncModalOpen] = useState(false);
@@ -458,6 +489,46 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                         >
                             Rename
                         </Menu.Item>
+                    )}
+                    {showAutoAnalysis && (
+                        <Menu.Sub>
+                            <Menu.Sub.Target>
+                                <Menu.Sub.Item
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconSparkles}
+                                            size={14}
+                                        />
+                                    }
+                                >
+                                    Analyse on load
+                                </Menu.Sub.Item>
+                            </Menu.Sub.Target>
+                            <Menu.Sub.Dropdown>
+                                {AUTO_ANALYSIS_OPTIONS.map((option) => (
+                                    <Menu.Item
+                                        key={option.value}
+                                        onClick={() =>
+                                            setAutoAnalysis(option.value)
+                                        }
+                                        rightSection={
+                                            autoAnalysis === option.value ? (
+                                                <MantineIcon
+                                                    icon={IconCheck}
+                                                    size={14}
+                                                />
+                                            ) : null
+                                        }
+                                    >
+                                        {option.value === 'inherit'
+                                            ? `Use organization default (${
+                                                  orgAutoAnalyses ? 'on' : 'off'
+                                              })`
+                                            : option.label}
+                                    </Menu.Item>
+                                ))}
+                            </Menu.Sub.Dropdown>
+                        </Menu.Sub>
                     )}
                     {canEditVerified && captureThumbnail && (
                         <>

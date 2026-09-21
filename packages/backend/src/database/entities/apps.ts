@@ -4,6 +4,7 @@ import {
     type AppVersionResources,
     type AppVersionStatus,
     type AppVersionStatusHistoryEntry,
+    type DataAppAutoAnalysis,
     type DataAppCodingAgent,
     type DataAppGenerationUsage,
     type DataAppTemplate,
@@ -42,6 +43,9 @@ export type DbApp = {
     // no icon is chosen or the app is not a chart type. Stored as text so an
     // icon retired from the curated set does not fail to read back.
     icon: string | null;
+    // Whether AI analysis runs when the app loads; 'inherit' takes the org
+    // default. Stored as text so an unknown value reads back, not fails.
+    auto_analysis: DataAppAutoAnalysis;
     design_uuid: string | null;
     // The production app this (preview) app was promoted into. Null until the
     // app is first promoted. Lives on the preview side so a single production
@@ -74,6 +78,7 @@ export type AppsTable = Knex.CompositeTableType<
                 | 'sandbox_id'
                 | 'template'
                 | 'icon'
+                | 'auto_analysis'
                 | 'design_uuid'
                 | 'upstream_app_uuid'
                 | 'registry_slug'
@@ -91,6 +96,7 @@ export type AppsTable = Knex.CompositeTableType<
             | 'space_uuid'
             | 'sandbox_id'
             | 'icon'
+            | 'auto_analysis'
             | 'design_uuid'
             | 'upstream_app_uuid'
             | 'registry_slug'

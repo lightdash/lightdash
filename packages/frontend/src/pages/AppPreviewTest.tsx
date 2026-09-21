@@ -62,6 +62,7 @@ export default function AppPreviewTest() {
     const appSlug = firstPage?.slug ?? null;
     const appViews = firstPage?.views ?? null;
     const appVerification = firstPage?.verification ?? null;
+    const appAutoAnalysis = firstPage?.autoAnalysis ?? null;
     // Latest build activity stands in for "last modified" — apps have no
     // updated-at of their own.
     const newestVersion = firstPage?.versions[0];
@@ -121,6 +122,7 @@ export default function AppPreviewTest() {
         appUuid,
         queries: inspector.panelProps.queries,
         availability: analysisAvailability,
+        autoAnalyse: appAutoAnalysis ?? 'inherit',
         onNeedsAgent: openAnalysis,
     });
 
@@ -397,6 +399,7 @@ export default function AppPreviewTest() {
                             appSpaceUuid={appSpaceUuid}
                             appCreatedByUserUuid={appCreatedByUserUuid}
                             verification={appVerification}
+                            autoAnalysis={appAutoAnalysis}
                             latestVersionNumber={latestReadyVersion ?? null}
                             latestVersionStatus={
                                 latestReadyVersion ? 'ready' : null

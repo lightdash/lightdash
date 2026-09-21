@@ -49,6 +49,7 @@ const app: ApiGetAppResponse['results'] = {
     latestReadyVersion: 3,
     icon: null,
     verification: null,
+    autoAnalysis: 'inherit',
 };
 
 const userMessage = (

@@ -75,12 +75,15 @@ export const useDataAppAnalysis = ({
     appUuid,
     queries,
     mountedQueryUuids,
+    autoAnalyse = false,
 }: {
     projectUuid: string;
     appUuid: string;
     queries: QueryEvent[];
     /** Exact on-screen queries from an SDK that reports them; null otherwise. */
     mountedQueryUuids: string[] | null;
+    /** Run detect on a quiet view that has no stored analysis. */
+    autoAnalyse?: boolean;
 }) => {
     const sources = useMemo(
         () =>
@@ -154,7 +157,8 @@ export const useDataAppAnalysis = ({
         current.analysedSignature !== signature;
 
     // A view that was analysed before (by this viewer, or by anyone with the
-    // same rows) opens with its findings; nothing runs on a miss.
+    // same rows) opens with its findings; a miss runs detect only when the
+    // app asks for analysis on load.
     const shouldLookUp =
         sources.length > 0 &&
         !inFlight &&
@@ -164,6 +168,8 @@ export const useDataAppAnalysis = ({
     // lookup covers the final set.
     const signatureRef = useRef(signature);
     signatureRef.current = signature;
+    const autoAnalyseRef = useRef(autoAnalyse);
+    autoAnalyseRef.current = autoAnalyse;
     useEffect(() => {
         if (!shouldLookUp) return undefined;
         const run = runRef.current;
@@ -174,10 +180,14 @@ export const useDataAppAnalysis = ({
                     // Drop a response for a view that is no longer current:
                     // a newer analyse run, or a later lookup for other rows.
                     if (
-                        !found ||
                         run !== runRef.current ||
                         signature !== signatureRef.current
                     ) {
+                        return;
+                    }
+                    if (!found) {
+                        if (autoAnalyseRef.current)
+                            void analyse(sources, false);
                         return;
                     }
                     patch(scope, (prev) => ({
@@ -198,7 +208,16 @@ export const useDataAppAnalysis = ({
                 });
         }, LOOKUP_QUIET_MS);
         return () => clearTimeout(timer);
-    }, [shouldLookUp, scope, signature, sources, projectUuid, appUuid, patch]);
+    }, [
+        shouldLookUp,
+        scope,
+        signature,
+        sources,
+        projectUuid,
+        appUuid,
+        patch,
+        analyse,
+    ]);
 
     const investigate = useCallback(
         async (anomalyId: string, agentUuid: string) => {
