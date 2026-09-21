@@ -234,7 +234,7 @@ describe('ChartDownloadMenu', () => {
         fireEvent.click(
             screen.getByRole('button', { name: 'Download table data' }),
         );
-        expect(mocks.downloadQuery).toHaveBeenCalledWith(100, false);
+        expect(mocks.downloadQuery).toHaveBeenCalledWith(100, false, 'custom');
         expect(mocks.exportImage).not.toHaveBeenCalled();
     });
 

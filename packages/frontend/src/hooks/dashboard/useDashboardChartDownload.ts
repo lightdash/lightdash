@@ -44,10 +44,7 @@ export const useDashboardChartDownload = (
                 exportPivotedData && originalQueryIsPivoted;
 
             // When limiting to the table, use the original query uuid so we don't execute a new query
-            if (
-                limitType === Limit.TABLE &&
-                originalQueryIsPivoted === shouldPivotResults
-            ) {
+            if (limitType === Limit.TABLE) {
                 return originalQueryUuid;
             }
 

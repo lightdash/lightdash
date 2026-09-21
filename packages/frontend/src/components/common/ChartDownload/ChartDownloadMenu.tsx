@@ -8,7 +8,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, type ReactNode } from 'react';
 import DataAppVizDownloadMenu from '../../../features/apps/DataAppVizDownloadMenu';
 import useEchartsCartesianConfig from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { useAccount } from '../../../hooks/user/useAccount';
@@ -32,6 +32,7 @@ export type ChartDownloadMenuProps = {
     getDownloadQueryUuid: (
         limit: number | null,
         exportPivotedResults?: boolean,
+        limitType?: Limit,
     ) => Promise<string>;
     projectUuid: string;
     chartName?: string;
@@ -40,6 +41,123 @@ export type ChartDownloadMenuProps = {
         showTableNames: boolean,
         customLabels?: Record<string, string>,
     ) => Promise<ApiScheduledDownloadCsv>;
+};
+
+const DownloadPopover = ({
+    disabled,
+    children,
+}: {
+    disabled: boolean;
+    children: ReactNode;
+}) => (
+    <Popover
+        {...COLLAPSABLE_CARD_POPOVER_PROPS}
+        disabled={disabled}
+        position="bottom-end"
+    >
+        <Popover.Target>
+            <ActionIcon
+                data-testid="export-csv-button"
+                {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
+                disabled={disabled}
+            >
+                <MantineIcon icon={IconShare2} />
+            </ActionIcon>
+        </Popover.Target>
+        <Popover.Dropdown>{children}</Popover.Dropdown>
+    </Popover>
+);
+
+const getExportPermissions = ({
+    ability,
+    isEmbedded,
+    canManageExplore,
+    organizationUuid,
+    projectUuid,
+}: {
+    ability: ReturnType<typeof useAbilityContext>;
+    isEmbedded: boolean;
+    canManageExplore: boolean;
+    organizationUuid: string | undefined;
+    projectUuid: string;
+}) => {
+    if (isEmbedded) {
+        return {
+            canExportCsv: ability.can(
+                'export',
+                subject('SavedChart', {
+                    organizationUuid,
+                    type: 'csv',
+                }),
+            ),
+            canExportImages: ability.can(
+                'export',
+                subject('SavedChart', {
+                    organizationUuid,
+                    type: 'images',
+                }),
+            ),
+        };
+    }
+    return {
+        canExportCsv:
+            canManageExplore &&
+            ability.can(
+                'manage',
+                subject('ExportCsv', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        canExportImages: canManageExplore,
+    };
+};
+
+const isDownloadDisabled = ({
+    isTable,
+    totalResults,
+    chartType,
+    hasCartesianOptions,
+}: {
+    isTable: boolean;
+    totalResults: number | undefined;
+    chartType: ChartType;
+    hasCartesianOptions: boolean;
+}) =>
+    (isTable && !totalResults) ||
+    (chartType === ChartType.CARTESIAN && !hasCartesianOptions);
+
+const hasNoSupportedExport = (chartType: ChartType) =>
+    CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(chartType) &&
+    CHART_TYPES_WITHOUT_DATA_EXPORT.includes(chartType);
+
+const ChartDownloadMenuContent = ({
+    chartType,
+    projectUuid,
+    isEmbedded,
+    isTable,
+    canExportCsv,
+    canExportImages,
+    tableDownload,
+    imageDownload,
+}: {
+    chartType: ChartType;
+    projectUuid: string;
+    isEmbedded: boolean;
+    isTable: boolean;
+    canExportCsv: boolean;
+    canExportImages: boolean;
+    tableDownload: ReactNode;
+    imageDownload: ReactNode;
+}) => {
+    if (chartType === ChartType.DATA_APP_VIZ) {
+        return canExportImages && !isEmbedded ? (
+            <DataAppVizDownloadMenu projectUuid={projectUuid} />
+        ) : null;
+    }
+    if (hasNoSupportedExport(chartType)) return null;
+    if (isTable) return canExportCsv ? tableDownload : null;
+    return canExportImages ? imageDownload : null;
 };
 
 const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
@@ -54,12 +172,14 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
         } = useVisualizationContext();
 
         const eChartsOptions = useEchartsCartesianConfig();
+        const isTable = isTableVisualizationConfig(visualizationConfig);
 
-        const disabled =
-            (isTableVisualizationConfig(visualizationConfig) &&
-                !resultsData?.totalResults) ||
-            (visualizationConfig.chartType === ChartType.CARTESIAN &&
-                !eChartsOptions);
+        const disabled = isDownloadDisabled({
+            isTable,
+            totalResults: resultsData?.totalResults,
+            chartType: visualizationConfig.chartType,
+            hasCartesianOptions: !!eChartsOptions,
+        });
 
         const { data: account } = useAccount();
         const ability = useAbilityContext();
@@ -72,31 +192,13 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 projectUuid,
             }),
         );
-        const canExportCsv = isEmbedded
-            ? ability.can(
-                  'export',
-                  subject('SavedChart', {
-                      organizationUuid,
-                      type: 'csv',
-                  }),
-              )
-            : canManageExplore &&
-              ability.can(
-                  'manage',
-                  subject('ExportCsv', {
-                      organizationUuid,
-                      projectUuid,
-                  }),
-              );
-        const canExportImages = isEmbedded
-            ? ability.can(
-                  'export',
-                  subject('SavedChart', {
-                      organizationUuid,
-                      type: 'images',
-                  }),
-              )
-            : canManageExplore;
+        const { canExportCsv, canExportImages } = getExportPermissions({
+            ability,
+            isEmbedded,
+            canManageExplore,
+            organizationUuid,
+            projectUuid,
+        });
         const getChartInstance = useCallback(
             () => chartRef.current?.getEchartsInstance(),
             [chartRef],
@@ -130,126 +232,82 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
         const getChartDownloadQueryUuid = useCallback(
             (
                 limit: number | null,
-                _limitType: Limit,
+                limitType: Limit,
                 exportPivotedData: boolean = true,
             ) => {
-                return getDownloadQueryUuid(limit, exportPivotedData);
+                return getDownloadQueryUuid(
+                    limit,
+                    exportPivotedData,
+                    limitType,
+                );
             },
             [getDownloadQueryUuid],
         );
 
-        if (visualizationConfig.chartType === ChartType.DATA_APP_VIZ) {
-            return canExportImages && !isEmbedded ? (
-                <DataAppVizDownloadMenu projectUuid={projectUuid} />
-            ) : null;
-        }
-
-        if (
-            CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(
-                visualizationConfig.chartType,
-            ) &&
-            CHART_TYPES_WITHOUT_DATA_EXPORT.includes(
-                visualizationConfig.chartType,
-            )
-        ) {
-            return null;
-        }
-        return isTableVisualizationConfig(visualizationConfig) &&
-            getChartDownloadQueryUuid ? (
-            canExportCsv ? (
-                <Popover
-                    {...COLLAPSABLE_CARD_POPOVER_PROPS}
-                    disabled={disabled}
-                    position="bottom-end"
-                >
-                    <Popover.Target>
-                        <ActionIcon
-                            data-testid="export-csv-button"
-                            {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
-                            disabled={disabled}
-                        >
-                            <MantineIcon icon={IconShare2} />
-                        </ActionIcon>
-                    </Popover.Target>
-
-                    <Popover.Dropdown>
-                        <ExportSelector
-                            projectUuid={projectUuid}
-                            totalResults={resultsData?.totalResults}
-                            getDownloadQueryUuid={getChartDownloadQueryUuid}
-                            columnOrder={
-                                visualizationConfig.chartConfig.columnOrder
-                            }
-                            customLabels={getCustomLabelsFromColumnProperties(
-                                visualizationConfig.chartConfig
-                                    .columnProperties,
-                            )}
-                            hiddenFields={getHiddenTableFields({
-                                type: ChartType.TABLE,
-                                config: visualizationConfig.chartConfig
-                                    .validConfig,
-                            })}
-                            showTableNames={
-                                visualizationConfig.chartConfig.showTableNames
-                            }
-                            chartName={chartName}
-                            pivotConfig={pivotConfig}
-                            conditionalFormattings={
-                                visualizationConfig.chartConfig
-                                    .conditionalFormattings
-                            }
-                            showColumnTotals={
-                                visualizationConfig.chartConfig
-                                    .showColumnCalculation
-                            }
-                            getGsheetLink={
-                                getGsheetLink === undefined
-                                    ? undefined
-                                    : () =>
-                                          getGsheetLink(
-                                              visualizationConfig.chartConfig
-                                                  .columnOrder,
-                                              visualizationConfig.chartConfig
-                                                  .showTableNames,
-                                              getCustomLabelsFromColumnProperties(
-                                                  visualizationConfig
-                                                      .chartConfig
-                                                      .columnProperties,
-                                              ),
-                                          )
-                            }
-                        />
-                    </Popover.Dropdown>
-                </Popover>
-            ) : null
-        ) : isTableVisualizationConfig(visualizationConfig) &&
-          !getDownloadQueryUuid ? null : canExportImages ? (
-            <Popover
-                {...COLLAPSABLE_CARD_POPOVER_PROPS}
-                disabled={disabled}
-                position="bottom-end"
-            >
-                <Popover.Target>
-                    <ActionIcon
-                        data-testid="export-csv-button"
-                        {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
-                        disabled={disabled}
-                    >
-                        <MantineIcon icon={IconShare2} />
-                    </ActionIcon>
-                </Popover.Target>
-
-                <Popover.Dropdown>
-                    {visualizationConfig?.chartType &&
-                    !isTableVisualizationConfig(visualizationConfig) &&
-                    chartRef.current ? (
-                        <ChartDownloadOptions
-                            getChartInstance={getChartInstance}
-                        />
-                    ) : null}
-                </Popover.Dropdown>
-            </Popover>
+        const tableDownload = isTable ? (
+            <DownloadPopover disabled={disabled}>
+                <ExportSelector
+                    projectUuid={projectUuid}
+                    totalResults={resultsData?.totalResults}
+                    getDownloadQueryUuid={getChartDownloadQueryUuid}
+                    columnOrder={visualizationConfig.chartConfig.columnOrder}
+                    customLabels={getCustomLabelsFromColumnProperties(
+                        visualizationConfig.chartConfig.columnProperties,
+                    )}
+                    hiddenFields={getHiddenTableFields({
+                        type: ChartType.TABLE,
+                        config: visualizationConfig.chartConfig.validConfig,
+                    })}
+                    showTableNames={
+                        visualizationConfig.chartConfig.showTableNames
+                    }
+                    chartName={chartName}
+                    pivotConfig={pivotConfig}
+                    conditionalFormattings={
+                        visualizationConfig.chartConfig.conditionalFormattings
+                    }
+                    showColumnTotals={
+                        visualizationConfig.chartConfig.showColumnCalculation
+                    }
+                    getGsheetLink={
+                        getGsheetLink === undefined
+                            ? undefined
+                            : () =>
+                                  getGsheetLink(
+                                      visualizationConfig.chartConfig
+                                          .columnOrder,
+                                      visualizationConfig.chartConfig
+                                          .showTableNames,
+                                      getCustomLabelsFromColumnProperties(
+                                          visualizationConfig.chartConfig
+                                              .columnProperties,
+                                      ),
+                                  )
+                    }
+                />
+            </DownloadPopover>
         ) : null;
+
+        return (
+            <ChartDownloadMenuContent
+                chartType={visualizationConfig.chartType}
+                projectUuid={projectUuid}
+                isEmbedded={isEmbedded}
+                isTable={isTable}
+                canExportCsv={canExportCsv}
+                canExportImages={canExportImages}
+                tableDownload={tableDownload}
+                imageDownload={
+                    <DownloadPopover disabled={disabled}>
+                        {chartRef.current ? (
+                            <ChartDownloadOptions
+                                getChartInstance={getChartInstance}
+                            />
+                        ) : null}
+                    </DownloadPopover>
+                }
+            />
+        );
     },
 );
 

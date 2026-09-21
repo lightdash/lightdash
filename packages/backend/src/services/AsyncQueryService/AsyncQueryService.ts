@@ -212,6 +212,10 @@ import {
     processFieldsForExport,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import {
+    prepareFlatPivotExport,
+    unpivotResultsStream,
+} from '../../utils/flatPivotExport';
 import { composeMergeReferenceTable } from '../../utils/QueryBuilder/composeMergeSql';
 import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
 import { getSqlBuilderForExplore } from '../../utils/QueryBuilder/getSqlBuilderForExplore';
@@ -1944,10 +1948,12 @@ export class AsyncQueryService extends ProjectService {
         account,
         projectUuid,
         sourceQueryUuid,
+        kind = 'columnTotal',
     }: {
         account: Account;
         projectUuid: string;
         sourceQueryUuid: string;
+        kind?: 'columnTotal' | 'grandTotal';
     }): Promise<Record<string, number> | undefined> {
         try {
             const { rows, fields } =
@@ -1955,7 +1961,7 @@ export class AsyncQueryService extends ProjectService {
                     account,
                     projectUuid,
                     queryUuid: sourceQueryUuid,
-                    kind: 'columnTotal',
+                    kind,
                 });
             return buildWarehouseColumnTotals(formatRows(rows, fields));
         } catch (error) {
@@ -2183,11 +2189,15 @@ export class AsyncQueryService extends ProjectService {
 
         // TODO: We should use the columns data instead of fields. We need to: add format expression to columns type and refactor csv service, etc to use columns instead of fields
         // Note: Generate fields for SQL queries. As a workaround, we check the explore name to identify SQL queries and generate fields from columns.
+        const exportColumns =
+            !exportPivotedData && queryHistory.pivotConfiguration
+                ? (queryHistory.originalColumns ?? columns)
+                : columns;
         const resultFields =
             queryHistory.metricQuery.exploreName ===
             SQL_QUERY_MOCK_EXPLORER_NAME
                 ? Object.fromEntries(
-                      Object.entries(columns).map<[string, Dimension]>(
+                      Object.entries(exportColumns).map<[string, Dimension]>(
                           ([key, column]) => [
                               key,
                               {
@@ -2303,6 +2313,9 @@ export class AsyncQueryService extends ProjectService {
                         columnOrder: validColumnOrder,
                         hiddenFields,
                         pivotConfig: downloadPivotConfig,
+                        pivotValuesColumns: !exportPivotedData
+                            ? pivotDetails?.valuesColumns
+                            : undefined,
                     },
                     attachmentDownloadName,
                     {
@@ -2379,11 +2392,17 @@ export class AsyncQueryService extends ProjectService {
                               hiddenFields,
                               attachmentDownloadName,
                               conditionalFormattings,
+                              pivotValuesColumns: !exportPivotedData
+                                  ? pivotDetails?.valuesColumns
+                                  : undefined,
                               columnTotals: showColumnTotals
                                   ? await this.getExportColumnTotals({
                                         account,
                                         projectUuid,
                                         sourceQueryUuid: queryUuid,
+                                        kind: pivotDetails
+                                            ? 'grandTotal'
+                                            : 'columnTotal',
                                     })
                                   : undefined,
                           },
@@ -2452,6 +2471,7 @@ export class AsyncQueryService extends ProjectService {
             columnOrder?: string[];
             hiddenFields?: string[];
             pivotConfig?: PivotConfig;
+            pivotValuesColumns?: PivotValuesColumn[];
         },
         attachmentDownloadName?: string,
         persistentUrlContext?: {
@@ -2479,13 +2499,30 @@ export class AsyncQueryService extends ProjectService {
             hiddenFields = [],
         } = options || {};
 
-        // Process fields and generate headers using shared utility
-        const { sortedFieldIds, headers } = processFieldsForExport(fields, {
-            showTableNames,
-            customLabels,
-            columnOrder,
-            hiddenFields,
-        });
+        const exportConfig = options?.pivotValuesColumns
+            ? prepareFlatPivotExport({
+                  fields,
+                  pivotValuesColumns: options.pivotValuesColumns,
+                  columnOrder,
+                  hiddenFields,
+                  customLabels,
+              })
+            : {
+                  fields,
+                  pivotValuesColumns: undefined,
+                  columnOrder,
+                  hiddenFields,
+                  customLabels,
+              };
+        const { sortedFieldIds, headers } = processFieldsForExport(
+            exportConfig.fields,
+            {
+                showTableNames,
+                customLabels: exportConfig.customLabels,
+                columnOrder: exportConfig.columnOrder,
+                hiddenFields: exportConfig.hiddenFields,
+            },
+        );
 
         // Determine file type based on file extension
         const fileExtension = formattedFileName.toLowerCase().split('.').pop();
@@ -2502,11 +2539,16 @@ export class AsyncQueryService extends ProjectService {
                 // Use streamJsonlRowsToFile which handles JSONL data from S3
                 const { truncated } = await service.streamJsonlRowsToFile(
                     onlyRaw,
-                    fields,
+                    exportConfig.fields,
                     sortedFieldIds,
                     headers,
                     {
-                        readStream,
+                        readStream: exportConfig.pivotValuesColumns
+                            ? unpivotResultsStream(
+                                  readStream,
+                                  exportConfig.pivotValuesColumns,
+                              )
+                            : readStream,
                         writeStream,
                     },
                     timezone,
