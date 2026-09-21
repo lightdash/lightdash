@@ -36,6 +36,7 @@ import {
     IconSend,
     IconSettings,
     IconShieldCheck,
+    IconSparkles,
     IconTableOptions,
     IconTelescope,
     IconTrash,
@@ -91,6 +92,7 @@ export const useSettingsNavigation = (
         hasAnyAiAgentAccess,
         embeddingEnabled,
         dataAppsFlag,
+        dataAppAnalysisFlag,
         externalSourcesFlag,
         isResultsCacheEnabled,
         isGitProject,
@@ -100,6 +102,7 @@ export const useSettingsNavigation = (
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
+    const isDataAppAnalysisEnabled = dataAppAnalysisFlag?.enabled ?? false;
     const isExternalSourcesEnabled = externalSourcesFlag?.enabled ?? false;
 
     return useMemo<SettingsNavigationSection[]>(() => {
@@ -320,6 +323,27 @@ export const useSettingsNavigation = (
                         'generations',
                         'who built',
                         'tokens',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (
+                isDataAppAnalysisEnabled &&
+                ability?.can('manage', 'Organization')
+            ) {
+                dataAppChildren.push({
+                    label: 'AI analysis',
+                    to: '/generalSettings/dataApps/aiAnalysis',
+                    icon: IconSparkles,
+                    keywords: [
+                        'ai',
+                        'analysis',
+                        'insights',
+                        'anomalies',
+                        'investigate',
+                        'auto',
                     ],
                     children: [],
                     exact: true,
@@ -1090,6 +1114,7 @@ export const useSettingsNavigation = (
         hasAnyAiAgentAccess,
         isEmbeddingEnabled,
         isDataAppsEnabled,
+        isDataAppAnalysisEnabled,
         isExternalSourcesEnabled,
         isResultsCacheEnabled,
         isGitProject,

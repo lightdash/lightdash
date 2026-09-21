@@ -72,6 +72,10 @@ export const useSettingsContext = (): SettingsContext => {
 
     const dataAppsFlagQuery = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { data: dataAppsFlag } = dataAppsFlagQuery;
+    const dataAppAnalysisFlagQuery = useServerFeatureFlag(
+        FeatureFlags.EnableDataAppAnalysis,
+    );
+    const { data: dataAppAnalysisFlag } = dataAppAnalysisFlagQuery;
 
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
@@ -217,7 +221,10 @@ export const useSettingsContext = (): SettingsContext => {
         isAiOrganizationSettingsLoading:
             aiOrganizationSettingsQuery.isInitialLoading,
         dataAppsFlag,
-        isDataAppsFlagLoading: dataAppsFlagQuery.isInitialLoading,
+        dataAppAnalysisFlag,
+        isDataAppsFlagLoading:
+            dataAppsFlagQuery.isInitialLoading ||
+            dataAppAnalysisFlagQuery.isInitialLoading,
         externalSourcesFlag,
         isResultsCacheEnabled,
         embeddingEnabled,

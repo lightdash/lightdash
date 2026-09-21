@@ -50,7 +50,7 @@ const UNAVAILABLE_COPY: Record<
     not_rolled_out: 'AI analysis is not available for this organization yet.',
     copilot_off: 'AI is not enabled for this organization.',
     org_setting_off:
-        'AI analysis in data apps is turned off for this organization. An admin can turn it on under Settings → Ask AI.',
+        'AI analysis in data apps is turned off for this organization. An admin can turn it on under Settings → Data apps → AI analysis.',
 };
 
 const AnomalyCard: FC<{

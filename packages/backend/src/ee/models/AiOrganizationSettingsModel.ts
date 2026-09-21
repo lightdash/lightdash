@@ -181,6 +181,7 @@ export class AiOrganizationSettingsModel {
             dataAppRuntimeAiEnabled: db.data_app_runtime_ai_enabled,
             dataAppContinueInAskAiEnabled:
                 db.data_app_continue_in_ask_ai_enabled,
+            dataAppAutoAnalysisEnabled: db.data_app_auto_analysis_enabled,
             requireExplicitSlackChannelLinking:
                 db.require_explicit_slack_channel_linking,
             defaultAiAgentModelConfig: db.default_ai_agent_model_config,
@@ -263,6 +264,7 @@ export class AiOrganizationSettingsModel {
                 data_app_runtime_ai_enabled: data.dataAppRuntimeAiEnabled,
                 data_app_continue_in_ask_ai_enabled:
                     data.dataAppContinueInAskAiEnabled,
+                data_app_auto_analysis_enabled: data.dataAppAutoAnalysisEnabled,
                 require_explicit_slack_channel_linking:
                     data.requireExplicitSlackChannelLinking,
                 default_ai_agent_model_config: data.defaultAiAgentModelConfig,
@@ -293,6 +295,7 @@ export class AiOrganizationSettingsModel {
                 | 'mcp_agents_enabled'
                 | 'data_app_runtime_ai_enabled'
                 | 'data_app_continue_in_ask_ai_enabled'
+                | 'data_app_auto_analysis_enabled'
                 | 'require_explicit_slack_channel_linking'
                 | 'default_ai_agent_model_config'
                 | 'model_visibility'
@@ -329,6 +332,10 @@ export class AiOrganizationSettingsModel {
         if (data.dataAppContinueInAskAiEnabled !== undefined) {
             updateData.data_app_continue_in_ask_ai_enabled =
                 data.dataAppContinueInAskAiEnabled;
+        }
+        if (data.dataAppAutoAnalysisEnabled !== undefined) {
+            updateData.data_app_auto_analysis_enabled =
+                data.dataAppAutoAnalysisEnabled;
         }
         if (data.requireExplicitSlackChannelLinking !== undefined) {
             updateData.require_explicit_slack_channel_linking =
@@ -443,6 +450,8 @@ export class AiOrganizationSettingsModel {
                 dataAppRuntimeAiEnabled: data.dataAppRuntimeAiEnabled ?? false,
                 dataAppContinueInAskAiEnabled:
                     data.dataAppContinueInAskAiEnabled ?? true,
+                dataAppAutoAnalysisEnabled:
+                    data.dataAppAutoAnalysisEnabled ?? false,
                 requireExplicitSlackChannelLinking:
                     data.requireExplicitSlackChannelLinking ?? false,
                 defaultAiAgentModelConfig:

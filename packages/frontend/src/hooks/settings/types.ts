@@ -79,6 +79,7 @@ export type SettingsContext = {
     hasAnyAiAgentAccess: boolean;
     isAiOrganizationSettingsLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
+    dataAppAnalysisFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
     externalSourcesFlag: FeatureFlag | undefined;
     isResultsCacheEnabled: boolean;

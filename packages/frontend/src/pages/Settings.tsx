@@ -88,6 +88,7 @@ import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
+import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
 import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
 import { canAccessDeepResearchSettings } from '../hooks/settings/deepResearchSettingsAccess';
@@ -155,6 +156,7 @@ const Settings: FC = () => {
         project,
         isScimTokenManagementEnabled,
         dataAppsFlag,
+        dataAppAnalysisFlag,
         externalSourcesFlag,
         isDataAppsFlagLoading,
         isAiCopilotEnabledOrTrial,
@@ -519,6 +521,8 @@ const Settings: FC = () => {
                 user?.ability.can('manage', 'OrganizationDesign') ?? false;
             const canViewActivity =
                 user?.ability.can('manage', 'Organization') ?? false;
+            const canManageAiAnalysis =
+                canViewActivity && dataAppAnalysisFlag?.enabled === true;
 
             if (canManageThemes) {
                 allowedRoutes.push({
@@ -530,6 +534,12 @@ const Settings: FC = () => {
                 allowedRoutes.push({
                     path: '/dataApps/activity',
                     element: <DataAppActivitySettingsPage />,
+                });
+            }
+            if (canManageAiAnalysis) {
+                allowedRoutes.push({
+                    path: '/dataApps/aiAnalysis',
+                    element: <DataAppAiAnalysisSettingsPage />,
                 });
             }
             // Land on whichever sub-page the user can actually reach.
@@ -800,6 +810,7 @@ const Settings: FC = () => {
         health?.hasGitlab,
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
+        dataAppAnalysisFlag?.enabled,
         externalSourcesFlag?.enabled,
         isProLimitsEnabled,
         canAccessAnalyticsSettings,
