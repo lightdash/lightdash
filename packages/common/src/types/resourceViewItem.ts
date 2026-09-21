@@ -246,7 +246,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                     projectUuid: content.project.uuid,
                     organizationUuid: content.organization.uuid,
                     createdByUserUuid: content.createdBy?.uuid ?? null,
-                    pinnedListUuid: null,
+                    pinnedListUuid: content.pinnedList?.uuid ?? null,
                     pinnedListOrder: null,
                     updatedAt: content.lastUpdatedAt || content.createdAt,
                     updatedByUser: updatedByUser && {

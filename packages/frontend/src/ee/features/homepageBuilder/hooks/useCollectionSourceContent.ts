@@ -15,7 +15,10 @@ import {
     useProject,
 } from '../../../../hooks/useProject';
 import { useVerifiedContentForHomepage } from '../../../../hooks/useVerifiedContentList';
-import { useCollectionContent } from './useCollectionContent';
+import {
+    useCollectionContent,
+    useCollectionItems,
+} from './useCollectionContent';
 import { useRecentContents } from './useRecentContents';
 
 type Config = HomepageCollectionBlock['config'];
@@ -39,14 +42,10 @@ export const useCollectionSourceContent = (
     const source = collectionSourceOf(config);
     const limit = collectionLimitOf(config);
 
-    const manualUuids = useMemo(
-        () =>
-            source === 'manual'
-                ? (config.items ?? []).map((item) => item.uuid)
-                : [],
-        [source, config.items],
+    const manual = useCollectionItems(
+        projectUuid,
+        source === 'manual' ? config.items : [],
     );
-    const manual = useCollectionContent(projectUuid, manualUuids);
 
     const popular = useMostPopularAndRecentlyUpdated(
         source === 'most-viewed' || source === 'recently-updated'
@@ -85,7 +84,11 @@ export const useCollectionSourceContent = (
                     (item) => item.uuid,
                 );
             case 'pinned':
-                return (pinned.data ?? []).map((item) => item.data.uuid);
+                return (pinned.data ?? [])
+                    .filter(
+                        (item) => item.type !== ResourceViewItemType.DOCUMENT,
+                    )
+                    .map((item) => item.data.uuid);
             case 'favorites':
                 return (favorites.data ?? [])
                     .filter(
@@ -103,36 +106,38 @@ export const useCollectionSourceContent = (
     }, [source, popular.data, pinned.data, favorites.data, verified.data]);
 
     const derived = useCollectionContent(projectUuid, derivedUuids);
-    const favoriteDocumentUuids = useMemo(
+    const documentUuids = useMemo(
         () =>
-            source === 'favorites'
-                ? (favorites.data ?? [])
+            source === 'favorites' || source === 'pinned'
+                ? (
+                      (source === 'favorites' ? favorites.data : pinned.data) ??
+                      []
+                  )
                       .filter(
                           (item) => item.type === ResourceViewItemType.DOCUMENT,
                       )
                       .map((item) => item.data.uuid)
                 : [],
-        [source, favorites.data],
+        [source, favorites.data, pinned.data],
     );
-    const favoriteDocuments = useCollectionContent(
+    const documents = useCollectionContent(
         projectUuid,
-        favoriteDocumentUuids,
+        documentUuids,
         DOCUMENT_CONTENT_TYPES,
     );
 
     const resolved = useMemo<SummaryContent[]>(() => {
         if (source === 'manual') return manual.data ?? [];
         if (source === 'recently-viewed') return recent.contents;
-        if (source === 'favorites') {
+        if (source === 'favorites' || source === 'pinned') {
             const byUuid = new Map(
-                [
-                    ...(derived.data ?? []),
-                    ...(favoriteDocuments.data ?? []),
-                ].map((item) => [item.uuid, item]),
+                [...(derived.data ?? []), ...(documents.data ?? [])].map(
+                    (item) => [item.uuid, item],
+                ),
             );
-            return (favorites.data ?? []).flatMap(
-                (item) => byUuid.get(item.data.uuid) ?? [],
-            );
+            return (
+                (source === 'favorites' ? favorites.data : pinned.data) ?? []
+            ).flatMap((item) => byUuid.get(item.data.uuid) ?? []);
         }
         return derived.data ?? [];
     }, [
@@ -140,8 +145,9 @@ export const useCollectionSourceContent = (
         manual.data,
         recent.contents,
         derived.data,
-        favoriteDocuments.data,
+        documents.data,
         favorites.data,
+        pinned.data,
     ]);
 
     const items = useMemo(() => {
@@ -171,7 +177,7 @@ export const useCollectionSourceContent = (
               popular.isInitialLoading ||
               pinned.isInitialLoading ||
               favorites.isInitialLoading ||
-              favoriteDocuments.isInitialLoading ||
+              documents.isInitialLoading ||
               derived.isInitialLoading;
 
     return { items, isLoading, source };

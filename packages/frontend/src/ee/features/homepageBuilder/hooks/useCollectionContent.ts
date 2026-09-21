@@ -1,8 +1,9 @@
 import {
+    ContentType,
+    type HomepageCollectionItemRef,
     type ApiContentResponse,
     type ApiError,
     type SummaryContent,
-    type ContentType,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
@@ -51,3 +52,35 @@ export const useCollectionContent = (
             return uuids.flatMap((uuid) => byUuid.get(uuid) ?? []);
         },
     });
+
+const DOCUMENT_CONTENT_TYPES = [ContentType.DOCUMENT];
+
+export const useCollectionItems = (
+    projectUuid: string,
+    refs: HomepageCollectionItemRef[],
+) => {
+    const content = useCollectionContent(
+        projectUuid,
+        refs
+            .filter((ref) => ref.contentType !== 'document')
+            .map((ref) => ref.uuid),
+    );
+    const documents = useCollectionContent(
+        projectUuid,
+        refs
+            .filter((ref) => ref.contentType === 'document')
+            .map((ref) => ref.uuid),
+        DOCUMENT_CONTENT_TYPES,
+    );
+    const byUuid = new Map(
+        [...(content.data ?? []), ...(documents.data ?? [])].map((item) => [
+            item.uuid,
+            item,
+        ]),
+    );
+    return {
+        data: refs.flatMap((ref) => byUuid.get(ref.uuid) ?? []),
+        isInitialLoading:
+            content.isInitialLoading || documents.isInitialLoading,
+    };
+};

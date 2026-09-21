@@ -3,9 +3,11 @@ import {
     DeletePinnedItem,
     isCreateAppPinnedItem,
     isCreateChartPinnedItem,
+    isCreateDocumentPinnedItem,
     isCreateSpacePinnedItem,
     isDeleteAppPinnedItem,
     isDeleteChartPinnedItem,
+    isDeleteDocumentPinnedItem,
     isDeleteSpacePinnedItem,
     NotFoundError,
     PinnedItem,
@@ -21,6 +23,7 @@ import {
     PinnedAppTableName,
     PinnedChartTableName,
     PinnedDashboardTableName,
+    PinnedDocumentTableName,
     PinnedListTableName,
     PinnedSpaceTableName,
 } from '../database/entities/pinnedList';
@@ -79,6 +82,11 @@ export class PinnedListModel {
                 pinned_list_uuid: results.pinnedListUuid,
                 app_uuid: item.appUuid,
             });
+        } else if (isCreateDocumentPinnedItem(item)) {
+            await this.database(PinnedDocumentTableName).insert({
+                pinned_list_uuid: results.pinnedListUuid,
+                document_uuid: item.documentUuid,
+            });
         } else {
             await this.database(PinnedDashboardTableName).insert({
                 pinned_list_uuid: results.pinnedListUuid,
@@ -102,6 +110,11 @@ export class PinnedListModel {
             await this.database(PinnedAppTableName)
                 .delete()
                 .where('app_uuid', item.appUuid)
+                .andWhere('pinned_list_uuid', item.pinnedListUuid);
+        } else if (isDeleteDocumentPinnedItem(item)) {
+            await this.database(PinnedDocumentTableName)
+                .delete()
+                .where('document_uuid', item.documentUuid)
                 .andWhere('pinned_list_uuid', item.pinnedListUuid);
         } else {
             await this.database(PinnedDashboardTableName)
@@ -130,6 +143,8 @@ export class PinnedListModel {
                 : undefined,
             spaceUuid: isDbPinnedSpace(data) ? data.space_uuid : undefined,
             appUuid: isDbPinnedApp(data) ? data.app_uuid : undefined,
+            documentUuid:
+                'document_uuid' in data ? data.document_uuid : undefined,
             createdAt: data.created_at,
         };
     }
@@ -185,12 +200,17 @@ export class PinnedListModel {
             .where('pinned_list_uuid', list.pinned_list_uuid)
             .orderBy('order');
 
+        const pinnedDocuments = await this.database(PinnedDocumentTableName)
+            .select('*')
+            .where('pinned_list_uuid', list.pinned_list_uuid)
+            .orderBy('order');
         const pinnedList = PinnedListModel.convertPinnedList(list);
         const pinnedItems = [
             ...pinnedCharts,
             ...pinnedDashboards,
             ...pinnedSpaces,
             ...pinnedApps,
+            ...pinnedDocuments,
         ].map(PinnedListModel.convertPinnedItem);
 
         return { ...pinnedList, items: pinnedItems };
@@ -238,6 +258,15 @@ export class PinnedListModel {
                                 .update('order', item.data.pinnedListOrder)
                                 .where('pinned_list_uuid', pinnedListUuid)
                                 .andWhere('app_uuid', item.data.uuid),
+                        );
+                        break;
+                    }
+                    case ResourceViewItemType.DOCUMENT: {
+                        promises.push(
+                            trx(PinnedDocumentTableName)
+                                .update('order', item.data.pinnedListOrder)
+                                .where('pinned_list_uuid', pinnedListUuid)
+                                .andWhere('document_uuid', item.data.uuid),
                         );
                         break;
                     }

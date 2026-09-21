@@ -7,6 +7,8 @@ import {
 import { ActionIcon, Menu, Tooltip } from '@mantine/core';
 import {
     IconDots,
+    IconPin,
+    IconPinnedOff,
     IconCopy,
     IconStar,
     IconStarFilled,
@@ -75,13 +77,23 @@ const DocumentResourceActionMenu = ({
                 access: space?.userAccess ? [space.userAccess] : [],
             }),
         ) === true;
+    const canPin =
+        user.data?.ability.can(
+            'manage',
+            subject('PinnedItems', {
+                organizationUuid,
+                projectUuid,
+            }),
+        ) === true;
+    const isPinned = !!item.data.pinnedListUuid;
     const canShare = availability.isAvailable && canManageAccess;
     const hasDeleteAccess = useCanDeleteDocument(item.data);
     const canDelete = allowDelete && hasDeleteAccess;
     if (
         flag.isError ||
         !flag.data?.enabled ||
-        (!canMove &&
+        (!canPin &&
+            !canMove &&
             !canShare &&
             !canDelete &&
             !canDuplicate &&
@@ -109,6 +121,25 @@ const DocumentResourceActionMenu = ({
                     </Tooltip>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    {canPin && (
+                        <Menu.Item
+                            leftSection={
+                                <MantineIcon
+                                    icon={isPinned ? IconPinnedOff : IconPin}
+                                />
+                            }
+                            onClick={() =>
+                                onAction({
+                                    type: ResourceViewItemAction.PIN_TO_HOMEPAGE,
+                                    item,
+                                })
+                            }
+                        >
+                            {isPinned
+                                ? 'Unpin from homepage'
+                                : 'Pin to homepage'}
+                        </Menu.Item>
+                    )}
                     {favoritesContext && (
                         <Menu.Item
                             leftSection={

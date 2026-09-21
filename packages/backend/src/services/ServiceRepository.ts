@@ -889,6 +889,7 @@ export class ServiceRepository
             'pinningService',
             () =>
                 new PinningService({
+                    documentService: this.getDocumentService(),
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),

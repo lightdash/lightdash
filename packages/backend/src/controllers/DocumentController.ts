@@ -6,6 +6,7 @@ import {
     type ApiDocumentListResponse,
     type ApiDocumentResponse,
     type ApiErrorPayload,
+    type ApiTogglePinnedItem,
     type CreateDocumentRequest,
     type DuplicateDocumentRequest,
     type ExecuteDocumentCellQueryRequest,
@@ -69,6 +70,31 @@ export class DocumentController extends BaseController {
                         versionUuid: body.versionUuid,
                     },
                 }),
+        };
+    }
+
+    @Patch('{documentUuidOrSlug}/pinning')
+    @OperationId('ToggleDocumentPin')
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    async togglePin(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() documentUuidOrSlug: UuidOrSlug,
+    ): Promise<ApiTogglePinnedItem> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getPinningService()
+                .toggleDocumentPin(
+                    req.account,
+                    projectUuid,
+                    documentUuidOrSlug,
+                ),
         };
     }
 

@@ -33,7 +33,13 @@ const greetingBlockSchema = z.object({
 });
 
 const collectionItemRefSchema = z.object({
-    contentType: z.enum(['chart', 'dashboard', 'space', 'data_app']),
+    contentType: z.enum([
+        'chart',
+        'dashboard',
+        'space',
+        'data_app',
+        'document',
+    ]),
     uuid: z.string(),
 });
 
@@ -60,7 +66,7 @@ export const collectionBlockSchema = z.object({
         limit: z.number().int().positive().optional(),
         layout: contentLayoutSchema.optional(),
         contentTypes: z
-            .array(z.enum(['chart', 'dashboard', 'space', 'data_app']))
+            .array(collectionItemRefSchema.shape.contentType)
             .optional(),
     }),
 });

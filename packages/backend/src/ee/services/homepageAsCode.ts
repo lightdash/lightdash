@@ -10,7 +10,7 @@ import {
 } from '@lightdash/common';
 
 export type HomepageContentReference = {
-    contentType: 'chart' | 'dashboard' | 'space' | 'data_app';
+    contentType: 'chart' | 'dashboard' | 'space' | 'data_app' | 'document';
     uuid: string;
     slug: string;
 };
@@ -23,6 +23,7 @@ const linkContentTypes: Record<
     saved: 'chart',
     spaces: 'space',
     apps: 'data_app',
+    documents: 'document',
 };
 
 const resolveReference = (
@@ -37,6 +38,11 @@ const resolveReference = (
             ref[direction === 'download' ? 'uuid' : 'slug'] === value,
     );
     if (matches.length !== 1) {
+        if (type === 'document') {
+            throw new ParameterError(
+                'Homepage Document reference is missing or inaccessible',
+            );
+        }
         throw new ParameterError(
             `Homepage reference ${type} "${value}" is ${matches.length === 0 ? 'missing' : 'ambiguous'} in this project`,
         );
@@ -53,7 +59,7 @@ const translateLinks = (
 ): string => {
     if (direction === 'download') {
         return content.replace(
-            /https?:\/\/[^\s)]+|\/projects\/[^/\s)]+\/(?:dashboards|saved|spaces|apps)\/[^/\s)#?]+(?:\/view)?/g,
+            /https?:\/\/[^\s)]+|\/projects\/[^/\s)]+\/(?:dashboards|saved|spaces|apps|documents)\/[^/\s)#?]+(?:\/view)?/g,
             (match) => {
                 let value = match;
                 if (/^https?:/.test(match)) {
@@ -67,7 +73,7 @@ const translateLinks = (
                     value = `${url.pathname}${url.search}${url.hash}`;
                 }
                 const parts = value.match(
-                    /^\/projects\/([^/]+)\/(dashboards|saved|spaces|apps)\/([^/\s)#?]+)(\/view)?(.*)$/,
+                    /^\/projects\/([^/]+)\/(dashboards|saved|spaces|apps|documents)\/([^/\s)#?]+)(\/view)?(.*)$/,
                 );
                 if (!parts || parts[1] !== projectUuid) return match;
                 const [, , path, uuid, view, suffix] = parts;
@@ -77,7 +83,7 @@ const translateLinks = (
         );
     }
     return content.replace(
-        /lightdash:\/\/(dashboards|saved|spaces|apps)\/([^/\s)#?]+)(\/view)?/g,
+        /lightdash:\/\/(dashboards|saved|spaces|apps|documents)\/([^/\s)#?]+)(\/view)?/g,
         (
             _match,
             path: string,

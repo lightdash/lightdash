@@ -98,7 +98,12 @@ const ResourceCard: FC<ResourceCardProps> = ({
     switch (item.type) {
         case ResourceViewItemType.DOCUMENT:
             return (
-                <ResourceViewGridDocumentItem item={item} onAction={onAction} />
+                <ResourceViewGridDocumentItem
+                    item={item}
+                    onAction={onAction}
+                    allowDelete={allowDelete}
+                    dragIcon={dragIcon}
+                />
             );
         case ResourceViewItemType.SPACE:
             return (

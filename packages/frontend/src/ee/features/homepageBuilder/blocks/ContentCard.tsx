@@ -108,10 +108,14 @@ const KindAndViews: FC<{ content: SummaryContent; projectUuid: string }> = ({
         <Text size="xs" c="dimmed" span>
             {CONTENT_KIND_LABEL[content.contentType]}
         </Text>
-        <Text size="xs" c="dimmed" span>
-            ·
-        </Text>
-        <ViewsCount content={content} projectUuid={projectUuid} />
+        {content.contentType !== ContentType.DOCUMENT && (
+            <>
+                <Text size="xs" c="dimmed" span>
+                    ·
+                </Text>
+                <ViewsCount content={content} projectUuid={projectUuid} />
+            </>
+        )}
     </Group>
 );
 

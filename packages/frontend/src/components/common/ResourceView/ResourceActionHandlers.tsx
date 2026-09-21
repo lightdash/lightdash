@@ -21,6 +21,7 @@ import { useAppPinningMutation } from '../../../features/apps/hooks/useAppPinnin
 import { DeleteSqlChartModal } from '../../../features/sqlRunner/components/DeleteSqlChartModal';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
+import { useDocumentPinningMutation } from '../../../hooks/pinning/useDocumentPinningMutation';
 import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation';
 import { useContentAction } from '../../../hooks/useContent';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -88,6 +89,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         useContentAction(projectUuid);
 
     const { mutate: pinChart } = useChartPinningMutation();
+    const { mutate: pinDocument } = useDocumentPinningMutation();
     const { mutate: pinDashboard } = useDashboardPinningMutation();
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
     const { mutate: pinApp } = useAppPinningMutation();
@@ -171,7 +173,10 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
 
         switch (action.item.type) {
             case ResourceViewItemType.DOCUMENT:
-                return undefined;
+                return pinDocument({
+                    projectUuid: action.item.data.projectUuid,
+                    documentUuid: action.item.data.uuid,
+                });
             case ResourceViewItemType.CHART:
                 return pinChart({ uuid: action.item.data.uuid });
             case ResourceViewItemType.DASHBOARD:
@@ -190,7 +195,15 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     'Resource type not supported',
                 );
         }
-    }, [action, pinChart, pinDashboard, pinSpace, pinApp, projectUuid]);
+    }, [
+        action,
+        pinChart,
+        pinDashboard,
+        pinDocument,
+        pinSpace,
+        pinApp,
+        projectUuid,
+    ]);
 
     useEffect(() => {
         if (action.type === ResourceViewItemAction.PIN_TO_HOMEPAGE) {

@@ -272,6 +272,8 @@ import {
     PinnedChartTableName,
     PinnedDashboardTable,
     PinnedDashboardTableName,
+    PinnedDocumentTable,
+    PinnedDocumentTableName,
     PinnedListTable,
     PinnedListTableName,
     PinnedSpaceTable,
@@ -737,6 +739,7 @@ declare module 'knex/types/tables' {
         [PinnedDashboardTableName]: PinnedDashboardTable;
         [PinnedSpaceTableName]: PinnedSpaceTable;
         [PinnedAppTableName]: PinnedAppTable;
+        [PinnedDocumentTableName]: PinnedDocumentTable;
         [SchedulerTableName]: SchedulerTable;
         [SchedulerSlackTargetTableName]: SchedulerSlackTargetTable;
         [SchedulerEmailTargetTableName]: SchedulerEmailTargetTable;

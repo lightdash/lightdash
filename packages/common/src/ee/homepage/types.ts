@@ -34,7 +34,7 @@ export type HomepageGreetingBlock = {
 };
 
 export type HomepageCollectionItemRef = {
-    contentType: 'chart' | 'dashboard' | 'space' | 'data_app';
+    contentType: 'chart' | 'dashboard' | 'space' | 'data_app' | 'document';
     uuid: string;
 };
 

@@ -13,6 +13,11 @@ export const documentContentConfiguration: ContentConfiguration = {
             filters.contentTypes.includes(ContentType.DOCUMENT)),
     getSummaryQuery: (knex, filters) =>
         knex('documents')
+            .leftJoin(
+                'pinned_document',
+                'pinned_document.document_uuid',
+                'documents.document_uuid',
+            )
             .innerJoin('spaces', 'spaces.space_id', 'documents.space_id')
             .innerJoin(
                 'projects',
@@ -67,7 +72,7 @@ export const documentContentConfiguration: ContentConfiguration = {
                 'projects.name as project_name',
                 'organizations.organization_uuid',
                 'organizations.organization_name',
-                knex.raw('null::uuid as pinned_list_uuid'),
+                'pinned_document.pinned_list_uuid',
                 knex.raw('documents.created_at::timestamp as created_at'),
                 'creator.user_uuid as created_by_user_uuid',
                 'creator.first_name as created_by_user_first_name',
@@ -181,7 +186,9 @@ export const documentContentConfiguration: ContentConfiguration = {
             name: value.organization_name,
         },
         space: { uuid: value.space_uuid, name: value.space_name },
-        pinnedList: null,
+        pinnedList: value.pinned_list_uuid
+            ? { uuid: value.pinned_list_uuid }
+            : null,
         views: 0,
         firstViewedAt: null,
         lastViewedAt: null,

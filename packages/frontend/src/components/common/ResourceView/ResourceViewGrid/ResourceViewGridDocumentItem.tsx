@@ -1,5 +1,6 @@
 import type { ResourceViewDocumentItem } from '@lightdash/common';
 import { Box, Group, Paper, Stack, Text } from '@mantine/core';
+import { type ReactNode } from 'react';
 import { ResourceIcon } from '../../ResourceIcon';
 import TruncatedText from '../../TruncatedText';
 import ResourceViewActionMenu, {
@@ -11,10 +12,17 @@ import classes from './ResourceViewGridItem.module.css';
 const ResourceViewGridDocumentItem = ({
     item,
     onAction,
-}: ResourceViewActionMenuCommonProps & { item: ResourceViewDocumentItem }) => (
+    allowDelete,
+    dragIcon,
+}: ResourceViewActionMenuCommonProps & {
+    item: ResourceViewDocumentItem;
+    dragIcon: ReactNode;
+    allowDelete?: boolean;
+}) => (
     <Paper className={classes.gridCard} h="100%">
         <Stack gap="md">
             <Group wrap="nowrap">
+                {dragIcon}
                 <ResourceIcon item={item} />
                 <TruncatedText maxWidth="100%" fw={600}>
                     {item.data.name}
@@ -34,7 +42,11 @@ const ResourceViewGridDocumentItem = ({
                     }}
                     onKeyDown={(event) => event.stopPropagation()}
                 >
-                    <ResourceViewActionMenu item={item} onAction={onAction} />
+                    <ResourceViewActionMenu
+                        item={item}
+                        onAction={onAction}
+                        allowDelete={allowDelete}
+                    />
                 </Box>
             </Group>
         </Stack>

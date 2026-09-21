@@ -18,7 +18,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -49,11 +48,7 @@ export class PinningController extends BaseController {
         assertRegisteredAccount(req.account);
         const pinnedItems = await this.services
             .getPinningService()
-            .getPinnedItems(
-                toSessionUser(req.account),
-                projectUuid,
-                pinnedListUuid,
-            );
+            .getPinnedItems(req.account, projectUuid, pinnedListUuid);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -88,7 +83,7 @@ export class PinningController extends BaseController {
         const pinnedItems = await this.services
             .getPinningService()
             .updatePinnedItemsOrder(
-                toSessionUser(req.account),
+                req.account,
                 projectUuid,
                 pinnedListUuid,
                 body,
