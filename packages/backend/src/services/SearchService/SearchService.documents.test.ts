@@ -67,7 +67,6 @@ const setup = ({ enabled = true, granted = true } = {}) => {
         },
     ]);
     const documentModel = {
-        listSpaceUuids: vi.fn().mockResolvedValue([]),
         listSummariesByUuid: vi.fn().mockResolvedValue([
             {
                 ...document,
@@ -80,11 +79,6 @@ const setup = ({ enabled = true, granted = true } = {}) => {
         projectModel,
         featureFlagModel,
         documentModel,
-        directAccessService: {
-            findSharedWithMeUuids: vi.fn().mockResolvedValue({
-                document: granted ? [document.uuid] : [],
-            }),
-        },
         spacePermissionService: { resolveAccessBatch },
     } as unknown as ConstructorParameters<typeof DocumentService>[0]);
     const results: SearchResults = {
@@ -118,13 +112,19 @@ const setup = ({ enabled = true, granted = true } = {}) => {
         featureFlagModel,
         resolveAccessBatch,
         documentModel,
+        results,
     };
 };
 
 describe('Document global search authorization', () => {
     it('returns direct-granted Documents without space access using canonical authorization', async () => {
-        const { service, searchModel, resolveAccessBatch, featureFlagModel } =
-            setup();
+        const {
+            service,
+            searchModel,
+            resolveAccessBatch,
+            featureFlagModel,
+            documentModel,
+        } = setup();
         const results = await service.getSearchResults(
             user,
             projectUuid,
@@ -136,12 +136,11 @@ describe('Document global search authorization', () => {
             'Weekly',
             undefined,
             expect.anything(),
-            {
-                spaceUuids: [],
-                documentUuids: [document.uuid],
-            },
         );
-        expect(resolveAccessBatch).toHaveBeenCalledWith(userUuid, [
+        expect(
+            documentModel.listSummariesByUuid,
+        ).toHaveBeenCalledExactlyOnceWith(projectUuid, [document.uuid]);
+        expect(resolveAccessBatch).toHaveBeenCalledExactlyOnceWith(userUuid, [
             {
                 type: 'document',
                 documentUuid: document.uuid,
@@ -168,16 +167,32 @@ describe('Document global search authorization', () => {
         },
     );
 
-    it('does not fetch Document candidates when the feature is disabled', async () => {
-        const { service, searchModel } = setup({ enabled: false });
+    it('skips Document permission resolution when the feature is disabled', async () => {
+        const { service, documentModel, resolveAccessBatch } = setup({
+            enabled: false,
+        });
         await service.getSearchResults(user, projectUuid, 'Weekly');
-        expect(searchModel.search).toHaveBeenCalledWith(
-            projectUuid,
-            'Weekly',
-            undefined,
-            expect.anything(),
-            undefined,
-        );
+        expect(documentModel.listSummariesByUuid).not.toHaveBeenCalled();
+        expect(resolveAccessBatch).not.toHaveBeenCalled();
+    });
+
+    it('skips Document authorization when search returns no candidates', async () => {
+        const {
+            service,
+            searchModel,
+            featureFlagModel,
+            documentModel,
+            resolveAccessBatch,
+            results,
+        } = setup();
+        searchModel.search.mockResolvedValueOnce({
+            ...results,
+            documents: [],
+        });
+        await service.getSearchResults(user, projectUuid, 'Missing');
+        expect(featureFlagModel.get).not.toHaveBeenCalled();
+        expect(documentModel.listSummariesByUuid).not.toHaveBeenCalled();
+        expect(resolveAccessBatch).not.toHaveBeenCalled();
     });
 
     it('rechecks revoked access on the next search', async () => {

@@ -111,9 +111,6 @@ const makeService = ({
     const service = new SearchService({
         documentService: {
             filterViewableUuids: vi.fn().mockResolvedValue([]),
-            getVisibility: vi
-                .fn()
-                .mockResolvedValue({ spaceUuids: [], documentUuids: [] }),
         } as never,
         analytics: analytics as never,
         searchModel: searchModel as never,
@@ -172,7 +169,6 @@ describe('SearchService omnibar timing', () => {
             query,
             { type: malformedTypeFilter },
             expect.anything(),
-            undefined,
         );
         expect(loggerInfo).toHaveBeenCalledOnce();
         const [message, record] = loggerInfo.mock.calls[0];
@@ -212,7 +208,6 @@ describe('SearchService omnibar timing', () => {
             query,
             undefined,
             undefined,
-            { spaceUuids: [], documentUuids: [] },
         );
     });
 

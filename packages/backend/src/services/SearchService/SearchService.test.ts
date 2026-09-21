@@ -52,9 +52,6 @@ const makeService = ({ dataAppsEnabled = true } = {}) => {
     const service = new SearchService({
         documentService: {
             filterViewableUuids: vi.fn().mockResolvedValue([]),
-            getVisibility: vi
-                .fn()
-                .mockResolvedValue({ spaceUuids: [], documentUuids: [] }),
         } as never,
         analytics: {} as never,
         searchModel: searchModel as never,
@@ -175,9 +172,6 @@ describe('SearchService resource-aware access', () => {
         const grantedService = new SearchService({
             documentService: {
                 filterViewableUuids: vi.fn().mockResolvedValue([]),
-                getVisibility: vi
-                    .fn()
-                    .mockResolvedValue({ spaceUuids: [], documentUuids: [] }),
             } as never,
             analytics: {} as never,
             searchModel: {
@@ -259,9 +253,6 @@ describe('SearchService resource-aware access', () => {
         const grantedService = new SearchService({
             documentService: {
                 filterViewableUuids: vi.fn().mockResolvedValue([]),
-                getVisibility: vi
-                    .fn()
-                    .mockResolvedValue({ spaceUuids: [], documentUuids: [] }),
             } as never,
             analytics: { track: vi.fn() } as never,
             searchModel: {

@@ -53,7 +53,6 @@ import {
 } from '../../logging/omnibarSearchTiming';
 import { AppModel } from '../AppModel';
 import { ContentVerificationModel } from '../ContentVerificationModel';
-import type { DocumentVisibility } from '../DocumentModel';
 import {
     filterByCreatedAt,
     filterByCreatedByUuid,
@@ -1211,7 +1210,6 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
-        visibility?: DocumentVisibility,
     ): Promise<DocumentSearchResult[]> {
         if (
             filters?.verifiedOnly ||
@@ -1258,16 +1256,6 @@ export class SearchModel {
             .orderBy('search_rank', 'desc')
             .orderBy('documents.document_uuid')
             .limit(SEARCH_LIMIT_PER_ITEM_TYPE);
-        if (visibility) {
-            void baseQuery.where((builder) =>
-                builder
-                    .whereIn('spaces.space_uuid', visibility.spaceUuids)
-                    .orWhereIn(
-                        'documents.document_uuid',
-                        visibility.documentUuids,
-                    ),
-            );
-        }
         const dateFiltered = filterByCreatedAt('documents', baseQuery, filters);
         const rows: (Omit<DocumentSearchResult, 'createdBy'> & {
             firstName: string | null;
@@ -1976,7 +1964,6 @@ export class SearchModel {
         query: string,
         filters?: SearchFilters,
         timing?: OmnibarSearchTiming,
-        documentVisibility?: DocumentVisibility,
     ): Promise<SearchResults> {
         const verifiedOnly = filters?.verifiedOnly === true;
         const contentOptions: SearchContentOptions = { verifiedOnly };
@@ -2079,14 +2066,11 @@ export class SearchModel {
             searchDataApps,
         );
 
-        const documents = documentVisibility
-            ? await this.searchDocuments(
-                  projectUuid,
-                  query,
-                  filters,
-                  documentVisibility,
-              )
-            : [];
+        const documents = await this.searchDocuments(
+            projectUuid,
+            query,
+            filters,
+        );
 
         const explores = await this.getProjectExplores(projectUuid, timing);
         const searchTableErrors = () =>

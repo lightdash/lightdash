@@ -8,10 +8,8 @@ import {
     ForbiddenError,
     isDashboardSearchResult,
     isTableErrorSearchResult,
-    NotFoundError,
     SavedChartSearchResult,
     SearchFilters,
-    SearchItemType,
     SearchResults,
     SessionUser,
     SpaceSearchResult,
@@ -26,7 +24,6 @@ import {
     timeOmnibarSearch,
     timeOmnibarSearchSync,
 } from '../../logging/omnibarSearchTiming';
-import type { DocumentVisibility } from '../../models/DocumentModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { searchReservingVerified } from '../../models/SearchModel/utils/search';
@@ -291,36 +288,8 @@ export class SearchService extends BaseService {
                 throw new ForbiddenError();
             }
 
-            let documentVisibility: DocumentVisibility | undefined;
-            if (
-                !filters?.verifiedOnly &&
-                (!filters?.type || filters.type === SearchItemType.DOCUMENT)
-            ) {
-                try {
-                    documentVisibility =
-                        await this.documentService.getVisibility(
-                            fromSession(user),
-                            projectUuid,
-                        );
-                } catch (error) {
-                    if (
-                        !(
-                            error instanceof ForbiddenError ||
-                            error instanceof NotFoundError
-                        )
-                    ) {
-                        throw error;
-                    }
-                }
-            }
             const search = () =>
-                this.searchModel.search(
-                    projectUuid,
-                    query,
-                    filters,
-                    timing,
-                    documentVisibility,
-                );
+                this.searchModel.search(projectUuid, query, filters, timing);
             const results = await timeOmnibarSearch(
                 timing,
                 'searchModel',

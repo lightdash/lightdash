@@ -799,63 +799,6 @@ describe('SearchModel.searchDocuments', () => {
         ).rejects.toThrow('fromDate cannot be after toDate');
     });
 
-    it('applies inherited and direct visibility before the top ten limit', async () => {
-        const visibleSpace = await createSpace();
-        const visibleSpaceUuid = visibleSpace.space_uuid;
-        await Promise.all(
-            Array.from({ length: 12 }, () =>
-                insertDocument({ name: 'Revenue', description: '' }),
-            ),
-        );
-        const inherited = await insertDocument({
-            space_id: visibleSpace.space_id,
-            name: 'Inherited report',
-            description: 'Revenue',
-        });
-        const direct = await insertDocument({
-            name: 'Direct report',
-            description: 'Revenue',
-        });
-        const inheritedResults = await model.searchDocuments(
-            projectUuid,
-            'revenue',
-            undefined,
-            {
-                spaceUuids: [visibleSpaceUuid],
-                documentUuids: [],
-            },
-        );
-        expect(inheritedResults.map(({ uuid }) => uuid)).toEqual([inherited]);
-        const directResults = await model.searchDocuments(
-            projectUuid,
-            'revenue',
-            undefined,
-            {
-                spaceUuids: [],
-                documentUuids: [direct],
-            },
-        );
-        expect(directResults.map(({ uuid }) => uuid)).toEqual([direct]);
-        const combined = await model.searchDocuments(
-            projectUuid,
-            'revenue',
-            undefined,
-            {
-                spaceUuids: [visibleSpaceUuid],
-                documentUuids: [inherited, direct],
-            },
-        );
-        expect(combined.map(({ uuid }) => uuid).sort()).toEqual(
-            [inherited, direct].sort(),
-        );
-        expect(
-            await model.searchDocuments(projectUuid, 'revenue', undefined, {
-                spaceUuids: [],
-                documentUuids: [],
-            }),
-        ).toEqual([]);
-    });
-
     it('ranks name matches above descriptions and returns a deterministic top ten', async () => {
         const descriptions = await Promise.all(
             Array.from({ length: 12 }, (_, index) =>
