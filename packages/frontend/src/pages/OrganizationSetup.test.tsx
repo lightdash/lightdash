@@ -57,6 +57,26 @@ const mockOrgApi = (name: string, { optional = false } = {}) => {
     return interceptor.reply(200, { status: 'ok', results: { name } });
 };
 
+const mockBrandFetch = (name: string, ready?: Promise<void>) =>
+    nock(BASE_API_URL)
+        .post('/api/v1/org/brand/fetch')
+        .reply(200, async () => {
+            if (ready) await ready;
+            return {
+                status: 'ok',
+                results: {
+                    organizationUuid: 'org-uuid',
+                    domain: 'lightdash.com',
+                    name,
+                    description: null,
+                    logos: [],
+                    colors: [],
+                    fonts: [],
+                    updatedAt: new Date().toISOString(),
+                },
+            };
+        });
+
 const selectRole = async (user: ReturnType<typeof userEvent.setup>) => {
     const roleSelect = await screen.findByPlaceholderText('Select your role');
     await user.click(roleSelect);
@@ -322,7 +342,7 @@ describe('OrganizationSetup', () => {
         expect(completionRequestCount).toBe(0);
     });
 
-    it('returns to step 1 with the error when Finish fails validation on the organization name', async () => {
+    it('applies the sanitized brand name when detection resolves after the workspace step', async () => {
         const user = userEvent.setup();
 
         let releaseBrand: () => void = () => {};
@@ -331,24 +351,7 @@ describe('OrganizationSetup', () => {
         });
 
         mockOrgApi('');
-        nock(BASE_API_URL)
-            .post('/api/v1/org/brand/fetch')
-            .reply(200, async () => {
-                await brandReady;
-                return {
-                    status: 'ok',
-                    results: {
-                        organizationUuid: 'org-uuid',
-                        domain: 'lightdash.com',
-                        name: 'Acme Inc.',
-                        description: null,
-                        logos: [],
-                        colors: [],
-                        fonts: [],
-                        updatedAt: new Date().toISOString(),
-                    },
-                };
-            });
+        mockBrandFetch('Acme Inc.', brandReady);
 
         renderSetupPage({
             user: {
@@ -378,25 +381,97 @@ describe('OrganizationSetup', () => {
         releaseBrand();
         await screen.findByText('lightdash.com');
 
-        let completionRequestCount = 0;
-        nock(BASE_API_URL)
-            .patch('/api/v1/user/me/complete')
-            .optionally()
-            .reply(() => {
-                completionRequestCount += 1;
-                return [200];
-            });
+        const scope = nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete', (body) => {
+                expect(body.organizationName).toBe('Acme Inc');
+                return true;
+            })
+            .reply(200);
+        const brandScope = nock(BASE_API_URL)
+            .put('/api/v1/org/brand', () => true)
+            .reply(200, { status: 'ok', results: null });
 
         await user.click(await screen.findByRole('button', { name: 'Finish' }));
 
-        const nameInput = await screen.findByPlaceholderText('Acme Analytics');
-        expect(nameInput).toHaveValue('Acme Inc.');
+        await waitFor(() => expect(scope.isDone()).toBe(true));
+        await waitFor(() => expect(brandScope.isDone()).toBe(true));
         expect(
-            screen.getByText((content) =>
-                content.includes(INVALID_NAME_MESSAGE),
-            ),
-        ).toBeInTheDocument();
-        expect(completionRequestCount).toBe(0);
+            screen.queryByPlaceholderText('Acme Analytics'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('completes setup with a sanitized punctuated brand name', async () => {
+        const user = userEvent.setup();
+
+        mockOrgApi('');
+        mockBrandFetch('Acme Inc.');
+
+        renderSetupPage({
+            user: {
+                isSetupComplete: false,
+                organizationName: '',
+                email: 'demo@lightdash.com',
+            },
+            health: {
+                mode: LightdashMode.DEFAULT,
+                hasBrandfetch: true,
+            },
+        });
+
+        const nameInput = await screen.findByPlaceholderText('Acme Analytics');
+        await waitFor(() => expect(nameInput).toHaveValue('Acme Inc'));
+
+        await user.click(
+            await screen.findByRole('button', { name: 'Continue' }),
+        );
+
+        await screen.findByPlaceholderText('Select your role');
+        await selectRole(user);
+
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        await user.type(referralInput, 'a podcast');
+
+        const scope = nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete', {
+                organizationName: 'Acme Inc',
+                jobTitle: 'Software Engineer',
+                howDidYouHearAboutUs: 'a podcast',
+                enableEmailDomainAccess: true,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            })
+            .reply(200);
+        const brandScope = nock(BASE_API_URL)
+            .put('/api/v1/org/brand', () => true)
+            .reply(200, { status: 'ok', results: null });
+
+        await user.click(await screen.findByRole('button', { name: 'Finish' }));
+
+        await waitFor(() => expect(scope.isDone()).toBe(true));
+        await waitFor(() => expect(brandScope.isDone()).toBe(true));
+    });
+
+    it('falls back to the domain-derived name when the brand name has no usable characters', async () => {
+        mockOrgApi('');
+        mockBrandFetch('...');
+
+        renderSetupPage({
+            user: {
+                isSetupComplete: false,
+                organizationName: '',
+                email: 'demo@lightdash.com',
+            },
+            health: {
+                mode: LightdashMode.DEFAULT,
+                hasBrandfetch: true,
+            },
+        });
+
+        const nameInput = await screen.findByPlaceholderText('Acme Analytics');
+        await screen.findByText('lightdash.com');
+        await waitFor(() => expect(nameInput).toHaveValue('Lightdash'));
     });
 
     it('shows an error toast when completing setup fails', async () => {
