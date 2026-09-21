@@ -17,7 +17,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
-import { Link, Navigate, useSearchParams } from 'react-router';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { BetaBadge } from '../components/common/BetaBadge';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import InlineErrorState from '../components/common/InlineErrorState';
@@ -34,10 +34,13 @@ import { useChartTypesEnabled } from '../features/chartTypes/hooks/useChartTypes
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
+import { chartTypeInExplorerPath } from '../features/chartTypes/utils/chartTypeInExplorerDestination';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
+import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
 
 const GalleryTab = {
     INSTALLED_CHARTS: 'installed-charts',
@@ -47,6 +50,8 @@ const GalleryTab = {
 const ChartTypeGallery = () => {
     const projectUuid = useProjectUuid();
     const { user } = useApp();
+    const navigate = useNavigate();
+    const { track } = useTracking();
     const [searchParams, setSearchParams] = useSearchParams();
     const chartTypesEnabled = useChartTypesEnabled();
     const dataAppsEnabled =
@@ -118,6 +123,30 @@ const ChartTypeGallery = () => {
         isLibraryEnabled && searchParams.get('tab') === GalleryTab.CHART_LIBRARY
             ? GalleryTab.CHART_LIBRARY
             : GalleryTab.INSTALLED_CHARTS;
+
+    // The remembered explore is a real destination on its own; without one
+    // there is no query to reuse, so the table picker stands in.
+    const handleUseInExplorer = (viz: DataAppViz) => {
+        if (!projectUuid || viz.previewSelection === null) {
+            setPreviewUuid(viz.dataAppVizUuid);
+            return;
+        }
+        track({
+            name: EventName.CHART_TYPE_PREVIEW_IN_EXPLORER,
+            properties: {
+                projectUuid,
+                registrySlug: viz.registrySlug,
+                tableName: viz.previewSelection.exploreName,
+            },
+        });
+        void navigate(
+            chartTypeInExplorerPath(
+                projectUuid,
+                viz.previewSelection.exploreName,
+                viz.dataAppVizUuid,
+            ),
+        );
+    };
 
     const handleTabChange = (value: string | null) => {
         const newParams = new URLSearchParams(searchParams);
@@ -210,9 +239,7 @@ const ChartTypeGallery = () => {
                                 onClick={() =>
                                     setSelectedUuid(viz.dataAppVizUuid)
                                 }
-                                onPreview={() =>
-                                    setPreviewUuid(viz.dataAppVizUuid)
-                                }
+                                onUseInExplorer={() => handleUseInExplorer(viz)}
                                 onDelete={() =>
                                     setDeleteUuid(viz.dataAppVizUuid)
                                 }
@@ -299,7 +326,7 @@ const ChartTypeGallery = () => {
                     isActive={previewUuid === null && deleteUuid === null}
                     registryEntry={registryEntryFor(selected)}
                     onClose={() => setSelectedUuid(null)}
-                    onPreview={() => setPreviewUuid(selected.dataAppVizUuid)}
+                    onUseInExplorer={() => handleUseInExplorer(selected)}
                     onDelete={() => setDeleteUuid(selected.dataAppVizUuid)}
                 />
             )}

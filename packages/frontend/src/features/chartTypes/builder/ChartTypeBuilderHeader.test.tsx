@@ -16,7 +16,8 @@ const baseProps = {
     onUpgradeStarted: vi.fn(),
     onToggleHistory: vi.fn(),
     onDone: vi.fn(),
-    onPreviewInExplorer: null,
+    onUseInExplorer: null,
+    useInExplorerDisabledReason: null,
 };
 
 const renderHeader = (
@@ -29,10 +30,18 @@ const renderHeader = (
             <ChartTypeBuilderHeader
                 {...baseProps}
                 latestReadyVersion={null}
-                previewInExplorerLink={null}
+                useInExplorerLink={null}
                 {...overrides}
             />
         </MemoryRouter>,
+    );
+
+/** Mantine only stamps `data-variant` for a non-default variant, so a missing
+ *  attribute is the filled (implicit default) button. */
+const expectDoneIsSecondary = () =>
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveAttribute(
+        'data-variant',
+        'default',
     );
 
 describe('ChartTypeBuilderHeader', () => {
@@ -41,35 +50,106 @@ describe('ChartTypeBuilderHeader', () => {
         renderHeader({ onBackLinkClick });
         const backLink = screen.getByRole('link', { name: 'Chart types' });
 
-        fireEvent.click(backLink, { metaKey: true });
-        fireEvent.click(backLink, { ctrlKey: true });
+        // A modified click is the browser's own "open in a new tab", which
+        // react-router deliberately lets through; jsdom cannot navigate, so
+        // the default action is stopped here rather than logged.
+        const modified = (modifier: Partial<MouseEventInit>) => {
+            const event = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                ...modifier,
+            });
+            event.preventDefault();
+            fireEvent(backLink, event);
+        };
+        modified({ metaKey: true });
+        modified({ ctrlKey: true });
+        modified({ shiftKey: true });
         expect(onBackLinkClick).not.toHaveBeenCalled();
 
         fireEvent.click(backLink);
         expect(onBackLinkClick).toHaveBeenCalledTimes(1);
     });
 
-    it('makes Done the filled action before Preview in explorer is on offer', () => {
+    it('makes Done the filled action before Use in Explorer is on offer', () => {
         renderHeader({ latestReadyVersion: null });
 
-        expect(screen.queryByText('Preview in explorer')).toBeNull();
-        // Mantine only stamps `data-variant` for a non-default variant, so a
-        // missing attribute is the filled (implicit default) button.
+        expect(screen.queryByText('Use in Explorer')).toBeNull();
         expect(
             screen.getByRole('button', { name: 'Done' }),
         ).not.toHaveAttribute('data-variant');
     });
 
-    it('makes Done a secondary action once Preview in explorer is on offer', () => {
+    it('makes Done a secondary action once Use in Explorer is on offer', () => {
+        const onUseInExplorer = vi.fn();
         renderHeader({
             latestReadyVersion: 1,
-            previewInExplorerLink: '/projects/project-1/tables/orders',
+            useInExplorerLink: '/projects/project-1/tables/orders',
+            onUseInExplorer,
         });
 
-        expect(screen.getByText('Preview in explorer')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Done' })).toHaveAttribute(
-            'data-variant',
-            'default',
+        const link = screen.getByRole('link', { name: 'Use in Explorer' });
+        expect(link).toHaveAttribute(
+            'href',
+            '/projects/project-1/tables/orders',
         );
+        expectDoneIsSecondary();
+
+        fireEvent.click(link);
+        expect(onUseInExplorer).toHaveBeenCalledTimes(1);
+    });
+
+    it('offers the table picker when there is no query to carry', () => {
+        const onUseInExplorer = vi.fn();
+        renderHeader({ latestReadyVersion: 1, onUseInExplorer });
+
+        expect(screen.queryByRole('link', { name: 'Use in Explorer' })).toBe(
+            null,
+        );
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Use in Explorer' }),
+        );
+        expect(onUseInExplorer).toHaveBeenCalledTimes(1);
+        expectDoneIsSecondary();
+    });
+
+    it('keeps the action visible but inert while it cannot run', () => {
+        const onUseInExplorer = vi.fn();
+        renderHeader({
+            latestReadyVersion: 1,
+            useInExplorerLink: '/projects/project-1/tables/orders',
+            onUseInExplorer,
+            useInExplorerDisabledReason:
+                'Switch to the latest version to use it in Explorer',
+        });
+
+        const action = screen.getByRole('button', { name: 'Use in Explorer' });
+        expect(action).toHaveAttribute('aria-disabled', 'true');
+        expect(screen.queryByRole('link', { name: 'Use in Explorer' })).toBe(
+            null,
+        );
+
+        fireEvent.click(action);
+        expect(onUseInExplorer).not.toHaveBeenCalled();
+        // A disabled primary is still the primary: Done stays secondary.
+        expectDoneIsSecondary();
+    });
+
+    it('says why the action cannot run', async () => {
+        renderHeader({
+            latestReadyVersion: 1,
+            useInExplorerDisabledReason:
+                'Switch to the latest version to use it in Explorer',
+        });
+
+        fireEvent.mouseEnter(
+            screen.getByRole('button', { name: 'Use in Explorer' }),
+        );
+
+        expect(
+            await screen.findByText(
+                'Switch to the latest version to use it in Explorer',
+            ),
+        ).toBeInTheDocument();
     });
 });

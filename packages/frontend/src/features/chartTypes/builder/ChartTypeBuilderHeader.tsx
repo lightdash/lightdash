@@ -52,8 +52,13 @@ type Props = {
     /** Navigates to the gallery; the page's `useBlocker` gates it while a
      *  build is running. */
     onDone: () => void;
-    previewInExplorerLink: To | null;
-    onPreviewInExplorer: (() => void) | null;
+    /** The Explorer opened on the query this chart type was built against. */
+    useInExplorerLink: To | null;
+    /** Activating the action: follows the link, or opens the table picker
+     *  when there is no query to carry. */
+    onUseInExplorer: (() => void) | null;
+    /** Why the action cannot run yet; shown as its tooltip while disabled. */
+    useInExplorerDisabledReason: string | null;
 };
 
 const ChartTypeBuilderHeader: FC<Props> = ({
@@ -70,19 +75,22 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     onUpgradeStarted,
     onToggleHistory,
     onDone,
-    previewInExplorerLink,
-    onPreviewInExplorer,
+    useInExplorerLink,
+    onUseInExplorer,
+    useInExplorerDisabledReason,
 }) => {
     const [isEditingDetails, setIsEditingDetails] = useState(false);
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
     const upgradeAvailable =
         upgrade?.status === 'stale' || upgrade?.status === 'legacy';
     const hasName = !!app?.name.trim();
-    // One filled action: Preview in explorer while it is on offer, Done
-    // otherwise (nothing to preview before the first ready version).
-    const showPreviewInExplorer =
+    // One filled action: Use in Explorer while it is on offer, Done otherwise
+    // (there is nothing to use before the first ready version).
+    const showUseInExplorer =
         latestReadyVersion !== null &&
-        (previewInExplorerLink !== null || onPreviewInExplorer !== null);
+        (useInExplorerLink !== null ||
+            onUseInExplorer !== null ||
+            useInExplorerDisabledReason !== null);
 
     return (
         <Box className={classes.header} component="header">
@@ -199,24 +207,38 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                 )}
                 <Button
                     size="xs"
-                    variant={showPreviewInExplorer ? 'default' : undefined}
+                    variant={showUseInExplorer ? 'default' : undefined}
                     onClick={onDone}
                 >
                     Done
                 </Button>
-                {showPreviewInExplorer &&
-                    (previewInExplorerLink ? (
+                {showUseInExplorer &&
+                    (useInExplorerDisabledReason !== null ? (
+                        <Tooltip label={useInExplorerDisabledReason}>
+                            {/* data-disabled keeps the button hoverable so the
+                                tooltip can say why it cannot run. */}
+                            <Button
+                                size="xs"
+                                data-disabled
+                                aria-disabled
+                                onClick={(event) => event.preventDefault()}
+                            >
+                                Use in Explorer
+                            </Button>
+                        </Tooltip>
+                    ) : useInExplorerLink ? (
                         <Button
                             size="xs"
                             component={Link}
-                            to={previewInExplorerLink}
+                            to={useInExplorerLink}
+                            onClick={onUseInExplorer ?? undefined}
                         >
-                            Preview in explorer
+                            Use in Explorer
                         </Button>
                     ) : (
-                        onPreviewInExplorer && (
-                            <Button size="xs" onClick={onPreviewInExplorer}>
-                                Preview in explorer
+                        onUseInExplorer && (
+                            <Button size="xs" onClick={onUseInExplorer}>
+                                Use in Explorer
                             </Button>
                         )
                     ))}

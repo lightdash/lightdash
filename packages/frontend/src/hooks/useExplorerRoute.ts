@@ -206,7 +206,7 @@ type BackwardsCompatibleCreateSavedChartVersionUrlParam = Omit<
 };
 
 /**
- * The chart type a "Preview in explorer" link carries. The search string
+ * The chart type a "Use in Explorer" link carries. The search string
  * survives picking a table in the explore sidebar, so the link can be minted
  * before a table is known.
  */
@@ -414,7 +414,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
         if (pathParams.tableId) {
             try {
                 const parsedChart = parseChartFromExplorerSearchParams(search);
-                // A "Preview in explorer" link preselects the chart type;
+                // A "Use in Explorer" link preselects the chart type;
                 // explicit chart state wins over the hint.
                 const dataAppVizUuid = parsedChart
                     ? null

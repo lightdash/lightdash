@@ -5,6 +5,7 @@ import MantineModal from '../../../components/common/MantineModal';
 import { useExplores } from '../../../hooks/useExplores';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { chartTypeInExplorerPath } from '../utils/chartTypeInExplorerDestination';
 
 type Props = {
     projectUuid: string;
@@ -15,10 +16,10 @@ type Props = {
 };
 
 /**
- * Table picker behind "Preview in explorer": the explorer needs a table to
- * run against, so the user chooses one and lands there with the chart type
- * preselected and its config panel open (dataAppVizUuid + chartSidebar
- * params, handled in useExplorerRoute).
+ * Table picker behind "Use in Explorer" when no query is remembered: the
+ * Explorer needs a table to run against, so the user chooses one and lands
+ * there with the chart type preselected and its config panel open
+ * (dataAppVizUuid + chartSidebar params, handled in useExplorerRoute).
  */
 const ChartTypePreviewTableModal: FC<Props> = ({
     projectUuid,
@@ -38,8 +39,8 @@ const ChartTypePreviewTableModal: FC<Props> = ({
         <MantineModal
             opened
             onClose={onClose}
-            title="Preview in explorer"
-            confirmLabel="Open in explorer"
+            title="Use in Explorer"
+            confirmLabel="Open in Explorer"
             confirmDisabled={tableName === null}
             onConfirm={() => {
                 if (tableName === null) return;
@@ -48,13 +49,17 @@ const ChartTypePreviewTableModal: FC<Props> = ({
                     properties: { projectUuid, registrySlug, tableName },
                 });
                 void navigate(
-                    `/projects/${projectUuid}/tables/${tableName}?dataAppVizUuid=${dataAppVizUuid}&chartSidebar=configure`,
+                    chartTypeInExplorerPath(
+                        projectUuid,
+                        tableName,
+                        dataAppVizUuid,
+                    ),
                 );
             }}
         >
             <Select
                 label="Table"
-                description="Choose the table to preview this chart type with."
+                description="Choose the table to use this chart type with."
                 placeholder="Select a table"
                 searchable
                 data={options}

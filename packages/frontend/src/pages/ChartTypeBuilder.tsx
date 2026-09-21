@@ -49,6 +49,7 @@ import { useConfigurePanelState } from '../features/chartTypes/builder/useConfig
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
 import { useDataAppVizResolvedColors } from '../features/chartTypes/hooks/useDataAppVizResolvedColors';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
+import { buildChartTypeInExplorerDestination } from '../features/chartTypes/utils/chartTypeInExplorerDestination';
 import { buildExplorerVizContext } from '../features/chartTypes/utils/explorerVizContext';
 import {
     previewSelectionFromApi,
@@ -63,6 +64,8 @@ import {
 } from '../hooks/useExplorerRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
 import classes from './ChartTypeBuilder.module.css';
 
 // No chart query here; auto-mapping belongs to charts binding fields.
@@ -86,6 +89,7 @@ const ChartTypeBuilder: FC = () => {
     const projectUuid = useProjectUuid();
     const location = useLocation();
     const navigate = useNavigate();
+    const { track } = useTracking();
     const [isPreviewTableOpen, setIsPreviewTableOpen] = useState(false);
     const explorerChart = useMemo(() => {
         try {
@@ -283,6 +287,60 @@ const ChartTypeBuilder: FC = () => {
         );
     }, [activeVizUuid, explorerChart, projectUuid]);
 
+    // The Explorer renders the latest ready version, so a destination built
+    // from an older one on screen would not match what lands there.
+    const isViewingOlderVersion =
+        workspace.viewedVersion !== null &&
+        workspace.viewedVersion !== history.latestReadyVersion;
+
+    // Coming from the Explorer, "Use in Explorer" goes back to that query;
+    // otherwise it opens the query this chart type was previewed on, chart
+    // type and inputs included. A binding that does not fit would arrive in
+    // an auto-running query it cannot render, so it takes the picker instead.
+    const useInExplorer = useMemo<{ to: To; tableName: string } | null>(() => {
+        if (explorerChart && explorerDestination) {
+            return {
+                to: explorerDestination,
+                tableName: explorerChart.tableName,
+            };
+        }
+        if (
+            !projectUuid ||
+            !activeVizUuid ||
+            !schema ||
+            isViewingOlderVersion ||
+            previewData.fit.status !== 'fits' ||
+            !previewData.metricQuery ||
+            previewData.selection.kind !== 'query'
+        ) {
+            return null;
+        }
+        return {
+            to: buildChartTypeInExplorerDestination({
+                projectUuid,
+                dataAppVizUuid: activeVizUuid,
+                exploreName: previewData.selection.exploreName,
+                metricQuery: previewData.metricQuery,
+                schema,
+                fieldMapping: previewData.fieldMapping,
+                optionValues: panel.optionValues,
+            }),
+            tableName: previewData.selection.exploreName,
+        };
+    }, [
+        explorerChart,
+        explorerDestination,
+        projectUuid,
+        activeVizUuid,
+        schema,
+        isViewingOlderVersion,
+        previewData.fit.status,
+        previewData.metricQuery,
+        previewData.selection,
+        previewData.fieldMapping,
+        panel.optionValues,
+    ]);
+
     // Falls back to `build.appUuid` for the window before the redirect below
     // adopts it, while the URL is still `/new`.
     const exit = useChartTypeAuthoringExit({
@@ -435,6 +493,22 @@ const ChartTypeBuilder: FC = () => {
         cleanupIfIdle();
         void navigate(chartTypeGalleryPath);
     };
+    // The action tracks wherever it lands; the picker tracks its own table
+    // once one is chosen.
+    const handleUseInExplorer = () => {
+        if (useInExplorer === null) {
+            setIsPreviewTableOpen(true);
+            return;
+        }
+        track({
+            name: EventName.CHART_TYPE_PREVIEW_IN_EXPLORER,
+            properties: {
+                projectUuid,
+                registrySlug: appMeta?.registrySlug ?? null,
+                tableName: useInExplorer.tableName,
+            },
+        });
+    };
 
     const backLink = explorerChart
         ? {
@@ -472,9 +546,12 @@ const ChartTypeBuilder: FC = () => {
                 onUpgradeStarted={workspace.openHistory}
                 onToggleHistory={workspace.toggleHistory}
                 onDone={handleDone}
-                previewInExplorerLink={explorerDestination}
-                onPreviewInExplorer={
-                    activeVizUuid ? () => setIsPreviewTableOpen(true) : null
+                useInExplorerLink={useInExplorer?.to ?? null}
+                onUseInExplorer={activeVizUuid ? handleUseInExplorer : null}
+                useInExplorerDisabledReason={
+                    isViewingOlderVersion
+                        ? 'Switch to the latest version to use it in Explorer'
+                        : null
                 }
             />
             <ChartTypeBuilderWorkspace

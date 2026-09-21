@@ -41,7 +41,7 @@ type Props = {
     /** A newer registry version of this official chart type exists */
     hasRegistryUpdate: boolean;
     onClick: () => void;
-    onPreview: () => void;
+    onUseInExplorer: () => void;
     onDelete: () => void;
 };
 
@@ -49,7 +49,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
     dataAppViz,
     hasRegistryUpdate,
     onClick,
-    onPreview,
+    onUseInExplorer,
     onDelete,
 }) => {
     const canEdit = useCanEditDataApp(dataAppViz.projectUuid, dataAppViz);
@@ -160,10 +160,10 @@ const ChartTypeGalleryCard: FC<Props> = ({
                                 }
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    onPreview();
+                                    onUseInExplorer();
                                 }}
                             >
-                                Preview in explorer
+                                Use in Explorer
                             </Menu.Item>
                             {canEdit && (
                                 <>

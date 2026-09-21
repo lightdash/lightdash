@@ -50,6 +50,7 @@ import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import RefreshDbtButton from '../RefreshDbtButton';
+import ChartStudioReturnBanner from './ChartStudioReturnBanner';
 import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
 import classes from './Explorer.module.css';
@@ -298,6 +299,12 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                         )}
 
                     {!isFullscreen && showQueryBuilder && <FiltersCard />}
+
+                    {/* Always mounted so dismissing it survives a fullscreen
+                        toggle. */}
+                    <ChartStudioReturnBanner
+                        hidden={isFullscreen || !showQueryBuilder}
+                    />
 
                     {/* The card also hosts the authoring modal, which needs
                         its visualization context. The chart itself pauses

@@ -48,8 +48,13 @@ import { useExploreByProjectUuid } from '../hooks/useExplore';
 import { useExplores } from '../hooks/useExplores';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
+import { EventName } from '../types/Events';
 import ChartTypeBuilder from './ChartTypeBuilder';
 
+const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock('../providers/Tracking/useTracking', () => ({
+    default: () => ({ track }),
+}));
 const { deleteApp } = vi.hoisted(() => ({ deleteApp: vi.fn() }));
 vi.mock('../features/apps/hooks/useDeleteApp', () => ({
     useDeleteApp: () => ({ mutate: deleteApp }),
@@ -697,7 +702,7 @@ describe('ChartTypeBuilder', () => {
         expect(
             screen.getByText('A funnel of signup steps'),
         ).toBeInTheDocument();
-        expect(screen.queryByText('Preview in explorer')).toBeNull();
+        expect(screen.queryByText('Use in Explorer')).toBeNull();
         // Nothing to configure before a schema exists.
         expect(screen.queryByText('Generated options')).toBeNull();
     });
@@ -1003,7 +1008,7 @@ describe('ChartTypeBuilder', () => {
         });
     });
 
-    it('previews the ready chart type with the existing Explorer query', () => {
+    it('uses the ready chart type with the existing Explorer query', () => {
         const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
         setApp(appMeta({ appUuid: dataAppVizUuid }));
         vi.mocked(useAppVersionHistory).mockReturnValue(
@@ -1014,7 +1019,7 @@ describe('ChartTypeBuilder', () => {
         );
 
         const previewLink = screen.getByRole('link', {
-            name: 'Preview in explorer',
+            name: 'Use in Explorer',
         });
         expect(previewLink).toHaveAttribute(
             'href',
@@ -1045,7 +1050,181 @@ describe('ChartTypeBuilder', () => {
         });
     });
 
-    it('previews a standalone chart type through the table picker', () => {
+    it('hands the Explorer the query the chart type was built on', () => {
+        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
+        setApp(
+            appMeta({
+                appUuid: dataAppVizUuid,
+                previewSelection: rememberedSelection,
+            }),
+        );
+        setSankeyVersion();
+        renderBuilder(`/projects/p1/chart-types/${dataAppVizUuid}`);
+
+        const useLink = screen.getByRole('link', { name: 'Use in Explorer' });
+        const destination = new URL(
+            useLink.getAttribute('href') ?? '',
+            'http://lightdash.local',
+        );
+
+        expect(destination.pathname).toBe('/projects/p1/tables/customers');
+        const chart = JSON.parse(
+            destination.searchParams.get('create_saved_chart_version') ?? '',
+        );
+        expect(chart.tableName).toBe('customers');
+        expect(chart.metricQuery.dimensions).toEqual(['customers_channel']);
+        expect(chart.metricQuery.metrics).toEqual(['customers_count']);
+        expect(chart.chartConfig).toEqual({
+            type: ChartType.DATA_APP_VIZ,
+            config: {
+                dataAppVizUuid,
+                fieldMapping: {
+                    source: 'customers_channel',
+                    value: 'customers_count',
+                },
+                optionValues: {},
+            },
+        });
+        // A way back to the chart type, and nothing run to mint the link.
+        expect(destination.searchParams.get('fromChartStudio')).toBe(
+            dataAppVizUuid,
+        );
+        // The builder's own url state is not dragged into the Explorer.
+        expect(destination.searchParams.get('fromSpace')).toBeNull();
+        expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+
+        // Rendering the link tracks nothing; following it tracks once.
+        const useInExplorerEvents = () =>
+            track.mock.calls.filter(
+                ([event]) =>
+                    event.name === EventName.CHART_TYPE_PREVIEW_IN_EXPLORER,
+            );
+        expect(useInExplorerEvents()).toHaveLength(0);
+
+        fireEvent.click(useLink);
+
+        expect(useInExplorerEvents()).toHaveLength(1);
+        expect(useInExplorerEvents()[0][0].properties).toEqual({
+            projectUuid: 'p1',
+            registrySlug: null,
+            tableName: 'customers',
+        });
+    });
+
+    it('holds the action back while an older version is on screen', () => {
+        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
+        setApp(
+            appMeta({
+                appUuid: dataAppVizUuid,
+                previewSelection: rememberedSelection,
+            }),
+        );
+        setSankeyVersion();
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub(
+                [appVersion({ version: 2 }), appVersion({ version: 1 })],
+                2,
+            ),
+        );
+        renderBuilder(`/projects/p1/chart-types/${dataAppVizUuid}`);
+
+        expect(
+            screen.getByRole('link', { name: 'Use in Explorer' }),
+        ).toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('History'));
+        fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+
+        // The Explorer renders the latest ready version, not this one.
+        expect(screen.queryByRole('link', { name: 'Use in Explorer' })).toBe(
+            null,
+        );
+        expect(
+            screen.getByRole('button', { name: 'Use in Explorer' }),
+        ).toHaveAttribute('aria-disabled', 'true');
+        expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+    });
+
+    it('takes the picker rather than an auto-run the binding cannot render', () => {
+        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
+        setApp(
+            appMeta({
+                appUuid: dataAppVizUuid,
+                previewSelection: {
+                    ...rememberedSelection,
+                    fieldMapping: { source: 'customers_channel' },
+                },
+            }),
+        );
+        setSankeyVersion();
+        // The explore has no second metric to fill the required value slot.
+        vi.mocked(useExploreByProjectUuid).mockReturnValue({
+            data: {
+                ...customersExplore,
+                tables: {
+                    customers: {
+                        ...customersExplore.tables.customers,
+                        metrics: {},
+                    },
+                },
+            },
+            error: null,
+        } as unknown as ReturnType<typeof useExploreByProjectUuid>);
+        renderBuilder(`/projects/p1/chart-types/${dataAppVizUuid}`);
+
+        expect(screen.queryByRole('link', { name: 'Use in Explorer' })).toBe(
+            null,
+        );
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Use in Explorer' }),
+        );
+        expect(
+            screen.getByRole('dialog', { name: 'Use in Explorer' }),
+        ).toBeInTheDocument();
+        expect(executeChartTypePreviewQuery).not.toHaveBeenCalled();
+    });
+
+    it('blocks Use in Explorer while a build is still running', async () => {
+        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
+        setApp(
+            appMeta({
+                appUuid: dataAppVizUuid,
+                previewSelection: rememberedSelection,
+            }),
+        );
+        setSankeyVersion();
+        // A revision build on top of the ready version the page renders.
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub(
+                [
+                    appVersion({ version: 2, status: 'generating' }),
+                    appVersion({ version: 1 }),
+                ],
+                1,
+            ),
+        );
+        vi.mocked(useDataAppVizBuild).mockReturnValue(
+            buildStub({
+                isBuilding: true,
+                appUuid: dataAppVizUuid,
+                claimedVersion: 2,
+            }),
+        );
+        renderBuilder(`/projects/p1/chart-types/${dataAppVizUuid}`);
+
+        await act(async () => {
+            fireEvent.click(
+                screen.getByRole('link', { name: 'Use in Explorer' }),
+            );
+        });
+
+        expect(screen.getByText('Build in progress')).toBeInTheDocument();
+        expect(screen.getByTestId('location')).toHaveTextContent(
+            `/projects/p1/chart-types/${dataAppVizUuid}`,
+        );
+    });
+
+    it('uses a standalone chart type through the table picker', () => {
         const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
         setApp(appMeta({ appUuid: dataAppVizUuid }));
         vi.mocked(useAppVersionHistory).mockReturnValue(
@@ -1057,21 +1236,21 @@ describe('ChartTypeBuilder', () => {
             screen.getByRole('link', { name: 'Chart types' }),
         ).toHaveAttribute('href', '/projects/p1/chart-types');
         fireEvent.click(
-            screen.getByRole('button', { name: 'Preview in explorer' }),
+            screen.getByRole('button', { name: 'Use in Explorer' }),
         );
         expect(
-            screen.getByRole('dialog', { name: 'Preview in explorer' }),
+            screen.getByRole('dialog', { name: 'Use in Explorer' }),
         ).toBeInTheDocument();
         expect(screen.getByTestId('location')).toHaveTextContent(
             `/projects/p1/chart-types/${dataAppVizUuid}`,
         );
         expect(
-            screen.getByRole('button', { name: 'Open in explorer' }),
+            screen.getByRole('button', { name: 'Open in Explorer' }),
         ).toBeDisabled();
         fireEvent.click(screen.getByPlaceholderText('Select a table'));
         fireEvent.click(screen.getByText('Orders'));
         fireEvent.click(
-            screen.getByRole('button', { name: 'Open in explorer' }),
+            screen.getByRole('button', { name: 'Open in Explorer' }),
         );
         expect(screen.getByTestId('location')).toHaveTextContent(
             `/projects/p1/tables/orders?dataAppVizUuid=${dataAppVizUuid}&chartSidebar=configure`,
@@ -1221,7 +1400,7 @@ describe('ChartTypeBuilder', () => {
         expect(screen.getByTestId('app-preview')).toHaveTextContent(
             'preview-v2',
         );
-        expect(screen.getByText('Preview in explorer')).toBeInTheDocument();
+        expect(screen.getByText('Use in Explorer')).toBeInTheDocument();
         expect(
             screen.getByPlaceholderText('Ask for a change…'),
         ).toBeInTheDocument();

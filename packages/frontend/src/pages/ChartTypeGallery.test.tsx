@@ -199,6 +199,7 @@ const renderPage = (initialEntry = '/projects/project-1/chart-types') =>
                     path="/projects/:projectUuid/tables/:tableId"
                     element={
                         <div data-testid="explore-probe">
+                            <LocationPathname />
                             <LocationSearch />
                         </div>
                     }
@@ -299,9 +300,11 @@ describe('ChartTypeGallery', () => {
 
         fireEvent.click(screen.getByText('Radial gauge'));
 
-        expect(screen.getByText('Preview in explorer')).toBeInTheDocument();
+        expect(screen.getByText('Use in Explorer')).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'Edit' }).closest('a'),
+            screen
+                .getByRole('link', { name: 'Edit in Chart Studio' })
+                .closest('a'),
         ).toHaveAttribute(
             'href',
             '/projects/project-1/chart-types/radial-gauge',
@@ -468,11 +471,9 @@ describe('ChartTypeGallery', () => {
 
         fireEvent.click(screen.getByLabelText('Actions for Radial gauge'));
 
-        fireEvent.click(screen.getByText('Preview in explorer'));
+        fireEvent.click(screen.getByText('Use in Explorer'));
         expect(
-            screen.getByText(
-                'Choose the table to preview this chart type with.',
-            ),
+            screen.getByText('Choose the table to use this chart type with.'),
         ).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
@@ -642,7 +643,7 @@ describe('ChartTypeGallery', () => {
 
         await user.click(screen.getByText('Radial gauge'));
         await user.click(
-            screen.getByRole('button', { name: 'Preview in explorer' }),
+            screen.getByRole('button', { name: 'Use in Explorer' }),
         );
 
         await waitFor(() =>
@@ -662,7 +663,7 @@ describe('ChartTypeGallery', () => {
         await user.keyboard('{Escape}');
 
         expect(
-            screen.queryByRole('dialog', { name: 'Preview in explorer' }),
+            screen.queryByRole('dialog', { name: 'Use in Explorer' }),
         ).not.toBeInTheDocument();
         expect(
             track.mock.calls.filter(
@@ -680,34 +681,63 @@ describe('ChartTypeGallery', () => {
             renderPage();
             await user.click(screen.getByText('Radial gauge'));
             await user.click(
-                screen.getByRole('button', { name: 'Preview in explorer' }),
+                screen.getByRole('button', { name: 'Use in Explorer' }),
             );
             await user.click(
                 within(
-                    screen.getByRole('dialog', { name: 'Preview in explorer' }),
+                    screen.getByRole('dialog', { name: 'Use in Explorer' }),
                 ).getByRole('button', { name: action }),
             );
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         },
     );
 
-    it('previews in the explorer with the chosen table and config open', () => {
+    it('opens the explorer with the chosen table and config open', () => {
         setData([makeDataAppViz({})]);
         renderPage();
 
         fireEvent.click(screen.getByText('Radial gauge'));
         fireEvent.click(
-            screen.getByRole('button', { name: 'Preview in explorer' }),
+            screen.getByRole('button', { name: 'Use in Explorer' }),
         );
 
         const tableInput = screen.getByPlaceholderText('Select a table');
         fireEvent.click(tableInput);
         fireEvent.click(screen.getByText('Orders'));
         fireEvent.click(
-            screen.getByRole('button', { name: 'Open in explorer' }),
+            screen.getByRole('button', { name: 'Open in Explorer' }),
         );
 
         expect(screen.getByTestId('explore-probe')).toBeInTheDocument();
+        expect(screen.getByTestId('location-search')).toHaveTextContent(
+            'dataAppVizUuid=data-app-viz-1',
+        );
+        expect(screen.getByTestId('location-search')).toHaveTextContent(
+            'chartSidebar=configure',
+        );
+    });
+
+    it('opens the remembered explore without asking for a table', () => {
+        setData([
+            makeDataAppViz({
+                previewSelection: {
+                    exploreName: 'customers',
+                    fieldCount: 3,
+                    updatedAt: new Date('2026-09-01'),
+                },
+            }),
+        ]);
+        renderPage();
+
+        fireEvent.click(screen.getByText('Radial gauge'));
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Use in Explorer' }),
+        );
+
+        expect(screen.queryByPlaceholderText('Select a table')).toBeNull();
+        expect(screen.getByTestId('location-pathname')).toHaveTextContent(
+            '/projects/project-1/tables/customers',
+        );
         expect(screen.getByTestId('location-search')).toHaveTextContent(
             'dataAppVizUuid=data-app-viz-1',
         );
@@ -727,7 +757,7 @@ describe('ChartTypeGallery', () => {
 
         fireEvent.click(screen.getByLabelText('Actions for Radial gauge'));
 
-        expect(screen.getByText('Preview in explorer')).toBeInTheDocument();
+        expect(screen.getByText('Use in Explorer')).toBeInTheDocument();
         expect(screen.queryByText('Delete')).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByText('Radial gauge'));

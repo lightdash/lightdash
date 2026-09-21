@@ -37,7 +37,9 @@ type Props = {
     /** This chart type's registry entry, when it is a registry install */
     registryEntry: RegistryChartTypeListItem | null;
     onClose: () => void;
-    onPreview: () => void;
+    /** Opens the Explorer on this chart type: the remembered explore when
+     *  there is one, the table picker otherwise. */
+    onUseInExplorer: () => void;
     onDelete: () => void;
 };
 
@@ -48,7 +50,7 @@ const ChartTypeDetailModal: FC<Props> = ({
     isActive,
     registryEntry,
     onClose,
-    onPreview,
+    onUseInExplorer,
     onDelete,
 }) => {
     const canEdit = useCanEditDataApp(projectUuid, dataAppViz);
@@ -172,12 +174,12 @@ const ChartTypeDetailModal: FC<Props> = ({
                                       <MantineIcon icon={IconFilePencil} />
                                   }
                               >
-                                  Edit
+                                  Edit in Chart Studio
                               </Button>
                           )
                 }
-                onConfirm={onPreview}
-                confirmLabel="Preview in explorer"
+                onConfirm={onUseInExplorer}
+                confirmLabel="Use in Explorer"
             >
                 <Stack gap="md">
                     <Box className={classes.preview}>
