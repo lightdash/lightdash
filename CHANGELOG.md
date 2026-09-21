@@ -1,3 +1,10 @@
+## [2.269.1](https://github.com/lightdash/lightdash/compare/2.269.0...2.269.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* **data-apps:** surface build setup failures and diagnostics ([#29621](https://github.com/lightdash/lightdash/issues/29621)) ([506c8eb](https://github.com/lightdash/lightdash/commit/506c8eb190545f1417358dce83d5eb5f2264f8e6))
+
 # [2.269.0](https://github.com/lightdash/lightdash/compare/2.268.0...2.269.0) (2026-09-18)
 
 
