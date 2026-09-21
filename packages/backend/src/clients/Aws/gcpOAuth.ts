@@ -25,15 +25,18 @@ export async function getGcpAccessToken(): Promise<string> {
 }
 
 /**
- * GCS only honors the `x-amz-*` spelling of these headers on requests signed
- * with HMAC interop credentials. Under a bearer token the XML API expects
- * `x-goog-*`, so an untranslated `x-amz-copy-source` is silently dropped and
- * CopyObject fails with `InvalidArgument: Missing copy source`. Covers the
- * copy source itself, its conditional variants, the range header that
- * UploadPartCopy sends, and the metadata directive.
+ * The headers whose `x-amz-*` spelling carries meaning GCS can honor under a
+ * bearer token once rewritten to `x-goog-*`: the copy source with its
+ * conditional variants, the range header that UploadPartCopy sends, the
+ * metadata directive, and user metadata. Every other `x-amz-*` header is
+ * deleted rather than translated, because GCS locks a request into a header
+ * dialect — S3 or GCS — based on the FIRST `x-amz-*` or `x-goog-*` header it
+ * sees. The SDK puts `x-amz-user-agent` before everything else, so leaving it
+ * in place makes GCS read the request as S3-dialect and reject the
+ * translated `x-goog-*` headers with a bare `InvalidArgument`.
  */
 const HEADERS_GCS_READS_UNDER_OAUTH =
-    /^x-amz-(copy-source(-.+)?|metadata-directive)$/;
+    /^x-amz-(copy-source(-.+)?|metadata-directive|meta-.+)$/;
 
 /**
  * Sends a Google OAuth bearer token instead of a SigV4 signature.
@@ -51,14 +54,14 @@ export function applyGcpOAuth(client: S3 | S3Client): void {
             if (!HttpRequest.isInstance(request)) return next(args);
             request.headers.authorization = `Bearer ${await getGcpAccessToken()}`;
             Object.keys(request.headers).forEach((name) => {
-                const match = name
-                    .toLowerCase()
-                    .match(HEADERS_GCS_READS_UNDER_OAUTH);
+                const lower = name.toLowerCase();
+                if (!lower.startsWith('x-amz-')) return;
+                const match = lower.match(HEADERS_GCS_READS_UNDER_OAUTH);
                 if (match) {
                     request.headers[`x-goog-${match[1]}`] =
                         request.headers[name];
-                    delete request.headers[name];
                 }
+                delete request.headers[name];
             });
             return next(args);
         },
