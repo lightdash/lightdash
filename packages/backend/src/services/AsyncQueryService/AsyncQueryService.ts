@@ -266,6 +266,7 @@ import {
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 import { type ComposeEngineClient } from './ComposeEngineClient';
+import { resolveDashboardDateFilters } from './dashboardDateFilters';
 import { getValidatedDashboardSorts } from './dashboardSorts';
 import { DuckdbQueryRefusal } from './DuckdbQueryRefusal';
 import { getPivotedColumns } from './getPivotedColumns';
@@ -6907,6 +6908,17 @@ export class AsyncQueryService extends ProjectService {
                 }),
             );
 
+        const resolvedDashboardFilters = await resolveDashboardDateFilters({
+            tileUuid,
+            dashboardFilters,
+            explore,
+            findExploreContainingTable: (tableName) =>
+                this.projectModel.findExploreContainingTable(
+                    projectUuid,
+                    tableName,
+                ),
+        });
+
         if (savedChart.merge) {
             return this.executeAsyncDashboardMergeQuery({
                 account,
@@ -6916,7 +6928,7 @@ export class AsyncQueryService extends ProjectService {
                 primaryExplore: explore,
                 tileUuid,
                 dashboardUuid: resolvedDashboardUuid,
-                dashboardFilters,
+                dashboardFilters: resolvedDashboardFilters,
                 context,
                 invalidateCache,
                 limit,
@@ -6930,7 +6942,7 @@ export class AsyncQueryService extends ProjectService {
             applyDashboardFiltersForTile({
                 tileUuid,
                 metricQuery: savedChart.metricQuery,
-                dashboardFilters,
+                dashboardFilters: resolvedDashboardFilters,
                 explore,
             });
 
@@ -10084,7 +10096,15 @@ export class AsyncQueryService extends ProjectService {
             sql: savedChart.sql,
             config: savedChart.config,
             tileUuid,
-            dashboardFilters,
+            dashboardFilters: await resolveDashboardDateFilters({
+                tileUuid,
+                dashboardFilters,
+                findExploreContainingTable: (tableName) =>
+                    this.projectModel.findExploreContainingTable(
+                        projectUuid,
+                        tableName,
+                    ),
+            }),
             dashboardSorts,
             limit: limit ?? savedChart.limit,
             parameters: combinedParameters,

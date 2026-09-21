@@ -122,6 +122,142 @@ const formatTimestamp = (date: Date): string =>
     moment(date).format('YYYY-MM-DD HH:mm:ssZ');
 
 describe('Filter SQL', () => {
+    test('selected periods do not depend on the server timezone', () => {
+        vi.stubEnv('TZ', 'America/Los_Angeles');
+        try {
+            expect(
+                renderDateFilterSql({
+                    dimensionSql: 'event_date',
+                    filter: {
+                        id: 'period',
+                        target: {},
+                        operator: FilterOperator.EQUALS,
+                        values: ['2026-03-01T00:00:00Z'],
+                        settings: { selectedPeriod: UnitOfTime.months },
+                    },
+                    adapterType: SupportedDbtAdapter.POSTGRES,
+                    timezone: 'UTC',
+                }),
+            ).toBe(
+                "((event_date) >= ('2026-03-01') AND (event_date) < ('2026-04-01'))",
+            );
+        } finally {
+            vi.unstubAllEnvs();
+        }
+    });
+
+    test.each([
+        [UnitOfTime.months, '2024-02-01', '2024-03-01'],
+        [UnitOfTime.quarters, '2026-10-01', '2027-01-01'],
+        [UnitOfTime.years, '2024', '2025-01-01'],
+        [UnitOfTime.weeks, '2026-02-02', '2026-02-09'],
+    ])(
+        'expands a selected %s period with an exclusive upper bound',
+        (period, value, end) => {
+            const sql = renderDateFilterSql({
+                dimensionSql: 'event_date',
+                filter: {
+                    id: 'period-filter',
+                    target: {},
+                    operator: FilterOperator.EQUALS,
+                    values: [value],
+                    settings: { selectedPeriod: period },
+                },
+                adapterType: SupportedDbtAdapter.POSTGRES,
+                timezone: 'UTC',
+            });
+            expect(sql).toBe(
+                `((event_date) >= ('${value.length === 4 ? `${value}-01-01` : value}') AND (event_date) < ('${end}'))`,
+            );
+        },
+    );
+
+    test.each(Object.values(SupportedDbtAdapter))(
+        'preserves multiple excluded months and nulls for %s',
+        (adapter) => {
+            const sql = renderDateFilterSql({
+                dimensionSql: 'event_date',
+                filter: {
+                    id: 'period-filter',
+                    target: {},
+                    operator: FilterOperator.NOT_EQUALS,
+                    values: ['2026-01-01', '2026-03-01'],
+                    settings: { selectedPeriod: UnitOfTime.months },
+                },
+                adapterType: adapter,
+                timezone: 'UTC',
+            });
+            expect(sql).toContain('NOT (');
+            expect(sql).toContain(' OR ((event_date) >=');
+            expect(sql).toContain('2026-02-01');
+            expect(sql).toContain('2026-04-01');
+            expect(sql).toContain('OR (event_date) IS NULL');
+        },
+    );
+
+    test('uses the configured week start for selected weeks', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: 'event_date',
+                filter: {
+                    id: 'week',
+                    target: {},
+                    operator: FilterOperator.EQUALS,
+                    values: ['2026-02-08'],
+                    settings: { selectedPeriod: UnitOfTime.weeks },
+                },
+                adapterType: SupportedDbtAdapter.POSTGRES,
+                timezone: 'UTC',
+                startOfWeek: WeekDay.SUNDAY,
+            }),
+        ).toBe(
+            "((event_date) >= ('2026-02-08') AND (event_date) < ('2026-02-15'))",
+        );
+    });
+
+    test.each(['2026-03-01', '2026-03-01T00:00:00Z'])(
+        'selected timestamp month boundaries account for daylight saving (%s)',
+        (value) => {
+            expect(
+                renderTimestampFilterSql({
+                    dimensionSql: 'event_timestamp',
+                    filter: {
+                        id: 'month',
+                        target: {},
+                        operator: FilterOperator.EQUALS,
+                        values: [value],
+                        settings: { selectedPeriod: UnitOfTime.months },
+                    },
+                    adapterType: SupportedDbtAdapter.POSTGRES,
+                    timezone: 'America/New_York',
+                    timestampFormatter: (date) =>
+                        momentTz(date).utc().format('YYYY-MM-DD HH:mm:ssZ'),
+                }),
+            ).toBe(
+                "((event_timestamp) >= ('2026-03-01 05:00:00+00:00') AND (event_timestamp) < ('2026-04-01 04:00:00+00:00'))",
+            );
+        },
+    );
+
+    test('dashboard month selection includes the entire month on a day target', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: 'event_date',
+                filter: {
+                    id: 'month-filter',
+                    target: { fieldId: 'event_date' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['2026-02-01'],
+                    settings: { selectedPeriod: UnitOfTime.months },
+                },
+                adapterType: SupportedDbtAdapter.POSTGRES,
+                timezone: 'UTC',
+            }),
+        ).toBe(
+            "((event_date) >= ('2026-02-01') AND (event_date) < ('2026-03-01'))",
+        );
+    });
+
     beforeAll(() => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
@@ -3246,6 +3382,53 @@ describe('domain-directed timestamp filter literals', () => {
             timestampFilterContext,
         );
     };
+
+    test.each([
+        {
+            timestampDomain: 'naive' as const,
+            timeInterval: TimeFrames.RAW,
+            lhsMode: 'legacy' as const,
+            start: "('2026-03-01 14:00:00'::timestamp)",
+            end: "('2026-04-01 13:00:00'::timestamp)",
+        },
+        {
+            timestampDomain: 'aware' as const,
+            timeInterval: TimeFrames.RAW,
+            lhsMode: 'legacy' as const,
+            start: "('2026-03-01 05:00:00+00:00')",
+            end: "('2026-04-01 04:00:00+00:00')",
+        },
+        {
+            timestampDomain: 'naive' as const,
+            timeInterval: TimeFrames.HOUR,
+            lhsMode: 'wrapped' as const,
+            start: "('2026-03-01 00:00:00'::timestamp) AT TIME ZONE 'America/New_York'",
+            end: "('2026-04-01 00:00:00'::timestamp) AT TIME ZONE 'America/New_York'",
+        },
+    ])(
+        'renders selected-month boundaries in the $timestampDomain / $lhsMode domain',
+        ({ start, end, ...context }) => {
+            expect(
+                renderTimestamp(
+                    SupportedDbtAdapter.POSTGRES,
+                    {
+                        id: 'period',
+                        target: {},
+                        operator: FilterOperator.EQUALS,
+                        values: ['2026-03-01'],
+                        settings: { selectedPeriod: UnitOfTime.months },
+                    },
+                    {
+                        ...context,
+                        sourceTimezone: 'Asia/Tokyo',
+                        timezone: 'America/New_York',
+                    },
+                ),
+            ).toBe(
+                `((${DimensionSqlMock}) >= ${start} AND (${DimensionSqlMock}) < ${end})`,
+            );
+        },
+    );
 
     describe('bare naive LHS (RAW frame) renders typed data-timezone wall clocks', () => {
         test.each([

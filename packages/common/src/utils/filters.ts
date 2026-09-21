@@ -1029,6 +1029,9 @@ export const getDashboardFilterRulesForTile = (
 
             return {
                 ...filter,
+                ...(tileConfig.fieldId !== filter.target.fieldId && {
+                    sourceTarget: filter.sourceTarget ?? filter.target,
+                }),
                 target: tileConfig,
             };
         })

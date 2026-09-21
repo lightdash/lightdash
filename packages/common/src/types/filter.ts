@@ -188,6 +188,8 @@ export type DashboardFilterRule<
     V = AnyType,
     S = AnyType,
 > = FilterRule<O, T, V, S> & {
+    /** Original field before a dashboard tile target override. */
+    sourceTarget?: DashboardFieldTarget;
     tileTargets?: DashboardTileTargets;
     label: undefined | string;
     singleValue?: boolean;
@@ -217,6 +219,12 @@ export type DashboardFilterRuleOverride = Omit<
 >;
 
 export type DateFilterSettings = {
+    /** Calendar period selected on a coarser dashboard source field. */
+    selectedPeriod?:
+        | UnitOfTime.weeks
+        | UnitOfTime.months
+        | UnitOfTime.quarters
+        | UnitOfTime.years;
     /** Time unit for relative date filters */
     unitOfTime?: UnitOfTime;
     /** For date filters, whether to include completed periods */
@@ -234,6 +242,7 @@ export const isDateFilterRule = (
     filter: FilterRule<FilterOperator, FieldTarget | unknown, AnyType, AnyType>,
 ): filter is DateFilterRule =>
     'unitOfTime' in (filter.settings || {}) ||
+    'selectedPeriod' in (filter.settings || {}) ||
     'completed' in (filter.settings || {});
 
 export type FilterGroupItem = FilterGroup | FilterRule;

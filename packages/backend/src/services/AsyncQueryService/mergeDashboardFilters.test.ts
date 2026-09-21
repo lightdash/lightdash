@@ -8,6 +8,8 @@ import {
     MergeJoinType,
     MetricType,
     SupportedDbtAdapter,
+    TimeFrames,
+    UnitOfTime,
     type DashboardFilterRule,
     type DashboardFilters,
     type Explore,
@@ -15,7 +17,8 @@ import {
     type MergeQuerySource,
     type MetricQuery,
 } from '@lightdash/common';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { resolveDashboardDateFilters } from './dashboardDateFilters';
 import {
     applyDashboardFiltersToMergeQuery,
     applyFilterOverridesToMergeQuery,
@@ -503,5 +506,115 @@ describe('applyFilterOverridesToMergeQuery', () => {
         });
 
         expect(sourceById(result, 'payments')).toBe(mergeQuery.sources[1]);
+    });
+});
+
+describe('dashboard calendar periods on merged sources', () => {
+    it('preserves hydrated month filters on both primary and secondary day fields', async () => {
+        const primaryExplore = buildExplore('orders', {
+            orders: {
+                dimensions: ['month', 'day'],
+                metrics: ['total_order_amount'],
+            },
+        });
+        const dateTable = {
+            ...primaryExplore.tables.orders,
+            dimensions: Object.fromEntries(
+                Object.entries(primaryExplore.tables.orders.dimensions).map(
+                    ([name, dimension]) => [
+                        name,
+                        {
+                            ...dimension,
+                            type: DimensionType.DATE,
+                            timeInterval:
+                                name === 'month'
+                                    ? TimeFrames.MONTH
+                                    : TimeFrames.DAY,
+                        },
+                    ],
+                ),
+            ),
+        };
+        const primaryDateExplore = {
+            ...primaryExplore,
+            tables: { orders: dateTable },
+        };
+        const secondaryDateExplore = {
+            ...paymentsExplore,
+            tables: { ...paymentsExplore.tables, orders: dateTable },
+        };
+        const dashboardFilters = await resolveDashboardDateFilters({
+            tileUuid: TILE,
+            dashboardFilters: filters({
+                dimensions: [
+                    rule('month-selection', 'orders_month', 'orders', {
+                        values: ['2026-02-01'],
+                        tileTargets: {
+                            [TILE]: {
+                                fieldId: 'orders_day',
+                                tableName: 'orders',
+                            },
+                        },
+                    }),
+                ],
+            }),
+            explore: primaryDateExplore,
+            findExploreContainingTable: vi.fn().mockResolvedValue(undefined),
+        });
+
+        const result = applyDashboardFiltersToMergeQuery({
+            tileUuid: TILE,
+            mergeQuery: {
+                ...mergeQuery,
+                sources: [
+                    {
+                        id: 'orders',
+                        metricQuery: {
+                            ...ordersByMonth,
+                            dimensions: ['orders_day'],
+                        },
+                    },
+                    {
+                        id: 'payments',
+                        metricQuery: {
+                            ...paymentsByMonth,
+                            dimensions: ['orders_day'],
+                        },
+                    },
+                ],
+                joinKey: [
+                    {
+                        name: 'order_day',
+                        fieldIdBySourceId: {
+                            orders: 'orders_day',
+                            payments: 'orders_day',
+                        },
+                    },
+                ],
+            },
+            dashboardFilters,
+            exploreBySourceId: {
+                orders: primaryDateExplore,
+                payments: secondaryDateExplore,
+            },
+        });
+
+        for (const sourceId of ['orders', 'payments']) {
+            const source = sourceById(result.mergeQuery, sourceId);
+            if (!isMergeMetricSource(source)) {
+                throw new Error('Expected a metric source');
+            }
+            expect(
+                getFilterRulesFromGroup(source.metricQuery.filters.dimensions),
+            ).toEqual([
+                expect.objectContaining({
+                    target: expect.objectContaining({ fieldId: 'orders_day' }),
+                    operator: FilterOperator.EQUALS,
+                    values: ['2026-02-01'],
+                    settings: { selectedPeriod: UnitOfTime.months },
+                }),
+            ]);
+        }
+        expect(result.refusedDashboardFilters).toEqual([]);
     });
 });

@@ -557,6 +557,10 @@
                         "singleValue": {
                             "type": "boolean"
                         },
+                        "sourceTarget": {
+                            "$ref": "#/$defs/DashboardFieldTarget",
+                            "description": "Original field before a dashboard tile target override."
+                        },
                         "tileTargets": {
                             "$ref": "#/$defs/DashboardTileTargets"
                         }
@@ -1325,6 +1329,10 @@
                 },
                 "singleValue": {
                     "type": "boolean"
+                },
+                "sourceTarget": {
+                    "$ref": "#/$defs/DashboardFieldTarget",
+                    "description": "Original field before a dashboard tile target override."
                 },
                 "target": {
                     "$ref": "#/$defs/DashboardFieldTarget",
