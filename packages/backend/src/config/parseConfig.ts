@@ -51,6 +51,7 @@ import {
     DEFAULT_OPENAI_EMBEDDING_MODEL,
     DEFAULT_OPENAI_MODEL_NAME,
     DEFAULT_OPENROUTER_MODEL_NAME,
+    DEFAULT_VERTEX_MODEL_NAME,
 } from './aiConfigSchema';
 import {
     normalizeAnthropicGatewayBaseUrl,
@@ -1485,7 +1486,7 @@ export const getAiConfig = () => ({
                             },
                       modelName:
                           process.env.GOOGLE_VERTEX_MODEL_NAME ||
-                          DEFAULT_GOOGLE_MODEL_NAME,
+                          DEFAULT_VERTEX_MODEL_NAME,
                       fastModelName:
                           process.env.GOOGLE_VERTEX_FAST_MODEL_NAME ||
                           undefined,
