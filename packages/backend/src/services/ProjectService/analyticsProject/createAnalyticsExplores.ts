@@ -68,6 +68,9 @@ export const createAnalyticsExplores = (): Explore[] => {
         return {
             name,
             label,
+            ...(name === 'query_events'
+                ? { primaryKey: ['org_id', 'query_id'] }
+                : {}),
             sqlTable: `"${name}"`,
             database: 'memory',
             schema: 'main',
@@ -90,7 +93,7 @@ export const createAnalyticsExplores = (): Explore[] => {
 
     return streams.map((name) => {
         const dimensions: UsageDimensionName[] =
-            name === 'query_events'
+            name === 'query_events' || name === 'export_events'
                 ? ['charts', 'dashboards', 'users']
                 : ['users'];
         if (name === 'ai_usage') dimensions.push('agents');
@@ -141,21 +144,12 @@ export const createAnalyticsExplores = (): Explore[] => {
             tags: [],
             baseTable: name,
             joinedTables: [
-                ...dimensions.map((dimension) => {
-                    const table = usageDimensionTable(dimension);
-                    const id = dimensionFields[dimension].key;
-                    return {
-                        table,
-                        type: 'left' as const,
-                        relationship: JoinRelationship.MANY_TO_ONE,
-                        sqlOn: `\${${name}.org_id} = \${${table}.org_id} AND \${${name}.${id}} = \${${table}.${id}}`,
-                    };
-                }),
                 ...(includeQueryMetadata
                     ? [
                           {
                               table: 'query_events',
-                              sqlOn: '${export_events.query_id} = ${query_events.query_id}',
+                              type: 'left' as const,
+                              sqlOn: '${export_events.org_id} = ${query_events.org_id} AND ${export_events.query_id} = ${query_events.query_id}',
                               relationship: JoinRelationship.MANY_TO_ONE,
                               fields: [
                                   'chart_id',
@@ -165,6 +159,20 @@ export const createAnalyticsExplores = (): Explore[] => {
                           },
                       ]
                     : []),
+                ...dimensions.map((dimension) => {
+                    const table = usageDimensionTable(dimension);
+                    const id = dimensionFields[dimension].key;
+                    const source =
+                        includeQueryMetadata && dimension !== 'users'
+                            ? 'query_events'
+                            : name;
+                    return {
+                        table,
+                        type: 'left' as const,
+                        relationship: JoinRelationship.MANY_TO_ONE,
+                        sqlOn: `\${${name}.org_id} = \${${table}.org_id} AND \${${source}.${id}} = \${${table}.${id}}`,
+                    };
+                }),
             ],
             meta: {},
             targetDatabase: sqlBuilder.getAdapterType(),
