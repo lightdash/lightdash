@@ -6,6 +6,7 @@ import {
     type Explore,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
+import { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { mockOrdersExplore } from '../utils/validationExplore.mock';
 import { getSearchFieldValues } from './searchFieldValues';
 
@@ -24,6 +25,46 @@ const execute = async (
 };
 
 describe('getSearchFieldValues', () => {
+    it.each([false, true])(
+        'keeps an empty lookup and supplies exclusion guidance only in fast mode: %s',
+        async (enabled) => {
+            const decisions = new AiDecisionClient({
+                apiKey: null,
+                model: 'test',
+                timeoutMs: 100,
+            });
+            const evaluate = vi.spyOn(decisions, 'evaluate');
+            const searchFieldValues = vi.fn().mockResolvedValue([]);
+            const tool = getSearchFieldValues({
+                decisions: enabled ? decisions : undefined,
+                searchFieldValues,
+                getExplore: vi.fn(),
+                enableFilterExpressions: false,
+            });
+            const output = await execute(tool, {
+                table: 'orders',
+                fieldId: 'orders_status',
+                query: 'cancelled',
+                filters: null,
+            });
+            expect(output.metadata.status).toBe('success');
+            expect(output.result).toContain('```json\n[]\n```');
+            expect(
+                output.result.includes(
+                    'Preserve an explicitly requested literal exclusion',
+                ),
+            ).toBe(enabled);
+            expect(output.result).not.toContain('Matching value for');
+            expect(evaluate).not.toHaveBeenCalled();
+            expect(searchFieldValues).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    table: 'orders',
+                    fieldId: 'orders_status',
+                    query: 'cancelled',
+                }),
+            );
+        },
+    );
     it('keeps structured filters when expressions are disabled', async () => {
         const searchFieldValues = vi.fn().mockResolvedValue(['completed']);
         const tool = getSearchFieldValues({

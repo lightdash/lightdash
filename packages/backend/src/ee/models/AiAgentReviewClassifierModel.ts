@@ -223,6 +223,7 @@ type ListTurnReviewCandidatesArgs = {
     startedAt?: Date;
     endedAt?: Date;
     limit?: number;
+    supportingEvidenceLimit?: number;
 };
 
 type ListReviewItemsArgs = {
@@ -817,6 +818,7 @@ export class AiAgentReviewClassifierModel {
                         base.prompt,
                         base.human_feedback,
                         base.error_message,
+                        args.supportingEvidenceLimit,
                     ),
                     this.fetchTurnToolOutcomes(base.ai_prompt_uuid),
                 ]);
@@ -1178,6 +1180,7 @@ export class AiAgentReviewClassifierModel {
         userPrompt: string,
         humanFeedback: string | null,
         errorMessage: string | null,
+        limit = 5,
     ): Promise<TurnReviewCandidateRow['supporting_evidence_summaries']> {
         const rows: ToolCallEvidenceRow[] = await this.database(
             `${AiAgentToolCallTableName} as tool_call`,
@@ -1225,16 +1228,18 @@ export class AiAgentReviewClassifierModel {
             errorMessage,
         });
 
-        return ranked.slice(0, 5).map((entry) => ({
-            source: 'tool_trace' as const,
-            toolCallId: entry.tool_call_id,
-            toolName: entry.tool_name,
-            parentToolCallId: entry.parent_tool_call_id,
-            createdAt: entry.created_at.toISOString(),
-            relevanceScore: entry.relevance_score,
-            toolArgsPreview: previewToolArgs(entry.tool_args),
-            resultPreview: previewResult(entry.result),
-        }));
+        return ranked
+            .slice(0, Math.min(30, Math.max(1, Math.floor(limit))))
+            .map((entry) => ({
+                source: 'tool_trace' as const,
+                toolCallId: entry.tool_call_id,
+                toolName: entry.tool_name,
+                parentToolCallId: entry.parent_tool_call_id,
+                createdAt: entry.created_at.toISOString(),
+                relevanceScore: entry.relevance_score,
+                toolArgsPreview: previewToolArgs(entry.tool_args),
+                resultPreview: previewResult(entry.result),
+            }));
     }
 
     async listReviewItems(

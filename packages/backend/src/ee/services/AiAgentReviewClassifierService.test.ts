@@ -1,5 +1,6 @@
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+    FeatureFlags,
     ForbiddenError,
     ProjectType,
     type AiAgentReviewClassifierJudgeOutput,
@@ -7,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
+import { AiDecisionClient } from './ai/decisions/AiDecisionClient';
 import { resolveReviewJudgeProvider } from './ai/reviewJudgeModel';
 import { AiAgentReviewClassifierService } from './AiAgentReviewClassifierService';
 
@@ -278,7 +280,14 @@ describe('AiAgentReviewClassifierService', () => {
     };
     const judgeTurn = vi.fn();
 
+    const featureFlagModel = { get: vi.fn() };
+    const decisionConfig = {
+        apiKey: null as string | null,
+        model: 'test',
+        timeoutMs: 100,
+    };
     const service = new AiAgentReviewClassifierService({
+        featureFlagModel,
         aiAgentReviewClassifierModel: model,
         aiAgentModel: aiAgentModel as never,
         aiAgentDocumentModel,
@@ -287,7 +296,7 @@ describe('AiAgentReviewClassifierService', () => {
         catalogModel: catalogModel as never,
         projectModel: projectModel as never,
         projectContextModel,
-        lightdashConfig: {} as never,
+        lightdashConfig: { ai: { decisions: decisionConfig } } as never,
         judgeTurn,
         aiAgentReviewNotificationService:
             aiAgentReviewNotificationService as never,
@@ -295,6 +304,8 @@ describe('AiAgentReviewClassifierService', () => {
 
     beforeEach(() => {
         vi.resetAllMocks();
+        decisionConfig.apiKey = null;
+        featureFlagModel.get.mockResolvedValue({ enabled: false });
         orgAiCopilotConfigResolver.getReviewJudgeAvailability.mockResolvedValue(
             {
                 hasActiveByoKey: false,
@@ -378,6 +389,95 @@ describe('AiAgentReviewClassifierService', () => {
         ]);
         judgeTurn.mockResolvedValue(makeJudgeOutput());
     });
+
+    it('loads a bounded larger evidence pool and preserves a successful writeback through semantic ranking', async () => {
+        decisionConfig.apiKey = 'test';
+        featureFlagModel.get.mockResolvedValue({ enabled: true });
+        const evidence = Array.from({ length: 8 }, (_, index) => ({
+            ...makeWritebackEvidence('Some result'),
+            toolCallId: `tool-${index}`,
+            toolName: 'runQuery',
+        }));
+        evidence[7] = {
+            ...makeWritebackEvidence('Opened a pull request'),
+            toolCallId: 'writeback',
+        };
+        const candidate = makeCandidate({ supportingEvidence: evidence });
+        model.listTurnReviewCandidates.mockResolvedValue([candidate]);
+        const evaluate = vi
+            .spyOn(AiDecisionClient.prototype, 'evaluate')
+            .mockResolvedValue({
+                evidence_6: { type: 'score', score: 4, confidence: 0.99 },
+            });
+        try {
+            const input = await service.captureJudgeReplayInput({
+                organizationUuid: ORGANIZATION_UUID,
+                promptUuid: PROMPT_UUID,
+            });
+            expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
+                user: { organizationUuid: ORGANIZATION_UUID },
+                featureFlagId: FeatureFlags.AiAgentFastDecisions,
+            });
+            expect(
+                model.listTurnReviewCandidates,
+            ).toHaveBeenCalledExactlyOnceWith({
+                organizationUuid: ORGANIZATION_UUID,
+                promptUuid: PROMPT_UUID,
+                limit: 1,
+                supportingEvidenceLimit: 30,
+            });
+            expect(
+                input?.candidate.supportingEvidence.map(
+                    (row) => row.toolCallId,
+                ),
+            ).toEqual(['tool-6', 'tool-0', 'tool-1', 'tool-2', 'writeback']);
+            expect(input?.evidencePacket.supportingEvidence).toHaveLength(5);
+        } finally {
+            evaluate.mockRestore();
+        }
+    });
+
+    it.each(['flag-off', 'reviews-off', 'provider-outage'] as const)(
+        'keeps review fallback and opt-in boundaries for %s',
+        async (mode) => {
+            decisionConfig.apiKey = 'test';
+            featureFlagModel.get.mockResolvedValue({
+                enabled: mode !== 'flag-off',
+            });
+            if (mode === 'reviews-off')
+                aiOrganizationSettingsModel.findByOrganizationUuid.mockResolvedValue(
+                    { aiAgentReviewsEnabled: false } as never,
+                );
+            const evidence = Array.from(
+                { length: mode === 'provider-outage' ? 8 : 5 },
+                (_, index) => ({
+                    ...makeWritebackEvidence('Some result'),
+                    toolCallId: `tool-${index}`,
+                    toolName: 'runQuery',
+                }),
+            );
+            model.listTurnReviewCandidates.mockResolvedValue([
+                makeCandidate({ supportingEvidence: evidence }),
+            ]);
+            const evaluate = vi
+                .spyOn(AiDecisionClient.prototype, 'evaluate')
+                .mockResolvedValue(null);
+            try {
+                const input = await service.captureJudgeReplayInput({
+                    organizationUuid: ORGANIZATION_UUID,
+                    promptUuid: PROMPT_UUID,
+                });
+                expect(input?.candidate.supportingEvidence).toEqual(
+                    evidence.slice(0, 5),
+                );
+                expect(evaluate).toHaveBeenCalledTimes(
+                    mode === 'provider-outage' ? 1 : 0,
+                );
+            } finally {
+                evaluate.mockRestore();
+            }
+        },
+    );
 
     it('throws when review collection is not opted in for the organization', async () => {
         aiOrganizationSettingsModel.findByOrganizationUuid.mockResolvedValueOnce(

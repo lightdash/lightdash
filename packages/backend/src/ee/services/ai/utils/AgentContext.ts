@@ -1,6 +1,9 @@
 import type { Explore } from '@lightdash/common';
+import { AnswerEvidence } from '../decisions/answerEvidence';
 import type { ChartExportSource } from './chartAsCode';
 import { GeneratedResponseBlocks } from './GeneratedResponseBlocks';
+
+type AgentStage = 'query' | 'api' | 'render';
 
 /**
  * Type-safe wrapper for experimental_context from AI SDK
@@ -24,11 +27,34 @@ import { GeneratedResponseBlocks } from './GeneratedResponseBlocks';
  * ```
  */
 export class AgentContext {
+    readonly answerEvidence: AnswerEvidence | undefined;
     readonly responseBlocks = new GeneratedResponseBlocks();
 
     private readonly chartExports = new Map<string, ChartExportSource>();
 
-    constructor(private readonly availableExplores: Explore[]) {}
+    constructor(
+        private readonly availableExplores: Explore[],
+        verifyAnswers = false,
+        private readonly recordStageSpan?: (
+            stage: AgentStage,
+            startedAt: number,
+            durationMs: number,
+        ) => void,
+    ) {
+        this.answerEvidence = verifyAnswers ? new AnswerEvidence() : undefined;
+    }
+
+    async measureStage<T>(
+        stage: AgentStage,
+        run: () => Promise<T>,
+    ): Promise<T> {
+        const startedAt = Date.now();
+        try {
+            return await run();
+        } finally {
+            this.recordStageSpan?.(stage, startedAt, Date.now() - startedAt);
+        }
+    }
 
     registerChartExport(queryUuid: string, chart: ChartExportSource): void {
         if (this.chartExports.size >= 20 && !this.chartExports.has(queryUuid)) {

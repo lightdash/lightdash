@@ -62,6 +62,9 @@ export const getSystemPromptV2 = (args: {
     knowledgeDocuments?: AiAgentDocumentContext[];
     deepResearchRuns?: AiAgentDeepResearchRunContext[];
     hasProjectContext?: boolean;
+    projectContextPreloaded?: boolean;
+    enableFastMetadata?: boolean;
+    enableChartExport?: boolean;
     instructions?: string;
     agentName?: string;
     requestingUser?: AiAgentRequestingUser | null;
@@ -243,9 +246,13 @@ export const getSystemPromptV2 = (args: {
                   ),
               ].join('\n');
 
-    const projectContextContent = args.hasProjectContext
-        ? 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE grepFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.'
-        : 'No project context has been configured for this project.';
+    let projectContextContent =
+        'No project context has been configured for this project.';
+    if (args.hasProjectContext) {
+        projectContextContent = args.projectContextPreloaded
+            ? 'Relevant project business context is already preloaded for this request. Apply it BEFORE field discovery; treat it as authoritative over your own assumptions. This is a partial selection: use `loadProjectContext` for missing definitions, additional scope or conflicting rules. Do not reload the same entries merely to begin discovery.'
+            : 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE grepFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.';
+    }
 
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
     let availableExploresContent: string;
@@ -367,6 +374,12 @@ export const getSystemPromptV2 = (args: {
                 args.availableCustomChartTypes ?? { types: [], totalCount: 0 },
             ),
         )
+        .replace(
+            '{{unloaded_knowledge_documents}}',
+            args.enableFastMetadata
+                ? 'other documents whose complete content has not already been preloaded for this request'
+                : 'other documents',
+        )
         .replace('{{knowledge_documents}}', knowledgeDocumentsContent)
         .replace('{{project_context}}', projectContextContent);
 
@@ -418,6 +431,30 @@ export const getSystemPromptV2 = (args: {
         content,
         deepResearchContent,
         grepFieldsSection,
+        args.enableFastMetadata
+            ? 'For straightforward entity trends or breakdowns, use a single matching count definition and its configured default time granularity when available. A nearby revenue or amount field alone is not a reason to ask count versus amount. Apply explicit business rules and prior scope first; ask when count definitions genuinely compete. Do not invent a date restriction; state the measure, grain and scope used. When the current request or a field-search result includes preloaded catalog metadata, use those definitions, joins, filters and defaults directly. Only call getMetadata for missing or truncated details; do not repeat a metadata lookup to confirm the same details.'
+            : '',
+        args.enableFastMetadata
+            ? 'Use runQuery when the user wants an answer from data without a chart; it returns rows without creating a chart artifact. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized.'
+            : '',
+        args.enableFastMetadata
+            ? 'For a follow-up that changes only presentation, such as "as a line chart", reuse the preceding successful query tool input. Preserve its measure, filters and scope, add only the dimension or chart configuration required by the request, and call generateVisualization directly when the carried-forward candidates cover it.'
+            : '',
+        args.enableChartExport
+            ? 'When exportChartAsCode is available, you MUST call it for chart YAML and never write or reconstruct YAML yourself. For a chart from an earlier turn, use its exact artifactUuid and versionUuid with null queryUuid when those references are already available. Otherwise call it with null for all three source identifiers to discover conversation artifacts. Pass null for an unspecified destination slug or spaceSlug; the tool reports missing values so you can ask the user. Do not search content to infer a destination, regenerate a chart or rerun data queries just to export it.'
+            : '',
+        args.enableFastMetadata
+            ? 'When the user explicitly names a value to exclude, retain that exclusion in the executed query even if searchFieldValues finds no matching rows. A value search reports observed data, not permitted filter literals. Explain that the exclusion currently removes no rows; do not omit it or substitute a different category. If the intended category requires interpretation rather than literal matching, clarify it first.'
+            : '',
+        args.enableFastMetadata
+            ? 'When applying or restating sourced business rules, preserve the exact predicate, entity grain, exceptions and date boundaries. Do not replace numeric conditions with broader labels: an amount equal to zero does not establish absence of the associated event, and excluding nonzero amounts is not the same as excluding only positive amounts. Distinguish a reporting-date window from the time at which a mutable attribute is evaluated. Do not invent current-state, historical-snapshot or timezone conventions when the sources do not specify them. State the missing convention if it affects the answer; keep supported rules intact.'
+            : '',
+        args.enableFastMetadata
+            ? 'Category labels are values, not comparisons. A label such as "Low Cost" does not prove that its group is cheaper than another group. Use comparative or superlative wording only when the available result rows include every compared group or period and the values establish that ordering. Prior prose is not evidence; reuse or rerun the exact query when comparison rows are absent.'
+            : '',
+        args.enableFastMetadata
+            ? 'For a definition or reference-only question, give the shortest complete answer: the definition, required conditions and exceptions, plus date scope only when requested. Preserve all requested rules. Avoid repeating them under multiple headings, speculative implementation caveats and offers to run future queries. Discuss an unspecified convention when the user asks about it or the requested result depends on choosing it; merely restating a documented definition does not require the user to settle every convention for a possible future query.'
+            : '',
         mcpToolsSection,
         mcpConnectionsSection,
         skillsSection,

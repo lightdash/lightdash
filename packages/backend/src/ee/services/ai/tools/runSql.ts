@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
+import { type QueryReviewer } from '../decisions/queryReview';
 import type {
     CreateOrUpdateArtifactFn,
     GetPromptFn,
@@ -30,6 +31,7 @@ import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { renderBlocks, type SectionState } from './slackSqlAggregate';
 
 type Dependencies = {
+    reviewQuery?: QueryReviewer;
     updateProgress: UpdateProgressFn;
     runSqlJob: RunSqlJobFn;
     getPrompt: GetPromptFn;
@@ -93,6 +95,7 @@ export const validateSelectOnly = (sql: string) => {
 };
 
 export const getRunSql = ({
+    reviewQuery,
     updateProgress,
     runSqlJob,
     getPrompt,
@@ -281,10 +284,18 @@ export const getRunSql = ({
                 }
 
                 const effectiveLimit = Math.min(limit, maxQueryLimit);
-                const { rows, columns, rowCount } = await runSqlJob({
-                    sql,
-                    limit: effectiveLimit,
-                });
+                const [{ rows, columns, rowCount }, review] = await Promise.all(
+                    [
+                        runSqlJob({ sql, limit: effectiveLimit }),
+                        enableDataAccess
+                            ? (reviewQuery?.({
+                                  kind: 'sql',
+                                  sql,
+                                  limit: effectiveLimit,
+                              }) ?? '')
+                            : '',
+                    ],
+                );
 
                 if (!isSlack) {
                     await createOrUpdateArtifact({
@@ -313,7 +324,7 @@ export const getRunSql = ({
                             columns.length > 0
                                 ? ` Columns: ${columns.join(', ')}`
                                 : ''
-                        }`,
+                        }${enableDataAccess && reviewQuery ? ` ${await reviewQuery({ kind: 'sql', sql, limit: effectiveLimit }, { emptyResult: true, review })}` : ''}`,
                         metadata: { status: 'success', rowCount: 0 },
                     });
                 }
@@ -397,7 +408,7 @@ export const getRunSql = ({
                     result: `${resultSummary}${truncatedNote}\n${serializeData(
                         previewCsv,
                         'csv',
-                    )}`,
+                    )}${review}`,
                     metadata: { status: 'success', rowCount },
                 });
             } catch (e) {

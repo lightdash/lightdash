@@ -34,7 +34,9 @@ const renderMemories = (
         })),
     );
 
-const renderEntries = (entries: ProjectContextSearchEntry[]): string => {
+export const renderProjectContextEntries = (
+    entries: ProjectContextSearchEntry[],
+): string => {
     if (entries.length === 0) {
         return 'No project context is configured for this project.';
     }
@@ -157,7 +159,7 @@ export const getLoadProjectContext = ({
                 );
 
                 return {
-                    result: renderEntries(selected),
+                    result: renderProjectContextEntries(selected),
                     metadata: {
                         status: 'success' as const,
                         entryIds,

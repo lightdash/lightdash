@@ -1,6 +1,6 @@
 import {
     accumulatePromptTokenUsage,
-    finalStepPromptTokenUsage,
+    completedPromptTokenUsage,
     getContextOccupancyTokens,
     initialPromptTokenUsage,
 } from './promptTokenUsage';
@@ -48,13 +48,26 @@ describe('prompt token usage', () => {
     });
 
     it('reports identical figures for final-step-only modes', () => {
-        expect(finalStepPromptTokenUsage(7500)).toEqual({
+        expect(completedPromptTokenUsage(7500)).toEqual({
             totalTokens: 7500,
             finalStepTotalTokens: 7500,
         });
-        expect(finalStepPromptTokenUsage(undefined)).toEqual({
+        expect(completedPromptTokenUsage(undefined)).toEqual({
             totalTokens: 0,
             finalStepTotalTokens: 0,
+        });
+    });
+
+    it('stores aggregate usage without inflating the compaction input', () => {
+        const usage = completedPromptTokenUsage(120000, 40000);
+        expect(usage).toEqual({
+            totalTokens: 120000,
+            finalStepTotalTokens: 40000,
+        });
+        expect(getContextOccupancyTokens(usage)).toBe(40000);
+        expect(completedPromptTokenUsage(undefined, 40000)).toEqual({
+            totalTokens: 40000,
+            finalStepTotalTokens: 40000,
         });
     });
 

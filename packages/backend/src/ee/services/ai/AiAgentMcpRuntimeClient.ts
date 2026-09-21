@@ -42,7 +42,23 @@ import type {
     AiMcpServerWithSensitiveData,
 } from '../../models/AiAgentModel';
 import { AiAgentModel } from '../../models/AiAgentModel';
+import type { AiDecisionClient } from './decisions/AiDecisionClient';
 import type { AiAgentMcpServer, UnavailableMcpServer } from './types/aiAgent';
+import { createUserFacingErrorResolver } from './utils/errorMessages';
+import {
+    isMcpAuthorizationError,
+    isMcpError,
+    McpAuthorizationRequiredError,
+    McpPayloadTooLargeError,
+    McpRuntimeError,
+    McpTimeoutError,
+} from './utils/mcpErrors';
+
+export {
+    isMcpAuthorizationError,
+    McpAuthorizationRequiredError,
+    McpTimeoutError,
+} from './utils/mcpErrors';
 
 type Dependencies = {
     aiAgentModel: AiAgentModel;
@@ -68,8 +84,6 @@ export const sanitizeUntrustedMcpText = (
     if (sanitized.length <= maxChars) return sanitized;
     return `${sanitized.slice(0, maxChars)}\n[truncated by Lightdash]`;
 };
-
-class McpPayloadTooLargeError extends Error {}
 
 const sanitizeBoundedMcpValue = (
     value: unknown,
@@ -462,19 +476,6 @@ const getMcpServerIconUrl = (
     }
 };
 
-export class McpAuthorizationRequiredError extends Error {
-    constructor(
-        readonly mcpServerName: string,
-        readonly mcpServerUuid: string,
-        readonly credentialScope: AiMcpCredentialScope,
-    ) {
-        super(
-            `MCP server "${mcpServerName}" requires authorization before this agent can use it.`,
-        );
-        this.name = 'McpAuthorizationRequiredError';
-    }
-}
-
 class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
     private readonly mcpServerUuid: string;
 
@@ -715,21 +716,6 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
     }
 }
 
-export class McpTimeoutError extends Error {
-    constructor(
-        timeoutMs: number,
-        options?: { operation?: string; cause?: unknown },
-    ) {
-        super(
-            `MCP ${options?.operation ?? 'request'} timed out after ${timeoutMs}ms`,
-        );
-        this.name = 'McpTimeoutError';
-        if (options?.cause !== undefined) {
-            this.cause = options.cause;
-        }
-    }
-}
-
 const MCP_RETRY_ATTEMPTS = 2;
 const MCP_RETRY_DELAY_MS = 100;
 
@@ -768,12 +754,8 @@ const withMcpRetry = async <T>(
     }
 };
 
-export const isMcpAuthorizationError = (error: unknown): boolean =>
-    error instanceof UnauthorizedError ||
-    (error instanceof Error &&
-        (/401/.test(error.message) || /authorization/i.test(error.message)));
-
 type McpServerConnectionArgs = {
+    useStructuredErrors?: boolean;
     uuid: string;
     name: string;
     url: string;
@@ -816,7 +798,13 @@ const normalizeMcpError = (
     mcpServer: McpServerConnectionArgs,
     error: unknown,
 ): Error => {
-    if (mcpServer.authType === 'oauth' && isMcpAuthorizationError(error)) {
+    const authorizationError = mcpServer.useStructuredErrors
+        ? isMcpAuthorizationError(error)
+        : error instanceof UnauthorizedError ||
+          (error instanceof Error &&
+              (/401/.test(error.message) ||
+                  /authorization/i.test(error.message)));
+    if (mcpServer.authType === 'oauth' && authorizationError) {
         return new McpAuthorizationRequiredError(
             mcpServer.name,
             mcpServer.uuid,
@@ -824,7 +812,11 @@ const normalizeMcpError = (
         );
     }
 
-    return error instanceof Error ? error : new Error(String(error));
+    if (!mcpServer.useStructuredErrors)
+        return error instanceof Error ? error : new Error(String(error));
+    return error instanceof Error && isMcpError(error)
+        ? error
+        : new McpRuntimeError(error);
 };
 
 const getUnavailableMcpStatus = (
@@ -852,34 +844,6 @@ const getUnavailableMcpStatus = (
     }
 
     return 'error';
-};
-
-const getMcpUserFacingErrorMessage = (error: Error): string => {
-    if (error instanceof McpAuthorizationRequiredError) {
-        return error.message;
-    }
-
-    if (error instanceof McpTimeoutError) {
-        return 'The MCP server took too long to respond and was disconnected. Check that it is available, then try again.';
-    }
-
-    if (error.message.includes('MCP HTTP Transport Error')) {
-        if (
-            error.message.includes('HTTP 401') ||
-            error.message.includes('Unauthorized')
-        ) {
-            return 'The MCP server rejected the saved credentials. Check the MCP server authentication settings, then try again.';
-        }
-
-        if (
-            error.message.includes('HTTP 403') ||
-            error.message.includes('Forbidden')
-        ) {
-            return 'The MCP server refused access. Check that the connected account has permission to use this MCP server.';
-        }
-    }
-
-    return 'We could not connect to the MCP server. Check that it is available and try again.';
 };
 
 const isTimeoutAbortError = (error: unknown): boolean =>
@@ -1545,8 +1509,9 @@ export class AiAgentMcpRuntimeClient {
         } catch (error) {
             const normalizedError =
                 error instanceof Error ? error : new Error(String(error));
-            const userFacingErrorMessage =
-                getMcpUserFacingErrorMessage(normalizedError);
+            const userFacingErrorMessage = await createUserFacingErrorResolver({
+                domain: 'mcp',
+            })(normalizedError);
             const status = getUnavailableMcpStatus(
                 args.mcpServer as AiAgentMcpServer,
                 normalizedError,
@@ -1588,7 +1553,12 @@ export class AiAgentMcpRuntimeClient {
         mcpServers: AiAgentMcpServer[];
         userUuid: string;
         debugLoggingEnabled: boolean;
+        decisions?: AiDecisionClient;
     }): Promise<ResolvedMcpTools> {
+        const resolveErrorMessage = createUserFacingErrorResolver({
+            decisions: args.decisions,
+            domain: 'mcp',
+        });
         const log = (message: string) => {
             if (args.debugLoggingEnabled) {
                 Logger.debug(`[AiAgent][MCP Resolver] ${message}`);
@@ -1612,12 +1582,16 @@ export class AiAgentMcpRuntimeClient {
 
         const serverResults = await Promise.all(
             args.mcpServers.map(async (mcpServer) => {
+                const connection = {
+                    ...mcpServer,
+                    useStructuredErrors: !!args.decisions,
+                };
                 let mcpClient: MCPClient | undefined;
 
                 try {
                     log(`Connecting to ${mcpServer.name} (${mcpServer.url})`);
                     mcpClient = await createHttpMcpClientWithTimeout(
-                        mcpServer,
+                        connection,
                         this.lightdashConfig.ai.copilot.mcpConnectionTimeoutMs,
                         (error) => {
                             Logger.error(
@@ -1662,12 +1636,14 @@ export class AiAgentMcpRuntimeClient {
                         unavailableMcpServer: null,
                     };
                 } catch (error) {
-                    const normalizedError =
+                    let normalizedError =
                         error instanceof Error
                             ? error
                             : new Error(String(error));
+                    if (args.decisions)
+                        normalizedError = normalizeMcpError(connection, error);
                     const userFacingErrorMessage =
-                        getMcpUserFacingErrorMessage(normalizedError);
+                        await resolveErrorMessage(normalizedError);
                     const status = getUnavailableMcpStatus(
                         mcpServer,
                         normalizedError,

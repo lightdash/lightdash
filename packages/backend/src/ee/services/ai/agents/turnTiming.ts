@@ -12,6 +12,63 @@ export type ToolCallTiming = {
     stepIndex: number;
     startedAt: number;
     durationMs: number;
+    stage: ToolStage;
+    queryCacheHit: boolean;
+};
+
+export type ToolStage = 'query' | 'api' | 'render';
+
+export type TurnStageTiming = {
+    preparationMs: number;
+    providerMs: number | null;
+    queryMs: number;
+    apiMs: number;
+    renderMs: number;
+    queryCacheHits: number;
+};
+
+const QUERY_TOOLS = new Set([
+    'runQuery',
+    'runMetricQuery',
+    'runSavedChart',
+    'runContentQuery',
+    'runSql',
+    'runComposerQueries',
+]);
+
+const RENDER_TOOLS = new Set([
+    'generateVisualization',
+    'generateDashboardV2',
+    'generateDataApp',
+    'iterateDataApp',
+    'exportChartAsCode',
+]);
+
+export const getToolStage = (toolName: string): ToolStage => {
+    if (QUERY_TOOLS.has(toolName)) return 'query';
+    if (RENDER_TOOLS.has(toolName)) return 'render';
+    return 'api';
+};
+
+const intervalUnionMs = (
+    intervals: Array<{ startedAt: number; durationMs: number }>,
+): number => {
+    if (intervals.length === 0) return 0;
+    const sorted = [...intervals].sort((a, b) => a.startedAt - b.startedAt);
+    let start = sorted[0].startedAt;
+    let end = start + sorted[0].durationMs;
+    let total = 0;
+    for (const interval of sorted.slice(1)) {
+        const nextEnd = interval.startedAt + interval.durationMs;
+        if (interval.startedAt > end) {
+            total += end - start;
+            start = interval.startedAt;
+            end = nextEnd;
+        } else {
+            end = Math.max(end, nextEnd);
+        }
+    }
+    return total + end - start;
 };
 
 export type StepTiming = {
@@ -44,6 +101,18 @@ export class TurnTimingTracker {
 
     private stepToolCallCount = 0;
 
+    private preparationFinishedAt: number | null = null;
+
+    private readonly completedSteps: StepTiming[] = [];
+
+    private readonly completedToolCalls: ToolCallTiming[] = [];
+
+    private readonly explicitStageSpans: Array<{
+        stage: ToolStage;
+        startedAt: number;
+        durationMs: number;
+    }> = [];
+
     private readonly openToolCalls = new Map<
         string,
         { toolName: string; stepIndex: number; startedAt: number }
@@ -62,6 +131,29 @@ export class TurnTimingTracker {
         }
     }
 
+    recordPreparationFinished(): void {
+        if (this.preparationFinishedAt !== null) return;
+        this.preparationFinishedAt = this.now();
+        // The first model step starts after preparation; keep preparation out
+        // of provider inference while retaining its turn-relative offset.
+        if (
+            this.stepIndex === 0 &&
+            this.stepFirstChunkAt === null &&
+            this.stepFirstToolCallAt === null &&
+            this.completedSteps.length === 0
+        ) {
+            this.stepStartedAt = this.preparationFinishedAt;
+        }
+    }
+
+    recordStageSpan(
+        stage: ToolStage,
+        startedAt: number,
+        durationMs: number,
+    ): void {
+        this.explicitStageSpans.push({ stage, startedAt, durationMs });
+    }
+
     /** The first call of a step also closes that step's inference phase. */
     recordToolCallStart(toolCallId: string, toolName: string): void {
         const startedAt = this.now();
@@ -77,19 +169,26 @@ export class TurnTimingTracker {
     }
 
     /** Null for a call never seen starting — better absent than fabricated. */
-    recordToolCallEnd(toolCallId: string): ToolCallTiming | null {
+    recordToolCallEnd(
+        toolCallId: string,
+        queryCacheHit = false,
+    ): ToolCallTiming | null {
         const open = this.openToolCalls.get(toolCallId);
         if (!open) {
             return null;
         }
         this.openToolCalls.delete(toolCallId);
-        return {
+        const timing = {
             toolCallId,
             toolName: open.toolName,
             stepIndex: open.stepIndex,
             startedAt: open.startedAt,
             durationMs: this.now() - open.startedAt,
+            stage: getToolStage(open.toolName),
+            queryCacheHit,
         };
+        this.completedToolCalls.push(timing);
+        return timing;
     }
 
     getCurrentStepIndex(): number {
@@ -136,6 +235,44 @@ export class TurnTimingTracker {
         this.stepFirstToolCallAt = null;
         this.stepToolCallCount = 0;
 
+        this.completedSteps.push(timing);
         return timing;
+    }
+
+    getStageTiming(): TurnStageTiming {
+        const observableInference = this.completedSteps.map(
+            ({ inferenceMs }) => inferenceMs,
+        );
+        const providerMs = observableInference.every(
+            (duration): duration is number => duration !== null,
+        )
+            ? observableInference.reduce(
+                  (total, duration) => total + duration,
+                  0,
+              )
+            : null;
+        const stageMs = (stage: ToolStage) => {
+            const explicit = this.explicitStageSpans.filter(
+                (span) => span.stage === stage,
+            );
+            return intervalUnionMs(
+                explicit.length > 0
+                    ? explicit
+                    : this.completedToolCalls.filter(
+                          (call) => call.stage === stage,
+                      ),
+            );
+        };
+        return {
+            preparationMs:
+                (this.preparationFinishedAt ?? this.now()) - this.turnStartedAt,
+            providerMs,
+            queryMs: stageMs('query'),
+            apiMs: stageMs('api'),
+            renderMs: stageMs('render'),
+            queryCacheHits: this.completedToolCalls.filter(
+                ({ queryCacheHit }) => queryCacheHit,
+            ).length,
+        };
     }
 }

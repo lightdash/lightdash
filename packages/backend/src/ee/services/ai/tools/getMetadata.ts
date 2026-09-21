@@ -123,6 +123,7 @@ const renderParameter = (parameter: GetMetadataParameter): string => {
 const renderExplore = (
     explore: Explore,
     parameters: GetMetadataParameter[],
+    includeFieldLists: boolean,
 ): string => {
     const baseTable = explore.tables[explore.baseTable];
     const lines = [`Explore: ${explore.name} (${explore.label})`];
@@ -148,13 +149,15 @@ const renderExplore = (
             ...parameters.map(renderParameter),
         );
     }
-    lines.push(
-        renderFieldList(
-            'dimensions',
-            Object.values(baseTable?.dimensions ?? {}),
-        ),
-        renderFieldList('metrics', Object.values(baseTable?.metrics ?? {})),
-    );
+    if (includeFieldLists) {
+        lines.push(
+            renderFieldList(
+                'dimensions',
+                Object.values(baseTable?.dimensions ?? {}),
+            ),
+            renderFieldList('metrics', Object.values(baseTable?.metrics ?? {})),
+        );
+    }
     return lines.join('\n');
 };
 
@@ -357,6 +360,8 @@ const buildFieldNotFoundError = (
 export const executeGetMetadata = (
     { requests }: ToolGetMetadataArgs,
     { availableExplores, projectParameterDefinitions }: Dependencies,
+    // Internal preload option; the model-facing tool retains its full inventory.
+    { includeFieldLists = true }: { includeFieldLists?: boolean } = {},
 ): ExecuteStructuredToolResult<GetMetadataResult> => {
     const byName = new Map(
         availableExplores.map((explore) => [explore.name, explore]),
@@ -382,7 +387,9 @@ export const executeGetMetadata = (
                         explore,
                         projectParameterDefinitions,
                     );
-                    textBlocks.push(renderExplore(explore, parameters));
+                    textBlocks.push(
+                        renderExplore(explore, parameters, includeFieldLists),
+                    );
                     explores.push(
                         buildExploreStructuredResult(explore, parameters),
                     );

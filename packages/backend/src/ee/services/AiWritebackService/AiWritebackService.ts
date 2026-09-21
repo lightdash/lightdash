@@ -69,6 +69,8 @@ import type {
 } from '../../models/AiWritebackThreadModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
+import { resolveAiDecisionClient } from '../ai/decisions/AiDecisionClient';
+import { selectWritebackSource } from '../ai/decisions/writebackSource';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
 import {
     anthropicClaudeCodeAllowedHosts,
@@ -119,6 +121,7 @@ import {
 import { DeniedPathError } from './deniedPaths';
 import {
     RepoTooLargeError,
+    WritebackAccessError,
     WritebackCredentialCleanupError,
     WritebackGitNotConnectedError,
     WritebackRunAbortedError,
@@ -403,25 +406,13 @@ export const computeWritableRepoKeys = (
     );
 };
 
-/**
- * Classify a coding-agent failure into a stable audit `reason` category that
- * distinguishes the conditions decision #2 requires (user-intersection /
- * installation / branch-protection / denied-repo / denied-path / size). Keyword
- * matching on the ForbiddenError sub-cases is acceptable for an audit log.
- */
 export const auditReasonForError = (error: unknown): string => {
     if (error instanceof DeniedPathError) return 'denied_path';
     if (error instanceof RepoTooLargeError) return 'repo_too_large';
     if (error instanceof WritebackGitNotConnectedError) return 'not_installed';
     if (error instanceof WritebackThreadPrClosedError) return 'pr_not_open';
-    if (error instanceof ForbiddenError) {
-        const message = error.message.toLowerCase();
-        if (message.includes('cannot be edited')) return 'denied_repo';
-        if (message.includes('linked github')) return 'user_intersection';
-        if (message.includes('installation')) return 'installation';
-        if (message.includes('organization')) return 'no_org';
-        return 'permission';
-    }
+    if (error instanceof WritebackAccessError) return error.reason;
+    if (error instanceof ForbiddenError) return 'permission';
     if (error instanceof ParameterError) return 'invalid_target';
     return 'unknown';
 };
@@ -622,7 +613,10 @@ export class AiWritebackService extends BaseService {
         }
 
         if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
+            throw new WritebackAccessError(
+                'no_org',
+                'User is not part of an organization',
+            );
         }
         const project = await this.projectModel.get(projectUuid);
         this.assertCanManageSourceCode(user, project, projectUuid);
@@ -897,7 +891,10 @@ export class AiWritebackService extends BaseService {
         organizationUuid: string;
     }> {
         if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
+            throw new WritebackAccessError(
+                'no_org',
+                'User is not part of an organization',
+            );
         }
         const project = await this.projectModel.get(projectUuid);
         // Reading repo source requires view:SourceCode (writeback requires the
@@ -1776,7 +1773,10 @@ export class AiWritebackService extends BaseService {
         toolCallId: string | null;
     }): Promise<{ aiWritebackRunUuid: string }> {
         if (!isUserWithOrg(args.user)) {
-            throw new ForbiddenError('User is not part of an organization');
+            throw new WritebackAccessError(
+                'no_org',
+                'User is not part of an organization',
+            );
         }
         const project = await this.projectModel.get(args.projectUuid);
         this.assertCanManageSourceCode(args.user, project, args.projectUuid);
@@ -1801,7 +1801,10 @@ export class AiWritebackService extends BaseService {
     }> {
         const { user, projectUuid, aiThreadUuid, source } = args;
         if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
+            throw new WritebackAccessError(
+                'no_org',
+                'User is not part of an organization',
+            );
         }
         const project = await this.projectModel.get(projectUuid);
         this.assertCanManageSourceCode(user, project, projectUuid);
@@ -2736,7 +2739,10 @@ export class AiWritebackService extends BaseService {
         await this.assertEnabled(user, source, featureFlag);
 
         if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
+            throw new WritebackAccessError(
+                'no_org',
+                'User is not part of an organization',
+            );
         }
 
         const project = await this.projectModel.get(projectUuid);
@@ -2779,6 +2785,7 @@ export class AiWritebackService extends BaseService {
                     ? { ...boundStored, sandbox_uuid: boundStored.sandbox_uuid }
                     : null;
             const dbtTarget = await this.resolveDbtTarget({
+                organizationUuid: user.organizationUuid,
                 projectUuid,
                 project,
                 prompt,
@@ -2988,12 +2995,14 @@ export class AiWritebackService extends BaseService {
      * otherwise return the candidates for the caller to choose from.
      */
     private async resolveDbtTarget({
+        organizationUuid,
         projectUuid,
         project,
         prompt,
         dbtSourceUuid,
         existingRow,
     }: {
+        organizationUuid: string;
         projectUuid: string;
         project: { projectUuid: string; dbtConnection: DbtProjectConfig };
         prompt: string;
@@ -3049,6 +3058,31 @@ export class AiWritebackService extends BaseService {
                 kind: 'select',
                 options: candidates.map(AiWritebackService.toDbtSourceOption),
             };
+        }
+
+        const decisions = await resolveAiDecisionClient(
+            this.lightdashConfig.ai?.decisions,
+            () =>
+                this.featureFlagModel.get({
+                    user: { organizationUuid },
+                    featureFlagId: FeatureFlags.AiAgentFastDecisions,
+                }),
+        );
+        if (decisions) {
+            const options = candidates.map(
+                AiWritebackService.toDbtSourceOption,
+            );
+            const selected = await selectWritebackSource(
+                decisions,
+                prompt,
+                options,
+            );
+            const candidate = candidates.find(
+                (source) => source.optionUuid === selected,
+            );
+            return candidate
+                ? { kind: 'resolved', candidate }
+                : { kind: 'select', options };
         }
 
         // Score each candidate by how specifically the prompt names it (the
@@ -3210,13 +3244,19 @@ export class AiWritebackService extends BaseService {
     }): Promise<ResolvedTurnTarget> {
         this.assertCanManageSourceCode(user, project, project.projectUuid);
         if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
+            throw new WritebackAccessError(
+                'no_org',
+                'User is not part of an organization',
+            );
         }
 
         const { owner, repo } = parseOwnerRepo(repoTarget);
         const key = `${owner}/${repo}`;
         if (DENYLISTED_WRITE_REPOS.has(key.toLowerCase())) {
-            throw new ForbiddenError(`The repository ${key} cannot be edited`);
+            throw new WritebackAccessError(
+                'denied_repo',
+                `The repository ${key} cannot be edited`,
+            );
         }
 
         // The host follows the project's connection (like the repo picker): a
@@ -3254,7 +3294,10 @@ export class AiWritebackService extends BaseService {
         key: string;
     }): Promise<ResolvedTurnTarget> {
         if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
+            throw new WritebackAccessError(
+                'no_org',
+                'User is not part of an organization',
+            );
         }
         const installation = await this.githubProvider.resolveInstallation(
             user.organizationUuid,
@@ -3295,7 +3338,8 @@ export class AiWritebackService extends BaseService {
                         error,
                     )}`,
                 );
-                throw new ForbiddenError(
+                throw new WritebackAccessError(
+                    'user_intersection',
                     `Could not verify your GitHub access to ${key}, so no pull request was opened. This is usually transient — try again.`,
                 );
             }
@@ -3324,7 +3368,10 @@ export class AiWritebackService extends BaseService {
             const reason = inInstallation
                 ? `${key} is not accessible to your linked GitHub account`
                 : `${key} is not accessible to your organization's GitHub App installation`;
-            throw new ForbiddenError(reason);
+            throw new WritebackAccessError(
+                inInstallation ? 'user_intersection' : 'installation',
+                reason,
+            );
         }
 
         // Pre-clone size guard (R9): fail closed BEFORE any sandbox/clone with an
@@ -3379,7 +3426,10 @@ export class AiWritebackService extends BaseService {
         key: string;
     }): Promise<ResolvedTurnTarget> {
         if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
+            throw new WritebackAccessError(
+                'no_org',
+                'User is not part of an organization',
+            );
         }
         const access = await this.getGitlabInstallationRepoReadAccess({
             user,
@@ -3402,7 +3452,8 @@ export class AiWritebackService extends BaseService {
             [...writable].map((k) => k.toLowerCase()),
         );
         if (!writableLower.has(key.toLowerCase())) {
-            throw new ForbiddenError(
+            throw new WritebackAccessError(
+                'installation',
                 `${key} is not accessible to your organization's GitLab installation`,
             );
         }

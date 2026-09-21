@@ -113,7 +113,9 @@ export const toolRunMetricQueryArgsSchemaTransformed =
 
 export const toolRunMetricQueryOutputSchema = z.object({
     result: z.string(),
-    metadata: baseOutputMetadataSchema,
+    metadata: baseOutputMetadataSchema.extend({
+        queryCacheHit: z.boolean().optional(),
+    }),
 });
 
 export type ToolRunMetricQueryArgs = z.infer<

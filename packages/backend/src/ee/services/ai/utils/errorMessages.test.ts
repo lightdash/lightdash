@@ -1,13 +1,21 @@
 import { APICallError, RetryError } from 'ai';
 import { McpAuthorizationRequiredError } from '../AiAgentMcpRuntimeClient';
+import { AiDecisionClient } from '../decisions/AiDecisionClient';
 import {
     AiAgentEmptyResponseError,
     AiAgentStepCapReachedError,
+    createUserFacingErrorResolver,
     EMPTY_RESPONSE_MESSAGE,
+    getKnownUserFacingErrorMessage,
     getUserFacingErrorMessage,
     PROVIDER_BILLING_MESSAGE,
     STEP_CAP_REACHED_MESSAGE,
 } from './errorMessages';
+import {
+    MCP_CONNECTION_MESSAGE,
+    MCP_PERMISSION_MESSAGE,
+    McpRuntimeError,
+} from './mcpErrors';
 
 const CONTEXT_LIMIT_MESSAGE =
     "This request exceeded the AI model's context limit, usually because the conversation or tool results became too large. Please start a new thread or break the request into smaller steps.";
@@ -296,4 +304,161 @@ describe('getUserFacingErrorMessage', () => {
             ).toBe('Custom fallback');
         });
     });
+});
+
+describe('unknown user-facing errors', () => {
+    const setup = (category = 'permissions', confidence = 0.99) => {
+        const fetcher = vi.fn<typeof fetch>().mockImplementation(async () =>
+            Response.json({
+                model: 'test',
+                answers: {
+                    category: {
+                        type: 'choice',
+                        choice: category,
+                        confidence,
+                        probabilities: { [category]: 1 },
+                    },
+                },
+            }),
+        );
+        const decisions = new AiDecisionClient(
+            { apiKey: 'test', model: 'test', timeoutMs: 100 },
+            fetcher,
+        );
+        return { decisions, fetcher };
+    };
+
+    it('shares one classification between concurrent handlers within a turn', async () => {
+        const { decisions, fetcher } = setup();
+        const resolve = createUserFacingErrorResolver({ decisions });
+        const error = new Error('The role cannot read this resource');
+        const replies = await Promise.all([
+            resolve(error, 'first fallback'),
+            resolve(error, 'second fallback'),
+        ]);
+        expect(replies[0]).toContain('Check your permissions');
+        expect(replies[0]).toBe(replies[1]);
+        expect(fetcher).toHaveBeenCalledOnce();
+        await createUserFacingErrorResolver({ decisions })(error);
+        expect(fetcher).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps caller fallbacks when classification is uncertain', async () => {
+        const { decisions, fetcher } = setup('permissions', 0.7);
+        const resolve = createUserFacingErrorResolver({ decisions });
+        const error = new Error('Request rejected');
+        expect(await resolve(error, 'first fallback')).toBe('first fallback');
+        expect(await resolve(error, 'second fallback')).toBe('second fallback');
+        expect(fetcher).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+        new AiAgentStepCapReachedError(10),
+        new AiAgentEmptyResponseError('stop', 3),
+        new Error('context_length_exceeded'),
+        new Error('rate limit exceeded'),
+        new Error('Request timeout'),
+        new Error('MCP HTTP Transport Error: HTTP 401 Unauthorized'),
+    ])('skips semantic classification for a known error: %s', async (error) => {
+        const { decisions, fetcher } = setup();
+        expect(await createUserFacingErrorResolver({ decisions })(error)).toBe(
+            getUserFacingErrorMessage(error),
+        );
+        expect(fetcher).not.toHaveBeenCalled();
+    });
+
+    it('preserves fallback and skips classification after cancellation', async () => {
+        const { decisions, fetcher } = setup();
+        expect(
+            await createUserFacingErrorResolver({ decisions })(
+                new DOMException('cancelled', 'AbortError'),
+                'cancelled fallback',
+            ),
+        ).toBe('cancelled fallback');
+        expect(fetcher).not.toHaveBeenCalled();
+    });
+
+    it('skips classification of known managed-provider billing failures', async () => {
+        const { decisions, fetcher } = setup();
+        const error = new APICallError({
+            message: 'Request failed',
+            url: 'https://provider.example.com',
+            requestBodyValues: {},
+            statusCode: 402,
+        });
+        expect(
+            await createUserFacingErrorResolver({
+                decisions,
+                keyManagement: 'lightdash-managed',
+            })(error, 'managed fallback'),
+        ).toBe('managed fallback');
+        expect(fetcher).not.toHaveBeenCalled();
+    });
+
+    it.each(['self-managed', 'lightdash-managed'] as const)(
+        'respects %s billing guidance for an unknown provider error',
+        async (keyManagement) => {
+            const { decisions } = setup('billing');
+            expect(
+                await createUserFacingErrorResolver({
+                    decisions,
+                    keyManagement,
+                })(new Error('Balance exhausted'), 'managed fallback'),
+            ).toBe(
+                keyManagement === 'self-managed'
+                    ? PROVIDER_BILLING_MESSAGE
+                    : 'managed fallback',
+            );
+        },
+    );
+
+    it('uses fixed MCP copy without inventing an OAuth authorization requirement', async () => {
+        const { decisions } = setup();
+        const error = new McpRuntimeError(
+            new Error('Remote account lacks the required role'),
+        );
+        expect(await createUserFacingErrorResolver({ decisions })(error)).toBe(
+            MCP_PERMISSION_MESSAGE,
+        );
+        expect(getUserFacingErrorMessage(error)).toBe(MCP_CONNECTION_MESSAGE);
+    });
+
+    it('retains the existing MCP fallback when decisions are disabled or unavailable', async () => {
+        const error = new McpRuntimeError(new Error('Unknown problem'));
+        expect(await createUserFacingErrorResolver({})(error)).toBe(
+            MCP_CONNECTION_MESSAGE,
+        );
+        const { decisions, fetcher } = setup();
+        fetcher.mockRejectedValue(new Error('offline'));
+        expect(await createUserFacingErrorResolver({ decisions })(error)).toBe(
+            MCP_CONNECTION_MESSAGE,
+        );
+    });
+
+    it.each([401, 403, 429])(
+        'uses provider status %i without a classifier call',
+        async (statusCode) => {
+            const { decisions, fetcher } = setup();
+            const error = new APICallError({
+                message: 'Provider request failed',
+                url: 'https://provider.example.com',
+                requestBodyValues: {},
+                statusCode,
+            });
+            const resolve = createUserFacingErrorResolver({
+                decisions,
+                keyManagement: 'self-managed',
+            });
+            expect(await resolve(error)).toBe(
+                getKnownUserFacingErrorMessage(error, 'self-managed'),
+            );
+            expect(
+                await createUserFacingErrorResolver({})(
+                    error,
+                    'legacy fallback',
+                ),
+            ).toBe('legacy fallback');
+            expect(fetcher).not.toHaveBeenCalled();
+        },
+    );
 });

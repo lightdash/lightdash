@@ -25,6 +25,8 @@ const readString = (input: AnyType, keys: string[]) => {
 export const summarizeToolCall = (toolName: string, input: AnyType) => {
     const quoted = (text?: string) => (text ? `“${oneLine(text)}”` : undefined);
     switch (toolName) {
+        case 'loadAgentTools':
+            return 'Preparing the next step';
         case 'runSql':
             return 'Checking query';
         case 'repoShell':

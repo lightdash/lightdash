@@ -3,6 +3,7 @@ import {
     AnyType,
     ConflictError,
     DEFAULT_MANAGED_AGENT_POLICY,
+    FeatureFlags,
     ManagedAgentActionType,
     ManagedAgentRunStatus,
     ManagedAgentTargetType,
@@ -13,7 +14,13 @@ import {
 } from '@lightdash/common';
 import { MockLanguageModelV3 } from 'ai/test';
 import { fromSession } from '../../../auth/account';
+import {
+    metricQueryMock,
+    validExplore,
+} from '../../../services/ProjectService/ProjectService.mock';
+import { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { getAvailableModels, getModel } from '../ai/models';
+import { AgentContext } from '../ai/utils/AgentContext';
 import { ManagedAgentService } from './ManagedAgentService';
 
 const captureAutopilotFailure = vi.fn();
@@ -520,6 +527,73 @@ describe('ManagedAgentService cleanup qualification enforcement', () => {
 });
 
 describe('ManagedAgentService discovery scope', () => {
+    it.each([true, false])(
+        'resolves the organization flag before reviewing managed metric queries (enabled=%s)',
+        async (enabled) => {
+            const { service, dataRuntime } = buildService();
+            const getFlag = vi.fn().mockResolvedValue({ enabled });
+            const internal = service as AnyType;
+            internal.lightdashConfig.ai.decisions = {
+                apiKey: 'test',
+                model: 'test',
+                timeoutMs: 100,
+            };
+            internal.featureFlagModel.get = getFlag;
+            dataRuntime.listExplores.mockResolvedValue([
+                validExplore,
+            ] as AnyType);
+            (dataRuntime as AnyType).runAsyncQuery = vi.fn().mockResolvedValue({
+                queryUuid: 'query',
+                rows: [{ a_met1: 42 }],
+                fields: {},
+                cacheMetadata: { cacheHit: false },
+            });
+            const evaluate = vi
+                .spyOn(AiDecisionClient.prototype, 'evaluate')
+                .mockResolvedValue({
+                    conditions: { type: 'noul', noul: 0.99 },
+                });
+            try {
+                const { tools } = await internal.buildAutopilotDataTools(
+                    user,
+                    PROJECT_UUID,
+                    ORGANIZATION_UUID,
+                );
+                const output = await tools.runMetricQuery.execute(
+                    {
+                        vizConfig: {
+                            exploreName: validExplore.name,
+                            dimensions: metricQueryMock.dimensions,
+                            metrics: metricQueryMock.metrics,
+                            sorts: [],
+                            limit: 100,
+                        },
+                        filters: null,
+                        customMetrics: null,
+                        tableCalculations: null,
+                    },
+                    {
+                        toolCallId: 'query',
+                        messages: [
+                            { role: 'user', content: 'Count completed orders' },
+                        ],
+                        experimental_context: new AgentContext([validExplore]),
+                    },
+                );
+                expect(output.metadata.status).toBe('success');
+                expect(getFlag).toHaveBeenCalledExactlyOnceWith({
+                    user: { organizationUuid: ORGANIZATION_UUID },
+                    featureFlagId: FeatureFlags.AiAgentFastDecisions,
+                });
+                expect(evaluate).toHaveBeenCalledTimes(enabled ? 1 : 0);
+                expect(output.result.includes('Query/question review')).toBe(
+                    enabled,
+                );
+            } finally {
+                evaluate.mockRestore();
+            }
+        },
+    );
     it('passes only the selected spaces to shared discovery', async () => {
         const { service, managedAgentModel, aiAgentToolsService } =
             buildService({

@@ -5,6 +5,21 @@ import {
     UnexpectedGitError,
 } from '@lightdash/common';
 
+export type WritebackAccessReason =
+    | 'denied_repo'
+    | 'user_intersection'
+    | 'installation'
+    | 'no_org';
+
+export class WritebackAccessError extends ForbiddenError {
+    constructor(
+        readonly reason: WritebackAccessReason,
+        message: string,
+    ) {
+        super(message);
+    }
+}
+
 /** A missing Git app or project token needs provider-specific setup guidance. */
 export class WritebackGitNotConnectedError extends ForbiddenError {
     readonly provider: PullRequestProvider | null;

@@ -25,12 +25,21 @@ export const accumulatePromptTokenUsage = (
     };
 };
 
-/** For modes that persist only the final step's usage, both figures coincide. */
-export const finalStepPromptTokenUsage = (
+/** Preserve whole-run usage separately from final-step context occupancy. */
+export const completedPromptTokenUsage = (
     totalTokens: number | null | undefined,
+    finalStepTotalTokens: number | null | undefined = totalTokens,
 ): AiPromptTokenUsageUpdate => {
-    const tokens = Number.isFinite(totalTokens) ? Number(totalTokens) : 0;
-    return { totalTokens: tokens, finalStepTotalTokens: tokens };
+    const finalTokens = Number.isFinite(finalStepTotalTokens)
+        ? Number(finalStepTotalTokens)
+        : 0;
+    return {
+        // If a provider omits aggregate usage, retain the known final step.
+        totalTokens: Number.isFinite(totalTokens)
+            ? Number(totalTokens)
+            : finalTokens,
+        finalStepTotalTokens: finalTokens,
+    };
 };
 
 // Legacy rows fall back to totalTokens: exact for every mode but deep research,

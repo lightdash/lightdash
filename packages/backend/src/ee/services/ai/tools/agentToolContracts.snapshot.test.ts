@@ -15,6 +15,7 @@ import { getEditDbtProject } from './editDbtProject';
 import { getEditProjectContext } from './editProjectContext';
 import { getEditRepo } from './editRepo';
 import { getExploreRepo } from './exploreRepo';
+import { getExportChartAsCode } from './exportChartAsCode';
 import { getFindContent } from './findContent';
 import { getFindCustomChartTypes } from './findCustomChartTypes';
 import { getFindExplores } from './findExplores';
@@ -23,7 +24,6 @@ import { getGenerateDashboardV2 } from './generateDashboardV2';
 import { getGenerateDataApp } from './generateDataApp';
 import { getGenerateHashes } from './generateHashes';
 import { getGenerateUuids } from './generateUuids';
-import { getGenerateVisualization } from './generateVisualization';
 import { getGetDashboardCharts } from './getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
 import { getGetProjectInfo } from './getProjectInfo';
@@ -35,11 +35,13 @@ import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
 import { getListWarehouseTables } from './listWarehouseTables';
 import { getListWorkstreams } from './listWorkstreams';
+import { getLoadAgentTools } from './loadAgentTools';
 import { getLoadMcpTools } from './loadMcpTools';
 import { getLoadSkill } from './loadSkill';
 import { getReadContent } from './readContent';
 import { getRunComposerQueries } from './runComposerQueries';
 import { getRunContentQuery } from './runContentQuery';
+import { getRunQuery } from './runQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
 import { getSearchFieldValues } from './searchFieldValues';
@@ -175,7 +177,7 @@ const makeAgentTools = (
             updateProgress: noopAsync,
             validateContent: noop,
         }),
-        generateVisualization: getGenerateVisualization({
+        generateVisualization: getRunQuery({
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
             slackLinksOnly: false,
@@ -237,6 +239,19 @@ const makeAgentTools = (
 };
 
 describe('AI agent tool contracts', () => {
+    it('matches the opt-in agent toolbox loader contract', () => {
+        expect(
+            agentToolSnapshot('loadAgentTools', getLoadAgentTools()),
+        ).toMatchSnapshot();
+        expect(DISTILL_TOOL_POLICIES.loadAgentTools.result.type).toBe(
+            'omit_call',
+        );
+    });
+    it('matches the opt-in chart-as-code export contract', () => {
+        expect(
+            agentToolSnapshot('exportChartAsCode', getExportChartAsCode()),
+        ).toMatchSnapshot();
+    });
     it.each(
         [false, true].flatMap((enableFilterExpressions) =>
             [false, true].map((enableMergeQueries) => ({

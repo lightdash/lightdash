@@ -6,6 +6,11 @@ import {
     languageModelUsageToTokens,
 } from '../../../../analytics/aiUsage';
 import {
+    AiDecisionClient,
+    confidentChoice,
+    decisionProbability,
+} from '../decisions/AiDecisionClient';
+import {
     AiCallAttribution,
     getAiCallTelemetry,
     getLanguageModelAttribution,
@@ -35,7 +40,7 @@ const AgentSelectionSchema = z.object({
 export type AgentSelectionResult = z.infer<typeof AgentSelectionSchema>;
 
 export type RouterDecision = {
-    selectedAgentUuid: string;
+    selectedAgentUuid: string | null;
     confidence: 'high' | 'medium' | 'low';
     reasoning: string;
     shouldSkipForwardingQuery: boolean;
@@ -128,12 +133,14 @@ export async function selectAgent({
     prompt,
     instructions = null,
     telemetry,
+    decisions,
 }: {
     model: LanguageModel;
     candidates: AiAgentWithContext[];
     prompt: string;
     instructions?: string | null;
     telemetry?: AiCallAttribution;
+    decisions?: AiDecisionClient;
 }): Promise<RouterDecision> {
     if (candidates.length === 0) {
         throw new Error('No agents available for selection');
@@ -146,6 +153,61 @@ export async function selectAgent({
             confidence: 'high',
             shouldSkipForwardingQuery: false,
         };
+    }
+
+    if (decisions && candidates.length <= 254) {
+        const answers = await decisions.evaluate({
+            operation: 'agent-routing',
+            state: {
+                prompt,
+                instructions,
+                candidates: candidates.map((agent) => ({
+                    uuid: agent.uuid,
+                    name: agent.name,
+                    description: agent.description,
+                    instruction: agent.instruction,
+                    explores: agent.context.explores,
+                    questions: agent.context.verifiedQuestions.slice(0, 5),
+                })),
+            },
+            questions: {
+                agent: {
+                    type: 'choice',
+                    instructions:
+                        'Choose the agent whose instructions, accessible explores and examples best fit the request. Follow the admin routing instructions when they identify a listed agent. Choose none when there is no clear match.',
+                    criteria: {
+                        ...Object.fromEntries(
+                            candidates.map((c) => [c.uuid, c.name]),
+                        ),
+                        none: 'No clear match',
+                    },
+                },
+                meta: {
+                    type: 'noul',
+                    instructions:
+                        'Is the user asking to see or choose available agents, rather than asking an agent to perform a task?',
+                },
+            },
+        });
+        if (answers) {
+            const selected = confidentChoice(answers.agent);
+            const meta = decisionProbability(answers.meta);
+            const canForward =
+                selected !== null &&
+                selected !== 'none' &&
+                meta !== null &&
+                meta <= 0.15;
+            return {
+                selectedAgentUuid: canForward ? selected : null,
+                confidence: canForward ? 'high' : 'low',
+                reasoning: canForward
+                    ? 'Matched the request to the agent’s scope.'
+                    : 'Choose an agent to continue.',
+                // An ambiguous destination does not turn a real data question
+                // into a meta-query. Forward it after the user picks an agent.
+                shouldSkipForwardingQuery: meta === null || meta > 0.15,
+            };
+        }
     }
 
     const systemPrompt = ROUTER_SYSTEM_PROMPT.replace(
@@ -182,8 +244,10 @@ export async function selectAgent({
 
     if (!exists) {
         return {
-            selectedAgentUuid: candidates[0].uuid,
-            reasoning: `Selected agent "${selection.agentUuid}" not found. Defaulting to first available agent.`,
+            selectedAgentUuid: decisions ? null : candidates[0].uuid,
+            reasoning: decisions
+                ? 'No accessible agent matched. Choose an agent to continue.'
+                : `Selected agent "${selection.agentUuid}" not found. Defaulting to first available agent.`,
             confidence: 'low',
             shouldSkipForwardingQuery: false,
         };

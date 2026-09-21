@@ -19,18 +19,20 @@ import {
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
-import { ModelMessage } from 'ai';
+import { type ModelMessage } from 'ai';
 import {
     AiKeyManagement,
     type AiUsageTokens,
 } from '../../../../analytics/aiUsage';
 import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
+import type { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
 import type {
     MemorySearchEntry,
     ProjectContextSearchEntry,
 } from '../tools/memoryProjectContext';
+import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import {
     AnalyzeFieldImpactFn,
     ClosePullRequestFn,
@@ -200,6 +202,13 @@ export type AiAgentDeepResearchRunContext = {
 };
 
 export type AiAgentArgs = AnyAiModel & {
+    decisions?: AiDecisionClient;
+    /** Optional, provider-aware fast model used only for schema-constrained steps. */
+    toolCallModel?: {
+        model: AnyAiModel['model'];
+        providerOptions?: AnyAiModel['providerOptions'];
+        keyManagement: AiKeyManagement;
+    };
     // Whether this turn runs on a Lightdash-managed or self-managed (BYO) key.
     // Stamped by the model builder and carried through for usage analytics.
     keyManagement: AiKeyManagement;
@@ -214,6 +223,7 @@ export type AiAgentArgs = AnyAiModel & {
     mcpServers: AiAgentMcpServer[];
     compactionSummary: string | null;
     messageHistory: ModelMessage[];
+    userQuestion?: string;
     promptUuid: string;
     threadUuid: string;
     organizationId: string;
@@ -302,6 +312,7 @@ export type PerformanceMetrics = {
 };
 
 export type AiAgentDependencies = {
+    chartExportArtifacts?: ArtifactChartExportAccess;
     listExplores: ListExploresFn;
     getExplore: GetExploreFn;
     getProjectParameterDefinitions: GetProjectParameterDefinitionsFn;
@@ -341,6 +352,7 @@ export type AiAgentDependencies = {
     getSavedChart: GetSavedChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
+    deferSlackVisualization?: import('./aiAgentDependencies').DeferSlackVisualizationFn;
     exportCustomChartTypeImage: ExportCustomChartTypeImageFn;
     sendSlackBlocks: SendSlackBlocksFn;
     updateSlackMessage: UpdateSlackMessageFn;

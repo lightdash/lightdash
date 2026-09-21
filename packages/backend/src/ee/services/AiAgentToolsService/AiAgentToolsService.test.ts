@@ -1329,6 +1329,27 @@ describe('AiAgentToolsService', () => {
         }
     });
 
+    it.each([
+        { source: 'ai_agent' as const, enabled: false, calls: 2 },
+        { source: 'ai_agent' as const, enabled: true, calls: 1 },
+        { source: 'mcp' as const, enabled: true, calls: 2 },
+    ])(
+        'caches prerequisites only for enabled agents ($source, $enabled)',
+        async ({ source, enabled, calls }) => {
+            const findExploresFromCache = vi.fn().mockResolvedValue({});
+            const service = makeService({
+                projectModel: { findExploresFromCache },
+            });
+            const context = makeRuntimeContext({ enableRuntimeCache: enabled });
+            const runtime =
+                source === 'mcp'
+                    ? service.createRuntime({ ...context, source: 'mcp' })
+                    : service.createRuntime(context);
+            await Promise.all([runtime.listExplores(), runtime.listExplores()]);
+            expect(findExploresFromCache).toHaveBeenCalledTimes(calls);
+        },
+    );
+
     it('returns MCP runtime errors from findExplores instead of throwing', async () => {
         const service = makeService({
             explores: { orders: makeExplore({ name: 'orders' }) },
@@ -1714,6 +1735,7 @@ describe('AiAgentToolsService', () => {
     });
 
     it('runs saved chart queries inside the scoped agent spaces', async () => {
+        const onQueryPrepared = vi.fn();
         const executeSavedChartQueryAndGetResults = vi
             .fn()
             .mockResolvedValue({ rows: [] });
@@ -1736,15 +1758,20 @@ describe('AiAgentToolsService', () => {
                 chartUuid: 'allowed-chart-uuid',
                 dashboardSlug: null,
                 limit: 100,
+                onQueryPrepared,
             }),
         ).resolves.toEqual({ rows: [] });
-        expect(executeSavedChartQueryAndGetResults).toHaveBeenCalledWith({
-            account,
-            projectUuid,
-            chartUuid: 'allowed-chart-uuid',
-            limit: 100,
-            context: QueryExecutionContext.AI,
-        });
+        expect(executeSavedChartQueryAndGetResults).toHaveBeenCalledWith(
+            {
+                account,
+                projectUuid,
+                chartUuid: 'allowed-chart-uuid',
+                limit: 100,
+                context: QueryExecutionContext.AI,
+            },
+            undefined,
+            onQueryPrepared,
+        );
     });
 
     it('checks the warehouse budget at the saved-chart query boundary', async () => {

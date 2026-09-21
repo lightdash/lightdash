@@ -3,20 +3,29 @@ import {
     type Explore,
     type FindExploresRequiredFilter,
     type GrepFieldsResult,
+    type ParameterDefinitions,
     type ToolGrepFieldsArgs,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import Logger from '../../../../logging/logger';
+import type { AgentDecisionContext } from '../decisions/agentQuestion';
+import type { AiDecisionClient } from '../decisions/AiDecisionClient';
+import { prepareCatalogMetadata } from '../decisions/catalogMetadata';
+import {
+    CATALOG_AMBIGUITY_GUIDANCE,
+    CATALOG_TIME_AMBIGUITY_GUIDANCE,
+    rankCatalog,
+} from '../decisions/catalogRanking';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
 import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { truncate } from '../utils/truncation';
 import {
-    buildExploreIndex,
-    buildFieldIndex,
     buildMetricAmbiguityNote,
     compileMatcher,
+    getCachedExploreIndex,
+    getCachedFieldIndex,
     MATCH_LOCALITY_RANK,
     matchLocality,
     summarizeRequiredFilters,
@@ -27,6 +36,10 @@ import {
 const toolDefinition = grepFieldsToolDefinition.for('agent');
 
 type Dependencies = {
+    decisions?: AiDecisionClient;
+    userQuestion?: string;
+    conversation?: AgentDecisionContext;
+    projectParameterDefinitions?: ParameterDefinitions;
     availableExplores: Explore[];
     // FTS catalog search, reused as a fuzzy fallback when literal grep is dry.
     findExplores: FindExploresFn;
@@ -57,6 +70,7 @@ type GrepFieldsExecuteResult = ExecuteStructuredToolResult<
 // tool instance so repeated grep calls in one agent run don't re-flatten and
 // re-lowercase every field (see buildGrepFieldsContext / getGrepFields).
 type GrepFieldsContext = {
+    availableExplores: Explore[];
     index: FieldEntry[];
     exploreIndex: ExploreEntry[];
     exploreNames: Set<string>;
@@ -108,8 +122,8 @@ const renderAnnotation = (
     );
 };
 
-const renderFtsFallback = (fields: FtsFieldMatch[]): string => {
-    const lines = rankFtsFields(fields)
+const renderFtsFallback = (fields: FtsFieldMatch[], ranked = false): string => {
+    const lines = fields
         .map((f) => {
             const verified = f.verifiedChartUsage ? ' ✓verified' : '';
             const desc = f.description
@@ -121,7 +135,7 @@ const renderFtsFallback = (fields: FtsFieldMatch[]): string => {
             return `  ${f.tableName}_${f.name}  [${f.fieldType}]${verified} ${f.label}${desc}`;
         })
         .join('\n');
-    return `No exact grep matches. Closest catalog matches (fuzzy search, verified fields first):\n${lines}`;
+    return `No exact grep matches. Closest catalog matches (${ranked ? 'fuzzy search' : 'fuzzy search, verified fields first'}):\n${lines}`;
 };
 
 // Per-pattern cap so a batch of broad patterns can't flood the context.
@@ -138,9 +152,17 @@ const ALL_MATCH_NO_SIGNAL_MIN = 25;
 const localityRank = (entry: FieldEntry, matches: MatchFn): number =>
     MATCH_LOCALITY_RANK[matchLocality(entry, matches)];
 
-const getOrderedHits = (hits: FieldEntry[], matches: MatchFn): FieldEntry[] =>
+const getOrderedHits = (
+    hits: FieldEntry[],
+    matches: MatchFn,
+    ranks?: Map<string, number>,
+): FieldEntry[] =>
     [...hits].sort(
         (a, b) =>
+            (ranks
+                ? (ranks.get(a.path) ?? Infinity) -
+                  (ranks.get(b.path) ?? Infinity)
+                : 0) ||
             localityRank(b, matches) - localityRank(a, matches) ||
             b.verifiedUsage - a.verifiedUsage,
     );
@@ -200,6 +222,7 @@ const groupOrderedHitsByExplore = (
     orderedHits: FieldEntry[],
     matches: MatchFn,
     requiredFiltersByExplore: Map<string, FindExploresRequiredFilter[]>,
+    exploreRanks?: Map<string, number>,
 ): ResultsByExplore => {
     const byExplore = new Map<string, FieldEntry[]>();
     for (const hit of orderedHits.slice(0, MAX_PER_PATTERN)) {
@@ -208,7 +231,14 @@ const groupOrderedHitsByExplore = (
         byExplore.set(hit.exploreName, list);
     }
 
-    return [...byExplore.entries()].map(([exploreName, fields]) => ({
+    const groups = [...byExplore.entries()];
+    if (exploreRanks)
+        groups.sort(
+            (a, b) =>
+                (exploreRanks.get(a[0]) ?? Infinity) -
+                (exploreRanks.get(b[0]) ?? Infinity),
+        );
+    return groups.map(([exploreName, fields]) => ({
         exploreName,
         exploreLabel: fields[0]?.exploreLabel ?? exploreName,
         requiredFilters: requiredFiltersByExplore.get(exploreName) ?? [],
@@ -308,6 +338,8 @@ const renderPattern = (
     requiredFiltersSummaryByExplore: Map<string, string>,
     requiredFiltersByExplore: Map<string, FindExploresRequiredFilter[]>,
     state: RenderState,
+    fieldRanks?: Map<string, number>,
+    exploreRanks?: Map<string, number>,
 ): {
     text: string;
     isSignal: boolean;
@@ -363,9 +395,10 @@ const renderPattern = (
     // Group once and derive both the text block and the structuredContent from
     // it, so a future ordering/capping change can't make the two disagree.
     const resultsByExplore = groupOrderedHitsByExplore(
-        getOrderedHits(hits, matches),
+        getOrderedHits(hits, matches, fieldRanks),
         matches,
         requiredFiltersByExplore,
+        exploreRanks,
     );
     const capped =
         hits.length > MAX_PER_PATTERN
@@ -404,7 +437,7 @@ const renderPattern = (
 const buildStructuredFuzzyMatches = (
     fields: FtsFieldMatch[],
 ): GrepFieldsResult['fuzzyMatches'] =>
-    rankFtsFields(fields).map((field) => ({
+    fields.map((field) => ({
         exploreName: field.tableName,
         fieldId: `${field.tableName}_${field.name}`,
         label: field.label,
@@ -441,8 +474,9 @@ const buildGrepFieldsContext = ({
         );
     }
     return {
-        index: buildFieldIndex(availableExplores, verifiedFieldUsage),
-        exploreIndex: buildExploreIndex(availableExplores),
+        availableExplores,
+        index: getCachedFieldIndex(availableExplores, verifiedFieldUsage),
+        exploreIndex: getCachedExploreIndex(availableExplores),
         exploreNames: new Set(availableExplores.map((explore) => explore.name)),
         requiredFiltersSummaryByExplore,
         requiredFiltersByExplore,
@@ -453,6 +487,13 @@ const runGrepFields = async (
     { patterns, exploreName }: ToolGrepFieldsArgs,
     context: GrepFieldsContext,
     findExplores: FindExploresFn,
+    ranking?: Pick<
+        Dependencies,
+        | 'decisions'
+        | 'userQuestion'
+        | 'conversation'
+        | 'projectParameterDefinitions'
+    >,
 ): Promise<GrepFieldsExecuteResult> => {
     // A typo'd or out-of-scope explore name would otherwise scope to zero
     // fields and report "no matches, try broader keywords" — steering the caller
@@ -497,6 +538,86 @@ const runGrepFields = async (
         return { pattern, matches, hits, exploreHits };
     });
 
+    // FTS (stemming + recall) runs on EVERY grep, not just dry ones: a grep
+    // that "succeeds" with plausible-but-wrong hits would otherwise suppress
+    // the search mode that finds what the literal grep missed. Failures degrade
+    // to grep-only results.
+    let ftsFields = rankFtsFields(
+        await (async (): Promise<FtsFieldMatch[]> => {
+            try {
+                const scopedFieldIds = new Set(
+                    scoped.map((field) => getFieldIdFromEntry(field)),
+                );
+                const fts = await findExplores({
+                    fieldSearchSize: 25,
+                    searchQuery: grepPatternsToSearchQuery(patterns),
+                });
+                return (fts.topMatchingFields ?? []).filter(
+                    (field) =>
+                        (!exploreName && !ranking?.decisions) ||
+                        scopedFieldIds.has(`${field.tableName}_${field.name}`),
+                );
+            } catch {
+                return [];
+            }
+        })(),
+    );
+
+    const getRankingPool = (): FieldEntry[] => {
+        const direct = matched.flatMap(({ hits, matches }) =>
+            isNoSignalPattern(hits.length, scoped.length)
+                ? []
+                : getOrderedHits(hits, matches),
+        );
+        const byId = new Map<string, FieldEntry[]>();
+        scoped.forEach((field) => {
+            const id = getFieldIdFromEntry(field);
+            byId.set(id, [...(byId.get(id) ?? []), field]);
+        });
+        const fuzzy = ftsFields.flatMap(
+            (field) => byId.get(`${field.tableName}_${field.name}`) ?? [],
+        );
+        // Reserve room for fuzzy recall inside the 40-field decision budget.
+        return [
+            ...new Map(
+                [
+                    ...direct.slice(0, 32),
+                    ...fuzzy.slice(0, 8),
+                    ...direct.slice(32),
+                    ...fuzzy.slice(8),
+                ].map((field) => [field.path, field]),
+            ).values(),
+        ];
+    };
+    const ranked = ranking?.decisions
+        ? await rankCatalog({
+              decisions: ranking.decisions,
+              conversation: ranking.conversation,
+              query: [
+                  ranking.userQuestion,
+                  `Catalog search: ${grepPatternsToSearchQuery(patterns)}`,
+              ]
+                  .filter(Boolean)
+                  .join('\n'),
+              fields: getRankingPool(),
+              explores: exploreName
+                  ? context.availableExplores.filter(
+                        (explore) => explore.name === exploreName,
+                    )
+                  : context.availableExplores,
+          })
+        : null;
+    const fieldRanks = ranked?.fieldRanks ?? undefined;
+    const exploreRanks = ranked?.exploreRanks ?? undefined;
+    if (exploreRanks)
+        matched.forEach(({ exploreHits }) =>
+            exploreHits.sort(
+                (a, b) =>
+                    (exploreRanks.get(a.exploreName) ?? Infinity) -
+                    (exploreRanks.get(b.exploreName) ?? Infinity),
+            ),
+        );
+
     const state: RenderState = {
         upgradedPaths: pickFieldsWorthFullHints(
             matched
@@ -506,7 +627,7 @@ const runGrepFields = async (
                         !isNoSignalPattern(hits.length, scoped.length),
                 )
                 .map(({ hits, matches }) => ({
-                    displayed: getOrderedHits(hits, matches).slice(
+                    displayed: getOrderedHits(hits, matches, fieldRanks).slice(
                         0,
                         MAX_PER_PATTERN,
                     ),
@@ -529,6 +650,8 @@ const runGrepFields = async (
                 requiredFiltersSummaryByExplore,
                 requiredFiltersByExplore,
                 state,
+                fieldRanks,
+                exploreRanks,
             ),
         }),
     );
@@ -552,29 +675,35 @@ const runGrepFields = async (
         });
     }
 
-    // FTS (stemming + recall) runs on EVERY grep, not just dry ones: a grep
-    // that "succeeds" with plausible-but-wrong hits would otherwise suppress
-    // the search mode that finds what the literal grep missed. Failures degrade
-    // to grep-only results.
-    let ftsFields: FtsFieldMatch[] = [];
-    try {
-        const scopedFieldIds = new Set(
-            scoped.map((field) => getFieldIdFromEntry(field)),
-        );
-        const fts = await findExplores({
-            fieldSearchSize: 25,
-            searchQuery: grepPatternsToSearchQuery(patterns),
+    if (ranked?.fieldsRanked) {
+        const fuzzyRanks = new Map<string, number>();
+        ranked.fields.forEach((field) => {
+            const id = getFieldIdFromEntry(field);
+            const rank = ranked.fieldRanks?.get(field.path) ?? Infinity;
+            fuzzyRanks.set(id, Math.min(fuzzyRanks.get(id) ?? Infinity, rank));
         });
-        ftsFields = (fts.topMatchingFields ?? []).filter(
-            (field) =>
-                !exploreName ||
-                scopedFieldIds.has(`${field.tableName}_${field.name}`),
+        ftsFields = [...ftsFields].sort(
+            (a, b) =>
+                (fuzzyRanks.get(`${a.tableName}_${a.name}`) ?? Infinity) -
+                (fuzzyRanks.get(`${b.tableName}_${b.name}`) ?? Infinity),
         );
-    } catch {
-        ftsFields = [];
     }
 
-    const blocksText = blocks.map((block) => block.text).join('\n\n');
+    const blocksText = [
+        blocks.map((block) => block.text).join('\n\n'),
+        ranked && ranking?.projectParameterDefinitions
+            ? prepareCatalogMetadata(
+                  ranked.fields,
+                  context.availableExplores,
+                  ranking.projectParameterDefinitions,
+                  ranked.fieldRanks,
+              )
+            : null,
+        ranked?.ambiguous ? CATALOG_AMBIGUITY_GUIDANCE : null,
+        ranked?.timeAmbiguous ? CATALOG_TIME_AMBIGUITY_GUIDANCE : null,
+    ]
+        .filter(Boolean)
+        .join('\n\n');
     const anyHit = blocks.some((block) => block.isSignal);
 
     if (anyHit) {
@@ -586,12 +715,12 @@ const runGrepFields = async (
                 patternResult.hits.map((hit) => getFieldIdFromEntry(hit)),
             ),
         );
-        const novelFtsFields = rankFtsFields(
-            ftsFields.filter(
+        const novelFtsFields = ftsFields
+            .filter(
                 (field) =>
                     !greppedFieldIds.has(`${field.tableName}_${field.name}`),
-            ),
-        ).slice(0, 8);
+            )
+            .slice(0, 8);
         const crossCheck =
             novelFtsFields.length > 0
                 ? `\n\nCatalog fuzzy search also matches (not in the grep results above):\n${novelFtsFields
@@ -621,7 +750,7 @@ const runGrepFields = async (
     return {
         result:
             ftsFields.length > 0
-                ? `${blocksText}\n\n${renderFtsFallback(ftsFields)}`
+                ? `${blocksText}\n\n${renderFtsFallback(ftsFields, ranked?.fieldsRanked)}`
                 : `${blocksText}\n\nNo fields matched any of the patterns${scope}, and the catalog search found nothing close. Try broader or alternative keywords.`,
         metadata: { status: 'success', patternStats },
         structuredContent: {
@@ -636,12 +765,21 @@ const runGrepFields = async (
 
 export const executeGrepFields = async (
     args: ToolGrepFieldsArgs,
-    { availableExplores, findExplores, verifiedFieldUsage }: Dependencies,
+    {
+        availableExplores,
+        findExplores,
+        verifiedFieldUsage,
+        decisions,
+        userQuestion,
+        conversation,
+        projectParameterDefinitions,
+    }: Dependencies,
 ): Promise<GrepFieldsExecuteResult> =>
     runGrepFields(
         args,
         buildGrepFieldsContext({ availableExplores, verifiedFieldUsage }),
         findExplores,
+        { decisions, userQuestion, conversation, projectParameterDefinitions },
     );
 
 /**
@@ -662,6 +800,7 @@ export const getGrepFields = (dependencies: Dependencies) => {
                     args,
                     context,
                     dependencies.findExplores,
+                    dependencies,
                 );
                 return {
                     result: result.result,

@@ -195,6 +195,7 @@ const makeService = ({
         commitDecision: vi.fn().mockResolvedValue(undefined),
     };
     const aiAgentService = {
+        getDecisionClient: vi.fn().mockResolvedValue(undefined),
         getAvailableAgents: vi.fn().mockResolvedValue(candidates),
     };
 
@@ -338,6 +339,50 @@ describe('AiRouterService', () => {
         expect(result.confidence).toBe('low');
         expect(result.nextAction).toBe('create_thread');
         expect(result.shouldSkipForwardingQuery).toBe(true);
+    });
+
+    it.each([
+        { confidence: 'low', shouldSkipForwardingQuery: false },
+        { confidence: 'medium', shouldSkipForwardingQuery: false },
+        { confidence: 'high', shouldSkipForwardingQuery: true },
+    ])('keeps the MCP picker in fast mode for %j', async (selection) => {
+        const candidates = [
+            createCandidate({ uuid: 'agent-1', name: 'General' }),
+            createCandidate({ uuid: 'agent-2', name: 'Finance' }),
+        ];
+        const { service, aiAgentService } = makeService({ candidates });
+        aiAgentService.getDecisionClient.mockResolvedValue({} as never);
+        vi.mocked(selectAgent).mockResolvedValue({
+            selectedAgentUuid: 'agent-2',
+            reasoning: 'A fallback decision.',
+            ...selection,
+        } as Awaited<ReturnType<typeof selectAgent>>);
+        const result = await service.routePromptToAgent(account, {
+            prompt: 'revenue',
+            projectUuid,
+            mode: 'mcp',
+        });
+        expect(result.nextAction).toBe('show_picker');
+    });
+
+    it('does not auto-route an unknown ID even with a high-confidence result', async () => {
+        const candidates = [
+            createCandidate({ uuid: 'agent-1', name: 'General' }),
+            createCandidate({ uuid: 'agent-2', name: 'Finance' }),
+        ];
+        const { service } = makeService({ candidates });
+        vi.mocked(selectAgent).mockResolvedValue({
+            selectedAgentUuid: 'invented-agent',
+            reasoning: '',
+            confidence: 'high',
+            shouldSkipForwardingQuery: false,
+        });
+        const result = await service.routePromptToAgent(account, {
+            prompt: 'revenue',
+            projectUuid,
+            mode: 'mcp',
+        });
+        expect(result.nextAction).toBe('show_picker');
     });
 
     it('preserves web low-confidence behavior', async () => {

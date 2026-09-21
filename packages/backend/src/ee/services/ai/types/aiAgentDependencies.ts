@@ -11,6 +11,7 @@ import {
     AiWritebackRunResult,
     AllChartsSearchResult,
     AnyType,
+    ApiExecuteAsyncMetricQueryResults,
     CacheMetadata,
     CatalogField,
     ChartAsCode,
@@ -484,7 +485,18 @@ export type RunSavedChartQueryFn = (args: {
     chartUuid: string;
     dashboardSlug: string | null;
     limit: number | null;
+    onQueryPrepared?: (
+        execution: Pick<
+            ApiExecuteAsyncMetricQueryResults,
+            'metricQuery' | 'usedParametersValues' | 'resolvedTimezone'
+        >,
+    ) => void;
 }) => Promise<{
+    queryUuid: string;
+    execution: Pick<
+        ApiExecuteAsyncMetricQueryResults,
+        'metricQuery' | 'usedParametersValues' | 'resolvedTimezone'
+    >;
     rows: Record<string, AnyType>[];
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
@@ -493,6 +505,10 @@ export type RunSavedChartQueryFn = (args: {
 export type GetSavedChartFn = (chartUuidOrSlug: string) => Promise<SavedChart>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<string | undefined>;
+
+export type DeferSlackVisualizationFn = (
+    input: import('../../../database/entities/aiSlackArtifactDeliveries').SlackArtifactRenderInput,
+) => Promise<boolean>;
 
 // Renders a custom chart type artifact version to a PNG buffer via the
 // headless browser, as the requesting user.

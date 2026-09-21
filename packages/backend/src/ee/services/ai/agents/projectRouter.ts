@@ -5,6 +5,10 @@ import {
     languageModelUsageToTokens,
 } from '../../../../analytics/aiUsage';
 import {
+    AiDecisionClient,
+    confidentChoice,
+} from '../decisions/AiDecisionClient';
+import {
     AiCallAttribution,
     getAiCallTelemetry,
     getLanguageModelAttribution,
@@ -37,9 +41,34 @@ export async function routeProjectForSlack(
     projects: { projectUuid: string; name: string }[],
     userQuery: string,
     telemetry?: AiCallAttribution,
+    decisions?: AiDecisionClient,
 ): Promise<string | null> {
     if (projects.length === 0) {
         return null;
+    }
+
+    if (decisions && projects.length <= 254) {
+        const answers = await decisions.evaluate({
+            operation: 'project-routing',
+            state: { query: userQuery, projects },
+            questions: {
+                project: {
+                    type: 'choice',
+                    instructions:
+                        'Which project does the query unambiguously identify by name, region or abbreviation? Choose none if no project is identified or multiple projects fit. Never infer a project from its popularity.',
+                    criteria: {
+                        ...Object.fromEntries(
+                            projects.map((p) => [p.projectUuid, p.name]),
+                        ),
+                        none: 'No single project is clearly identified',
+                    },
+                },
+            },
+        });
+        if (answers) {
+            const selected = confidentChoice(answers.project);
+            return selected && selected !== 'none' ? selected : null;
+        }
     }
 
     const projectList = projects

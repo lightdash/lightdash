@@ -62,6 +62,7 @@ import {
     sanitizeCustomFormat,
 } from '../ai/agents/tableCalculationGenerator';
 import { generateTooltip as generateTooltipFromContext } from '../ai/agents/tooltipGenerator';
+import { resolveAiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import {
     getModel,
     pickAmbientAnthropicPreset,
@@ -138,12 +139,21 @@ export class AiService extends BaseService {
         input: ChartSimilarityInput,
         cachedOnly = false,
     ): Promise<ChartSimilarityMatch[] | undefined> {
+        const decisions = await resolveAiDecisionClient(
+            this.lightdashConfig.ai.decisions,
+            () =>
+                this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.AiAgentFastDecisions,
+                }),
+        );
         const key = createHash('sha256')
             .update(
                 JSON.stringify([
                     user.organizationUuid,
                     user.userUuid,
                     projectUuid,
+                    decisions?.modelName ?? null,
                     input,
                 ]),
             )
@@ -157,7 +167,7 @@ export class AiService extends BaseService {
         if (this.chartSimilarityInFlight.size >= 20) return undefined;
         const operation = (async () => {
             const model = await this.getAmbientAiModel(user, { projectUuid });
-            const matches = await compareChartQueries(model, input);
+            const matches = await compareChartQueries(model, input, decisions);
             if (this.chartSimilarityCache.getStats().keys < 100) {
                 this.chartSimilarityCache.set(key, matches);
             }

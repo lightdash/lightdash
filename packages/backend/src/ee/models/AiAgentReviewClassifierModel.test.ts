@@ -1,7 +1,10 @@
 import { ProjectType } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
-import { AiPromptTableName } from '../database/entities/ai';
+import {
+    AiAgentToolCallTableName,
+    AiPromptTableName,
+} from '../database/entities/ai';
 import { AiAgentMemoryTableName } from '../database/entities/aiAgentMemory';
 import {
     AiAgentReviewClassifierRunTableName,
@@ -235,6 +238,35 @@ describe('AiAgentReviewClassifierModel', () => {
             expect(query.sql).toContain('work_thread_uuid');
         });
     });
+
+    it.each([
+        [undefined, 5],
+        [30, 30],
+        [100, 30],
+    ])(
+        'retains a bounded evidence pool before service ranking: %s',
+        async (limit, expected) => {
+            const rows = Array.from({ length: 40 }, (_, index) => ({
+                tool_call_id: `tool-${index}`,
+                tool_name: 'runQuery',
+                parent_tool_call_id: null,
+                created_at: new Date(SEEN_AT.getTime() + index),
+                tool_args: { metrics: ['revenue'] },
+                result: 'Query succeeded',
+            }));
+            tracker.on.select(AiAgentToolCallTableName).responseOnce(rows);
+            const evidence = await model['fetchSupportingEvidence'](
+                PROMPT_UUID,
+                'revenue',
+                null,
+                null,
+                limit,
+            );
+            expect(evidence).toHaveLength(expected!);
+            expect(evidence?.[0].toolCallId).toBe('tool-0');
+            expect(tracker.history.select[0].bindings).toContain(PROMPT_UUID);
+        },
+    );
 
     describe('remediation events', () => {
         it('emits a failed event when a remediation is marked failed', async () => {

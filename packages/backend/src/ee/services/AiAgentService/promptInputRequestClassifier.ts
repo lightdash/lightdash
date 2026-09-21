@@ -12,6 +12,8 @@ import type { AiAgentPromptInputRequestClassifiedEvent } from '../../../analytic
 import type { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
 import type { AiPromptClassifierNeedsUserInputMetadata } from '../../database/entities/ai';
+import type { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
+import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import {
     resolveReviewJudgeModel,
     type ReviewJudgeConfigResolver,
@@ -74,6 +76,7 @@ export const classifyPromptInputRequest = async ({
     promptUuid,
     orgAiCopilotConfigResolver,
     instanceCopilotConfig,
+    decisions,
 }: {
     response: string;
     organizationUuid: string;
@@ -83,8 +86,27 @@ export const classifyPromptInputRequest = async ({
     promptUuid: string;
     orgAiCopilotConfigResolver: ReviewJudgeConfigResolver;
     instanceCopilotConfig: LightdashConfig['ai']['copilot'];
+    decisions?: AiDecisionClient;
 }): Promise<PromptInputRequestClassification> => {
     const startedAt = performance.now();
+    if (decisions) {
+        const signals = await classifyResponseSignals(decisions, response);
+        if (signals.needsUserInput !== null) {
+            return {
+                gateFired: true,
+                classified: signals.needsUserInput,
+                model: decisions.modelName,
+                durationMs: elapsedMilliseconds(startedAt),
+                confidence:
+                    signals.inputProbability === null
+                        ? null
+                        : Math.max(
+                              signals.inputProbability,
+                              1 - signals.inputProbability,
+                          ),
+            };
+        }
+    }
     if (!responseMatchesPromptInputRequestGate(response)) {
         return {
             gateFired: false,
@@ -178,6 +200,7 @@ export const runPromptInputRequestClassification = async ({
     instanceCopilotConfig,
     aiAgentModel,
     analytics,
+    decisions,
 }: {
     enabled: boolean;
     response: string;
@@ -191,6 +214,7 @@ export const runPromptInputRequestClassification = async ({
     instanceCopilotConfig: LightdashConfig['ai']['copilot'];
     aiAgentModel: PromptInputRequestClassificationModel;
     analytics: PromptInputRequestClassificationAnalytics;
+    decisions?: AiDecisionClient;
 }): Promise<void> => {
     if (!enabled) {
         return;
@@ -205,6 +229,7 @@ export const runPromptInputRequestClassification = async ({
         promptUuid,
         orgAiCopilotConfigResolver,
         instanceCopilotConfig,
+        decisions,
     });
 
     analytics.track({

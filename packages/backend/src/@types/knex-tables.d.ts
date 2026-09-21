@@ -568,6 +568,10 @@ import {
     AiRouterTableName,
 } from '../ee/database/entities/aiRouter';
 import {
+    AiSlackArtifactDeliveriesTable,
+    AiSlackArtifactDeliveriesTableName,
+} from '../ee/database/entities/aiSlackArtifactDeliveries';
+import {
     DataAppAnalysesTable,
     DataAppAnalysesTableName,
 } from '../ee/database/entities/dataAppAnalyses';
@@ -780,6 +784,7 @@ declare module 'knex/types/tables' {
         [AiArtifactsTableName]: AiArtifactsTable;
         [AiArtifactVersionsTableName]: AiArtifactVersionsTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
+        [AiSlackArtifactDeliveriesTableName]: AiSlackArtifactDeliveriesTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;
         [AiWritebackThreadTableName]: AiWritebackThreadTable;
         [MobilePushInstallationsTableName]: MobilePushInstallationTable;

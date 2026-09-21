@@ -6567,6 +6567,9 @@ Input modes:
         "metadata": {
           "additionalProperties": false,
           "properties": {
+            "queryCacheHit": {
+              "type": "boolean",
+            },
             "status": {
               "enum": [
                 "success",
@@ -8262,6 +8265,9 @@ Use them whenever the question needs math the metric query alone can't express: 
                 },
               ],
             },
+            "queryCacheHit": {
+              "type": "boolean",
+            },
             "status": {
               "enum": [
                 "success",
@@ -8323,6 +8329,9 @@ custom metrics are applied automatically.
         "metadata": {
           "additionalProperties": false,
           "properties": {
+            "queryCacheHit": {
+              "type": "boolean",
+            },
             "status": {
               "enum": [
                 "success",
@@ -10577,6 +10586,9 @@ Use them whenever the question needs math the metric query alone can't express: 
               },
             ],
           },
+          "queryCacheHit": {
+            "type": "boolean",
+          },
           "status": {
             "enum": [
               "success",
@@ -10600,6 +10612,93 @@ Use them whenever the question needs math the metric query alone can't express: 
     ],
     "type": "object",
   },
+}
+`;
+
+exports[`AI agent tool contracts > matches the opt-in agent toolbox loader contract 1`] = `
+{
+  "description": "Load the remaining tools available to this agent for this turn. Call this only when the request requires a capability absent from the current toolbox. If runQuery is already available and the user did not ask for a visualization, use runQuery; do not load tools merely to create an unsolicited chart. Do not claim a capability is unavailable merely because its tool has not been loaded. Loading does not execute or authorize an action; existing permissions still apply.",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object",
+  },
+  "name": "loadAgentTools",
+}
+`;
+
+exports[`AI agent tool contracts > matches the opt-in chart-as-code export contract 1`] = `
+{
+  "description": "Export a chart as schema-validated chart-as-code YAML without running queries, saving or publishing content. Always call this tool for chart YAML; never reconstruct YAML yourself. For charts generated in this turn pass queryUuid from generateVisualization and null artifact identifiers. For an existing chart in this conversation, use its exact artifactUuid and versionUuid with null queryUuid. If these identifiers are unknown, pass null for all three source identifiers to list available artifacts first; never regenerate the chart just to export it. Never invent or use placeholder UUIDs. Supports built-in semantic, merged and pinned custom charts; use content tools for other sources. Pass null for an unspecified destination slug or spaceSlug: the tool will report exactly what is missing so you can ask the user. Never search content to infer a destination.",
+  "inputSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "additionalProperties": false,
+    "properties": {
+      "artifactUuid": {
+        "anyOf": [
+          {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          {
+            "type": "null",
+          },
+        ],
+      },
+      "queryUuid": {
+        "anyOf": [
+          {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          {
+            "type": "null",
+          },
+        ],
+      },
+      "slug": {
+        "anyOf": [
+          {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string",
+          },
+          {
+            "type": "null",
+          },
+        ],
+      },
+      "spaceSlug": {
+        "anyOf": [
+          {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string",
+          },
+          {
+            "type": "null",
+          },
+        ],
+      },
+      "versionUuid": {
+        "anyOf": [
+          {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          {
+            "type": "null",
+          },
+        ],
+      },
+    },
+    "type": "object",
+  },
+  "name": "exportChartAsCode",
 }
 `;
 

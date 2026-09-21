@@ -3,6 +3,7 @@ import {
     aiAgentReviewClassifierJudgeCallOutputSchema,
     assertUnreachable,
     CatalogType,
+    FeatureFlags,
     filterExploreByTags,
     ForbiddenError,
     getAiAgentConfigSnapshotHash,
@@ -34,6 +35,7 @@ import {
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { createHash } from 'crypto';
+import pLimit from 'p-limit';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
@@ -41,6 +43,7 @@ import {
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { type CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
 import { type AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
@@ -49,6 +52,8 @@ import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassi
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { type ProjectContextModel } from '../models/ProjectContextModel';
 import { defaultAgentOptions } from './ai/agents/agentV2';
+import { resolveAiDecisionClient } from './ai/decisions/AiDecisionClient';
+import { rankReviewEvidence } from './ai/decisions/reviewEvidence';
 import { type getModel } from './ai/models';
 import { OrgAiCopilotConfigResolver } from './ai/OrgAiCopilotConfigResolver';
 import { authorProjectContextEntry } from './ai/projectContext/authorProjectContextEntry';
@@ -90,6 +95,7 @@ type AiAgentReviewClassifierServiceDependencies = {
     catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
     projectModel: Pick<ProjectModel, 'getSummary' | 'findExploresFromCache'>;
     lightdashConfig: LightdashConfig;
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
     projectContextModel: Pick<ProjectContextModel, 'getDocument'>;
     judgeTurn?: AiAgentReviewClassifierJudge;
@@ -286,6 +292,8 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly lightdashConfig: LightdashConfig;
 
+    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
+
     private readonly projectContextModel: Pick<
         ProjectContextModel,
         'getDocument'
@@ -308,6 +316,7 @@ export class AiAgentReviewClassifierService extends BaseService {
         this.aiAgentReviewNotificationService =
             dependencies.aiAgentReviewNotificationService;
         this.lightdashConfig = dependencies.lightdashConfig;
+        this.featureFlagModel = dependencies.featureFlagModel;
         this.projectContextModel = dependencies.projectContextModel;
         this.judgeTurn =
             dependencies.judgeTurn ??
@@ -323,16 +332,64 @@ export class AiAgentReviewClassifierService extends BaseService {
         }
     }
 
-    async run(args: RunArgs): Promise<AiAgentReviewClassifierRunResult> {
+    private async listReviewCandidates(
+        args: Parameters<
+            AiAgentReviewClassifierModel['listTurnReviewCandidates']
+        >[0],
+    ): Promise<AiAgentReviewClassifierTurnCandidate[]> {
+        const decisions = await resolveAiDecisionClient(
+            this.lightdashConfig.ai?.decisions,
+            async () =>
+                (await this.isEnabled(args))
+                    ? this.featureFlagModel.get({
+                          user: { organizationUuid: args.organizationUuid },
+                          featureFlagId: FeatureFlags.AiAgentFastDecisions,
+                      })
+                    : { enabled: false },
+        );
         const candidates =
             await this.aiAgentReviewClassifierModel.listTurnReviewCandidates({
-                organizationUuid: args.organizationUuid,
-                projectUuid: args.projectUuid,
-                agentUuid: args.agentUuid,
-                startedAt: args.startedAt,
-                endedAt: args.endedAt,
-                limit: args.limit,
+                ...args,
+                ...(decisions ? { supportingEvidenceLimit: 30 } : {}),
             });
+        if (!decisions) return candidates;
+        const limit = pLimit(4);
+        return Promise.all(
+            candidates.map((candidate) =>
+                limit(async () => {
+                    const supportingEvidence = await rankReviewEvidence(
+                        decisions,
+                        candidate,
+                    );
+                    const successfulWriteback =
+                        AiAgentReviewClassifierService.getSuccessfulWritebackEvidence(
+                            candidate,
+                        );
+                    if (
+                        successfulWriteback &&
+                        !supportingEvidence.some(
+                            (row) =>
+                                row.toolCallId ===
+                                successfulWriteback.toolCallId,
+                        )
+                    ) {
+                        supportingEvidence.splice(4, 1, successfulWriteback);
+                    }
+                    return { ...candidate, supportingEvidence };
+                }),
+            ),
+        );
+    }
+
+    async run(args: RunArgs): Promise<AiAgentReviewClassifierRunResult> {
+        const candidates = await this.listReviewCandidates({
+            organizationUuid: args.organizationUuid,
+            projectUuid: args.projectUuid,
+            agentUuid: args.agentUuid,
+            startedAt: args.startedAt,
+            endedAt: args.endedAt,
+            limit: args.limit,
+        });
 
         this.debugLog('BackfillCandidatesLoaded', {
             organizationUuid: args.organizationUuid,
@@ -378,12 +435,11 @@ export class AiAgentReviewClassifierService extends BaseService {
         organizationUuid: string;
         promptUuid: string;
     }): Promise<AiAgentReviewJudgeReplayInput | null> {
-        const [candidate] =
-            await this.aiAgentReviewClassifierModel.listTurnReviewCandidates({
-                organizationUuid: args.organizationUuid,
-                promptUuid: args.promptUuid,
-                limit: 1,
-            });
+        const [candidate] = await this.listReviewCandidates({
+            organizationUuid: args.organizationUuid,
+            promptUuid: args.promptUuid,
+            limit: 1,
+        });
         if (!candidate) {
             return null;
         }
@@ -445,7 +501,7 @@ export class AiAgentReviewClassifierService extends BaseService {
         }
 
         const listCandidate = (promptUuid: string) =>
-            this.aiAgentReviewClassifierModel.listTurnReviewCandidates({
+            this.listReviewCandidates({
                 organizationUuid: args.organizationUuid,
                 projectUuid: args.projectUuid,
                 agentUuid: args.agentUuid,

@@ -15,7 +15,13 @@ import {
     normalizeMcpOAuthPayloadForRedirect,
     sanitizeUntrustedMcpText,
 } from './AiAgentMcpRuntimeClient';
+import { AiDecisionClient } from './decisions/AiDecisionClient';
 import type { AiAgentMcpServer } from './types/aiAgent';
+import { getUserFacingErrorMessage } from './utils/errorMessages';
+import {
+    MCP_CONNECTION_MESSAGE,
+    MCP_PERMISSION_MESSAGE,
+} from './utils/mcpErrors';
 
 vi.mock('node:dns/promises', () => ({
     lookup: vi.fn(async () => [{ address: '93.184.216.34', family: 4 }]),
@@ -618,6 +624,117 @@ describe('resolveMcpTools', () => {
         expect(close).toHaveBeenCalledTimes(1);
     });
 
+    it.each([
+        [
+            'MCP HTTP Transport Error: HTTP 500 authorization service failed',
+            'error',
+            MCP_CONNECTION_MESSAGE,
+        ],
+        [
+            'Could not reach authorization service on port 4010',
+            'error',
+            MCP_CONNECTION_MESSAGE,
+        ],
+        [
+            'MCP HTTP Transport Error: POSTing to endpoint (HTTP 403): HTTP 401 would not help',
+            'error',
+            MCP_PERMISSION_MESSAGE,
+        ],
+        [
+            'MCP HTTP Transport Error: GET SSE failed: 401 Unauthorized',
+            'not_connected',
+            'MCP server "OAuth MCP" requires authorization before this agent can use it.',
+        ],
+    ])(
+        'keeps discovery failure status based on facts: %s',
+        async (message, status, expected) => {
+            const server = getMcpServer({
+                name: 'OAuth MCP',
+                authType: 'oauth',
+                connectionStatus: 'connected',
+            });
+            const close = vi.fn().mockResolvedValue(undefined);
+            const tools = vi.fn().mockRejectedValue(new Error(message));
+            vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
+                tools,
+                close,
+            } as unknown as MCPClient);
+            const result = await runtimeClient.resolveTools({
+                mcpServers: [server],
+                userUuid: 'user-uuid',
+                debugLoggingEnabled: false,
+                decisions: new AiDecisionClient({
+                    apiKey: null,
+                    model: 'test',
+                    timeoutMs: 100,
+                }),
+            });
+            expect(result.unavailableMcpServers).toEqual([
+                expect.objectContaining({ status, message: expected }),
+            ]);
+            expect(
+                aiAgentModel.updateMcpServerRuntimeState,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    connectionStatus: status,
+                    error: expected,
+                }),
+            );
+            expect(close).toHaveBeenCalledOnce();
+            expect(tools).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('classifies an unknown setup error only for copy, preserving the OAuth status', async () => {
+        const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+            Response.json({
+                model: 'test',
+                answers: {
+                    category: {
+                        type: 'choice',
+                        choice: 'permissions',
+                        confidence: 0.99,
+                        probabilities: { permissions: 1 },
+                    },
+                },
+            }),
+        );
+        const decisions = new AiDecisionClient(
+            { apiKey: 'test', model: 'test', timeoutMs: 100 },
+            fetcher,
+        );
+        const server = getMcpServer({
+            name: 'OAuth MCP',
+            authType: 'oauth',
+            connectionStatus: 'connected',
+        });
+        vi.mocked(mcpSdk.createMCPClient).mockRejectedValue(
+            new Error(
+                'The tenant role does not permit access to this resource',
+            ),
+        );
+        const result = await runtimeClient.resolveTools({
+            mcpServers: [server],
+            userUuid: 'user-uuid',
+            debugLoggingEnabled: false,
+            decisions,
+        });
+        expect(result.unavailableMcpServers).toEqual([
+            expect.objectContaining({
+                status: 'error',
+                message: MCP_PERMISSION_MESSAGE,
+            }),
+        ]);
+        expect(aiAgentModel.updateMcpServerRuntimeState).toHaveBeenCalledWith(
+            expect.objectContaining({
+                connectionStatus: 'error',
+                error: MCP_PERMISSION_MESSAGE,
+            }),
+        );
+        expect(fetcher).toHaveBeenCalledOnce();
+        expect(vi.mocked(mcpSdk.createMCPClient)).toHaveBeenCalledOnce();
+    });
+
     it('rejects non-image data URI MCP icons', async () => {
         const close = vi.fn().mockResolvedValue(undefined);
         const mcpServer = getMcpServer({ name: 'Docs MCP' });
@@ -907,6 +1024,24 @@ describe('createHttpMcpClient', () => {
             ),
         );
     });
+
+    it.each([false, true])(
+        'preserves connection error behavior for structured mode %s',
+        async (useStructuredErrors) => {
+            vi.mocked(mcpSdk.createMCPClient).mockRejectedValue(
+                new Error('Unexpected handshake failure'),
+            );
+            const error = await createHttpMcpClient(
+                { ...getMcpServer({}), useStructuredErrors },
+                20_000,
+            ).catch((failure: unknown) => failure);
+            expect(getUserFacingErrorMessage(error, 'legacy fallback')).toBe(
+                useStructuredErrors
+                    ? MCP_CONNECTION_MESSAGE
+                    : 'legacy fallback',
+            );
+        },
+    );
 
     it('wraps transport fetch so a hanging request times out as McpTimeoutError', async () => {
         let transportFetch: typeof globalThis.fetch | undefined;

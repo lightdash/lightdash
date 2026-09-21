@@ -2983,6 +2983,12 @@ export type AiAgentResponseStreamed = BaseTrack & {
         promptId: string;
         threadId: string;
         usageTokensCount: number;
+        inputTokens: number | null;
+        outputTokens: number | null;
+        cacheReadTokens: number | null;
+        cacheWriteTokens: number | null;
+        reasoningTokens: number | null;
+        totalTokens: number | null;
         stepsCount: number;
         model: string;
         modelProvider: string | null;
@@ -2990,6 +2996,17 @@ export type AiAgentResponseStreamed = BaseTrack & {
         stepCapReached: boolean;
         timeToFirstTokenMs: number | null;
         durationMs: number;
+        preparationMs: number;
+        providerMs: number | null;
+        queryMs: number;
+        apiMs: number;
+        renderMs: number;
+        queryCacheHits: number;
+        fastDecisionsEnabled: boolean;
+        fastToolModelEnabled: boolean;
+        turnIntent: string | null;
+        surface: 'slack' | 'web_app';
+        executionMode: 'standard' | 'deep_research';
     };
 };
 
@@ -3164,6 +3181,8 @@ export type AiAgentToolCallCompletedEvent = BaseTrack & {
         toolCallId: string;
         stepIndex: number;
         durationMs: number;
+        stage: 'query' | 'api' | 'render';
+        queryCacheHit: boolean | null;
         status: 'success' | 'error';
     };
 };

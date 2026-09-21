@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
+import { type QueryReviewer } from '../decisions/queryReview';
 import type {
     CreateOrUpdateArtifactFn,
     GetPromptFn,
@@ -24,6 +25,7 @@ import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateSelectOnly } from './runSql';
 
 type Dependencies = {
+    reviewQuery?: QueryReviewer;
     updateProgress: UpdateProgressFn;
     runComposerQueries: RunComposerQueriesFn;
     getPrompt: GetPromptFn;
@@ -85,6 +87,7 @@ export const resolveTerminalNodeId = (
 };
 
 export const getRunComposerQueries = ({
+    reviewQuery,
     updateProgress,
     runComposerQueries,
     getPrompt,
@@ -185,39 +188,48 @@ export const getRunComposerQueries = ({
 
                 await updateProgress('Running composer queries...');
 
-                const { submissions, terminal } = await runComposerQueries({
-                    queries,
-                    terminalNodeId: resolvedTerminalNodeId,
-                    // Per-node lifecycle → transient step-progress events the
-                    // web stream renders as live statuses on the pipeline.
-                    // progressId carries `${toolCallId}:${nodeId}` so the
-                    // client can key events to the right call and node.
-                    // Fire-and-forget: status delivery must never block or
-                    // fail the query.
-                    onNodeStatus: ({ nodeId, status, errorMessage }) => {
-                        let message: string;
-                        let progressStatus:
-                            | 'in_progress'
-                            | 'complete'
-                            | 'error';
-                        if (status === 'running') {
-                            message = `Running query "${nodeId}"...`;
-                            progressStatus = 'in_progress';
-                        } else if (status === 'success') {
-                            message = `Query "${nodeId}" complete`;
-                            progressStatus = 'complete';
-                        } else {
-                            message = `Query "${nodeId}" failed${errorMessage ? `: ${errorMessage}` : ''}`;
-                            progressStatus = 'error';
-                        }
-                        void updateProgress(
-                            message,
-                            'runComposerQueries',
-                            `${toolCallId}:${nodeId}`,
-                            progressStatus,
-                        ).catch(() => {});
-                    },
-                });
+                const [{ submissions, terminal }, review] = await Promise.all([
+                    runComposerQueries({
+                        queries,
+                        terminalNodeId: resolvedTerminalNodeId,
+                        // Per-node lifecycle → transient step-progress events the
+                        // web stream renders as live statuses on the pipeline.
+                        // progressId carries `${toolCallId}:${nodeId}` so the
+                        // client can key events to the right call and node.
+                        // Fire-and-forget: status delivery must never block or
+                        // fail the query.
+                        onNodeStatus: ({ nodeId, status, errorMessage }) => {
+                            let message: string;
+                            let progressStatus:
+                                | 'in_progress'
+                                | 'complete'
+                                | 'error';
+                            if (status === 'running') {
+                                message = `Running query "${nodeId}"...`;
+                                progressStatus = 'in_progress';
+                            } else if (status === 'success') {
+                                message = `Query "${nodeId}" complete`;
+                                progressStatus = 'complete';
+                            } else {
+                                message = `Query "${nodeId}" failed${errorMessage ? `: ${errorMessage}` : ''}`;
+                                progressStatus = 'error';
+                            }
+                            void updateProgress(
+                                message,
+                                'runComposerQueries',
+                                `${toolCallId}:${nodeId}`,
+                                progressStatus,
+                            ).catch(() => {});
+                        },
+                    }),
+                    enableDataAccess
+                        ? (reviewQuery?.({
+                              kind: 'composer',
+                              queries,
+                              terminalNodeId: resolvedTerminalNodeId,
+                          }) ?? '')
+                        : '',
+                ]);
 
                 const prompt = await getPrompt();
                 // v0 surface is web chat only; keep Slack (if ever assembled
@@ -253,6 +265,21 @@ export const getRunComposerQueries = ({
                     `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows (queryUuid ${terminal.queryUuid}).`,
                     `Submitted nodes (any queryUuid below can be reused by a later submission via the map form of "references", without re-running that query):\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
+                    ...(review && terminal.rowCount !== 0 ? [review] : []),
+                    ...(enableDataAccess &&
+                    reviewQuery &&
+                    terminal.rowCount === 0
+                        ? [
+                              await reviewQuery(
+                                  {
+                                      kind: 'composer',
+                                      queries,
+                                      terminalNodeId: resolvedTerminalNodeId,
+                                  },
+                                  { emptyResult: true, review },
+                              ),
+                          ]
+                        : []),
                 ].join('\n');
 
                 if (!enableDataAccess || terminal.rowCount === 0) {

@@ -13,6 +13,9 @@ import {
     buildExploreIndex,
     buildFieldIndex,
     compileMatcher,
+    extractKeywords,
+    getCachedExploreIndex,
+    getCachedFieldIndex,
     getDefaultTimeDimensionFieldIds,
     matchLocality,
     selectCandidateFields,
@@ -425,6 +428,14 @@ describe('selectCandidateFields', () => {
             selectCandidateFields(index, ['led']).map((field) => field.path),
         ).toEqual(['events/events_sales_led_flag']);
     });
+
+    it('preserves literal keyword extraction when decisions are disabled', () => {
+        expect(extractKeywords('Mean spend from different buyers', 3)).toEqual([
+            'mean',
+            'spend',
+            'different',
+        ]);
+    });
 });
 
 describe('buildFieldIndex parameter references', () => {
@@ -447,5 +458,24 @@ describe('buildFieldIndex parameter references', () => {
 
         expect(parameterized?.requiredParameters).toEqual(['orders.metric']);
         expect(plain?.requiredParameters).toEqual([]);
+    });
+});
+
+describe('catalog index cache', () => {
+    it('reuses indexes only for the same permission-filtered inputs', () => {
+        const explores = [
+            makeExplore({ name: 'orders', fields: [{ name: 'revenue' }] }),
+        ];
+        const usage = new Map<string, number>();
+
+        expect(getCachedExploreIndex(explores)).toBe(
+            getCachedExploreIndex(explores),
+        );
+        expect(getCachedFieldIndex(explores, usage)).toBe(
+            getCachedFieldIndex(explores, usage),
+        );
+        expect(getCachedFieldIndex([...explores], usage)).not.toBe(
+            getCachedFieldIndex(explores, usage),
+        );
     });
 });
