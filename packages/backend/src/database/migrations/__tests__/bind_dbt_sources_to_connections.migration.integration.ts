@@ -5,6 +5,10 @@ import {
     down as expandDown,
     up as expandUp,
 } from '../20260918110000_bind_dbt_sources_to_connections';
+import {
+    down as contractDown,
+    up as contractUp,
+} from '../20260921183700_contract_dbt_source_connection_binding';
 
 describe('dbt source connection binding migration', () => {
     let admin: Knex;
@@ -19,6 +23,7 @@ describe('dbt source connection binding migration', () => {
     const emptySourceUuid = randomUUID();
     const primaryConnectionUuid = randomUUID();
     const existingConnectionUuid = randomUUID();
+    const emptyConnectionUuid = randomUUID();
     const additionalConnectionUuid = randomUUID();
     const thirdConnectionUuid = randomUUID();
     const additionalSourceUuid = randomUUID();
@@ -216,6 +221,48 @@ describe('dbt source connection binding migration', () => {
             });
         expect(isNullable).toBe('YES');
 
+        await expect(contractUp(database)).rejects.toThrow(
+            `Cannot enforce project_dbt_sources.connection_uuid NOT NULL: 1 unbound source row remains across 1 project. 1 project has no active connection and 0 projects have more than one active connection. Give each affected project exactly one active connection, bind every source, and retry this migration. The migration will not create connections or delete sources. Sample project UUIDs: ${emptyProjectUuid}.`,
+        );
+
+        const [{ project_id: emptyProjectId }] = await database('projects')
+            .select('project_id')
+            .where('project_uuid', emptyProjectUuid);
+        await database<Record<string, unknown>>('warehouse_credentials').insert(
+            {
+                project_id: emptyProjectId,
+                warehouse_credentials_uuid: emptyConnectionUuid,
+            },
+        );
+        await database('project_dbt_sources')
+            .update({ connection_uuid: emptyConnectionUuid })
+            .where('project_dbt_source_uuid', emptySourceUuid);
+
+        await contractUp(database);
+        await contractUp(database);
+        const [{ is_nullable: requiredIsNullable }] = await database(
+            'information_schema.columns',
+        )
+            .select('is_nullable')
+            .where({
+                table_schema: schema,
+                table_name: 'project_dbt_sources',
+                column_name: 'connection_uuid',
+            });
+        expect(requiredIsNullable).toBe('NO');
+
+        await contractDown(database);
+        const [{ is_nullable: rolledBackIsNullable }] = await database(
+            'information_schema.columns',
+        )
+            .select('is_nullable')
+            .where({
+                table_schema: schema,
+                table_name: 'project_dbt_sources',
+                column_name: 'connection_uuid',
+            });
+        expect(rolledBackIsNullable).toBe('YES');
+
         const [{ project_id: primaryProjectId }] = await database('projects')
             .select('project_id')
             .where('project_uuid', primaryProjectUuid);
@@ -251,6 +298,8 @@ describe('dbt source connection binding migration', () => {
 
         await expandUp(database);
         await expandUp(database);
+        await contractUp(database);
+        await contractUp(database);
         const secondRows = await database('project_dbt_sources').select('*');
         expect(secondRows).toHaveLength(4);
         expect(
