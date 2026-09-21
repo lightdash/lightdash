@@ -152,6 +152,7 @@ import {
     type InfiniteQueryResults,
 } from '../../hooks/useQueryResults';
 import { useAccount } from '../../hooks/user/useAccount';
+import { useSavedChartImageExport } from '../../hooks/useSavedChartImageExport';
 import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import { Can } from '../../providers/Ability';
@@ -161,7 +162,10 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../common/ChartDownload/chartDownloadUtils';
+import {
+    CHART_TYPES_WITHOUT_IMAGE_EXPORT,
+    isSavedDataAppVizDashboardImageExportAvailable,
+} from '../common/ChartDownload/chartDownloadUtils';
 import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/utils';
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
@@ -617,6 +621,7 @@ interface DashboardChartTileMainProps extends Pick<
     onEditChart?: (chart: SavedChart) => void;
     colorPaletteOverride?: string[];
     darkColorPaletteOverride?: string[] | null;
+    hasDashboardColorPalette?: boolean;
 }
 
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
@@ -643,6 +648,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             dashboardChartReadyQuery,
             resultsData,
             isEditMode,
+            hasDashboardColorPalette = false,
         } = props;
         const {
             colorPaletteOverride: _colorPaletteOverride,
@@ -772,6 +778,21 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 projectUuid: chart.projectUuid,
             }),
         );
+        const { mutate: exportSavedChartImage } = useSavedChartImageExport();
+        const canExportSavedDataAppVizImage =
+            isSavedDataAppVizDashboardImageExportAvailable({
+                chartType: chart.chartConfig.type,
+                canExportData: userCanExportData,
+                hasDashboardFilters: !Object.values(
+                    appliedDashboardFilters,
+                ).every((filters) => filters.length === 0),
+                hasRuntimeParameters:
+                    Object.keys(usedParametersValues ?? {}).length > 0,
+                hasDateZoom: dashboardChartReadyQuery.dateZoom !== undefined,
+                hasDashboardColorPalette,
+                isEmbedded: false,
+                isMinimal: false,
+            });
         const userCanUseCustomFields = ability.can(
             'manage',
             subject('CustomFields', {
@@ -1741,9 +1762,22 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                 </Menu.Item>
                                             </>
                                         )}
-                                        {!CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(
-                                            chart.chartConfig.type,
-                                        ) &&
+                                        {canExportSavedDataAppVizImage ? (
+                                            <DashboardExportImage
+                                                onClick={() =>
+                                                    exportSavedChartImage({
+                                                        chartUuid: chart.uuid,
+                                                        projectUuid:
+                                                            chart.projectUuid,
+                                                        chartName: chart.name,
+                                                    })
+                                                }
+                                                isMinimal={false}
+                                            />
+                                        ) : (
+                                            !CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(
+                                                chart.chartConfig.type,
+                                            ) &&
                                             userCanExportData && (
                                                 <DashboardExportImage
                                                     onClick={() =>
@@ -1753,7 +1787,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                     }
                                                     isMinimal={false}
                                                 />
-                                            )}
+                                            )
+                                        )}
 
                                         {chart.chartConfig.type ===
                                             ChartType.TABLE &&
@@ -2587,6 +2622,9 @@ export const GenericDashboardChartTile: FC<
                     onExplore={onExplore}
                     colorPaletteOverride={effectiveColorPaletteOverride}
                     darkColorPaletteOverride={effectiveDarkColorPaletteOverride}
+                    hasDashboardColorPalette={
+                        resolvedPalette?.source.type === 'dashboard'
+                    }
                 />
             )}
             <UnderlyingDataModal />

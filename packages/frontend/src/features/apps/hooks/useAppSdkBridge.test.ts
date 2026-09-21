@@ -153,6 +153,45 @@ describe('useAppSdkBridge', () => {
         vi.clearAllMocks();
     });
 
+    it('accepts render acknowledgements only from this iframe and an allowed origin', () => {
+        const onVizRendered = vi.fn();
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef: {
+                    current: {
+                        contentWindow: window,
+                    } as unknown as HTMLIFrameElement,
+                },
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                onVizRendered,
+                vizRenderId: 'render-1',
+            }),
+        );
+        const data = {
+            type: 'lightdash:sdk:viz-rendered',
+            renderId: 'render-1',
+        };
+        window.dispatchEvent(
+            new MessageEvent('message', { data, source: null, origin: 'null' }),
+        );
+        window.dispatchEvent(
+            new MessageEvent('message', {
+                data,
+                source: window,
+                origin: 'https://other.example',
+            }),
+        );
+        expect(onVizRendered).not.toHaveBeenCalled();
+        dispatchFetchMessage({ ...data, renderId: 'stale-render' });
+        expect(onVizRendered).not.toHaveBeenCalled();
+        dispatchFetchMessage(data);
+        expect(onVizRendered).toHaveBeenCalledExactlyOnceWith('render-1');
+    });
+
     it('blocks every query route for a chart-type iframe', async () => {
         renderBridge(() => undefined, PREVIEW_TOKEN, true);
         const postMessageSpy = vi.spyOn(window, 'postMessage');

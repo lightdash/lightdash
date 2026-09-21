@@ -151,6 +151,8 @@ export type DataAppVizContextMessage = {
     underlyingData?: { enabled?: boolean; openEnabled?: boolean };
     /** Absent when the installed host predates drill-down delivery. */
     drillDown?: { enabled?: boolean };
+    /** Transport-only identity for matching a paint acknowledgement to this push. */
+    renderId?: string;
 };
 
 /** Posted by the iframe on mount so the host pushes the current context. */
@@ -158,8 +160,15 @@ export type VizContextRequestMessage = {
     type: 'lightdash:sdk:viz-context-request';
 };
 
+/** Posted after a pushed visualization context has had two paint frames. */
+export type VizRenderedMessage = {
+    type: 'lightdash:sdk:viz-rendered';
+    renderId?: string;
+};
+
 const DATA_APP_VIZ_CONTEXT_MESSAGE = 'lightdash:sdk:data-app-viz-context';
 const VIZ_CONTEXT_REQUEST_MESSAGE = 'lightdash:sdk:viz-context-request';
+const VIZ_RENDERED_MESSAGE = 'lightdash:sdk:viz-rendered';
 
 /**
  * Dev-only fixture seed param. A chart type runs no query and renders the
@@ -304,6 +313,7 @@ type VizContextValue = {
     underlyingDataEnabled: boolean;
     underlyingDataOpenEnabled: boolean;
     drillDownEnabled: boolean;
+    renderId?: string;
 };
 
 type VizContextState = VizContextValue | null;
@@ -443,6 +453,8 @@ export function toVizContextState(
         underlyingDataEnabled: message.underlyingData?.enabled === true,
         underlyingDataOpenEnabled: message.underlyingData?.openEnabled === true,
         drillDownEnabled: message.drillDown?.enabled === true,
+        renderId:
+            typeof message.renderId === 'string' ? message.renderId : undefined,
     };
 }
 
@@ -636,12 +648,53 @@ function useVizContextSubscription(enabled: boolean): VizContextState {
 }
 
 /**
+ * Acknowledge a host-pushed context after React has committed it and the
+ * browser has had two animation frames to paint it. The host owns any
+ * higher-level query state, so this deliberately only confirms the initial
+ * paint opportunity rather than waiting for arbitrary chart animations.
+ */
+function useVizContextPaintAcknowledgement(
+    context: VizContextState,
+    enabled: boolean,
+): void {
+    useEffect(() => {
+        if (!enabled || context === null || typeof window === 'undefined') {
+            return undefined;
+        }
+
+        let cancelled = false;
+        let secondFrame: number | undefined;
+        const firstFrame = window.requestAnimationFrame(() => {
+            secondFrame = window.requestAnimationFrame(() => {
+                if (cancelled) return;
+                const message: VizRenderedMessage = {
+                    type: VIZ_RENDERED_MESSAGE,
+                    ...(context.renderId === undefined
+                        ? {}
+                        : { renderId: context.renderId }),
+                };
+                window.parent?.postMessage(message, '*');
+            });
+        });
+
+        return () => {
+            cancelled = true;
+            window.cancelAnimationFrame(firstFrame);
+            if (secondFrame !== undefined) {
+                window.cancelAnimationFrame(secondFrame);
+            }
+        };
+    }, [context, enabled]);
+}
+
+/**
  * Owns the single listener + handshake for a data app viz. Mount it in the
  * scaffold, wrapping `<App/>`, so generated renderers receive the host's
  * context through `useVizContext()` without hand-rolling a message listener.
  */
 export function VizContextProvider({ children }: { children: ReactNode }) {
     const context = useVizContextSubscription(true);
+    useVizContextPaintAcknowledgement(context, true);
     return createElement(
         VizContextContext.Provider,
         { value: context },
@@ -671,6 +724,10 @@ export function useVizContext(): VizContext {
     const context = hasProvider
         ? (fromProvider as VizContextState)
         : selfSubscribed;
+
+    // The provider already acknowledges its subscription. A standalone hook
+    // owns both its subscription and acknowledgement.
+    useVizContextPaintAcknowledgement(context, !hasProvider);
 
     // Null-returning lookup — standalone usage without LightdashProvider keeps
     // working, with underlying data reported as unavailable.

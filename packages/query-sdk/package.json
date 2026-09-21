@@ -2,17 +2,17 @@
     "name": "@lightdash/query-sdk",
     "version": "2.276.0",
     "private": false,
-    "type": "module",
     "description": "SDK for building custom data apps against the Lightdash semantic layer",
     "license": "MIT",
     "repository": {
         "type": "git",
         "url": "https://github.com/lightdash/lightdash.git"
     },
-    "sideEffects": false,
     "files": [
         "dist"
     ],
+    "type": "module",
+    "sideEffects": false,
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "exports": {
@@ -36,15 +36,17 @@
         "fix-format": "oxfmt ./src",
         "release": "pnpm publish --no-git-checks --access public"
     },
-    "peerDependencies": {
-        "react": "^18.x || ^19.x"
-    },
     "devDependencies": {
         "@lightdash/common": "workspace:*",
         "@types/node": "22.13.1",
         "@types/react": "19.3.0",
+        "@types/react-dom": "19.3.0",
         "jsdom": "26.1.0",
+        "react-dom": "19.3.0",
         "typescript": "7.0.2",
         "vitest": "4.1.11"
+    },
+    "peerDependencies": {
+        "react": "^18.x || ^19.x"
     }
 }

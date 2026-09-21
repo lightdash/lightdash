@@ -97,7 +97,9 @@ const MinimalExplorerContent = memo(() => {
     // For this type we wait for the chart's own paint signal — gating only on
     // data-loaded fires the screenshot indicator before Vega has rendered, which
     // produces blank export PNGs.
-    const needsPaintSignal = savedChart?.chartConfig.type === ChartType.CUSTOM;
+    const needsPaintSignal =
+        savedChart?.chartConfig.type === ChartType.CUSTOM ||
+        savedChart?.chartConfig.type === ChartType.DATA_APP_VIZ;
 
     const handleChartScreenshotReady = useCallback(() => {
         setChartHasPainted(true);

@@ -33,7 +33,7 @@ type IsAssignable<From, To> = From extends To ? true : false;
 
 const messageKeysMatchHost: Assert<
     Equal<
-        Exclude<keyof DataAppVizContextMessage, 'type'>,
+        Exclude<keyof DataAppVizContextMessage, 'type' | 'renderId'>,
         keyof DataAppVizContext
     >
 > = true;
@@ -47,7 +47,10 @@ const optionValueTypesMatchHost: Assert<
     Equal<VizContextOptionValue, DataAppVizOptionValue>
 > = true;
 const hostPayloadIsAcceptedBySdk: Assert<
-    IsAssignable<DataAppVizContext, Omit<DataAppVizContextMessage, 'type'>>
+    IsAssignable<
+        DataAppVizContext,
+        Omit<DataAppVizContextMessage, 'type' | 'renderId'>
+    >
 > = true;
 expectTypeOf<VizContext['fieldMapping']>().toEqualTypeOf<
     Record<string, string | string[]>

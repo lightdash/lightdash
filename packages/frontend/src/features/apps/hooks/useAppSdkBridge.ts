@@ -276,6 +276,14 @@ export type UseAppSdkBridgeParams = {
      */
     onSdkManifest?: (manifest: SdkManifest) => void;
     /**
+     * Called when the iframe acknowledges painting the matching render context.
+     */
+    onVizRendered?: (renderId: string) => void;
+    /** Identity attached to the next viz context push and its acknowledgement. */
+    vizRenderId?: string;
+    /** Called when the iframe SDK requests its initial viz context. */
+    onVizContextRequest?: () => void;
+    /**
      * When provided, external-connection fetches proxied through this bridge
      * are reported for the external-requests inspector tab — mirrors
      * `onQueryEvent` for metric queries. Emits `pending` when the fetch starts
@@ -370,6 +378,9 @@ export function useAppSdkBridge({
     onVizDrillDownIntent,
     onUrlStateChange,
     onSdkManifest,
+    onVizRendered,
+    vizRenderId,
+    onVizContextRequest,
     deliveryCapture,
     captureRender,
     queryContextOverride,
@@ -410,10 +421,11 @@ export function useAppSdkBridge({
             {
                 type: APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
                 ...dataAppVizContext,
+                ...(vizRenderId ? { renderId: vizRenderId } : {}),
             },
             '*',
         );
-    }, [iframeRef, dataAppVizContext]);
+    }, [iframeRef, dataAppVizContext, vizRenderId]);
 
     // Tell the iframe which scheme to render in. Wildcard target for the same
     // reason as every other outbound message: the sandboxed iframe has an
@@ -484,6 +496,13 @@ export function useAppSdkBridge({
                 return;
             }
 
+            if (data?.type === 'lightdash:sdk:viz-rendered') {
+                if (vizRenderId && data.renderId === vizRenderId) {
+                    onVizRendered?.(vizRenderId);
+                }
+                return;
+            }
+
             if (data?.type === 'lightdash:sdk:screenshot-available') {
                 onScreenshotAvailable?.();
                 return;
@@ -493,6 +512,7 @@ export function useAppSdkBridge({
             // once its listener is mounted. Reply with a push (no-op if this
             // isn't a data app viz).
             if (data?.type === APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE) {
+                onVizContextRequest?.();
                 pushDataAppVizContext();
                 return;
             }
@@ -1234,6 +1254,9 @@ export function useAppSdkBridge({
             pushColorScheme,
             onUrlStateChange,
             onSdkManifest,
+            onVizRendered,
+            vizRenderId,
+            onVizContextRequest,
             dataAppVizMode,
             health.data,
             user.data,

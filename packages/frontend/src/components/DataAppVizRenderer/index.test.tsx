@@ -66,7 +66,8 @@ const mocks = vi.hoisted(() => ({
     setDataAppVizVersion: vi.fn(),
     iframePreview: vi.fn(
         (_props: {
-            onScreenshotAvailabilityChange: (available: boolean) => void;
+            onVizRendered: (renderId: string) => void;
+            vizRenderId: string;
             onIframeLoad: () => void;
         }) => <iframe data-testid="app-preview" title="App preview" />,
     ),
@@ -161,62 +162,83 @@ vi.mock('../../providers/Tracking/useTracking', () => ({
 vi.mock('../LightdashVisualization/types', () => ({
     isDataAppVizVisualizationConfig: () => true,
 }));
-vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => ({
-        visualizationConfig: {
-            chartConfig: {
-                validConfig:
-                    mocks.dataAppVizUuid.current === null
-                        ? null
-                        : {
-                              dataAppVizUuid: mocks.dataAppVizUuid.current,
-                              dataAppVizVersion:
-                                  mocks.dataAppVizVersion.current,
-                              fieldMapping: mocks.fieldMapping.current,
-                              optionValues: { title: 12 },
-                          },
-                setDataAppVizVersion: mocks.setDataAppVizVersion,
-            },
-        },
-        savedChartUuid: 'saved-chart-uuid',
-        resultsData: {
-            rows: [
-                {
-                    orders_category: {
-                        value: { raw: 'Hardware', formatted: 'Hardware' },
+vi.mock('../LightdashVisualization/useVisualizationContext', async () => {
+    const { useMemo } = await import('react');
+    return {
+        useVisualizationContext: () => {
+            const dataAppVizUuid = mocks.dataAppVizUuid.current;
+            const dataAppVizVersion = mocks.dataAppVizVersion.current;
+            const fieldMapping = mocks.fieldMapping.current;
+            const isLoading = mocks.isLoading.current;
+            const vizContextOverrides = mocks.vizContextOverrides.current;
+            return useMemo(
+                () => ({
+                    visualizationConfig: {
+                        chartConfig: {
+                            validConfig:
+                                dataAppVizUuid === null
+                                    ? null
+                                    : {
+                                          dataAppVizUuid: dataAppVizUuid,
+                                          dataAppVizVersion: dataAppVizVersion,
+                                          fieldMapping: fieldMapping,
+                                          optionValues: { title: 12 },
+                                      },
+                            setDataAppVizVersion: mocks.setDataAppVizVersion,
+                        },
                     },
-                },
-            ],
-            setFetchAll: mocks.setFetchAll,
+                    savedChartUuid: 'saved-chart-uuid',
+                    resultsData: {
+                        rows: [
+                            {
+                                orders_category: {
+                                    value: {
+                                        raw: 'Hardware',
+                                        formatted: 'Hardware',
+                                    },
+                                },
+                            },
+                        ],
+                        setFetchAll: mocks.setFetchAll,
+                    },
+                    itemsMap: {
+                        orders_category: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                            name: 'category',
+                            label: 'Category',
+                            table: 'orders',
+                            tableLabel: 'Orders',
+                            sql: '${TABLE}.category',
+                            hidden: false,
+                            colors: { Hardware: '#00ff00' },
+                        },
+                        orders_count: {
+                            fieldType: FieldType.METRIC,
+                            type: MetricType.COUNT,
+                            name: 'count',
+                            label: 'Count',
+                            table: 'orders',
+                            tableLabel: 'Orders',
+                            sql: '${TABLE}.count',
+                            hidden: false,
+                        },
+                    },
+                    colorPalette: ['#7162FF'],
+                    isLoading: isLoading,
+                    ...vizContextOverrides,
+                }),
+                [
+                    dataAppVizUuid,
+                    dataAppVizVersion,
+                    fieldMapping,
+                    isLoading,
+                    vizContextOverrides,
+                ],
+            );
         },
-        itemsMap: {
-            orders_category: {
-                fieldType: FieldType.DIMENSION,
-                type: DimensionType.STRING,
-                name: 'category',
-                label: 'Category',
-                table: 'orders',
-                tableLabel: 'Orders',
-                sql: '${TABLE}.category',
-                hidden: false,
-                colors: { Hardware: '#00ff00' },
-            },
-            orders_count: {
-                fieldType: FieldType.METRIC,
-                type: MetricType.COUNT,
-                name: 'count',
-                label: 'Count',
-                table: 'orders',
-                tableLabel: 'Orders',
-                sql: '${TABLE}.count',
-                hidden: false,
-            },
-        },
-        colorPalette: ['#7162FF'],
-        isLoading: mocks.isLoading.current,
-        ...mocks.vizContextOverrides.current,
-    }),
-}));
+    };
+});
 vi.mock('../MetricQueryData/useMetricQueryDataContext', () => ({
     useMetricQueryDataContext: () => mocks.metricQueryData.current,
 }));
@@ -250,7 +272,7 @@ const renderRenderer = (props?: Parameters<typeof DataAppVizRenderer>[0]) =>
 const announceIframeAvailable = () => {
     const iframeProps = mocks.iframePreview.mock.lastCall?.[0];
     if (!iframeProps) throw new Error('Expected the iframe preview to render');
-    act(() => iframeProps.onScreenshotAvailabilityChange(true));
+    act(() => iframeProps.onVizRendered(iframeProps.vizRenderId));
 };
 
 const loadIframe = () => {
@@ -890,12 +912,37 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
             mocks.iframePreview.mock.calls.at(-1) as unknown[] | undefined
         )?.[0] as {
             onScreenshotAvailabilityChange?: (available: boolean) => void;
+            onVizContextRequest?: () => void;
+            onVizRendered?: (renderId: string) => void;
+            vizRenderId: string;
+            onSdkManifest?: (manifest: {
+                sdkVersion: string;
+                features: string[];
+            }) => void;
         };
 
     const announceScreenshotAvailable = () => {
         act(() => {
             lastIframeProps().onScreenshotAvailabilityChange?.(true);
         });
+    };
+
+    const requestVizContext = () => {
+        act(() => lastIframeProps().onVizContextRequest?.());
+    };
+
+    const announceRendered = () => {
+        act(() =>
+            lastIframeProps().onVizRendered?.(lastIframeProps().vizRenderId),
+        );
+    };
+    const announceModernSdk = () => {
+        act(() =>
+            lastIframeProps().onSdkManifest?.({
+                sdkVersion: '2.274.0',
+                features: ['viz-rendered'],
+            }),
+        );
     };
 
     beforeEach(() => {
@@ -913,7 +960,7 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         mocks.trackingContext.current = { track: mocks.track };
     });
 
-    it('waits for iframe load after the SDK announces before signaling screenshot readiness', () => {
+    it('waits for iframe render acknowledgement after bundle load', () => {
         const onScreenshotReady = vi.fn();
 
         renderRenderer({ onScreenshotReady });
@@ -923,7 +970,10 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         announceScreenshotAvailable();
         expect(onScreenshotReady).not.toHaveBeenCalled();
         loadIframe();
-
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+        announceRendered();
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+        announceRendered();
         expect(onScreenshotReady).toHaveBeenCalledTimes(1);
     });
 
@@ -941,7 +991,8 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
 
         mocks.vizContextOverrides.current = {};
         view.rerender(rendererElement({ onScreenshotReady }));
-
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+        announceRendered();
         expect(onScreenshotReady).toHaveBeenCalledTimes(1);
     });
 
@@ -954,15 +1005,46 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         expect(onScreenshotReady).not.toHaveBeenCalled();
         mocks.isLoading.current = false;
         view.rerender(rendererElement({ onScreenshotReady }));
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+        announceRendered();
         expect(onScreenshotReady).toHaveBeenCalledTimes(1);
     });
 
-    it('signals after the fallback timeout when the sandbox never announces', () => {
+    it('falls back after a legacy bundle requests its context', () => {
         vi.useFakeTimers();
         try {
             const onScreenshotReady = vi.fn();
 
             renderRenderer({ onScreenshotReady });
+            loadIframe();
+            requestVizContext();
+
+            act(() => {
+                vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS - 1);
+            });
+            expect(onScreenshotReady).not.toHaveBeenCalled();
+
+            act(() => {
+                vi.advanceTimersByTime(1);
+            });
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+
+            // A late announce must not fire the callback a second time.
+            announceScreenshotAvailable();
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('falls back for older bundles that only announce screenshot capability', () => {
+        vi.useFakeTimers();
+        try {
+            const onScreenshotReady = vi.fn();
+
+            renderRenderer({ onScreenshotReady });
+            loadIframe();
+            announceScreenshotAvailable();
 
             act(() => {
                 vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS - 1);
@@ -987,6 +1069,8 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
         try {
             const first = vi.fn();
             const view = renderRenderer({ onScreenshotReady: first });
+            loadIframe();
+            requestVizContext();
 
             act(() => {
                 vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS - 1000);
@@ -999,6 +1083,85 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
 
             expect(second).toHaveBeenCalledTimes(1);
             expect(first).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('never falls back for a modern SDK awaiting paint', () => {
+        vi.useFakeTimers();
+        try {
+            const onScreenshotReady = vi.fn();
+            renderRenderer({ onScreenshotReady });
+            loadIframe();
+            requestVizContext();
+            announceModernSdk();
+            announceScreenshotAvailable();
+            act(() => {
+                vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS * 2);
+            });
+            expect(onScreenshotReady).not.toHaveBeenCalled();
+            announceRendered();
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('requires an acknowledgement for the final query context', () => {
+        const onScreenshotReady = vi.fn();
+        mocks.isLoading.current = true;
+        const view = renderRenderer({ onScreenshotReady });
+        loadIframe();
+        announceModernSdk();
+        const earlierRenderId = lastIframeProps().vizRenderId;
+        announceRendered();
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+        mocks.isLoading.current = false;
+        mocks.vizContextOverrides.current = { colorPalette: ['#ffffff'] };
+        view.rerender(rendererElement({ onScreenshotReady }));
+        expect(lastIframeProps().vizRenderId).not.toBe(earlierRenderId);
+        act(() => lastIframeProps().onVizRendered?.(earlierRenderId));
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+        announceRendered();
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores an acknowledgement from the previous chart type version', () => {
+        const onScreenshotReady = vi.fn();
+        const view = renderRenderer({ onScreenshotReady });
+        loadIframe();
+        announceModernSdk();
+        const earlierRenderId = lastIframeProps().vizRenderId;
+        mocks.metadata.current = { ...readyMetadata(), version: 8 };
+        view.rerender(rendererElement({ onScreenshotReady }));
+        loadIframe();
+        announceModernSdk();
+        act(() => lastIframeProps().onVizRendered?.(earlierRenderId));
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+        announceRendered();
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not spend the legacy fallback while the bundle is loading', () => {
+        vi.useFakeTimers();
+        try {
+            const onScreenshotReady = vi.fn();
+            renderRenderer({ onScreenshotReady });
+            act(() => {
+                vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS * 2);
+            });
+            expect(onScreenshotReady).not.toHaveBeenCalled();
+            loadIframe();
+            act(() => {
+                vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS);
+            });
+            expect(onScreenshotReady).not.toHaveBeenCalled();
+            requestVizContext();
+            act(() => {
+                vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS);
+            });
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
         } finally {
             vi.useRealTimers();
         }

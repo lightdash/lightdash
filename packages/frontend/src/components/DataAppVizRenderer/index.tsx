@@ -19,10 +19,12 @@ import {
     type FC,
 } from 'react';
 import { Link } from 'react-router';
+import { v4 as uuidv4 } from 'uuid';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import AppIframePreview from '../../features/apps/AppIframePreview';
 import { useChartVersionPreview } from '../../features/apps/ChartVersionPreview/useChartVersionPreview';
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
+import { type SdkManifest } from '../../features/apps/hooks/useAppSdkBridge';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import {
     useDataAppVizPreviewToken,
@@ -53,6 +55,23 @@ type Props = {
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 };
+
+type VizRenderReadinessState = {
+    navigationKey: string | null;
+    supportsRenderSignal: boolean;
+    sdkReady: boolean;
+    renderedId: string | null;
+};
+
+/** Create empty readiness state for one normalized iframe navigation. */
+const createVizRenderReadinessState = (
+    navigationKey: string | null,
+): VizRenderReadinessState => ({
+    navigationKey,
+    supportsRenderSignal: false,
+    sdkReady: false,
+    renderedId: null,
+});
 
 const DataAppVizPlaceholder: FC<{
     message: string;
@@ -135,16 +154,6 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         hasSignaledScreenshotReady.current = true;
         onScreenshotReadyRef.current?.();
     }, []);
-
-    // The iframe SDK posts `lightdash:sdk:screenshot-available` at bundle
-    // boot — proof the sandbox is alive, not that the viz painted.
-    const [screenshotAnnounced, setScreenshotAnnounced] = useState(false);
-    const handleScreenshotAvailabilityChange = useCallback(
-        (available: boolean) => {
-            if (available) setScreenshotAnnounced(true);
-        },
-        [],
-    );
 
     // Fetch every page so the renderer gets all rows — surfaces that don't
     // auto-fetch (dashboard tiles) would otherwise push a partial result.
@@ -523,32 +532,108 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         if (previewUrl === null) setLoadedIframeNavigationKey(null);
     }, [previewUrl]);
 
+    const renderRequest = useMemo(
+        () => ({
+            id: uuidv4(),
+            context: dataAppVizContext,
+            navigationKey: iframeNavigationKey,
+        }),
+        [dataAppVizContext, iframeNavigationKey],
+    );
+    const [renderReadiness, setRenderReadiness] =
+        useState<VizRenderReadinessState>(() =>
+            createVizRenderReadinessState(iframeNavigationKey),
+        );
+    const activeRenderReadiness =
+        renderReadiness.navigationKey === iframeNavigationKey
+            ? renderReadiness
+            : createVizRenderReadinessState(iframeNavigationKey);
+    const { supportsRenderSignal, sdkReady, renderedId } =
+        activeRenderReadiness;
+
+    // Tag every update with the normalized navigation identity. When the
+    // iframe changes, stale readiness is ignored during render rather than
+    // cleared after commit by an effect. Token-only renewals keep the same key.
+    const updateRenderReadiness = useCallback(
+        (update: Partial<Omit<VizRenderReadinessState, 'navigationKey'>>) => {
+            setRenderReadiness((current) => ({
+                ...(current.navigationKey === iframeNavigationKey
+                    ? current
+                    : createVizRenderReadinessState(iframeNavigationKey)),
+                ...update,
+            }));
+        },
+        [iframeNavigationKey],
+    );
+    const handleVizContextRequest = useCallback(
+        () => updateRenderReadiness({ sdkReady: true }),
+        [updateRenderReadiness],
+    );
+    const handleScreenshotAvailabilityChange = useCallback(
+        (available: boolean) => {
+            if (available) updateRenderReadiness({ sdkReady: true });
+        },
+        [updateRenderReadiness],
+    );
+    const handleSdkManifest = useCallback(
+        (manifest: SdkManifest) => {
+            updateRenderReadiness({
+                sdkReady: true,
+                supportsRenderSignal:
+                    manifest.features.includes('viz-rendered'),
+            });
+        },
+        [updateRenderReadiness],
+    );
+    const handleVizRendered = useCallback(
+        (renderId: string) => updateRenderReadiness({ renderedId: renderId }),
+        [updateRenderReadiness],
+    );
+
     useEffect(() => {
         if (
             previewUrl &&
             !isPreviewLoading &&
-            screenshotAnnounced &&
-            dataAppVizContext
+            dataAppVizContext &&
+            renderedId === renderRequest.id
         ) {
             signalScreenshotReady();
         }
     }, [
         previewUrl,
         isPreviewLoading,
-        screenshotAnnounced,
         dataAppVizContext,
+        renderedId,
+        renderRequest.id,
         signalScreenshotReady,
     ]);
 
-    // Armed once on mount — capture surfaces pass the callback from mount.
+    const hasVizContext = dataAppVizContext !== undefined;
+    // Legacy bundles have no paint acknowledgement. Give them time after
+    // the SDK, iframe and query load; modern bundles must acknowledge rendering.
     useEffect(() => {
-        if (!onScreenshotReadyRef.current) return;
+        if (
+            !onScreenshotReadyRef.current ||
+            supportsRenderSignal ||
+            !sdkReady ||
+            !iframeNavigationKey ||
+            isPreviewLoading ||
+            !hasVizContext
+        )
+            return;
         const timer = setTimeout(
             signalScreenshotReady,
             SCREENSHOT_READY_FALLBACK_MS,
         );
         return () => clearTimeout(timer);
-    }, [signalScreenshotReady]);
+    }, [
+        supportsRenderSignal,
+        sdkReady,
+        iframeNavigationKey,
+        isPreviewLoading,
+        hasVizContext,
+        signalScreenshotReady,
+    ]);
 
     if (!projectUuid || dataAppVizUuid === null) {
         return (
@@ -643,17 +728,22 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                 aria-hidden={isPreviewLoading}
             >
                 <AppIframePreview
+                    key={renderRequest.navigationKey}
                     src={previewUrl}
                     previewToken={token}
                     expectedPreviewOrigin={previewOrigin}
                     projectUuid={projectUuid}
                     appUuid={dataAppVizUuid}
                     identityKey={dataAppVizUuid}
-                    dataAppVizContext={dataAppVizContext}
+                    dataAppVizContext={renderRequest.context}
                     dataAppVizMode
+                    vizRenderId={renderRequest.id}
+                    onVizContextRequest={handleVizContextRequest}
                     onScreenshotAvailabilityChange={
                         handleScreenshotAvailabilityChange
                     }
+                    onVizRendered={handleVizRendered}
+                    onSdkManifest={handleSdkManifest}
                     onIframeLoad={() =>
                         setLoadedIframeNavigationKey(iframeNavigationKey)
                     }

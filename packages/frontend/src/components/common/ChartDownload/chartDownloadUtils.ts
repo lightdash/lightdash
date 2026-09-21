@@ -15,6 +15,54 @@ export const CHART_TYPES_WITHOUT_DATA_EXPORT: ChartType[] = Object.values(
     ChartType,
 ).filter((type) => type !== ChartType.TABLE);
 
+/** Whether Explorer can export the currently displayed saved custom chart. */
+export const isSavedDataAppVizImageExportAvailable = ({
+    chartType,
+    isEmbedded,
+    hasSavedChart,
+    hasUnsavedChanges,
+}: {
+    chartType: ChartType;
+    isEmbedded: boolean;
+    hasSavedChart: boolean;
+    hasUnsavedChanges: boolean;
+}) =>
+    chartType === ChartType.DATA_APP_VIZ &&
+    !isEmbedded &&
+    hasSavedChart &&
+    !hasUnsavedChanges;
+
+/**
+ * Whether a dashboard tile matches the saved custom chart the backend exports.
+ */
+export const isSavedDataAppVizDashboardImageExportAvailable = ({
+    chartType,
+    canExportData,
+    hasDashboardFilters,
+    hasRuntimeParameters,
+    hasDateZoom,
+    hasDashboardColorPalette,
+    isEmbedded,
+    isMinimal,
+}: {
+    chartType: ChartType;
+    canExportData: boolean;
+    hasDashboardFilters: boolean;
+    hasRuntimeParameters: boolean;
+    hasDateZoom: boolean;
+    hasDashboardColorPalette: boolean;
+    isEmbedded: boolean;
+    isMinimal: boolean;
+}) =>
+    chartType === ChartType.DATA_APP_VIZ &&
+    canExportData &&
+    !hasDashboardFilters &&
+    !hasRuntimeParameters &&
+    !hasDateZoom &&
+    !hasDashboardColorPalette &&
+    !isEmbedded &&
+    !isMinimal;
+
 export enum DownloadType {
     JPEG = 'JPEG',
     PNG = 'PNG',
@@ -72,6 +120,20 @@ export function downloadImage(base64: string, name?: string) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+}
+
+/**
+ * Fetch an image URL, then download it using a temporary same-origin blob URL.
+ */
+export async function downloadImageUrl(url: string, name?: string) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error('Unable to download chart image');
+    }
+
+    const objectUrl = URL.createObjectURL(await response.blob());
+    downloadImage(objectUrl, name);
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
 }
 
 export function downloadJson(object: Object) {
