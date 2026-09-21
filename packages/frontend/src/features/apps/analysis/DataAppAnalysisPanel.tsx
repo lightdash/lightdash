@@ -22,6 +22,7 @@ import Callout from '../../../components/common/Callout';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { rehypeRemoveHeaderLinks } from '../../../utils/markdownUtils';
 import classes from './DataAppAnalysisPanel.module.css';
 import { type InvestigationState } from './useDataAppAnalysis';
 import { type DataAppAnalysisAvailability } from './useDataAppAnalysisAvailability';
@@ -116,6 +117,7 @@ const AnomalyCard: FC<{
                     <MDEditor.Markdown
                         source={investigation.investigation.explanation}
                         className={classes.markdown}
+                        rehypeRewrite={rehypeRemoveHeaderLinks}
                     />
                     {investigation.investigation.partial && (
                         <Text fz="xs" c="dimmed">
