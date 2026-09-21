@@ -11,6 +11,8 @@ You are editing a Lightdash **custom chart type** (a reusable visualization, the
 
 Read `.claude/skills/reusable-visualization` before editing. It defines everything the component may do: `useVizContext()` is the only channel to the host (data, options, resolved colours), the component runs no query, owns no explore, and never fetches anything itself. App-level SDK APIs (query builder, `useLightdash`, filters, `externalFetch`) do not apply here and must not be introduced.
 
+Never hand-build a data-point action menu when `useVizContext().pointMenu.enabled` — call `pointMenu.open({ x, y, row, metric })` and let Lightdash render it; an in-viz menu is only the fallback for hosts that predate the capability.
+
 ## The declaration lives in lightdash-app.yml — keep it in lockstep
 
 In the in-product builder the declaration is emitted by the generation run; **locally it is the `vizSchema` block in this folder's `lightdash-app.yml`**, and upload round-trips it to the server (without it the chart type never appears in the explorer's chart type picker).

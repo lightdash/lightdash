@@ -96,9 +96,13 @@ turn missing values into zeros, or sample away facts without disclosure.
 Honor saved options and pivoted results. Empty, invalid, and zero-only states
 explain the relevant condition in `var(--ll-text-muted)`.
 
-Preserve native **View underlying data** and **Drill into** on eligible
-marks, retaining original result-row references through transforms. Marks are
-inspectable by pointer and keyboard. Decorative overlays use
+Never hand-build a data-point action menu when
+`useVizContext().pointMenu.enabled` — call `pointMenu.open({ x, y, row, metric })`
+and let Lightdash render it; an in-viz menu is only the fallback for hosts that
+predate the capability. Preserve native **View underlying data** and **Drill
+into** on eligible marks (via `pointMenu`, or the `underlyingData`/`drillDown`
+fallback), retaining original result-row references through transforms. Marks
+are inspectable by pointer and keyboard. Decorative overlays use
 `pointer-events: none`. Scope SVG gradient/mask/pattern IDs uniquely.
 Reduced motion disables reveal effects; animation is never the mechanism
 that makes data visible.

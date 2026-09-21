@@ -28,6 +28,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | external API data | `external-fetch` | app code opt-in |
 | runs inside a dashboard tile | `viz-context` | required — see below |
 | reusable chart/table with pivoted results | `viz-pivoted-results` | required — see below |
+| "Data point actions" — native context menu on a data-point click (copy, view underlying data, drill, cross-filter; viz only) | `point-action-menu` | app code opt-in |
 | "view underlying data", raw rows behind a point (viz only) | `viz-underlying-data` | app code opt-in |
 | Lightdash-owned "View underlying data" dialog (viz only) | `viz-host-underlying-data` | app code opt-in |
 | light/dark mode, "matches my Lightdash theme" | `follow-host-theme` | CSS tokens — see below |
@@ -106,10 +107,23 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
 
 - `drill-down`: `drillDown(...)` derives a more detailed query from a clicked
   result row — wire it to click handlers on charts/rows.
-- `viz-drill-down`: in a reusable visualization, the data-point action menu
-  offers "Drill into …" when `useVizContext().drillDown.enabled`; selection
-  calls `drillDown.open({ row, metric })` and Lightdash opens its drill
-  dialog. Distinct from `drill-down`, which is the full-app query helper.
+- `point-action-menu` (vizs only): the primary data-point-action contract. On a
+  data-point click, when `useVizContext().pointMenu.enabled`, call
+  `pointMenu.open({ x: event.clientX, y: event.clientY, row: datum.sourceRow, metric: '<field name>' })`
+  and render no menu of your own — Lightdash renders the entire native menu
+  (copy value, view underlying data, drill, dashboard cross-filtering) and
+  owns all subsequent UI. `viz-drill-down` and
+  `viz-underlying-data`/`viz-host-underlying-data` below are the
+  `pointMenu.enabled === false` fallback for older hosts, not a separate
+  feature to wire in addition.
+- `viz-drill-down`: in a reusable visualization, when
+  `useVizContext().pointMenu.enabled`, call `pointMenu.open({ x, y, row, metric })`
+  and render no menu of your own — Lightdash's menu offers "Drill into …".
+  Only when `pointMenu.enabled` is false, fall back to a local data-point
+  action menu gated on `drillDown.enabled` and call
+  `drillDown.open({ row, metric })` on selection. Either way Lightdash opens
+  its drill dialog. Distinct from `drill-down`, which is the full-app query
+  helper.
 - `url-state`: `useUrlState(...)` syncs a piece of app state into the page URL
   so views can be shared and restored.
 - `gsheet-export`: `exportToSheets(...)` sends tabular results to a new
@@ -137,11 +151,13 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   visible — never mount all tabs unconditionally (interactive loads must stay
   lazy).
 - `viz-underlying-data` and `viz-host-underlying-data` (vizs only): keep the
-  untransformed `sourceRow` on each interactive datum, gate a data-point action menu on
-  `useVizContext().underlyingData.enabled`, and call
-  `underlyingData.open({ row, metric })`. Lightdash renders the dialog and
-  owns its table, loading, error, and download controls. Full contract in the
-  `reusable-visualization` skill.
+  untransformed `sourceRow` on each interactive datum. When
+  `useVizContext().pointMenu.enabled`, call `pointMenu.open({ x, y, row, metric })`
+  and render no menu of your own. Only when `pointMenu.enabled` is false, fall
+  back to a local data-point action menu gated on `underlyingData.enabled` and
+  call `underlyingData.open({ row, metric })` on selection. Either way,
+  Lightdash renders the dialog and owns its table, loading, error, and
+  download controls. Full contract in the `reusable-visualization` skill.
 
 ## After a template upgrade
 
