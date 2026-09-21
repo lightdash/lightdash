@@ -12,6 +12,7 @@ import {
     getDefaultModel,
     getFastModelForAccessibleKey,
     getModel,
+    presetToModelOption,
 } from './index';
 
 vi.mock('@ai-sdk/google-vertex', async (importOriginal) => {
@@ -115,14 +116,22 @@ describe('Vertex instance configuration', () => {
 });
 
 describe('Vertex model routing', () => {
-    it('uses the configured model without adding presets or BYOK support', () => {
+    it('lists the configured model while keeping credentials instance-managed', () => {
         const result = getModel(config, { modelName: 'untrusted-model' });
         expect(result.model.modelId).toBe('gemini-3.8-flash');
         expect(getDefaultModel(config)).toEqual({
             name: 'gemini-3.8-flash',
             provider: 'vertex',
         });
-        expect(getAvailableModels(config)).toEqual([]);
+        expect(getAvailableModels(config)).toEqual([
+            expect.objectContaining({
+                provider: 'vertex',
+                modelId: 'gemini-3.8-flash',
+                displayName: 'Gemini 3.8 Flash (Vertex AI)',
+                groupLabel: 'Google Vertex AI',
+                supportsReasoning: false,
+            }),
+        ]);
         expect(isByoAiProvider('vertex')).toBe(false);
         expect(getCompactionModelMetadata(config)).toEqual({
             supportsCompaction: false,
@@ -133,6 +142,76 @@ describe('Vertex model routing', () => {
             model: 'gemini-3.8-flash',
             provider: 'vertex',
         });
+    });
+
+    it('adds Vertex alongside existing providers without changing the default', () => {
+        const mixed = aiCopilotConfigSchema.parse({
+            ...config,
+            defaultProvider: 'openai',
+            providers: {
+                ...config.providers,
+                openai: { apiKey: 'test-openai-key', modelName: 'gpt-5.6-sol' },
+                google: {
+                    apiKey: 'test-google-key',
+                    modelName: 'gemini-3.8-flash',
+                },
+            },
+        });
+        const defaultModel = getDefaultModel(mixed);
+        const models = getAvailableModels(mixed);
+        const options = models.map((preset) =>
+            presetToModelOption(preset, defaultModel),
+        );
+        expect(defaultModel).toEqual({
+            provider: 'openai',
+            name: 'gpt-5.6-sol',
+        });
+        expect(options.filter((option) => option.default)).toEqual([
+            expect.objectContaining({
+                provider: 'openai',
+                name: 'gpt-5.6-sol',
+            }),
+        ]);
+        expect(options).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    provider: 'google',
+                    modelId: 'gemini-3.8-flash',
+                }),
+                expect.objectContaining({
+                    provider: 'vertex',
+                    modelId: 'gemini-3.8-flash',
+                    default: false,
+                }),
+            ]),
+        );
+        expect(
+            getModel(mixed, {
+                provider: 'vertex',
+                modelName: 'gemini-3.8-flash',
+            }).model.provider,
+        ).toBe('vertex');
+        expect(getModel(mixed).model.provider).toContain('openai');
+
+        const vertexDefault = {
+            ...mixed,
+            defaultProvider: config.defaultProvider,
+        };
+        expect(getAvailableModels(vertexDefault)).toEqual(models);
+        expect(isByoAiProvider('vertex')).toBe(false);
+    });
+
+    it('does not list Vertex when the instance has no Vertex configuration', () => {
+        const withoutVertex = aiCopilotConfigSchema.parse({
+            ...config,
+            defaultProvider: 'openai',
+            providers: { openai: { apiKey: 'test-key' } },
+        });
+        expect(
+            getAvailableModels(withoutVertex).some(
+                (preset) => preset.provider === 'vertex',
+            ),
+        ).toBe(false);
     });
 
     it('supports arbitrary instance model IDs and server-pinned snapshots', () => {
@@ -149,6 +228,14 @@ describe('Vertex model routing', () => {
         expect(getModel(custom).model.modelId).toBe(
             'projects/test/locations/global/endpoints/custom',
         );
+        expect(getAvailableModels(custom)).toEqual([
+            expect.objectContaining({
+                provider: 'vertex',
+                modelId: 'projects/test/locations/global/endpoints/custom',
+                displayName:
+                    'projects/test/locations/global/endpoints/custom (Vertex AI)',
+            }),
+        ]);
         expect(
             getModel(custom, {
                 modelName: 'previous-server-model',

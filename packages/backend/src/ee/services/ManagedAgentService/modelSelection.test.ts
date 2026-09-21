@@ -1,4 +1,4 @@
-import { MODEL_PRESETS } from '../ai/models/presets';
+import { MODEL_PRESETS, vertexPreset } from '../ai/models/presets';
 import { pickAutopilotModel } from './modelSelection';
 
 const [sonnet] = MODEL_PRESETS.anthropic;
@@ -57,7 +57,7 @@ describe('pickAutopilotModel', () => {
         ).toEqual({ provider: 'openai', modelName: gpt.name });
     });
 
-    it('uses the Vertex instance model without a preset catalog', () => {
+    it('uses the selectable Vertex instance model when it is the default', () => {
         expect(
             pickAutopilotModel({
                 orgDefault: null,
@@ -65,7 +65,7 @@ describe('pickAutopilotModel', () => {
                     provider: 'vertex',
                     name: 'gemini-3.8-flash',
                 },
-                availableModels: [],
+                availableModels: [vertexPreset('gemini-3.8-flash')],
             }),
         ).toEqual({ provider: 'vertex', modelName: 'gemini-3.8-flash' });
     });

@@ -2,7 +2,10 @@ import { CallSettings } from 'ai';
 import { ProviderOptionsMap } from './types';
 
 export type ModelPresetProvider = 'openai' | 'anthropic' | 'google' | 'bedrock';
-export type SelectableModelProvider = ModelPresetProvider | 'openrouter';
+export type SelectableModelProvider =
+    | ModelPresetProvider
+    | 'openrouter'
+    | 'vertex';
 
 export type ReasoningStyle = 'budget' | 'adaptive';
 // How hard a reasoning model should think. 'xhigh' is the top level the
@@ -31,7 +34,7 @@ export type ModelPreset<P extends SelectableModelProvider> = {
     providerOptions: ProviderOptionsMap[P] | undefined;
 } & (
     | { custom?: false; contextWindowTokens: number }
-    // Pass-through gateway models are the only ones whose window is unknown
+    // Instance-configured models may have an unknown context window.
     | { custom: true; contextWindowTokens: null }
 );
 
@@ -499,6 +502,25 @@ export function openRouterPreset(modelName: string): ModelPreset<'openrouter'> {
         modelId: modelName,
         displayName: modelName,
         description: 'Model served through OpenRouter',
+        custom: true,
+        contextWindowTokens: null,
+        supportsReasoning: false,
+        callOptions: {},
+        providerOptions: undefined,
+    };
+}
+
+export function vertexPreset(modelName: string): ModelPreset<'vertex'> {
+    const googlePreset = MODEL_PRESETS.google.find(
+        (preset) => preset.modelId === modelName,
+    );
+    return {
+        name: modelName,
+        provider: 'vertex',
+        modelId: modelName,
+        displayName: `${googlePreset?.displayName ?? modelName} (Vertex AI)`,
+        description: 'Model served through Google Vertex AI',
+        groupLabel: 'Google Vertex AI',
         custom: true,
         contextWindowTokens: null,
         supportsReasoning: false,

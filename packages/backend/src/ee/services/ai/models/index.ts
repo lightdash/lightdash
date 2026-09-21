@@ -31,6 +31,7 @@ import {
     openRouterPreset,
     ReasoningEffort,
     SelectableModelProvider,
+    vertexPreset,
 } from './presets';
 import { AiModel, AiProvider } from './types';
 
@@ -158,7 +159,7 @@ export const getAvailableModels = (
 ): ModelPreset<SelectableModelProvider>[] => {
     const { defaultProvider, providers } = config;
 
-    if (defaultProvider === 'azure' || defaultProvider === 'vertex') {
+    if (defaultProvider === 'azure') {
         return [];
     }
 
@@ -168,9 +169,16 @@ export const getAvailableModels = (
         'google',
         'openrouter',
         'bedrock',
+        'vertex',
     ] as const;
     return configuredProviders.flatMap<ModelPreset<SelectableModelProvider>>(
         (provider) => {
+            if (provider === 'vertex') {
+                return providers.vertex
+                    ? [vertexPreset(providers.vertex.modelName)]
+                    : [];
+            }
+
             const providerConfig = providers[provider];
             if (!providerConfig) return [];
 
