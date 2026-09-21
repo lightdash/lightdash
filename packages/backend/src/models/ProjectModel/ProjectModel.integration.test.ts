@@ -377,6 +377,55 @@ describe('ProjectModel cached explore read metrics', () => {
                     operation: 'select',
                     outcome: 'success',
                     returnedRowCount: expect.any(Number),
+                    tableName: 'cached_explore',
+                }),
+                serverVersion: expect.any(String),
+            }),
+        );
+    });
+
+    test('classifies a raw staging insert through the Knex hook', async () => {
+        const { db } = getTestContext();
+        vi.spyOn(Logger, 'info');
+        const loggerInfo = vi.mocked(Logger.info);
+        const caller = 'ProjectModel.saveExploreStreamToCache.integration';
+        vi.stubEnv('LIGHTDASH_OTEL_TRACES_ENABLED', 'true');
+        vi.spyOn(trace, 'getActiveSpan').mockReturnValue({
+            name: caller,
+            spanContext: () => ({
+                traceId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+                spanId: 'bbbbbbbbbbbbbbbb',
+                traceFlags: 1,
+            }),
+        } as never);
+
+        await db.raw(`
+            INSERT INTO cached_explore_staging
+                (save_uuid, cached_explore_uuid, project_uuid, name, table_names, explore)
+            SELECT
+                'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'::uuid,
+                cached_explore_uuid,
+                project_uuid,
+                name,
+                table_names,
+                explore
+            FROM cached_explore
+            WHERE false
+        `);
+
+        expect(loggerInfo).toHaveBeenCalledWith(
+            expect.stringMatching(
+                /Knex\.cachedExploreStatement - operation completed in \d+\.\d{2}ms/u,
+            ),
+            expect.objectContaining({
+                name: 'Knex.cachedExploreStatement',
+                duration: expect.any(Number),
+                context: expect.objectContaining({
+                    source: 'knex',
+                    caller,
+                    operation: 'insert',
+                    outcome: 'success',
+                    tableName: 'cached_explore_staging',
                 }),
                 serverVersion: expect.any(String),
             }),

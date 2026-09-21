@@ -67,6 +67,8 @@ describe('isCachedExploreStatement', () => {
         'select * from "cached_explore"',
         'select * from "public"."cached_explore" as "cache"',
         'with cache as (select * from cached_explore) select * from cache',
+        'insert into "cached_explore_staging" (name) values (?)',
+        'select * from "public"."cached_explore_staging"',
         'update cached_explore set name = ?',
         'delete from cached_explore where project_uuid = ?',
         'insert into cached_explore (name) values (?)',
@@ -77,6 +79,7 @@ describe('isCachedExploreStatement', () => {
     it.each([
         'select * from projects',
         'select * from cached_explore_versions',
+        'select * from cached_explore_staging_archive',
         'select * from archived_cached_explore',
         undefined,
     ])('does not match %s', (sql) => {
@@ -116,6 +119,7 @@ describe('attachExploreCacheStatementMetrics', () => {
                     operation: 'select',
                     outcome: 'success',
                     returnedRowCount: 2,
+                    tableName: 'cached_explore',
                 }),
                 serverVersion: expect.any(String),
             }),
@@ -135,7 +139,7 @@ describe('attachExploreCacheStatementMetrics', () => {
         await database.destroy();
     });
 
-    it('classifies cached explore statement operations', () => {
+    it('classifies cached explore query-builder operations', () => {
         const database = new EventEmitter();
         const log = vi.fn();
         attachExploreCacheStatementMetrics(database as unknown as Knex, {
@@ -148,7 +152,6 @@ describe('attachExploreCacheStatementMetrics', () => {
             ['insert', 'insert into cached_explore values (?)', 'insert'],
             ['update', 'update cached_explore set name = ?', 'update'],
             ['del', 'delete from cached_explore where name = ?', 'delete'],
-            ['raw', 'select * from cached_explore', 'other'],
         ] as const;
 
         statements.forEach(([method, sql, operation], index) => {
@@ -167,6 +170,71 @@ describe('attachExploreCacheStatementMetrics', () => {
                 }),
             );
         });
+    });
+
+    it('classifies raw SQL and identifies the first cache table', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const log = vi.fn();
+        getTracker()
+            .on.any(/cached_explore/u)
+            .response([]);
+        attachExploreCacheStatementMetrics(database, {
+            getCaller: () => undefined,
+            log,
+            now: () => 10,
+        });
+        const statements = [
+            {
+                sql: 'insert into cached_explore select * from cached_explore_staging',
+                bindings: [],
+                operation: 'insert',
+                tableName: 'cached_explore',
+            },
+            {
+                sql: 'select * from cached_explore',
+                bindings: [],
+                operation: 'select',
+                tableName: 'cached_explore',
+            },
+            {
+                sql: 'with names as (select name from projects) select * from cached_explore where name in (select name from names)',
+                bindings: [],
+                operation: 'select',
+                tableName: 'cached_explore',
+            },
+            {
+                sql: 'delete from cached_explore where name = ?',
+                bindings: ['orders'],
+                operation: 'delete',
+                tableName: 'cached_explore',
+            },
+            {
+                sql: 'insert into cached_explore_staging (name) values (?)',
+                bindings: ['orders'],
+                operation: 'insert',
+                tableName: 'cached_explore_staging',
+            },
+        ];
+
+        await statements.reduce(async (previousStatement, statement) => {
+            await previousStatement;
+            await database.raw(statement.sql, statement.bindings);
+        }, Promise.resolve());
+
+        statements.forEach((statement, index) => {
+            expect(log).toHaveBeenNthCalledWith(
+                index + 1,
+                expect.any(String),
+                expect.objectContaining({
+                    context: expect.objectContaining({
+                        operation: statement.operation,
+                        tableName: statement.tableName,
+                    }),
+                }),
+            );
+        });
+
+        await database.destroy();
     });
 
     it('drops the oldest pending statement when the cap is reached', () => {
@@ -239,6 +307,7 @@ describe('attachExploreCacheStatementMetrics', () => {
                     source: 'knex',
                     operation: 'select',
                     outcome: 'error',
+                    tableName: 'cached_explore',
                 }),
             }),
         );

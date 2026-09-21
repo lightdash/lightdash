@@ -1,6 +1,9 @@
 import { type Explore } from '@lightdash/common';
 import { type Knex } from 'knex';
-import { CachedExploreTableName } from '../database/entities/projects';
+import {
+    CachedExploreStagingTableName,
+    CachedExploreTableName,
+} from '../database/entities/projects';
 import { getActiveSpanName } from '../tracing/tracing';
 import { VERSION } from '../version';
 import Logger from './logger';
@@ -16,6 +19,10 @@ type ExploreCacheOperation =
     | 'delete'
     | 'other';
 
+type ExploreCacheTableName =
+    | typeof CachedExploreTableName
+    | typeof CachedExploreStagingTableName;
+
 type KnexQueryEvent = {
     __knexQueryUid?: string;
     method?: string;
@@ -26,6 +33,7 @@ type PendingExploreCacheStatement = {
     caller: string | null;
     operation: ExploreCacheOperation;
     startedAt: number;
+    tableName: ExploreCacheTableName;
 };
 
 type ExploreCacheStatementMetricDependencies = {
@@ -46,15 +54,26 @@ type ExploreCacheStatementMetricDependencies = {
 const isIdentifierCharacter = (character: string | undefined): boolean =>
     character !== undefined && /[A-Za-z0-9_$]/u.test(character);
 
-export const isCachedExploreStatement = (sql: unknown): boolean => {
-    if (typeof sql !== 'string') return false;
+const getExploreCacheTableName = (
+    sql: unknown,
+): ExploreCacheTableName | undefined => {
+    if (typeof sql !== 'string') return undefined;
 
     let tableNameIndex = sql.indexOf(CachedExploreTableName);
     while (tableNameIndex !== -1) {
         const before = sql[tableNameIndex - 1];
-        const after = sql[tableNameIndex + CachedExploreTableName.length];
-        if (!isIdentifierCharacter(before) && !isIdentifierCharacter(after)) {
-            return true;
+        for (const tableName of [
+            CachedExploreStagingTableName,
+            CachedExploreTableName,
+        ] as const) {
+            const after = sql[tableNameIndex + tableName.length];
+            if (
+                sql.startsWith(tableName, tableNameIndex) &&
+                !isIdentifierCharacter(before) &&
+                !isIdentifierCharacter(after)
+            ) {
+                return tableName;
+            }
         }
         tableNameIndex = sql.indexOf(
             CachedExploreTableName,
@@ -62,11 +81,71 @@ export const isCachedExploreStatement = (sql: unknown): boolean => {
         );
     }
 
-    return false;
+    return undefined;
+};
+
+export const isCachedExploreStatement = (sql: unknown): boolean =>
+    getExploreCacheTableName(sql) !== undefined;
+
+const getExploreCacheSqlOperation = (sql: string): ExploreCacheOperation => {
+    let depth = 0;
+    let quote: "'" | '"' | undefined;
+    let inLineComment = false;
+    let inBlockComment = false;
+
+    for (let index = 0; index < sql.length; index += 1) {
+        const character = sql[index];
+        const nextCharacter = sql[index + 1];
+
+        if (inLineComment) {
+            if (character === '\n') inLineComment = false;
+        } else if (inBlockComment) {
+            if (character === '*' && nextCharacter === '/') {
+                inBlockComment = false;
+                index += 1;
+            }
+        } else if (quote) {
+            if (character === quote) {
+                if (nextCharacter === quote) {
+                    index += 1;
+                } else {
+                    quote = undefined;
+                }
+            }
+        } else if (character === '-' && nextCharacter === '-') {
+            inLineComment = true;
+            index += 1;
+        } else if (character === '/' && nextCharacter === '*') {
+            inBlockComment = true;
+            index += 1;
+        } else if (character === "'" || character === '"') {
+            quote = character;
+        } else if (character === '(') {
+            depth += 1;
+        } else if (character === ')') {
+            depth = Math.max(0, depth - 1);
+        } else if (depth === 0 && /[A-Za-z]/u.test(character)) {
+            let tokenEnd = index + 1;
+            while (/[A-Za-z]/u.test(sql[tokenEnd] ?? '')) tokenEnd += 1;
+            const token = sql.slice(index, tokenEnd).toLowerCase();
+            if (
+                token === 'select' ||
+                token === 'insert' ||
+                token === 'update' ||
+                token === 'delete'
+            ) {
+                return token;
+            }
+            index = tokenEnd - 1;
+        }
+    }
+
+    return 'other';
 };
 
 const getExploreCacheOperation = (
     method: string | undefined,
+    sql: string,
 ): ExploreCacheOperation => {
     switch (method) {
         case 'select':
@@ -82,7 +161,7 @@ const getExploreCacheOperation = (
         case 'delete':
             return 'delete';
         default:
-            return 'other';
+            return getExploreCacheSqlOperation(sql);
     }
 };
 
@@ -120,7 +199,8 @@ export const attachExploreCacheStatementMetrics = (
 
     database.on('query', (query: KnexQueryEvent) => {
         try {
-            if (!isCachedExploreStatement(query.sql) || !query.__knexQueryUid) {
+            const tableName = getExploreCacheTableName(query.sql);
+            if (!tableName || !query.__knexQueryUid || !query.sql) {
                 return;
             }
             if (pendingStatements.size >= maxPendingStatements) {
@@ -131,8 +211,9 @@ export const attachExploreCacheStatementMetrics = (
             }
             pendingStatements.set(query.__knexQueryUid, {
                 caller: getCaller() ?? null,
-                operation: getExploreCacheOperation(query.method),
+                operation: getExploreCacheOperation(query.method, query.sql),
                 startedAt: now(),
+                tableName,
             });
         } catch {
             return;
@@ -159,6 +240,7 @@ export const attachExploreCacheStatementMetrics = (
             outcome,
             returnedRowCount: getReturnedRowCount(response),
             serverVersion: String(VERSION),
+            tableName: pendingStatement.tableName,
         };
         try {
             log(
