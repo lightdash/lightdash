@@ -34,6 +34,11 @@ import {
     prepareThemeUploads,
     uploadThemes,
 } from './themes';
+import {
+    downloadUserAttributes,
+    formatUserAttributeUploadSummary,
+    uploadUserAttributes,
+} from './userAttributes';
 import { downloadUsers, formatUserUploadSummary, uploadUsers } from './users';
 
 type OrganizationContentOptions = {
@@ -120,6 +125,15 @@ export const downloadOrganizationContent = async ({
                 '> Warning: groups were not downloaded because the group service is not enabled',
             );
         }
+        const userAttributesTotal = await output.runItem({
+            label: 'User attributes',
+            action: () =>
+                downloadUserAttributes(
+                    organizationUuid,
+                    organizationContentPath,
+                ),
+            detail: (total) => `${total} downloaded`,
+        });
         const themesTotal = await output.runItem({
             label: 'Themes',
             action: () => downloadThemes(organizationContentPath),
@@ -148,6 +162,7 @@ export const downloadOrganizationContent = async ({
                 usersNum: usersTotal,
                 groupsNum: groupsTotal,
                 themesNum: themesTotal,
+                userAttributesNum: userAttributesTotal,
                 timeToCompleted: (Date.now() - start) / 1000,
             },
         });
@@ -273,6 +288,24 @@ export const uploadOrganizationContent = async ({
             );
         }
         output.completeItem(groupSummaryMessage);
+        output.startItem('User attributes');
+        const userAttributeSummary = await uploadUserAttributes(
+            organizationUuid,
+            organizationContentPath,
+        );
+        const userAttributeSummaryMessage =
+            formatUserAttributeUploadSummary(userAttributeSummary);
+        if (userAttributeSummary.failed > 0) {
+            userAttributeSummary.failures.forEach(({ message }) =>
+                GlobalState.log(styles.error(message)),
+            );
+            output.prepareForFailureDetails();
+            throw new CodeResourcePhaseError(
+                'user_attribute',
+                `Processed user attributes: ${userAttributeSummaryMessage}`,
+            );
+        }
+        output.completeItem(userAttributeSummaryMessage);
         output.startItem('Themes');
         const themeSummary = await uploadThemes(preparedThemes);
         const themeSummaryMessage = formatThemeUploadSummary(themeSummary);
@@ -321,6 +354,9 @@ export const uploadOrganizationContent = async ({
                 groupsCreated: groupSummary.created,
                 groupsUpdated: groupSummary.updated,
                 groupsUnchanged: groupSummary.unchanged,
+                userAttributesCreated: userAttributeSummary.created,
+                userAttributesUpdated: userAttributeSummary.updated,
+                userAttributesUnchanged: userAttributeSummary.unchanged,
                 themesCreated: themeSummary.created,
                 themesUpdated: themeSummary.updated,
                 themesUnchanged: themeSummary.unchanged,

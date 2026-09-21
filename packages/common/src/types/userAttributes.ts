@@ -1,3 +1,8 @@
+import type {
+    ApiContentAsCodeListResponse,
+    ApiContentAsCodeUpsertResponse,
+} from './contentAsCode/base';
+
 export type UserAttribute = {
     uuid: string;
     createdAt: Date;
@@ -123,3 +128,19 @@ export type ApiCreateUserAttributeResponse = {
     status: 'ok';
     results: UserAttribute;
 };
+
+export type UserAttributeAsCode = {
+    version: 1;
+    name: string;
+    description: string | null;
+    attributeDefaults: string[] | null;
+    users: { email: string; values: string[] }[];
+    groups: { name: string; values: string[] }[];
+};
+
+export type ApiUserAttributeAsCodeListResponse = ApiContentAsCodeListResponse<{
+    userAttributes: UserAttributeAsCode[];
+}>;
+
+export type ApiUserAttributeAsCodeUpsertResponse =
+    ApiContentAsCodeUpsertResponse;

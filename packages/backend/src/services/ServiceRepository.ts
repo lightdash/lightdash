@@ -1392,6 +1392,9 @@ export class ServiceRepository
                 new UserAttributesService({
                     analytics: this.context.lightdashAnalytics,
                     userAttributesModel: this.models.getUserAttributesModel(),
+                    groupsModel: this.models.getGroupsModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
                 }),
         );
     }

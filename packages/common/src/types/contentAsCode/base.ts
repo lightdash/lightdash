@@ -53,6 +53,7 @@ export const CONTENT_AS_CODE_VERSIONS = {
     custom_role: 1,
     user: 1,
     group: 1,
+    user_attribute: 1,
     external_connection: 1,
 } as const;
 
@@ -72,6 +73,7 @@ export type ContentAsCodeResourceKind =
     | 'custom_role'
     | 'user'
     | 'group'
+    | 'user_attribute'
     | 'theme'
     | 'external_connection';
 
