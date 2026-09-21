@@ -43,6 +43,9 @@ export type DbApp = {
     // icon retired from the curated set does not fail to read back.
     icon: string | null;
     design_uuid: string | null;
+    // The last preview query a chart type author ran: shape only, capped in size.
+    // Typed raw; read it back through `dataAppVizPreviewSelectionSchema`.
+    data_app_viz_preview_selection: unknown;
     // The production app this (preview) app was promoted into. Null until the
     // app is first promoted. Lives on the preview side so a single production
     // app can be the upstream of many preview apps.
@@ -100,6 +103,7 @@ export type AppsTable = Knex.CompositeTableType<
             | 'deleted_at'
             | 'deleted_by_user_uuid'
             | 'views_count'
+            | 'data_app_viz_preview_selection'
         >
     >
 >;
