@@ -301,6 +301,34 @@ export type VizDrillDownIntent = {
     fieldId?: string;
 };
 
+/**
+ * Bridge-only virtual route for the host-rendered data-point action menu.
+ * Duplicated from `@lightdash/common` (`APP_SDK_VIZ_POINT_MENU_PATH`) — this
+ * package must not depend on common. The host answers it directly (renders
+ * its native context menu over the iframe); nothing is forwarded to the API.
+ */
+export const VIZ_POINT_MENU_PATH = '/__sdk/viz/point-menu';
+
+/**
+ * Data-point menu intent: the untransformed source row and metric slot (as
+ * for drill-down), plus the click position in the iframe's client
+ * coordinates so the host can place the menu.
+ */
+export type VizPointMenuIntent = {
+    row: Record<
+        string,
+        { value?: { raw?: unknown; formatted?: string } } | undefined
+    >;
+    metric: string;
+    /** The clicked query field id when `metric` is a multi-field slot. */
+    fieldId?: string;
+    x: number;
+    y: number;
+};
+
+/** `shown: false` means the host had no applicable action for this point. */
+export type VizPointMenuResult = { shown: boolean };
+
 // --- Client config ---
 
 export type LightdashClientConfig = {
@@ -417,6 +445,16 @@ export type Transport = {
      * valid — `useVizContext().drillDown.enabled` is false when absent.
      */
     openVizDrillDown?: (intent: VizDrillDownIntent) => Promise<void>;
+    /**
+     * Fire the data-point menu intent for a viz click via the host bridge.
+     * Bridge-only virtual route: the host renders its native data-point menu
+     * over the iframe and resolves with whether it had an applicable action.
+     * Optional so custom transports predating the capability stay valid —
+     * `useVizContext().pointMenu.enabled` is false when absent.
+     */
+    openVizPointMenu?: (
+        intent: VizPointMenuIntent,
+    ) => Promise<VizPointMenuResult>;
     /**
      * Ask the host's AI a question about the viewer's own query results.
      * Optional so custom transports predating the capability stay valid —
