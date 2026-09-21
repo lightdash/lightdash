@@ -1,3 +1,10 @@
+# [2.280.0](https://github.com/lightdash/lightdash/compare/2.279.1...2.280.0) (2026-09-21)
+
+
+### Features
+
+* **merge-queries:** total a non-additive metric from its own query when the join keeps every row of it ([#29510](https://github.com/lightdash/lightdash/issues/29510)) ([c3bdfa1](https://github.com/lightdash/lightdash/commit/c3bdfa1f4125adf373d047837bb49b0cff984159))
+
 ## [2.279.1](https://github.com/lightdash/lightdash/compare/2.279.0...2.279.1) (2026-09-21)
 
 
