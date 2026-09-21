@@ -1,3 +1,10 @@
+## [2.274.1](https://github.com/lightdash/lightdash/compare/2.274.0...2.274.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* cancel storage streams when previews disconnect ([#29630](https://github.com/lightdash/lightdash/issues/29630)) ([537ab5b](https://github.com/lightdash/lightdash/commit/537ab5baec3e6afc9204e8a73d905e47b453bbd8))
+
 # [2.274.0](https://github.com/lightdash/lightdash/compare/2.273.0...2.274.0) (2026-09-21)
 
 
