@@ -337,6 +337,13 @@ export enum FeatureFlags {
      * experiment, off by default.
      */
     AiAgentBattleMode = 'ai-agent-battle-mode',
+    /**
+     * Organization-scoped master rollout switch for bounded semantic
+     * decisions, scoped tools, fast tool calls, reuse and direct chart paths.
+     */
+    AiAgentFastDecisions = 'ai-agent-fast-decisions',
+    /** Optional replacement of the main response model for bounded requests. */
+    AiAgentAdaptiveModels = 'ai-agent-adaptive-models',
 }
 
 export type FeatureFlag = {

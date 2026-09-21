@@ -1757,6 +1757,11 @@ export type LightdashConfig = {
     logging: LoggingConfig;
     ai: {
         copilot: AiCopilotConfigSchemaType;
+        decisions: {
+            apiKey: string | null;
+            model: string;
+            timeoutMs: number;
+        };
         analyticsProjectUuid?: string;
         analyticsDashboardUuid?: string;
         agentMemory: {
@@ -3734,6 +3739,18 @@ export const parseConfig = (): LightdashConfig => {
         },
         ai: {
             copilot: copilotConfig,
+            decisions: {
+                apiKey: process.env.JEV_API_KEY?.trim() || null,
+                model: process.env.JEV_MODEL || 'jev-1.13.0',
+                timeoutMs: Math.max(
+                    100,
+                    Math.min(
+                        2_000,
+                        getIntegerFromEnvironmentVariable('JEV_TIMEOUT_MS') ||
+                            900,
+                    ),
+                ),
+            },
             analyticsProjectUuid: process.env.AI_ANALYTICS_PROJECT_UUID,
             analyticsDashboardUuid: process.env.AI_ANALYTICS_DASHBOARD_UUID,
             agentMemory: {

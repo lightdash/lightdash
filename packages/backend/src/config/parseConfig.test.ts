@@ -40,6 +40,25 @@ beforeEach(() => {
     };
 });
 
+describe('AI decision credentials', () => {
+    it('disables decisions when no key is configured', () => {
+        expect(parseConfig().ai.decisions.apiKey).toBeNull();
+    });
+
+    it.each(['', ' ', '\n\t'])(
+        'treats an empty or whitespace-only key as unconfigured: %j',
+        (value) => {
+            process.env.JEV_API_KEY = value;
+            expect(parseConfig().ai.decisions.apiKey).toBeNull();
+        },
+    );
+
+    it('trims surrounding whitespace without changing the key', () => {
+        process.env.JEV_API_KEY = ' \tdecision-test-key\n';
+        expect(parseConfig().ai.decisions.apiKey).toBe('decision-test-key');
+    });
+});
+
 describe('explore summary projection threshold', () => {
     test('defaults to 2048 stored bytes per explore', () => {
         expect(
