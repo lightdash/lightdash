@@ -611,7 +611,13 @@ describe('dashboard calendar periods on merged sources', () => {
                     target: expect.objectContaining({ fieldId: 'orders_day' }),
                     operator: FilterOperator.EQUALS,
                     values: ['2026-02-01'],
-                    settings: { selectedPeriod: UnitOfTime.months },
+                    settings: {
+                        sourceTarget: {
+                            fieldId: 'orders_month',
+                            tableName: 'orders',
+                        },
+                        selectedPeriod: UnitOfTime.months,
+                    },
                 }),
             ]);
         }

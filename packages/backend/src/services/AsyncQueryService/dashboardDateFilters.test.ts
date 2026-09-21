@@ -98,9 +98,8 @@ describe('dashboard date filter periods', () => {
         expect(await resolve(filters)).toEqual(
             dashboardFilters({
                 ...monthFilter,
-                sourceTarget,
                 target,
-                settings: { selectedPeriod: UnitOfTime.months },
+                settings: { sourceTarget, selectedPeriod: UnitOfTime.months },
             }),
         );
         expect(filters).toEqual(originalFilters);
@@ -115,9 +114,8 @@ describe('dashboard date filter periods', () => {
         expect(await resolve(filters)).toEqual(
             dashboardFilters({
                 ...monthFilter,
-                sourceTarget,
                 target,
-                settings: { selectedPeriod: UnitOfTime.months },
+                settings: { sourceTarget, selectedPeriod: UnitOfTime.months },
             }),
         );
     });
@@ -175,8 +173,8 @@ describe('dashboard date filter periods', () => {
             tileExplore,
         );
         expect(result.dimensions.map((filter) => filter.settings)).toEqual([
-            { selectedPeriod: UnitOfTime.months },
-            { selectedPeriod: UnitOfTime.months },
+            { sourceTarget, selectedPeriod: UnitOfTime.months },
+            { sourceTarget, selectedPeriod: UnitOfTime.months },
         ]);
         expect(findExploreContainingTable).toHaveBeenCalledExactlyOnceWith(
             'orders',
@@ -256,8 +254,7 @@ describe('dashboard date filter periods', () => {
             {
                 ...filter,
                 target: sqlTarget,
-                sourceTarget,
-                settings: { selectedPeriod: UnitOfTime.months },
+                settings: { sourceTarget, selectedPeriod: UnitOfTime.months },
             },
         ]);
     });
@@ -283,9 +280,9 @@ describe('dashboard date filter periods', () => {
         expect(await resolve(dashboardFilters(filter))).toEqual(
             dashboardFilters({
                 ...filter,
-                sourceTarget,
                 target,
                 settings: {
+                    sourceTarget,
                     completed: true,
                     selectedPeriod: UnitOfTime.months,
                 },

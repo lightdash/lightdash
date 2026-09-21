@@ -73,7 +73,8 @@ export const resolveDashboardDateFilters = async ({
     };
     const dimensions = await Promise.all(
         tileFilters.dimensions.map(async (filter) => {
-            const source = filter.sourceTarget;
+            const source: DashboardFieldTarget | undefined =
+                filter.settings?.sourceTarget;
             if (
                 !source ||
                 source.isSqlColumn ||

@@ -188,8 +188,6 @@ export type DashboardFilterRule<
     V = AnyType,
     S = AnyType,
 > = FilterRule<O, T, V, S> & {
-    /** Original field before a dashboard tile target override. */
-    sourceTarget?: DashboardFieldTarget;
     tileTargets?: DashboardTileTargets;
     label: undefined | string;
     singleValue?: boolean;
@@ -219,6 +217,8 @@ export type DashboardFilterRuleOverride = Omit<
 >;
 
 export type DateFilterSettings = {
+    /** Original field before a dashboard tile target override. */
+    sourceTarget?: DashboardFieldTarget;
     /** Calendar period selected on a coarser dashboard source field. */
     selectedPeriod?:
         | UnitOfTime.weeks
