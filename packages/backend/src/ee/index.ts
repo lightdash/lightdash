@@ -843,6 +843,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiAgentReviewClassifierService: ({ models, repository, context }) =>
                 new AiAgentReviewClassifierService({
+                    featureFlagModel: models.getFeatureFlagModel(),
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),

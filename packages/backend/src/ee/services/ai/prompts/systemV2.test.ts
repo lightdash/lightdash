@@ -202,6 +202,20 @@ describe('getSystemPromptV2 project context', () => {
         expect(content).toContain('BEFORE');
     });
 
+    test('uses preloaded rules without requiring a redundant context tool turn', () => {
+        const content = promptText({
+            availableExplores: [],
+            hasProjectContext: true,
+            projectContextPreloaded: true,
+        });
+        expect(content).toContain('already preloaded');
+        expect(content).toContain('partial selection');
+        expect(content).toContain('loadProjectContext');
+        expect(content).not.toContain(
+            'Call the `loadProjectContext` tool BEFORE',
+        );
+    });
+
     test('shows a placeholder when no project context is configured', () => {
         const content = promptText({
             availableExplores: [],
@@ -276,6 +290,20 @@ describe('getSystemPromptV2 custom chart types', () => {
 });
 
 describe('getSystemPromptV2 merge queries', () => {
+    test('requires result-backed comparisons in fast mode only', () => {
+        const baseline = promptText({ availableExplores: [] });
+        const fast = promptText({
+            availableExplores: [],
+            enableFastMetadata: true,
+        });
+        expect(baseline).not.toContain(
+            'Category labels are values, not comparisons',
+        );
+        expect(fast).toContain(
+            'A label such as "Low Cost" does not prove that its group is cheaper',
+        );
+    });
+
     test('directs cross-explore questions to generateVisualization when enabled', () => {
         const content = promptText({
             availableExplores: [],
@@ -384,6 +412,24 @@ describe('getSystemPromptV2 knowledge documents', () => {
         updatedAt: new Date('2026-07-10T00:00:00Z'),
         content: 'Net revenue excludes refunds.',
     } satisfies AiAgentDocumentContext;
+
+    test.each([false, true])(
+        'recognizes preloaded documents only in fast mode: %s',
+        (enableFastMetadata) => {
+            const content = promptText({
+                availableExplores: [],
+                knowledgeDocuments: [document],
+                enableFastMetadata,
+            });
+            expect(
+                content.includes(
+                    'whose complete content has not already been preloaded for this request',
+                ),
+            ).toBe(enableFastMetadata);
+            expect(content).toContain('Multiple matches → read each of them.');
+            expect(content).not.toContain('{{unloaded_knowledge_documents}}');
+        },
+    );
 
     test('includes full content for documents configured to always load', () => {
         const content = promptText({
@@ -947,5 +993,16 @@ describe('getSystemPromptV2 Slack links only', () => {
         });
         expect(content).not.toContain(noDataInSlackRule);
         expect(content).toContain('call out trends');
+    });
+});
+
+describe('getSystemPromptV2 existing chart export', () => {
+    test('explains artifact discovery only when export is available', () => {
+        expect(
+            promptText({ availableExplores: [], enableChartExport: true }),
+        ).toContain('null for all three source identifiers');
+        expect(promptText({ availableExplores: [] })).not.toContain(
+            'null for all three source identifiers',
+        );
     });
 });

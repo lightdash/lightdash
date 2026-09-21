@@ -1,4 +1,5 @@
 import { type SessionUser } from '@lightdash/common';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import {
     compareChartQueries,
     type ChartSimilarityInput,
@@ -37,6 +38,7 @@ const setup = () => {
         getAccessibleModelIds: vi.fn(),
     };
     const service = new AiService({
+        lightdashConfig: lightdashConfigMock,
         featureFlagService,
         orgAiCopilotConfigResolver,
     } as unknown as ConstructorParameters<typeof AiService>[0]);

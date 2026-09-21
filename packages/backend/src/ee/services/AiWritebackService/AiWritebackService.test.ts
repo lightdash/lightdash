@@ -30,6 +30,7 @@ import {
     listReposAccessibleToUser,
     revokeInstallationToken,
 } from '../../../clients/github/Github';
+import { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
     AiWritebackService,
@@ -55,6 +56,7 @@ import {
 import { DeniedPathError } from './deniedPaths';
 import {
     RepoTooLargeError,
+    WritebackAccessError,
     WritebackCredentialCleanupError,
     WritebackGitNotConnectedError,
     WritebackRunAbortedError,
@@ -881,12 +883,111 @@ describe('AiWritebackService dbt source targeting', () => {
         },
     ) =>
         (service as AnyType).resolveDbtTarget({
+            organizationUuid: ORG,
             projectUuid: 'p1',
             project: project(),
             prompt: args.prompt ?? '',
             dbtSourceUuid: args.dbtSourceUuid,
             existingRow: args.existingRow ?? null,
         });
+
+    describe('semantic source selection', () => {
+        afterEach(() => vi.restoreAllMocks());
+        const setup = (enabled = true) => {
+            const get = vi.fn().mockResolvedValue({ enabled });
+            const service = buildService({
+                lightdashConfig: {
+                    ai: {
+                        decisions: {
+                            apiKey: 'test',
+                            model: 'test',
+                            timeoutMs: 100,
+                        },
+                    },
+                },
+                featureFlagModel: { get },
+                projectDbtSourcesModel: {
+                    getSources: vi.fn().mockResolvedValue([marketingSource()]),
+                },
+            });
+            return { service, get };
+        };
+
+        it('uses the organization flag and selects only an authorized candidate, ignoring a negated longer name', async () => {
+            const { service, get } = setup();
+            vi.spyOn(AiDecisionClient.prototype, 'evaluate').mockResolvedValue({
+                target: {
+                    type: 'choice',
+                    choice: 'source_1',
+                    confidence: 0.99,
+                    probabilities: { source_1: 1 },
+                },
+                singleTarget: { type: 'noul', noul: 0.999 },
+                explicitReference: { type: 'noul', noul: 0.999 },
+            });
+            expect(
+                await resolve(service, {
+                    prompt: 'Change Marketing dbt, not the acme/analytics repository.',
+                }),
+            ).toMatchObject({
+                kind: 'resolved',
+                candidate: { sourceUuid: 'src-marketing' },
+            });
+            expect(get).toHaveBeenCalledExactlyOnceWith({
+                user: { organizationUuid: ORG },
+                featureFlagId: FeatureFlags.AiAgentFastDecisions,
+            });
+        });
+
+        it('asks for source selection on provider failure instead of guessing from a negated repository name', async () => {
+            const { service } = setup();
+            vi.spyOn(AiDecisionClient.prototype, 'evaluate').mockResolvedValue(
+                null,
+            );
+            const result = await resolve(service, {
+                prompt: 'Do not change acme/marketing; use the other source.',
+            });
+            expect(result.kind).toBe('select');
+            expect(result.options).toHaveLength(2);
+        });
+
+        it('retains legacy source matching when the flag is off', async () => {
+            const { service } = setup(false);
+            const evaluate = vi.spyOn(AiDecisionClient.prototype, 'evaluate');
+            expect(
+                await resolve(service, { prompt: 'Change acme/marketing.' }),
+            ).toMatchObject({
+                kind: 'resolved',
+                candidate: { sourceUuid: 'src-marketing' },
+            });
+            expect(evaluate).not.toHaveBeenCalled();
+        });
+
+        it('keeps explicit source choices and existing workstreams deterministic', async () => {
+            const { service, get } = setup();
+            const evaluate = vi.spyOn(AiDecisionClient.prototype, 'evaluate');
+            expect(
+                await resolve(service, {
+                    dbtSourceUuid: 'src-marketing',
+                    prompt: 'Change analytics',
+                }),
+            ).toMatchObject({
+                kind: 'resolved',
+                candidate: { sourceUuid: 'src-marketing' },
+            });
+            expect(
+                await resolve(service, {
+                    existingRow: { project_dbt_source_uuid: 'src-marketing' },
+                    prompt: 'Change analytics',
+                }),
+            ).toMatchObject({
+                kind: 'resolved',
+                candidate: { sourceUuid: 'src-marketing' },
+            });
+            expect(get).not.toHaveBeenCalled();
+            expect(evaluate).not.toHaveBeenCalled();
+        });
+    });
 
     it.each([false, true])(
         'selects an additional Cloud source, including a resumed binding (%s)',
@@ -1059,6 +1160,7 @@ describe('AiWritebackService dbt source targeting', () => {
         };
         const resolvePrompt = (prompt: string) =>
             (service as AnyType).resolveDbtTarget({
+                organizationUuid: ORG,
                 projectUuid: 'p1',
                 project: primaryJaffle,
                 prompt,
@@ -1149,6 +1251,7 @@ describe('AiWritebackService dbt source targeting', () => {
         // return; degrade deterministically to the first git-backed source.
         const service = serviceWithSources([marketingSource()]);
         const result = await (service as AnyType).resolveDbtTarget({
+            organizationUuid: ORG,
             projectUuid: 'p1',
             project: {
                 projectUuid: 'p1',
@@ -1167,6 +1270,7 @@ describe('AiWritebackService dbt source targeting', () => {
     it('drops a non-git primary but still targets git-backed additional sources', async () => {
         const service = serviceWithSources([marketingSource()]);
         const result = await (service as AnyType).resolveDbtTarget({
+            organizationUuid: ORG,
             projectUuid: 'p1',
             // Local (non-git) primary — cannot be a writeback target.
             project: {
@@ -1188,6 +1292,7 @@ describe('AiWritebackService dbt source targeting', () => {
         const service = serviceWithSources([]);
         await expect(
             (service as AnyType).resolveDbtTarget({
+                organizationUuid: ORG,
                 projectUuid: 'p1',
                 project: {
                     projectUuid: 'p1',
@@ -2908,29 +3013,31 @@ describe('auditReasonForError', () => {
         ).toBe('pr_not_open');
     });
 
-    it('distinguishes the ForbiddenError authz sub-conditions by message', () => {
+    it.each([
+        'denied_repo',
+        'user_intersection',
+        'installation',
+        'no_org',
+    ] as const)(
+        'uses the typed %s reason independently of message copy',
+        (reason) => {
+            const error = new WritebackAccessError(
+                reason,
+                'An arbitrary translated explanation',
+            );
+            expect(error).toBeInstanceOf(ForbiddenError);
+            expect(auditReasonForError(error)).toBe(reason);
+        },
+    );
+
+    it('does not infer an access reason from keywords inside an ordinary forbidden message', () => {
         expect(
             auditReasonForError(
                 new ForbiddenError(
-                    'The repository lightdash/lightdash cannot be edited',
+                    'Organization installation cannot be edited by your linked GitHub account',
                 ),
             ),
-        ).toBe('denied_repo');
-        expect(
-            auditReasonForError(
-                new ForbiddenError(
-                    'a/b is not accessible to your linked GitHub account',
-                ),
-            ),
-        ).toBe('user_intersection');
-        expect(
-            auditReasonForError(
-                new ForbiddenError(
-                    "a/b is not accessible to your organization's GitHub App installation",
-                ),
-            ),
-        ).toBe('installation');
-        // A bare ForbiddenError (the manage:SourceCode gate) -> permission.
+        ).toBe('permission');
         expect(auditReasonForError(new ForbiddenError())).toBe('permission');
     });
 
@@ -3122,7 +3229,12 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
                 project: githubProject(),
                 repoTarget: 'acme/analytics',
             }),
-        ).rejects.toThrow(/Could not verify your GitHub access/);
+        ).rejects.toMatchObject({
+            reason: 'user_intersection',
+            message: expect.stringMatching(
+                /Could not verify your GitHub access/,
+            ),
+        });
     });
 
     it('fails closed at the size guard (R9) before any clone when the repo is over the limit', async () => {

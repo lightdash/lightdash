@@ -12,11 +12,16 @@ export const getMcpActiveTools = (
     messages: ModelMessage[],
     allToolNames: string[],
     mcpToolNames: string[],
+    preloadedMcpToolNames: string[] = [],
 ): string[] | undefined => {
     if (mcpToolNames.length === 0) return undefined;
 
-    const currentMcpToolNames = new Set(mcpToolNames);
-    const loadedMcpToolNames = new Set<string>();
+    const currentMcpToolNames = new Set(
+        mcpToolNames.filter((name) => allToolNames.includes(name)),
+    );
+    const loadedMcpToolNames = new Set(
+        preloadedMcpToolNames.filter((name) => currentMcpToolNames.has(name)),
+    );
 
     for (const toolCall of getToolCalls(messages)) {
         if (currentMcpToolNames.has(toolCall.toolName)) {

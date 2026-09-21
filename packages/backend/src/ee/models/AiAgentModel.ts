@@ -4695,6 +4695,7 @@ export class AiAgentModel {
         embeddingModelProvider,
         embeddingModel,
         limit = 3,
+        semanticCandidates = false,
     }: {
         organizationUuid: string;
         projectUuid: string;
@@ -4703,6 +4704,7 @@ export class AiAgentModel {
         embeddingModelProvider: string;
         embeddingModel: string;
         limit?: number;
+        semanticCandidates?: boolean;
     }): Promise<
         {
             artifactVersionUuid: string;
@@ -4727,7 +4729,7 @@ export class AiAgentModel {
                     this.lightdashConfig.ai.copilot
                         .verifiedAnswerSimilarityThreshold;
 
-                const results = await this.database(AiArtifactVersionsTableName)
+                const query = this.database(AiArtifactVersionsTableName)
                     .select(
                         `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
                         `${AiArtifactVersionsTableName}.chart_config`,
@@ -4771,16 +4773,18 @@ export class AiAgentModel {
                         `${AiArtifactVersionsTableName}.embedding_model`,
                         embeddingModel,
                     )
-                    .whereRaw(
-                        `1 - (${AiArtifactVersionsTableName}.embedding_vector <=> ?::vector) > ${similarityThreshold}`,
-                        [embeddingJson],
-                    )
                     .orderByRaw(
                         `${AiArtifactVersionsTableName}.embedding_vector <=> ?::vector`,
                         [embeddingJson],
                     )
                     .limit(limit);
 
+                if (!semanticCandidates)
+                    query.whereRaw(
+                        `1 - (${AiArtifactVersionsTableName}.embedding_vector <=> ?::vector) > ?`,
+                        [embeddingJson, similarityThreshold],
+                    );
+                const results = await query;
                 return results.map((row) => ({
                     artifactVersionUuid: row.ai_artifact_version_uuid,
                     chartConfig: row.chart_config,

@@ -560,6 +560,108 @@ type JwtDashboardQueryContextTestService = {
 };
 
 describe('AsyncQueryService', () => {
+    describe('saved query execution metadata', () => {
+        it.each([
+            ['saved', false],
+            ['dashboard', false],
+            ['saved', true],
+            ['dashboard', true],
+        ] as const)(
+            'returns the actual %s plan even when observer failure=%s',
+            async (kind, observerFails) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const executed = {
+                    queryUuid: 'executed-query',
+                    cacheMetadata: { cacheHit: false },
+                    fields: {},
+                    metricQuery: { ...metricQueryMock, limit: 40 },
+                    usedParametersValues: { region: 'EMEA' },
+                    resolvedTimezone: 'Europe/London',
+                    parameterReferences: ['region'],
+                    dateZoomApplied: false,
+                    warnings: [],
+                    appliedDashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                };
+                const execute =
+                    kind === 'saved'
+                        ? vi
+                              .spyOn(service, 'executeAsyncSavedChartQuery')
+                              .mockResolvedValue(executed)
+                        : vi
+                              .spyOn(service, 'executeAsyncDashboardChartQuery')
+                              .mockResolvedValue(executed);
+                const completion = service as unknown as {
+                    pollForQueryCompletion: () => Promise<void>;
+                    getReadyQueryResults: () => Promise<{
+                        rows: { count: number }[];
+                        cacheMetadata: { cacheHit: boolean };
+                        fields: {};
+                        pivotDetails: undefined;
+                        displayTimezone: string;
+                    }>;
+                };
+                const onQueryPrepared = vi.fn(() => {
+                    if (observerFails)
+                        throw new Error('optional observer failed');
+                });
+                vi.spyOn(
+                    completion,
+                    'pollForQueryCompletion',
+                ).mockImplementation(async () => {
+                    expect(onQueryPrepared).toHaveBeenCalledOnce();
+                });
+                vi.spyOn(completion, 'getReadyQueryResults').mockResolvedValue({
+                    rows: [{ count: 42 }],
+                    cacheMetadata: { cacheHit: false },
+                    fields: {},
+                    pivotDetails: undefined,
+                    displayTimezone: 'Europe/London',
+                });
+                const args = {
+                    account: sessionAccount,
+                    projectUuid,
+                    chartUuid: 'chart',
+                    context: QueryExecutionContext.AI,
+                };
+                const result =
+                    kind === 'saved'
+                        ? await service.executeSavedChartQueryAndGetResults(
+                              args,
+                              undefined,
+                              onQueryPrepared,
+                          )
+                        : await service.executeDashboardChartQueryAndGetResults(
+                              {
+                                  ...args,
+                                  dashboardUuid: 'dashboard',
+                                  tileUuid: 'tile',
+                                  dashboardFilters: {
+                                      dimensions: [],
+                                      metrics: [],
+                                      tableCalculations: [],
+                                  },
+                                  dashboardSorts: [],
+                              },
+                              undefined,
+                              onQueryPrepared,
+                          );
+                expect(execute).toHaveBeenCalledOnce();
+                expect(result).toMatchObject({
+                    queryUuid: 'executed-query',
+                    rows: [{ count: 42 }],
+                    execution: {
+                        metricQuery: executed.metricQuery,
+                        usedParametersValues: { region: 'EMEA' },
+                        resolvedTimezone: 'Europe/London',
+                    },
+                });
+            },
+        );
+    });
     describe('saved SQL chart access', () => {
         test('resolves access through the saved SQL chart target', async () => {
             const resolveAccess = vi.fn(async () => ({

@@ -47,6 +47,9 @@ type ToolResultOutput = { type: string; value: string };
 const WAREHOUSE_SLOW =
     /timed out|timeout|polling|connection (terminated|lost)|econnreset/i;
 
+export const isKnownQueryRetryError = (message: string): boolean =>
+    isWarehouseResourceLimitError(message) || WAREHOUSE_SLOW.test(message);
+
 /**
  * Resource-limit recovery needs a small stable vocabulary shared by warehouse
  * errors (bytes, memory, quota, and resource exhaustion). Other warehouse

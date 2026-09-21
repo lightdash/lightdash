@@ -208,6 +208,7 @@ export type AiAgentToolsRuntimeContext = {
     promptUuid?: string;
     onWarehouseQuery?: () => void | Promise<void>;
     queryResultsExpirationMs?: number;
+    enableRuntimeCache?: boolean;
 };
 
 export type McpRuntimeSuccess<TData> = {
@@ -367,6 +368,11 @@ type AiAgentToolsServiceDependencies = {
 };
 
 export class AiAgentToolsService extends BaseService {
+    private readonly runtimePromiseCache = new WeakMap<
+        AiAgentToolsRuntimeContext,
+        Map<string, Promise<unknown>>
+    >();
+
     private readonly appModel: AppModel;
 
     private readonly projectModel: ProjectModel;
@@ -424,6 +430,28 @@ export class AiAgentToolsService extends BaseService {
     private readonly featureFlagService: FeatureFlagService;
 
     private readonly previewDeploySetupService: PreviewDeploySetupService;
+
+    private getRuntimeCached<T>(
+        context: AiAgentToolsRuntimeContext,
+        key: string,
+        load: () => Promise<T>,
+    ): Promise<T> {
+        if (context.source !== 'ai_agent' || !context.enableRuntimeCache)
+            return load();
+        let cache = this.runtimePromiseCache.get(context);
+        if (!cache) {
+            cache = new Map();
+            this.runtimePromiseCache.set(context, cache);
+        }
+        const cached = cache.get(key);
+        if (cached) return cached as Promise<T>;
+        const pending = load().catch((error) => {
+            if (cache?.get(key) === pending) cache.delete(key);
+            throw error;
+        });
+        cache.set(key, pending);
+        return pending;
+    }
 
     private readonly shareService: ShareService;
 
@@ -773,29 +801,33 @@ export class AiAgentToolsService extends BaseService {
     private listExplores(
         context: AiAgentToolsRuntimeContext,
     ): ReturnType<ListExploresFn> {
-        return this.getAvailableExplores({
-            user: context.user,
-            projectUuid: context.projectUuid,
-            availableTags: context.tags,
-            userAttributeOverrides: context.userAttributeOverrides,
-        });
+        return this.getRuntimeCached(context, 'listExplores', () =>
+            this.getAvailableExplores({
+                user: context.user,
+                projectUuid: context.projectUuid,
+                availableTags: context.tags,
+                userAttributeOverrides: context.userAttributeOverrides,
+            }),
+        );
     }
 
     private async getProjectParameterDefinitions(
         context: AiAgentToolsRuntimeContext,
     ): Promise<ParameterDefinitions> {
-        const projectParameters = await this.projectParametersModel.find(
-            context.projectUuid,
-        );
-        return Object.fromEntries(
-            projectParameters.map((parameter) => [
-                parameter.name,
-                {
-                    ...parameter.config,
-                    type: parameter.config.type ?? 'string',
-                },
-            ]),
-        );
+        return this.getRuntimeCached(context, 'projectParameters', async () => {
+            const projectParameters = await this.projectParametersModel.find(
+                context.projectUuid,
+            );
+            return Object.fromEntries(
+                projectParameters.map((parameter) => [
+                    parameter.name,
+                    {
+                        ...parameter.config,
+                        type: parameter.config.type ?? 'string',
+                    },
+                ]),
+            );
+        });
     }
 
     private getExploreForRuntime(
@@ -819,15 +851,20 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.findExplores`,
             args,
             async () => {
-                const userAttributes =
-                    await this.getRuntimeUserAttributes(context);
-                const filteredExplores = await this.listExplores(context);
+                const [userAttributes, filteredExplores] = await Promise.all([
+                    this.getRuntimeUserAttributes(context),
+                    this.listExplores(context),
+                ]);
                 const filteredExploresByName = new Map(
                     filteredExplores.map((explore) => [explore.name, explore]),
                 );
 
-                const tableSearchResults =
-                    await this.catalogService.searchCatalog({
+                const [
+                    tableSearchResults,
+                    fieldSearchResults,
+                    verifiedFieldUsage,
+                ] = await Promise.all([
+                    this.catalogService.searchCatalog({
                         projectUuid: context.projectUuid,
                         userAttributes,
                         catalogSearch: {
@@ -841,7 +878,23 @@ export class AiAgentToolsService extends BaseService {
                         },
                         fullTextSearchOperator: 'OR',
                         filteredExplores,
-                    });
+                    }),
+                    this.catalogService.searchCatalog({
+                        projectUuid: context.projectUuid,
+                        userAttributes,
+                        catalogSearch: {
+                            searchQuery: args.searchQuery,
+                            type: CatalogType.Field,
+                        },
+                        context: context.catalogSearchContext,
+                        paginateArgs: { page: 1, pageSize: 50 },
+                        fullTextSearchOperator: 'OR',
+                        filteredExplores,
+                    }),
+                    context.source === 'ai_agent'
+                        ? this.getVerifiedFieldUsage(context)
+                        : Promise.resolve(null),
+                ]);
 
                 const exploreSearchResults = tableSearchResults.data
                     .filter((item) => item.type === CatalogType.Table)
@@ -863,24 +916,6 @@ export class AiAgentToolsService extends BaseService {
                         };
                     });
 
-                const fieldSearchResults =
-                    await this.catalogService.searchCatalog({
-                        projectUuid: context.projectUuid,
-                        userAttributes,
-                        catalogSearch: {
-                            searchQuery: args.searchQuery,
-                            type: CatalogType.Field,
-                        },
-                        context: context.catalogSearchContext,
-                        paginateArgs: { page: 1, pageSize: 50 },
-                        fullTextSearchOperator: 'OR',
-                        filteredExplores,
-                    });
-
-                const verifiedFieldUsage =
-                    context.source === 'ai_agent'
-                        ? await this.getVerifiedFieldUsage(context)
-                        : null;
                 const topMatchingFields = fieldSearchResults.data
                     .filter((item) => item.type === CatalogType.Field)
                     .map((field) => ({
@@ -961,16 +996,25 @@ export class AiAgentToolsService extends BaseService {
     private async listCustomChartTypes(
         context: AiAgentToolsRuntimeContext,
     ): ReturnType<ListCustomChartTypesFn> {
-        if (!(await this.customChartTypesEnabled(context))) {
-            return { types: [], totalCount: 0 };
-        }
-        const { data, pagination } =
-            await this.appModel.listDataAppVisualizations(context.projectUuid, {
-                page: 1,
-                pageSize: AiAgentToolsService.CUSTOM_CHART_TYPES_INLINE_LIMIT,
-            });
-        const types = this.parseCustomChartTypes(data);
-        return { types, totalCount: pagination?.totalResults ?? types.length };
+        return this.getRuntimeCached(context, 'customChartTypes', async () => {
+            if (!(await this.customChartTypesEnabled(context))) {
+                return { types: [], totalCount: 0 };
+            }
+            const { data, pagination } =
+                await this.appModel.listDataAppVisualizations(
+                    context.projectUuid,
+                    {
+                        page: 1,
+                        pageSize:
+                            AiAgentToolsService.CUSTOM_CHART_TYPES_INLINE_LIMIT,
+                    },
+                );
+            const types = this.parseCustomChartTypes(data);
+            return {
+                types,
+                totalCount: pagination?.totalResults ?? types.length,
+            };
+        });
     }
 
     private findCustomChartTypes(
@@ -2922,6 +2966,8 @@ export class AiAgentToolsService extends BaseService {
                             limit,
                             context: context.defaultQueryExecutionContext,
                         },
+                        undefined,
+                        args.onQueryPrepared,
                     );
                 }
 
@@ -2966,6 +3012,8 @@ export class AiAgentToolsService extends BaseService {
                         limit,
                         context: context.defaultQueryExecutionContext,
                     },
+                    undefined,
+                    args.onQueryPrepared,
                 );
             },
         );
@@ -3865,8 +3913,10 @@ export class AiAgentToolsService extends BaseService {
     }
 
     private getVerifiedFieldUsage(context: AiAgentToolsRuntimeContext) {
-        return this.contentVerificationModel.getVerifiedFieldUsage(
-            context.projectUuid,
+        return this.getRuntimeCached(context, 'verifiedFieldUsage', () =>
+            this.contentVerificationModel.getVerifiedFieldUsage(
+                context.projectUuid,
+            ),
         );
     }
 
@@ -3884,14 +3934,22 @@ export class AiAgentToolsService extends BaseService {
     private async getRuntimeUserAttributes(
         context: AiAgentToolsRuntimeContext,
     ) {
-        const dbAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid: context.organizationUuid,
-                userUuid: context.user.userUuid,
-            });
-        return mergeUserAttributes(
-            dbAttributes,
-            context.userAttributeOverrides,
+        return this.getRuntimeCached(
+            context,
+            'runtimeUserAttributes',
+            async () => {
+                const dbAttributes =
+                    await this.userAttributesModel.getAttributeValuesForOrgMember(
+                        {
+                            organizationUuid: context.organizationUuid,
+                            userUuid: context.user.userUuid,
+                        },
+                    );
+                return mergeUserAttributes(
+                    dbAttributes,
+                    context.userAttributeOverrides,
+                );
+            },
         );
     }
 

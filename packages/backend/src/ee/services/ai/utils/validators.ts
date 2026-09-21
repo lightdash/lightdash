@@ -60,6 +60,7 @@ import {
 import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
 import { z } from 'zod';
 import Logger from '../../../../logging/logger';
+import { AiAgentUnknownFieldsError } from './AiAgentUnknownFieldsError';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 import { serializeData } from './serializeData';
 import { suggestClosestFieldIds } from './suggestClosestFieldIds';
@@ -98,7 +99,11 @@ ${nonExploreFields.join('\n')}
             `[AiAgent][Validate Selected Fields Existence] ${errorMessage}`,
         );
 
-        throw new AiAgentValidatorError(errorMessage);
+        throw new AiAgentUnknownFieldsError(
+            errorMessage,
+            explore,
+            nonExploreFields,
+        );
     }
 }
 
@@ -699,12 +704,14 @@ export function validateFilterRules(
     ];
     const allFieldIds = allFields.map(getItemId);
     const filterRuleErrors: string[] = [];
+    const unknownFieldIds: string[] = [];
 
     filterRules.forEach((rule) => {
         const fieldIndex = allFieldIds.indexOf(rule.target.fieldId);
         const field = allFields[fieldIndex];
 
         if (!field) {
+            unknownFieldIds.push(rule.target.fieldId);
             const suggestions = suggestClosestFieldIds(
                 rule.target.fieldId,
                 allFieldIds,
@@ -744,6 +751,13 @@ ${filterRuleErrorStrings}`;
 
         Logger.error(`[AiAgent][Validate Filter Rules] ${errorMessage}`);
 
+        if (unknownFieldIds.length) {
+            throw new AiAgentUnknownFieldsError(
+                errorMessage,
+                explore,
+                unknownFieldIds,
+            );
+        }
         throw new AiAgentValidatorError(errorMessage);
     }
 }
@@ -1002,11 +1016,13 @@ export function validateFieldEntityType(
     const customMetricFields = (customMetrics as AdditionalMetric[]) ?? [];
     const allFields = [...exploreFields, ...customMetricFields];
     const errors: string[] = [];
+    const unknownFields: string[] = [];
 
     fieldIds.forEach((fieldId) => {
         const field = allFields.find((f) => getItemId(f) === fieldId);
 
         if (!field) {
+            unknownFields.push(fieldId);
             errors.push(
                 `Error: Field with id "${fieldId}" does not exist in the explore or custom metrics.`,
             );
@@ -1054,6 +1070,14 @@ ${customMetricFields
 
         Logger.error(`[AiAgent][Validate Field Entity Type] ${errorMessage}`);
 
+        if (unknownFields.length) {
+            throw new AiAgentUnknownFieldsError(
+                errorMessage,
+                explore,
+                unknownFields,
+                expectedEntityType,
+            );
+        }
         throw new AiAgentValidatorError(errorMessage);
     }
 }

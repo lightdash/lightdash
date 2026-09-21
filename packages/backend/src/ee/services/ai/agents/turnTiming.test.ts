@@ -167,4 +167,67 @@ describe('TurnTimingTracker', () => {
         expect(step.inferenceMs).toBe(2_500);
         expect(step.toolWallMs).toBe(0);
     });
+
+    it('reports preparation, provider and non-overcounted stage spans', () => {
+        const c = clock(0);
+        const tracker = new TurnTimingTracker(0, c.now);
+
+        c.advance(100);
+        tracker.recordPreparationFinished();
+        c.advance(400);
+        tracker.recordToolCallStart('query-a', 'runQuery');
+        tracker.recordToolCallStart('query-b', 'runSavedChart');
+        c.advance(200);
+        tracker.recordToolCallEnd('query-a', true);
+        c.advance(100);
+        tracker.recordToolCallEnd('query-b');
+        tracker.completeStep(0);
+
+        expect(tracker.getStageTiming()).toEqual({
+            preparationMs: 100,
+            providerMs: 400,
+            queryMs: 300,
+            apiMs: 0,
+            renderMs: 0,
+            queryCacheHits: 1,
+        });
+    });
+
+    it('separates API and render tools', () => {
+        const c = clock(0);
+        const tracker = new TurnTimingTracker(0, c.now);
+        tracker.recordPreparationFinished();
+
+        tracker.recordToolCallStart('api', 'getKnowledgeDocumentContent');
+        c.advance(50);
+        tracker.recordToolCallEnd('api');
+        tracker.recordToolCallStart('render', 'exportChartAsCode');
+        c.advance(25);
+        tracker.recordToolCallEnd('render');
+        tracker.completeStep(0);
+
+        expect(tracker.getStageTiming()).toMatchObject({
+            apiMs: 50,
+            renderMs: 25,
+        });
+    });
+
+    it('uses inner query and render spans for a combined visualization tool', () => {
+        const c = clock(0);
+        const tracker = new TurnTimingTracker(0, c.now);
+        tracker.recordPreparationFinished();
+        tracker.recordToolCallStart('chart', 'generateVisualization');
+        c.advance(10);
+        tracker.recordStageSpan('query', 10, 60);
+        c.advance(60);
+        tracker.recordStageSpan('render', 70, 5);
+        c.advance(5);
+        tracker.recordToolCallEnd('chart');
+        tracker.completeStep(0);
+
+        expect(tracker.getStageTiming()).toMatchObject({
+            queryMs: 60,
+            renderMs: 5,
+        });
+    });
 });

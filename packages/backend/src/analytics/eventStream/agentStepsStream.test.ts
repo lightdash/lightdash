@@ -65,6 +65,8 @@ const toolCallEvent: AiAgentToolCallCompletedEvent = {
         toolCallId: 'call-9',
         stepIndex: 2,
         durationMs: 1_300,
+        stage: 'query',
+        queryCacheHit: true,
         status: 'success',
     },
 };
@@ -105,6 +107,8 @@ describe('agentStepsStream', () => {
             tool_call_id: 'call-9',
             tool_name: 'runMetricQuery',
             tool_duration_ms: 1_300,
+            tool_stage: 'query',
+            query_cache_hit: true,
             tool_status: 'success',
         });
     });

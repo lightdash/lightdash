@@ -60,6 +60,7 @@ import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { ValidationService } from '../../../services/ValidationService/ValidationService';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
+import { resolveAiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import {
     filterModelsForOrg,
     getAvailableModels,
@@ -1926,10 +1927,16 @@ export class ManagedAgentService extends BaseService {
             tags: null,
             spaceAccess: allowedSpaceUuids,
         });
-        const [availableExplores, projectParameterDefinitions] =
+        const [availableExplores, projectParameterDefinitions, fastDecisions] =
             await Promise.all([
                 runtime.listExplores(),
                 runtime.getProjectParameterDefinitions(),
+                resolveAiDecisionClient(this.lightdashConfig.ai.decisions, () =>
+                    this.featureFlagModel.get({
+                        user: { organizationUuid },
+                        featureFlagId: FeatureFlags.AiAgentFastDecisions,
+                    }),
+                ),
             ]);
         const verifiedFieldUsage = await runtime
             .getVerifiedFieldUsage()
@@ -1969,6 +1976,7 @@ export class ManagedAgentService extends BaseService {
                 pageSize: 20,
             }),
             runMetricQuery: getRunMetricQuery({
+                decisions: fastDecisions,
                 runAsyncQuery: runtime.runAsyncQuery,
                 maxLimit: maxQueryLimit,
             }),

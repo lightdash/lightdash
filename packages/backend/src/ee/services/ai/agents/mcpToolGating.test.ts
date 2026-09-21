@@ -85,4 +85,35 @@ describe('MCP tool gating', () => {
             ),
         ).toEqual(['findContent', 'runSql', 'loadMcpTools']);
     });
+
+    it('exposes selected preloaded tools on the first step without a loader call', () => {
+        expect(
+            getMcpActiveTools(
+                [],
+                allToolNames,
+                [
+                    'mcp_linear__search_issues',
+                    'mcp_slack__search',
+                    'mcp_github__search',
+                ],
+                ['mcp_slack__search', 'mcp_missing__tool', 'runSql'],
+            ),
+        ).toEqual([
+            'findContent',
+            'runSql',
+            'loadMcpTools',
+            'mcp_slack__search',
+        ]);
+    });
+
+    it('cannot resurrect a preloaded tool removed from the final runtime', () => {
+        expect(
+            getMcpActiveTools(
+                [],
+                ['findContent', 'loadMcpTools'],
+                ['mcp_removed__tool'],
+                ['mcp_removed__tool'],
+            ),
+        ).toEqual(['findContent', 'loadMcpTools']);
+    });
 });

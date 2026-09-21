@@ -92,6 +92,60 @@ describe('generated response blocks', () => {
         ]);
     });
 
+    it('expands generated blocks in a synthetic fast response', async () => {
+        const blocks = new GeneratedResponseBlocks();
+        const token = blocks.register('```yaml\nchart: line\n```');
+        const chunks: TextStreamPart<ToolSet>[] = [
+            {
+                type: 'finish',
+                finishReason: 'tool-calls',
+                rawFinishReason: undefined,
+                totalUsage: {
+                    inputTokens: 1,
+                    inputTokenDetails: {
+                        noCacheTokens: undefined,
+                        cacheReadTokens: undefined,
+                        cacheWriteTokens: undefined,
+                    },
+                    outputTokens: 1,
+                    outputTokenDetails: {
+                        textTokens: undefined,
+                        reasoningTokens: undefined,
+                    },
+                    totalTokens: 2,
+                },
+            },
+        ];
+        const stream = new ReadableStream<TextStreamPart<ToolSet>>({
+            start(controller) {
+                chunks.forEach((chunk) => controller.enqueue(chunk));
+                controller.close();
+            },
+        })
+            .pipeThrough(
+                syntheticTextTransform(
+                    () => token,
+                    0,
+                )({ tools: {}, stopStream: () => {} }),
+            )
+            .pipeThrough(
+                generatedResponseTransform(blocks)({
+                    tools: {},
+                    stopStream: () => {},
+                }),
+            );
+        const output: TextStreamPart<ToolSet>[] = [];
+        await stream.pipeTo(
+            new WritableStream({
+                write(chunk) {
+                    output.push(chunk);
+                },
+            }),
+        );
+        expect(text(output)).toBe('```yaml\nchart: line\n```');
+        expect(text(output)).not.toContain('lightdash-export');
+    });
+
     it('does not duplicate model-authored text', async () => {
         const chunks: TextStreamPart<ToolSet>[] = [
             { type: 'text-start', id: 'answer' },

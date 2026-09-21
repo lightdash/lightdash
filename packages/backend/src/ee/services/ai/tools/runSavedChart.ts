@@ -5,6 +5,7 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { type QueryReviewer } from '../decisions/queryReview';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     GetSavedChartFn,
@@ -18,6 +19,7 @@ import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
+    reviewQuery?: QueryReviewer;
     updateProgress: UpdateProgressFn;
     runAsyncQuery: RunAsyncQueryFn;
     getSavedChart: GetSavedChartFn;
@@ -90,6 +92,7 @@ export const buildSavedChartHeader = (
 };
 
 export const getRunSavedChart = ({
+    reviewQuery,
     updateProgress,
     runAsyncQuery,
     getSavedChart,
@@ -116,11 +119,14 @@ export const getRunSavedChart = ({
                                 includeFullSpec: false,
                             },
                         )}Data access is disabled for this agent. Reason about the chart from its structure above; do not assume specific row values.`,
-                        metadata: { status: 'success' },
+                        metadata: {
+                            status: 'success',
+                        },
                     };
                 }
 
                 const aiMetricQuery: AiMetricQueryWithFilters = {
+                    ...(reviewQuery ? metricQuery : {}),
                     exploreName: metricQuery.exploreName,
                     dimensions: metricQuery.dimensions,
                     metrics: metricQuery.metrics,
@@ -132,12 +138,38 @@ export const getRunSavedChart = ({
                     filters: metricQuery.filters,
                 };
 
-                const queryResults = await runAsyncQuery(aiMetricQuery);
+                const [queryResults, review] = await Promise.all([
+                    reviewQuery
+                        ? runAsyncQuery(
+                              aiMetricQuery,
+                              undefined,
+                              savedChart.parameters,
+                          )
+                        : runAsyncQuery(aiMetricQuery),
+                    reviewQuery?.({
+                        kind: 'semantic',
+                        query: aiMetricQuery,
+                        parameters: savedChart.parameters,
+                    }) ?? '',
+                ]);
 
                 if (queryResults.rows.length === 0) {
                     return {
-                        result: NO_RESULTS_RETRY_PROMPT,
-                        metadata: { status: 'success' },
+                        result: reviewQuery
+                            ? await reviewQuery(
+                                  {
+                                      kind: 'semantic',
+                                      query: aiMetricQuery,
+                                      parameters: savedChart.parameters,
+                                  },
+                                  { emptyResult: true, review },
+                              )
+                            : NO_RESULTS_RETRY_PROMPT,
+                        metadata: {
+                            status: 'success',
+                            queryCacheHit:
+                                queryResults.cacheMetadata?.cacheHit === true,
+                        },
                     };
                 }
 
@@ -156,8 +188,12 @@ export const getRunSavedChart = ({
                     )}${getContextTruncationNote({
                         rowCount: queryResults.rows.length,
                         maxContextRows,
-                    })}${serializeData(csv, 'csv')}`,
-                    metadata: { status: 'success' },
+                    })}${serializeData(csv, 'csv')}${review}`,
+                    metadata: {
+                        status: 'success',
+                        queryCacheHit:
+                            queryResults.cacheMetadata?.cacheHit === true,
+                    },
                 };
             } catch (e) {
                 return {

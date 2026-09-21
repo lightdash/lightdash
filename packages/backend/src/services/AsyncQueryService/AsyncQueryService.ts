@@ -10619,8 +10619,18 @@ export class AsyncQueryService extends ProjectService {
     async executeSavedChartQueryAndGetResults(
         args: ExecuteAsyncSavedChartQueryArgs,
         pollingOptions?: PollingOptions,
+        onQueryPrepared?: (
+            execution: Pick<
+                ApiExecuteAsyncMetricQueryResults,
+                'metricQuery' | 'usedParametersValues' | 'resolvedTimezone'
+            >,
+        ) => void,
     ): Promise<{
         queryUuid: string;
+        execution: Pick<
+            ApiExecuteAsyncMetricQueryResults,
+            'metricQuery' | 'usedParametersValues' | 'resolvedTimezone'
+        >;
         rows: Record<string, unknown>[];
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
@@ -10629,8 +10639,18 @@ export class AsyncQueryService extends ProjectService {
     }> {
         const { account, projectUuid } = args;
 
-        const { queryUuid, cacheMetadata, fields } =
-            await this.executeAsyncSavedChartQuery(args);
+        const executed = await this.executeAsyncSavedChartQuery(args);
+        const { queryUuid, cacheMetadata, fields } = executed;
+        const execution = {
+            metricQuery: executed.metricQuery,
+            usedParametersValues: executed.usedParametersValues,
+            resolvedTimezone: executed.resolvedTimezone,
+        };
+        try {
+            onQueryPrepared?.(execution);
+        } catch {
+            this.logger.debug('Optional query observation failed.');
+        }
 
         await this.pollForQueryCompletion({
             account,
@@ -10646,7 +10666,11 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             fields,
         });
-        return { queryUuid, ...ready };
+        return {
+            queryUuid,
+            ...ready,
+            execution,
+        };
     }
 
     /**
@@ -10707,7 +10731,18 @@ export class AsyncQueryService extends ProjectService {
     async executeDashboardChartQueryAndGetResults(
         args: ExecuteAsyncDashboardChartQueryArgs,
         pollingOptions?: PollingOptions,
+        onQueryPrepared?: (
+            execution: Pick<
+                ApiExecuteAsyncMetricQueryResults,
+                'metricQuery' | 'usedParametersValues' | 'resolvedTimezone'
+            >,
+        ) => void,
     ): Promise<{
+        queryUuid: string;
+        execution: Pick<
+            ApiExecuteAsyncMetricQueryResults,
+            'metricQuery' | 'usedParametersValues' | 'resolvedTimezone'
+        >;
         rows: Record<string, unknown>[];
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
@@ -10716,8 +10751,18 @@ export class AsyncQueryService extends ProjectService {
     }> {
         const { account, projectUuid } = args;
 
-        const { queryUuid, cacheMetadata, fields } =
-            await this.executeAsyncDashboardChartQuery(args);
+        const executed = await this.executeAsyncDashboardChartQuery(args);
+        const { queryUuid, cacheMetadata, fields } = executed;
+        const execution = {
+            metricQuery: executed.metricQuery,
+            usedParametersValues: executed.usedParametersValues,
+            resolvedTimezone: executed.resolvedTimezone,
+        };
+        try {
+            onQueryPrepared?.(execution);
+        } catch {
+            this.logger.debug('Optional query observation failed.');
+        }
 
         await this.pollForQueryCompletion({
             account,
@@ -10726,13 +10771,18 @@ export class AsyncQueryService extends ProjectService {
             ...pollingOptions,
         });
 
-        return this.getReadyQueryResults({
+        const ready = await this.getReadyQueryResults({
             account,
             projectUuid,
             queryUuid,
             cacheMetadata,
             fields,
         });
+        return {
+            queryUuid,
+            ...ready,
+            execution,
+        };
     }
 
     async calculateMetricQueryTotal({

@@ -11,6 +11,8 @@ import {
 import { tool } from 'ai';
 import moment from 'moment';
 import type { AiAgentFindContentCoverage } from '../../../../analytics/LightdashAnalytics';
+import type { AiDecisionClient } from '../decisions/AiDecisionClient';
+import { rankCandidates } from '../decisions/rankCandidates';
 import type {
     FindContentChartResult,
     FindContentDashboardResult,
@@ -33,6 +35,7 @@ const renderVerified = (verification: ContentVerificationInfo | null) =>
     ) : null;
 
 type Dependencies = {
+    decisions?: AiDecisionClient;
     findContent: FindContentFn;
     siteUrl: string;
     toolDescriptionMaxChars: number;
@@ -235,10 +238,7 @@ const renderContent = (
     siteUrl: string,
     toolDescriptionMaxChars: number,
 ) => {
-    const sortedContent = [...args.content].sort(
-        (a, b) =>
-            Number(b.verification !== null) - Number(a.verification !== null),
-    );
+    const sortedContent = args.content;
     return (
         <searchresult searchQuery={args.searchQuery}>
             {args.verifiedOnly && sortedContent.length === 0
@@ -297,6 +297,7 @@ export const getFindContent = ({
     toolDescriptionMaxChars,
     trackCoverage,
     dashboardDetailsToolName,
+    decisions,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
@@ -308,15 +309,40 @@ export const getFindContent = ({
             try {
                 const verifiedOnly = args.verifiedOnly ?? false;
                 const searchQueryResults = await Promise.all(
-                    args.searchQueries.map(async (searchQuery) => ({
-                        searchQuery: searchQuery.label,
-                        verifiedOnly,
-                        ...(await findContent({
+                    args.searchQueries.map(async (searchQuery) => {
+                        const result = await findContent({
                             searchQuery,
                             spaceSlug: args.spaceSlug ?? null,
                             verifiedOnly,
-                        })),
-                    })),
+                        });
+                        const candidates = [...result.content].sort(
+                            (a, b) =>
+                                Number(b.verification !== null) -
+                                Number(a.verification !== null),
+                        );
+                        const ranked = decisions
+                            ? await rankCandidates({
+                                  decisions,
+                                  query: searchQuery.label,
+                                  candidates,
+                                  operation: 'content-relevance',
+                                  describe: (content) => ({
+                                      name: content.name,
+                                      description:
+                                          content.contentType === 'space'
+                                              ? null
+                                              : content.description,
+                                      type: content.contentType,
+                                  }),
+                              })
+                            : null;
+                        return {
+                            ...result,
+                            searchQuery: searchQuery.label,
+                            verifiedOnly,
+                            content: ranked?.candidates ?? candidates,
+                        };
+                    }),
                 );
 
                 for (const searchQueryResult of searchQueryResults) {
@@ -326,7 +352,8 @@ export const getFindContent = ({
                             (c) => c.verification !== null,
                         ).length;
                     const topResultVerified =
-                        verifiedResultCount > 0 && totalResultCount > 0;
+                        totalResultCount > 0 &&
+                        searchQueryResult.content[0].verification !== null;
                     trackCoverage({
                         searchQuery: searchQueryResult.searchQuery,
                         totalResultCount,

@@ -6,6 +6,11 @@ import {
     emitAiUsage,
     languageModelUsageToTokens,
 } from '../../../../analytics/aiUsage';
+import {
+    AiDecisionClient,
+    decisionProbability,
+    type DecisionQuestion,
+} from '../decisions/AiDecisionClient';
 import { type GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
@@ -42,14 +47,21 @@ export type ChartSimilarityMatch = z.infer<
 
 // Compare the API representation: model objects also contain optional keys
 // with undefined values, which disappear when sent by the browser.
-const queryContext = (chart: ChartSimilarityContext): ChartSimilarityContext =>
-    JSON.parse(
-        JSON.stringify({
-            metricQuery: chart.metricQuery,
-            parameters: chart.parameters ?? {},
-            merge: chart.merge ?? null,
-        }),
-    );
+const queryContext = (
+    chart: ChartSimilarityContext,
+): ChartSimilarityContext => {
+    try {
+        return JSON.parse(
+            JSON.stringify({
+                metricQuery: chart.metricQuery,
+                parameters: chart.parameters ?? {},
+                merge: chart.merge ?? null,
+            }),
+        );
+    } catch {
+        throw new Error('Cannot compare non-serializable chart definitions');
+    }
+};
 
 // Ignore invented IDs and duplicate entries, including an unrelated verdict.
 export const sanitizeChartSimilarity = (
@@ -109,11 +121,57 @@ export const sanitizeChartSimilarity = (
 export async function compareChartQueries(
     modelOptions: GeneratorModelOptions,
     input: ChartSimilarityInput,
+    decisions?: AiDecisionClient,
 ): Promise<ChartSimilarityMatch[]> {
     const content = JSON.stringify(input);
     // Never silently truncate a query: omitted filters can change its meaning.
-    if (input.candidates.length > 12 || content.length > 100_000) {
+    if (
+        input.candidates.length > (decisions ? 30 : 12) ||
+        content.length > 100_000
+    ) {
         throw new Error('Chart similarity context exceeds its budget');
+    }
+    if (decisions) {
+        const questions: Record<string, DecisionQuestion> = Object.fromEntries(
+            input.candidates.map((_, i) => [
+                `match_${i}`,
+                {
+                    type: 'noul',
+                    instructions: `Does candidates[${i}] address the same analytical question as source, or a closely related comparison useful for reuse? Compare the full metricQuery, filters, parameters and grain. Titles alone do not establish relevance.`,
+                },
+            ]),
+        );
+        const answers = await decisions.evaluate({
+            operation: 'chart-reuse',
+            state: input,
+            questions,
+        });
+        if (answers) {
+            return sanitizeChartSimilarity(
+                input.candidates.flatMap((candidate, i) => {
+                    if ((decisionProbability(answers[`match_${i}`]) ?? 0) < 0.9)
+                        return [];
+                    const equivalent = isEqual(
+                        queryContext(input.source),
+                        queryContext(candidate),
+                    );
+                    return [
+                        {
+                            uuid: candidate.uuid,
+                            relationship: equivalent
+                                ? ('potential_duplicate' as const)
+                                : ('related' as const),
+                            explanation: equivalent
+                                ? 'The charts use the same query settings.'
+                                : 'Related analysis; compare the query settings before reusing.',
+                        },
+                    ];
+                }),
+                input,
+            );
+        }
+        // The existing generator supports twelve complete candidates per call.
+        if (input.candidates.length > 12) return [];
     }
     const telemetry = getGeneratorTelemetry(
         modelOptions,

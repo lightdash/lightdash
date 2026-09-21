@@ -67,6 +67,7 @@ export const DISTILL_TOOL_POLICIES = {
         result: strip('ld-memory', PROJECT_CONTEXT_RESULT_LIMIT),
     },
     loadMcpTools: { result: omitCall },
+    loadAgentTools: { result: omitCall },
     loadSkill: { result: omitResult('harness instructions') },
     getKnowledgeDocumentContent: {
         result: omitResult('authoritative source document'),
@@ -96,6 +97,7 @@ export const DISTILL_TOOL_POLICIES = {
     runSql: { result: shape(), args: truncateSql(SQL_ARG_LIMIT) },
     runComposerQueries: { result: shape() },
     generateVisualization: { result: shapeRows(DEFAULT_TOOL_RESULT_LIMIT) },
+    exportChartAsCode: { result: omitResult('derived chart configuration') },
     getDashboardCharts: { result: shapeRows(DEFAULT_TOOL_RESULT_LIMIT) },
     generateDashboard: { result: shapeRows(DEFAULT_TOOL_RESULT_LIMIT) },
     findContent: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },

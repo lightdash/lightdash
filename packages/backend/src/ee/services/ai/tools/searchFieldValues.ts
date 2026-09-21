@@ -7,6 +7,8 @@ import {
     type ToolSearchFieldValuesExpressionArgs,
 } from '@lightdash/common';
 import { tool, type Schema } from 'ai';
+import type { AiDecisionClient } from '../decisions/AiDecisionClient';
+import { resolveFieldValue } from '../decisions/fieldValues';
 import type {
     GetExploreFn,
     SearchFieldValuesFn,
@@ -20,6 +22,7 @@ import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
+    decisions?: AiDecisionClient;
     searchFieldValues: SearchFieldValuesFn;
     getExplore: GetExploreFn;
     enableFilterExpressions: boolean;
@@ -33,6 +36,7 @@ export const getSearchFieldValues = ({
     searchFieldValues,
     getExplore,
     enableFilterExpressions,
+    decisions,
 }: Dependencies) => {
     const toolView = enableFilterExpressions
         ? searchFieldValuesFilterExpressionToolDefinition.for('agent')
@@ -86,9 +90,27 @@ export const getSearchFieldValues = ({
                 }
 
                 const results = await searchFieldValues(args);
+                const values = Array.isArray(results)
+                    ? results
+                    : results.results;
+                const resolved = decisions
+                    ? await resolveFieldValue({
+                          decisions,
+                          fieldId: args.fieldId,
+                          requested: args.query,
+                          values,
+                      })
+                    : null;
 
                 return {
-                    result: serializeData(results, 'json'),
+                    result:
+                        serializeData(results, 'json') +
+                        (resolved === null
+                            ? ''
+                            : `\nMatching value for ${JSON.stringify(args.query)}: ${JSON.stringify(resolved)}. Use the original field and filter operator.`) +
+                        (decisions && values.length === 0 && args.query.trim()
+                            ? '\nNo matching values were observed. This does not restrict permitted filter literals. Preserve an explicitly requested literal exclusion even when it currently removes no rows; do not drop it or substitute other categories. Clarify unresolved meaning instead of guessing.'
+                            : ''),
                     metadata: {
                         status: 'success' as const,
                     },

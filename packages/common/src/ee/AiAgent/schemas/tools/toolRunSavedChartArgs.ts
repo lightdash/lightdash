@@ -31,7 +31,9 @@ export type ToolRunSavedChartArgs = z.infer<typeof toolRunSavedChartArgsSchema>;
 
 export const toolRunSavedChartOutputSchema = z.object({
     result: z.string(),
-    metadata: baseOutputMetadataSchema,
+    metadata: baseOutputMetadataSchema.extend({
+        queryCacheHit: z.boolean().optional(),
+    }),
 });
 
 export type ToolRunSavedChartOutput = z.infer<

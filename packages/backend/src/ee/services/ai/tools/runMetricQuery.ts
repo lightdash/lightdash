@@ -14,6 +14,10 @@ import {
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import { CsvService } from '../../../../services/CsvService/CsvService';
+import { getAgentQuestion } from '../decisions/agentQuestion';
+import type { AiDecisionClient } from '../decisions/AiDecisionClient';
+import { diagnoseEmptyResult } from '../decisions/emptyResults';
+import { createQueryReviewer } from '../decisions/queryReview';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type { RunAsyncQueryFn } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
@@ -33,11 +37,13 @@ import {
 const toolDefinition = runMetricQueryToolDefinition.for('agent');
 
 type Dependencies = {
+    decisions?: AiDecisionClient;
     runAsyncQuery: RunAsyncQueryFn;
     maxLimit: number;
 };
 
 export const getRunMetricQuery = ({
+    decisions,
     runAsyncQuery,
     maxLimit,
 }: Dependencies) => {
@@ -92,7 +98,7 @@ export const getRunMetricQuery = ({
         ...toolDefinition,
         execute: async (
             toolArgs,
-            { experimental_context: context, abortSignal },
+            { experimental_context: context, abortSignal, messages },
         ) => {
             try {
                 abortSignal?.throwIfAborted();
@@ -114,21 +120,52 @@ export const getRunMetricQuery = ({
                     ),
                 });
 
-                const results = await runAsyncQuery(
-                    query,
-                    populateCustomMetricsSQL(
-                        filterAggregationCustomMetrics(vizTool.customMetrics),
-                        explore,
-                    ),
-                    undefined,
-                    abortSignal,
+                const additionalMetrics = populateCustomMetricsSQL(
+                    filterAggregationCustomMetrics(vizTool.customMetrics),
+                    explore,
                 );
+                const reviewedQuery = { ...query, additionalMetrics };
+                const [results, review] = await Promise.all([
+                    runAsyncQuery(
+                        query,
+                        additionalMetrics,
+                        undefined,
+                        abortSignal,
+                    ),
+                    decisions
+                        ? createQueryReviewer({
+                              decisions,
+                              question: getAgentQuestion({
+                                  messageHistory: messages,
+                              }),
+                              explores: ctx.getAvailableExplores(),
+                          })({
+                              kind: 'semantic',
+                              query: reviewedQuery,
+                          })
+                        : '',
+                ]);
 
                 if (results.rows.length === 0) {
                     return {
-                        result: NO_RESULTS_RETRY_PROMPT,
+                        result: decisions
+                            ? await diagnoseEmptyResult({
+                                  decisions,
+                                  question: getAgentQuestion({
+                                      messageHistory: messages,
+                                  }),
+                                  explores: ctx.getAvailableExplores(),
+                                  plan: {
+                                      kind: 'semantic',
+                                      query: reviewedQuery,
+                                  },
+                                  review,
+                              })
+                            : NO_RESULTS_RETRY_PROMPT,
                         metadata: {
                             status: 'success',
+                            queryCacheHit:
+                                results.cacheMetadata?.cacheHit === true,
                         },
                     };
                 }
@@ -160,9 +197,10 @@ export const getRunMetricQuery = ({
                 });
 
                 return {
-                    result: serializeData(csv, 'csv'),
+                    result: `${serializeData(csv, 'csv')}${review}`,
                     metadata: {
                         status: 'success',
+                        queryCacheHit: results.cacheMetadata?.cacheHit === true,
                     },
                 };
             } catch (e) {
