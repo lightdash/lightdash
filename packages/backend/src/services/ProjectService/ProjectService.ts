@@ -3013,6 +3013,11 @@ export class ProjectService extends BaseService {
             data.type,
             internalProvisioning,
         );
+        await this.validateProjectCreationPermissions(
+            user,
+            data,
+            internalProvisioning,
+        );
         ProjectService.assertEmbeddedCredentialsAreInternal(
             data.warehouseConnection,
             internalProvisioning,
@@ -3021,11 +3026,6 @@ export class ProjectService extends BaseService {
             data.warehouseConnection,
         );
 
-        await this.validateProjectCreationPermissions(
-            user,
-            data,
-            internalProvisioning,
-        );
         this.assertCanUseOrganizationWarehouseCredentials(
             user,
             user.organizationUuid,
@@ -3307,6 +3307,7 @@ export class ProjectService extends BaseService {
         }
 
         ProjectService.assertTrainingTypeIsInternal(data.type);
+        await this.validateProjectCreationPermissions(user, data);
         ProjectService.assertEmbeddedCredentialsAreInternal(
             data.warehouseConnection,
         );
@@ -3314,7 +3315,6 @@ export class ProjectService extends BaseService {
             data.warehouseConnection,
         );
 
-        await this.validateProjectCreationPermissions(user, data);
         this.assertCanUseOrganizationWarehouseCredentials(
             user,
             user.organizationUuid,
