@@ -297,4 +297,27 @@ it('attaches contents anchors to each rich-text heading without rewriting Markdo
         'first',
     );
     expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('radio', { name: 'Text' })).toBeChecked();
+    fireEvent.click(screen.getByRole('radio', { name: 'Markdown' }));
+    expect(
+        screen.getByRole('textbox', { name: 'Section Markdown' }),
+    ).toHaveValue('# First\n\nText\n\n# Second\n\nMore text');
+    fireEvent.click(screen.getByRole('radio', { name: 'Text' }));
+    expect(
+        await screen.findByRole('heading', { name: 'Second' }),
+    ).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+});
+
+it('keeps the icon-only text mode disabled for unsupported Markdown', () => {
+    renderEditor();
+    expect(screen.getByRole('radio', { name: 'Text' })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: 'Markdown' })).toBeChecked();
+    expect(
+        screen.getByRole('textbox', { name: 'Section Markdown' }),
+    ).toHaveValue(
+        report.version.content.cells[0].type === 'markdown'
+            ? report.version.content.cells[0].content.markdown
+            : '',
+    );
 });

@@ -14,7 +14,7 @@ import {
     IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useBeforeUnload, useBlocker } from 'react-router';
 import Callout from '../../components/common/Callout';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
@@ -119,104 +119,105 @@ const DocumentEditor = ({
                                 : update.error.error.message}
                         </Callout>
                     )}
-                    {draft.map(({ key, cell, sourceIndex }, index) => (
-                        <Paper key={key} p="md">
-                            <Stack gap="sm">
-                                <Group justify="space-between">
-                                    <Text size="sm" fw={500}>
-                                        {cell.type === 'markdown'
-                                            ? 'Text'
-                                            : cell.content.chart.name}
-                                    </Text>
-                                    <Group gap="xs">
-                                        <Tooltip label="Move up">
-                                            <ActionIcon
-                                                aria-label={`Move section ${index + 1} up`}
-                                                disabled={
-                                                    index === 0 ||
-                                                    update.isLoading
-                                                }
-                                                onClick={() => move(index, -1)}
-                                            >
-                                                <MantineIcon
-                                                    icon={IconArrowUp}
-                                                />
-                                            </ActionIcon>
-                                        </Tooltip>
-                                        <Tooltip label="Move down">
-                                            <ActionIcon
-                                                aria-label={`Move section ${index + 1} down`}
-                                                disabled={
-                                                    index ===
-                                                        draft.length - 1 ||
-                                                    update.isLoading
-                                                }
-                                                onClick={() => move(index, 1)}
-                                            >
-                                                <MantineIcon
-                                                    icon={IconArrowDown}
-                                                />
-                                            </ActionIcon>
-                                        </Tooltip>
-                                        <ConfirmDeleteButton
-                                            aria-label={`Remove section ${index + 1}`}
-                                            tooltip="Click again to remove section"
-                                            disabled={update.isLoading}
-                                            onConfirm={() =>
-                                                setDraft((previous) =>
-                                                    previous.filter(
-                                                        (item) =>
-                                                            item.key !== key,
-                                                    ),
-                                                )
+                    {draft.map(({ key, cell, sourceIndex }, index) => {
+                        const renderHeader = (modeSwitch?: ReactNode) => (
+                            <Group justify="space-between">
+                                <Text size="sm" fw={500}>
+                                    {cell.type === 'markdown'
+                                        ? 'Text'
+                                        : cell.content.chart.name}
+                                </Text>
+                                <Group gap="xs">
+                                    {modeSwitch}
+                                    <Tooltip label="Move up">
+                                        <ActionIcon
+                                            aria-label={`Move section ${index + 1} up`}
+                                            disabled={
+                                                index === 0 || update.isLoading
                                             }
+                                            onClick={() => move(index, -1)}
                                         >
-                                            <MantineIcon icon={IconTrash} />
-                                        </ConfirmDeleteButton>
-                                    </Group>
-                                </Group>
-                                {cell.type === 'markdown' ? (
-                                    <DocumentMarkdownEditor
-                                        headings={headings.filter((heading) =>
-                                            heading.id.startsWith(
-                                                `document-heading-${index}-`,
-                                            ),
-                                        )}
-                                        markdown={cell.content.markdown}
+                                            <MantineIcon icon={IconArrowUp} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                    <Tooltip label="Move down">
+                                        <ActionIcon
+                                            aria-label={`Move section ${index + 1} down`}
+                                            disabled={
+                                                index === draft.length - 1 ||
+                                                update.isLoading
+                                            }
+                                            onClick={() => move(index, 1)}
+                                        >
+                                            <MantineIcon icon={IconArrowDown} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                    <ConfirmDeleteButton
+                                        aria-label={`Remove section ${index + 1}`}
+                                        tooltip="Click again to remove section"
                                         disabled={update.isLoading}
-                                        onChange={(markdown) =>
+                                        onConfirm={() =>
                                             setDraft((previous) =>
-                                                previous.map((item) =>
-                                                    item.key === key
-                                                        ? {
-                                                              ...item,
-                                                              cell: {
-                                                                  type: 'markdown',
-                                                                  content: {
-                                                                      markdown,
-                                                                  },
-                                                              },
-                                                          }
-                                                        : item,
+                                                previous.filter(
+                                                    (item) => item.key !== key,
                                                 ),
                                             )
                                         }
-                                    />
-                                ) : sourceIndex !== null ? (
-                                    <DocumentChart
-                                        projectUuid={document.projectUuid}
-                                        spaceUuid={document.spaceUuid}
-                                        documentUuid={document.documentUuid}
-                                        versionUuid={
-                                            document.version.versionUuid
-                                        }
-                                        cellIndex={sourceIndex}
-                                        cell={cell}
-                                    />
-                                ) : null}
-                            </Stack>
-                        </Paper>
-                    ))}
+                                    >
+                                        <MantineIcon icon={IconTrash} />
+                                    </ConfirmDeleteButton>
+                                </Group>
+                            </Group>
+                        );
+                        return (
+                            <Paper key={key} p="md">
+                                <Stack gap="sm">
+                                    {cell.type === 'chart' && renderHeader()}
+                                    {cell.type === 'markdown' ? (
+                                        <DocumentMarkdownEditor
+                                            renderHeader={renderHeader}
+                                            headings={headings.filter(
+                                                (heading) =>
+                                                    heading.id.startsWith(
+                                                        `document-heading-${index}-`,
+                                                    ),
+                                            )}
+                                            markdown={cell.content.markdown}
+                                            disabled={update.isLoading}
+                                            onChange={(markdown) =>
+                                                setDraft((previous) =>
+                                                    previous.map((item) =>
+                                                        item.key === key
+                                                            ? {
+                                                                  ...item,
+                                                                  cell: {
+                                                                      type: 'markdown',
+                                                                      content: {
+                                                                          markdown,
+                                                                      },
+                                                                  },
+                                                              }
+                                                            : item,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                    ) : sourceIndex !== null ? (
+                                        <DocumentChart
+                                            projectUuid={document.projectUuid}
+                                            spaceUuid={document.spaceUuid}
+                                            documentUuid={document.documentUuid}
+                                            versionUuid={
+                                                document.version.versionUuid
+                                            }
+                                            cellIndex={sourceIndex}
+                                            cell={cell}
+                                        />
+                                    ) : null}
+                                </Stack>
+                            </Paper>
+                        );
+                    })}
                     <Button
                         variant="default"
                         leftSection={<MantineIcon icon={IconPlus} />}
