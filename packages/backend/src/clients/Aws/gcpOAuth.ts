@@ -12,7 +12,7 @@ const GCS_SCOPE = 'https://www.googleapis.com/auth/devstorage.read_write';
  */
 let googleAuthClientPromise: Promise<AuthClient> | undefined;
 
-async function getGcpAccessToken(): Promise<string> {
+export async function getGcpAccessToken(): Promise<string> {
     googleAuthClientPromise ??= new GoogleAuth({
         scopes: [GCS_SCOPE],
     }).getClient();

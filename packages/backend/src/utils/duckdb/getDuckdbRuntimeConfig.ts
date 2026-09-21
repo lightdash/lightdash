@@ -1,13 +1,9 @@
+import { assertUnreachable } from '@lightdash/common';
+import { type DuckdbS3SessionConfig } from '@lightdash/warehouses';
+import { getGcpAccessToken } from '../../clients/Aws/gcpOAuth';
 import { type S3Config } from '../../config/parseConfig';
 
-export type DuckdbRuntimeConfig = {
-    endpoint: string;
-    region?: string;
-    accessKey?: string;
-    secretKey?: string;
-    forcePathStyle: boolean;
-    useSsl: boolean;
-};
+export type DuckdbRuntimeConfig = DuckdbS3SessionConfig;
 
 const parseDuckdbS3Endpoint = (
     endpoint: string,
@@ -44,7 +40,7 @@ export const getDuckdbRuntimeConfig = (
 
     const { endpoint, useSsl } = parseDuckdbS3Endpoint(s3Config.endpoint);
 
-    return {
+    const runtimeConfig = {
         endpoint,
         region: s3Config.region,
         accessKey: s3Config.accessKey,
@@ -52,4 +48,22 @@ export const getDuckdbRuntimeConfig = (
         forcePathStyle: s3Config.forcePathStyle === true,
         useSsl,
     };
+
+    switch (s3Config.authMode) {
+        case 'gcp_oauth':
+            return {
+                ...runtimeConfig,
+                authMode: 'gcp_oauth',
+                getAccessToken: getGcpAccessToken,
+                scope: [`s3://${s3Config.bucket}/`],
+            };
+        case 'default':
+        case undefined:
+            return runtimeConfig;
+        default:
+            return assertUnreachable(
+                s3Config.authMode,
+                'Unsupported DuckDB storage auth mode',
+            );
+    }
 };

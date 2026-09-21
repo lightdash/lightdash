@@ -1145,6 +1145,111 @@ describe('DuckdbWarehouseClient', () => {
         expect(secretSql).not.toContain("SECRET '");
     });
 
+    it('uses scoped GCS bearer credentials even when stale static keys exist', async () => {
+        const runMock = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                ),
+                runMock,
+            ),
+        );
+        const client = DuckdbWarehouseClient.createForPreAggregate({
+            type: 'duckdb_s3',
+            s3Config: {
+                endpoint: 'storage.googleapis.com',
+                forcePathStyle: false,
+                useSsl: true,
+                authMode: 'gcp_oauth',
+                getAccessToken: async () => "token'quoted",
+                accessKey: 'stale-key',
+                secretKey: 'stale-secret',
+                scope: ['s3://bucket/first.jsonl', 's3://bucket/second.jsonl'],
+            },
+        });
+        await client.runQuery('SELECT 1');
+        const secretSql = runMock.mock.calls
+            .map(([sql]) => sql as string)
+            .find((sql) =>
+                sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
+            );
+        expect(secretSql).toContain('TYPE gcs');
+        expect(secretSql).toContain('BEARER_TOKEN $1');
+        expect(secretSql).not.toContain("token'quoted");
+        expect(secretSql).not.toContain("token''quoted");
+        expect(runMock).toHaveBeenCalledWith(secretSql, ["token'quoted"]);
+        expect(secretSql).toContain(
+            "SCOPE ('s3://bucket/first.jsonl', 's3://bucket/second.jsonl')",
+        );
+        expect(secretSql).not.toContain('stale-');
+        expect(secretSql).not.toContain('credential_chain');
+        expect(runMock).not.toHaveBeenCalledWith('INSTALL aws;');
+    });
+
+    it('does not expose credentials from a failed GCS secret statement', async () => {
+        const runMock = vi.fn(async (sql: string) => {
+            if (sql.includes('CREATE OR REPLACE SECRET')) {
+                throw new Error(
+                    'Failed statement containing synthetic-secret-token',
+                );
+            }
+        });
+        const streamMock = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+        const client = DuckdbWarehouseClient.createForPreAggregate({
+            type: 'duckdb_s3',
+            s3Config: {
+                endpoint: 'storage.googleapis.com',
+                forcePathStyle: false,
+                useSsl: true,
+                authMode: 'gcp_oauth',
+                getAccessToken: async () => 'synthetic-secret-token',
+                scope: ['s3://bucket/'],
+            },
+        });
+        await expect(client.runQuery('SELECT 1')).rejects.toThrow(
+            /^Unable to configure GCP OAuth for DuckDB storage$/,
+        );
+        expect(streamMock).not.toHaveBeenCalled();
+    });
+
+    it.each(['empty', 'rejected'] as const)(
+        'refuses a %s Google token without falling back to AWS',
+        async (failure) => {
+            const runMock = vi.fn();
+            const streamMock = vi.fn();
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock),
+            );
+            const client = DuckdbWarehouseClient.createForPreAggregate({
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'storage.googleapis.com',
+                    forcePathStyle: false,
+                    useSsl: true,
+                    authMode: 'gcp_oauth',
+                    getAccessToken: async () => {
+                        if (failure === 'rejected')
+                            throw new Error('sensitive provider error');
+                        return '';
+                    },
+                    scope: ['s3://bucket/'],
+                },
+            });
+            await expect(client.runQuery('SELECT 1')).rejects.toThrow(
+                'Unable to obtain a Google access token for DuckDB storage',
+            );
+            expect(streamMock).not.toHaveBeenCalled();
+            expect(runMock).not.toHaveBeenCalledWith('INSTALL aws;');
+        },
+    );
+
     it('scopes S3 credentials to the trusted external-source object', async () => {
         const runMock = vi.fn();
         createInstanceMock.mockResolvedValue(

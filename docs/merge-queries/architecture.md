@@ -155,6 +155,14 @@ object storage with the system bundle (`SSL_CERT_FILE` overrides it), which the
 runtime image installs as `ca-certificates`; Node's own trust store does not
 help it.
 
+Storage auth must reach DuckDB too. With `S3_AUTH_MODE=gcp_oauth`, the
+runtime config supplies a Google token provider and a bucket scope. DuckDB
+uses a native `TYPE gcs` bearer secret, including for `s3://` locators;
+an HTTP bearer secret alone does not authenticate those reads. Scoped
+sessions narrow the bucket scope to their files. Shared sessions resolve
+the token again before each query, so an idle cached instance does not keep
+using an expired token. Tokens are fixed for the duration of one query.
+
 **The compose path has no resource governance.** No query timeout (the deadline
 that exists applies only to the playground path), memory limit unset by default,
 and no per-org concurrency budget on the shared client. The join runs on the
