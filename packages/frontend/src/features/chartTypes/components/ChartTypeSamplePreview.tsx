@@ -1,10 +1,11 @@
 import { type ChartTypeIcon } from '@lightdash/common';
 import { Box, Stack, Text } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import { useResizeObserver } from '../../../hooks/useResizeObserver';
 import AppIframePreview from '../../apps/AppIframePreview';
+import { getVisiblePreviewTokenError } from '../../apps/hooks/previewTokenQueryOptions';
 import { usePreviewOrigin } from '../../apps/previewOrigin';
 import {
     useDataAppVizPreviewToken,
@@ -19,6 +20,11 @@ const RENDER_TARGET = { isEmbedded: false, savedChartUuid: undefined };
 // Width the app is laid out at before being scaled down to fit the host box,
 // so the miniature keeps realistic proportions.
 const PREVIEW_NATURAL_WIDTH_PX = 800;
+
+const isTerminalPreviewError = (
+    error: { error: { statusCode: number } } | null,
+): boolean =>
+    error?.error.statusCode === 403 || error?.error.statusCode === 404;
 
 const PreviewPlaceholder: FC<{
     message: string;
@@ -36,6 +42,8 @@ type Props = {
     projectUuid: string;
     dataAppVizUuid: string;
     icon: ChartTypeIcon | null;
+    onPreviewLoad?: () => void;
+    onPreviewUnavailable?: () => void;
 };
 
 /**
@@ -46,12 +54,14 @@ const ChartTypeSamplePreview: FC<Props> = ({
     projectUuid,
     dataAppVizUuid,
     icon,
+    onPreviewLoad,
+    onPreviewUnavailable,
 }) => {
     const previewOrigin = usePreviewOrigin();
     const { data: metadata, error: metadataError } =
         useDataAppVizRenderMetadata(projectUuid, dataAppVizUuid, RENDER_TARGET);
     const readyMetadata = metadata?.state === 'ready' ? metadata : undefined;
-    const { data: token } = useDataAppVizPreviewToken(
+    const { data: token, error: tokenError } = useDataAppVizPreviewToken(
         projectUuid,
         dataAppVizUuid,
         readyMetadata?.version,
@@ -76,6 +86,28 @@ const ChartTypeSamplePreview: FC<Props> = ({
     // the loading placeholders; the in-repo hook tracks ref attachment.
     const [measureRef, { width, height }] = useResizeObserver<HTMLDivElement>();
     const scale = width > 0 ? Math.min(1, width / PREVIEW_NATURAL_WIDTH_PX) : 0;
+
+    const visibleMetadataError =
+        metadata && metadataError && !isTerminalPreviewError(metadataError)
+            ? null
+            : metadataError;
+    const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
+
+    useEffect(() => {
+        if (
+            visibleMetadataError ||
+            visibleTokenError ||
+            metadata?.state === 'unavailable' ||
+            metadata?.state === 'failed'
+        ) {
+            onPreviewUnavailable?.();
+        }
+    }, [
+        metadata?.state,
+        onPreviewUnavailable,
+        visibleMetadataError,
+        visibleTokenError,
+    ]);
 
     // Keep rendering cached metadata through transient refetch errors;
     // only fall back when there is nothing to show.
@@ -127,6 +159,7 @@ const ChartTypeSamplePreview: FC<Props> = ({
                         identityKey={dataAppVizUuid}
                         dataAppVizContext={sampleContext}
                         dataAppVizMode
+                        onDataAppVizReady={onPreviewLoad}
                     />
                 </Box>
             )}

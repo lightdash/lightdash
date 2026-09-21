@@ -19,7 +19,7 @@ vi.mock('@tanstack/react-query', () => ({
 
 type CapturedQuery = {
     queryKey: unknown[];
-    queryFn: () => Promise<unknown>;
+    queryFn: (context: { signal: AbortSignal }) => Promise<unknown>;
     enabled: boolean;
     refetchInterval?:
         | number
@@ -34,6 +34,8 @@ type CapturedQuery = {
         error: ReturnType<typeof apiError>,
     ) => boolean;
 };
+
+const queryContext = { signal: new AbortController().signal };
 
 const apiError = (statusCode: number) => ({
     status: 'error' as const,
@@ -71,9 +73,10 @@ describe('useDataAppVizRender', () => {
             undefined,
         ]);
         expect(query.enabled).toBe(true);
-        await query.queryFn();
+        await query.queryFn(queryContext);
         expect(mocks.lightdashApi).toHaveBeenCalledWith({
             method: 'GET',
+            signal: queryContext.signal,
             url: '/ee/projects/project-1/apps/visualizations/viz-1/charts/chart-1/render-metadata',
         });
         expect(
@@ -86,6 +89,24 @@ describe('useDataAppVizRender', () => {
         ).toBe(false);
     });
 
+    it('passes React Query cancellation signals to preview requests', async () => {
+        const controller = new AbortController();
+        const target = { isEmbedded: false, savedChartUuid: undefined };
+        const { result } = renderHook(() =>
+            useDataAppVizRenderMetadata('project-1', 'viz-1', target),
+        );
+
+        await (result.current as unknown as CapturedQuery).queryFn({
+            signal: controller.signal,
+        });
+
+        expect(mocks.lightdashApi).toHaveBeenCalledWith({
+            method: 'GET',
+            signal: controller.signal,
+            url: '/ee/projects/project-1/apps/visualizations/viz-1/render-metadata',
+        });
+    });
+
     it('passes the previewed chart version through to the registered route', async () => {
         const target = {
             isEmbedded: false,
@@ -95,9 +116,12 @@ describe('useDataAppVizRender', () => {
         const { result } = renderHook(() =>
             useDataAppVizRenderMetadata('project-1', 'viz-1', target),
         );
-        await (result.current as unknown as CapturedQuery).queryFn();
+        await (result.current as unknown as CapturedQuery).queryFn(
+            queryContext,
+        );
         expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
+            signal: queryContext.signal,
             url: '/ee/projects/project-1/apps/visualizations/viz-1/charts/chart-1/render-metadata?chartVersionUuid=version-9',
         });
     });
@@ -111,9 +135,12 @@ describe('useDataAppVizRender', () => {
         const { result } = renderHook(() =>
             useDataAppVizRenderMetadata('project-1', 'viz-1', target),
         );
-        await (result.current as unknown as CapturedQuery).queryFn();
+        await (result.current as unknown as CapturedQuery).queryFn(
+            queryContext,
+        );
         expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
+            signal: queryContext.signal,
             url: '/embed/project-1/chart/chart-1/visualizations/viz-1/render-metadata',
         });
     });
@@ -126,9 +153,10 @@ describe('useDataAppVizRender', () => {
         const query = result.current as unknown as CapturedQuery;
 
         expect(query.enabled).toBe(true);
-        await query.queryFn();
+        await query.queryFn(queryContext);
         expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
+            signal: queryContext.signal,
             url: '/ee/projects/project-1/apps/visualizations/viz-1/render-metadata',
         });
 
@@ -136,9 +164,12 @@ describe('useDataAppVizRender', () => {
         const { result: tokenResult } = renderHook(() =>
             useDataAppVizPreviewToken('project-1', 'viz-1', 3, target),
         );
-        await (tokenResult.current as unknown as CapturedQuery).queryFn();
+        await (tokenResult.current as unknown as CapturedQuery).queryFn(
+            queryContext,
+        );
         expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
+            signal: queryContext.signal,
             url: '/ee/projects/project-1/apps/visualizations/viz-1/versions/3/preview-token',
         });
     });
@@ -149,10 +180,13 @@ describe('useDataAppVizRender', () => {
             useDataAppVizRenderMetadata('project-1', 'viz-1', target, 2),
         );
 
-        await (result.current as unknown as CapturedQuery).queryFn();
+        await (result.current as unknown as CapturedQuery).queryFn(
+            queryContext,
+        );
 
         expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
+            signal: queryContext.signal,
             url: '/ee/projects/project-1/apps/visualizations/viz-1/render-metadata?version=2',
         });
     });
@@ -170,7 +204,7 @@ describe('useDataAppVizRender', () => {
         );
         const metadata = (await (
             metadataResult.current as unknown as CapturedQuery
-        ).queryFn()) as { version: number };
+        ).queryFn(queryContext)) as { version: number };
 
         mocks.lightdashApi.mockResolvedValueOnce({ token: 'token-2' });
         const { result: tokenResult } = renderHook(() =>
@@ -183,19 +217,23 @@ describe('useDataAppVizRender', () => {
             ),
         );
         await expect(
-            (tokenResult.current as unknown as CapturedQuery).queryFn(),
+            (tokenResult.current as unknown as CapturedQuery).queryFn(
+                queryContext,
+            ),
         ).resolves.toBe('token-2');
 
         expect(mocks.lightdashApi.mock.calls).toEqual([
             [
                 {
                     method: 'GET',
+                    signal: queryContext.signal,
                     url: '/ee/projects/project-1/apps/visualizations/viz-1/render-metadata?version=2',
                 },
             ],
             [
                 {
                     method: 'GET',
+                    signal: queryContext.signal,
                     url: '/ee/projects/project-1/apps/visualizations/viz-1/versions/2/preview-token',
                 },
             ],
@@ -213,9 +251,10 @@ describe('useDataAppVizRender', () => {
         const metadataQuery =
             metadataResult.current as unknown as CapturedQuery;
 
-        await metadataQuery.queryFn();
+        await metadataQuery.queryFn(queryContext);
         expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
+            signal: queryContext.signal,
             url: '/embed/project-1/chart/chart-1/visualizations/viz-1/render-metadata',
         });
 
@@ -225,7 +264,7 @@ describe('useDataAppVizRender', () => {
         );
         const tokenQuery = tokenResult.current as unknown as CapturedQuery;
 
-        await expect(tokenQuery.queryFn()).resolves.toBe('token-7');
+        await expect(tokenQuery.queryFn(queryContext)).resolves.toBe('token-7');
         expect(tokenQuery.refetchInterval).toBeTypeOf('function');
         expect(
             typeof tokenQuery.refetchInterval === 'function' &&
@@ -246,6 +285,7 @@ describe('useDataAppVizRender', () => {
         ]);
         expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
+            signal: queryContext.signal,
             url: '/embed/project-1/chart/chart-1/visualizations/viz-1/versions/7/preview-token',
         });
     });

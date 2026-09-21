@@ -30,6 +30,7 @@ import ChartTypeGalleryCard from '../features/chartTypes/components/ChartTypeGal
 import ChartTypeGalleryEmptyState from '../features/chartTypes/components/ChartTypeGalleryEmptyState';
 import ChartTypeLibrarySection from '../features/chartTypes/components/ChartTypeLibrarySection';
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
+import { useChartTypeGalleryPreviewScheduler } from '../features/chartTypes/components/useChartTypeGalleryPreviewScheduler';
 import { useChartTypesEnabled } from '../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
@@ -62,6 +63,7 @@ const ChartTypeGallery = () => {
     const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
     const [deleteUuid, setDeleteUuid] = useState<string | null>(null);
     const [previewUuid, setPreviewUuid] = useState<string | null>(null);
+    const previewScheduler = useChartTypeGalleryPreviewScheduler();
 
     const {
         data,
@@ -215,6 +217,28 @@ const ChartTypeGallery = () => {
                                 }
                                 onDelete={() =>
                                     setDeleteUuid(viz.dataAppVizUuid)
+                                }
+                                previewRef={previewScheduler.register(
+                                    viz.dataAppVizUuid,
+                                )}
+                                previewMounted={previewScheduler.isMounted(
+                                    viz.dataAppVizUuid,
+                                )}
+                                previewUnavailable={
+                                    previewScheduler.status(
+                                        viz.dataAppVizUuid,
+                                    ) === 'unavailable'
+                                }
+                                onPreviewLoad={() =>
+                                    previewScheduler.complete(
+                                        viz.dataAppVizUuid,
+                                    )
+                                }
+                                onPreviewUnavailable={() =>
+                                    previewScheduler.fail(viz.dataAppVizUuid)
+                                }
+                                onRetryPreview={() =>
+                                    previewScheduler.retry(viz.dataAppVizUuid)
                                 }
                             />
                         ))}

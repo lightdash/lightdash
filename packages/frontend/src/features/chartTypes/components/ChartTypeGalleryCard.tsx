@@ -8,6 +8,7 @@ import {
     ActionIcon,
     Badge,
     Box,
+    Button,
     Group,
     Menu,
     Stack,
@@ -21,7 +22,7 @@ import {
     IconTelescope,
     IconTrash,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { type RefCallback, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { FloatingActionsPill } from '../../../components/common/FloatingActionsPill';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -43,6 +44,12 @@ type Props = {
     onClick: () => void;
     onPreview: () => void;
     onDelete: () => void;
+    previewRef: RefCallback<HTMLDivElement>;
+    previewMounted: boolean;
+    previewUnavailable: boolean;
+    onPreviewLoad: () => void;
+    onPreviewUnavailable: () => void;
+    onRetryPreview: () => void;
 };
 
 const ChartTypeGalleryCard: FC<Props> = ({
@@ -51,6 +58,12 @@ const ChartTypeGalleryCard: FC<Props> = ({
     onClick,
     onPreview,
     onDelete,
+    previewRef,
+    previewMounted,
+    previewUnavailable,
+    onPreviewLoad,
+    onPreviewUnavailable,
+    onRetryPreview,
 }) => {
     const canEdit = useCanEditDataApp(dataAppViz.projectUuid, dataAppViz);
     const canFork = useCanCreateDataApp(dataAppViz.projectUuid);
@@ -75,12 +88,32 @@ const ChartTypeGalleryCard: FC<Props> = ({
                 className={classes.card}
                 onClick={onClick}
             >
-                <Box className={classes.preview}>
-                    <ChartTypeSamplePreview
-                        projectUuid={dataAppViz.projectUuid}
-                        dataAppVizUuid={dataAppViz.dataAppVizUuid}
-                        icon={dataAppViz.icon}
-                    />
+                <Box ref={previewRef} className={classes.preview}>
+                    {previewUnavailable ? (
+                        <Stack align="center" justify="center" gap={4} h="100%">
+                            <Text c="dimmed" size="xs">
+                                Preview unavailable
+                            </Text>
+                            <Button
+                                variant="subtle"
+                                size="compact-xs"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onRetryPreview();
+                                }}
+                            >
+                                Retry
+                            </Button>
+                        </Stack>
+                    ) : previewMounted ? (
+                        <ChartTypeSamplePreview
+                            projectUuid={dataAppViz.projectUuid}
+                            dataAppVizUuid={dataAppViz.dataAppVizUuid}
+                            icon={dataAppViz.icon}
+                            onPreviewLoad={onPreviewLoad}
+                            onPreviewUnavailable={onPreviewUnavailable}
+                        />
+                    ) : null}
                 </Box>
                 <Stack gap="xs" p="sm">
                     <Group gap="xs" wrap="nowrap" justify="space-between">

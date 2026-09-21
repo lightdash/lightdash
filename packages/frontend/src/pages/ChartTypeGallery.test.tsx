@@ -18,7 +18,37 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import { EventName } from '../types/Events';
 import ChartTypeGallery from './ChartTypeGallery';
-const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+const { track, samplePreviewProps } = vi.hoisted(() => ({
+    track: vi.fn(),
+    samplePreviewProps: vi.fn(),
+}));
+
+type IntersectionCallback = (entries: IntersectionObserverEntry[]) => void;
+
+class GalleryIntersectionObserver {
+    static instances: GalleryIntersectionObserver[] = [];
+    readonly observed = new Set<Element>();
+
+    constructor(private readonly callback: IntersectionCallback) {
+        GalleryIntersectionObserver.instances.push(this);
+    }
+
+    observe = (element: Element) => this.observed.add(element);
+    unobserve = (element: Element) => this.observed.delete(element);
+    disconnect = () => this.observed.clear();
+
+    intersect(elements: Element[], isIntersecting: boolean) {
+        this.callback(
+            elements.map(
+                (target) =>
+                    ({
+                        target,
+                        isIntersecting,
+                    }) as IntersectionObserverEntry,
+            ),
+        );
+    }
+}
 vi.mock('../providers/Tracking/useTracking', () => ({
     default: () => ({ track }),
 }));
@@ -89,7 +119,10 @@ vi.mock('../hooks/useProject', () => ({
 }));
 
 vi.mock('../features/chartTypes/components/ChartTypeSamplePreview', () => ({
-    default: () => <div data-testid="sample-preview" />,
+    default: (props: unknown) => {
+        samplePreviewProps(props);
+        return <div data-testid="sample-preview" />;
+    },
 }));
 
 const mockedUseDataAppVisualizations = vi.mocked(useDataAppVisualizations);
@@ -234,6 +267,8 @@ const setRegistryCharts = (
 describe('ChartTypeGallery', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        GalleryIntersectionObserver.instances = [];
+        vi.stubGlobal('IntersectionObserver', GalleryIntersectionObserver);
         setFlags();
         vi.mocked(useCanEditDataApp).mockReturnValue(true);
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
@@ -283,6 +318,28 @@ describe('ChartTypeGallery', () => {
             isFetchingEarlier: false,
             fetchEarlier: vi.fn(),
         });
+    });
+
+    it('mounts preview work only for cards near the viewport', () => {
+        setData(
+            Array.from({ length: 6 }, (_, index) =>
+                makeDataAppViz({
+                    dataAppVizUuid: `data-app-viz-${index}`,
+                    slug: `chart-${index}`,
+                    name: `Chart ${index}`,
+                }),
+            ),
+        );
+
+        renderPage();
+
+        expect(samplePreviewProps).not.toHaveBeenCalled();
+        const observer = GalleryIntersectionObserver.instances.at(-1);
+        expect(observer).toBeDefined();
+
+        act(() => observer!.intersect([...observer!.observed], true));
+
+        expect(samplePreviewProps).toHaveBeenCalledTimes(4);
     });
 
     it('lists the custom chart types and opens the detail modal', () => {
