@@ -21,9 +21,8 @@ import {
     Text,
 } from '@mantine/core';
 import { IconAppsOff, IconCode, IconFilter } from '@tabler/icons-react';
-import React, { useMemo, useState, type FC } from 'react';
+import React, { useEffect, useMemo, useState, type FC } from 'react';
 import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
-import AppIframePreview from '../../features/apps/AppIframePreview';
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken';
 import { useGetApp } from '../../features/apps/hooks/useGetApp';
@@ -40,6 +39,7 @@ import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import DashboardDataAppIframe from './DashboardDataAppIframe';
 import TileBase from './TileBase/index';
 
 type Props = Pick<
@@ -294,6 +294,20 @@ const DataAppTile: FC<Props> = (props) => {
         (latestReadyVersion !== undefined && isTokenLoading);
     const otherError =
         !isForbidden && !isNotFound && (appQuery.error || visibleTokenError);
+    const markTileScreenshotErrored = useDashboardTileStatusContext(
+        (context) => context.markTileScreenshotErrored,
+    );
+    const hasTerminalError = !!(
+        isForbidden ||
+        isNotFound ||
+        hasNoReadyVersion ||
+        otherError
+    );
+    useEffect(() => {
+        if (hasTerminalError) {
+            markTileScreenshotErrored(uuid);
+        }
+    }, [hasTerminalError, markTileScreenshotErrored, uuid]);
 
     return (
         <TileBase
@@ -359,7 +373,9 @@ const DataAppTile: FC<Props> = (props) => {
                         <Loader size="sm" />
                     </Stack>
                 ) : (
-                    <AppIframePreview
+                    <DashboardDataAppIframe
+                        key={`${appUuid}:${latestReadyVersion}:${filtersKey}:${refreshCounter}`}
+                        tileUuid={uuid}
                         src={previewUrl}
                         previewToken={token}
                         expectedPreviewOrigin={previewOrigin}

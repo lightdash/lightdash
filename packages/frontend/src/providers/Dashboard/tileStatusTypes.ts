@@ -36,6 +36,7 @@ export type DashboardTileStatusContextType = {
     tileNamesById: Record<string, string>;
     markTileScreenshotReady: (tileUuid: string) => void;
     markTileScreenshotErrored: (tileUuid: string) => void;
+    markTileScreenshotLoading: (tileUuid: string) => void;
     isReadyForScreenshot: boolean;
     screenshotReadyTilesCount: number;
     screenshotErroredTilesCount: number;
