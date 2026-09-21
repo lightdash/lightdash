@@ -1,3 +1,10 @@
+## [2.286.2](https://github.com/lightdash/lightdash/compare/2.286.1...2.286.2) (2026-09-21)
+
+
+### Bug Fixes
+
+* preserve flat pivot table exports ([#29693](https://github.com/lightdash/lightdash/issues/29693)) ([113b5db](https://github.com/lightdash/lightdash/commit/113b5db229f51f4b3badc771a68e99ac73552714))
+
 ## [2.286.1](https://github.com/lightdash/lightdash/compare/2.286.0...2.286.1) (2026-09-21)
 
 
