@@ -1,3 +1,10 @@
+## [2.274.4](https://github.com/lightdash/lightdash/compare/2.274.3...2.274.4) (2026-09-21)
+
+
+### Bug Fixes
+
+* centre primary navigation icons ([#29643](https://github.com/lightdash/lightdash/issues/29643)) ([212b6d7](https://github.com/lightdash/lightdash/commit/212b6d75a906ea234c76b4775c9368c60e54ed14))
+
 ## [2.274.3](https://github.com/lightdash/lightdash/compare/2.274.2...2.274.3) (2026-09-21)
 
 
