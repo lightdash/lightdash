@@ -637,6 +637,31 @@ describe('isDataAppContinueInAskAiEnabled', () => {
     });
 });
 
+describe('isDataAppAutoAnalysisEnabled', () => {
+    const buildService = (
+        stored: { dataAppAutoAnalysisEnabled?: boolean } | null,
+    ) =>
+        new AiOrganizationSettingsService({
+            aiOrganizationSettingsModel: {
+                findByOrganizationUuid: vi.fn().mockResolvedValue(stored),
+            },
+        } as never);
+
+    it.each([
+        [null, false],
+        [{}, false],
+        [{ dataAppAutoAnalysisEnabled: true }, true],
+        [{ dataAppAutoAnalysisEnabled: false }, false],
+    ])(
+        'resolves stored=%j as %s (off by default)',
+        async (stored, expected) => {
+            await expect(
+                buildService(stored).isDataAppAutoAnalysisEnabled('org-uuid'),
+            ).resolves.toBe(expected);
+        },
+    );
+});
+
 describe('isDataAppRuntimeAiEnabled', () => {
     const buildService = (
         stored: { dataAppRuntimeAiEnabled?: boolean } | null,
