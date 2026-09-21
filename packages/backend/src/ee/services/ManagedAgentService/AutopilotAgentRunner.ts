@@ -1,4 +1,4 @@
-import { assertUnreachable, type Explore } from '@lightdash/common';
+import { assertUnreachable } from '@lightdash/common';
 import {
     generateText,
     stepCountIs,
@@ -13,7 +13,6 @@ import {
 } from '../../../analytics/aiUsage';
 import Logger from '../../../logging/logger';
 import type { AiModel, AiProvider } from '../ai/models/types';
-import { AgentContext } from '../ai/utils/AgentContext';
 import type { getAiCallTelemetry } from '../ai/utils/aiCallTelemetry';
 import { AutopilotRunError } from './autopilotFailure';
 import type { RenderedAutopilotAgent } from './config/agent';
@@ -46,7 +45,6 @@ export type RunAutopilotAgentArgs = {
     providerOptions: AnyAiModel['providerOptions'];
     agent: RenderedAutopilotAgent;
     dataTools: ToolSet;
-    availableExplores: Explore[];
     executeTool: ExecuteAutopilotTool;
     projectName: string;
     maxSteps: number;
@@ -68,7 +66,6 @@ export const runAutopilotAgent = async ({
     providerOptions,
     agent,
     dataTools,
-    availableExplores,
     executeTool,
     projectName,
     maxSteps,
@@ -124,7 +121,6 @@ export const runAutopilotAgent = async ({
             toolChoice: 'auto',
             stopWhen: stepCountIs(maxSteps),
             abortSignal,
-            experimental_context: new AgentContext(availableExplores),
             experimental_telemetry: telemetry,
             onStepFinish: async (step) => {
                 stepCount += 1;

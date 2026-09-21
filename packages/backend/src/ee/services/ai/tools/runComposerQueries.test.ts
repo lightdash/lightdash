@@ -87,6 +87,7 @@ const executeTool = (
     tool.execute!(args, {
         messages: [],
         toolCallId,
+        context: {},
     }) as Promise<ComposerOutput>;
 
 const makeTool = ({

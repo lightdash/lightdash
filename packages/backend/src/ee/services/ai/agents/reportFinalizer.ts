@@ -106,6 +106,7 @@ export const generateDeepResearchReport = async (
                 providerOptions: modelOptions.providerOptions,
                 experimental_telemetry: telemetry,
                 schema: aiDeepResearchReportInputSchema,
+                allowSystemInMessages: true,
                 messages,
             }),
         );

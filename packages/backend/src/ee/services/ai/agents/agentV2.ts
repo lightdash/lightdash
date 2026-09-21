@@ -21,6 +21,7 @@ import {
     type ModelMessage,
     type OnToolCallFinishEvent,
     type Output,
+    type TextStreamPart,
     type ToolCallPart,
     type ToolSet,
 } from 'ai';
@@ -929,9 +930,10 @@ const recordExternalMcpToolCall = (
     if (!mcpServerUuid) {
         return;
     }
-    const errorMessage = event.success
-        ? getMcpToolResultErrorText(event.output)
-        : getErrorMessage(event.error);
+    const errorMessage =
+        event.toolOutput.type === 'tool-result'
+            ? getMcpToolResultErrorText(event.toolOutput.output)
+            : getErrorMessage(event.toolOutput.error);
     void dependencies
         .recordMcpToolCall({
             toolCallId: event.toolCall.toolCallId,
@@ -941,7 +943,7 @@ const recordExternalMcpToolCall = (
             status: errorMessage === null ? 'success' : 'error',
             errorMessage,
             // The SDK measures with performance.now(); the column is integer ms
-            durationMs: Math.round(event.durationMs),
+            durationMs: Math.round(event.toolExecutionMs),
         })
         .catch((error) => {
             Logger.warn(
@@ -1144,6 +1146,42 @@ export const storeInvalidAgentToolCall = async ({
 };
 
 const QUERY_RETRY_CAP_TOOL_NAME = '__query_retry_cap';
+
+export type AgentStreamTextResult = StreamTextResult<
+    ToolSet,
+    Record<string, unknown>,
+    Output.Output
+>;
+
+// AI SDK 7 forwards every stream part to onChunk; keep the v6 subset so
+// first-chunk timing and persistence semantics are unchanged.
+const CONTENT_STREAM_CHUNK_TYPES = new Set<TextStreamPart<ToolSet>['type']>([
+    'text-delta',
+    'reasoning-delta',
+    'source',
+    'tool-call',
+    'tool-input-start',
+    'tool-input-delta',
+    'tool-result',
+    'raw',
+]);
+type ContentStreamChunk = Extract<
+    TextStreamPart<ToolSet>,
+    {
+        type:
+            | 'text-delta'
+            | 'reasoning-delta'
+            | 'source'
+            | 'tool-call'
+            | 'tool-input-start'
+            | 'tool-input-delta'
+            | 'tool-result'
+            | 'raw';
+    }
+>;
+const isContentStreamChunk = (
+    chunk: TextStreamPart<ToolSet>,
+): chunk is ContentStreamChunk => CONTENT_STREAM_CHUNK_TYPES.has(chunk.type);
 
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
@@ -1457,11 +1495,11 @@ export const getAgentTools = (
     verifiedFieldUsage: Map<string, number>,
     projectParameterDefinitions: ParameterDefinitions,
     customChartTypeLibrary: CustomChartTypeLibrary,
-    answerEvidence?: AnswerEvidence,
+    agentContext: AgentContext,
 ): ToolSet => {
     const queryDependencies = withAnswerEvidence(
         dependencies,
-        answerEvidence,
+        agentContext.answerEvidence,
         args.maxContextRows,
     );
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
@@ -1489,12 +1527,12 @@ export const getAgentTools = (
             : undefined;
 
     const grepFields = getGrepFields({
+        availableExplores,
         decisions:
             args.execution.mode === 'standard' ? args.decisions : undefined,
         userQuestion: getAgentQuestion(args),
         conversation: decisionContext,
         projectParameterDefinitions,
-        availableExplores,
         findExplores: dependencies.findExplores,
         verifiedFieldUsage,
     });
@@ -1563,6 +1601,7 @@ export const getAgentTools = (
 
     const generateVisualization = getRunQuery({
         purpose: 'visualization',
+        agentContext,
         decisions: args.decisions,
         question: getAgentQuestion(args),
         conversation: decisionContext,
@@ -1602,6 +1641,7 @@ export const getAgentTools = (
             ? getRunQuery({
                   purpose: 'answer',
                   enableFastResponse: args.enableDataAnswerFastResponse,
+                  agentContext,
                   decisions: args.decisions,
                   question: getAgentQuestion(args),
                   conversation: decisionContext,
@@ -1703,6 +1743,7 @@ export const getAgentTools = (
 
     const generateDashboard = args.canCreateDashboards
         ? getGenerateDashboardV2({
+              agentContext,
               decisions:
                   args.execution.mode === 'standard'
                       ? args.decisions
@@ -1953,6 +1994,7 @@ export const getAgentTools = (
         args.execution.mode === 'standard'
             ? {
                   exportChartAsCode: getExportChartAsCode(
+                      agentContext,
                       dependencies.chartExportArtifacts,
                   ),
               }
@@ -2457,7 +2499,7 @@ const prepareAgentTurn = async ({
         verifiedFieldUsage,
         projectParameterDefinitions,
         customChartTypeLibrary,
-        agentContext.answerEvidence,
+        agentContext,
     );
     await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
     // model-routing already classified this first turn as a simple data answer
@@ -2658,8 +2700,8 @@ export const generateAgentResponse = async ({
                 : undefined,
             model: args.model,
             tools,
+            allowSystemInMessages: true,
             messages,
-            experimental_context: agentContext,
             experimental_onToolCallStart: ({ toolCall }) => {
                 timing.recordToolCallStart(
                     toolCall.toolCallId,
@@ -2670,8 +2712,10 @@ export const generateAgentResponse = async ({
                 recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
                 const toolTiming = timing.recordToolCallEnd(
                     event.toolCall.toolCallId,
-                    event.success && isQueryCacheHit(event.output),
-                    event.success && isQueryReuseHit(event.output),
+                    event.toolOutput.type === 'tool-result' &&
+                        isQueryCacheHit(event.toolOutput.output),
+                    event.toolOutput.type === 'tool-result' &&
+                        isQueryReuseHit(event.toolOutput.output),
                 );
                 if (toolTiming) {
                     dependencies.trackEvent({
@@ -2691,8 +2735,8 @@ export const generateAgentResponse = async ({
                             queryCacheHit: toolTiming.queryCacheHit,
                             queryReuseHit: toolTiming.queryReuseHit,
                             status:
-                                !event.success ||
-                                isErrorToolResult(event.output)
+                                event.toolOutput.type !== 'tool-result' ||
+                                isErrorToolResult(event.toolOutput.output)
                                     ? 'error'
                                     : 'success',
                         },
@@ -2996,7 +3040,7 @@ export const streamAgentResponse = async ({
     args: AiStreamAgentResponseArgs;
     dependencies: AiAgentDependencies;
     mcpToolSetup: AgentMcpToolSetup;
-}): Promise<StreamTextResult<ToolSet, Output.Output>> => {
+}): Promise<AgentStreamTextResult> => {
     const resolveErrorMessage = createUserFacingErrorResolver(args);
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
@@ -3087,12 +3131,13 @@ export const streamAgentResponse = async ({
                 : undefined,
             model: args.model,
             tools,
+            allowSystemInMessages: true,
             messages,
-            experimental_context: agentContext,
             experimental_onToolCallFinish: (event) => {
                 recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
             },
             onChunk: (event) => {
+                if (!isContentStreamChunk(event.chunk)) return;
                 timing.recordChunk();
                 // Track time to first chunk (any type) - only once
                 if (firstChunkTime === null) {

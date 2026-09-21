@@ -4643,6 +4643,7 @@ export class AppGenerateService extends BaseService {
             experimental_telemetry: telemetry,
             schema: metadataSchema,
             abortSignal: AbortSignal.timeout(METADATA_TIMEOUT_MS),
+            allowSystemInMessages: true,
             messages: [
                 {
                     role: 'system',
@@ -6887,6 +6888,7 @@ export class AppGenerateService extends BaseService {
                 experimental_telemetry: telemetry,
                 schema: clarifySchema,
                 abortSignal: AbortSignal.timeout(CLARIFY_TIMEOUT_MS),
+                allowSystemInMessages: true,
                 messages: [
                     {
                         role: 'system',

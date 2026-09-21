@@ -24,6 +24,7 @@ const streamErrors = async (messages: ModelMessage[]): Promise<string[]> => {
     });
     const result = streamText({
         model: anthropic('claude-sonnet-5'),
+        allowSystemInMessages: true,
         messages,
     });
     const errors: string[] = [];

@@ -4,6 +4,7 @@ import {
     type ToolDashboardV2ArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { z } from 'zod';
 import type { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { chooseDashboardLayout } from '../decisions/dashboardLayout';
 import type {
@@ -20,6 +21,7 @@ type Dependencies = {
     userQuestion?: string;
     getPrompt: GetPromptFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
+    agentContext: AgentContext;
 };
 
 const toolDefinition = generateDashboardToolDefinition.for('agent');
@@ -29,12 +31,12 @@ export const getGenerateDashboardV2 = ({
     userQuestion,
     getPrompt,
     createOrUpdateArtifact,
+    agentContext: ctx,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (toolArgs, { experimental_context: context }) => {
+        execute: async (toolArgs) => {
             try {
-                const ctx = AgentContext.from(context);
                 const transformedToolArgs =
                     toolDashboardV2ArgsSchemaTransformed.parse(toolArgs);
 

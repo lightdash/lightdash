@@ -288,6 +288,7 @@ export async function generateAgentSuggestions(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         schema: agentSuggestionsModelSchema,
+        allowSystemInMessages: true,
         messages: [
             {
                 role: 'system',

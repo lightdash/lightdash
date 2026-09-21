@@ -276,6 +276,7 @@ export async function generateTableCalculation(
         providerOptions: modelOptions.providerOptions,
         experimental_telemetry: telemetry,
         schema: TableCalculationSchema,
+        allowSystemInMessages: true,
         messages: [
             {
                 role: 'system',

@@ -85,7 +85,7 @@ describe('TurnTimingTracker', () => {
                 );
             },
             experimental_onToolCallFinish: (event) => {
-                expect(event.success).toBe(false);
+                expect(event.toolOutput.type).toBe('tool-error');
                 tracker.recordToolCallEnd(event.toolCall.toolCallId);
             },
             onStepFinish: (step) => {

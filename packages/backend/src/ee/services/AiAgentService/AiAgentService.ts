@@ -315,6 +315,7 @@ import {
     generateAgentResponse,
     streamAgentResponse,
     type AgentMcpToolSetup,
+    type AgentStreamTextResult,
 } from '../ai/agents/agentV2';
 import { generateCompactionSummary } from '../ai/agents/compactionGenerator';
 import { generateEmbedding } from '../ai/agents/embeddingGenerator';
@@ -539,7 +540,7 @@ type AgentResponseStream = {
             typeof pipeUIMessageStreamToResponse
         >[0]['response'],
     ) => void;
-    consumeStream: StreamTextResult<ToolSet, Output.Output>['consumeStream'];
+    consumeStream: AgentStreamTextResult['consumeStream'];
 };
 
 const MAX_AI_PROMPT_CONTEXT_ITEMS = 10;
@@ -13513,9 +13514,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         return {
             pipeUIMessageStreamToResponse: (response) => {
-                pipeUIMessageStreamToResponse({
+                // Resolves once the stream is fully written; a client that
+                // disconnects mid-stream must not surface as an unhandled rejection.
+                void pipeUIMessageStreamToResponse({
                     response,
                     stream: uiMessageStream,
+                }).catch((error) => {
+                    this.logger.error(
+                        `Failed to pipe AI agent stream to response: ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
                 });
             },
             consumeStream: result.consumeStream.bind(result),

@@ -146,6 +146,7 @@ export async function detectDataAppAnomalies(
         providerOptions: modelOptions.providerOptions,
         schema: DataAppDetectionSchema,
         experimental_telemetry: telemetry,
+        allowSystemInMessages: true,
         messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             {

@@ -28,6 +28,7 @@ import {
     PROVIDER_BILLING_MESSAGE,
     STEP_CAP_REACHED_MESSAGE,
 } from '../utils/errorMessages';
+import { getStaticToolDescription } from '../utils/toolDescription';
 import {
     buildAgentMessages,
     buildDeepResearchExecutionContextSnapshot,
@@ -1847,6 +1848,7 @@ describe('getAgentTools workstream tool gate', () => {
                 types: [],
                 totalCount: 0,
             },
+            new AgentContext([]),
         );
 
     const buildTools = (flags: ToolFlags) =>
@@ -1876,6 +1878,7 @@ describe('getAgentTools workstream tool gate', () => {
                 new Map(),
                 {},
                 { types: [], totalCount: 0 },
+                new AgentContext([validExplore]),
             );
             const result = await tools.getMetadata.execute!(
                 {
@@ -1883,7 +1886,7 @@ describe('getAgentTools workstream tool gate', () => {
                         { type: 'explore', exploreIds: [validExplore.name] },
                     ],
                 },
-                { toolCallId: 'metadata', messages: [] },
+                { toolCallId: 'metadata', messages: [], context: {} },
             );
             expect(JSON.stringify(result).includes('sqlOn')).toBe(enabled);
         },
@@ -1997,11 +2000,12 @@ describe('getAgentTools workstream tool gate', () => {
                     '## Filter expressions',
                 ),
                 visualizationUsesExpressions:
-                    tools.generateVisualization.description?.includes(
-                        'follow the Lightdash Agent system prompt',
-                    ) ?? false,
+                    getStaticToolDescription(
+                        tools.generateVisualization,
+                    )?.includes('follow the Lightdash Agent system prompt') ??
+                    false,
                 fieldValueSearchUsesExpressions:
-                    tools.searchFieldValues.description?.includes(
+                    getStaticToolDescription(tools.searchFieldValues)?.includes(
                         'follow the Lightdash Agent system prompt',
                     ) ?? false,
             }).toEqual({
@@ -2143,6 +2147,7 @@ describe('getAgentTools workstream tool gate', () => {
             new Map(),
             {},
             { types: [], totalCount: 0 },
+            new AgentContext([]),
         );
 
         expect(Object.keys(tools)).toEqual(
@@ -2302,6 +2307,7 @@ describe('getAgentTools workstream tool gate', () => {
                 new Map(),
                 {},
                 { types: [], totalCount: 0 },
+                new AgentContext([]),
             ),
         );
     };

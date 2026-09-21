@@ -75,6 +75,7 @@ import { getGrepFields } from '../ai/tools/grepFields';
 import { getLoadSkill } from '../ai/tools/loadSkill';
 import { getRunMetricQuery } from '../ai/tools/runMetricQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
+import { AgentContext } from '../ai/utils/AgentContext';
 import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
@@ -1824,12 +1825,11 @@ export class ManagedAgentService extends BaseService {
             providerOptions,
             keyManagement,
         } = resolvedModel;
-        const { tools: dataTools, availableExplores } =
-            await this.buildAutopilotDataTools(
-                actor,
-                projectUuid,
-                organizationUuid,
-            );
+        const { tools: dataTools } = await this.buildAutopilotDataTools(
+            actor,
+            projectUuid,
+            organizationUuid,
+        );
         const telemetry = getAiCallTelemetry({
             functionId: 'autopilotHeartbeat',
             extra: { runUuid },
@@ -1850,7 +1850,6 @@ export class ManagedAgentService extends BaseService {
             providerOptions,
             agent,
             dataTools,
-            availableExplores,
             executeTool: (name, input, signal) =>
                 onToolCall(
                     name,
@@ -1944,6 +1943,8 @@ export class ManagedAgentService extends BaseService {
         const { siteUrl } = this.lightdashConfig;
         const { maxQueryLimit, toolDescriptionMaxChars } =
             this.lightdashConfig.ai.copilot;
+        // Shared per-turn state for the tools that need it, as in agentV2.
+        const agentContext = new AgentContext(availableExplores);
 
         const tools: ToolSet = {
             grepFields: getGrepFields({
@@ -1977,6 +1978,7 @@ export class ManagedAgentService extends BaseService {
             }),
             runMetricQuery: getRunMetricQuery({
                 decisions: fastDecisions,
+                agentContext,
                 runAsyncQuery: runtime.runAsyncQuery,
                 maxLimit: maxQueryLimit,
             }),
