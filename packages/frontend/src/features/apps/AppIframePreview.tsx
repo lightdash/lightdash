@@ -82,6 +82,14 @@ type Props = {
      *  bundles never send one — the parent owns the silence timeout that
      *  classifies them as legacy (see `useSdkUpgradeStatus`). */
     onSdkManifest?: (manifest: SdkManifest) => void;
+    /**
+     * Called when the iframe acknowledges painting the matching render context.
+     */
+    onVizRendered?: (renderId: string) => void;
+    /** Identity attached to the next viz context push and its acknowledgement. */
+    vizRenderId?: string;
+    /** Called when the iframe SDK requests its initial viz context. */
+    onVizContextRequest?: () => void;
     /** When true, clicks inside the iframe are intercepted to reveal the query. */
     lineageEnabled?: boolean;
     onLineageAvailabilityChange?: (available: boolean) => void;
@@ -203,6 +211,9 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onVizDrillDownIntent,
             urlStateSync,
             onSdkManifest,
+            onVizRendered,
+            vizRenderId,
+            onVizContextRequest,
             forceColorScheme,
             insights,
             onInsightAction,
@@ -308,6 +319,9 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onVizDrillDownIntent,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
             onSdkManifest,
+            onVizRendered,
+            vizRenderId,
+            onVizContextRequest,
             colorScheme,
             insights,
             onInsightAction,

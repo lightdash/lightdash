@@ -9,6 +9,7 @@ import {
 import { ActionIcon, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback } from 'react';
+import DataAppVizDownloadMenu from '../../../features/apps/DataAppVizDownloadMenu';
 import useEchartsCartesianConfig from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { useAccount } from '../../../hooks/user/useAccount';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
@@ -96,7 +97,6 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                   }),
               )
             : canManageExplore;
-
         const getChartInstance = useCallback(
             () => chartRef.current?.getEchartsInstance(),
             [chartRef],
@@ -137,6 +137,12 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             },
             [getDownloadQueryUuid],
         );
+
+        if (visualizationConfig.chartType === ChartType.DATA_APP_VIZ) {
+            return canExportImages && !isEmbedded ? (
+                <DataAppVizDownloadMenu projectUuid={projectUuid} />
+            ) : null;
+        }
 
         if (
             CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(

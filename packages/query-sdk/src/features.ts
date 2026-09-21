@@ -114,6 +114,13 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Receive query context when app visualizations are embedded in dashboards.',
     },
     {
+        key: 'viz-rendered',
+        appliesTo: ['chart_type'],
+        label: 'Custom chart captures',
+        description:
+            'Capture custom charts after their initial render, preventing blank images in image exports and scheduled deliveries.',
+    },
+    {
         key: 'viz-multiple-fields',
         appliesTo: ['chart_type'],
         label: 'Multiple visualization fields',
