@@ -1,3 +1,10 @@
+## [2.272.1](https://github.com/lightdash/lightdash/compare/2.272.0...2.272.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* allow AI agent feedback from embeds ([#29283](https://github.com/lightdash/lightdash/issues/29283)) ([a2f3229](https://github.com/lightdash/lightdash/commit/a2f3229ca844990282e3395a3ace7ca0b96d7055))
+
 # [2.272.0](https://github.com/lightdash/lightdash/compare/2.271.1...2.272.0) (2026-09-21)
 
 
