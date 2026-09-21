@@ -447,10 +447,10 @@ export class ProjectModel {
         );
     }
 
-    private static async getSoleActiveConnectionUuid(
+    private static async getConnectionScopedWriteTarget(
         database: Knex,
         projectUuid: string,
-    ): Promise<string> {
+    ): Promise<string | undefined> {
         const query = database(WarehouseCredentialTableName)
             .innerJoin(
                 ProjectTableName,
@@ -468,12 +468,12 @@ export class ProjectModel {
             );
         }
         const connections = await query;
-        if (connections.length !== 1) {
+        if (connections.length > 1) {
             throw new ParameterError(
-                'The project must have exactly one active connection.',
+                'The project has more than one active connection.',
             );
         }
-        return connections[0].warehouse_credentials_uuid;
+        return connections[0]?.warehouse_credentials_uuid;
     }
 
     async upsertMergedManifest(
@@ -494,22 +494,24 @@ export class ProjectModel {
                 });
             if (await trx.schema.hasTable(PROJECT_CONNECTION_MANIFESTS_TABLE)) {
                 const connectionUuid =
-                    await ProjectModel.getSoleActiveConnectionUuid(
+                    await ProjectModel.getConnectionScopedWriteTarget(
                         trx,
                         projectUuid,
                     );
-                await trx(PROJECT_CONNECTION_MANIFESTS_TABLE)
-                    .insert({
-                        project_uuid: projectUuid,
-                        connection_uuid: connectionUuid,
-                        manifest,
-                        created_at: trx.fn.now(),
-                    })
-                    .onConflict(['project_uuid', 'connection_uuid'])
-                    .merge({
-                        manifest,
-                        created_at: trx.fn.now(),
-                    });
+                if (connectionUuid) {
+                    await trx(PROJECT_CONNECTION_MANIFESTS_TABLE)
+                        .insert({
+                            project_uuid: projectUuid,
+                            connection_uuid: connectionUuid,
+                            manifest,
+                            created_at: trx.fn.now(),
+                        })
+                        .onConflict(['project_uuid', 'connection_uuid'])
+                        .merge({
+                            manifest,
+                            created_at: trx.fn.now(),
+                        });
+                }
             }
         });
     }
@@ -1826,10 +1828,15 @@ export class ProjectModel {
                         `${WarehouseCredentialTableName}.superseded_at`,
                     );
                 }
-                const projects = await projectsQuery;
+                const projects = await projectsQuery.limit(2);
                 if (projects.length === 0) {
                     throw new NotFoundError(
                         `Cannot find project with id: ${projectUuid}`,
+                    );
+                }
+                if (projects.length > 1) {
+                    throw new UnexpectedServerError(
+                        `Project ${projectUuid} has more than one active warehouse connection on this instance.`,
                     );
                 }
                 const [project] = projects;
@@ -3254,18 +3261,20 @@ export class ProjectModel {
                 )
             ) {
                 const connectionUuid =
-                    await ProjectModel.getSoleActiveConnectionUuid(
+                    await ProjectModel.getConnectionScopedWriteTarget(
                         trx,
                         projectUuid,
                     );
-                await trx(PROJECT_CONNECTION_CATALOG_CACHE_TABLE)
-                    .insert({
-                        project_uuid: projectUuid,
-                        connection_uuid: connectionUuid,
-                        warehouse: serializedWarehouse,
-                    })
-                    .onConflict(['project_uuid', 'connection_uuid'])
-                    .merge({ warehouse: serializedWarehouse });
+                if (connectionUuid) {
+                    await trx(PROJECT_CONNECTION_CATALOG_CACHE_TABLE)
+                        .insert({
+                            project_uuid: projectUuid,
+                            connection_uuid: connectionUuid,
+                            warehouse: serializedWarehouse,
+                        })
+                        .onConflict(['project_uuid', 'connection_uuid'])
+                        .merge({ warehouse: serializedWarehouse });
+                }
             }
             return cachedWarehouse;
         });
@@ -4262,7 +4271,13 @@ export class ProjectModel {
                 'warehouse_credentials.superseded_at',
             );
         }
-        const [row] = await credentialsQuery;
+        const rows = await credentialsQuery.limit(2);
+        if (rows.length > 1) {
+            throw new UnexpectedServerError(
+                `Project ${projectUuid} has more than one active warehouse connection on this instance.`,
+            );
+        }
+        const [row] = rows;
         if (row === undefined) {
             throw new NotFoundError(
                 `Cannot find any warehouse credentials for project.`,

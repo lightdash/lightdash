@@ -14,6 +14,8 @@ import {
     DbProjectDbtSource,
     ProjectDbtSourcesTableName,
 } from '../database/entities/projectDbtSources';
+import { ProjectTableName } from '../database/entities/projects';
+import { WarehouseCredentialTableName } from '../database/entities/warehouseCredentials';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 
 const PG_UNIQUE_VIOLATION = '23505';
@@ -140,29 +142,100 @@ export class ProjectDbtSourcesModel {
         return row !== undefined;
     }
 
+    private async getBindingColumns(): Promise<{
+        hasConnectionUuid: boolean;
+        hasNamespacePrefix: boolean;
+    }> {
+        const [hasConnectionUuid, hasNamespacePrefix] = await Promise.all([
+            this.database.schema.hasColumn(
+                ProjectDbtSourcesTableName,
+                'connection_uuid',
+            ),
+            this.database.schema.hasColumn(
+                ProjectDbtSourcesTableName,
+                'namespace_prefix',
+            ),
+        ]);
+        return { hasConnectionUuid, hasNamespacePrefix };
+    }
+
+    private async getSoleActiveConnectionUuid(
+        projectUuid: string,
+    ): Promise<string> {
+        const query = this.database(WarehouseCredentialTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${WarehouseCredentialTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .select<{ warehouse_credentials_uuid: string }[]>(
+                `${WarehouseCredentialTableName}.warehouse_credentials_uuid`,
+            )
+            .limit(2);
+        if (
+            await this.database.schema.hasColumn(
+                WarehouseCredentialTableName,
+                'superseded_at',
+            )
+        ) {
+            void query.whereNull(
+                `${WarehouseCredentialTableName}.superseded_at`,
+            );
+        }
+        const connections = await query;
+        if (connections.length !== 1) {
+            throw new ParameterError(
+                'The project must have exactly one active connection.',
+            );
+        }
+        return connections[0].warehouse_credentials_uuid;
+    }
+
     async copySources(
         sourceProjectUuid: string,
         targetProjectUuid: string,
     ): Promise<void> {
+        const { hasConnectionUuid, hasNamespacePrefix } =
+            await this.getBindingColumns();
+        const baseColumns = [
+            'name',
+            'is_primary',
+            'precedence',
+            'dbt_connection_type',
+            'dbt_connection',
+            'warehouse_database',
+            'warehouse_schema',
+        ] as const;
         const sources = await this.database(ProjectDbtSourcesTableName)
-            .select(
-                'name',
-                'is_primary',
-                'precedence',
-                'dbt_connection_type',
-                'dbt_connection',
-                'warehouse_database',
-                'warehouse_schema',
-            )
-            .where('project_uuid', sourceProjectUuid);
+            .where('project_uuid', sourceProjectUuid)
+            .select<
+                (Pick<DbProjectDbtSource, (typeof baseColumns)[number]> & {
+                    namespace_prefix?: string;
+                })[]
+            >(
+                hasNamespacePrefix
+                    ? [...baseColumns, 'namespace_prefix']
+                    : [...baseColumns],
+            );
 
         if (sources.length === 0) {
             return;
         }
 
+        const connectionUuid = hasConnectionUuid
+            ? await this.getSoleActiveConnectionUuid(targetProjectUuid)
+            : undefined;
+
         await this.database(ProjectDbtSourcesTableName).insert(
             sources.map((source) => ({
                 project_uuid: targetProjectUuid,
+                ...(connectionUuid !== undefined
+                    ? { connection_uuid: connectionUuid }
+                    : {}),
+                ...(hasNamespacePrefix
+                    ? { namespace_prefix: source.namespace_prefix ?? '' }
+                    : {}),
                 name: source.name,
                 is_primary: source.is_primary,
                 precedence: source.precedence,
@@ -190,10 +263,21 @@ export class ProjectDbtSourcesModel {
         projectUuid: string,
         data: CreateProjectDbtSource,
     ): Promise<ProjectDbtSource> {
+        const { hasConnectionUuid, hasNamespacePrefix } =
+            await this.getBindingColumns();
+        const connectionUuid = hasConnectionUuid
+            ? await this.getSoleActiveConnectionUuid(projectUuid)
+            : undefined;
         try {
             const [row] = await this.database(ProjectDbtSourcesTableName)
                 .insert({
                     project_uuid: projectUuid,
+                    ...(connectionUuid !== undefined
+                        ? { connection_uuid: connectionUuid }
+                        : {}),
+                    ...(hasNamespacePrefix
+                        ? { namespace_prefix: data.isPrimary ? '' : data.name }
+                        : {}),
                     name: data.name,
                     is_primary: data.isPrimary,
                     precedence: data.precedence,
