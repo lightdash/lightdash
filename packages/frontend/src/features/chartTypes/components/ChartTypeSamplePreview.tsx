@@ -1,11 +1,10 @@
 import { type ChartTypeIcon } from '@lightdash/common';
 import { Box, Stack, Text } from '@mantine/core';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import { useResizeObserver } from '../../../hooks/useResizeObserver';
 import AppIframePreview from '../../apps/AppIframePreview';
-import { getVisiblePreviewTokenError } from '../../apps/hooks/previewTokenQueryOptions';
 import { usePreviewOrigin } from '../../apps/previewOrigin';
 import {
     useDataAppVizPreviewToken,
@@ -20,11 +19,6 @@ const RENDER_TARGET = { isEmbedded: false, savedChartUuid: undefined };
 // Width the app is laid out at before being scaled down to fit the host box,
 // so the miniature keeps realistic proportions.
 const PREVIEW_NATURAL_WIDTH_PX = 800;
-
-const isTerminalPreviewError = (
-    error: { error: { statusCode: number } } | null,
-): boolean =>
-    error?.error.statusCode === 403 || error?.error.statusCode === 404;
 
 const PreviewPlaceholder: FC<{
     message: string;
@@ -42,9 +36,6 @@ type Props = {
     projectUuid: string;
     dataAppVizUuid: string;
     icon: ChartTypeIcon | null;
-    retryAttempt?: number;
-    onPreviewLoad?: () => void;
-    onPreviewUnavailable?: () => void;
 };
 
 /**
@@ -55,32 +46,17 @@ const ChartTypeSamplePreview: FC<Props> = ({
     projectUuid,
     dataAppVizUuid,
     icon,
-    retryAttempt = 0,
-    onPreviewLoad,
-    onPreviewUnavailable,
 }) => {
     const previewOrigin = usePreviewOrigin();
-    const {
-        data: metadata,
-        error: metadataError,
-        isFetching: isMetadataFetching,
-        refetch: refetchMetadata,
-    } = useDataAppVizRenderMetadata(projectUuid, dataAppVizUuid, RENDER_TARGET);
+    const { data: metadata, error: metadataError } =
+        useDataAppVizRenderMetadata(projectUuid, dataAppVizUuid, RENDER_TARGET);
     const readyMetadata = metadata?.state === 'ready' ? metadata : undefined;
-    const {
-        data: token,
-        error: tokenError,
-        isFetching: isTokenFetching,
-        refetch: refetchToken,
-    } = useDataAppVizPreviewToken(
+    const { data: token } = useDataAppVizPreviewToken(
         projectUuid,
         dataAppVizUuid,
         readyMetadata?.version,
         RENDER_TARGET,
     );
-    const [retryStage, setRetryStage] = useState<
-        'metadata' | 'token' | 'done' | 'failed'
-    >(retryAttempt > 0 ? 'metadata' : 'done');
 
     const previewBaseUrl =
         readyMetadata && token
@@ -101,100 +77,6 @@ const ChartTypeSamplePreview: FC<Props> = ({
     const [measureRef, { width, height }] = useResizeObserver<HTMLDivElement>();
     const scale = width > 0 ? Math.min(1, width / PREVIEW_NATURAL_WIDTH_PX) : 0;
 
-    const visibleMetadataError =
-        metadata && metadataError && !isTerminalPreviewError(metadataError)
-            ? null
-            : metadataError;
-    const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
-
-    useEffect(
-        function refreshMetadataOnRetry() {
-            if (retryStage !== 'metadata') return;
-
-            let active = true;
-            queueMicrotask(() => {
-                if (!active) return;
-                void refetchMetadata({ cancelRefetch: false }).then(
-                    (result) => {
-                        if (!active) return;
-                        setRetryStage(
-                            result.error
-                                ? 'failed'
-                                : result.data?.state === 'ready'
-                                  ? 'token'
-                                  : 'done',
-                        );
-                    },
-                );
-            });
-
-            return () => {
-                active = false;
-            };
-        },
-        [refetchMetadata, retryStage],
-    );
-
-    useEffect(
-        function refreshTokenOnRetry() {
-            if (retryStage !== 'token' || !readyMetadata) return;
-
-            let active = true;
-            queueMicrotask(() => {
-                if (!active) return;
-                void refetchToken({ cancelRefetch: false }).then((result) => {
-                    if (active) setRetryStage(result.error ? 'failed' : 'done');
-                });
-            });
-
-            return () => {
-                active = false;
-            };
-        },
-        [readyMetadata, refetchToken, retryStage],
-    );
-
-    useEffect(
-        function reportUnavailablePreview() {
-            if (retryStage === 'failed') {
-                onPreviewUnavailable?.();
-                return;
-            }
-            if (
-                retryStage !== 'done' ||
-                isMetadataFetching ||
-                isTokenFetching
-            ) {
-                return;
-            }
-
-            if (
-                visibleMetadataError ||
-                visibleTokenError ||
-                metadata?.state === 'unavailable' ||
-                metadata?.state === 'failed'
-            ) {
-                onPreviewUnavailable?.();
-            }
-        },
-        [
-            isMetadataFetching,
-            isTokenFetching,
-            metadata?.state,
-            onPreviewUnavailable,
-            retryStage,
-            visibleMetadataError,
-            visibleTokenError,
-        ],
-    );
-
-    if (retryStage === 'failed') {
-        return <PreviewPlaceholder message="Preview unavailable" icon={icon} />;
-    }
-    if (retryStage !== 'done') {
-        return <PreviewPlaceholder message="Loading preview…" icon={icon} />;
-    }
-
     // Keep rendering cached metadata through transient refetch errors;
     // only fall back when there is nothing to show.
     if (!metadata) {
@@ -214,9 +96,6 @@ const ChartTypeSamplePreview: FC<Props> = ({
         return (
             <PreviewPlaceholder message="No finished version yet" icon={icon} />
         );
-    }
-    if (visibleMetadataError || visibleTokenError) {
-        return <PreviewPlaceholder message="Preview unavailable" icon={icon} />;
     }
     if (!token || !previewBaseUrl) {
         return <PreviewPlaceholder message="Loading preview…" icon={icon} />;
@@ -248,7 +127,6 @@ const ChartTypeSamplePreview: FC<Props> = ({
                         identityKey={dataAppVizUuid}
                         dataAppVizContext={sampleContext}
                         dataAppVizMode
-                        onDataAppVizReady={onPreviewLoad}
                     />
                 </Box>
             )}

@@ -285,8 +285,6 @@ export type UseAppSdkBridgeParams = {
     // When set, the host pushes this render context into the iframe over the
     // existing bridge — on load and on every change. Only set for data app vizs.
     dataAppVizContext?: DataAppVizContext;
-    /** Fired after a chart SDK has requested and received its render context. */
-    onDataAppVizReady?: () => void;
     /** Chart types render host-provided rows and cannot query independently. */
     dataAppVizMode?: boolean;
     /**
@@ -366,7 +364,6 @@ export function useAppSdkBridge({
     onLineageSelected,
     onExternalRequestEvent,
     dataAppVizContext,
-    onDataAppVizReady,
     dataAppVizMode = false,
     rewriteVizUnderlyingDataRequest,
     onVizUnderlyingDataIntent,
@@ -497,7 +494,6 @@ export function useAppSdkBridge({
             // isn't a data app viz).
             if (data?.type === APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE) {
                 pushDataAppVizContext();
-                if (dataAppVizContext) onDataAppVizReady?.();
                 return;
             }
 
@@ -1246,8 +1242,6 @@ export function useAppSdkBridge({
             pushInsights,
             onInsightAction,
             onMountedQueriesChange,
-            dataAppVizContext,
-            onDataAppVizReady,
         ],
     );
 

@@ -18,11 +18,10 @@ import {
     IconDots,
     IconFilePencil,
     IconGitFork,
-    IconRefresh,
     IconTelescope,
     IconTrash,
 } from '@tabler/icons-react';
-import { type RefCallback, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { FloatingActionsPill } from '../../../components/common/FloatingActionsPill';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -44,12 +43,6 @@ type Props = {
     onClick: () => void;
     onPreview: () => void;
     onDelete: () => void;
-    previewRef: RefCallback<HTMLDivElement>;
-    previewMounted: boolean;
-    previewUnavailable: boolean;
-    onPreviewLoad: () => void;
-    onPreviewUnavailable: () => void;
-    onRetryPreview: () => void;
 };
 
 const ChartTypeGalleryCard: FC<Props> = ({
@@ -58,12 +51,6 @@ const ChartTypeGalleryCard: FC<Props> = ({
     onClick,
     onPreview,
     onDelete,
-    previewRef,
-    previewMounted,
-    previewUnavailable,
-    onPreviewLoad,
-    onPreviewUnavailable,
-    onRetryPreview,
 }) => {
     const canEdit = useCanEditDataApp(dataAppViz.projectUuid, dataAppViz);
     const canFork = useCanCreateDataApp(dataAppViz.projectUuid);
@@ -73,7 +60,6 @@ const ChartTypeGalleryCard: FC<Props> = ({
         true;
     const isOfficial = isOfficialChartType(dataAppViz);
     const [isForkOpen, setIsForkOpen] = useState(false);
-    const [previewRetryAttempt, setPreviewRetryAttempt] = useState(0);
     const displayName = getAppDisplayName(
         dataAppViz.name,
         dataAppViz.dataAppVizUuid,
@@ -89,43 +75,12 @@ const ChartTypeGalleryCard: FC<Props> = ({
                 className={classes.card}
                 onClick={onClick}
             >
-                <Box ref={previewRef} className={classes.preview}>
-                    {previewUnavailable ? (
-                        <Stack
-                            align="center"
-                            justify="center"
-                            gap="xs"
-                            h="100%"
-                        >
-                            <Text c="dimmed" size="xs">
-                                Preview unavailable
-                            </Text>
-                            <Tooltip label="Retry preview">
-                                <ActionIcon
-                                    size="md"
-                                    aria-label="Retry preview"
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        setPreviewRetryAttempt(
-                                            (attempt) => attempt + 1,
-                                        );
-                                        onRetryPreview();
-                                    }}
-                                >
-                                    <MantineIcon icon={IconRefresh} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Stack>
-                    ) : previewMounted ? (
-                        <ChartTypeSamplePreview
-                            projectUuid={dataAppViz.projectUuid}
-                            dataAppVizUuid={dataAppViz.dataAppVizUuid}
-                            icon={dataAppViz.icon}
-                            retryAttempt={previewRetryAttempt}
-                            onPreviewLoad={onPreviewLoad}
-                            onPreviewUnavailable={onPreviewUnavailable}
-                        />
-                    ) : null}
+                <Box className={classes.preview}>
+                    <ChartTypeSamplePreview
+                        projectUuid={dataAppViz.projectUuid}
+                        dataAppVizUuid={dataAppViz.dataAppVizUuid}
+                        icon={dataAppViz.icon}
+                    />
                 </Box>
                 <Stack gap="xs" p="sm">
                     <Group gap="xs" wrap="nowrap" justify="space-between">

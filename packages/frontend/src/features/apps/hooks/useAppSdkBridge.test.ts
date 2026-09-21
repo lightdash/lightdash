@@ -1211,10 +1211,7 @@ describe('data-app-viz-context push', () => {
         drillDown: { enabled: false },
     };
 
-    function renderWithDataAppVizContext(
-        ctx: DataAppVizContext | undefined,
-        onDataAppVizReady?: () => void,
-    ) {
+    function renderWithDataAppVizContext(ctx: DataAppVizContext | undefined) {
         const iframeRef = {
             current: { contentWindow: window } as unknown as HTMLIFrameElement,
         } as RefObject<HTMLIFrameElement | null>;
@@ -1227,7 +1224,6 @@ describe('data-app-viz-context push', () => {
                 appUuid: APP_UUID,
                 previewToken: PREVIEW_TOKEN,
                 dataAppVizContext: ctx,
-                onDataAppVizReady,
             }),
         );
     }
@@ -1334,15 +1330,6 @@ describe('data-app-viz-context push', () => {
             }),
             '*',
         );
-    });
-
-    it('reports ready only after a chart SDK requests its context', () => {
-        const onDataAppVizReady = vi.fn();
-        renderWithDataAppVizContext(dataAppVizContext, onDataAppVizReady);
-
-        expect(onDataAppVizReady).not.toHaveBeenCalled();
-        dispatchFetchMessage({ type: APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE });
-        expect(onDataAppVizReady).toHaveBeenCalledOnce();
     });
 
     it('does not push a render context for ordinary apps (no context)', () => {

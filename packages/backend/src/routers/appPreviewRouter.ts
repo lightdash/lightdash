@@ -1,6 +1,6 @@
 import { GetObjectCommand, S3ServiceException } from '@aws-sdk/client-s3';
 import express, { type Router } from 'express';
-import { Transform, type Readable } from 'node:stream';
+import { type Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import path from 'path';
 import { validate as isValidUuid } from 'uuid';
@@ -37,8 +37,6 @@ const CONTENT_TYPE_BY_EXT: Record<string, string> = {
     '.eot': 'application/vnd.ms-fontobject',
     '.map': 'application/json',
 };
-
-const PREVIEW_TRANSFER_TIMEOUT_MS = 60_000;
 
 export const buildCspHeader = (
     config: AppRuntimeConfig,
@@ -223,22 +221,12 @@ export const createAppPreviewRouter = (
         prepareResponse: () => void,
     ): Promise<void> => {
         const controller = new AbortController();
-        let transferTimeout: ReturnType<typeof setTimeout> | undefined;
-        let transferTimedOut = false;
-        const resetTransferTimeout = () => {
-            if (transferTimeout) clearTimeout(transferTimeout);
-            transferTimeout = setTimeout(() => {
-                transferTimedOut = true;
-                controller.abort();
-            }, PREVIEW_TRANSFER_TIMEOUT_MS);
-        };
         const cancel = () => {
             if (!res.writableFinished) controller.abort();
         };
         res.once('close', cancel);
 
         try {
-            resetTransferTimeout();
             const result = await fetchFromS3(s3Key, controller.signal);
             if (!result.ok) {
                 if (!res.destroyed) {
@@ -255,28 +243,12 @@ export const createAppPreviewRouter = (
                 return;
             }
 
-            resetTransferTimeout();
             prepareResponse();
-            const monitorProgress = new Transform({
-                transform(chunk, encoding, callback) {
-                    resetTransferTimeout();
-                    callback(null, chunk);
-                },
-            });
-            await pipeline(result.body, monitorProgress, res, {
+            await pipeline(result.body, res, {
                 signal: controller.signal,
             });
         } catch (error) {
-            if (transferTimedOut) {
-                Logger.warn('App bundle transfer timed out');
-                if (!res.headersSent && !res.destroyed) {
-                    res.status(504).json({
-                        status: 'error',
-                        error: { message: 'App bundle transfer timed out' },
-                    });
-                    return;
-                }
-            } else if (!controller.signal.aborted) {
+            if (!controller.signal.aborted) {
                 Logger.error(
                     `Failed to stream app bundle: ${error instanceof Error ? error.message : String(error)}`,
                 );
@@ -285,7 +257,6 @@ export const createAppPreviewRouter = (
             controller.abort();
             res.destroy();
         } finally {
-            if (transferTimeout) clearTimeout(transferTimeout);
             res.removeListener('close', cancel);
         }
     };

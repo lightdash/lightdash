@@ -109,7 +109,7 @@ export const useDataAppVizRenderMetadata = (
             target,
             pinnedVersion,
         ),
-        queryFn: ({ signal }) =>
+        queryFn: () =>
             lightdashApi<ApiDataAppVizRenderMetadataResponse['results']>({
                 method: 'GET',
                 url: `${getRenderBaseUrl(
@@ -120,7 +120,6 @@ export const useDataAppVizRenderMetadata = (
                     target,
                     pinnedVersion,
                 )}`,
-                signal,
             }),
         enabled: isTargetReady(projectUuid, dataAppVizUuid, target),
         retry: shouldRetryDataAppVizRenderQuery,
@@ -148,7 +147,7 @@ export const useDataAppVizPreviewToken = (
             target.savedChartUuid,
             target.chartVersionUuid,
         ],
-        queryFn: async ({ signal }) => {
+        queryFn: async () => {
             const { token } = await lightdashApi<
                 ApiDataAppVizPreviewTokenResponse['results']
             >({
@@ -160,7 +159,6 @@ export const useDataAppVizPreviewToken = (
                 )}/versions/${version}/preview-token${getChartVersionQuery(
                     target,
                 )}`,
-                signal,
             });
             return token;
         },
