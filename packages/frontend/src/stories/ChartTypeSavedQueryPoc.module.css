@@ -1,0 +1,37 @@
+.page {
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: var(--mantine-spacing-xl);
+}
+
+.queryRow {
+    width: 100%;
+    padding: var(--mantine-spacing-md);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-body);
+    text-align: left;
+}
+
+.queryRow:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.queryRow:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+}
+
+.queryRow[data-selected] {
+    border-color: var(--mantine-primary-color-filled);
+    background: var(--mantine-primary-color-light);
+}
+
+.chartLabel {
+    width: 2.625rem;
+    text-align: right;
+}
+
+.chartValue {
+    width: 2rem;
+}
