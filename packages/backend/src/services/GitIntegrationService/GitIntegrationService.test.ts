@@ -36,6 +36,7 @@ import {
     CUSTOM_METRIC,
     EXPECTED_SCHEMA_YML_WITH_CUSTOM_DIMENSION,
     EXPECTED_SCHEMA_YML_WITH_CUSTOM_METRIC,
+    EXPLORE,
     GITHUB_APP_MODEL,
     PROJECT_DBT_SOURCES_MODEL,
     PROJECT_MODEL,
@@ -209,7 +210,7 @@ describe('GitIntegrationService', () => {
                           }),
                 });
 
-                expect(writes).toBe(2);
+                expect(writes).toBe(1);
                 expect(content).toContain(
                     fieldType === 'customMetrics'
                         ? 'new_metric:'
@@ -333,7 +334,7 @@ dimensions:
                     );
                     if (invalid) {
                         await expect(request).rejects.toThrow(
-                            'Only metrics based on a native dimension',
+                            'Only metrics based on a dimension are supported',
                         );
                         expect(createBranch).not.toHaveBeenCalled();
                         expect(updateFile).not.toHaveBeenCalled();
@@ -487,7 +488,7 @@ dimensions:
             expect(getFileContent).not.toHaveBeenCalled();
         });
 
-        it('uses the model SQL and project warehouse dialect without placeholders', async () => {
+        it('uses the compiled dimension SQL and project warehouse dialect without placeholders', async () => {
             vi.mocked(getFileContent).mockResolvedValueOnce({
                 content: `version: 2
 models:
@@ -498,6 +499,22 @@ models:
           dimension:
             sql: \${TABLE}.dim_a * 2`,
                 sha: 'sha',
+            });
+            PROJECT_MODEL.findExploreContainingTable.mockResolvedValueOnce({
+                ...EXPLORE,
+                tables: {
+                    ...EXPLORE.tables,
+                    table_a: {
+                        ...EXPLORE.tables.table_a,
+                        dimensions: {
+                            ...EXPLORE.tables.table_a.dimensions,
+                            dim_a: {
+                                ...EXPLORE.tables.table_a.dimensions.dim_a,
+                                sql: '${TABLE}.dim_a * 2',
+                            },
+                        },
+                    },
+                },
             });
 
             const result = await service.previewCustomDimensions(

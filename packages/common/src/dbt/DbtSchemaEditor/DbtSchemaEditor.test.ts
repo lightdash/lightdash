@@ -8,9 +8,9 @@ import {
 import { SupportedDbtVersions } from '../../types/projects';
 import DbtSchemaEditor from './DbtSchemaEditor';
 import {
-    CUSTOM_METRIC,
-    CUSTOM_RANGE_BIN_DIMENSION,
-    CUSTOM_SQL_DIMENSION,
+    CUSTOM_DIMENSION_WRITEBACKS,
+    CUSTOM_METRIC_WRITEBACK,
+    dimensionColumn,
     EXPECTED_SCHEMA_JSON_WITH_NEW_MODEL,
     EXPECTED_SCHEMA_YML_WITH_NEW_METRICS_AND_DIMENSIONS,
     EXPECTED_SCHEMA_YML_WITH_NEW_MODEL,
@@ -42,13 +42,9 @@ describe('DbtSchemaEditor', () => {
         // confirms it has models
         expect(editor.hasModels()).toEqual(true);
         // adds custom metrics
-        editor.addCustomMetrics([CUSTOM_METRIC]);
+        editor.addCustomMetrics([CUSTOM_METRIC_WRITEBACK]);
         editor.addCustomDimensions(
-            [
-                CUSTOM_SQL_DIMENSION,
-                FIXED_WIDTH_BIN_DIMENSION,
-                CUSTOM_RANGE_BIN_DIMENSION,
-            ],
+            CUSTOM_DIMENSION_WRITEBACKS,
             warehouseClientMock,
         );
         expect(editor.toString()).toEqual(
@@ -67,7 +63,14 @@ models:
             sql: \${TABLE}.dim_a * 2`);
 
         const definition = editor.getCustomDimensionDefinition(
-            FIXED_WIDTH_BIN_DIMENSION,
+            {
+                field: FIXED_WIDTH_BIN_DIMENSION,
+                column: dimensionColumn(
+                    'table_a',
+                    'dim_a',
+                    '${TABLE}.dim_a * 2',
+                ),
+            },
             warehouseClientMock,
         );
 
@@ -248,12 +251,15 @@ describe('dbt v1.10+ compatibility', () => {
         );
         editor.addCustomMetrics([
             {
-                name: 'test_metric',
-                description: 'Test metric',
-                sql: 'COUNT(*)',
-                type: MetricType.COUNT,
-                table: 'test_table',
-                baseDimensionName: 'test_column',
+                field: {
+                    name: 'test_metric',
+                    description: 'Test metric',
+                    sql: 'COUNT(*)',
+                    type: MetricType.COUNT,
+                    table: 'test_table',
+                    baseDimensionName: 'test_column',
+                },
+                column: dimensionColumn('test_table', 'test_column'),
             },
         ]);
 
@@ -272,12 +278,15 @@ describe('dbt v1.10+ compatibility', () => {
         );
         editor.addCustomMetrics([
             {
-                name: 'test_metric',
-                description: 'Test metric',
-                sql: 'COUNT(*)',
-                type: MetricType.COUNT,
-                table: 'test_table',
-                baseDimensionName: 'test_column',
+                field: {
+                    name: 'test_metric',
+                    description: 'Test metric',
+                    sql: 'COUNT(*)',
+                    type: MetricType.COUNT,
+                    table: 'test_table',
+                    baseDimensionName: 'test_column',
+                },
+                column: dimensionColumn('test_table', 'test_column'),
             },
         ]);
 
@@ -297,12 +306,15 @@ describe('dbt v1.10+ compatibility', () => {
         editor.addCustomDimensions(
             [
                 {
-                    id: 'custom_dim',
-                    name: 'Custom Dimension',
-                    table: 'test_table',
-                    type: CustomDimensionType.SQL,
-                    sql: '${test_table.test_column} || "_suffix"',
-                    dimensionType: DimensionType.STRING,
+                    field: {
+                        id: 'custom_dim',
+                        name: 'Custom Dimension',
+                        table: 'test_table',
+                        type: CustomDimensionType.SQL,
+                        sql: '${test_table.test_column} || "_suffix"',
+                        dimensionType: DimensionType.STRING,
+                    },
+                    column: dimensionColumn('test_table', 'test_column'),
                 },
             ],
             warehouseClientMock,
@@ -324,12 +336,15 @@ describe('dbt v1.10+ compatibility', () => {
         editor.addCustomDimensions(
             [
                 {
-                    id: 'custom_dim',
-                    name: 'Custom Dimension',
-                    table: 'test_table',
-                    type: CustomDimensionType.SQL,
-                    sql: '${test_table.test_column} || "_suffix"',
-                    dimensionType: DimensionType.STRING,
+                    field: {
+                        id: 'custom_dim',
+                        name: 'Custom Dimension',
+                        table: 'test_table',
+                        type: CustomDimensionType.SQL,
+                        sql: '${test_table.test_column} || "_suffix"',
+                        dimensionType: DimensionType.STRING,
+                    },
+                    column: dimensionColumn('test_table', 'test_column'),
                 },
             ],
             warehouseClientMock,

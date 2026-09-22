@@ -33,6 +33,7 @@ import {
     CUSTOM_METRIC,
     EXPECTED_SCHEMA_YML_WITH_CUSTOM_DIMENSION,
     EXPECTED_SCHEMA_YML_WITH_CUSTOM_METRIC,
+    EXPLORE,
     SCHEMA_YML,
 } from './GitIntegrationService.mock';
 
@@ -106,6 +107,7 @@ const setup = () => {
         getExploreFromCache: vi
             .fn()
             .mockResolvedValue({ ymlPath: 'models/schema.yml' }),
+        findExploreContainingTable: vi.fn().mockResolvedValue(EXPLORE),
         getWarehouseCredentialsForProject: vi.fn().mockResolvedValue({}),
         getWarehouseClientFromCredentials: vi
             .fn()
@@ -205,7 +207,7 @@ describe('Bitbucket Explorer writeback', () => {
                       },
             );
 
-            expect(writes).toBe(2);
+            expect(writes).toBe(1);
             expect(content).toContain(
                 fieldType === 'customMetrics' ? 'new_metric:' : 'amount_size:',
             );
@@ -441,8 +443,8 @@ describe('Bitbucket Explorer writeback', () => {
     });
 
     it.each([
-        [undefined, 'missing baseDimensionName'],
-        ['missing_column', 'Column missing_column not found'],
+        [undefined, 'Only metrics based on a dimension'],
+        ['missing_column', 'Dimension "missing_column" not found'],
     ])(
         'requires an existing base dimension for metrics: %s',
         async (baseDimensionName, message) => {

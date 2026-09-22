@@ -1,14 +1,71 @@
 import {
     AdditionalMetric,
+    CompiledDimension,
+    CompiledTable,
     CustomDimensionType,
     CustomSqlDimension,
     DimensionType,
+    Explore,
+    FieldType,
     MetricType,
+    SupportedDbtAdapter,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 
+const dimension = (
+    table: string,
+    name: string,
+    sql: string,
+    index: number,
+): CompiledDimension => ({
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.STRING,
+    name,
+    label: name,
+    table,
+    tableLabel: table,
+    sql,
+    compiledSql: sql,
+    tablesReferences: [table],
+    hidden: false,
+    index,
+});
+
+const table = (
+    name: string,
+    dimensions: CompiledDimension[],
+): CompiledTable => ({
+    name,
+    label: name,
+    database: 'db',
+    schema: 'schema',
+    sqlTable: name,
+    dimensions: Object.fromEntries(dimensions.map((dim) => [dim.name, dim])),
+    metrics: {},
+    lineageGraph: {},
+});
+
+export const EXPLORE: Explore = {
+    name: 'table_a',
+    label: 'table_a',
+    tags: [],
+    baseTable: 'table_a',
+    targetDatabase: SupportedDbtAdapter.BIGQUERY,
+    joinedTables: [],
+    tables: {
+        table_a: table('table_a', [
+            dimension('table_a', 'dim_a', '${TABLE}.dim_a', 0),
+            dimension('table_a', 'dim_b', '${TABLE}.dim_b', 1),
+        ]),
+        table_b: table('table_b', [
+            dimension('table_b', 'dim_a', '${TABLE}.dim_a', 0),
+        ]),
+    },
+};
+
 export const PROJECT_MODEL = {
+    findExploreContainingTable: vi.fn().mockResolvedValue(EXPLORE),
     getAllExploresFromCache: vi.fn().mockResolvedValue({
         another_explore: {
             tables: { table_a: { ymlPath: 'models/nested/original.yaml' } },
