@@ -132,6 +132,7 @@ type CreateProjectOptions = {
     upstreamProjectUuid?: string;
     tableConfiguration?: CreateProjectTableConfiguration;
     copyContent?: boolean;
+    asyncCopyContent?: boolean;
     warehouseCredentials?: boolean;
     organizationCredentials?: string;
     targetPath?: string;
@@ -409,7 +410,7 @@ export const createProject = async (
         dbtVersion: dbtVersionOption,
         tableConfiguration: options.tableConfiguration,
         copyContent: options.copyContent,
-        asyncCopyContent: true,
+        asyncCopyContent: options.asyncCopyContent ?? false,
         organizationWarehouseCredentialsUuid,
         ...(options.expiresIn !== undefined
             ? { expiresInHours: options.expiresIn }

@@ -47,6 +47,7 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     ignoreErrors: boolean;
     tableConfiguration: CreateProjectTableConfiguration;
     skipCopyContent?: boolean;
+    asyncCopyContent?: boolean;
     organizationCredentials?: string;
     assumeYes?: boolean;
     warehouseCredentials?: boolean;

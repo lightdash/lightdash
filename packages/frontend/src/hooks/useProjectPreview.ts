@@ -16,11 +16,13 @@ import useToaster from './toaster/useToaster';
 const createPreviewProject = async ({
     projectUuid,
     name,
+    asyncCopyContent,
     dbtConnectionOverrides,
     warehouseConnectionOverrides,
 }: {
     projectUuid: string;
     name: string;
+    asyncCopyContent: boolean;
     dbtConnectionOverrides?: {
         branch?: string;
         environment?: DbtProjectEnvironmentVariable[];
@@ -34,7 +36,7 @@ const createPreviewProject = async ({
         body: JSON.stringify({
             name,
             copyContent: true, // TODO add this option to the UI
-            asyncCopyContent: true,
+            asyncCopyContent,
             dbtConnectionOverrides,
             warehouseConnectionOverrides,
         }),
@@ -79,6 +81,7 @@ export const useCreatePreviewMutation = () => {
         {
             projectUuid: string;
             name: string;
+            asyncCopyContent: boolean;
             dbtConnectionOverrides?: {
                 branch?: string;
                 environment?: DbtProjectEnvironmentVariable[];
