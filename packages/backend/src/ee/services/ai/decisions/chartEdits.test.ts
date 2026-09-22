@@ -10,7 +10,11 @@ import {
     type ToolRunQueryBuiltinChartConfig,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { applyChartIntent, getFilterFieldIds } from './chartEdits';
+import {
+    applyChartIntent,
+    calendarRange,
+    getFilterFieldIds,
+} from './chartEdits';
 
 const artifact: AiSemanticChartArtifactConfig = {
     source: 'semantic',
@@ -422,6 +426,78 @@ describe('applyChartIntent', () => {
                 { operator: FilterOperator.IN_THE_CURRENT },
             ]);
             expect(edit?.response).toBe('Filtered to this month.');
+        });
+
+        it('filters to a previous complete calendar period', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'filter_period',
+                    fieldId: 'orders_date',
+                    period: { type: 'previous', unit: 'years' },
+                },
+                artifact,
+                explore,
+            });
+            expect(rulesOf(edit)).toMatchObject([
+                {
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [1],
+                    settings: { unitOfTime: UnitOfTime.years, completed: true },
+                },
+            ]);
+            expect(edit?.response).toBe('Filtered to last year.');
+        });
+
+        it.each([
+            [
+                { quarter: null, month: null },
+                ['2023-01-01', '2023-12-31'],
+                'Filtered to 2023.',
+            ],
+            [
+                { quarter: 1, month: null },
+                ['2023-01-01', '2023-03-31'],
+                'Filtered to Q1 2023.',
+            ],
+            [
+                { quarter: null, month: 3 },
+                ['2023-03-01', '2023-03-31'],
+                'Filtered to March 2023.',
+            ],
+        ] as const)(
+            'filters to a named calendar period %j',
+            (narrowing, range, response) => {
+                const period = {
+                    type: 'calendar' as const,
+                    year: 2023,
+                    ...narrowing,
+                };
+                expect(calendarRange(period)).toEqual(range);
+                const edit = applyChartIntent({
+                    intent: {
+                        kind: 'filter_period',
+                        fieldId: 'orders_date',
+                        period,
+                    },
+                    artifact,
+                    explore,
+                });
+                expect(rulesOf(edit)).toMatchObject([
+                    { operator: FilterOperator.IN_BETWEEN },
+                ]);
+                expect(edit?.response).toBe(response);
+            },
+        );
+
+        it('ends February on the leap day', () => {
+            expect(
+                calendarRange({
+                    type: 'calendar',
+                    year: 2024,
+                    quarter: null,
+                    month: 2,
+                }),
+            ).toEqual(['2024-02-01', '2024-02-29']);
         });
 
         it('preserves other-field filters and rejects OR groups', () => {

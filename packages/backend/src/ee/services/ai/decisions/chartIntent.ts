@@ -38,6 +38,17 @@ export const PERIOD_UNITS = [
 ] as const;
 export type PeriodUnit = (typeof PERIOD_UNITS)[number];
 
+export type ChartPeriod =
+    | { type: 'last'; count: number; unit: PeriodUnit }
+    | { type: 'current'; unit: PeriodUnit }
+    | { type: 'previous'; unit: PeriodUnit }
+    | {
+          type: 'calendar';
+          year: number;
+          quarter: number | null;
+          month: number | null;
+      };
+
 export type ChartIntent =
     | { kind: 'chart_type'; chartType: ChartTypeOption }
     | { kind: 'series'; op: 'stack' | 'unstack' | 'swap' | 'split' }
@@ -55,9 +66,7 @@ export type ChartIntent =
     | {
           kind: 'filter_period';
           fieldId: string;
-          period:
-              | { type: 'last'; count: number; unit: PeriodUnit }
-              | { type: 'current'; unit: PeriodUnit };
+          period: ChartPeriod;
       }
     | { kind: 'clear_filters' }
     | {
@@ -128,6 +137,8 @@ export type ChartIntentContext = {
     filterableFields: FieldCandidate[];
 };
 
+const CHART_INTENT_TIMEOUT_MS = 1_500;
+
 // Thresholds are calibrated against the labelled prompt set; see chartIntent.eval.
 export const CHART_INTENT_THRESHOLDS = {
     intent: 0.45,
@@ -197,6 +208,23 @@ const INTENTS = {
         'Too vague or ambiguous to tell what the user wants done to the chart',
 } as const;
 type IntentKey = keyof typeof INTENTS;
+
+const MONTHS = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+];
+
+const isYear = (value: number) => value >= 1900 && value <= 2100;
 
 const WORD_NUMBERS: Record<string, number> = {
     one: 1,
@@ -458,6 +486,10 @@ export const buildChartIntentQuestions = ({
                     'A trailing time window such as the last 30 days or past 6 months',
                 current_period:
                     'The current calendar period such as this week, this month or this year',
+                previous_period:
+                    'The previous complete calendar period such as last year, last quarter or last month',
+                calendar_period:
+                    'A specific named calendar year, quarter or month such as 2023, Q1 2024 or March 2024',
                 other: 'Any other kind of filter',
             },
         },
@@ -474,6 +506,29 @@ export const buildChartIntentQuestions = ({
             },
         },
     };
+    if (numbers.some(isYear)) {
+        questions.calendarQuarter = {
+            type: 'choice',
+            instructions: 'If the user names a calendar quarter, which one?',
+            criteria: {
+                q1: 'First quarter (Q1)',
+                q2: 'Second quarter (Q2)',
+                q3: 'Third quarter (Q3)',
+                q4: 'Fourth quarter (Q4)',
+                none: 'No quarter is named',
+            },
+        };
+        questions.calendarMonth = {
+            type: 'choice',
+            instructions: 'If the user names a calendar month, which one?',
+            criteria: {
+                ...Object.fromEntries(
+                    MONTHS.map((name, index) => [`m${index + 1}`, name]),
+                ),
+                none: 'No month is named',
+            },
+        };
+    }
     if (context.addableFields.length > 0) {
         questions.addField = {
             type: 'choice',
@@ -661,6 +716,29 @@ const resolveSort = (
     };
 };
 
+/** A named calendar year, optionally narrowed to one quarter or month, all read from the prompt. */
+const resolveCalendarPeriod = (
+    answers: DecisionAnswers,
+    numbers: number[],
+    threshold: number,
+): Extract<ChartPeriod, { type: 'calendar' }> | null => {
+    const years = numbers.filter(isYear);
+    if (years.length !== 1) return null;
+    const quarter = confident(answers.calendarQuarter, threshold);
+    const month = confident(answers.calendarMonth, threshold);
+    const quarterNumber =
+        quarter && quarter !== 'none' ? Number(quarter.slice(1)) : null;
+    const monthNumber =
+        month && month !== 'none' ? Number(month.slice(1)) : null;
+    if (quarterNumber !== null && monthNumber !== null) return null;
+    return {
+        type: 'calendar',
+        year: years[0],
+        quarter: quarterNumber,
+        month: monthNumber,
+    };
+};
+
 const resolveFilter = (
     answers: DecisionAnswers,
     context: ChartIntentContext,
@@ -675,7 +753,12 @@ const resolveFilter = (
     const chosenField = context.filterableFields.find(
         ({ id }) => id === chosen,
     );
-    if (kind === 'last_period' || kind === 'current_period') {
+    if (
+        kind === 'last_period' ||
+        kind === 'current_period' ||
+        kind === 'previous_period' ||
+        kind === 'calendar_period'
+    ) {
         const queryDates = context.currentFields.filter(
             ({ id, isDate }) =>
                 isDate &&
@@ -685,9 +768,32 @@ const resolveFilter = (
             queryDates.length === 1
                 ? queryDates[0]
                 : [chosenField].find((candidate) => candidate?.isDate);
+        if (!dateField) return { type: 'unresolved', reason: 'filter-period' };
+        if (kind === 'calendar_period') {
+            const period = resolveCalendarPeriod(answers, numbers, option);
+            return period
+                ? {
+                      type: 'intent',
+                      intent: {
+                          kind: 'filter_period',
+                          fieldId: dateField.id,
+                          period,
+                      },
+                  }
+                : { type: 'unresolved', reason: 'filter-calendar' };
+        }
         const unit = confident(answers.periodUnit, option);
-        if (!dateField || !isPeriodUnit(unit))
+        if (!isPeriodUnit(unit))
             return { type: 'unresolved', reason: 'filter-period' };
+        if (kind === 'previous_period')
+            return {
+                type: 'intent',
+                intent: {
+                    kind: 'filter_period',
+                    fieldId: dateField.id,
+                    period: { type: 'previous', unit },
+                },
+            };
         if (kind === 'current_period')
             return {
                 type: 'intent',
@@ -941,6 +1047,8 @@ export const decideTurn = async ({
 }): Promise<{ decision: TurnDecision; answers: DecisionAnswers | null }> => {
     const answers = await decisions.evaluate({
         operation: context ? 'chart-intent' : 'model-routing',
+        // A timeout here costs a full agent run, so the batched request gets more room.
+        timeoutMs: context ? CHART_INTENT_TIMEOUT_MS : undefined,
         state: context
             ? {
                   prompt,

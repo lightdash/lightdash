@@ -36,6 +36,7 @@ const responseSchema = z.object({
     usage: usageSchema.optional(),
 });
 const MAX_DECISION_PAYLOAD_BYTES = 100_000;
+const MAX_DECISION_TIMEOUT_MS = 2_000;
 const LOGGED_OPERATIONS = new Set([
     'agent-readiness',
     'agent-routing',
@@ -137,11 +138,14 @@ export class AiDecisionClient {
         state,
         questions,
         signal,
+        timeoutMs,
     }: {
         operation: string;
         state: unknown;
         questions: Record<string, DecisionQuestion>;
         signal?: AbortSignal;
+        /** Per-call budget for larger batched requests; capped at the client maximum. */
+        timeoutMs?: number;
     }): Promise<DecisionAnswers | null> {
         if (
             !this.config.apiKey ||
@@ -173,7 +177,12 @@ export class AiDecisionClient {
                 outcome = 'state-too-large';
                 return null;
             }
-            const deadline = AbortSignal.timeout(this.config.timeoutMs);
+            const deadline = AbortSignal.timeout(
+                Math.min(
+                    Math.max(timeoutMs ?? 0, this.config.timeoutMs),
+                    MAX_DECISION_TIMEOUT_MS,
+                ),
+            );
             const response = await this.request(
                 'https://api.typesafe.ai/v1/systemone',
                 {

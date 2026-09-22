@@ -18,7 +18,7 @@ import {
     type ToolRunQueryBuiltinChartConfig,
 } from '@lightdash/common';
 import { resolveSearchFieldValuesFilterExpression } from '../utils/filterExpressions';
-import type { ChartIntent, ChartTypeOption } from './chartIntent';
+import type { ChartIntent, ChartPeriod, ChartTypeOption } from './chartIntent';
 
 export type ChartEdit = {
     config: AiSemanticChartArtifactConfig;
@@ -92,15 +92,48 @@ const formatFilterField = (fieldId: string): string =>
         ? fieldId
         : `\`${fieldId.replaceAll('\\', '\\\\').replaceAll('`', '\\`')}\``;
 
+const isoDate = (date: Date) => date.toISOString().slice(0, 10);
+
+/** First and last day of a named calendar year, quarter or month (UTC, inclusive). */
+export const calendarRange = (
+    period: Extract<ChartPeriod, { type: 'calendar' }>,
+): [string, string] => {
+    let firstMonth = 0;
+    let months = 12;
+    if (period.quarter !== null) {
+        firstMonth = (period.quarter - 1) * 3;
+        months = 3;
+    } else if (period.month !== null) {
+        firstMonth = period.month - 1;
+        months = 1;
+    }
+    const start = new Date(Date.UTC(period.year, firstMonth, 1));
+    const end = new Date(Date.UTC(period.year, firstMonth + months, 0));
+    return [isoDate(start), isoDate(end)];
+};
+
+const periodExpression = (period: ChartPeriod): string => {
+    switch (period.type) {
+        case 'last':
+            return `${FilterOperator.IN_THE_PAST}=${period.count}{unit:${period.unit},completed:false}`;
+        case 'previous':
+            return `${FilterOperator.IN_THE_PAST}=1{unit:${period.unit},completed:true}`;
+        case 'current':
+            return `${FilterOperator.IN_THE_CURRENT}=${period.unit}`;
+        case 'calendar': {
+            const [start, end] = calendarRange(period);
+            return `${FilterOperator.IN_BETWEEN}=${start},${end}`;
+        }
+        default:
+            return assertUnreachable(period, 'Unknown chart period');
+    }
+};
+
 const periodRules = (
     intent: Extract<ChartIntent, { kind: 'filter_period' }>,
     explore: Explore,
 ): RuleInput[] | null => {
-    const field = formatFilterField(intent.fieldId);
-    const expression =
-        intent.period.type === 'last'
-            ? `${field} ${FilterOperator.IN_THE_PAST}=${intent.period.count}{unit:${intent.period.unit},completed:false}`
-            : `${field} ${FilterOperator.IN_THE_CURRENT}=${intent.period.unit}`;
+    const expression = `${formatFilterField(intent.fieldId)} ${periodExpression(intent.period)}`;
     const resolved = resolveSearchFieldValuesFilterExpression({
         expressionInput: expression,
         explore,
@@ -167,12 +200,41 @@ const describeValueFilter = (
     return intent.exclude ? `Excluded ${values}.` : `Filtered to ${values}.`;
 };
 
-const describePeriod = (
-    intent: Extract<ChartIntent, { kind: 'filter_period' }>,
-) =>
-    intent.period.type === 'last'
-        ? `Filtered to the last ${intent.period.count} ${intent.period.unit}.`
-        : `Filtered to this ${intent.period.unit.replace(/s$/, '')}.`;
+const MONTH_NAMES = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+];
+
+const describePeriod = ({
+    period,
+}: Extract<ChartIntent, { kind: 'filter_period' }>): string => {
+    switch (period.type) {
+        case 'last':
+            return `Filtered to the last ${period.count} ${period.unit}.`;
+        case 'previous':
+            return `Filtered to last ${period.unit.replace(/s$/, '')}.`;
+        case 'current':
+            return `Filtered to this ${period.unit.replace(/s$/, '')}.`;
+        case 'calendar':
+            if (period.quarter !== null)
+                return `Filtered to Q${period.quarter} ${period.year}.`;
+            if (period.month !== null)
+                return `Filtered to ${MONTH_NAMES[period.month - 1]} ${period.year}.`;
+            return `Filtered to ${period.year}.`;
+        default:
+            return assertUnreachable(period, 'Unknown chart period');
+    }
+};
 
 const applyFilter = (
     intent: Extract<

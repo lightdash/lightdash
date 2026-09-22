@@ -196,6 +196,55 @@ describe('interpretChartIntent', () => {
         });
     });
 
+    it('reads a named calendar year and month from the prompt', () => {
+        expect(
+            interpret('only March 2024', {
+                intent: choice('filter'),
+                filterKind: choice('calendar_period'),
+                calendarMonth: choice('m3'),
+                calendarQuarter: choice('none'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'filter_period',
+                fieldId: 'orders_date',
+                period: {
+                    type: 'calendar',
+                    year: 2024,
+                    quarter: null,
+                    month: 3,
+                },
+            },
+        });
+    });
+
+    it('needs exactly one stated year for a calendar period', () => {
+        expect(
+            interpret('from 2022 to 2024', {
+                intent: choice('filter'),
+                filterKind: choice('calendar_period'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'filter-calendar' });
+    });
+
+    it('resolves the previous complete period', () => {
+        expect(
+            interpret('last year only', {
+                intent: choice('filter'),
+                filterKind: choice('previous_period'),
+                periodUnit: choice('years'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'filter_period',
+                fieldId: 'orders_date',
+                period: { type: 'previous', unit: 'years' },
+            },
+        });
+    });
+
     it('only accepts numbers stated in the prompt', () => {
         expect(
             interpret('top few', {
