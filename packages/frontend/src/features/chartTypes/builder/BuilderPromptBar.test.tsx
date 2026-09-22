@@ -6,7 +6,14 @@ import {
 } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { forwardRef, useImperativeHandle, useRef, type ReactNode } from 'react';
+import {
+    forwardRef,
+    useImperativeHandle,
+    useRef,
+    useState,
+    type ComponentProps,
+    type ReactNode,
+} from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -215,6 +222,23 @@ const modelSelection = (
     clearPick: vi.fn(),
 });
 
+// The host owns the sample-data button's state; the harness stands in for it.
+const ControlledPromptBar = (
+    props: Omit<
+        ComponentProps<typeof BuilderPromptBar>,
+        'includeSampleData' | 'onIncludeSampleDataChange'
+    >,
+) => {
+    const [includeSampleData, setIncludeSampleData] = useState(false);
+    return (
+        <BuilderPromptBar
+            {...props}
+            includeSampleData={includeSampleData}
+            onIncludeSampleDataChange={setIncludeSampleData}
+        />
+    );
+};
+
 const promptBar = ({
     build = buildState(),
     isBuilding = false,
@@ -247,7 +271,7 @@ const promptBar = ({
     onCaptureScreenshot?: () => Promise<File>;
 } = {}) => (
     <MemoryRouter>
-        <BuilderPromptBar
+        <ControlledPromptBar
             projectUuid="p1"
             composerAppUuid="draft-1"
             sessionKey="session-1"

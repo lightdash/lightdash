@@ -1,7 +1,4 @@
-import {
-    normalizeIndexColumns,
-    type DataAppVizContext,
-} from '@lightdash/common';
+import { type DataAppVizContext } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -13,62 +10,16 @@ import {
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { type ChartTypePreviewDataSource } from './ChartInputsList';
+import {
+    getChartTypeRowColumns,
+    rowsFromVizContext,
+    type ChartTypeRows,
+} from './chartTypeRows';
 import classes from './ChartTypeSampleData.module.css';
 
 const SAMPLE_SOURCE: ChartTypePreviewDataSource = { kind: 'sample' };
 
-type Column = { reference: string; label: string };
 type SampleRow = DataAppVizContext['rows'][number];
-
-/** The rows a modal lists, with a label per column; independent of a schema
- *  so a query can be inspected before any version exists. */
-export type ChartTypeRows = {
-    rows: DataAppVizContext['rows'];
-    pivotDetails: DataAppVizContext['pivotDetails'];
-    labels: Record<string, string>;
-};
-
-const rowsFromVizContext = (context: DataAppVizContext): ChartTypeRows => ({
-    rows: context.rows,
-    pivotDetails: context.pivotDetails,
-    labels: Object.fromEntries(
-        Object.entries(context.fields).map(([id, field]) => [id, field.label]),
-    ),
-});
-
-const getColumns = ({
-    rows,
-    pivotDetails,
-    labels,
-}: ChartTypeRows): Column[] => {
-    if (!pivotDetails) {
-        return Object.keys(rows[0] ?? {}).map((reference) => ({
-            reference,
-            label: labels[reference] ?? reference,
-        }));
-    }
-
-    const indexColumns = normalizeIndexColumns(pivotDetails.indexColumn).map(
-        ({ reference }) => ({
-            reference,
-            label:
-                labels[reference] ??
-                pivotDetails.originalColumns[reference]?.label ??
-                reference,
-        }),
-    );
-    const valueColumns = pivotDetails.valuesColumns.map((column) => ({
-        reference: column.pivotColumnName,
-        label: [
-            labels[column.referenceField] ??
-                pivotDetails.originalColumns[column.referenceField]?.label ??
-                column.referenceField,
-            ...column.pivotValues.map((value) => value.formatted),
-        ].join(' · '),
-    }));
-
-    return [...indexColumns, ...valueColumns];
-};
 
 const cellValue = (value: SampleRow[string]) => value?.value.formatted ?? '';
 
@@ -89,7 +40,7 @@ export const ChartTypeRowsModal: FC<ModalProps> = ({
     subtitle,
 }) => {
     const availableColumns = useMemo(
-        () => (data ? getColumns(data) : []),
+        () => (data ? getChartTypeRowColumns(data) : []),
         [data],
     );
     const columns = useMemo<ContentTableColumnDef<SampleRow>[]>(
@@ -177,10 +128,10 @@ export const ChartTypeSampleData: FC<Props> = ({
                 data={rows}
                 opened={opened}
                 onClose={() => setOpened(false)}
-                title={isLive ? 'Preview data' : 'Sample data'}
+                title={isLive ? 'Query results' : 'Sample data'}
                 subtitle={
                     isLive
-                        ? 'Rows returned by the saved chart this preview runs on.'
+                        ? 'Rows returned by the saved chart this chart runs on.'
                         : 'Generated example values used in this preview.'
                 }
             />

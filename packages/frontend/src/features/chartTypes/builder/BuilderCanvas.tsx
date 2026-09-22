@@ -187,7 +187,7 @@ const BuilderCanvas: FC<Props> = ({
                         </Title>
                         <Text fz="xs" c="dimmed" maw={400} ta="center" lh={1.5}>
                             {attachedChart
-                                ? `Describe the chart you’ve always wanted. Examples below use the fields in ${attachedChart.chartName}.`
+                                ? 'Describe the chart you want. The examples below use fields from your saved chart.'
                                 : 'Describe the chart you’ve always wanted, or start from an example.'}
                         </Text>
                     </Stack>

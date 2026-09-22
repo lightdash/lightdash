@@ -31,13 +31,12 @@ import {
 } from '../features/chartTypes/builder/ChartInputsList';
 import ChartTypeBuilderHeader from '../features/chartTypes/builder/ChartTypeBuilderHeader';
 import ChartTypeBuilderWorkspace from '../features/chartTypes/builder/ChartTypeBuilderWorkspace';
-import {
-    ChartTypeRowsModal,
-    type ChartTypeRows,
-} from '../features/chartTypes/builder/ChartTypeSampleData';
+import { type ChartTypeRows } from '../features/chartTypes/builder/chartTypeRows';
+import { ChartTypeRowsModal } from '../features/chartTypes/builder/ChartTypeSampleData';
 import ConfigurePanel from '../features/chartTypes/builder/ConfigurePanel';
 import {
     type PickedSavedChart,
+    type PreviewSource,
     type SavedChartSourceControls,
 } from '../features/chartTypes/builder/savedChartSource';
 import { useChartTypeBuilderWorkspace } from '../features/chartTypes/builder/useChartTypeBuilderWorkspace';
@@ -117,6 +116,9 @@ const ChartTypeBuilder: FC = () => {
     );
     const liveRun = previewData.status === 'ready' ? previewData : null;
     const itemsMap = liveRun?.itemsMap ?? NO_ITEMS;
+    // The author's lens: sample rows even while a chart is attached.
+    const [sampleLens, setSampleLens] = useState(false);
+    const previewRun = sampleLens ? null : liveRun;
     // The run's rows, listable before any version declares a schema.
     const liveRows = useMemo<ChartTypeRows | null>(
         () =>
@@ -165,6 +167,7 @@ const ChartTypeBuilder: FC = () => {
             if (uuid === null) next.delete(SAVED_CHART_PARAM);
             else next.set(SAVED_CHART_PARAM, uuid);
             setFieldMappingOverrides(NO_MAPPING);
+            setSampleLens(false);
             void navigate(
                 { pathname: location.pathname, search: next.toString() },
                 { replace: true },
@@ -179,7 +182,7 @@ const ChartTypeBuilder: FC = () => {
     useEffect(() => {
         if (previewError === null) return;
         showToastError({
-            title: 'Could not load the saved chart data',
+            title: 'Couldn’t load the saved chart’s data',
             subtitle: previewError,
         });
     }, [previewError, showToastError]);
@@ -239,7 +242,7 @@ const ChartTypeBuilder: FC = () => {
     // otherwise. Rebuilt on any option or palette edit.
     const previewContext = useMemo(() => {
         if (!schema) return null;
-        if (!liveRun) {
+        if (!previewRun) {
             return buildSampleVizContext(
                 schema,
                 colorPalette,
@@ -248,17 +251,17 @@ const ChartTypeBuilder: FC = () => {
         }
         return buildExplorerVizContext({
             schema,
-            itemsMap: liveRun.itemsMap,
+            itemsMap: previewRun.itemsMap,
             persistedFieldMapping: previewFieldMapping,
-            rows: liveRun.rows,
-            pivotDetails: liveRun.pivotDetails,
+            rows: previewRun.rows,
+            pivotDetails: previewRun.pivotDetails,
             colorPalette,
             optionValues: panel.optionValues,
             resolvedColors,
         });
     }, [
         schema,
-        liveRun,
+        previewRun,
         colorPalette,
         panel.optionValues,
         resolvedColors,
@@ -299,6 +302,7 @@ const ChartTypeBuilder: FC = () => {
     );
 
     const previewDataSource = useMemo<ChartTypePreviewDataSource>(() => {
+        if (sampleLens) return { kind: 'sample' };
         switch (previewData.status) {
             case 'notRun':
                 return { kind: 'sample' };
@@ -322,11 +326,13 @@ const ChartTypeBuilder: FC = () => {
                     'Unknown saved chart preview status',
                 );
         }
-    }, [previewData]);
+    }, [previewData, sampleLens]);
 
     // One object for every surface that offers the saved chart: the canvas
     // card, the composer chip and the sidebar.
     const savedChartSource = useMemo<SavedChartSourceControls>(() => {
+        const previewSource: PreviewSource =
+            savedChartUuid !== null && !sampleLens ? 'chart' : 'sample';
         const attach = (chart: PickedSavedChart) =>
             setSavedChartParam(chart.uuid);
         const controls = {
@@ -334,6 +340,11 @@ const ChartTypeBuilder: FC = () => {
             detach: () => setSavedChartParam(null),
             viewRows: () => setIsRowsModalOpen(true),
             retry: retryPreview,
+            includeRows: workspace.includeSampleData,
+            setIncludeRows: workspace.setIncludeSampleData,
+            previewSource,
+            setPreviewSource: (source: PreviewSource) =>
+                setSampleLens(source === 'sample'),
         };
         switch (previewData.status) {
             case 'notRun':
@@ -383,13 +394,21 @@ const ChartTypeBuilder: FC = () => {
                     'Unknown saved chart preview status',
                 );
         }
-    }, [previewData, retryPreview, setSavedChartParam]);
+    }, [
+        previewData,
+        retryPreview,
+        setSavedChartParam,
+        workspace.includeSampleData,
+        workspace.setIncludeSampleData,
+        savedChartUuid,
+        sampleLens,
+    ]);
 
     const inputsBinding = useMemo<ChartInputsBinding | null>(
         () =>
-            liveRun
+            previewRun
                 ? {
-                      itemsMap: liveRun.itemsMap,
+                      itemsMap: previewRun.itemsMap,
                       fieldMapping: previewFieldMapping,
                       onFieldChange: (fieldName, fieldId) =>
                           setFieldMappingOverrides((current) => ({
@@ -400,7 +419,7 @@ const ChartTypeBuilder: FC = () => {
                           })),
                   }
                 : null,
-        [liveRun, previewFieldMapping],
+        [previewRun, previewFieldMapping],
     );
 
     const examplePrompts = useMemo(

@@ -99,6 +99,10 @@ export type ChartTypeBuilderWorkspaceState = {
     toggleHistory: () => void;
     isPromptBarMounted: boolean;
     promptSessionKey: string;
+    /** Whether the next prompt carries the run's rows: the composer's
+     *  sample-data button, read wherever the source is described. */
+    includeSampleData: boolean;
+    setIncludeSampleData: (included: boolean) => void;
     composerAppUuid: string;
     sdkUpgradeOffer: SdkUpgradeOffer;
     onSdkManifest: (manifest: SdkManifest) => void;
@@ -185,6 +189,7 @@ export const useChartTypeBuilderWorkspace = ({
         pinnedAtLatest: number | null;
     } | null>(null);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [includeSampleData, setIncludeSampleData] = useState(false);
     useEffect(() => {
         const prev = prevVizUuid.current;
         prevVizUuid.current = dataAppVizUuid;
@@ -192,6 +197,7 @@ export const useChartTypeBuilderWorkspace = ({
         setPromptSessionKey(dataAppVizUuid ?? latestDraftAppUuid.current);
         setPin(null);
         setIsHistoryOpen(false);
+        setIncludeSampleData(false);
         clearModelPick();
         resetClarification();
     }, [dataAppVizUuid, clearModelPick, resetClarification]);
@@ -344,6 +350,8 @@ export const useChartTypeBuilderWorkspace = ({
         toggleHistory,
         isPromptBarMounted,
         promptSessionKey,
+        includeSampleData,
+        setIncludeSampleData,
         composerAppUuid: dataAppVizUuid ?? build.appUuid ?? build.draftAppUuid,
         sdkUpgradeOffer,
         onSdkManifest,

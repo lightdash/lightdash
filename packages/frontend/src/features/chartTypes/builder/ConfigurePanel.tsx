@@ -20,8 +20,8 @@ import ChartInputsList, {
 } from './ChartInputsList';
 import { ChartTypeSampleData } from './ChartTypeSampleData';
 import classes from './ConfigurePanel.module.css';
+import PreviewRowsPeek from './PreviewRowsPeek';
 import SavedChartDataSourceSection from './SavedChartDataSourceSection';
-import SavedChartResultsPeek from './SavedChartResultsPeek';
 import { type SavedChartSourceControls } from './savedChartSource';
 
 const SAMPLE_SOURCE: ChartTypePreviewDataSource = { kind: 'sample' };
@@ -95,7 +95,6 @@ const ConfigurePanel: FC<Props> = ({
         );
     }, [schema.fields, previewContext, previewDataSource]);
 
-    const hasAttachedSource = savedChartSource?.attached != null;
     const [selectedTab, setSelectedTab] = useState<string | null>('general');
     // A tab a rebuild stopped declaring must not leave the panel blank.
     const activeTab =
@@ -126,20 +125,23 @@ const ConfigurePanel: FC<Props> = ({
 
                 <Tabs.Panel value="general" className={classes.tabPanel}>
                     <Stack gap="sm" p="sm">
-                        {hasAttachedSource && savedChartSource && (
+                        {savedChartSource && (
                             <SavedChartDataSourceSection
                                 source={savedChartSource}
                             />
                         )}
                         <ChartInputsList
                             fields={schema.fields}
-                            dataSource={previewDataSource}
                             boundLabels={inputsBinding ? null : boundLabels}
                             binding={inputsBinding}
                         />
-                        {hasAttachedSource && savedChartSource ? (
-                            <SavedChartResultsPeek
+                        <DataAppVizInputGuidance
+                            guidance={schema.inputGuidance}
+                        />
+                        {savedChartSource ? (
+                            <PreviewRowsPeek
                                 source={savedChartSource}
+                                fields={schema.fields}
                                 context={previewContext}
                             />
                         ) : (
@@ -148,9 +150,6 @@ const ConfigurePanel: FC<Props> = ({
                                 dataSource={previewDataSource}
                             />
                         )}
-                        <DataAppVizInputGuidance
-                            guidance={schema.inputGuidance}
-                        />
                         {optionGroups.length === 0 && (
                             <Text fz="xs" c="dimmed">
                                 This chart type declares no display options.

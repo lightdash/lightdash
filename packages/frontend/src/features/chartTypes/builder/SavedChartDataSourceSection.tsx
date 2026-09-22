@@ -2,9 +2,13 @@ import { Box, Button, Group, Loader, Stack, Text } from '@mantine/core';
 import {
     IconChartBar,
     IconFlask,
+    IconRefresh,
+    IconSearch,
     IconSwitchHorizontal,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { formatDistanceToNow } from 'date-fns';
+import { useState, type FC, type ReactNode } from 'react';
+import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './SavedChartDataSourceSection.module.css';
 import SavedChartPickerPopover from './SavedChartPickerPopover';
@@ -12,87 +16,145 @@ import { type SavedChartSourceControls } from './savedChartSource';
 
 type Props = { source: SavedChartSourceControls };
 
-/** The sidebar's "Data source": which saved chart the preview runs on, and
- *  the two ways out of it. */
+/** The sidebar's "Data source": the tile the preview currently renders from,
+ *  sample or saved chart, and the ways to change it. Switching to sample data
+ *  keeps the chart attached. */
 const SavedChartDataSourceSection: FC<Props> = ({ source }) => {
     const [pickerOpened, setPickerOpened] = useState(false);
     const attached = source.attached;
-    if (!attached) return null;
+    const showingChart = attached !== null && source.previewSource === 'chart';
 
-    const space = attached.spaceName ?? 'Saved charts';
-    const meta =
-        attached.status === 'ready'
-            ? `Saved chart · ${space} · ${attached.rowCount ?? 0} ${
-                  attached.rowCount === 1 ? 'row' : 'rows'
-              }`
-            : attached.status === 'error'
-              ? (attached.message ?? 'The query failed')
-              : `Saved chart · ${space} · running query…`;
+    const pickerButton = (label: string, icon: typeof IconSearch) => (
+        <SavedChartPickerPopover
+            opened={pickerOpened}
+            onOpenedChange={setPickerOpened}
+            attached={null}
+            onPick={source.attach}
+        >
+            <Button
+                variant="default"
+                size="compact-xs"
+                leftSection={<MantineIcon icon={icon} size={14} />}
+                onClick={() => setPickerOpened((opened) => !opened)}
+            >
+                {label}
+            </Button>
+        </SavedChartPickerPopover>
+    );
 
-    return (
-        <Stack gap="xs">
-            <Text fz="sm" fw={600}>
-                Data source
+    let title: string;
+    let meta: ReactNode;
+    let actions: ReactNode;
+    if (!showingChart) {
+        title = 'Sample data';
+        meta = (
+            <Text fz="xs" c="dimmed" truncate>
+                Generated from the chart inputs
             </Text>
-            <Group className={classes.sourceRow} gap="sm" wrap="nowrap">
-                <Box className={classes.iconTile}>
-                    <MantineIcon icon={IconChartBar} size={16} />
-                </Box>
-                <Stack gap={2} flex={1} miw={0}>
-                    <Text fz="sm" fw={500} truncate>
-                        {attached.chartName}
+        );
+        actions = attached ? (
+            <Button
+                variant="default"
+                size="compact-xs"
+                leftSection={<MantineIcon icon={IconChartBar} size={14} />}
+                onClick={() => source.setPreviewSource('chart')}
+            >
+                Use saved chart
+            </Button>
+        ) : (
+            pickerButton('Choose saved chart', IconSearch)
+        );
+    } else {
+        title = attached.chartName;
+        const space = attached.spaceName ?? 'Saved charts';
+        if (attached.status === 'running') {
+            meta = (
+                <Group gap={6} wrap="nowrap">
+                    <Loader size={11} />
+                    <Text fz="xs" c="dimmed" truncate>
+                        {space} · running query…
                     </Text>
-                    <Group gap={6} wrap="nowrap">
-                        {attached.status === 'running' && <Loader size={11} />}
-                        <Text
-                            fz="xs"
-                            c={attached.status === 'error' ? 'red' : 'dimmed'}
-                            truncate
-                        >
-                            {meta}
-                        </Text>
-                    </Group>
-                </Stack>
-            </Group>
-            <Group gap={6}>
-                <SavedChartPickerPopover
-                    opened={pickerOpened}
-                    onOpenedChange={setPickerOpened}
-                    attached={null}
-                    onPick={source.attach}
-                >
-                    <Button
-                        variant="default"
-                        size="compact-xs"
-                        leftSection={
-                            <MantineIcon
-                                icon={IconSwitchHorizontal}
-                                size={14}
-                            />
-                        }
-                        onClick={() => setPickerOpened((opened) => !opened)}
-                    >
-                        Change
-                    </Button>
-                </SavedChartPickerPopover>
+                </Group>
+            );
+        } else if (attached.status === 'error') {
+            meta = (
+                <Text fz="xs" c="dimmed" truncate>
+                    {space} · query failed
+                </Text>
+            );
+        } else {
+            const rowCount = attached.rowCount ?? 0;
+            const ran = attached.ranAt
+                ? ` · ran ${formatDistanceToNow(attached.ranAt, {
+                      addSuffix: true,
+                  })}`
+                : '';
+            meta = (
+                <Text fz="xs" c="dimmed" truncate>
+                    {space} · {rowCount} {rowCount === 1 ? 'row' : 'rows'}
+                    {ran}
+                </Text>
+            );
+        }
+        actions = (
+            <>
+                {pickerButton('Change', IconSwitchHorizontal)}
                 <Button
                     variant="default"
                     size="compact-xs"
                     leftSection={<MantineIcon icon={IconFlask} size={14} />}
-                    onClick={source.detach}
+                    onClick={() => source.setPreviewSource('sample')}
                 >
                     Use sample data
                 </Button>
-                {attached.status === 'error' && (
-                    <Button
-                        variant="subtle"
-                        size="compact-xs"
-                        onClick={source.retry}
-                    >
-                        Try again
-                    </Button>
-                )}
+            </>
+        );
+    }
+
+    return (
+        <Stack gap="xs">
+            <Text component="h3" fz="sm" fw={600}>
+                Data source
+            </Text>
+            <Group className={classes.sourceRow} gap="sm" wrap="nowrap">
+                <Box
+                    className={
+                        showingChart ? classes.iconTileAccent : classes.iconTile
+                    }
+                >
+                    <MantineIcon
+                        icon={showingChart ? IconChartBar : IconFlask}
+                        size={16}
+                    />
+                </Box>
+                <Stack gap={2} flex={1} miw={0}>
+                    <Text fz="sm" fw={500} truncate>
+                        {title}
+                    </Text>
+                    {meta}
+                </Stack>
             </Group>
+            {showingChart && attached.status === 'error' && (
+                <Callout variant="danger" title="Couldn’t run the query">
+                    <Stack gap="xs" align="flex-start">
+                        <Text fz="xs" lh={1.4}>
+                            {attached.message ??
+                                'The saved chart’s query failed.'}
+                        </Text>
+                        <Button
+                            variant="default"
+                            size="compact-xs"
+                            leftSection={
+                                <MantineIcon icon={IconRefresh} size={14} />
+                            }
+                            onClick={source.retry}
+                        >
+                            Try again
+                        </Button>
+                    </Stack>
+                </Callout>
+            )}
+            <Group gap={6}>{actions}</Group>
         </Stack>
     );
 };

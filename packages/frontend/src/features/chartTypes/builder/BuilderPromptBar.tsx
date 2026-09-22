@@ -93,6 +93,10 @@ type Props = {
     /** The saved chart backing the session; null on hosts that offer none.
      *  Its chip replaces the round sample-data button. */
     savedChartSource?: SavedChartSourceControls | null;
+    /** The sample-data button's state; the host owns it so other surfaces
+     *  can describe what the next prompt carries. */
+    includeSampleData: boolean;
+    onIncludeSampleDataChange: (included: boolean) => void;
     elementPicker?: UseElementPickerResult;
     onCaptureScreenshot?: () => Promise<File>;
     /** The pre-build clarifying round every send passes through. */
@@ -190,6 +194,8 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             clarification,
             buildContext,
             savedChartSource = null,
+            includeSampleData,
+            onIncludeSampleDataChange,
             elementPicker,
             onCaptureScreenshot,
         },
@@ -217,7 +223,6 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const [selectedConnections, setSelectedConnections] = useState<
             SelectedConnection[]
         >([]);
-        const [includeSampleData, setIncludeSampleData] = useState(false);
         const [isCapturingScreenshot, setIsCapturingScreenshot] =
             useState(false);
         const queryClient = useQueryClient();
@@ -339,7 +344,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             composerRef.current?.clear();
             attachments.clear();
             setSelectedConnections([]);
-            setIncludeSampleData(false);
+            onIncludeSampleDataChange(false);
 
             if (isBuilding) {
                 setQueuedPrompts((current) => [...current, queuedPrompt]);
@@ -356,7 +361,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             const request = clarification.abandon();
             if (request === null) return;
             setSelectedConnections(request.externalConnections);
-            setIncludeSampleData(request.includeSampleData === true);
+            onIncludeSampleDataChange(request.includeSampleData === true);
             composerRef.current?.insertContent([
                 { type: 'text', text: request.description },
             ]);
@@ -372,7 +377,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 item.request.codexModel ?? item.request.claudeModel,
             );
             setSelectedConnections(item.request.externalConnections);
-            setIncludeSampleData(item.request.includeSampleData === true);
+            onIncludeSampleDataChange(item.request.includeSampleData === true);
             composerRef.current?.clear();
             composerRef.current?.insertContent([
                 { type: 'text', text: item.request.description },
@@ -801,8 +806,8 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 <SampleDataButton
                                     enabled={includeSampleData}
                                     onToggle={() =>
-                                        setIncludeSampleData(
-                                            (enabled) => !enabled,
+                                        onIncludeSampleDataChange(
+                                            !includeSampleData,
                                         )
                                     }
                                     disabled={isComposerLocked}

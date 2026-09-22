@@ -1,5 +1,4 @@
 import {
-    assertUnreachable,
     getDataAppVizFieldIds,
     getItemId,
     type DataAppVizField,
@@ -8,20 +7,17 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Badge,
     Box,
     Group,
-    Loader,
     Stack,
     Text,
+    Tooltip,
     VisuallyHidden,
 } from '@mantine/core';
-import {
-    IconAlertTriangle,
-    IconDatabase,
-    IconFlask,
-} from '@tabler/icons-react';
-import { useMemo, type FC, type ReactNode } from 'react';
+import { IconInfoCircle } from '@tabler/icons-react';
+import { useMemo, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import OrderedDataAppVizFieldSelect from '../../../components/VisualizationConfigs/DataAppVizConfig/OrderedDataAppVizFieldSelect';
@@ -48,50 +44,8 @@ export type ChartInputsBinding = {
     ) => void;
 };
 
-const SAMPLE_SOURCE: ChartTypePreviewDataSource = { kind: 'sample' };
-
-const chartLabel = (chartName: string | null): string =>
-    chartName ?? 'saved chart';
-
-const sourceChip = (
-    source: ChartTypePreviewDataSource,
-): { icon: ReactNode; label: string; title?: string } => {
-    switch (source.kind) {
-        case 'sample':
-            return {
-                icon: <MantineIcon icon={IconFlask} size={13} />,
-                label: 'Sample data',
-            };
-        case 'loading':
-            return {
-                icon: <Loader size={11} />,
-                label: 'Loading live data',
-            };
-        case 'error':
-            return {
-                icon: <MantineIcon icon={IconAlertTriangle} size={13} />,
-                label: 'Live data failed',
-                title: source.message,
-            };
-        case 'live':
-            return {
-                icon: <MantineIcon icon={IconDatabase} size={13} />,
-                label: `Live data · ${chartLabel(source.chartName)} · ${
-                    source.rowCount
-                } ${source.rowCount === 1 ? 'row' : 'rows'}`,
-            };
-        default:
-            return assertUnreachable(
-                source,
-                'Unknown chart type preview data source',
-            );
-    }
-};
-
 type Props = {
     fields: DataAppVizField[];
-    /** Defaults to the fabricated sample every chart type falls back to. */
-    dataSource?: ChartTypePreviewDataSource;
     /** Query column labels each input is bound to; null when nothing real
      *  backs the preview. */
     boundLabels?: Record<string, string> | null;
@@ -149,7 +103,6 @@ const BindingControl: FC<{
 /** The inputs the previewed version needs bound to a query. */
 const ChartInputsList: FC<Props> = ({
     fields,
-    dataSource = SAMPLE_SOURCE,
     boundLabels = null,
     binding = null,
 }) => {
@@ -166,26 +119,11 @@ const ChartInputsList: FC<Props> = ({
 
     if (fields.length === 0) return null;
 
-    const chip = binding ? null : sourceChip(dataSource);
-
     return (
         <Stack gap="xs">
-            <Group justify="space-between" gap="xs" wrap="nowrap">
-                <Text fz="sm" fw={600}>
-                    Chart inputs
-                </Text>
-                {chip && (
-                    <Group
-                        className={classes.sampleChip}
-                        gap={4}
-                        wrap="nowrap"
-                        title={chip.title}
-                    >
-                        {chip.icon}
-                        <Text size="xs">{chip.label}</Text>
-                    </Group>
-                )}
-            </Group>
+            <Text component="h3" fz="sm" fw={600}>
+                Chart inputs
+            </Text>
             <Stack gap={6}>
                 {fields.map((field) => {
                     const isUnbound =
@@ -199,18 +137,44 @@ const ChartInputsList: FC<Props> = ({
                                 gap="xs"
                                 wrap="nowrap"
                             >
-                                <Text className={classes.fieldLabel} fz="sm">
-                                    {field.label}
-                                    {field.required && (
-                                        <Text
-                                            component="span"
-                                            c="red"
-                                            aria-hidden
+                                <Group gap={4} wrap="nowrap" miw={0}>
+                                    <Text
+                                        className={classes.fieldLabel}
+                                        fz="sm"
+                                        truncate
+                                    >
+                                        {field.label}
+                                        {field.required && (
+                                            <Text
+                                                component="span"
+                                                c="red"
+                                                aria-hidden
+                                            >
+                                                {' *'}
+                                            </Text>
+                                        )}
+                                    </Text>
+                                    {field.description && (
+                                        <Tooltip
+                                            label={field.description}
+                                            multiline
+                                            w={260}
+                                            position="top-start"
                                         >
-                                            {' *'}
-                                        </Text>
+                                            <ActionIcon
+                                                variant="subtle"
+                                                color="ldGray"
+                                                size="xs"
+                                                aria-label={`About ${field.label}`}
+                                            >
+                                                <MantineIcon
+                                                    icon={IconInfoCircle}
+                                                    size={14}
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
                                     )}
-                                </Text>
+                                </Group>
                                 <Group gap={4} wrap="nowrap" flex="0 0 auto">
                                     {field.required && (
                                         <VisuallyHidden>
@@ -230,15 +194,6 @@ const ChartInputsList: FC<Props> = ({
                             {boundLabels?.[field.name] && (
                                 <Text size="xs" c="ldGray.7" mt={2}>
                                     {boundLabels[field.name]}
-                                </Text>
-                            )}
-                            {field.description && (
-                                <Text
-                                    className={classes.fieldDescription}
-                                    size="xs"
-                                    c="dimmed"
-                                >
-                                    {field.description}
                                 </Text>
                             )}
                             {binding && (

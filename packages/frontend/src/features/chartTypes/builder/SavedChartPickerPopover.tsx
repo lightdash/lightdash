@@ -83,7 +83,7 @@ const SavedChartPickerPopover: FC<Props> = ({
                         isResolvingLink={isResolvingLink}
                         footer={
                             <Text fz="xs" c="dimmed" w="100%">
-                                Picking a chart runs its saved query · up to{' '}
+                                Picking a chart runs its query · up to{' '}
                                 {SAVED_CHART_PREVIEW_ROW_LIMIT} rows
                             </Text>
                         }

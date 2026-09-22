@@ -15,6 +15,10 @@ export type AttachedSavedChart = {
     message: string | null;
 };
 
+/** Which rows the preview renders: the fabricated sample or the attached
+ *  chart's run. The chart stays attached either way. */
+export type PreviewSource = 'sample' | 'chart';
+
 /** One chart the picker handed back. */
 export type PickedSavedChart = { uuid: string; name: string };
 
@@ -25,6 +29,13 @@ export type PickedSavedChart = { uuid: string; name: string };
  */
 export type SavedChartSourceControls = {
     attached: AttachedSavedChart | null;
+    /** What the preview renders; 'chart' only while one is attached. */
+    previewSource: PreviewSource;
+    setPreviewSource: (source: PreviewSource) => void;
+    /** Whether the composer's sample-data button is on, so the run's rows
+     *  travel with the next prompt. */
+    includeRows: boolean;
+    setIncludeRows: (included: boolean) => void;
     attach: (chart: PickedSavedChart) => void;
     detach: () => void;
     viewRows: () => void;

@@ -75,6 +75,8 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
         closeHistory,
         isPromptBarMounted,
         promptSessionKey,
+        includeSampleData,
+        setIncludeSampleData,
         composerAppUuid,
         onSdkManifest,
         promptBarRef,
@@ -175,6 +177,10 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                     modelSelection={modelSelection}
                                     clarification={clarification}
                                     savedChartSource={savedChartSource}
+                                    includeSampleData={includeSampleData}
+                                    onIncludeSampleDataChange={
+                                        setIncludeSampleData
+                                    }
                                     buildContext={{
                                         ...buildContext,
                                         ...(sampleRows.length > 0

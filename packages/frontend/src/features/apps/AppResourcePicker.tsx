@@ -64,6 +64,7 @@ import { useInfiniteContent } from '../../hooks/useContent';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
+import scrollAreaClasses from '../../styles/ScrollArea.module.css';
 import { useAppExternalConnections } from '../externalConnections/hooks/useAppExternalConnections';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
 import { useUnlinkAppExternalConnection } from '../externalConnections/hooks/useUnlinkAppExternalConnection';
@@ -399,7 +400,13 @@ export const QueryPickerView: FC<{
                     autoFocus
                 />
             </Box>
-            <ScrollArea.Autosize mah={350} px="xs" pb="xs">
+            <ScrollArea.Autosize
+                mah={350}
+                px="xs"
+                pb="xs"
+                scrollbars="y"
+                classNames={{ content: scrollAreaClasses.verticalContent }}
+            >
                 {isInitialLoading ? (
                     <Group justify="center" p="sm">
                         <Loader size="sm" />

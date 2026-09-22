@@ -75,7 +75,7 @@ const SavedChartSourceChip: FC<Props> = ({ source, disabled }) => {
                             disabled={disabled}
                             aria-label={`Saved chart: ${attached.chartName}`}
                         >
-                            <Group gap={4} wrap="nowrap">
+                            <Group gap={4} wrap="nowrap" miw={0}>
                                 {attached.status === 'running' ? (
                                     <Loader size={11} />
                                 ) : (
@@ -138,7 +138,7 @@ const SavedChartSourceChip: FC<Props> = ({ source, disabled }) => {
                         size="compact-xs"
                         onClick={source.retry}
                     >
-                        Retry query
+                        Try again
                     </Button>
                 )}
             </Box>

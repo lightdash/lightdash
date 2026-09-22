@@ -4,6 +4,7 @@ import {
     MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
 } from '@lightdash/common';
 import {
+    Anchor,
     Box,
     Button,
     CloseButton,
@@ -14,6 +15,7 @@ import {
 } from '@mantine/core';
 import {
     IconChartBar,
+    IconRefresh,
     IconSearch,
     IconSwitchHorizontal,
     IconTable,
@@ -22,7 +24,10 @@ import { useState, type FC } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SavedChartPickerPopover from './SavedChartPickerPopover';
-import { type SavedChartSourceControls } from './savedChartSource';
+import {
+    type AttachedSavedChart,
+    type SavedChartSourceControls,
+} from './savedChartSource';
 import classes from './SavedChartSourceCard.module.css';
 
 type Props = { source: SavedChartSourceControls };
@@ -30,39 +35,29 @@ type Props = { source: SavedChartSourceControls };
 const rowsLabel = (rowCount: number): string =>
     `${rowCount} ${rowCount === 1 ? 'row' : 'rows'}`;
 
-/** The right-hand side of the meta line: how the one run is going. */
-const StatusLine: FC<{ source: SavedChartSourceControls }> = ({ source }) => {
-    const attached = source.attached;
-    if (!attached) return null;
+/** The right-hand side of the meta line: how the one run is going. Never
+ *  wraps; a long chart name truncates instead. */
+const MetaLine: FC<{ attached: AttachedSavedChart }> = ({ attached }) => {
     const space = attached.spaceName ?? 'Saved charts';
     switch (attached.status) {
         case 'running':
             return (
-                <Group gap={6} wrap="nowrap">
+                <Group gap={6} wrap="nowrap" flex="0 0 auto">
                     <Loader size={12} />
-                    <Text fz="xs" c="dimmed">
+                    <Text fz="xs" c="dimmed" truncate>
                         Saved chart · {space} · running query…
                     </Text>
                 </Group>
             );
         case 'error':
             return (
-                <Group gap="xs" wrap="nowrap">
-                    <Text fz="xs" c="red">
-                        {attached.message ?? 'The query failed'}
-                    </Text>
-                    <Button
-                        variant="subtle"
-                        size="compact-xs"
-                        onClick={source.retry}
-                    >
-                        Try again
-                    </Button>
-                </Group>
+                <Text fz="xs" c="red" truncate flex="0 0 auto">
+                    Saved chart · {space} · query failed
+                </Text>
             );
         case 'ready':
             return (
-                <Text fz="xs" c="dimmed">
+                <Text fz="xs" c="dimmed" truncate flex="0 0 auto">
                     Saved chart · {space} · {rowsLabel(attached.rowCount ?? 0)}
                 </Text>
             );
@@ -90,7 +85,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                 </Box>
                 <Stack gap={2} flex={1} miw={0}>
                     <Text fz="sm" fw={500} c="ldGray.8">
-                        Use a saved chart’s query
+                        Use a saved chart
                     </Text>
                     <Text fz="xs" c="dimmed" lh={1.5}>
                         Preview and build against real fields instead of sample
@@ -129,8 +124,13 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                         <Text fz="sm" fw={500} truncate>
                             {attached.chartName}
                         </Text>
-                        <StatusLine source={source} />
+                        <MetaLine attached={attached} />
                     </Group>
+                    {attached.status === 'error' && (
+                        <Text fz="xs" c="red" lh={1.4}>
+                            {attached.message ?? 'Couldn’t run this chart.'}
+                        </Text>
+                    )}
                     {attached.columns.length > 0 && (
                         <Group gap={6}>
                             {attached.columns.map((item, index) => (
@@ -151,6 +151,18 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                     )}
                 </Stack>
                 <Group gap={6} wrap="nowrap">
+                    {attached.status === 'error' && (
+                        <Button
+                            variant="default"
+                            size="xs"
+                            leftSection={
+                                <MantineIcon icon={IconRefresh} size={14} />
+                            }
+                            onClick={source.retry}
+                        >
+                            Try again
+                        </Button>
+                    )}
                     {attached.status === 'ready' && (
                         <Button
                             variant="default"
@@ -160,7 +172,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                             }
                             onClick={source.viewRows}
                         >
-                            View rows
+                            View query results
                         </Button>
                     )}
                     <SavedChartPickerPopover
@@ -190,9 +202,22 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                 </Group>
             </Group>
             <Text fz="xs" c="dimmed" ta="center">
-                Preview only · rows are not sent with your prompt unless you
-                turn on the sample data button in the composer (up to{' '}
-                {MAX_APP_VIZ_BUILD_SAMPLE_ROWS} rows).
+                {source.includeRows ? (
+                    `Sample data included · sends up to ${MAX_APP_VIZ_BUILD_SAMPLE_ROWS} rows with your prompt.`
+                ) : (
+                    <>
+                        Rows aren’t sent with your prompt.{' '}
+                        <Anchor
+                            component="button"
+                            type="button"
+                            fz="xs"
+                            onClick={() => source.setIncludeRows(true)}
+                        >
+                            Include sample data
+                        </Anchor>{' '}
+                        to send up to {MAX_APP_VIZ_BUILD_SAMPLE_ROWS}.
+                    </>
+                )}
             </Text>
         </Stack>
     );
