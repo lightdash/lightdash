@@ -1,3 +1,10 @@
+# [2.297.0](https://github.com/lightdash/lightdash/compare/2.296.1...2.297.0) (2026-09-22)
+
+
+### Features
+
+* **data-apps:** shared per-viewer rate limits for AI analysis ([#29735](https://github.com/lightdash/lightdash/issues/29735)) ([38c12f6](https://github.com/lightdash/lightdash/commit/38c12f620c77730ef26a5ff0cef7353c8bfcaef0)), closes [#29727](https://github.com/lightdash/lightdash/issues/29727)
+
 ## [2.296.1](https://github.com/lightdash/lightdash/compare/2.296.0...2.296.1) (2026-09-22)
 
 

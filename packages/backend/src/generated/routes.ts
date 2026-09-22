@@ -46800,6 +46800,7 @@ const models: TsoaRoute.Models = {
                     enums: ['consolidateAiAgentMemoryPartition'],
                 },
                 { dataType: 'enum', enums: ['cleanMcpToolCalls'] },
+                { dataType: 'enum', enums: ['cleanRateCounters'] },
                 { dataType: 'enum', enums: ['cleanAiDeepResearchReports'] },
                 { dataType: 'enum', enums: ['cleanAiAgentThreads'] },
                 { dataType: 'enum', enums: ['cleanScimRequestLogs'] },
