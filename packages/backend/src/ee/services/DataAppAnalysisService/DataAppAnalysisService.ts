@@ -43,6 +43,7 @@ import {
     type DataAppSourceHash,
     type DbDataAppAnalysis,
 } from '../../database/entities/dataAppAnalyses';
+import { type AiAgentModel } from '../../models/AiAgentModel';
 import { type DataAppAnalysisModel } from '../../models/DataAppAnalysisModel';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -149,6 +150,7 @@ type Dependencies = {
     asyncQueryService: AsyncQueryService;
     aiService: AiService;
     aiAgentService: AiAgentService;
+    aiAgentModel: AiAgentModel;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
 };
 
@@ -240,6 +242,8 @@ export class DataAppAnalysisService extends BaseService {
 
     private readonly aiAgentService: AiAgentService;
 
+    private readonly aiAgentModel: AiAgentModel;
+
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
 
     constructor(deps: Dependencies) {
@@ -255,6 +259,7 @@ export class DataAppAnalysisService extends BaseService {
         this.asyncQueryService = deps.asyncQueryService;
         this.aiService = deps.aiService;
         this.aiAgentService = deps.aiAgentService;
+        this.aiAgentModel = deps.aiAgentModel;
         this.aiOrganizationSettingsService = deps.aiOrganizationSettingsService;
     }
 
@@ -314,6 +319,21 @@ export class DataAppAnalysisService extends BaseService {
             throw new DataAppAnalysisUnavailableError(
                 'AI analysis in data apps is not enabled for this organization',
                 'analysis_disabled',
+            );
+        }
+    }
+
+    // The org setting can flip while the model runs: never store or serve
+    // a result produced after consent was withdrawn.
+    private async assertStillEnabled(organizationUuid: string): Promise<void> {
+        if (
+            !(await this.aiOrganizationSettingsService.isDataAppRuntimeAiEnabled(
+                organizationUuid,
+            ))
+        ) {
+            throw new DataAppAnalysisUnavailableError(
+                'AI analysis in data apps was turned off for this organization',
+                'org_setting_disabled',
             );
         }
     }
@@ -726,6 +746,7 @@ export class DataAppAnalysisService extends BaseService {
             limitations,
             dataAsOf: detection.dataAsOf,
         };
+        await this.assertStillEnabled(user.organizationUuid!);
 
         const row = await this.dataAppAnalysisModel.create({
             organizationUuid: user.organizationUuid!,
@@ -853,6 +874,7 @@ export class DataAppAnalysisService extends BaseService {
             { content, prompt, focus: focusForModel, projectUuid },
         );
         const result = { prompt, focus: focusForModel, text };
+        await this.assertStillEnabled(user.organizationUuid!);
         const row = await this.dataAppAnalysisModel.create({
             organizationUuid: user.organizationUuid!,
             projectUuid,
@@ -1131,6 +1153,17 @@ export class DataAppAnalysisService extends BaseService {
                     },
                 });
             if (abortSignal?.aborted) return;
+            try {
+                await this.assertStillEnabled(payload.organizationUuid);
+            } catch (e) {
+                // The agent run already persisted the prompt and answer in
+                // the thread; the thread is ours, so withdraw it too.
+                await this.aiAgentModel.deleteThread({
+                    organizationUuid: payload.organizationUuid,
+                    threadUuid: thread.uuid,
+                });
+                throw e;
+            }
 
             const row = await this.dataAppAnalysisModel.create({
                 organizationUuid: payload.organizationUuid,

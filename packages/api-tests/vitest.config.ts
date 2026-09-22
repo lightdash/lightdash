@@ -14,6 +14,8 @@ const serialFiles = [
     'tests/embedDashboard.test.ts',
     'tests/embedTimezone.test.ts',
     'tests/dataAppVizRender.test.ts',
+    // Toggles the org AI setting and a user attribute other files could read.
+    'tests/dataAppAnalysisIsolation.test.ts',
     // Asserts every project member's role name; must not overlap a file
     // that assigns a temporary custom role (dataAppVizRender).
     'tests/projectPermissions.test.ts',

@@ -4,6 +4,7 @@ import {
     FieldType,
     ForbiddenError,
     MetricType,
+    NotFoundError,
     ParameterError,
     QueryExecutionContext,
     TooManyRequestsError,
@@ -118,18 +119,25 @@ function buildService(
             modelId: 'fast-model',
         }),
     };
+    const appModel = {
+        getApp: vi.fn().mockResolvedValue({
+            app_id: 'app-1',
+            project_uuid: 'proj-1',
+            space_uuid: null,
+            created_by_user_uuid: 'user-1',
+            organization_uuid: 'org-1',
+        }),
+        getLatestReadyVersion: vi.fn().mockResolvedValue({ version: 3 }),
+    };
+    const aiOrganizationSettingsService = {
+        isDataAppRuntimeAiEnabled: vi
+            .fn()
+            .mockResolvedValue(overrides.orgSettingEnabled ?? true),
+    };
+    const aiAgentModel = { deleteThread: vi.fn().mockResolvedValue(undefined) };
     const service = new DataAppAnalysisService({
         dataAppAnalysisModel,
-        appModel: {
-            getApp: vi.fn().mockResolvedValue({
-                app_id: 'app-1',
-                project_uuid: 'proj-1',
-                space_uuid: null,
-                created_by_user_uuid: 'user-1',
-                organization_uuid: 'org-1',
-            }),
-            getLatestReadyVersion: vi.fn().mockResolvedValue({ version: 3 }),
-        },
+        appModel,
         externalConnectionModel: {
             findProjectAbilityContext: vi.fn().mockResolvedValue({
                 organizationUuid: 'org-1',
@@ -158,17 +166,22 @@ function buildService(
                 .fn()
                 .mockResolvedValue(overrides.copilotEnabled ?? true),
         },
-        aiOrganizationSettingsService: {
-            isDataAppRuntimeAiEnabled: vi
-                .fn()
-                .mockResolvedValue(overrides.orgSettingEnabled ?? true),
-        },
+        aiAgentModel,
+        aiOrganizationSettingsService,
     } as never);
     vi.spyOn(
         service as unknown as { createAuditedAbility: () => unknown },
         'createAuditedAbility',
     ).mockReturnValue({ can: () => true, cannot: () => false });
-    return { service, dataAppAnalysisModel, asyncQueryService, aiService };
+    return {
+        service,
+        dataAppAnalysisModel,
+        asyncQueryService,
+        aiService,
+        appModel,
+        aiAgentModel,
+        aiOrganizationSettingsService,
+    };
 }
 
 const request = { sources: [{ queryUuid: 'q1', label: 'Orders by status' }] };
@@ -293,6 +306,35 @@ describe('DataAppAnalysisService.detect', () => {
         await expect(
             service.detect(buildAccount(), 'proj-1', 'app-1', { sources: [] }),
         ).rejects.toBeInstanceOf(ParameterError);
+    });
+
+    it('returns 404 for an app outside the project, before reading any query', async () => {
+        const { service, appModel, asyncQueryService, aiService } =
+            buildService();
+        appModel.getApp.mockRejectedValue(new NotFoundError('App not found'));
+        await expect(
+            service.detect(buildAccount(), 'other-proj', 'app-1', request),
+        ).rejects.toMatchObject({ statusCode: 404 });
+        expect(appModel.getApp).toHaveBeenCalledWith('app-1', 'other-proj');
+        expect(asyncQueryService.getAsyncQueryHistory).not.toHaveBeenCalled();
+        expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+    });
+
+    it('neither stores nor serves a detection when the org setting is turned off mid-run', async () => {
+        const {
+            service,
+            dataAppAnalysisModel,
+            aiService,
+            aiOrganizationSettingsService,
+        } = buildService();
+        aiOrganizationSettingsService.isDataAppRuntimeAiEnabled
+            .mockResolvedValueOnce(true)
+            .mockResolvedValue(false);
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toMatchObject({ data: { code: 'org_setting_disabled' } });
+        expect(aiService.detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+        expect(dataAppAnalysisModel.create).not.toHaveBeenCalled();
     });
 });
 
@@ -600,6 +642,21 @@ describe('DataAppAnalysisService.prompt', () => {
         expect(aiService.answerDataAppPrompt).not.toHaveBeenCalled();
     });
 
+    it('neither stores nor serves an answer when the org setting is turned off mid-run', async () => {
+        const { service, dataAppAnalysisModel, aiOrganizationSettingsService } =
+            buildService();
+        aiOrganizationSettingsService.isDataAppRuntimeAiEnabled
+            .mockResolvedValueOnce(true)
+            .mockResolvedValue(false);
+        await expect(
+            service.prompt(buildAccount(), 'proj-1', 'app-1', {
+                sources: request.sources,
+                prompt: 'Why did returns rise?',
+            }),
+        ).rejects.toMatchObject({ data: { code: 'org_setting_disabled' } });
+        expect(dataAppAnalysisModel.create).not.toHaveBeenCalled();
+    });
+
     it('rate limits a viewer per app', async () => {
         const { service } = buildService();
         const account = buildAccount({ accountType: 'session' });
@@ -670,7 +727,57 @@ describe('DataAppAnalysisService.investigate', () => {
         (service.dataAppAnalysisModel as Record<string, unknown>).find = find;
         service.schedulerClient = { dataAppInvestigate };
         (service.aiAgentService as Record<string, unknown>).getAgent = getAgent;
-        return { service: base.service, find, dataAppInvestigate, getAgent };
+        return {
+            service: base.service,
+            find,
+            dataAppInvestigate,
+            getAgent,
+            aiAgentModel: base.aiAgentModel,
+            aiOrganizationSettingsService: base.aiOrganizationSettingsService,
+        };
+    }
+
+    const jobPayload = {
+        organizationUuid: 'org-1',
+        projectUuid: 'proj-1',
+        userUuid: 'user-1',
+        appUuid: 'app-1',
+        analysisId: 'analysis-1',
+        anomalyId: 'anom-1',
+        agentUuid: 'agent-1',
+    };
+
+    type Generate = (
+        user: unknown,
+        args: {
+            execution: {
+                abortSignal?: AbortSignal;
+                onWarehouseQuery?: () => void | Promise<void>;
+            };
+        },
+    ) => Promise<string>;
+
+    // Wires the worker-side dependencies runInvestigation reaches for.
+    function primeRunInvestigation(
+        service: DataAppAnalysisService,
+        generate: Generate,
+    ) {
+        const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+        const create = vi.fn(async (data: Record<string, unknown>) => ({
+            data_app_analysis_uuid: 'inv-1',
+            ...data,
+        }));
+        const deps = service as unknown as Record<string, unknown>;
+        deps.userModel = {
+            findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(sessionUser),
+        };
+        deps.schedulerService = { logSchedulerJob };
+        (deps.dataAppAnalysisModel as Record<string, unknown>).create = create;
+        Object.assign(deps.aiAgentService as Record<string, unknown>, {
+            createAgentThread: vi.fn().mockResolvedValue({ uuid: 'thread-1' }),
+            generateAgentThreadResponse: vi.fn(generate),
+        });
+        return { logSchedulerJob, create };
     }
 
     it('persists nothing and logs nothing once the run is aborted', async () => {
@@ -772,7 +879,28 @@ describe('DataAppAnalysisService.investigate', () => {
         ).rejects.toMatchObject({ statusCode: 404 });
     });
 
-    it('reports agent_unavailable instead of picking another agent', async () => {
+    it('resolves the analysis under the viewer and the app in the path only', async () => {
+        const { service, find, dataAppInvestigate } = buildInvestigateService({
+            stored: null,
+        });
+        await expect(
+            service.investigate(
+                buildAccount(),
+                'proj-1',
+                'other-app',
+                'analysis-1',
+                { anomalyId: 'anom-1', agentUuid: 'agent-1' },
+            ),
+        ).rejects.toMatchObject({ statusCode: 404 });
+        expect(find).toHaveBeenCalledWith(
+            'analysis-1',
+            'other-app',
+            buildAccount().user.id,
+        );
+        expect(dataAppInvestigate).not.toHaveBeenCalled();
+    });
+
+    it('reports agent_unavailable as 403 instead of picking another agent', async () => {
         const { service, dataAppInvestigate } = buildInvestigateService({
             agentAccessible: false,
         });
@@ -787,7 +915,97 @@ describe('DataAppAnalysisService.investigate', () => {
                     agentUuid: 'agent-x',
                 },
             ),
-        ).rejects.toMatchObject({ data: { code: 'agent_unavailable' } });
+        ).rejects.toMatchObject({
+            statusCode: 403,
+            data: { code: 'agent_unavailable' },
+        });
         expect(dataAppInvestigate).not.toHaveBeenCalled();
+    });
+
+    it('flags the result partial once the warehouse query budget is exhausted', async () => {
+        const { service } = buildInvestigateService();
+        const { create, logSchedulerJob } = primeRunInvestigation(
+            service,
+            async (_user, { execution }) => {
+                // The budget hook throws synchronously on the 16th query.
+                let stoppedBy: unknown = null;
+                for (let i = 0; i < 40 && stoppedBy === null; i += 1) {
+                    try {
+                        void execution.onWarehouseQuery?.();
+                    } catch (e) {
+                        stoppedBy = e;
+                    }
+                }
+                expect(stoppedBy).toMatchObject({
+                    name: 'InvestigationQueryBudgetError',
+                });
+                return 'what I found before the budget ran out';
+            },
+        );
+
+        await service.runInvestigation(
+            jobPayload,
+            'job-1',
+            new Date('2026-09-15T10:00:00Z'),
+        );
+
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                operation: 'investigate',
+                result: expect.objectContaining({
+                    partial: true,
+                    queriesRun: 15,
+                    explanation: 'what I found before the budget ran out',
+                }),
+            }),
+        );
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                status: 'completed',
+                details: expect.objectContaining({ partial: true }),
+            }),
+        );
+    });
+
+    it('stores nothing and withdraws the agent thread when the org setting is turned off while the agent runs', async () => {
+        const { service, aiOrganizationSettingsService, aiAgentModel } =
+            buildInvestigateService();
+        aiOrganizationSettingsService.isDataAppRuntimeAiEnabled
+            .mockResolvedValueOnce(true)
+            .mockResolvedValue(false);
+        const { create, logSchedulerJob } = primeRunInvestigation(
+            service,
+            async () => 'late explanation',
+        );
+
+        await expect(
+            service.runInvestigation(
+                jobPayload,
+                'job-1',
+                new Date('2026-09-15T10:00:00Z'),
+            ),
+        ).rejects.toMatchObject({ data: { code: 'org_setting_disabled' } });
+
+        expect(create).not.toHaveBeenCalled();
+        // The agent run persisted the answer in the thread; it must go too.
+        expect(aiAgentModel.deleteThread).toHaveBeenCalledWith({
+            organizationUuid: 'org-1',
+            threadUuid: 'thread-1',
+        });
+        expect(logSchedulerJob.mock.calls.map(([log]) => log.status)).toEqual([
+            'started',
+            'error',
+        ]);
+    });
+
+    it('keeps the agent thread when the investigation completes', async () => {
+        const { service, aiAgentModel } = buildInvestigateService();
+        primeRunInvestigation(service, async () => 'explanation');
+        await service.runInvestigation(
+            jobPayload,
+            'job-1',
+            new Date('2026-09-15T10:00:00Z'),
+        );
+        expect(aiAgentModel.deleteThread).not.toHaveBeenCalled();
     });
 });
