@@ -50,14 +50,16 @@ const preview = {
     messageUuid: 'message-uuid',
 };
 
+type EmbedScope = 'EmbedExplore';
+
 const renderPanel = ({
     isEmbed,
     canExplore = false,
-    scopes = [] as PossibleAbilities['subject'][],
+    scopes = [],
 }: {
     isEmbed: boolean;
     canExplore?: boolean;
-    scopes?: PossibleAbilities['subject'][];
+    scopes?: EmbedScope[];
 }) => {
     mocks.isEmbed.mockReturnValue(isEmbed);
     const ability = new Ability<PossibleAbilities>(
