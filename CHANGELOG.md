@@ -1,3 +1,10 @@
+## [2.288.2](https://github.com/lightdash/lightdash/compare/2.288.1...2.288.2) (2026-09-22)
+
+
+### Bug Fixes
+
+* **chart-types:** give the puzzle badge the selection blue on a selected tile ([#29714](https://github.com/lightdash/lightdash/issues/29714)) ([d1b307f](https://github.com/lightdash/lightdash/commit/d1b307f4ec0229aa171e450a2c605fa7e06bd354))
+
 ## [2.288.1](https://github.com/lightdash/lightdash/compare/2.288.0...2.288.1) (2026-09-22)
 
 
