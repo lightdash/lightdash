@@ -96,8 +96,14 @@ const ATTRIBUTION_KEYS: (keyof AiCallAttribution)[] = [
 ];
 
 /**
- * Attribution dimensions that may be sent to telemetry providers. Everything
- * else stays local to Lightdash's own `ai.usage` analytics.
+ * Attribution dimensions that may be sent to telemetry providers.
+ *
+ * This is narrower than v6, which put every `telemetry.metadata` key on the
+ * span. `runUuid`, `deepResearchRunUuid` and `deepResearchPhase` no longer
+ * reach spans, though `emitAiUsage` still reports them on `ai.usage`; the
+ * caller-controlled `extra` keys reach neither. Widening this list sends the
+ * key to whichever telemetry provider the deployment configures, so add one
+ * only when it is safe to export.
  */
 const TELEMETRY_REPORTED_KEYS: AiCallRuntimeContextKey[] = [
     'feature',
