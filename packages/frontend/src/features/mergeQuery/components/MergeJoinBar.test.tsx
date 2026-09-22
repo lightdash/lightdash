@@ -6,6 +6,7 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { MergeJoinBar } from './MergeJoinBar';
 import { MergeReadOnlyBar } from './MergeReadOnlyBar';
+import { MergeRelationshipCard } from './MergeRelationshipCard';
 
 type TestItem = {
     table: string;
@@ -126,7 +127,11 @@ vi.mock('../hooks/useMergeSetup', () => ({
         })),
         sourceLabels: [
             state.setup.primaryExploreLabel,
-            state.setup.additionalExploreLabel,
+            ...state.merge.additionalSources.map((source) =>
+                source.id === 'b' || source.exploreName === 'customers'
+                    ? state.setup.additionalExploreLabel
+                    : 'Payments',
+            ),
         ],
         relationshipSummary: state.setup.effectiveParts
             .map(
@@ -472,6 +477,26 @@ describe('MergeJoinBar', () => {
             screen.getByText('Orders · Customer ID = Customers · ID', {
                 exact: false,
             }),
+        ).toBeInTheDocument();
+    });
+
+    it('keeps the relationship header compact for many sources', () => {
+        state.merge.additionalSources = [
+            ...state.merge.additionalSources,
+            {
+                id: 'c',
+                exploreName: 'payments',
+                dimensions: [],
+                metrics: [],
+            },
+        ];
+        state.setup.effectiveParts[0].fieldIdBySourceId.c =
+            'customers_account_key';
+
+        renderWithProviders(<MergeRelationshipCard />);
+
+        expect(
+            screen.getByText('3 sources · Customer ID · All rows'),
         ).toBeInTheDocument();
     });
 });

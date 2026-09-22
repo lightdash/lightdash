@@ -2,21 +2,39 @@ import { MergeJoinType } from '@lightdash/common';
 import { Badge, Box } from '@mantine/core';
 import { useState, type FC } from 'react';
 import CollapsableCard from '../../../components/common/CollapsableCard/CollapsableCard';
+import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
 import { MergeJoinBar } from './MergeJoinBar';
 
 const MergeRelationshipCardContent: FC = () => {
-    const { relationshipSummary, isIncomplete, setupStep } = useMergeSetup();
+    const {
+        effectiveParts,
+        labelFor,
+        relationshipSummary,
+        sourceLabels,
+        primaryExploreLabel,
+        isIncomplete,
+        setupStep,
+    } = useMergeSetup();
     const merge = useMergeSafe();
     const [isOpen, setIsOpen] = useState(true);
     const joinTypeLabel =
         merge?.joinType === MergeJoinType.LEFT
-            ? 'Left'
+            ? `From ${primaryExploreLabel ?? 'first source'}`
             : merge?.joinType === MergeJoinType.INNER
-              ? 'Inner'
-              : 'Full outer';
-    const badgeLabel = setupStep ?? `${relationshipSummary} · ${joinTypeLabel}`;
+              ? 'Matches only'
+              : 'All rows';
+    const primaryKeySummary = effectiveParts
+        .map((part) => part.fieldIdBySourceId[PRIMARY_SOURCE_ID])
+        .filter((fieldId): fieldId is string => !!fieldId)
+        .map(labelFor)
+        .join(' + ');
+    const relationshipLabel =
+        sourceLabels.length > 2
+            ? `${sourceLabels.length} sources · ${primaryKeySummary} · ${joinTypeLabel}`
+            : `${relationshipSummary} · ${joinTypeLabel}`;
+    const badgeLabel = setupStep ?? relationshipLabel;
 
     return (
         <CollapsableCard

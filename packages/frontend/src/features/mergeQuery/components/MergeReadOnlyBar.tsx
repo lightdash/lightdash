@@ -3,6 +3,7 @@ import { Box, Group, Paper, Text, ThemeIcon } from '@mantine/core';
 import { IconArrowMerge } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
 
@@ -15,6 +16,8 @@ export const MergeReadOnlyBar: FC = () => {
     const merge = useMergeSafe();
     const {
         relationshipSummary: keys,
+        effectiveParts,
+        labelFor,
         sourceLabels,
         primaryExploreLabel,
         isIncomplete,
@@ -29,6 +32,18 @@ export const MergeReadOnlyBar: FC = () => {
               ? 'Matches only'
               : 'Keep all rows';
     const runError = merge.mergeResults?.results.error ?? null;
+    const sourceSummary =
+        sourceLabels.length <= 3
+            ? sourceLabels.join(' + ')
+            : `${sourceLabels[0]} + ${sourceLabels[1]} + ${sourceLabels.length - 2} more`;
+    const keySummary =
+        sourceLabels.length <= 2
+            ? keys
+            : effectiveParts
+                  .map((part) => part.fieldIdBySourceId[PRIMARY_SOURCE_ID])
+                  .filter((fieldId): fieldId is string => !!fieldId)
+                  .map(labelFor)
+                  .join(' + ');
 
     return (
         <Paper radius="md" px="sm" py="xs">
@@ -47,12 +62,12 @@ export const MergeReadOnlyBar: FC = () => {
                         truncate
                         title={sourceLabels.join(' + ')}
                     >
-                        {sourceLabels.join(' + ')}
+                        {sourceSummary}
                     </Text>
-                    <Text size="xs" c="dimmed" truncate title={keys}>
+                    <Text size="xs" c="dimmed" truncate title={keySummary}>
                         Matched on{' '}
                         <Text span size="xs" fw={600} c="gray.7">
-                            {keys}
+                            {keySummary}
                         </Text>{' '}
                         · {keepLabel}
                     </Text>
