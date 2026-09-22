@@ -1,3 +1,10 @@
+# [2.287.0](https://github.com/lightdash/lightdash/compare/2.286.8...2.287.0) (2026-09-22)
+
+
+### Features
+
+* remove unnest repeated columns feature flag ([#29709](https://github.com/lightdash/lightdash/issues/29709)) ([4b87597](https://github.com/lightdash/lightdash/commit/4b87597dd569d037e637dc3258fb8c1a024943c4))
+
 ## [2.286.8](https://github.com/lightdash/lightdash/compare/2.286.7...2.286.8) (2026-09-22)
 
 
