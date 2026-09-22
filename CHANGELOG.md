@@ -1,3 +1,10 @@
+## [2.286.8](https://github.com/lightdash/lightdash/compare/2.286.7...2.286.8) (2026-09-22)
+
+
+### Bug Fixes
+
+* improve space sharing picker highlights ([#29704](https://github.com/lightdash/lightdash/issues/29704)) ([e704fd7](https://github.com/lightdash/lightdash/commit/e704fd78ff96c18c91b32d2b955a1067402ce16e))
+
 ## [2.286.7](https://github.com/lightdash/lightdash/compare/2.286.6...2.286.7) (2026-09-21)
 
 
