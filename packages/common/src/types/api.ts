@@ -519,6 +519,7 @@ export type ApiRefreshBody = {
 export type ApiCreatePreviewResults = {
     projectUuid: string;
     compileJobUuid: string;
+    contentCopyJobUuid?: string;
 };
 
 export type ApiJobStartedResults = {
@@ -914,6 +915,7 @@ export type CreateProject = Omit<
     copyWarehouseConnectionFromUpstreamProject?: boolean;
     tableConfiguration?: CreateProjectTableConfiguration;
     copyContent?: boolean;
+    asyncCopyContent?: boolean;
     expiresInHours?: number;
 };
 
@@ -1268,6 +1270,7 @@ export type ApiGetInviteLinkResponse = {
 export type ApiCreateProjectResults = {
     project: Project;
     hasContentCopy: boolean;
+    contentCopyJobUuid?: string;
     accessCopyError?: string;
     contentCopyError?: string;
 };

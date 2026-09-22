@@ -1092,6 +1092,45 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            [SCHEDULER_TASKS.COPY_PREVIEW_CONTENT]: async (
+                payload,
+                helpers,
+            ) => {
+                const controller = new AbortController();
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.COPY_PREVIEW_CONTENT,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            const user = await this.userService
+                                .getSessionByUserUuid(payload.userUuid)
+                                .catch(async (error) => {
+                                    await this.projectService.failPreviewContentCopy(
+                                        payload,
+                                        error,
+                                    );
+                                    throw error;
+                                });
+                            await this.projectService.runPreviewContentCopy(
+                                user,
+                                payload,
+                                controller.signal,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (_job, error) => {
+                        controller.abort(error);
+                        await this.projectService.failPreviewContentCopy(
+                            payload,
+                            error,
+                        );
+                    },
+                );
+            },
             [SCHEDULER_TASKS.COMPILE_PROJECT]: async (payload, helpers) => {
                 await SchedulerClient.processJob(
                     SCHEDULER_TASKS.COMPILE_PROJECT,

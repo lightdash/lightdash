@@ -1,4 +1,8 @@
 import {
+    JobStatusType,
+    JobStepStatusType,
+    sleep,
+    type Job,
     type ApiCreatePreviewResults,
     type ApiError,
     type DbtProjectEnvironmentVariable,
@@ -12,28 +16,60 @@ import useToaster from './toaster/useToaster';
 const createPreviewProject = async ({
     projectUuid,
     name,
+    asyncCopyContent,
     dbtConnectionOverrides,
     warehouseConnectionOverrides,
 }: {
     projectUuid: string;
     name: string;
+    asyncCopyContent: boolean;
     dbtConnectionOverrides?: {
         branch?: string;
         environment?: DbtProjectEnvironmentVariable[];
         manifest?: string;
     };
     warehouseConnectionOverrides?: { schema?: string };
-}) =>
-    lightdashApi<ApiCreatePreviewResults>({
+}) => {
+    const preview = await lightdashApi<ApiCreatePreviewResults>({
         url: `/projects/${projectUuid}/createPreview`,
         method: 'POST',
         body: JSON.stringify({
             name,
             copyContent: true, // TODO add this option to the UI
+            asyncCopyContent,
             dbtConnectionOverrides,
             warehouseConnectionOverrides,
         }),
     });
+    if (preview.contentCopyJobUuid) {
+        while (true) {
+            const job = await lightdashApi<Job>({
+                url: `/jobs/${preview.contentCopyJobUuid}`,
+                method: 'GET',
+                body: undefined,
+            });
+            if (job.jobStatus === JobStatusType.DONE) break;
+            if (job.jobStatus === JobStatusType.ERROR) {
+                const error: ApiError = {
+                    status: 'error',
+                    error: {
+                        name: 'PreviewContentCopyError',
+                        data: {},
+                        statusCode: 500,
+                        message:
+                            job.steps.find(
+                                (step) =>
+                                    step.stepStatus === JobStepStatusType.ERROR,
+                            )?.stepError ?? 'Failed to copy preview project',
+                    },
+                };
+                throw error;
+            }
+            await sleep(1000);
+        }
+    }
+    return preview;
+};
 
 export const useCreatePreviewMutation = () => {
     const queryClient = useQueryClient();
@@ -45,6 +81,7 @@ export const useCreatePreviewMutation = () => {
         {
             projectUuid: string;
             name: string;
+            asyncCopyContent: boolean;
             dbtConnectionOverrides?: {
                 branch?: string;
                 environment?: DbtProjectEnvironmentVariable[];

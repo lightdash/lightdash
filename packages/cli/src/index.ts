@@ -592,6 +592,11 @@ program
         false,
     )
     .option(
+        '--async-copy-content',
+        'Copy preview content in a background job to avoid request timeouts',
+        false,
+    )
+    .option(
         '--disable-timestamp-conversion [true|false]',
         'Disable timestamp conversion to UTC for Snowflake warehouses. Applied when creating the preview project; ignored when updating an existing preview (read from project settings).',
         parseDisableTimestampConversionOption,
@@ -731,6 +736,11 @@ program
     .option(
         '--skip-copy-content',
         'Skip copying content from the source project',
+        false,
+    )
+    .option(
+        '--async-copy-content',
+        'Copy preview content in a background job to avoid request timeouts',
         false,
     )
     .option(

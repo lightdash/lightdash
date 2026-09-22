@@ -17,6 +17,7 @@ import {
     Loader,
     Select,
     Stack,
+    Switch,
     Text,
     Textarea,
     TextInput,
@@ -220,6 +221,7 @@ const CreatePreviewModal: FC<Props> = ({
         string | null
     >(null);
     const [previewName, setPreviewName] = useState('');
+    const [asyncCopyContent, setAsyncCopyContent] = useState(false);
     const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
     const [schema, setSchema] = useState<string>();
     const [environment, setEnvironment] = useState<
@@ -393,6 +395,7 @@ const CreatePreviewModal: FC<Props> = ({
         await createPreviewProject({
             projectUuid: selectedProjectUuid,
             name: previewName,
+            asyncCopyContent,
             dbtConnectionOverrides: {
                 branch: selectedBranch ?? undefined,
                 environment: environment.length > 0 ? environment : undefined,
@@ -404,6 +407,7 @@ const CreatePreviewModal: FC<Props> = ({
     }, [
         selectedProjectUuid,
         previewName,
+        asyncCopyContent,
         createPreviewProject,
         selectedBranch,
         environment,
@@ -556,6 +560,17 @@ const CreatePreviewModal: FC<Props> = ({
                         />
                         {isOpen && (
                             <Stack>
+                                <Switch
+                                    label="Copy content in the background"
+                                    description="Avoid request timeouts when copying large projects."
+                                    checked={asyncCopyContent}
+                                    onChange={(event) =>
+                                        setAsyncCopyContent(
+                                            event.currentTarget.checked,
+                                        )
+                                    }
+                                    disabled={isPreviewCreating}
+                                />
                                 {/* only show if branch changed + check if project dbt connection type has environment + advanced option */}
                                 <EnvironmentVariablesInput
                                     label="Environment Variables"
@@ -620,6 +635,17 @@ const CreatePreviewModal: FC<Props> = ({
 
                         {isOpen && (
                             <Stack>
+                                <Switch
+                                    label="Copy content in the background"
+                                    description="Avoid request timeouts when copying large projects."
+                                    checked={asyncCopyContent}
+                                    onChange={(event) =>
+                                        setAsyncCopyContent(
+                                            event.currentTarget.checked,
+                                        )
+                                    }
+                                    disabled={isPreviewCreating}
+                                />
                                 <Textarea
                                     label="Custom manifest.json (optional)"
                                     placeholder="Paste your manifest.json content here..."
