@@ -11032,6 +11032,22 @@ export class ProjectService extends BaseService {
             isRegisteredUser: true,
         });
 
+        if (databaseName !== undefined) {
+            const databaseListing = await this.getWarehouseDatabases(
+                user,
+                projectUuid,
+                credentials.connectionUuid,
+            );
+            const listedDatabase = databaseListing.databases.find(
+                ({ name }) => name === databaseName,
+            );
+            if (!listedDatabase) {
+                throw new NotFoundError(
+                    `Warehouse database "${databaseName}" not found`,
+                );
+            }
+        }
+
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             credentials,

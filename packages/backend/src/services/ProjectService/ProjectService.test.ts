@@ -1007,6 +1007,101 @@ describe('ProjectService', () => {
             ).resolves.toEqual(fetchedCatalog);
             expect(harness.getAllTables).toHaveBeenCalledOnce();
         });
+
+        describe('getWarehouseFields', () => {
+            const fetchedFields = {
+                id: DimensionType.NUMBER,
+            };
+
+            const createFieldsHarness = ({
+                credentials,
+            }: {
+                credentials: CreateWarehouseCredentials;
+            }) => {
+                const listing = {
+                    databases: [defaultDatabase, additionalDatabase],
+                    truncated: false,
+                    limit: 100,
+                };
+                const listDatabases = vi.fn(async () => listing);
+                const getFields = vi.fn(async () => ({
+                    [additionalDatabase.name]: {
+                        [additionalDatabase.schema]: {
+                            orders: fetchedFields,
+                        },
+                    },
+                }));
+                const warehouseClient = {
+                    ...warehouseClientMock,
+                    listDatabases,
+                    getFields,
+                } as WarehouseClient;
+                const disconnect = vi.fn(async () => undefined);
+                const testService =
+                    getMockedProjectService(lightdashConfigMock);
+                vi.spyOn(
+                    testService as unknown as {
+                        getWarehouseCredentials: () => Promise<
+                            CreateWarehouseCredentials & {
+                                connectionUuid: string;
+                            }
+                        >;
+                    },
+                    'getWarehouseCredentials',
+                ).mockResolvedValue({
+                    ...credentials,
+                    connectionUuid: runtimeConnection.connectionUuid,
+                });
+                vi.spyOn(testService, '_getWarehouseClient').mockResolvedValue({
+                    warehouseClient,
+                    sshTunnel: { disconnect } as never,
+                    tunnelConnectMs: null,
+                });
+
+                return { testService, listDatabases, getFields, disconnect };
+            };
+
+            test('rejects a database that is not listed', async () => {
+                const harness = createFieldsHarness({
+                    credentials: athenaCredentials,
+                });
+
+                await expect(
+                    harness.testService.getWarehouseFields(
+                        user,
+                        projectUuid,
+                        QueryExecutionContext.SQL_RUNNER,
+                        'orders',
+                        'finance',
+                        'missing',
+                    ),
+                ).rejects.toThrowError(NotFoundError);
+                expect(harness.getFields).not.toHaveBeenCalled();
+            });
+
+            test('returns fields for a listed database', async () => {
+                const harness = createFieldsHarness({
+                    credentials: athenaCredentials,
+                });
+
+                await expect(
+                    harness.testService.getWarehouseFields(
+                        user,
+                        projectUuid,
+                        QueryExecutionContext.SQL_RUNNER,
+                        'orders',
+                        additionalDatabase.schema,
+                        additionalDatabase.name,
+                    ),
+                ).resolves.toEqual(fetchedFields);
+                expect(harness.getFields).toHaveBeenCalledWith(
+                    'orders',
+                    additionalDatabase.schema,
+                    additionalDatabase.name,
+                    expect.anything(),
+                );
+            });
+        });
     });
 
     describe('Document counts in legacy Space listing', () => {
