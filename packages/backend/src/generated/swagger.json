@@ -46852,6 +46852,7 @@
                     "uploadGsheetFromQuery",
                     "validateProject",
                     "compileProject",
+                    "copyPreviewContent",
                     "createProjectWithCompile",
                     "testAndCompileProject",
                     "sqlRunner",
@@ -50829,6 +50830,9 @@
             },
             "ApiCreatePreviewResults": {
                 "properties": {
+                    "contentCopyJobUuid": {
+                        "type": "string"
+                    },
                     "compileJobUuid": {
                         "type": "string"
                     },
@@ -54193,6 +54197,9 @@
                     "accessCopyError": {
                         "type": "string"
                     },
+                    "contentCopyJobUuid": {
+                        "type": "string"
+                    },
                     "hasContentCopy": {
                         "type": "boolean"
                     },
@@ -54254,6 +54261,9 @@
                         "$ref": "#/components/schemas/CreateProjectTableConfiguration"
                     },
                     "copyContent": {
+                        "type": "boolean"
+                    },
+                    "asyncCopyContent": {
                         "type": "boolean"
                     },
                     "expiresInHours": {
@@ -64320,7 +64330,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.288.0",
+        "version": "2.288.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -89864,6 +89874,9 @@
                                             }
                                         },
                                         "type": "object"
+                                    },
+                                    "asyncCopyContent": {
+                                        "type": "boolean"
                                     },
                                     "copyContent": {
                                         "type": "boolean"

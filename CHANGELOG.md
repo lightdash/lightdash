@@ -1,3 +1,10 @@
+## [2.288.1](https://github.com/lightdash/lightdash/compare/2.288.0...2.288.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* copy preview content in a background job before compiling ([#29417](https://github.com/lightdash/lightdash/issues/29417)) ([342a88a](https://github.com/lightdash/lightdash/commit/342a88acba362738cb26abab846f7960fb5758f4))
+
 # [2.288.0](https://github.com/lightdash/lightdash/compare/2.287.1...2.288.0) (2026-09-22)
 
 

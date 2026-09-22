@@ -46812,6 +46812,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['uploadGsheetFromQuery'] },
                 { dataType: 'enum', enums: ['validateProject'] },
                 { dataType: 'enum', enums: ['compileProject'] },
+                { dataType: 'enum', enums: ['copyPreviewContent'] },
                 { dataType: 'enum', enums: ['createProjectWithCompile'] },
                 { dataType: 'enum', enums: ['testAndCompileProject'] },
                 { dataType: 'enum', enums: ['sqlRunner'] },
@@ -50605,6 +50606,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                contentCopyJobUuid: { dataType: 'string' },
                 compileJobUuid: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
             },
@@ -54060,6 +54062,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 contentCopyError: { dataType: 'string' },
                 accessCopyError: { dataType: 'string' },
+                contentCopyJobUuid: { dataType: 'string' },
                 hasContentCopy: { dataType: 'boolean', required: true },
                 project: { ref: 'Project', required: true },
             },
@@ -54136,6 +54139,13 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 copyContent: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                asyncCopyContent: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'boolean' },
@@ -105172,6 +105182,7 @@ export function RegisterRoutes(app: Router) {
                         branch: { dataType: 'string' },
                     },
                 },
+                asyncCopyContent: { dataType: 'boolean' },
                 copyContent: { dataType: 'boolean', required: true },
                 name: { dataType: 'string', required: true },
             },
