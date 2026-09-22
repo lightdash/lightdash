@@ -142,7 +142,7 @@ export const classifyPromptInputRequest = async ({
             maxRetries: 1,
             ...model.model.callOptions,
             providerOptions: model.model.providerOptions,
-            experimental_telemetry: telemetry,
+            ...telemetry,
             schema: promptInputRequestClassifierOutputSchema,
             abortSignal: AbortSignal.timeout(
                 PROMPT_INPUT_REQUEST_CLASSIFIER_TIMEOUT_MS,

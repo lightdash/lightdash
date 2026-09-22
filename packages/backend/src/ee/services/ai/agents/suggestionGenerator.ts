@@ -301,7 +301,7 @@ export async function generateAgentSuggestions(
                     : `Generate empty-state suggestion chips for this agent.\n\nContext:\n${userContent}`,
             },
         ],
-        experimental_telemetry: telemetry,
+        ...telemetry,
     });
 
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));

@@ -1623,7 +1623,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             ...defaultAgentOptions,
             ...model.callOptions,
             providerOptions: model.providerOptions,
-            experimental_telemetry: telemetry,
+            ...telemetry,
             // This schema is near the provider's strict-output grammar-size limit;
             // growing it breaks EVERY judge call silently ("compiled grammar is too
             // large"). Put new fields in a follow-up call like emitProjectContextEntry.

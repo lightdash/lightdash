@@ -34,7 +34,7 @@ export async function generateThreadTitle(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        experimental_telemetry: telemetry,
+        ...telemetry,
         schema: TitleSchema,
         allowSystemInMessages: true,
         messages: [

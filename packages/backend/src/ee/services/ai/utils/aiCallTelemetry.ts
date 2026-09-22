@@ -95,14 +95,21 @@ const ATTRIBUTION_KEYS: (keyof AiCallAttribution)[] = [
 ];
 
 /**
- * Builds an `experimental_telemetry` config for any Vercel AI SDK call
- * (generateText / streamText / generateObject / embed).
+ * Builds the telemetry options for any Vercel AI SDK call (generateText /
+ * streamText / embed). Spread the result into the call, since attribution is a
+ * call-level option rather than part of the telemetry block:
  *
- * Spans always emit (`isEnabled: true`) so token usage is never silently lost;
- * only input/output content capture is gated (`recordIO`). The metadata pins
- * each call to a `feature` + org/project (+ agent/thread/prompt where available)
- * so token usage and cost can be attributed in tracing. Nullish dimensions are
- * dropped so the AI SDK doesn't reject the metadata.
+ *     const telemetry = getAiCallTelemetry({ ... });
+ *     streamText({ ...telemetry, model, messages });
+ *
+ * Telemetry is opt-out in AI SDK 7 — spans emit whenever an integration is
+ * registered — so only input/output content capture is gated (`recordIO`).
+ *
+ * Attribution pins each call to a `feature` + org/project (+ agent/thread/prompt
+ * where available) so token usage and cost can be attributed in tracing. AI SDK 7
+ * dropped `telemetry.metadata`; the equivalent is a call-level `runtimeContext`
+ * plus `telemetry.includeRuntimeContext`, which must name every key explicitly
+ * because nothing is forwarded by default. Nullish dimensions are dropped.
  */
 export const getAiCallTelemetry = ({
     functionId,
@@ -128,12 +135,20 @@ export const getAiCallTelemetry = ({
         });
     }
 
+    // Every attribution key is an internal identifier, never user content, and
+    // all of them were already reported before AI SDK 7 removed `metadata`.
+    const includeRuntimeContext = Object.fromEntries(
+        Object.keys(metadata).map((key) => [key, true]),
+    );
+
     return {
-        functionId,
-        isEnabled: true,
-        recordInputs: recordIO,
-        recordOutputs: recordIO,
-        metadata,
+        runtimeContext: metadata,
+        telemetry: {
+            functionId,
+            recordInputs: recordIO,
+            recordOutputs: recordIO,
+            includeRuntimeContext,
+        },
     } as const;
 };
 

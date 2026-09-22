@@ -49,7 +49,7 @@ export async function generateTooltip(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        experimental_telemetry: telemetry,
+        ...telemetry,
         schema: TooltipSchema,
         allowSystemInMessages: true,
         messages: [

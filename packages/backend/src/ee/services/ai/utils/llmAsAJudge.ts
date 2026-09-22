@@ -200,7 +200,7 @@ export async function llmAsAJudge({
                 model: judge,
                 ...defaultAgentOptions,
                 ...callOptions,
-                experimental_telemetry: telemetryConfig,
+                ...telemetryConfig,
                 schema: z.object({
                     answer: z
                         .enum(['A', 'B', 'C', 'D', 'E'])
@@ -291,7 +291,7 @@ ${
                 model: judge,
                 ...defaultAgentOptions,
                 ...callOptions,
-                experimental_telemetry: telemetryConfig,
+                ...telemetryConfig,
                 schema: z.object({
                     score: z
                         .number()

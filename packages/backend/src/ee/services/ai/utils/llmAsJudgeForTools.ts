@@ -311,7 +311,7 @@ export const evaluateToolCallSequence = async (
         model: judge,
         ...defaultAgentOptions,
         ...callOptions,
-        experimental_telemetry: telemetry,
+        ...telemetry,
         schema: toolEvaluationSchema,
         prompt: `
 You are evaluating AI agent tool usage for business logic testing. Here is the data:

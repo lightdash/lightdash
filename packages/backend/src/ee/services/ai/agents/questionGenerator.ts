@@ -66,7 +66,7 @@ Title: ${title || 'N/A'}
 Description: ${description || 'N/A'}`,
             },
         ],
-        experimental_telemetry: telemetry,
+        ...telemetry,
     });
 
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));

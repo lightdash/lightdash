@@ -2931,7 +2931,7 @@ export const generateAgentResponse = async ({
                     });
                 }
             },
-            experimental_telemetry: telemetry,
+            ...telemetry,
         });
         const responseText = result.text.trim()
             ? result.text
@@ -3626,7 +3626,7 @@ export const streamAgentResponse = async ({
 
                 void cleanupMcpClients();
             },
-            experimental_telemetry: telemetry,
+            ...telemetry,
         });
 
         logger('Stream Agent Response', 'Returning stream result.');

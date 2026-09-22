@@ -130,7 +130,7 @@ export async function generateCustomDimension(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        experimental_telemetry: telemetry,
+        ...telemetry,
         schema: CustomDimensionSchema,
         allowSystemInMessages: true,
         messages: buildCustomDimensionMessages(context),

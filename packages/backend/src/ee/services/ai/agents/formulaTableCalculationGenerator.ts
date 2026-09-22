@@ -353,7 +353,7 @@ export async function generateFormulaTableCalculation(
             model: modelOptions.model,
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
-            experimental_telemetry: telemetry,
+            ...telemetry,
             schema: FormulaTableCalculationSchema,
             allowSystemInMessages: true,
             messages: [

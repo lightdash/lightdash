@@ -104,7 +104,7 @@ export const generateDeepResearchReport = async (
                 model: modelOptions.model,
                 ...modelOptions.callOptions,
                 providerOptions: modelOptions.providerOptions,
-                experimental_telemetry: telemetry,
+                ...telemetry,
                 schema: aiDeepResearchReportInputSchema,
                 allowSystemInMessages: true,
                 messages,

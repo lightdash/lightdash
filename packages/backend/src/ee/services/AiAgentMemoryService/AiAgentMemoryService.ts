@@ -1715,7 +1715,7 @@ export class AiAgentMemoryService extends BaseService {
                 schema: consolidationOutputSchema,
                 system,
                 abortSignal: args.abortSignal,
-                experimental_telemetry: getAiCallTelemetry({
+                ...getAiCallTelemetry({
                     functionId: 'aiAgentMemoryConsolidate',
                     feature: 'ai-agent-memory',
                     organizationUuid: args.partition.organizationUuid,
@@ -2025,7 +2025,7 @@ export class AiAgentMemoryService extends BaseService {
             schema: distillOutputSchema,
             system,
             abortSignal: args.abortSignal,
-            experimental_telemetry: getAiCallTelemetry({
+            ...getAiCallTelemetry({
                 functionId: 'aiAgentMemoryDistill',
                 feature: 'ai-agent-memory',
                 organizationUuid: args.thread.organizationUuid,

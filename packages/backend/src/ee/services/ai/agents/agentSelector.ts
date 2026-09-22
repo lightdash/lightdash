@@ -227,7 +227,7 @@ export async function selectAgent({
     });
     const result = await generateObject({
         model,
-        experimental_telemetry: telemetryConfig,
+        ...telemetryConfig,
         schema: AgentSelectionSchema,
         messages: [
             { role: 'system', content: systemPrompt },

@@ -884,8 +884,8 @@ describe('recordAgentStepUsage', () => {
         const events: AiUsageEvent[] = [];
         registerAiUsageTracker((event) => events.push(event));
         const telemetry = {
-            functionId: 'generateAgentResponse',
-            metadata: {
+            telemetry: { functionId: 'generateAgentResponse' },
+            runtimeContext: {
                 feature: 'agent',
                 organizationUuid: 'organization-1',
                 projectUuid: 'project-1',
@@ -929,8 +929,8 @@ describe('recordAgentStepUsage', () => {
         await recordAgentStepUsage({
             usage,
             telemetry: {
-                functionId: 'generateAgentResponse',
-                metadata: {
+                telemetry: { functionId: 'generateAgentResponse' },
+                runtimeContext: {
                     feature: 'deep-research',
                     deepResearchRunUuid: 'run-1',
                     deepResearchPhase: 'investigating',

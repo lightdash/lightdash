@@ -274,7 +274,7 @@ export async function generateTableCalculation(
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        experimental_telemetry: telemetry,
+        ...telemetry,
         schema: TableCalculationSchema,
         allowSystemInMessages: true,
         messages: [

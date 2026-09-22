@@ -54,7 +54,7 @@ const callAuthoringLlm: ProjectContextEntryAuthoringLlmCall = async ({
         ...defaultAgentOptions,
         ...model.callOptions,
         providerOptions: model.providerOptions,
-        experimental_telemetry: telemetry,
+        ...telemetry,
         schema: aiAgentReviewClassifierJudgeProjectContextCallSchema,
         messages,
     });

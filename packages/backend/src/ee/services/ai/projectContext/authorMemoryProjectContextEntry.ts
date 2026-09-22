@@ -66,7 +66,7 @@ const callAuthoringLlm: MemoryProjectContextAuthoringLlmCall = async ({
         ...defaultAgentOptions,
         ...model.callOptions,
         providerOptions: model.providerOptions,
-        experimental_telemetry: telemetry,
+        ...telemetry,
         schema: memoryProjectContextAuthoringResultSchema,
         messages,
     });

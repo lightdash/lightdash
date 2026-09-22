@@ -152,17 +152,17 @@ export const registerAiUsageTracker = (fn: AiUsageTrackFn): void => {
 };
 
 /**
- * Structural subset of the `experimental_telemetry` config built by
- * `getAiCallTelemetry`, which every AI call site already holds — its metadata
- * carries the feature + attribution dimensions.
+ * Structural subset of the telemetry options built by `getAiCallTelemetry`,
+ * which every AI call site already holds. AI SDK 7 removed `telemetry.metadata`,
+ * so the attribution dimensions now travel as the call-level `runtimeContext`.
  */
 type AiCallTelemetryConfig = {
-    functionId: string;
-    metadata: Record<string, string | number | boolean>;
+    telemetry: { functionId: string };
+    runtimeContext: Record<string, string | number | boolean>;
 };
 
 const getMetadataString = (
-    metadata: AiCallTelemetryConfig['metadata'],
+    metadata: AiCallTelemetryConfig['runtimeContext'],
     key: string,
 ): string | null => {
     const value = metadata[key];
@@ -182,11 +182,11 @@ export const emitAiUsage = (
     tokens: AiUsageTokens,
 ): void => {
     try {
-        const { metadata } = telemetry;
+        const metadata = telemetry.runtimeContext;
         const userUuid = getMetadataString(metadata, 'userUuid');
         const properties: AiUsageEvent['properties'] = {
             feature: metadata.feature as AiCallFeature,
-            functionId: telemetry.functionId,
+            functionId: telemetry.telemetry.functionId,
             organizationId: getMetadataString(metadata, 'organizationUuid'),
             projectId: getMetadataString(metadata, 'projectUuid'),
             aiAgentId: getMetadataString(metadata, 'agentUuid'),

@@ -121,7 +121,7 @@ export const runAutopilotAgent = async ({
             toolChoice: 'auto',
             stopWhen: stepCountIs(maxSteps),
             abortSignal,
-            experimental_telemetry: telemetry,
+            ...telemetry,
             onStepFinish: async (step) => {
                 stepCount += 1;
                 emitAiUsage(telemetry, languageModelUsageToTokens(step.usage));
