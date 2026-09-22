@@ -6,15 +6,19 @@ import {
     ApiCustomDimensionWriteBackPreview,
     ApiGithubDbtWritePreview,
     CustomDimension,
+    CustomDimensionWriteback,
+    CustomMetricWriteback,
     DbtGithubProjectConfig,
     DbtGitlabProjectConfig,
     DbtProjectType,
     DbtSchemaEditor,
     DbtVersionOptionLatest,
+    Explore,
     ForbiddenError,
     friendlyName,
     getCustomDimensionWriteBackError,
     getErrorMessage,
+    getItemId,
     getLatestSupportDbtVersion,
     GitBranch,
     GitFileOrDirectory,
@@ -25,6 +29,7 @@ import {
     LightdashModelEditor,
     NotFoundError,
     ParameterError,
+    parseAllReferences,
     ParseError,
     ProjectType,
     PullRequestCreated,
@@ -32,6 +37,7 @@ import {
     PullRequestSource,
     QueryExecutionContext,
     RegisteredAccount,
+    resolveWritebackColumn,
     SavedChart,
     SessionUser,
     snakeCaseName,
@@ -39,6 +45,7 @@ import {
     UnexpectedServerError,
     UUID,
     VizColumn,
+    WritebackColumn,
 } from '@lightdash/common';
 import * as yaml from 'js-yaml';
 import { nanoid } from 'nanoid';
@@ -358,12 +365,12 @@ Affected charts:
         };
     }
 
-    private async getYamlForTable({
+    private async getYamlForModel({
         owner,
         repo,
         path,
         projectUuid,
-        table,
+        model,
         installationId,
         token,
         branch,
@@ -374,7 +381,7 @@ Affected charts:
         repo: string;
         path: string;
         projectUuid: string;
-        table: string;
+        model: string;
         installationId?: string;
         token: string;
         branch: string;
@@ -386,8 +393,8 @@ Affected charts:
             project.dbtConnection.type === DbtProjectType.GITHUB &&
             project.dbtConnection.semanticLayer === 'lightdash';
         const ymlPath = isNative
-            ? await this.getNativeModelPath(projectUuid, table)
-            : (await this.projectModel.getExploreFromCache(projectUuid, table))
+            ? await this.getNativeModelPath(projectUuid, model)
+            : (await this.projectModel.getExploreFromCache(projectUuid, model))
                   .ymlPath;
 
         if (!ymlPath)
@@ -451,7 +458,6 @@ Affected charts:
             token,
             branch,
             quoteChar,
-            fields,
             fieldType,
             type: gitType,
             hostDomain,
@@ -461,17 +467,32 @@ Affected charts:
                 ? 'custom dimension'
                 : 'custom metric';
 
-        if (fields === undefined || fields?.length === 0)
+        if (args.fields === undefined || args.fields.length === 0)
             throw new ParameterError(`No custom ${fieldsType}s found`);
-        const tables = [...new Set(fields.map((item) => item.table))];
+        const writebacks =
+            args.fieldType === 'customDimensions'
+                ? {
+                      fieldType: args.fieldType,
+                      items: await this.resolveCustomDimensionWritebacks(
+                          projectUuid,
+                          args.fields,
+                      ),
+                  }
+                : {
+                      fieldType: args.fieldType,
+                      items: await this.resolveCustomMetricWritebacks(
+                          projectUuid,
+                          args.fields,
+                      ),
+                  };
+        const models = [
+            ...new Set(writebacks.items.map((item) => item.column.model)),
+        ];
 
-        for (const table of tables) {
-            const fieldsForTable = fields.filter(
-                (item) => item.table === table,
-            );
+        for (const model of models) {
             const { yamlSchema, fileName, fileSha } =
-                await this.getYamlForTable({
-                    table,
+                await this.getYamlForModel({
+                    model,
                     path,
                     owner,
                     repo,
@@ -484,7 +505,8 @@ Affected charts:
                 });
 
             let updatedYml: string;
-            if (fieldType === 'customDimensions') {
+            let fieldCount: number;
+            if (writebacks.fieldType === 'customDimensions') {
                 const warehouseCredentials =
                     await this.projectModel.getWarehouseCredentialsForProject(
                         projectUuid,
@@ -493,25 +515,26 @@ Affected charts:
                     this.projectModel.getWarehouseClientFromCredentials(
                         warehouseCredentials,
                     );
+                const items = writebacks.items.filter(
+                    (item) => item.column.model === model,
+                );
+                fieldCount = items.length;
                 updatedYml = yamlSchema
-                    .addCustomDimensions(
-                        fieldsForTable as CustomDimension[],
-                        warehouseClient,
-                    )
-                    .toString({
-                        quoteChar,
-                    });
-            } else if (fieldType === 'customMetrics') {
-                updatedYml = yamlSchema
-                    .addCustomMetrics(fieldsForTable as AdditionalMetric[])
+                    .addCustomDimensions(items, warehouseClient)
                     .toString({
                         quoteChar,
                     });
             } else {
-                throw new ParameterError(`Unknown type: ${fieldType}`);
+                const items = writebacks.items.filter(
+                    (item) => item.column.model === model,
+                );
+                fieldCount = items.length;
+                updatedYml = yamlSchema.addCustomMetrics(items).toString({
+                    quoteChar,
+                });
             }
 
-            const message = `Updated file ${fileName} with ${fieldsForTable?.length} custom ${fieldsType} from table ${table}`;
+            const message = `Updated file ${fileName} with ${fieldCount} custom ${fieldsType} from model ${model}`;
 
             yield {
                 type: gitType,
@@ -527,6 +550,123 @@ Affected charts:
                 message,
             };
         }
+    }
+
+    private async getExploreContainingTable(
+        projectUuid: string,
+        table: string,
+    ): Promise<Explore> {
+        const explore = await this.projectModel.findExploreContainingTable(
+            projectUuid,
+            table,
+        );
+        if (explore === undefined || isExploreError(explore)) {
+            throw new ParameterError(
+                'Your project needs to be compiled before writing back custom fields. Please refresh your project to fix this issue.',
+            );
+        }
+        return explore;
+    }
+
+    private exploreLookup(projectUuid: string) {
+        const explores = new Map<string, Promise<Explore>>();
+        return (table: string) => {
+            const cached = explores.get(table);
+            if (cached) return cached;
+            const explore = this.getExploreContainingTable(projectUuid, table);
+            explores.set(table, explore);
+            return explore;
+        };
+    }
+
+    private async resolveCustomMetricWritebacks(
+        projectUuid: string,
+        metrics: AdditionalMetric[],
+    ): Promise<CustomMetricWriteback[]> {
+        const getExplore = this.exploreLookup(projectUuid);
+        return Promise.all(
+            metrics.map(async (metric) => {
+                if (metric.baseDimensionName === undefined) {
+                    throw new ParameterError(
+                        `Metric ${metric.name} cannot be written back. Only metrics based on a dimension are supported; metrics without a base dimension are not.`,
+                    );
+                }
+                const explore = await getExplore(metric.table);
+                return {
+                    metric,
+                    column: resolveWritebackColumn(
+                        explore,
+                        metric.table,
+                        metric.baseDimensionName,
+                    ),
+                };
+            }),
+        );
+    }
+
+    private async resolveCustomDimensionWritebacks(
+        projectUuid: string,
+        dimensions: CustomDimension[],
+    ): Promise<CustomDimensionWriteback[]> {
+        const getExplore = this.exploreLookup(projectUuid);
+        return Promise.all(
+            dimensions.map(async (dimension) => ({
+                dimension,
+                column: GitIntegrationService.resolveCustomDimensionColumn(
+                    await getExplore(dimension.table),
+                    dimension,
+                ),
+            })),
+        );
+    }
+
+    // A bin lands on its base column. A SQL dimension lands on the first
+    // column of its own model that its SQL references, or on the model's
+    // first column when it only references other tables.
+    private static resolveCustomDimensionColumn(
+        explore: Explore,
+        dimension: CustomDimension,
+    ): WritebackColumn {
+        const table = explore.tables[dimension.table];
+        if (!table) {
+            throw new ParameterError(
+                `Table "${dimension.table}" is not part of explore "${explore.name}"`,
+            );
+        }
+        if (isCustomBinDimension(dimension)) {
+            const base = Object.values(table.dimensions).find(
+                (candidate) => getItemId(candidate) === dimension.dimensionId,
+            );
+            if (!base) {
+                throw new ParameterError(
+                    `Dimension ${dimension.dimensionId} not found in table ${dimension.table}`,
+                );
+            }
+            return resolveWritebackColumn(explore, dimension.table, base.name);
+        }
+        const firstDimension = Object.values(table.dimensions)
+            .filter((candidate) => !candidate.isAdditionalDimension)
+            .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))[0];
+        if (!firstDimension) {
+            throw new ParameterError(
+                `No columns found in table ${dimension.table}`,
+            );
+        }
+        const fallback = resolveWritebackColumn(
+            explore,
+            dimension.table,
+            firstDimension.name,
+        );
+        const referenced = parseAllReferences(dimension.sql, dimension.table)
+            .filter(
+                ({ refTable, refName }) =>
+                    explore.tables[refTable]?.dimensions[refName] !== undefined,
+            )
+            .map(({ refTable, refName }) =>
+                resolveWritebackColumn(explore, refTable, refName),
+            )
+            .find((column) => column.model === fallback.model);
+        return referenced ?? fallback;
     }
 
     private async prepareFileUpdates(args: WriteBackFileArgs) {
@@ -893,22 +1033,26 @@ Affected charts:
                 warehouseCredentials,
             );
         const definitions: Record<string, unknown> = {};
+        const writebacks = await this.resolveCustomDimensionWritebacks(
+            projectUuid,
+            customDimensions,
+        );
 
-        for (const table of new Set(
-            customDimensions.map((dimension) => dimension.table),
+        for (const model of new Set(
+            writebacks.map((item) => item.column.model),
         )) {
-            const { yamlSchema } = await this.getYamlForTable({
+            const { yamlSchema } = await this.getYamlForModel({
                 ...gitProps,
                 branch: gitProps.mainBranch,
                 projectUuid,
-                table,
+                model,
             });
-            customDimensions
-                .filter((dimension) => dimension.table === table)
-                .forEach((dimension) => {
-                    definitions[dimension.id] =
+            writebacks
+                .filter((item) => item.column.model === model)
+                .forEach((item) => {
+                    definitions[item.dimension.id] =
                         yamlSchema.getCustomDimensionDefinition(
-                            dimension,
+                            item,
                             warehouseClient,
                         );
                 });

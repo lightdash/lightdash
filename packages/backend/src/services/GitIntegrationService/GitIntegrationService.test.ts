@@ -9,7 +9,9 @@ import {
     ParameterError,
     PossibleAbilities,
     SupportedDbtVersions,
+    YamlSchema,
 } from '@lightdash/common';
+import { parse } from 'yaml';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { fromSession } from '../../auth/account';
 import {
@@ -36,6 +38,7 @@ import {
     CUSTOM_METRIC,
     EXPECTED_SCHEMA_YML_WITH_CUSTOM_DIMENSION,
     EXPECTED_SCHEMA_YML_WITH_CUSTOM_METRIC,
+    EXPLORE,
     GITHUB_APP_MODEL,
     PROJECT_DBT_SOURCES_MODEL,
     PROJECT_MODEL,
@@ -333,7 +336,7 @@ dimensions:
                     );
                     if (invalid) {
                         await expect(request).rejects.toThrow(
-                            'Only metrics based on a native dimension',
+                            'Only metrics based on a',
                         );
                         expect(createBranch).not.toHaveBeenCalled();
                         expect(updateFile).not.toHaveBeenCalled();
@@ -434,6 +437,243 @@ dimensions:
         }
     });
 
+    describe('fields on unnested tables', () => {
+        const nestedSchema = `version: 2
+models:
+  - name: table_a
+    columns:
+      - name: dim_a
+      - name: items.sku
+      - name: tags
+`;
+        const writtenSchema = () => {
+            const [[update]] = vi.mocked(updateFile).mock.calls;
+            return parse(update.content) as YamlSchema;
+        };
+        const columnOf = (schema: YamlSchema, name: string) =>
+            schema.models![0].columns!.find((column) => column.name === name)!;
+
+        beforeEach(() => {
+            vi.mocked(getFileContent).mockResolvedValue({
+                content: nestedSchema,
+                sha: 'sha',
+            });
+        });
+
+        it('writes a custom metric on an unnested leaf under the dotted column of its model, in one file with the model fields', async () => {
+            await service.updateFile({
+                owner: 'owner',
+                repo: 'repo',
+                path: 'path',
+                projectUuid: 'projectUuid',
+                fieldType: 'customMetrics',
+                fields: [
+                    CUSTOM_METRIC,
+                    {
+                        ...CUSTOM_METRIC,
+                        name: 'sku_count',
+                        table: 'table_a__items',
+                        baseDimensionName: 'sku',
+                    },
+                    {
+                        ...CUSTOM_METRIC,
+                        name: 'tag_count',
+                        table: 'table_a__tags',
+                        baseDimensionName: 'value',
+                    },
+                ],
+                branch: 'branch',
+                token: 'token',
+                quoteChar: `'`,
+                mainBranch: 'main',
+                type: DbtProjectType.GITHUB,
+            });
+            expect(PROJECT_MODEL.getExploreFromCache).toHaveBeenCalledWith(
+                'projectUuid',
+                'table_a',
+            );
+            expect(updateFile).toHaveBeenCalledTimes(1);
+            const schema = writtenSchema();
+            expect(columnOf(schema, 'dim_a').meta?.metrics).toHaveProperty(
+                'new_metric',
+            );
+            expect(columnOf(schema, 'items.sku').meta?.metrics).toHaveProperty(
+                'sku_count',
+            );
+            expect(columnOf(schema, 'tags').meta?.metrics).toHaveProperty(
+                'tag_count',
+            );
+        });
+
+        it('writes a bin on an unnested leaf with SQL relative to the unnested element', async () => {
+            await service.updateFile({
+                owner: 'owner',
+                repo: 'repo',
+                path: 'path',
+                projectUuid: 'projectUuid',
+                fieldType: 'customDimensions',
+                fields: [
+                    {
+                        id: 'sku_bins',
+                        name: 'SKU bins',
+                        table: 'table_a__items',
+                        type: CustomDimensionType.BIN,
+                        dimensionId: 'table_a__items_sku',
+                        binType: BinType.FIXED_WIDTH,
+                        binWidth: 10,
+                    },
+                ],
+                branch: 'branch',
+                token: 'token',
+                quoteChar: `'`,
+                mainBranch: 'main',
+                type: DbtProjectType.GITHUB,
+            });
+            const sku = columnOf(writtenSchema(), 'items.sku');
+            expect(sku.meta?.additional_dimensions?.sku_bins.sql).toContain(
+                '${TABLE}.sku',
+            );
+        });
+
+        it('hosts a SQL dimension referencing an unnested leaf on that leaf column', async () => {
+            await service.updateFile({
+                owner: 'owner',
+                repo: 'repo',
+                path: 'path',
+                projectUuid: 'projectUuid',
+                fieldType: 'customDimensions',
+                fields: [
+                    {
+                        ...CUSTOM_DIMENSION,
+                        id: 'sku_prefix',
+                        table: 'table_a__items',
+                        sql: 'LEFT(${table_a__items.sku}, 2)',
+                    },
+                ],
+                branch: 'branch',
+                token: 'token',
+                quoteChar: `'`,
+                mainBranch: 'main',
+                type: DbtProjectType.GITHUB,
+            });
+            const sku = columnOf(writtenSchema(), 'items.sku');
+            expect(sku.meta?.additional_dimensions).toHaveProperty(
+                'sku_prefix',
+            );
+        });
+
+        it.each([
+            {
+                reason: 'the element position has no column',
+                field: {
+                    ...CUSTOM_METRIC,
+                    table: 'table_a__items',
+                    baseDimensionName: 'offset',
+                },
+                error: 'not a column of model "table_a"',
+            },
+            {
+                reason: 'the metric has no base dimension',
+                field: {
+                    ...CUSTOM_METRIC,
+                    table: 'table_a__items',
+                    baseDimensionName: undefined,
+                },
+                error: 'Only metrics based on a',
+            },
+        ])(
+            'refuses to write a custom metric when $reason',
+            async ({ field, error }) => {
+                await expect(
+                    service.updateFile({
+                        owner: 'owner',
+                        repo: 'repo',
+                        path: 'path',
+                        projectUuid: 'projectUuid',
+                        fieldType: 'customMetrics',
+                        fields: [field],
+                        branch: 'branch',
+                        token: 'token',
+                        quoteChar: `'`,
+                        mainBranch: 'main',
+                        type: DbtProjectType.GITHUB,
+                    }),
+                ).rejects.toThrow(error);
+                expect(updateFile).not.toHaveBeenCalled();
+            },
+        );
+
+        it('refuses a bin on the elements of an array of scalars, in the preview too', async () => {
+            const bin = {
+                id: 'tag_groups',
+                name: 'Tag groups',
+                table: 'table_a__tags',
+                type: CustomDimensionType.BIN as const,
+                dimensionId: 'table_a__tags_value',
+                binType: BinType.CUSTOM_GROUP as const,
+                customGroups: [
+                    {
+                        name: 'Sale',
+                        values: [
+                            {
+                                matchType: GroupValueMatchType.EXACT,
+                                value: 'sale',
+                            },
+                        ],
+                    },
+                ],
+            };
+            await expect(
+                service.previewCustomDimensions(
+                    fromSession(
+                        { ...user, organizationUuid: 'organizationUuid' },
+                        'session-cookie',
+                    ),
+                    'projectUuid',
+                    [bin],
+                    "'",
+                ),
+            ).rejects.toThrow('array of scalars');
+            await expect(
+                service.updateFile({
+                    owner: 'owner',
+                    repo: 'repo',
+                    path: 'path',
+                    projectUuid: 'projectUuid',
+                    fieldType: 'customDimensions',
+                    fields: [bin],
+                    branch: 'branch',
+                    token: 'token',
+                    quoteChar: `'`,
+                    mainBranch: 'main',
+                    type: DbtProjectType.GITHUB,
+                }),
+            ).rejects.toThrow('array of scalars');
+            expect(updateFile).not.toHaveBeenCalled();
+        });
+
+        it('fails clearly when no compiled explore contains the table', async () => {
+            PROJECT_MODEL.findExploreContainingTable.mockResolvedValueOnce(
+                undefined,
+            );
+            await expect(
+                service.updateFile({
+                    owner: 'owner',
+                    repo: 'repo',
+                    path: 'path',
+                    projectUuid: 'projectUuid',
+                    fieldType: 'customMetrics',
+                    fields: [CUSTOM_METRIC],
+                    branch: 'branch',
+                    token: 'token',
+                    quoteChar: `'`,
+                    mainBranch: 'main',
+                    type: DbtProjectType.GITHUB,
+                }),
+            ).rejects.toThrow('needs to be compiled');
+        });
+    });
+
     describe('findOpenPullRequestForBranch', () => {
         it('returns the open PR the provider has for the branch', async () => {
             vi.mocked(findOpenPullRequestByHead).mockResolvedValueOnce({
@@ -487,7 +727,7 @@ dimensions:
             expect(getFileContent).not.toHaveBeenCalled();
         });
 
-        it('uses the model SQL and project warehouse dialect without placeholders', async () => {
+        it('uses the compiled dimension SQL and project warehouse dialect without placeholders', async () => {
             vi.mocked(getFileContent).mockResolvedValueOnce({
                 content: `version: 2
 models:
@@ -498,6 +738,22 @@ models:
           dimension:
             sql: \${TABLE}.dim_a * 2`,
                 sha: 'sha',
+            });
+            PROJECT_MODEL.findExploreContainingTable.mockResolvedValueOnce({
+                ...EXPLORE,
+                tables: {
+                    ...EXPLORE.tables,
+                    table_a: {
+                        ...EXPLORE.tables.table_a,
+                        dimensions: {
+                            ...EXPLORE.tables.table_a.dimensions,
+                            dim_a: {
+                                ...EXPLORE.tables.table_a.dimensions.dim_a,
+                                sql: '${TABLE}.dim_a * 2',
+                            },
+                        },
+                    },
+                },
             });
 
             const result = await service.previewCustomDimensions(

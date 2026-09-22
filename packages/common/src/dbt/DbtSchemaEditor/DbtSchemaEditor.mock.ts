@@ -1,3 +1,8 @@
+import {
+    type CustomDimensionWriteback,
+    type CustomMetricWriteback,
+    type WritebackColumn,
+} from '../../compiler/writebackColumn';
 // Mock schema file with comments, different multi-line strings, different types of quotes, different types of arrays
 import {
     BinType,
@@ -100,6 +105,12 @@ version: 2
 models:
  - label: table_a
 `;
+
+export const dimensionColumn = (
+    model: string,
+    column: string,
+    sql: string = `\${TABLE}.${column}`,
+): WritebackColumn => ({ model, column, sql, isScalarArrayElement: false });
 
 export const CUSTOM_METRIC: AdditionalMetric = {
     name: 'new_metric',
@@ -237,3 +248,17 @@ export const EXPECTED_SCHEMA_YML_WITH_NEW_MODEL = `models:
           dimension:
             type: string
 `;
+
+export const CUSTOM_METRIC_WRITEBACK: CustomMetricWriteback = {
+    metric: CUSTOM_METRIC,
+    column: dimensionColumn('table_a', 'dim_a'),
+};
+
+export const CUSTOM_DIMENSION_WRITEBACKS: CustomDimensionWriteback[] = [
+    CUSTOM_SQL_DIMENSION,
+    FIXED_WIDTH_BIN_DIMENSION,
+    CUSTOM_RANGE_BIN_DIMENSION,
+].map((dimension) => ({
+    dimension,
+    column: dimensionColumn('table_a', 'dim_a'),
+}));

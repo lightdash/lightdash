@@ -1,14 +1,118 @@
 import {
     AdditionalMetric,
+    CompiledDimension,
     CustomDimensionType,
     CustomSqlDimension,
     DimensionType,
+    Explore,
+    FieldType,
     MetricType,
+    SupportedDbtAdapter,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 
+const dimension = (
+    table: string,
+    name: string,
+    sql: string,
+    index: number,
+): CompiledDimension => ({
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.STRING,
+    name,
+    label: name,
+    table,
+    tableLabel: table,
+    sql,
+    compiledSql: sql,
+    tablesReferences: [table],
+    hidden: false,
+    index,
+});
+
+const table = (
+    name: string,
+    dimensions: CompiledDimension[],
+    extra: Partial<Explore['tables'][string]> = {},
+): Explore['tables'][string] => ({
+    name,
+    label: name,
+    database: 'db',
+    schema: 'schema',
+    sqlTable: name,
+    dimensions: Object.fromEntries(dimensions.map((dim) => [dim.name, dim])),
+    metrics: {},
+    lineageGraph: {},
+    ...extra,
+});
+
+/**
+ * table_a with a repeated struct `items` (unnested as table_a__items) and a
+ * repeated scalar `tags` (unnested as table_a__tags), plus a plain table_b.
+ */
+export const EXPLORE: Explore = {
+    name: 'table_a',
+    label: 'table_a',
+    tags: [],
+    baseTable: 'table_a',
+    targetDatabase: SupportedDbtAdapter.BIGQUERY,
+    joinedTables: [],
+    tables: {
+        table_a: table('table_a', [
+            dimension('table_a', 'dim_a', '${TABLE}.dim_a', 0),
+            dimension('table_a', 'dim_b', '${TABLE}.dim_b', 1),
+        ]),
+        table_a__items: table(
+            'table_a__items',
+            [
+                dimension('table_a__items', 'sku', '${TABLE}.sku', 0),
+                dimension(
+                    'table_a__items',
+                    'offset',
+                    '`table_a__items__offset`',
+                    1,
+                ),
+            ],
+            {
+                nestedFrom: {
+                    parentTable: 'table_a',
+                    columnPath: 'items',
+                    elementSql: '`table_a__items`',
+                    offsetSql: '`table_a__items__offset`',
+                    joinCondition: 'TRUE',
+                },
+            },
+        ),
+        table_a__tags: table(
+            'table_a__tags',
+            [
+                dimension('table_a__tags', 'value', '${TABLE}', 0),
+                dimension(
+                    'table_a__tags',
+                    'offset',
+                    '`table_a__tags__offset`',
+                    1,
+                ),
+            ],
+            {
+                nestedFrom: {
+                    parentTable: 'table_a',
+                    columnPath: 'tags',
+                    elementSql: '`table_a__tags`',
+                    offsetSql: '`table_a__tags__offset`',
+                    joinCondition: 'TRUE',
+                },
+            },
+        ),
+        table_b: table('table_b', [
+            dimension('table_b', 'dim_a', '${TABLE}.dim_a', 0),
+        ]),
+    },
+};
+
 export const PROJECT_MODEL = {
+    findExploreContainingTable: vi.fn().mockResolvedValue(EXPLORE),
     getAllExploresFromCache: vi.fn().mockResolvedValue({
         another_explore: {
             tables: { table_a: { ymlPath: 'models/nested/original.yaml' } },

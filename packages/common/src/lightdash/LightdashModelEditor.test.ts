@@ -1,6 +1,7 @@
 import { parse } from 'yaml';
 import { compileLightdashModels } from '../compiler/compileLightdashModels';
 import { warehouseClientMock } from '../compiler/exploreCompiler.mock';
+import { type WritebackColumn } from '../compiler/writebackColumn';
 import { isExploreError } from '../types/explore';
 import {
     BinType,
@@ -31,6 +32,12 @@ dimensions:
     type: string
     sql: \${TABLE}.status
 `;
+const amount: WritebackColumn = {
+    model: 'orders',
+    column: 'amount',
+    sql: '${TABLE}.amount * 2',
+    isScalarArrayElement: false,
+};
 const metric: AdditionalMetric = {
     name: 'paid_revenue',
     label: 'Paid Revenue',
@@ -55,7 +62,7 @@ describe('native model write-back', () => {
             source,
             'models/nested/sales.yaml',
         )
-            .addCustomMetrics([metric])
+            .addCustomMetrics([{ metric, column: amount }])
             .toString();
         expect(output.split('dimensions:')[0]).toBe(
             source.split('dimensions:')[0],
@@ -92,20 +99,44 @@ describe('native model write-back', () => {
     });
 
     it.each([
-        { ...metric, name: 'existing_count' },
-        { ...metric, name: 'status' },
-        { ...metric, table: 'renamed_orders' },
-        { ...metric, baseDimensionName: 'missing' },
-        { ...metric, generationType: 'periodOverPeriod' as const },
-        { ...metric, baseDimensionName: undefined },
+        {
+            case: 'existing metric name',
+            metric: { ...metric, name: 'existing_count' },
+            column: amount,
+        },
+        {
+            case: 'existing dimension name',
+            metric: { ...metric, name: 'status' },
+            column: amount,
+        },
+        {
+            case: 'renamed model',
+            metric,
+            column: { ...amount, model: 'renamed_orders' },
+        },
+        {
+            case: 'missing base dimension',
+            metric,
+            column: { ...amount, column: 'missing' },
+        },
+        {
+            case: 'period comparison',
+            metric: { ...metric, generationType: 'periodOverPeriod' as const },
+            column: amount,
+        },
+        {
+            case: 'no base dimension',
+            metric: { ...metric, baseDimensionName: undefined },
+            column: amount,
+        },
     ])(
-        'rejects collisions, stale sources and unsupported metric definitions ($name)',
-        (field) => {
+        'rejects collisions, stale sources and unsupported metric definitions ($case)',
+        ({ metric: field, column }) => {
             expect(() =>
                 new LightdashModelEditor(
                     source,
                     'models/orders.yml',
-                ).addCustomMetrics([field]),
+                ).addCustomMetrics([{ metric: field, column }]),
             ).toThrow();
         },
     );
@@ -162,7 +193,10 @@ describe('native model write-back', () => {
         'appends and compiles native $id while preserving the original document',
         async (dimension) => {
             const output = new LightdashModelEditor(source, 'models/orders.yml')
-                .addCustomDimensions([dimension], warehouseClientMock)
+                .addCustomDimensions(
+                    [{ dimension, column: amount }],
+                    warehouseClientMock,
+                )
                 .toString();
             expect(output.startsWith(source)).toBe(true);
             const model = parse(output);
@@ -193,7 +227,10 @@ describe('native model write-back', () => {
             source + footer,
             'models/orders.yml',
         )
-            .addCustomDimensions([customDimensions[0]], warehouseClientMock)
+            .addCustomDimensions(
+                [{ dimension: customDimensions[0], column: amount }],
+                warehouseClientMock,
+            )
             .toString();
         expect(output).toContain(footer);
         expect(parse(output).primary_key).toBe('amount');
@@ -208,13 +245,16 @@ describe('native model write-back', () => {
             ).addCustomDimensions(
                 [
                     {
-                        id: 'unsupported',
-                        name: 'Unsupported',
-                        table: 'orders',
-                        type: CustomDimensionType.BIN,
-                        dimensionId: 'orders_amount',
-                        binType: BinType.FIXED_NUMBER,
-                        binNumber: 4,
+                        dimension: {
+                            id: 'unsupported',
+                            name: 'Unsupported',
+                            table: 'orders',
+                            type: CustomDimensionType.BIN,
+                            dimensionId: 'orders_amount',
+                            binType: BinType.FIXED_NUMBER,
+                            binNumber: 4,
+                        },
+                        column: amount,
                     },
                 ],
                 warehouseClientMock,
@@ -229,8 +269,11 @@ describe('native model write-back', () => {
                 'models/orders.yml',
             ).addCustomMetrics([
                 {
-                    ...metric,
-                    filters: [{ ...metric.filters![0], includeNull: true }],
+                    metric: {
+                        ...metric,
+                        filters: [{ ...metric.filters![0], includeNull: true }],
+                    },
+                    column: amount,
                 },
             ]),
         ).toThrow('without changing its meaning');
@@ -242,8 +285,11 @@ describe('native model write-back', () => {
                 source,
                 'models/orders.yml',
             ).addCustomMetrics([
-                metric,
-                { ...metric, label: 'Different meaning' },
+                { metric, column: amount },
+                {
+                    metric: { ...metric, label: 'Different meaning' },
+                    column: amount,
+                },
             ]),
         ).toThrow('already exists');
     });

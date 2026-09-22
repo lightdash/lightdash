@@ -1,18 +1,20 @@
 import Ajv from 'ajv';
 import { Document, isMap, isSeq, parseDocument, type YAMLMap } from 'yaml';
+import {
+    type CustomDimensionWriteback,
+    type CustomMetricWriteback,
+} from '../compiler/writebackColumn';
 import modelSchema from '../schemas/json/model-as-code-1.0.json';
 import { ParameterError, ParseError } from '../types/errors';
 import {
     DimensionType,
     friendlyName,
     isCustomSqlDimension,
-    type CustomDimension,
 } from '../types/field';
 import {
     type LightdashModel,
     type LightdashModelDimension,
 } from '../types/lightdashModel';
-import { type AdditionalMetric } from '../types/metricQuery';
 import { type WarehouseSqlBuilder } from '../types/warehouse';
 import {
     convertCustomBinDimensionToDbt,
@@ -78,22 +80,21 @@ export class LightdashModelEditor {
         }
     }
 
-    addCustomMetrics(metrics: AdditionalMetric[]): this {
-        metrics.forEach((metric) => {
-            this.assertModelName(metric.table);
+    addCustomMetrics(metrics: CustomMetricWriteback[]): this {
+        metrics.forEach(({ metric, column }) => {
+            this.assertModelName(column.model);
             this.assertFieldDoesNotExist(metric.name);
             const definition = convertCustomMetricToLightdash(metric);
             const dimensions = this.doc.get('dimensions');
             const dimension = isSeq(dimensions)
                 ? dimensions.items.find(
                       (item) =>
-                          isMap(item) &&
-                          item.get('name') === metric.baseDimensionName,
+                          isMap(item) && item.get('name') === column.column,
                   )
                 : undefined;
             if (!isMap(dimension)) {
                 throw new ParameterError(
-                    `Native dimension ${metric.baseDimensionName} not found in ${this.filename}. Refresh the project before writing back.`,
+                    `Native dimension ${column.column} not found in ${this.filename}. Refresh the project before writing back.`,
                 );
             }
             dimension.setIn(['metrics', metric.name], definition);
@@ -104,10 +105,10 @@ export class LightdashModelEditor {
     }
 
     getCustomDimensionDefinition(
-        dimension: CustomDimension,
+        { dimension, column }: CustomDimensionWriteback,
         warehouseSqlBuilder: WarehouseSqlBuilder,
     ): LightdashModelDimension {
-        this.assertModelName(dimension.table);
+        this.assertModelName(column.model);
         this.assertFieldDoesNotExist(dimension.id);
         const error = getCustomDimensionWriteBackError(dimension);
         if (error) throw new ParameterError(error);
@@ -120,14 +121,12 @@ export class LightdashModelEditor {
             };
         }
         const model = this.validate();
-        const prefix = `${dimension.table}_`;
-        const baseName = dimension.dimensionId.startsWith(prefix)
-            ? dimension.dimensionId.slice(prefix.length)
-            : dimension.dimensionId;
-        const base = model.dimensions.find((item) => item.name === baseName);
+        const base = model.dimensions.find(
+            (item) => item.name === column.column,
+        );
         if (!base) {
             throw new ParameterError(
-                `Native dimension ${baseName} not found in ${this.filename}. Refresh the project before writing back.`,
+                `Native dimension ${column.column} not found in ${this.filename}. Refresh the project before writing back.`,
             );
         }
         const definition = convertCustomBinDimensionToDbt({
@@ -144,12 +143,12 @@ export class LightdashModelEditor {
     }
 
     addCustomDimensions(
-        dimensions: CustomDimension[],
+        dimensions: CustomDimensionWriteback[],
         warehouseSqlBuilder: WarehouseSqlBuilder,
     ): this {
-        dimensions.forEach((dimension) => {
+        dimensions.forEach((item) => {
             const definition = this.getCustomDimensionDefinition(
-                dimension,
+                item,
                 warehouseSqlBuilder,
             );
             this.doc.addIn(['dimensions'], definition);

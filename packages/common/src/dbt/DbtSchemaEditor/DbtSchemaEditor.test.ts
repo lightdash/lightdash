@@ -1,3 +1,4 @@
+import { parse } from 'yaml';
 import { warehouseClientMock } from '../../compiler/exploreCompiler.mock';
 import { ParseError } from '../../types/errors';
 import {
@@ -6,11 +7,13 @@ import {
     MetricType,
 } from '../../types/field';
 import { SupportedDbtVersions } from '../../types/projects';
+import { type YamlSchema } from '../../types/yamlSchema';
 import DbtSchemaEditor from './DbtSchemaEditor';
 import {
+    CUSTOM_DIMENSION_WRITEBACKS,
     CUSTOM_METRIC,
-    CUSTOM_RANGE_BIN_DIMENSION,
-    CUSTOM_SQL_DIMENSION,
+    CUSTOM_METRIC_WRITEBACK,
+    dimensionColumn,
     EXPECTED_SCHEMA_JSON_WITH_NEW_MODEL,
     EXPECTED_SCHEMA_YML_WITH_NEW_METRICS_AND_DIMENSIONS,
     EXPECTED_SCHEMA_YML_WITH_NEW_MODEL,
@@ -42,13 +45,9 @@ describe('DbtSchemaEditor', () => {
         // confirms it has models
         expect(editor.hasModels()).toEqual(true);
         // adds custom metrics
-        editor.addCustomMetrics([CUSTOM_METRIC]);
+        editor.addCustomMetrics([CUSTOM_METRIC_WRITEBACK]);
         editor.addCustomDimensions(
-            [
-                CUSTOM_SQL_DIMENSION,
-                FIXED_WIDTH_BIN_DIMENSION,
-                CUSTOM_RANGE_BIN_DIMENSION,
-            ],
+            CUSTOM_DIMENSION_WRITEBACKS,
             warehouseClientMock,
         );
         expect(editor.toString()).toEqual(
@@ -67,12 +66,111 @@ models:
             sql: \${TABLE}.dim_a * 2`);
 
         const definition = editor.getCustomDimensionDefinition(
-            FIXED_WIDTH_BIN_DIMENSION,
+            {
+                dimension: FIXED_WIDTH_BIN_DIMENSION,
+                column: dimensionColumn(
+                    'table_a',
+                    'dim_a',
+                    '${TABLE}.dim_a * 2',
+                ),
+            },
             warehouseClientMock,
         );
 
         expect(definition.sql).toContain('${TABLE}.dim_a * 2');
         expect(definition.sql).not.toContain('${reference_column}');
+    });
+
+    it('writes fields on an unnested table under the dotted column of its model', () => {
+        const editor = new DbtSchemaEditor(`version: 2
+models:
+  - name: orders
+    columns:
+      - name: items.sku
+      - name: tags`);
+        editor.addCustomMetrics([
+            {
+                metric: {
+                    ...CUSTOM_METRIC,
+                    name: 'sku_count',
+                    type: MetricType.COUNT_DISTINCT,
+                    table: 'orders__items',
+                    baseDimensionName: 'sku',
+                },
+                column: dimensionColumn('orders', 'items.sku'),
+            },
+            {
+                metric: {
+                    ...CUSTOM_METRIC,
+                    name: 'tag_count',
+                    type: MetricType.COUNT_DISTINCT,
+                    table: 'orders__tags',
+                    baseDimensionName: 'value',
+                },
+                column: {
+                    model: 'orders',
+                    column: 'tags',
+                    sql: '${TABLE}',
+                    isScalarArrayElement: true,
+                },
+            },
+        ]);
+        editor.addCustomDimensions(
+            [
+                {
+                    dimension: {
+                        ...FIXED_WIDTH_BIN_DIMENSION,
+                        id: 'sku_bins',
+                        table: 'orders__items',
+                        dimensionId: 'orders__items_sku',
+                    },
+                    column: dimensionColumn(
+                        'orders',
+                        'items.sku',
+                        '${TABLE}.sku',
+                    ),
+                },
+            ],
+            warehouseClientMock,
+        );
+        const schema = parse(editor.toString()) as YamlSchema;
+        const columns = schema.models![0].columns!;
+        const sku = columns.find((column) => column.name === 'items.sku')!;
+        expect(sku.meta?.metrics).toHaveProperty('sku_count');
+        expect(sku.meta?.additional_dimensions?.sku_bins.sql).toContain(
+            '${TABLE}.sku',
+        );
+        expect(sku.meta?.additional_dimensions?.sku_bins.sql).not.toContain(
+            'items.sku',
+        );
+        const tags = columns.find((column) => column.name === 'tags')!;
+        expect(tags.meta?.metrics).toHaveProperty('tag_count');
+    });
+
+    it('refuses a custom dimension on the elements of an array of scalars', () => {
+        const editor = new DbtSchemaEditor(`version: 2
+models:
+  - name: orders
+    columns:
+      - name: tags`);
+        expect(() =>
+            editor.getCustomDimensionDefinition(
+                {
+                    dimension: {
+                        ...FIXED_WIDTH_BIN_DIMENSION,
+                        table: 'orders__tags',
+                        dimensionId: 'orders__tags_value',
+                    },
+                    column: {
+                        model: 'orders',
+                        column: 'tags',
+                        sql: '${TABLE}',
+                        isScalarArrayElement: true,
+                    },
+                },
+                warehouseClientMock,
+            ),
+        ).toThrow('array of scalars');
     });
 
     it('should create a new file', () => {
@@ -248,12 +346,15 @@ describe('dbt v1.10+ compatibility', () => {
         );
         editor.addCustomMetrics([
             {
-                name: 'test_metric',
-                description: 'Test metric',
-                sql: 'COUNT(*)',
-                type: MetricType.COUNT,
-                table: 'test_table',
-                baseDimensionName: 'test_column',
+                metric: {
+                    name: 'test_metric',
+                    description: 'Test metric',
+                    sql: 'COUNT(*)',
+                    type: MetricType.COUNT,
+                    table: 'test_table',
+                    baseDimensionName: 'test_column',
+                },
+                column: dimensionColumn('test_table', 'test_column'),
             },
         ]);
 
@@ -272,12 +373,15 @@ describe('dbt v1.10+ compatibility', () => {
         );
         editor.addCustomMetrics([
             {
-                name: 'test_metric',
-                description: 'Test metric',
-                sql: 'COUNT(*)',
-                type: MetricType.COUNT,
-                table: 'test_table',
-                baseDimensionName: 'test_column',
+                metric: {
+                    name: 'test_metric',
+                    description: 'Test metric',
+                    sql: 'COUNT(*)',
+                    type: MetricType.COUNT,
+                    table: 'test_table',
+                    baseDimensionName: 'test_column',
+                },
+                column: dimensionColumn('test_table', 'test_column'),
             },
         ]);
 
@@ -297,12 +401,15 @@ describe('dbt v1.10+ compatibility', () => {
         editor.addCustomDimensions(
             [
                 {
-                    id: 'custom_dim',
-                    name: 'Custom Dimension',
-                    table: 'test_table',
-                    type: CustomDimensionType.SQL,
-                    sql: '${test_table.test_column} || "_suffix"',
-                    dimensionType: DimensionType.STRING,
+                    dimension: {
+                        id: 'custom_dim',
+                        name: 'Custom Dimension',
+                        table: 'test_table',
+                        type: CustomDimensionType.SQL,
+                        sql: '${test_table.test_column} || "_suffix"',
+                        dimensionType: DimensionType.STRING,
+                    },
+                    column: dimensionColumn('test_table', 'test_column'),
                 },
             ],
             warehouseClientMock,
@@ -324,12 +431,15 @@ describe('dbt v1.10+ compatibility', () => {
         editor.addCustomDimensions(
             [
                 {
-                    id: 'custom_dim',
-                    name: 'Custom Dimension',
-                    table: 'test_table',
-                    type: CustomDimensionType.SQL,
-                    sql: '${test_table.test_column} || "_suffix"',
-                    dimensionType: DimensionType.STRING,
+                    dimension: {
+                        id: 'custom_dim',
+                        name: 'Custom Dimension',
+                        table: 'test_table',
+                        type: CustomDimensionType.SQL,
+                        sql: '${test_table.test_column} || "_suffix"',
+                        dimensionType: DimensionType.STRING,
+                    },
+                    column: dimensionColumn('test_table', 'test_column'),
                 },
             ],
             warehouseClientMock,
