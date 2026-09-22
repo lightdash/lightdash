@@ -88,6 +88,7 @@
 
 .headerContainer {
     position: static;
+    margin-bottom: var(--mantine-spacing-sm);
     line-height: var(--text-lh, var(--mantine-line-height-md));
     min-height: 1lh;
     font-size: 16px;

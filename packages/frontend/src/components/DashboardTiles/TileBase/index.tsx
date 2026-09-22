@@ -364,7 +364,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     justify="flex-start"
                     align="center"
                     gap="xs"
-                    mb="sm"
                     data-is-edit-mode={isEditMode}
                     data-is-empty={isMarkdownTileTitleEmpty || hideTitle}
                     data-has-actions={hasHeaderContent}
