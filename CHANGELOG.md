@@ -1,3 +1,10 @@
+## [2.294.1](https://github.com/lightdash/lightdash/compare/2.294.0...2.294.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* write custom fields on unnested columns back to the dotted column of their dbt model ([#29733](https://github.com/lightdash/lightdash/issues/29733)) ([f70e401](https://github.com/lightdash/lightdash/commit/f70e4018f0988ac958e165e39a9187c48fbf161c))
+
 # [2.294.0](https://github.com/lightdash/lightdash/compare/2.293.2...2.294.0) (2026-09-22)
 
 
