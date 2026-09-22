@@ -8431,6 +8431,109 @@ describe('saved SQL chart query result access', () => {
     });
 });
 
+describe('saved SQL chart execution persists chart identity', () => {
+    const buildSqlChart = (savedSqlUuid: string) => ({
+        savedSqlUuid,
+        project: { projectUuid },
+        organization: { organizationUuid: projectSummary.organizationUuid },
+        space: { uuid: 'current-space-uuid' },
+        dashboardUuid: null,
+        sql: 'select 1',
+        config: {},
+        limit: 500,
+    });
+
+    const mockExecutionInternals = (service: AsyncQueryService) => {
+        vi.spyOn(
+            service as AnyType,
+            'assertSavedChartAccess',
+        ).mockResolvedValue(undefined);
+        vi.spyOn(
+            service as AnyType,
+            'prepareSqlChartAsyncQueryArgs',
+        ).mockResolvedValue({
+            warehouseConnection: { sshTunnel: { disconnect: vi.fn() } },
+            warehouseCredentials: {},
+            queryTags: {},
+            metricQuery: metricQueryMock,
+            queryComposer: {} as AnyType,
+            originalColumns: expectedColumns,
+            parameterReferences: [],
+            usedParameters: {},
+            appliedDashboardFilters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+        });
+        return vi
+            .spyOn(service as AnyType, 'executeAsyncQuery')
+            .mockResolvedValue({
+                queryUuid: 'executed-query-uuid',
+                cacheMetadata: {},
+            });
+    };
+
+    it('passes the chart uuid down to query history for a standalone SQL chart run', async () => {
+        const getSqlChart = vi
+            .fn()
+            .mockResolvedValue(buildSqlChart('source-sql-chart-uuid'));
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedSqlModel: { getByUuid: getSqlChart } as never,
+        } as never);
+        const execute = mockExecutionInternals(service);
+
+        await service.executeAsyncSqlChartQuery({
+            account: sessionAccount,
+            projectUuid,
+            savedSqlUuid: 'source-sql-chart-uuid',
+            context: QueryExecutionContext.SQL_CHART,
+        });
+
+        expect(execute).toHaveBeenCalledOnce();
+        const persistedParameters = execute.mock.calls[0][1];
+        expect(persistedParameters).toMatchObject({
+            savedSqlUuid: 'source-sql-chart-uuid',
+        });
+    });
+
+    it('passes the chart uuid down to query history for a dashboard SQL chart run', async () => {
+        const getSqlChart = vi
+            .fn()
+            .mockResolvedValue(
+                buildSqlChart('source-dashboard-sql-chart-uuid'),
+            );
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedSqlModel: { getByUuid: getSqlChart } as never,
+            dashboardModel: {
+                getDashboardParametersByIdOrSlug: vi.fn().mockResolvedValue([]),
+            } as never,
+        } as never);
+        const execute = mockExecutionInternals(service);
+
+        await service.executeAsyncDashboardSqlChartQuery({
+            account: sessionAccount,
+            projectUuid,
+            savedSqlUuid: 'source-dashboard-sql-chart-uuid',
+            dashboardUuid: 'dashboard-uuid',
+            tileUuid: 'tile-uuid',
+            dashboardFilters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+            dashboardSorts: [],
+            context: QueryExecutionContext.DASHBOARD,
+        });
+
+        expect(execute).toHaveBeenCalledOnce();
+        const persistedParameters = execute.mock.calls[0][1];
+        expect(persistedParameters).toMatchObject({
+            savedSqlUuid: 'source-dashboard-sql-chart-uuid',
+        });
+    });
+});
+
 describe('getQueryHistoryList', () => {
     const buildService = (
         counts: Awaited<ReturnType<QueryHistoryModel['getUserHistoryCounts']>>,
