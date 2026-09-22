@@ -35,6 +35,7 @@ const {
   colorPalette,
   pivotDetails,
   ready,
+  pointMenu,
   underlyingData,
   drillDown,
 } = context;
@@ -57,9 +58,13 @@ const {
 - `pivotDetails` — the complete backend-pivot layout, or `null` for ordinary rows. See
   "Backend-pivoted results" below.
 - `ready` — false until the first context arrives.
-- `underlyingData` — host-mediated access to the raw rows behind a clicked data point.
-  See "Data-point actions" below.
-- `drillDown` — host-mediated drill on a clicked data point. See "Data-point
+- `pointMenu` — host-rendered data-point action menu for a clicked mark; this is
+  the current data-point action contract. See "Data-point actions" below.
+- `underlyingData` — host-mediated access to the raw rows behind a clicked data point;
+  the fallback per-action dialog for hosts that predate `pointMenu`. See
+  "Data-point actions" below.
+- `drillDown` — host-mediated drill on a clicked data point; the fallback
+  per-action dialog for hosts that predate `pointMenu`. See "Data-point
   actions" below.
 
 Read all of them. Pass the complete `context` to the colour helpers; they preserve model
@@ -169,18 +174,46 @@ declared series fields builds its label from each matching `pivotValues` entry i
 field order. Backend-pivoted rows do not have safe one-source-row provenance, so the host
 sets `underlyingData.enabled` to false for them.
 
-## Data-point actions: underlying data and drill-down
+## Data-point actions: pointMenu, underlying data, and drill-down
 
-Every chart whose marks satisfy the provenance rule below MUST wire the data-point
-action menu. This is part of the component contract, not an optional nicety — a
-"keep it minimal" prompt does not waive it. The flags decide at RUNTIME whether each
-item shows; you always write the wiring, and it costs nothing visually when disabled.
+Every chart whose marks satisfy the provenance rule below MUST wire the standard
+data-point action. This is part of the component contract, not an optional nicety —
+a "keep it minimal" prompt does not waive it. `pointMenu.enabled` (or, on the
+fallback path, `underlyingData.enabled` and `drillDown.enabled`) decides at RUNTIME
+whether anything shows; you always write the wiring, and it costs nothing visually
+when disabled.
 
-When `underlyingData.enabled` is true, viewers get the standard Lightdash action on
-chart marks: click a data point → small action menu → "View underlying data" → the
-standard Lightdash dialog listing the raw rows behind that point, with its Download
-button. When it is false (host too old, viewer lacks permission, embed), render no menu
-item — never a disabled one.
+### `pointMenu`: the current contract
+
+The current contract is a single call on click: `pointMenu.open({ x, y, row, metric,
+fieldId? })`, with `x`/`y` taken from the click event's `clientX`/`clientY`. Lightdash
+renders the entire menu — copy value, view underlying data, drill, dashboard
+cross-filtering — over the viz and owns all subsequent UI; the component renders no
+menu of its own. `pointMenu.open` resolves `{ shown: boolean }`; `shown: false` means
+the host had no applicable action for that point, and the component still renders
+nothing extra.
+
+```tsx
+onClick={(event, datum) => {
+  if (pointMenu.enabled) {
+    pointMenu
+      .open({
+        x: event.clientX,
+        y: event.clientY,
+        row: datum.sourceRow,
+        metric: 'value',
+      })
+      .catch(() => {});
+    return;
+  }
+  // Fallback for hosts that predate the point menu:
+  openLocalActionMenu(event, datum);
+}}
+```
+
+Only when `pointMenu.enabled` is false (a host that predates the capability) does the
+component fall back to building its own in-viz action menu from `underlyingData.open`
+and `drillDown.open`, as described in the rest of this section.
 
 Provenance is the contract: **every interactive datum keeps a reference to its
 untransformed source row.** When mapping `rows` into chart data, carry the row:
@@ -189,13 +222,25 @@ untransformed source row.** When mapping `rows` into chart data, carry the row:
 const data = rows.map((row) => ({
   label: getFormatted(row, catField),
   value: Number(getRaw(row, valField) ?? 0),
-  sourceRow: row,               // ← required for underlying data
+  sourceRow: row,               // ← required for the data-point action
 }));
 ```
 
 Only attach the action where one mark maps to exactly ONE source row and ONE metric-slot
 field. A mark that aggregates several rows (a binned bucket, a "top N + other" slice)
-gets no underlying-data item.
+gets no data-point action.
+
+### Fallback: the in-viz action menu
+
+Everything through "Open the menu at the data point" below applies only when
+`pointMenu.enabled` is false. It calls the two per-action APIs directly and builds
+its own accessible in-viz menu instead of delegating to a Lightdash-rendered one.
+
+When `underlyingData.enabled` is true, viewers get the fallback action on chart
+marks: click a data point → small action menu → "View underlying data" → the
+standard Lightdash dialog listing the raw rows behind that point, with its Download
+button. When it is false (host too old, viewer lacks permission, embed), render no menu
+item — never a disabled one.
 
 On click, send the intent and render nothing else. Lightdash opens the dialog outside
 the viz and owns its table, loading, error, sorting, and download controls:
@@ -280,7 +325,7 @@ const registerMark = (key, node) => {
   if (node) markElements.current.set(key, node);
   else markElements.current.delete(key);
 };
-const openPointMenu = (datum, anchor) => {
+const openFallbackMenu = (datum, anchor) => {
   if (!underlyingData.enabled && !drillDown.enabled) return;
   const rect = anchor.activator.getBoundingClientRect();
   setTooltipVisible(false);
@@ -318,8 +363,9 @@ const openPointMenu = (datum, anchor) => {
 
 ### Interaction hygiene
 
-One floating surface at a time, and no leftover emphasis — native Lightdash
-charts show a menu OR a tooltip, never both, and clicking leaves no mark
+These rules apply on both paths — the host-rendered `pointMenu` and the fallback
+in-viz menu. One floating surface at a time, and no leftover emphasis — native
+Lightdash charts show a menu OR a tooltip, never both, and clicking leaves no mark
 highlighted:
 
 - **Opening the action menu closes the tooltip.** Drive tooltip visibility
@@ -545,9 +591,10 @@ matters. Keep that help reusable across queries: describe the chart contract rat
 specific dataset.
 
 Finally, if any mark maps to exactly one source row, the data-point action
-menu is wired: each interactive datum carries `sourceRow`, the underlying-data
-action is gated on `underlyingData.enabled`, and the drill action is gated on
-`drillDown.enabled`. Omitting the menu on a chart whose marks satisfy
+is wired: each interactive datum carries `sourceRow`, and the click handler calls
+`pointMenu.open({ x, y, row, metric })` when `pointMenu.enabled`, falling back to
+an in-viz menu — gated on `underlyingData.enabled` and `drillDown.enabled` — only
+when it is not. Omitting the action on a chart whose marks satisfy
 provenance is a defect, not a simplification. Then click a mark mentally:
 the tooltip closes, nothing stays highlighted, and only the menu remains —
 one floating surface at a time.

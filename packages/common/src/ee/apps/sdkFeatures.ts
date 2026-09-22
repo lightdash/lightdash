@@ -176,7 +176,7 @@ export const SDK_FEATURES: SdkFeature[] = [
         label: 'View underlying data',
         description:
             'Open the raw result rows behind a clicked data point in a reusable visualization, with CSV/XLSX download.',
-        wiring: 'In the viz, keep the untransformed source row on each interactive datum, show a data-point action menu only when useVizContext().underlyingData.enabled and the mark maps to exactly one source row, and call underlyingData.open({ row, metric }) on selection. Lightdash opens the standard dialog and owns its table, loading, error, and download controls.',
+        wiring: 'In the viz, keep the untransformed source row on each interactive datum. On a data-point click, when useVizContext().pointMenu.enabled, call pointMenu.open({ x, y, row, metric }) and render no menu of your own; keep a local data-point action menu — shown only when useVizContext().underlyingData.enabled and the mark maps to exactly one source row, calling underlyingData.open({ row, metric }) on selection — only as the pointMenu.enabled-false fallback for older hosts. Either way, Lightdash opens the standard dialog and owns its table, loading, error, and download controls.',
     },
     {
         key: 'viz-host-underlying-data',
@@ -184,7 +184,7 @@ export const SDK_FEATURES: SdkFeature[] = [
         label: 'View underlying data in Lightdash',
         description:
             'Open the standard Lightdash underlying-data dialog from a reusable visualization, with the table and download controls owned by Lightdash.',
-        wiring: 'Replace any underlying-data dialog, table, fetch, and download UI in the viz with underlyingData.open({ row: datum.sourceRow, metric: "<field name>" }). Keep only the data-point action menu in the viz, gated on underlyingData.enabled; Lightdash owns the dialog.',
+        wiring: 'Replace any underlying-data dialog, table, fetch, and download UI in the viz with underlyingData.open({ row: datum.sourceRow, metric: "<field name>" }). On a data-point click, when useVizContext().pointMenu.enabled, call pointMenu.open({ x, y, row, metric }) instead and render no local menu; keep the local menu gated on underlyingData.enabled only as the pointMenu.enabled-false fallback for older hosts. Either way, Lightdash owns the dialog.',
     },
     {
         key: 'point-action-menu',
@@ -216,7 +216,7 @@ export const SDK_FEATURES: SdkFeature[] = [
         label: 'Drill into data points',
         description:
             'Drill into a clicked data point in a reusable visualization — pick a dimension in Lightdash and open the drilled view in explore.',
-        wiring: 'Show a "Drill into …" item in the data-point action menu only when useVizContext().drillDown.enabled and the mark maps to exactly one source row, and call drillDown.open({ row: datum.sourceRow, metric: "<field name>" }) on selection. The host opens its drill dialog — render no dialog in the viz and never render a disabled item.',
+        wiring: 'On a data-point click, when useVizContext().pointMenu.enabled, call pointMenu.open({ x, y, row, metric }) and render no menu of your own — Lightdash renders its own menu, which offers "Drill into …". Keep a "Drill into …" item in a local data-point action menu — shown only when useVizContext().drillDown.enabled and the mark maps to exactly one source row, calling drillDown.open({ row: datum.sourceRow, metric: "<field name>" }) on selection — only as the pointMenu.enabled-false fallback for older hosts. Either way, the host opens its drill dialog — render no dialog in the viz and never render a disabled item.',
     },
     {
         key: 'viz-field-metadata',
