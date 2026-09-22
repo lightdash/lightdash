@@ -9,8 +9,10 @@ import { useElementPicker } from '../../apps/hooks/useElementPicker';
 import { refToWireString } from '../../apps/utils/elementRefs';
 import { type VizBuildRequest } from '../hooks/useDataAppVizBuild';
 import BuilderCanvas from './BuilderCanvas';
+import { type BuilderPromptExamples } from './builderExamplePrompts';
 import BuilderPromptBar from './BuilderPromptBar';
 import classes from './ChartTypeBuilderWorkspace.module.css';
+import { type SavedChartSourceControls } from './savedChartSource';
 import { type ChartTypeBuilderWorkspaceState } from './useChartTypeBuilderWorkspace';
 import VersionHistoryPanel from './VersionHistoryPanel';
 
@@ -22,6 +24,10 @@ type Props = {
     /** Bounded sample of the host's current rows, even before a schema exists. */
     sampleRows?: Record<string, string>[];
     currentBuildContext?: VizBuildRequest['context'];
+    /** The saved chart the session runs on; null on hosts that offer none. */
+    savedChartSource?: SavedChartSourceControls | null;
+    /** Starter prompts rewritten around that chart's fields. */
+    examplePrompts?: BuilderPromptExamples | null;
     /** Whether the previewed viz may write its own state into the page URL. */
     syncPreviewUrlState: boolean;
     /** The previewed version's options beside it; null when the host
@@ -42,6 +48,8 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
     previewContext,
     sampleRows = [],
     currentBuildContext,
+    savedChartSource = null,
+    examplePrompts = null,
     syncPreviewUrlState,
     configurePanel,
     configurationSidebar,
@@ -140,6 +148,8 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                 onScreenshotAvailabilityChange={
                                     setScreenshotAvailable
                                 }
+                                savedChartSource={savedChartSource}
+                                examplePrompts={examplePrompts}
                             />
                             {isPromptBarMounted && (
                                 <BuilderPromptBar
@@ -164,6 +174,7 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                     narration={narration}
                                     modelSelection={modelSelection}
                                     clarification={clarification}
+                                    savedChartSource={savedChartSource}
                                     buildContext={{
                                         ...buildContext,
                                         ...(sampleRows.length > 0

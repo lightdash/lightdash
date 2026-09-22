@@ -68,6 +68,8 @@ import ChartTypeComposerActions, {
     type ComposerPanel,
 } from './ChartTypeComposerActions';
 import ClarifyingQuestions from './ClarifyingQuestions';
+import { type SavedChartSourceControls } from './savedChartSource';
+import SavedChartSourceChip from './SavedChartSourceChip';
 
 type Props = {
     projectUuid: string;
@@ -88,6 +90,9 @@ type Props = {
     modelSelection: DataAppModelSelection;
     /** Existing schema and host-field mapping supplied with every revision. */
     buildContext?: VizBuildRequest['context'];
+    /** The saved chart backing the session; null on hosts that offer none.
+     *  Its chip replaces the round sample-data button. */
+    savedChartSource?: SavedChartSourceControls | null;
     elementPicker?: UseElementPickerResult;
     onCaptureScreenshot?: () => Promise<File>;
     /** The pre-build clarifying round every send passes through. */
@@ -184,6 +189,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             modelSelection,
             clarification,
             buildContext,
+            savedChartSource = null,
             elementPicker,
             onCaptureScreenshot,
         },
@@ -791,7 +797,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     </ActionIcon>
                                 </Tooltip>
                             )}
-                            {canIncludeSampleData && (
+                            {canIncludeSampleData && !savedChartSource && (
                                 <SampleDataButton
                                     enabled={includeSampleData}
                                     onToggle={() =>
@@ -844,6 +850,16 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     >
                                         Retry themes
                                     </Button>
+                                )}
+                                {savedChartSource && (
+                                    <SavedChartSourceChip
+                                        source={savedChartSource}
+                                        includeRows={includeSampleData}
+                                        onIncludeRowsChange={
+                                            setIncludeSampleData
+                                        }
+                                        disabled={isComposerLocked}
+                                    />
                                 )}
                                 {linkedConnections.map(({ connection }) => (
                                     <Tooltip

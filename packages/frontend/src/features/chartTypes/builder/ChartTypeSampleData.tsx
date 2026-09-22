@@ -12,7 +12,10 @@ import {
 } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import { type ChartTypePreviewDataSource } from './ChartInputsList';
 import classes from './ChartTypeSampleData.module.css';
+
+const SAMPLE_SOURCE: ChartTypePreviewDataSource = { kind: 'sample' };
 
 type Column = { reference: string; label: string };
 type SampleRow = DataAppVizContext['rows'][number];
@@ -50,10 +53,22 @@ const getColumns = (context: DataAppVizContext): Column[] => {
 
 const cellValue = (value: SampleRow[string]) => value?.value.formatted ?? '';
 
-type Props = { context: DataAppVizContext | null };
+type ModalProps = {
+    context: DataAppVizContext | null;
+    opened: boolean;
+    onClose: () => void;
+    title: string;
+    subtitle: string;
+};
 
-export const ChartTypeSampleData: FC<Props> = ({ context }) => {
-    const [opened, setOpened] = useState(false);
+/** Every row behind the preview, in a modal the host opens. */
+export const ChartTypeRowsModal: FC<ModalProps> = ({
+    context,
+    opened,
+    onClose,
+    title,
+    subtitle,
+}) => {
     const availableColumns = useMemo(
         () => (context ? getColumns(context) : []),
         [context],
@@ -92,8 +107,37 @@ export const ChartTypeSampleData: FC<Props> = ({ context }) => {
     });
     if (!context || availableColumns.length === 0) return null;
 
+    return (
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title={title}
+            subtitle={subtitle}
+            size="min(1200px, 90vw)"
+        >
+            <ContentTable table={table} />
+        </MantineModal>
+    );
+};
+
+type Props = {
+    context: DataAppVizContext | null;
+    /** Defaults to the fabricated sample every chart type falls back to. */
+    dataSource?: ChartTypePreviewDataSource;
+};
+
+export const ChartTypeSampleData: FC<Props> = ({
+    context,
+    dataSource = SAMPLE_SOURCE,
+}) => {
+    const [opened, setOpened] = useState(false);
+    if (!context || context.rows.length === 0) return null;
+
+    const isLive = dataSource.kind === 'live';
     const rowLabel = context.rows.length === 1 ? 'row' : 'rows';
-    const launcherLabel = `View sample data · ${context.rows.length} ${rowLabel}`;
+    const launcherLabel = `${
+        isLive ? 'View data' : 'View sample data'
+    } · ${context.rows.length} ${rowLabel}`;
 
     return (
         <>
@@ -106,15 +150,17 @@ export const ChartTypeSampleData: FC<Props> = ({ context }) => {
             >
                 {launcherLabel}
             </Button>
-            <MantineModal
+            <ChartTypeRowsModal
+                context={context}
                 opened={opened}
                 onClose={() => setOpened(false)}
-                title="Sample data"
-                subtitle="Generated example values used in this preview."
-                size="min(1200px, 90vw)"
-            >
-                <ContentTable table={table} />
-            </MantineModal>
+                title={isLive ? 'Preview data' : 'Sample data'}
+                subtitle={
+                    isLive
+                        ? 'Rows returned by the saved chart this preview runs on.'
+                        : 'Generated example values used in this preview.'
+                }
+            />
         </>
     );
 };

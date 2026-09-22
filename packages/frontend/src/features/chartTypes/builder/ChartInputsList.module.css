@@ -22,3 +22,7 @@
 .fieldLabel {
     min-width: 0;
 }
+
+.fieldControl {
+    margin-top: var(--mantine-spacing-xs);
+}

@@ -52,6 +52,7 @@ import {
     useState,
     type ClipboardEvent,
     type FC,
+    type ReactNode,
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
@@ -296,7 +297,7 @@ const useLinkPasteHandler = (
  * Selecting a chart adds it to the parent and keeps the picker open so
  * multiple can be added in one flow.
  */
-const QueryPickerView: FC<{
+export const QueryPickerView: FC<{
     selectedCharts: SelectedChart[];
     onSelect: (chart: SelectedChart) => void;
     onDeselect: (uuid: string) => void;
@@ -304,6 +305,8 @@ const QueryPickerView: FC<{
     enabled: boolean;
     attachFromLink: AttachFromLink;
     isResolvingLink: boolean;
+    /** Replaces the Done button for surfaces that attach on the pick itself. */
+    footer?: ReactNode;
 }> = ({
     selectedCharts,
     onSelect,
@@ -312,6 +315,7 @@ const QueryPickerView: FC<{
     enabled,
     attachFromLink,
     isResolvingLink,
+    footer,
 }) => {
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
@@ -478,9 +482,11 @@ const QueryPickerView: FC<{
                 )}
             </ScrollArea.Autosize>
             <Box className={classes.attachPickerFooter}>
-                <Button size="compact-xs" onClick={onDone}>
-                    Done
-                </Button>
+                {footer ?? (
+                    <Button size="compact-xs" onClick={onDone}>
+                        Done
+                    </Button>
+                )}
             </Box>
         </>
     );

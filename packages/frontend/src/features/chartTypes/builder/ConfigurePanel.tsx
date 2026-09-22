@@ -1,4 +1,5 @@
 import {
+    getDataAppVizFieldIds,
     getEffectiveOptionValues,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
@@ -13,9 +14,17 @@ import DataAppVizInputGuidance from '../../../components/VisualizationConfigs/Da
 import DataAppVizOptionControl from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionControl';
 import { groupDataAppVizOptions } from '../../../components/VisualizationConfigs/DataAppVizConfig/dataAppVizOptionGroups';
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
-import ChartInputsList from './ChartInputsList';
+import ChartInputsList, {
+    type ChartInputsBinding,
+    type ChartTypePreviewDataSource,
+} from './ChartInputsList';
 import { ChartTypeSampleData } from './ChartTypeSampleData';
 import classes from './ConfigurePanel.module.css';
+import SavedChartDataSourceSection from './SavedChartDataSourceSection';
+import SavedChartResultsPeek from './SavedChartResultsPeek';
+import { type SavedChartSourceControls } from './savedChartSource';
+
+const SAMPLE_SOURCE: ChartTypePreviewDataSource = { kind: 'sample' };
 
 type Props = {
     schema: DataAppVizSchema;
@@ -32,6 +41,12 @@ type Props = {
     /** The schema on screen belongs to a version being navigated away from;
      *  held legible but inert until the one being previewed arrives. */
     isStale: boolean;
+    /** Where the previewed rows come from. Defaults to the fabricated sample. */
+    previewDataSource?: ChartTypePreviewDataSource;
+    /** The attached saved chart, when the host offers one. */
+    savedChartSource?: SavedChartSourceControls | null;
+    /** Binds the declared slots to that chart's result columns. */
+    inputsBinding?: ChartInputsBinding | null;
 };
 
 /**
@@ -49,6 +64,9 @@ const ConfigurePanel: FC<Props> = ({
     resolvedColorPalette,
     previewContext,
     isStale,
+    previewDataSource = SAMPLE_SOURCE,
+    savedChartSource = null,
+    inputsBinding = null,
 }) => {
     const { data: palettes = [] } = useColorPalettes();
 
@@ -62,6 +80,22 @@ const ConfigurePanel: FC<Props> = ({
         [schema.configOptions, schema.colorPalette],
     );
 
+    // Only meaningful against real rows: the sample binds slot to slot.
+    const boundLabels = useMemo(() => {
+        if (previewDataSource.kind !== 'live' || !previewContext) return null;
+        return Object.fromEntries(
+            schema.fields.flatMap((field) => {
+                const labels = getDataAppVizFieldIds(
+                    previewContext.fieldMapping[field.name],
+                ).map((id) => previewContext.fields[id]?.label ?? id);
+                return labels.length > 0
+                    ? [[field.name, labels.join(', ')] as const]
+                    : [];
+            }),
+        );
+    }, [schema.fields, previewContext, previewDataSource]);
+
+    const hasAttachedSource = savedChartSource?.attached != null;
     const [selectedTab, setSelectedTab] = useState<string | null>('general');
     // A tab a rebuild stopped declaring must not leave the panel blank.
     const activeTab =
@@ -92,8 +126,28 @@ const ConfigurePanel: FC<Props> = ({
 
                 <Tabs.Panel value="general" className={classes.tabPanel}>
                     <Stack gap="sm" p="sm">
-                        <ChartInputsList fields={schema.fields} />
-                        <ChartTypeSampleData context={previewContext} />
+                        {hasAttachedSource && savedChartSource && (
+                            <SavedChartDataSourceSection
+                                source={savedChartSource}
+                            />
+                        )}
+                        <ChartInputsList
+                            fields={schema.fields}
+                            dataSource={previewDataSource}
+                            boundLabels={inputsBinding ? null : boundLabels}
+                            binding={inputsBinding}
+                        />
+                        {hasAttachedSource && savedChartSource ? (
+                            <SavedChartResultsPeek
+                                source={savedChartSource}
+                                context={previewContext}
+                            />
+                        ) : (
+                            <ChartTypeSampleData
+                                context={previewContext}
+                                dataSource={previewDataSource}
+                            />
+                        )}
                         <DataAppVizInputGuidance
                             guidance={schema.inputGuidance}
                         />
