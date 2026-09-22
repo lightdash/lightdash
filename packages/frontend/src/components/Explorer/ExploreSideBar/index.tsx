@@ -33,9 +33,11 @@ type Props = {
     // stay inside the embed route.
     onExploreClick?: (explore: SummaryExplore) => void;
     onBackToTables?: () => void;
+    onBeforeBackToTables?: (proceed: () => void) => void;
 };
 
-const ExploreSideBar = memo(({ onExploreClick, onBackToTables }: Props) => {
+const ExploreSideBar = memo((props: Props) => {
+    const { onExploreClick, onBackToTables, onBeforeBackToTables } = props;
     const projectUuid = useProjectUuid();
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
@@ -94,7 +96,10 @@ const ExploreSideBar = memo(({ onExploreClick, onBackToTables }: Props) => {
                     <LazyExplorePanel
                         onBack={
                             onBackToTables || canManageExplore
-                                ? handleBack
+                                ? () =>
+                                      onBeforeBackToTables
+                                          ? onBeforeBackToTables(handleBack)
+                                          : handleBack()
                                 : undefined
                         }
                     />

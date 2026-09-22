@@ -1,23 +1,72 @@
 import { type Document } from '@lightdash/common';
-import { Stack, Text } from '@mantine/core';
-import { useMemo } from 'react';
+import { Group, Stack, Text } from '@mantine/core';
+import { useMemo, type ReactNode } from 'react';
+import { LightdashUserAvatar } from '../../components/Avatar';
+import { UpdatedInfo } from '../../components/common/PageHeader/UpdatedInfo';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import DocumentChart from './DocumentChart';
 import { getDocumentHeadingId, getDocumentHeadings } from './documentHeadings';
 import DocumentReportLayout from './presentation/DocumentReportLayout';
+import ReportChartFrame from './presentation/ReportChartFrame';
 import ReportMarkdown from './presentation/ReportMarkdown';
 import styles from './presentation/ReportPresentation.module.css';
-import ReportSection from './presentation/ReportSection';
 
-const DocumentRenderer = ({ document }: { document: Document }) => {
+const DocumentRenderer = ({
+    document,
+    actions,
+}: {
+    document: Document;
+    actions?: ReactNode;
+}) => {
     const { cells } = document.version.content;
     const headings = useMemo(() => getDocumentHeadings(cells), [cells]);
+    const creatorName = document.createdBy
+        ? `${document.createdBy.firstName} ${document.createdBy.lastName}`.trim() ||
+          'Unknown user'
+        : null;
     return (
         <DocumentReportLayout
             title={document.name}
             contentsLabel={null}
-            description={document.description}
             headings={headings}
+            variant="document"
+            actions={actions}
+            metadata={
+                <Group gap="xs" wrap="nowrap">
+                    {document.createdBy && (
+                        <>
+                            <Group
+                                gap="xs"
+                                wrap="nowrap"
+                                role="group"
+                                aria-label="Created by"
+                            >
+                                <LightdashUserAvatar
+                                    userUuid={document.createdBy.userUuid}
+                                    avatarUrl={document.createdBy.avatarUrl}
+                                    avatarGradient={
+                                        document.createdBy.avatarGradient
+                                    }
+                                    name={creatorName ?? undefined}
+                                    size="sm"
+                                    aria-hidden
+                                />
+                                <Text fz="xs" fw={500} c="dimmed">
+                                    {creatorName}
+                                </Text>
+                            </Group>
+                            <Text fz="xs" c="dimmed" aria-hidden>
+                                ·
+                            </Text>
+                        </>
+                    )}
+                    <UpdatedInfo
+                        updatedAt={document.updatedAt}
+                        user={null}
+                        partiallyBold={false}
+                    />
+                </Group>
+            }
         >
             <Stack
                 className={`${styles.structuredReport} ${styles.documentCells}`}
@@ -27,27 +76,33 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
                 )}
                 {cells.map((cell, index) =>
                     cell.type === 'chart' ? (
-                        <ReportSection
+                        <ErrorBoundary
                             key={`${document.version.versionUuid}:${index}`}
-                            title={cell.content.chart.name}
+                            fallbackWrapper={(fallback) => (
+                                <ReportChartFrame
+                                    title={cell.content.chart.name}
+                                >
+                                    {fallback}
+                                </ReportChartFrame>
+                            )}
                         >
-                            <ErrorBoundary>
-                                <DocumentChart
-                                    projectUuid={document.projectUuid}
-                                    spaceUuid={document.spaceUuid}
-                                    documentUuid={document.documentUuid}
-                                    versionUuid={document.version.versionUuid}
-                                    cellIndex={index}
-                                    cell={cell}
-                                />
-                            </ErrorBoundary>
-                        </ReportSection>
+                            <DocumentChart
+                                showTitle
+                                projectUuid={document.projectUuid}
+                                spaceUuid={document.spaceUuid}
+                                documentUuid={document.documentUuid}
+                                versionUuid={document.version.versionUuid}
+                                cellIndex={index}
+                                cell={cell}
+                            />
+                        </ErrorBoundary>
                     ) : cell.type === 'markdown' ? (
                         <ErrorBoundary
                             key={`${document.version.versionUuid}:${index}`}
                         >
                             <ReportMarkdown
                                 markdown={cell.content.markdown}
+                                firstHeadingId={headings[0]?.id}
                                 headingId={(offset) =>
                                     getDocumentHeadingId(index, offset)
                                 }

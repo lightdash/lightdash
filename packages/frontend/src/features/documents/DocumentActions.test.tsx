@@ -100,6 +100,7 @@ vi.mock('../directAccess/components/DirectAccessModal', () => ({
 
 const document: Document = {
     pinnedListUuid: null,
+    createdBy: null,
     documentUuid: 'document',
     projectUuid: 'project',
     organizationUuid: 'org',
@@ -199,10 +200,16 @@ describe('Document actions', () => {
         expect(mocks.togglePin).not.toHaveBeenCalled();
     });
 
-    it('opens the shared access modal for the exact Document', () => {
+    it('opens the shared access modal from the overflow menu', async () => {
         renderActions();
         expect(mocks.modal).not.toHaveBeenCalled();
-        fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+        expect(
+            screen.queryByRole('button', { name: 'Share' }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        fireEvent.click(await screen.findByRole('menuitem', { name: 'Share' }));
         expect(screen.getByText('Access assignments')).toBeInTheDocument();
         expect(mocks.modal).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -331,11 +338,15 @@ describe('Document actions', () => {
         { canManage: true, isAvailable: false },
     ])(
         'hides grant controls when access management is unavailable: %j',
-        (permissions) => {
+        async (permissions) => {
             Object.assign(mocks, permissions);
             renderActions();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Document actions' }),
+            );
+            await screen.findByRole('menuitem', { name: 'View as code' });
             expect(
-                screen.queryByRole('button', { name: 'Share' }),
+                screen.queryByRole('menuitem', { name: 'Share' }),
             ).not.toBeInTheDocument();
             expect(
                 screen.getByRole('button', { name: 'Copy document link' }),

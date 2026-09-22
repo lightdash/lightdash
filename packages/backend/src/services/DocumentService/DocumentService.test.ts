@@ -22,6 +22,7 @@ const documentUuid = 'document-uuid';
 
 const document: Document = {
     pinnedListUuid: null,
+    createdBy: null,
     documentUuid,
     projectUuid,
     organizationUuid,

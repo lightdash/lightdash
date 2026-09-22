@@ -1,4 +1,9 @@
-import { type Document, type DocumentCell } from '@lightdash/common';
+import {
+    ChartType,
+    type Document,
+    type DocumentCell,
+    type SemanticChartAsCode,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -12,20 +17,28 @@ import {
     IconArrowDown,
     IconArrowUp,
     IconPlus,
+    IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
-import { useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useRef, useState, type ReactNode } from 'react';
 import { useBeforeUnload, useBlocker } from 'react-router';
 import Callout from '../../components/common/Callout';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
+import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
+import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import DocumentChart from './DocumentChart';
+import DocumentDraftChart from './DocumentDraftChart';
 import { getDocumentHeadings } from './documentHeadings';
 import DocumentMarkdownEditor from './DocumentMarkdownEditor';
 import DocumentPageLayout from './DocumentPageLayout';
 import DocumentReportLayout from './presentation/DocumentReportLayout';
 import { useUpdateDocumentContent } from './useUpdateDocumentContent';
+
+const DocumentChartEditorModal = lazy(
+    () => import('./DocumentChartEditorModal'),
+);
 
 type DraftCell = {
     key: number;
@@ -48,6 +61,14 @@ const DocumentEditor = ({
         })),
     );
     const nextKey = useRef(draft.length);
+    const [chartEditor, setChartEditor] = useState<{
+        key: number | null;
+        chart: SemanticChartAsCode | null;
+    } | null>(null);
+    const { canDrillInto: canAuthorCharts } = useContextMenuPermissions({
+        projectUuid: document.projectUuid,
+        organizationUuid: document.organizationUuid,
+    });
     const [confirmCancel, setConfirmCancel] = useState(false);
     const update = useUpdateDocumentContent(
         document.projectUuid,
@@ -58,9 +79,11 @@ const DocumentEditor = ({
     const dirty =
         JSON.stringify(cells) !==
         JSON.stringify(document.version.content.cells);
-    const blocker = useBlocker(dirty || update.isLoading);
+    const blocker = useBlocker(
+        dirty || update.isLoading || chartEditor !== null,
+    );
     useBeforeUnload((event) => {
-        if (dirty || update.isLoading) {
+        if (dirty || update.isLoading || chartEditor !== null) {
             event.preventDefault();
             event.returnValue = '';
         }
@@ -107,7 +130,6 @@ const DocumentEditor = ({
         >
             <DocumentReportLayout
                 title={document.name}
-                description={document.description}
                 contentsLabel={null}
                 headings={headings}
             >
@@ -129,6 +151,48 @@ const DocumentEditor = ({
                                 </Text>
                                 <Group gap="xs">
                                     {modeSwitch}
+                                    {cell.type === 'chart' &&
+                                        canAuthorCharts && (
+                                            <Tooltip
+                                                label={
+                                                    cell.content.source ===
+                                                    'merge'
+                                                        ? 'Merge charts are read-only'
+                                                        : 'Edit chart'
+                                                }
+                                            >
+                                                <ActionIcon
+                                                    aria-label={`Edit chart ${index + 1}`}
+                                                    disabled={
+                                                        update.isLoading ||
+                                                        cell.content.source !==
+                                                            'semantic' ||
+                                                        cell.content.chart
+                                                            .chartConfig
+                                                            .type ===
+                                                            ChartType.DATA_APP_VIZ
+                                                    }
+                                                    onClick={() => {
+                                                        if (
+                                                            cell.content
+                                                                .source ===
+                                                            'semantic'
+                                                        ) {
+                                                            setChartEditor({
+                                                                key,
+                                                                chart: cell
+                                                                    .content
+                                                                    .chart,
+                                                            });
+                                                        }
+                                                    }}
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconPencil}
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        )}
                                     <Tooltip label="Move up">
                                         <ActionIcon
                                             aria-label={`Move section ${index + 1} up`}
@@ -213,6 +277,17 @@ const DocumentEditor = ({
                                             cellIndex={sourceIndex}
                                             cell={cell}
                                         />
+                                    ) : cell.content.source === 'semantic' ? (
+                                        // Applying a chart edit remounts the preview so the
+                                        // visualization drops state it seeded from the old chart
+                                        <DocumentDraftChart
+                                            key={JSON.stringify(
+                                                cell.content.chart,
+                                            )}
+                                            projectUuid={document.projectUuid}
+                                            spaceUuid={document.spaceUuid}
+                                            chart={cell.content.chart}
+                                        />
                                     ) : null}
                                 </Stack>
                             </Paper>
@@ -239,8 +314,55 @@ const DocumentEditor = ({
                     >
                         Add text
                     </Button>
+                    {canAuthorCharts && (
+                        <Button
+                            variant="default"
+                            disabled={update.isLoading}
+                            onClick={() =>
+                                setChartEditor({ key: null, chart: null })
+                            }
+                        >
+                            Add chart
+                        </Button>
+                    )}
                 </Stack>
             </DocumentReportLayout>
+            {chartEditor && canAuthorCharts && (
+                <Suspense
+                    fallback={<EmptyStateLoader title="Loading chart editor" />}
+                >
+                    <DocumentChartEditorModal
+                        chart={chartEditor.chart}
+                        onClose={() => setChartEditor(null)}
+                        onApply={(chart) => {
+                            const cell: DocumentCell = {
+                                type: 'chart',
+                                content: { source: 'semantic', chart },
+                            };
+                            if (chartEditor.key === null) {
+                                const key = nextKey.current++;
+                                setDraft((previous) => [
+                                    ...previous,
+                                    { key, sourceIndex: null, cell },
+                                ]);
+                            } else {
+                                setDraft((previous) =>
+                                    previous.map((item) =>
+                                        item.key === chartEditor.key
+                                            ? {
+                                                  ...item,
+                                                  cell,
+                                                  sourceIndex: null,
+                                              }
+                                            : item,
+                                    ),
+                                );
+                            }
+                            setChartEditor(null);
+                        }}
+                    />
+                </Suspense>
+            )}
             {(confirmCancel || blocker.state === 'blocked') && (
                 <MantineModal
                     opened

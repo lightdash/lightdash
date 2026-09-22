@@ -13,7 +13,7 @@ const DocumentPageLayout = ({
     children,
 }: {
     name: string;
-    actions: ReactNode;
+    actions?: ReactNode;
     children: ReactNode;
 }) => (
     <Box className={pageStyles.page}>
@@ -21,27 +21,29 @@ const DocumentPageLayout = ({
             title={name}
             noContentPadding
             header={
-                <PageHeader
-                    cardProps={{ px: 0, py: 0, h: DASHBOARD_HEADER_HEIGHT }}
-                >
-                    <Group
-                        className={styles.reportControls}
-                        wrap="nowrap"
-                        justify="space-between"
+                actions ? (
+                    <PageHeader
+                        cardProps={{ px: 0, py: 0, h: DASHBOARD_HEADER_HEIGHT }}
                     >
-                        <Title order={6} flex={1} miw={0}>
-                            <TruncatedText
-                                maxWidth="100%"
-                                inline
-                                inherit
-                                display="block"
-                            >
-                                {name}
-                            </TruncatedText>
-                        </Title>
-                        {actions}
-                    </Group>
-                </PageHeader>
+                        <Group
+                            className={styles.reportControls}
+                            wrap="nowrap"
+                            justify="space-between"
+                        >
+                            <Title order={6} flex={1} miw={0}>
+                                <TruncatedText
+                                    maxWidth="100%"
+                                    inline
+                                    inherit
+                                    display="block"
+                                >
+                                    {name}
+                                </TruncatedText>
+                            </Title>
+                            {actions}
+                        </Group>
+                    </PageHeader>
+                ) : undefined
             }
         >
             {children}

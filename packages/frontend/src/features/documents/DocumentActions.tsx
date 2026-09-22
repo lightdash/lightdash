@@ -6,7 +6,7 @@ import {
     getDocumentUrl,
     type Document,
 } from '@lightdash/common';
-import { ActionIcon, Button, Group, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Menu, Tooltip } from '@mantine/core';
 import {
     IconCode,
     IconCopy,
@@ -14,6 +14,7 @@ import {
     IconTrash,
     IconPin,
     IconPinnedOff,
+    IconUsers,
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -74,8 +75,10 @@ const DocumentActions = ({ document }: { document: Document }) => {
     });
     const url = `${window.location.origin}${getDocumentUrl(projectUrlIdentifier, document.documentUuid, document.slug)}`;
     return (
-        <Group gap="sm">
+        <>
             <FavoriteActionIcon
+                variant="default"
+                size="lg"
                 name={document.name}
                 isFavorite={isFavorite}
                 disabled={
@@ -90,38 +93,45 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     })
                 }
             />
-            <CopyActionIcon value={url} copyLabel="Copy document link" />
-            {isAvailable && canManage && (
-                <>
-                    <Button
-                        variant="default"
-                        onClick={() => setShareOpen(true)}
-                    >
-                        Share
-                    </Button>
-                    {isShareOpen && (
-                        <DirectAccessModal
-                            opened
-                            onClose={() => setShareOpen(false)}
-                            projectUuid={document.projectUuid}
-                            resource={{
-                                resourceType: DirectAccessResourceType.DOCUMENT,
-                                resourceUuid: document.documentUuid,
-                                name: document.name,
-                            }}
-                        />
-                    )}
-                </>
+            <CopyActionIcon
+                variant="default"
+                size="lg"
+                value={url}
+                copyLabel="Copy document link"
+            />
+            {isAvailable && canManage && isShareOpen && (
+                <DirectAccessModal
+                    opened
+                    onClose={() => setShareOpen(false)}
+                    projectUuid={document.projectUuid}
+                    resource={{
+                        resourceType: DirectAccessResourceType.DOCUMENT,
+                        resourceUuid: document.documentUuid,
+                        name: document.name,
+                    }}
+                />
             )}
             <Menu>
                 <Menu.Target>
                     <Tooltip label="Document actions">
-                        <ActionIcon aria-label="Document actions">
+                        <ActionIcon
+                            variant="default"
+                            size="lg"
+                            aria-label="Document actions"
+                        >
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>
                     </Tooltip>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    {isAvailable && canManage && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconUsers} />}
+                            onClick={() => setShareOpen(true)}
+                        >
+                            Share
+                        </Menu.Item>
+                    )}
                     {canPin && (
                         <Menu.Item
                             leftSection={
@@ -197,7 +207,7 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     onClose={() => setDuplicateOpen(false)}
                 />
             )}
-        </Group>
+        </>
     );
 };
 

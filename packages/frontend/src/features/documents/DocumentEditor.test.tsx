@@ -1,4 +1,9 @@
-import { ChartType, type Document } from '@lightdash/common';
+import {
+    ChartType,
+    MergeJoinType,
+    type Document,
+    type SemanticChartAsCode,
+} from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -18,6 +23,41 @@ const mocks = vi.hoisted(() => ({
     api: vi.fn(),
     close: vi.fn(),
     chart: vi.fn(),
+    canAuthorCharts: true,
+}));
+vi.mock('../../hooks/useContextMenuPermissions', () => ({
+    useContextMenuPermissions: () => ({ canDrillInto: mocks.canAuthorCharts }),
+}));
+vi.mock('./DocumentChartEditorModal', () => ({
+    default: ({
+        chart,
+        onApply,
+        onClose,
+    }: {
+        chart: SemanticChartAsCode | null;
+        onApply: (chart: SemanticChartAsCode) => void;
+        onClose: () => void;
+    }) => (
+        <div role="dialog" aria-label="Chart editor">
+            <button
+                onClick={() => {
+                    const original = report.version.content.cells[1];
+                    if (original.type === 'chart') {
+                        onApply({
+                            ...(chart ?? original.content.chart),
+                            name: 'Edited chart',
+                        });
+                    }
+                }}
+            >
+                Apply to Document
+            </button>
+            <button onClick={onClose}>Cancel chart</button>
+        </div>
+    ),
+}));
+vi.mock('./DocumentDraftChart', () => ({
+    default: () => <div>Draft preview</div>,
 }));
 vi.mock('../../api', () => ({ lightdashApi: mocks.api }));
 vi.mock('../../hooks/useContent', () => ({ invalidateContent: vi.fn() }));
@@ -47,6 +87,7 @@ vi.mock('./DocumentChart', () => ({
 
 const report: Document = {
     pinnedListUuid: null,
+    createdBy: null,
     documentUuid: 'document',
     projectUuid: 'project',
     organizationUuid: 'organization',
@@ -98,7 +139,7 @@ const report: Document = {
 };
 
 const clients: QueryClient[] = [];
-const renderEditor = () => {
+const renderEditor = (document = report) => {
     const client = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
@@ -110,7 +151,9 @@ const renderEditor = () => {
     const router = createMemoryRouter([
         {
             path: '/',
-            element: <DocumentEditor document={report} onClose={mocks.close} />,
+            element: (
+                <DocumentEditor document={document} onClose={mocks.close} />
+            ),
         },
         { path: '/away', element: <div>Away</div> },
     ]);
@@ -128,10 +171,121 @@ const renderEditor = () => {
 
 beforeEach(() => {
     vi.clearAllMocks();
+    mocks.canAuthorCharts = true;
     mocks.api.mockResolvedValue({
         ...report,
         version: { ...report.version, versionUuid: 'saved' },
     });
+});
+
+it('applies chart changes only to the draft while preserving unsaved text and order', async () => {
+    renderEditor();
+    fireEvent.change(
+        screen.getByRole('textbox', { name: 'Section Markdown' }),
+        { target: { value: '# Unsaved text' } },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Move section 2 up' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit chart 1' }));
+    fireEvent.click(
+        await screen.findByRole('button', { name: 'Apply to Document' }),
+    );
+    expect(mocks.api).not.toHaveBeenCalled();
+    expect(screen.getByText('Draft preview')).toBeInTheDocument();
+    expect(
+        screen.getByRole('textbox', { name: 'Section Markdown' }),
+    ).toHaveValue('# Unsaved text');
+    fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
+    await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
+    const cells = JSON.parse(mocks.api.mock.calls[0][0].body).content.cells;
+    expect(cells[0].content.chart.name).toBe('Edited chart');
+    expect(cells[1].content.markdown).toBe('# Unsaved text');
+});
+
+it('leaves a chart unchanged when its modal is cancelled', async () => {
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit chart 2' }));
+    fireEvent.click(
+        await screen.findByRole('button', { name: 'Cancel chart' }),
+    );
+    expect(
+        screen.getByRole('button', { name: 'Save document' }),
+    ).toBeDisabled();
+    expect(mocks.api).not.toHaveBeenCalled();
+});
+
+it('adds a draft chart without creating a saved chart', async () => {
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Add chart' }));
+    fireEvent.click(
+        await screen.findByRole('button', { name: 'Apply to Document' }),
+    );
+    expect(
+        screen.getByRole('button', { name: 'Remove section 3' }),
+    ).toBeInTheDocument();
+    expect(mocks.api).not.toHaveBeenCalled();
+});
+
+it('hides chart authoring when independent Explore permission is absent', () => {
+    mocks.canAuthorCharts = false;
+    renderEditor();
+    expect(
+        screen.queryByRole('button', { name: 'Add chart' }),
+    ).not.toBeInTheDocument();
+    expect(
+        screen.queryByRole('button', { name: 'Edit chart 2' }),
+    ).not.toBeInTheDocument();
+    expect(
+        screen.getByRole('button', { name: 'Add text' }),
+    ).toBeInTheDocument();
+});
+
+it('keeps merge cells read-only and unchanged when saving text', async () => {
+    const document = structuredClone(report);
+    const original = document.version.content.cells[1];
+    if (original.type !== 'chart' || original.content.source !== 'semantic') {
+        throw new Error('Expected semantic chart fixture');
+    }
+    document.version.content.cells[1] = {
+        type: 'chart',
+        content: {
+            source: 'merge',
+            chart: {
+                ...original.content.chart,
+                merge: {
+                    primarySourceId: 'a',
+                    sources: [{ id: 'a', kind: 'chart' }],
+                    joinKey: [],
+                    joinType: MergeJoinType.LEFT,
+                    tableCalculations: [],
+                },
+            },
+        },
+    };
+    renderEditor(document);
+    expect(screen.getByRole('button', { name: 'Edit chart 2' })).toBeDisabled();
+    fireEvent.change(
+        screen.getByRole('textbox', { name: 'Section Markdown' }),
+        {
+            target: { value: '# Changed narrative' },
+        },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
+    await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
+    expect(
+        JSON.parse(mocks.api.mock.calls[0][0].body).content.cells[1],
+    ).toEqual(document.version.content.cells[1]);
+});
+
+it('discards applied chart changes when cancelling the Document', async () => {
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit chart 2' }));
+    fireEvent.click(
+        await screen.findByRole('button', { name: 'Apply to Document' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+    expect(mocks.close).toHaveBeenCalledOnce();
+    expect(mocks.api).not.toHaveBeenCalled();
 });
 afterEach(() => clients.splice(0).forEach((client) => client.clear()));
 

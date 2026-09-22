@@ -1,7 +1,7 @@
 import { ERROR_BOUNDARY_ID } from '@lightdash/common';
 import { Flex, type FlexProps } from '@mantine/core';
 import * as Sentry from '@sentry/react';
-import { type FC, type PropsWithChildren } from 'react';
+import { type FC, type PropsWithChildren, type ReactElement } from 'react';
 import {
     hasRecentChunkReload,
     isChunkLoadErrorObject,
@@ -65,19 +65,24 @@ const ErrorFallback: FC<{
     );
 };
 
-const ErrorBoundary: FC<PropsWithChildren & { wrapper?: FlexProps }> = ({
-    children,
-    wrapper,
-}) => {
+const ErrorBoundary: FC<
+    PropsWithChildren & {
+        wrapper?: FlexProps;
+        fallbackWrapper?: (fallback: ReactElement) => ReactElement;
+    }
+> = ({ children, wrapper, fallbackWrapper }) => {
     return (
         <Sentry.ErrorBoundary
-            fallback={({ eventId, error }) => (
-                <ErrorFallback
-                    eventId={eventId}
-                    error={error}
-                    wrapper={wrapper}
-                />
-            )}
+            fallback={({ eventId, error }) => {
+                const fallback = (
+                    <ErrorFallback
+                        eventId={eventId}
+                        error={error}
+                        wrapper={wrapper}
+                    />
+                );
+                return fallbackWrapper ? fallbackWrapper(fallback) : fallback;
+            }}
         >
             {children}
         </Sentry.ErrorBoundary>

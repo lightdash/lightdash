@@ -58,11 +58,13 @@ const ReportMarkdown = ({
     className = styles.reportProse,
     components,
     headingId,
+    firstHeadingId,
 }: {
     markdown: string;
     className?: string;
     components?: StreamdownProps['components'];
     headingId?: (offset: number) => string;
+    firstHeadingId?: string;
 }) => {
     const mergedComponents = useMemo<StreamdownProps['components']>(
         () => ({
@@ -72,6 +74,10 @@ const ReportMarkdown = ({
                     <h1
                         id={headingId(node?.position?.start.offset ?? 0)}
                         data-report-heading=""
+                        data-first-heading={
+                            headingId(node?.position?.start.offset ?? 0) ===
+                                firstHeadingId || undefined
+                        }
                     >
                         {children}
                     </h1>
@@ -90,7 +96,7 @@ const ReportMarkdown = ({
                 ),
             ...components,
         }),
-        [components, headingId],
+        [components, headingId, firstHeadingId],
     );
 
     const content = (
