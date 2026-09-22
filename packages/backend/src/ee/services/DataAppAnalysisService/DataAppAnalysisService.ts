@@ -1381,7 +1381,9 @@ export class DataAppAnalysisService extends BaseService {
      */
     /**
      * Deletes analyses older than the retention window in bounded batches.
-     * `hitBatchLimit` tells the worker to queue another pass.
+     * `hitBatchLimit` tells the worker to queue another pass. Investigations
+     * cascade with their parent detection, so their boundary is the
+     * detection's age, not their own: they describe data it declared stale.
      */
     async cleanExpiredAnalyses(
         now: Date = new Date(),
