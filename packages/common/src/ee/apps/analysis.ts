@@ -33,6 +33,7 @@ export type DataAppAnalysisLimits = {
     investigateMaxWarehouseQueries: number;
     dailyDetectCap: number | null;
     dailyInvestigateCap: number | null;
+    dailyPromptCap: number | null;
 };
 
 export const DATA_APP_ANALYSIS_DEFAULT_LIMITS: DataAppAnalysisLimits = {
@@ -40,6 +41,7 @@ export const DATA_APP_ANALYSIS_DEFAULT_LIMITS: DataAppAnalysisLimits = {
     investigateMaxWarehouseQueries: 15,
     dailyDetectCap: 300,
     dailyInvestigateCap: 100,
+    dailyPromptCap: 500,
 };
 
 export type DataAppAnalysisSource = {

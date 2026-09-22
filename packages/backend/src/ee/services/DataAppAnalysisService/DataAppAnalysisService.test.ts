@@ -855,6 +855,21 @@ describe('DataAppAnalysisService daily budget', () => {
         ).not.toHaveBeenCalled();
     });
 
+    it('caps prompts per org per day as well', async () => {
+        const { service, dataAppAnalysisModel, aiService } = buildService();
+        dataAppAnalysisModel.incrementDailyCounter.mockResolvedValue(501);
+        await expect(
+            service.prompt(buildAccount(), 'proj-1', 'app-1', {
+                sources: request.sources,
+                prompt: 'Why?',
+            }),
+        ).rejects.toMatchObject({ data: { code: 'budget_exhausted' } });
+        expect(dataAppAnalysisModel.incrementDailyCounter).toHaveBeenCalledWith(
+            expect.objectContaining({ operation: 'prompt' }),
+        );
+        expect(aiService.answerDataAppPrompt).not.toHaveBeenCalled();
+    });
+
     it('does not spend the daily budget on a rate-limited request', async () => {
         const { service, dataAppAnalysisModel } = buildService();
         dataAppAnalysisModel.incrementRateCounter.mockResolvedValue(7);

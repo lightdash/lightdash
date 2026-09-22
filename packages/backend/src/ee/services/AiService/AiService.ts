@@ -204,10 +204,23 @@ export class AiService extends BaseService {
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 organizationUuid,
             );
-        const provider = copilotConfig.providers.anthropic?.apiKey
+        return resolveKeyManagement(
+            copilotConfig,
+            AiService.pickAmbientProvider(copilotConfig),
+        );
+    }
+
+    /**
+     * Ambient calls run on the org's Anthropic key when it has one, else on
+     * the instance default provider. Shared by the model builder and the
+     * key-management lookup so the two can never disagree.
+     */
+    private static pickAmbientProvider(
+        copilotConfig: Parameters<typeof resolveKeyManagement>[0],
+    ): Parameters<typeof resolveKeyManagement>[1] {
+        return copilotConfig.providers.anthropic?.apiKey
             ? 'anthropic'
             : copilotConfig.defaultProvider;
-        return resolveKeyManagement(copilotConfig, provider);
     }
 
     /**
@@ -235,7 +248,10 @@ export class AiService extends BaseService {
 
         const anthropicConfig = copilotConfig.providers.anthropic;
 
-        if (anthropicConfig?.apiKey) {
+        if (
+            AiService.pickAmbientProvider(copilotConfig) === 'anthropic' &&
+            anthropicConfig?.apiKey
+        ) {
             // Prefer the fast model, but a BYO key may not have access to it
             // (e.g. a key that only unlocks claude-opus-4-8). Fall back to a
             // model the key can actually serve rather than failing at runtime.

@@ -128,6 +128,7 @@ const DATA_APP_ANALYSIS_LIMIT_BOUNDS = {
     investigateMaxWarehouseQueries: { min: 1, max: 200 },
     dailyDetectCap: { min: 1, max: 100_000 },
     dailyInvestigateCap: { min: 1, max: 100_000 },
+    dailyPromptCap: { min: 1, max: 100_000 },
 } as const;
 
 export const validateDataAppAnalysisLimits = (

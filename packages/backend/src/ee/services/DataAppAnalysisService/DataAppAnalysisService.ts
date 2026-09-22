@@ -15,6 +15,7 @@ import {
     TooManyRequestsError,
     type Account,
     type DataAppAnalysis,
+    type DataAppAnalysisLimits,
     type DataAppAnalysisLookup,
     type DataAppAnalysisRecord,
     type DataAppAnalysisSource,
@@ -31,6 +32,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
+import { type AiKeyManagement } from '../../../analytics/aiUsage';
 import { fromSession, toSessionUser } from '../../../auth/account';
 import { type AppModel } from '../../../models/AppModel';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -145,6 +147,15 @@ class InvestigationQueryBudgetError extends Error {
 }
 
 const utcDay = (now: Date): string => now.toISOString().slice(0, 10);
+
+const DAILY_CAP_KEY = {
+    detect: 'dailyDetectCap',
+    investigate: 'dailyInvestigateCap',
+    prompt: 'dailyPromptCap',
+} as const satisfies Record<
+    DataAppAnalysisOperation,
+    keyof DataAppAnalysisLimits
+>;
 
 type Dependencies = {
     dataAppAnalysisModel: DataAppAnalysisModel;
@@ -835,14 +846,13 @@ export class DataAppAnalysisService extends BaseService {
      */
     private async assertDailyBudget(
         organizationUuid: string,
-        operation: 'detect' | 'investigate',
-    ): Promise<void> {
+        operation: DataAppAnalysisOperation,
+    ): Promise<AiKeyManagement> {
         const limits =
             await this.aiOrganizationSettingsService.getDataAppAnalysisLimits(
                 organizationUuid,
             );
-        const key =
-            operation === 'detect' ? 'dailyDetectCap' : 'dailyInvestigateCap';
+        const key = DAILY_CAP_KEY[operation];
         const configured = limits[key];
         const fallback = DATA_APP_ANALYSIS_DEFAULT_LIMITS[key] as number;
         const keyManagement =
@@ -851,7 +861,7 @@ export class DataAppAnalysisService extends BaseService {
             keyManagement === 'lightdash-managed'
                 ? Math.min(configured ?? fallback, fallback)
                 : configured;
-        if (cap === null) return;
+        if (cap === null) return keyManagement;
         const count = await this.dataAppAnalysisModel.incrementDailyCounter({
             organizationUuid,
             operation,
@@ -863,6 +873,7 @@ export class DataAppAnalysisService extends BaseService {
                 'budget_exhausted',
             );
         }
+        return keyManagement;
     }
 
     private static validatePrompt(body: DataAppPromptRequest): {
@@ -922,6 +933,7 @@ export class DataAppAnalysisService extends BaseService {
             appUuid,
         );
         await this.assertRate(user.userUuid, appUuid, 'prompt');
+        await this.assertDailyBudget(user.organizationUuid!, 'prompt');
         const { content, grounding } = await this.buildContent(
             account,
             projectUuid,

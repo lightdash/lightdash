@@ -84,6 +84,13 @@ const LIMIT_FIELDS: LimitField[] = [
         nullable: true,
     },
     {
+        key: 'dailyPromptCap',
+        label: 'Prompts per day',
+        description:
+            'Answers to in-app AI prompts across all apps and viewers in your organization per UTC day. Leave empty for no cap.',
+        nullable: true,
+    },
+    {
         key: 'investigateMaxSteps',
         label: 'Maximum steps per investigation',
         description: 'Model steps the agent may take before it must answer.',
@@ -105,6 +112,7 @@ const toFormValues = (limits: DataAppAnalysisLimits): LimitsFormValues => ({
     investigateMaxWarehouseQueries: limits.investigateMaxWarehouseQueries,
     dailyDetectCap: limits.dailyDetectCap ?? '',
     dailyInvestigateCap: limits.dailyInvestigateCap ?? '',
+    dailyPromptCap: limits.dailyPromptCap ?? '',
 });
 
 const toLimits = (values: LimitsFormValues): DataAppAnalysisLimits => ({
@@ -118,7 +126,13 @@ const toLimits = (values: LimitsFormValues): DataAppAnalysisLimits => ({
         values.dailyInvestigateCap === ''
             ? null
             : Number(values.dailyInvestigateCap),
+    dailyPromptCap:
+        values.dailyPromptCap === '' ? null : Number(values.dailyPromptCap),
 });
+
+// Per-run limits must hold a value; only the daily caps may be left empty.
+const requiredLimit = (value: number | '') =>
+    value === '' ? 'Enter a value of 1 or more' : null;
 
 const LimitsForm: FC<{
     initialLimits: DataAppAnalysisLimits;
@@ -126,7 +140,13 @@ const LimitsForm: FC<{
 }> = ({ initialLimits, disabled }) => {
     const updateSettings = useUpdateAiOrganizationSettings();
     const initialValues = toFormValues(initialLimits);
-    const form = useForm({ initialValues });
+    const form = useForm({
+        initialValues,
+        validate: {
+            investigateMaxSteps: requiredLimit,
+            investigateMaxWarehouseQueries: requiredLimit,
+        },
+    });
     const isUnchanged = LIMIT_FIELDS.every(
         ({ key }) => form.values[key] === initialValues[key],
     );
