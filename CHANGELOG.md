@@ -1,3 +1,10 @@
+## [2.293.1](https://github.com/lightdash/lightdash/compare/2.293.0...2.293.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **warehouses:** retry Databricks sessions awaiting Spark initialization ([#29740](https://github.com/lightdash/lightdash/issues/29740)) ([ffa9b34](https://github.com/lightdash/lightdash/commit/ffa9b34f7a22398c2de81e74f56bda37f8a61ef0))
+
 # [2.293.0](https://github.com/lightdash/lightdash/compare/2.292.2...2.293.0) (2026-09-22)
 
 

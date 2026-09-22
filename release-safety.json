@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.293.0",
-  "previousVersion": "2.292.2",
-  "releaseDate": "2026-09-22T13:07:06.909Z",
+  "version": "2.293.1",
+  "previousVersion": "2.293.0",
+  "releaseDate": "2026-09-22T14:05:50.654Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,12 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "POST /api/v1/projects/{projectUuid}/mergeQuery/compile — added the new `calculation_formula_too_long` enum value to the `results/errors/items/kind` response property for the response status `200`",
-        "POST /api/v2/projects/{projectUuid}/query/compose-merge-query — added the new `calculation_formula_too_long` enum value to the `results/anyOf[subschema #2]/allOf[subschema #2]/errors/items/kind` response property for the response status `200`",
-        "POST /api/v2/projects/{projectUuid}/query/merge-query — added the new `calculation_formula_too_long` enum value to the `results/anyOf[subschema #2]/allOf[subschema #2]/errors/items/kind` response property for the response status `200`"
-      ],
-      "advisoryCount": 3
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
