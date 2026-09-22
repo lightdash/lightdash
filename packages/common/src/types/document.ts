@@ -4,6 +4,7 @@ import type { ChartAsCode, ChartAsCodeConfig } from './contentAsCode/charts';
 import type { SavedMergeQuery } from './mergeQuery';
 import type { ChartType, DataAppVizOptionValues } from './savedCharts';
 import type { SpaceAccess, SpaceMemberRole } from './space';
+import type { LightdashUser } from './user';
 
 // Keep the published Document contract stable; custom chart types are rejected
 // by parseDocumentContent and their new capabilities belong to saved charts.
@@ -66,6 +67,10 @@ export type DocumentVersion = {
 };
 
 export type Document = DocumentSummary & {
+    createdBy: Pick<
+        LightdashUser,
+        'userUuid' | 'firstName' | 'lastName' | 'avatarUrl' | 'avatarGradient'
+    > | null;
     version: DocumentVersion;
     pinnedListUuid: string | null;
 };

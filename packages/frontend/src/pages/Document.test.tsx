@@ -80,6 +80,7 @@ const chart: DocumentCell = {
 };
 const document: Document = {
     pinnedListUuid: null,
+    createdBy: null,
     documentUuid: 'document-uuid',
     projectUuid: 'project-uuid',
     organizationUuid: 'org-uuid',
@@ -236,6 +237,37 @@ describe('Document page', () => {
                 ),
             ).map((element) => element.textContent),
         ).toEqual(['Findings', 'Orders chart', 'Recommendations']);
+    });
+
+    test('shows the creator beside the edit timestamp without attributing the latest edit to them', async () => {
+        mocks.api.mockResolvedValue({
+            ...document,
+            createdBy: {
+                userUuid: 'original-author',
+                firstName: 'Original',
+                lastName: 'Author',
+                avatarUrl: '/api/v1/user/original-author/avatar?v=hash',
+                avatarGradient: null,
+            },
+            version: {
+                ...document.version,
+                createdByUserUuid: 'latest-editor',
+            },
+        });
+        renderPage();
+        expect(await screen.findByText('Original Author')).toBeInTheDocument();
+        expect(screen.getByLabelText('Created by')).toHaveTextContent(
+            'Original Author',
+        );
+        expect(screen.getByText(/^Last edited/)).not.toHaveTextContent(
+            'Original Author',
+        );
+    });
+
+    test('keeps the timestamp without inventing an author when the creator is unavailable', async () => {
+        renderPage();
+        expect(await screen.findByText(/^Last edited/)).toBeInTheDocument();
+        expect(screen.queryByLabelText('Created by')).not.toBeInTheDocument();
     });
 
     test('identifies the opening section even when an introductory cell precedes it', async () => {

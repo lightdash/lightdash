@@ -1,6 +1,7 @@
 import { type Document } from '@lightdash/common';
-import { Stack, Text } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine/core';
 import { useMemo, type ReactNode } from 'react';
+import { LightdashUserAvatar } from '../../components/Avatar';
 import { UpdatedInfo } from '../../components/common/PageHeader/UpdatedInfo';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import DocumentChart from './DocumentChart';
@@ -19,6 +20,10 @@ const DocumentRenderer = ({
 }) => {
     const { cells } = document.version.content;
     const headings = useMemo(() => getDocumentHeadings(cells), [cells]);
+    const creatorName = document.createdBy
+        ? `${document.createdBy.firstName} ${document.createdBy.lastName}`.trim() ||
+          'Unknown user'
+        : null;
     return (
         <DocumentReportLayout
             title={document.name}
@@ -27,11 +32,35 @@ const DocumentRenderer = ({
             variant="document"
             actions={actions}
             metadata={
-                <UpdatedInfo
-                    updatedAt={document.updatedAt}
-                    user={null}
-                    partiallyBold={false}
-                />
+                <Group gap="sm">
+                    {document.createdBy && (
+                        <Group
+                            gap="xs"
+                            wrap="nowrap"
+                            role="group"
+                            aria-label="Created by"
+                        >
+                            <LightdashUserAvatar
+                                userUuid={document.createdBy.userUuid}
+                                avatarUrl={document.createdBy.avatarUrl}
+                                avatarGradient={
+                                    document.createdBy.avatarGradient
+                                }
+                                name={creatorName ?? undefined}
+                                size="sm"
+                                aria-hidden
+                            />
+                            <Text fz="xs" fw={500}>
+                                {creatorName}
+                            </Text>
+                        </Group>
+                    )}
+                    <UpdatedInfo
+                        updatedAt={document.updatedAt}
+                        user={null}
+                        partiallyBold={false}
+                    />
+                </Group>
             }
         >
             <Stack

@@ -100,6 +100,7 @@ vi.mock('../directAccess/components/DirectAccessModal', () => ({
 
 const document: Document = {
     pinnedListUuid: null,
+    createdBy: null,
     documentUuid: 'document',
     projectUuid: 'project',
     organizationUuid: 'org',

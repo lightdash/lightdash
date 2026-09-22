@@ -4,6 +4,8 @@ import {
     DOCUMENT_SCHEMA_VERSION,
     DocumentContent,
     DocumentSummary,
+    getUserAvatarUrl,
+    isUserAvatarColorValue,
     NotFoundError,
     parseDocumentContent,
     UpdateDocumentContentRequest,
@@ -17,6 +19,8 @@ import {
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectTableName } from '../database/entities/projects';
 import { SpaceTableName } from '../database/entities/spaces';
+import { UserAvatarsTableName } from '../database/entities/userAvatars';
+import { UserTableName } from '../database/entities/users';
 import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
@@ -354,6 +358,23 @@ export class DocumentModel {
                 'documents.document_uuid',
             )
             .select('pinned_document.pinned_list_uuid')
+            .leftJoin(
+                UserTableName,
+                'users.user_uuid',
+                'documents.created_by_user_uuid',
+            )
+            .leftJoin(
+                UserAvatarsTableName,
+                'user_avatars.user_uuid',
+                'users.user_uuid',
+            )
+            .select(
+                'users.user_uuid as creator_uuid',
+                'users.first_name as creator_first_name',
+                'users.last_name as creator_last_name',
+                'users.avatar_gradient as creator_avatar_gradient',
+                'user_avatars.content_hash as creator_avatar_content_hash',
+            )
             .where('documents.document_uuid', documentUuid)
             .first();
         if (!row) {
@@ -369,6 +390,24 @@ export class DocumentModel {
         return {
             ...toSummary(row),
             pinnedListUuid: row.pinned_list_uuid ?? null,
+            createdBy: row.creator_uuid
+                ? {
+                      userUuid: row.creator_uuid,
+                      firstName: row.creator_first_name ?? '',
+                      lastName: row.creator_last_name ?? '',
+                      avatarUrl: row.creator_avatar_content_hash
+                          ? getUserAvatarUrl(
+                                row.creator_uuid,
+                                row.creator_avatar_content_hash,
+                            )
+                          : null,
+                      avatarGradient:
+                          row.creator_avatar_gradient &&
+                          isUserAvatarColorValue(row.creator_avatar_gradient)
+                              ? row.creator_avatar_gradient
+                              : null,
+                  }
+                : null,
             version: {
                 versionUuid: version.document_version_uuid,
                 versionNumber: version.version_number,
