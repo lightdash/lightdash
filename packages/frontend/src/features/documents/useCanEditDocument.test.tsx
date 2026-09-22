@@ -103,6 +103,7 @@ vi.mock('../../providers/App/useApp', () => ({
 }));
 
 const document: Document = {
+    pinnedListUuid: null,
     documentUuid: 'document',
     projectUuid: 'project',
     organizationUuid: 'org',

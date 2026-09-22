@@ -46,6 +46,7 @@ vi.mock('./DocumentChart', () => ({
 }));
 
 const report: Document = {
+    pinnedListUuid: null,
     documentUuid: 'document',
     projectUuid: 'project',
     organizationUuid: 'organization',
