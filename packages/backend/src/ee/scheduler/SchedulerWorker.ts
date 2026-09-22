@@ -357,6 +357,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 },
             },
             {
+                task: EE_SCHEDULER_TASKS.CLEAN_DATA_APP_ANALYSES,
+                pattern: '55 0 * * *', // 00:55 UTC daily
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000,
+                    maxAttempts: 3,
+                },
+            },
+            {
                 task: EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS,
                 pattern: '41 * * * *',
                 options: {
@@ -463,6 +471,23 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 Logger.info(
                     `Rate counter cleanup completed. Analysis windows deleted: ${analysis}; external connection windows deleted: ${external}`,
                 );
+            },
+            [EE_SCHEDULER_TASKS.CLEAN_DATA_APP_ANALYSES]: async (
+                _payload,
+                helpers,
+            ) => {
+                const result =
+                    await this.dataAppAnalysisService.cleanExpiredAnalyses();
+                Logger.info(
+                    `Data app analysis retention cleanup completed. Rows deleted: ${result.deleted}`,
+                );
+                if (result.hitBatchLimit) {
+                    await helpers.addJob(
+                        EE_SCHEDULER_TASKS.CLEAN_DATA_APP_ANALYSES,
+                        {},
+                        { maxAttempts: 3 },
+                    );
+                }
             },
             [EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: async (
                 _payload,
