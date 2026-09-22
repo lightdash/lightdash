@@ -218,8 +218,8 @@ describe('query history retention', () => {
 });
 
 describe('scheduler daily job generation concurrency', () => {
-    it('defaults to 20', () => {
-        expect(parseConfig().scheduler.dailyJobGenerationConcurrency).toBe(20);
+    it('defaults to 5', () => {
+        expect(parseConfig().scheduler.dailyJobGenerationConcurrency).toBe(5);
     });
 
     it('reads the configured concurrency', () => {

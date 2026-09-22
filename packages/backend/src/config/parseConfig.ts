@@ -1713,6 +1713,7 @@ export type LightdashConfig = {
     scheduler: {
         enabled: boolean;
         concurrency: number;
+        // Maximum delivery schedules processed concurrently within one daily generation job.
         dailyJobGenerationConcurrency: number;
         pollInterval: number;
         jobTimeout: number;
@@ -3606,7 +3607,7 @@ export const parseConfig = (): LightdashConfig => {
             dailyJobGenerationConcurrency:
                 getPositiveIntegerFromEnvironmentVariable(
                     'SCHEDULER_DAILY_JOB_GENERATION_CONCURRENCY',
-                    20,
+                    5,
                 ),
             pollInterval:
                 getIntegerFromEnvironmentVariable('SCHEDULER_POLL_INTERVAL') ||
