@@ -20085,8 +20085,7 @@
                     }
                 },
                 "required": ["label", "queryUuid"],
-                "type": "object",
-                "description": "One query the host captured for the viewer's current view of a data app."
+                "type": "object"
             },
             "DataAppAnalysis": {
                 "allOf": [
@@ -41773,6 +41772,42 @@
             "UpdateAiReviewJiraDestination": {
                 "$ref": "#/components/schemas/Pick_AiReviewJiraDestination.enabled-or-jiraProjectId-or-jiraIssueTypeId_"
             },
+            "DataAppAnalysisLimits": {
+                "properties": {
+                    "dailyPromptCap": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "dailyInvestigateCap": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "dailyDetectCap": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "investigateMaxWarehouseQueries": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "investigateMaxSteps": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "dailyPromptCap",
+                    "dailyInvestigateCap",
+                    "dailyDetectCap",
+                    "investigateMaxWarehouseQueries",
+                    "investigateMaxSteps"
+                ],
+                "type": "object",
+                "description": "Org-configurable ceilings for AI analysis in data apps. Per-run limits\nbound one investigation; daily caps bound model runs per organization per\nUTC day (null = no cap). On a Lightdash-managed key the daily caps cannot\nexceed the defaults."
+            },
             "AiOrgProviderModelVisibility": {
                 "properties": {
                     "allowedModels": {
@@ -41905,6 +41940,9 @@
                     },
                     "requireExplicitSlackChannelLinking": {
                         "type": "boolean"
+                    },
+                    "dataAppAnalysisLimits": {
+                        "$ref": "#/components/schemas/DataAppAnalysisLimits"
                     },
                     "dataAppAutoAnalysisEnabled": {
                         "type": "boolean"
@@ -42117,6 +42155,9 @@
                     },
                     "requireExplicitSlackChannelLinking": {
                         "type": "boolean"
+                    },
+                    "dataAppAnalysisLimits": {
+                        "$ref": "#/components/schemas/DataAppAnalysisLimits"
                     },
                     "dataAppAutoAnalysisEnabled": {
                         "type": "boolean"
@@ -64355,7 +64396,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.297.0",
+        "version": "2.298.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

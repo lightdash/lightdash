@@ -41628,6 +41628,45 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppAnalysisLimits: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                dailyPromptCap: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                dailyInvestigateCap: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                dailyDetectCap: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                investigateMaxWarehouseQueries: {
+                    dataType: 'double',
+                    required: true,
+                },
+                investigateMaxSteps: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiOrgProviderModelVisibility: {
         dataType: 'refAlias',
         type: {
@@ -41821,6 +41860,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 requireExplicitSlackChannelLinking: { dataType: 'boolean' },
+                dataAppAnalysisLimits: { ref: 'DataAppAnalysisLimits' },
                 dataAppAutoAnalysisEnabled: { dataType: 'boolean' },
                 dataAppContinueInAskAiEnabled: { dataType: 'boolean' },
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },
@@ -42027,6 +42067,7 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 requireExplicitSlackChannelLinking: { dataType: 'boolean' },
+                dataAppAnalysisLimits: { ref: 'DataAppAnalysisLimits' },
                 dataAppAutoAnalysisEnabled: { dataType: 'boolean' },
                 dataAppContinueInAskAiEnabled: { dataType: 'boolean' },
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },

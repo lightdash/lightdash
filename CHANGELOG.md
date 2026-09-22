@@ -1,3 +1,10 @@
+# [2.298.0](https://github.com/lightdash/lightdash/compare/2.297.0...2.298.0) (2026-09-22)
+
+
+### Features
+
+* **data-apps:** org-configurable limits and daily caps for AI analysis ([#29736](https://github.com/lightdash/lightdash/issues/29736)) ([14c8ed0](https://github.com/lightdash/lightdash/commit/14c8ed030f52cfbcb05d45f7f167b38a9b058440)), closes [#29735](https://github.com/lightdash/lightdash/issues/29735) [#29735](https://github.com/lightdash/lightdash/issues/29735)
+
 # [2.297.0](https://github.com/lightdash/lightdash/compare/2.296.1...2.297.0) (2026-09-22)
 
 
