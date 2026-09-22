@@ -55,6 +55,7 @@ const mocks = vi.hoisted(() => ({
         current: undefined as ReturnType<typeof apiError> | undefined,
     },
     embedToken: { current: undefined as string | undefined },
+    pathname: { current: '/projects/project-uuid/saved/chart-uuid' },
     dataAppVizUuid: { current: 'viz-uuid' as string | null },
     dataAppVizVersion: { current: 7 as number | undefined },
     fieldMapping: {
@@ -96,6 +97,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('react-router', () => ({
     useParams: () => ({ projectUuid: 'project-uuid' }),
+    useLocation: () => ({ pathname: mocks.pathname.current }),
     Link: ({ to, children }: { to: string; children: React.ReactNode }) => (
         <a href={to}>{children}</a>
     ),
@@ -1266,9 +1268,14 @@ describe('DataAppVizRenderer underlying-data gating', () => {
                     enabled: boolean;
                     openEnabled?: boolean;
                 };
+                pointMenu: { enabled: boolean };
             };
             rewriteVizUnderlyingDataRequest?: (intent: unknown) => unknown;
             onVizUnderlyingDataIntent?: (intent: unknown) => void;
+            onVizPointMenuIntent?: (
+                intent: unknown,
+                iframeRect: DOMRect | null,
+            ) => { shown: boolean };
         };
 
     beforeEach(() => {
@@ -1474,5 +1481,117 @@ describe('DataAppVizRenderer underlying-data gating', () => {
             'orders',
             expect.objectContaining({ enabled: true }),
         );
+    });
+});
+
+describe('DataAppVizRenderer point menu', () => {
+    const lastIframeProps = () =>
+        (
+            mocks.iframePreview.mock.calls.at(-1) as unknown[] | undefined
+        )?.[0] as {
+            dataAppVizContext?: { pointMenu: { enabled: boolean } };
+            onVizPointMenuIntent?: (
+                intent: unknown,
+                iframeRect: DOMRect | null,
+            ) => { shown: boolean };
+        };
+
+    const intent = (overrides: Record<string, unknown> = {}) => ({
+        row: {
+            orders_category: {
+                value: { raw: 'Hardware', formatted: 'Hardware' },
+            },
+            orders_count: { value: { raw: 12, formatted: '12' } },
+        },
+        metric: 'value',
+        x: 10,
+        y: 20,
+        ...overrides,
+    });
+
+    beforeEach(() => {
+        mocks.metadata.current = {
+            ...readyMetadata(),
+            schema: {
+                ...readyMetadata().schema,
+                fields: [
+                    ...readyMetadata().schema.fields,
+                    {
+                        name: 'value',
+                        label: 'Value',
+                        type: 'metric' as const,
+                        required: true,
+                    },
+                ],
+            },
+        };
+        mocks.metadataError.current = undefined;
+        mocks.token.current = 'preview-token';
+        mocks.tokenError.current = undefined;
+        mocks.embedToken.current = undefined;
+        mocks.dataAppVizUuid.current = 'viz-uuid';
+        mocks.iframePreview.mockClear();
+        // No dialog provider: the menu then offers the copy action alone,
+        // which keeps this test off the dialog items' provider stack.
+        mocks.metricQueryData.current = undefined;
+        mocks.vizContextOverrides.current = {
+            resultsData: {
+                rows: [
+                    {
+                        orders_category: {
+                            value: { raw: 'Hardware', formatted: 'Hardware' },
+                        },
+                    },
+                ],
+                setFetchAll: mocks.setFetchAll,
+                metricQuery: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_category'],
+                    metrics: ['orders_count'],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+                queryUuid: 'source-query-uuid',
+            },
+        };
+    });
+
+    it('pushes the capability and opens the menu for a resolvable point', () => {
+        renderRenderer();
+        const props = lastIframeProps();
+        expect(props.dataAppVizContext?.pointMenu).toEqual({ enabled: true });
+
+        let result: { shown: boolean } | undefined;
+        act(() => {
+            result = props.onVizPointMenuIntent?.(intent(), null);
+        });
+
+        expect(result).toEqual({ shown: true });
+        expect(screen.getByText('Copy value')).toBeInTheDocument();
+    });
+
+    it('reports shown:false and opens nothing when no action applies', () => {
+        renderRenderer();
+
+        let result: { shown: boolean } | undefined;
+        act(() => {
+            result = lastIframeProps().onVizPointMenuIntent?.(
+                intent({ metric: 'ghost' }),
+                null,
+            );
+        });
+
+        expect(result).toEqual({ shown: false });
+        expect(screen.queryByText('Copy value')).not.toBeInTheDocument();
+    });
+
+    it('embeds push the capability off and install no callback', () => {
+        mocks.embedToken.current = 'embed-jwt';
+        renderRenderer();
+        const props = lastIframeProps();
+        expect(props.dataAppVizContext?.pointMenu).toEqual({ enabled: false });
+        expect(props.onVizPointMenuIntent).toBeUndefined();
     });
 });

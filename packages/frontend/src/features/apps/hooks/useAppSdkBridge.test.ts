@@ -2045,6 +2045,133 @@ describe('viz drill-down virtual route', () => {
     });
 });
 
+describe('viz point-menu virtual route', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    const VIRTUAL_PATH = '/__sdk/viz/point-menu';
+    const INTENT = { row: {}, metric: 'x', x: 12, y: 34 };
+
+    function renderBridgeWithPointMenu(
+        onVizPointMenuIntent?: (intentBody: unknown) => { shown: boolean },
+    ) {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                onVizPointMenuIntent,
+            }),
+        );
+    }
+
+    function postVirtualRoute() {
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path: VIRTUAL_PATH,
+            body: INTENT,
+        });
+    }
+
+    it('answers with an error when no handler is mounted', async () => {
+        renderBridgeWithPointMenu(undefined);
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: 'The data point menu is not available for this visualization.',
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('relays the handler result without forwarding to the API', async () => {
+        const handler = vi.fn(() => ({ shown: true }));
+        renderBridgeWithPointMenu(handler);
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    result: { shown: true },
+                }),
+                '*',
+            ),
+        );
+        expect(handler).toHaveBeenCalledWith(INTENT);
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('relays shown:false when the host has no applicable action', async () => {
+        renderBridgeWithPointMenu(() => ({ shown: false }));
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    result: { shown: false },
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('answers with the thrown message when the handler rejects the intent', async () => {
+        renderBridgeWithPointMenu(() => {
+            throw new Error('"x" is not a metric on this chart.');
+        });
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+        postVirtualRoute();
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: '"x" is not a metric on this chart.',
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('leaves ordinary allowlisted routes untouched when no handler is mounted', async () => {
+        renderBridgeWithPointMenu(undefined);
+        mockFetchOk({ results: { status: 'ready' } });
+        pollQueryResult();
+
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    });
+});
+
 describe('viz underlying-data host dialog virtual route', () => {
     beforeEach(() => {
         vi.stubGlobal('fetch', vi.fn());

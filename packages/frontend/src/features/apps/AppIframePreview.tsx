@@ -141,6 +141,12 @@ type Props = {
     /** Handles the viz drill-down virtual route. Only set by
      *  DataAppVizRenderer when the capability is on. */
     onVizDrillDownIntent?: (intentBody: unknown) => void;
+    /** Handles the viz point-menu virtual route, receiving the iframe's
+     *  current viewport rect so the host can place its menu. */
+    onVizPointMenuIntent?: (
+        intentBody: unknown,
+        iframeRect: DOMRect | null,
+    ) => { shown: boolean };
     // Round-trip the app's `useUrlState` controls through the page's `?state=`
     // param. Leave unset where the page URL isn't the app's share surface
     // (dashboard tiles, screenshots).
@@ -209,6 +215,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             rewriteVizUnderlyingDataRequest,
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
+            onVizPointMenuIntent,
             urlStateSync,
             onSdkManifest,
             onVizRendered,
@@ -286,6 +293,20 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         const handleLineageAnnounce = useCallback(() => {
             onLineageAvailabilityChange?.(true);
         }, [onLineageAvailabilityChange]);
+        // Undefined when the host has no menu, so the bridge reports the
+        // capability unavailable; otherwise closes over the live iframe rect.
+        const handleVizPointMenuIntent = useMemo(
+            () =>
+                onVizPointMenuIntent
+                    ? (intentBody: unknown) =>
+                          onVizPointMenuIntent(
+                              intentBody,
+                              iframeRef.current?.getBoundingClientRect() ??
+                                  null,
+                          )
+                    : undefined,
+            [onVizPointMenuIntent],
+        );
         const {
             handleIframeLoad,
             enableInspector,
@@ -317,6 +338,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             rewriteVizUnderlyingDataRequest,
             onVizUnderlyingDataIntent,
             onVizDrillDownIntent,
+            onVizPointMenuIntent: handleVizPointMenuIntent,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
             onSdkManifest,
             onVizRendered,

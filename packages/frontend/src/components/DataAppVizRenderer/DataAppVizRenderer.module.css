@@ -15,3 +15,9 @@
     inset: 0;
     background-color: var(--mantine-color-body);
 }
+
+.pointMenuBackdrop {
+    /* Above app chrome (navbar/sticky dashboard header use --mantine-z-index-app)
+       but below the menu's own popover layer, so the dropdown still renders on top. */
+    z-index: calc(var(--mantine-z-index-popover) - 1);
+}
