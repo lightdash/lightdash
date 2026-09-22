@@ -1,5 +1,5 @@
 import { assertUnreachable } from '@lightdash/common';
-import { generateObject, LanguageModel } from 'ai';
+import { generateText, LanguageModel, Output } from 'ai';
 import { JSONDiff, Score } from 'autoevals';
 import { z } from 'zod';
 import {
@@ -196,20 +196,22 @@ export async function llmAsAJudge({
                 ...telemetry,
                 keyManagement: telemetry?.keyManagement ?? null,
             });
-            const result = await generateObject({
+            const result = await generateText({
                 model: judge,
                 ...defaultAgentOptions,
                 ...callOptions,
                 ...telemetryConfig,
-                schema: z.object({
-                    answer: z
-                        .enum(['A', 'B', 'C', 'D', 'E'])
-                        .describe('Your selection.'),
-                    rationale: z
-                        .string()
-                        .describe(
-                            'Why you chose this answer. Be very detailed.',
-                        ),
+                output: Output.object({
+                    schema: z.object({
+                        answer: z
+                            .enum(['A', 'B', 'C', 'D', 'E'])
+                            .describe('Your selection.'),
+                        rationale: z
+                            .string()
+                            .describe(
+                                'Why you chose this answer. Be very detailed.',
+                            ),
+                    }),
                 }),
                 /**
                  * Prompt taken from autoevals:
@@ -249,15 +251,15 @@ ${
                 telemetryConfig,
                 languageModelUsageToTokens(result.usage),
             );
-            const { object } = result;
+            const { output } = result;
 
             const factualityResult = {
-                answer: object.answer,
-                rationale: object.rationale,
+                answer: output.answer,
+                rationale: output.rationale,
             };
 
             const passed = meetsFactualityThreshold(
-                object.answer,
+                output.answer,
                 factualityThreshold,
             );
 
@@ -287,20 +289,22 @@ ${
                 ...telemetry,
                 keyManagement: telemetry?.keyManagement ?? null,
             });
-            const result = await generateObject({
+            const result = await generateText({
                 model: judge,
                 ...defaultAgentOptions,
                 ...callOptions,
                 ...telemetryConfig,
-                schema: z.object({
-                    score: z
-                        .number()
-                        .min(0)
-                        .max(1)
-                        .describe('Relevancy score between 0 and 1'),
-                    reason: z
-                        .string()
-                        .describe('Explanation for the relevancy score'),
+                output: Output.object({
+                    schema: z.object({
+                        score: z
+                            .number()
+                            .min(0)
+                            .max(1)
+                            .describe('Relevancy score between 0 and 1'),
+                        reason: z
+                            .string()
+                            .describe('Explanation for the relevancy score'),
+                    }),
                 }),
                 prompt: `
 You are evaluating the relevancy of context used to answer a query.
@@ -330,14 +334,14 @@ Provide a relevancy score between 0 (not relevant at all) and 1 (highly relevant
                 telemetryConfig,
                 languageModelUsageToTokens(result.usage),
             );
-            const { object } = result;
+            const { output } = result;
 
             const contextResult = {
-                score: object.score,
-                reason: object.reason,
+                score: output.score,
+                reason: output.reason,
             };
 
-            const passed = object.score >= contextRelevancyThreshold;
+            const passed = output.score >= contextRelevancyThreshold;
 
             return {
                 result: contextResult,

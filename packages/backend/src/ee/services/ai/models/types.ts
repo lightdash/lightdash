@@ -32,7 +32,7 @@ export type AiModel<P extends AiProvider> = {
 };
 
 /**
- * Options for generator functions (generateObject calls).
+ * Options for generator functions (structured-output calls).
  * Subset of AiModel used by lightweight generation tasks.
  */
 export type GeneratorModelOptions = {

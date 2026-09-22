@@ -1,5 +1,5 @@
 import { AiAgentWithContext } from '@lightdash/common';
-import { generateObject, LanguageModel } from 'ai';
+import { generateText, LanguageModel, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -225,10 +225,10 @@ export async function selectAgent({
         ...telemetry,
         keyManagement: telemetry?.keyManagement ?? null,
     });
-    const result = await generateObject({
+    const result = await generateText({
         model,
         ...telemetryConfig,
-        schema: AgentSelectionSchema,
+        output: Output.object({ schema: AgentSelectionSchema }),
         allowSystemInMessages: true,
         messages: [
             { role: 'system', content: systemPrompt },
@@ -240,7 +240,7 @@ export async function selectAgent({
     });
     emitAiUsage(telemetryConfig, languageModelUsageToTokens(result.usage));
 
-    const selection = result.object;
+    const selection = result.output;
     const exists = candidates.some((c) => c.uuid === selection.agentUuid);
 
     if (!exists) {

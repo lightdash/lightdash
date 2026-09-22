@@ -1,17 +1,17 @@
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import { llmAsAJudge } from './llmAsAJudge';
 
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
-    generateObject: vi.fn(),
+    generateText: vi.fn(),
 }));
 
-const mockedGenerateObject = vi.mocked(generateObject);
+const mockedGenerateObject = vi.mocked(generateText);
 
 describe('llmAsAJudge context relevancy', () => {
     it('does not require chart context to contain computed result values', async () => {
         mockedGenerateObject.mockResolvedValue({
-            object: {
+            output: {
                 score: 0.8,
                 reason: 'The chart configuration is relevant to the query.',
             },

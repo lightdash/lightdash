@@ -1,7 +1,7 @@
 // Stub the e2b/ai SDKs before importing AppGenerateService so the tests never
 // reach the real sandbox or model client.
 import { DATA_APP_VIZ_TEMPLATE, type DataAppTemplate } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import { AppGenerateService } from './AppGenerateService';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
@@ -13,8 +13,9 @@ vi.mock('e2b', () => ({
     CommandExitError: class extends Error {},
     ALL_TRAFFIC: '*',
 }));
-vi.mock('ai', () => ({
-    generateObject: vi.fn(),
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: vi.fn(),
 }));
 vi.mock('../ai/models', () => ({
     resolveKeyManagement: vi.fn(() => 'lightdash'),
@@ -123,18 +124,18 @@ function buildService() {
     return { service, getCatalogItemsSummary, resolveFastModel };
 }
 
-const generateObjectMock = vi.mocked(generateObject);
+const generateTextMock = vi.mocked(generateText);
 
 function mockQuestions(questions: string[]) {
-    generateObjectMock.mockResolvedValue({
-        object: { questions },
+    generateTextMock.mockResolvedValue({
+        output: { questions },
         usage: {},
     } as never);
 }
 
 /** The system + user message the clarifier actually handed to the model. */
 function sentMessages() {
-    const call = generateObjectMock.mock.calls[0][0] as {
+    const call = generateTextMock.mock.calls[0][0] as {
         messages: { role: string; content: string }[];
     };
     const system = call.messages.find((m) => m.role === 'system')!.content;
@@ -154,7 +155,7 @@ async function clarify(template: DataAppTemplate | undefined) {
 }
 
 beforeEach(() => {
-    generateObjectMock.mockReset();
+    generateTextMock.mockReset();
     mockQuestions([]);
 });
 
@@ -168,7 +169,7 @@ describe('AppGenerateService.clarifyApp model resolution', () => {
             { defaultProvider: 'openai' },
             { enableReasoning: false },
         );
-        expect(generateObjectMock).toHaveBeenCalledWith(
+        expect(generateTextMock).toHaveBeenCalledWith(
             expect.objectContaining({ model: FAST_MODEL_OPTIONS.model }),
         );
     });
@@ -180,7 +181,7 @@ describe('AppGenerateService.clarifyApp model resolution', () => {
         await expect(
             service.clarifyApp(USER, 'project-1', 'a radial gauge'),
         ).resolves.toEqual({ questions: [] });
-        expect(generateObjectMock).not.toHaveBeenCalled();
+        expect(generateTextMock).not.toHaveBeenCalled();
     });
 });
 
@@ -254,7 +255,7 @@ describe('AppGenerateService.clarifyApp for the data app viz template', () => {
     });
 
     it('still falls through to no questions when the model call fails', async () => {
-        generateObjectMock.mockRejectedValue(new Error('provider exploded'));
+        generateTextMock.mockRejectedValue(new Error('provider exploded'));
         const { service } = buildService();
 
         await expect(

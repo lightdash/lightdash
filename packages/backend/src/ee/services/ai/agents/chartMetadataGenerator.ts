@@ -1,5 +1,5 @@
 import { Field, Filters } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -72,11 +72,11 @@ export async function generateChartMetadata(
         'generateChartMetadata',
         'chart-metadata',
     );
-    const result = await generateObject({
+    const result = await generateText({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        schema: ChartMetadataSchema,
+        output: Output.object({ schema: ChartMetadataSchema }),
         ...telemetry,
         allowSystemInMessages: true,
         messages: [
@@ -109,5 +109,5 @@ ${
         ],
     });
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
-    return result.object;
+    return result.output;
 }

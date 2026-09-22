@@ -1,7 +1,10 @@
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import { detectDataAppAnomalies } from './dataAppAnomalyDetector';
 
-vi.mock('ai', () => ({ generateObject: vi.fn() }));
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: vi.fn(),
+}));
 vi.mock('../../../../analytics/aiUsage', () => ({
     emitAiUsage: vi.fn(),
     languageModelUsageToTokens: vi.fn(),
@@ -18,8 +21,8 @@ const modelOptions = {
 
 describe('detectDataAppAnomalies', () => {
     beforeEach(() => {
-        vi.mocked(generateObject).mockResolvedValue({
-            object: {
+        vi.mocked(generateText).mockResolvedValue({
+            output: {
                 headline: 'h',
                 summary: 's',
                 anomalies: [
@@ -48,7 +51,7 @@ describe('detectDataAppAnomalies', () => {
             instructions: null,
             today: '2026-09-16',
         });
-        const { messages } = vi.mocked(generateObject).mock.calls[0][0] as {
+        const { messages } = vi.mocked(generateText).mock.calls[0][0] as {
             messages: { role: string; content: string }[];
         };
         expect(messages[0].content).toMatch(/each source section on its own/);

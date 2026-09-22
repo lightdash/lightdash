@@ -6,7 +6,7 @@ import {
     TableCalculationFieldContext,
 } from '@lightdash/common';
 import { FUNCTION_CATALOG, parse } from '@lightdash/formula';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -349,12 +349,12 @@ export async function generateFormulaTableCalculation(
             'generateFormulaTableCalculation',
             'formula-table-calc',
         );
-        const result = await generateObject({
+        const result = await generateText({
             model: modelOptions.model,
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
             ...telemetry,
-            schema: FormulaTableCalculationSchema,
+            output: Output.object({ schema: FormulaTableCalculationSchema }),
             allowSystemInMessages: true,
             messages: [
                 { role: 'system', content: systemPrompt },
@@ -363,7 +363,7 @@ export async function generateFormulaTableCalculation(
             ],
         });
         emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
-        return result.object;
+        return result.output;
     };
 
     let result = await callLLM();

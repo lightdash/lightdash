@@ -4,7 +4,7 @@ import {
     type AiAgentReviewClassifierJudgeOutput,
     type ProjectContextEntry,
 } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
@@ -49,18 +49,20 @@ const callAuthoringLlm: ProjectContextEntryAuthoringLlmCall = async ({
     telemetry,
     messages,
 }) => {
-    const result = await generateObject({
+    const result = await generateText({
         model: model.model,
         ...defaultAgentOptions,
         ...model.callOptions,
         providerOptions: model.providerOptions,
         ...telemetry,
-        schema: aiAgentReviewClassifierJudgeProjectContextCallSchema,
+        output: Output.object({
+            schema: aiAgentReviewClassifierJudgeProjectContextCallSchema,
+        }),
         allowSystemInMessages: true,
         messages,
     });
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
-    return result.object;
+    return result.output;
 };
 
 const turnSystemPrompt = `You emit the structured living-document entry for a Lightdash AI review finding whose root cause is project_context.

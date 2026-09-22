@@ -2,7 +2,7 @@ import {
     AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT,
     type AnyType,
 } from '@lightdash/common';
-import { APICallError, generateObject, NoObjectGeneratedError } from 'ai';
+import { APICallError, generateText, NoOutputGeneratedError } from 'ai';
 import { vi } from 'vitest';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { getModel } from '../ai/models';
@@ -11,7 +11,7 @@ import { AiAgentMemoryService } from './AiAgentMemoryService';
 
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
-    generateObject: vi.fn(),
+    generateText: vi.fn(),
 }));
 vi.mock('../ai/models', () => ({ getModel: vi.fn() }));
 vi.mock('../ai/agents/agentV2', () => ({ defaultAgentOptions: {} }));
@@ -26,25 +26,19 @@ vi.mock('../ai/utils/aiCallTelemetry', () => ({
     getLanguageModelAttribution: () => ({}),
 }));
 
-const generateObjectMock = vi.mocked(generateObject);
+const generateTextMock = vi.mocked(generateText);
 vi.mocked(getModel).mockReturnValue({
     model: { modelId: 'test-model' },
     callOptions: {},
     providerOptions: {},
 } as AnyType);
 
+// v7's NoOutputGeneratedError carries only message and cause; the object API's
+// response/usage/finishReason fields are gone.
 const schemaFailure = () =>
-    new NoObjectGeneratedError({
+    new NoOutputGeneratedError({
         message: 'response did not match schema',
-        response: { id: 'resp-1', timestamp: new Date(), modelId: 'model-1' },
-        usage: {
-            inputTokens: 0,
-            outputTokens: 0,
-            totalTokens: 0,
-            inputTokenDetails: {},
-            outputTokenDetails: {},
-        } as AnyType,
-        finishReason: 'stop',
+        cause: new Error('schema validation failed'),
     });
 
 const retryableApiFailure = () =>
@@ -138,18 +132,18 @@ const payload = {
 
 describe('AiAgentMemoryService consolidateWithLlm retry', () => {
     beforeEach(() => {
-        generateObjectMock.mockReset();
+        generateTextMock.mockReset();
     });
 
     it('shows citation counts and promotion guidance to the curator', async () => {
         const { service } = build();
-        generateObjectMock.mockResolvedValue({
-            object: { operations: [] },
+        generateTextMock.mockResolvedValue({
+            output: { operations: [] },
         } as AnyType);
 
         await service.consolidateScheduledPartition(payload);
 
-        expect(generateObjectMock).toHaveBeenCalledWith(
+        expect(generateTextMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 system: expect.stringContaining(
                     `Promotion requires at least ${AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT} citations`,
@@ -161,35 +155,35 @@ describe('AiAgentMemoryService consolidateWithLlm retry', () => {
                 ],
             }),
         );
-        expect(generateObjectMock.mock.calls[0]![0].system).not.toContain(
+        expect(generateTextMock.mock.calls[0]![0].system).not.toContain(
             '{{PROMOTION_MIN_CITED_COUNT}}',
         );
     });
 
     it('retries a one-off schema-validation failure once', async () => {
         const { service, recordConsolidationRun, applyConsolidation } = build();
-        generateObjectMock
+        generateTextMock
             .mockRejectedValueOnce(schemaFailure())
-            .mockResolvedValueOnce({ object: { operations: [] } } as AnyType);
+            .mockResolvedValueOnce({ output: { operations: [] } } as AnyType);
 
         await expect(
             service.consolidateScheduledPartition(payload),
         ).resolves.toBe('consolidated');
 
-        expect(generateObjectMock).toHaveBeenCalledTimes(2);
+        expect(generateTextMock).toHaveBeenCalledTimes(2);
         expect(applyConsolidation).toHaveBeenCalledOnce();
         expect(recordConsolidationRun).not.toHaveBeenCalled();
     });
 
     it('records a failed run when the schema failure repeats', async () => {
         const { service, recordConsolidationRun, applyConsolidation } = build();
-        generateObjectMock.mockRejectedValue(schemaFailure());
+        generateTextMock.mockRejectedValue(schemaFailure());
 
         await expect(
             service.consolidateScheduledPartition(payload),
         ).resolves.toBe('failed');
 
-        expect(generateObjectMock).toHaveBeenCalledTimes(2);
+        expect(generateTextMock).toHaveBeenCalledTimes(2);
         expect(applyConsolidation).not.toHaveBeenCalled();
         expect(recordConsolidationRun).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({ status: 'failed' }),
@@ -198,20 +192,20 @@ describe('AiAgentMemoryService consolidateWithLlm retry', () => {
 
     it('retries a retryable API failure once within the two-call budget', async () => {
         const { service, recordConsolidationRun, applyConsolidation } = build();
-        generateObjectMock
+        generateTextMock
             .mockRejectedValueOnce(retryableApiFailure())
-            .mockResolvedValueOnce({ object: { operations: [] } } as AnyType);
+            .mockResolvedValueOnce({ output: { operations: [] } } as AnyType);
 
         await expect(
             service.consolidateScheduledPartition(payload),
         ).resolves.toBe('consolidated');
 
-        expect(generateObjectMock).toHaveBeenCalledTimes(2);
-        expect(generateObjectMock).toHaveBeenNthCalledWith(
+        expect(generateTextMock).toHaveBeenCalledTimes(2);
+        expect(generateTextMock).toHaveBeenNthCalledWith(
             1,
             expect.objectContaining({ maxRetries: 0 }),
         );
-        expect(generateObjectMock).toHaveBeenNthCalledWith(
+        expect(generateTextMock).toHaveBeenNthCalledWith(
             2,
             expect.objectContaining({ maxRetries: 0 }),
         );
@@ -221,13 +215,13 @@ describe('AiAgentMemoryService consolidateWithLlm retry', () => {
 
     it('does not spend the retry on a non-schema failure', async () => {
         const { service, recordConsolidationRun } = build();
-        generateObjectMock.mockRejectedValue(new Error('provider down'));
+        generateTextMock.mockRejectedValue(new Error('provider down'));
 
         await expect(
             service.consolidateScheduledPartition(payload),
         ).resolves.toBe('failed');
 
-        expect(generateObjectMock).toHaveBeenCalledOnce();
+        expect(generateTextMock).toHaveBeenCalledOnce();
         expect(recordConsolidationRun).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
                 status: 'failed',

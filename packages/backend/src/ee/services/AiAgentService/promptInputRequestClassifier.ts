@@ -2,7 +2,7 @@ import type {
     UpdateSlackResponse,
     UpdateWebAppResponse,
 } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -137,13 +137,15 @@ export const classifyPromptInputRequest = async ({
             ...attribution,
             keyManagement: model.model.keyManagement,
         });
-        const result = await generateObject({
+        const result = await generateText({
             model: model.model.model,
             maxRetries: 1,
             ...model.model.callOptions,
             providerOptions: model.model.providerOptions,
             ...telemetry,
-            schema: promptInputRequestClassifierOutputSchema,
+            output: Output.object({
+                schema: promptInputRequestClassifierOutputSchema,
+            }),
             abortSignal: AbortSignal.timeout(
                 PROMPT_INPUT_REQUEST_CLASSIFIER_TIMEOUT_MS,
             ),
@@ -158,7 +160,7 @@ export const classifyPromptInputRequest = async ({
             ],
         });
         const output = promptInputRequestClassifierOutputSchema.parse(
-            result.object,
+            result.output,
         );
         emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 

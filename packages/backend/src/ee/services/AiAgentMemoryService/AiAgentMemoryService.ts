@@ -30,7 +30,7 @@ import {
     type SessionUser,
     type UUID,
 } from '@lightdash/common';
-import { APICallError, generateObject, NoObjectGeneratedError } from 'ai';
+import { APICallError, generateText, NoOutputGeneratedError, Output } from 'ai';
 import { createHash, randomBytes } from 'crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -1706,13 +1706,13 @@ export class AiAgentMemoryService extends BaseService {
         const model = getModel(copilotConfig, { enableReasoning: true });
         const system = await consolidatePromptPromise;
         const attempt = async () => {
-            const result = await generateObject({
+            const result = await generateText({
                 model: model.model,
                 ...defaultAgentOptions,
                 ...model.callOptions,
                 providerOptions: model.providerOptions,
                 maxRetries: 0,
-                schema: consolidationOutputSchema,
+                output: Output.object({ schema: consolidationOutputSchema }),
                 system,
                 abortSignal: args.abortSignal,
                 ...getAiCallTelemetry({
@@ -1732,7 +1732,7 @@ export class AiAgentMemoryService extends BaseService {
                     },
                 ],
             });
-            return result.object;
+            return result.output;
         };
         try {
             return await attempt();
@@ -1741,7 +1741,7 @@ export class AiAgentMemoryService extends BaseService {
                 APICallError.isInstance(error) && error.isRetryable;
             if (
                 !retryableApiError &&
-                !NoObjectGeneratedError.isInstance(error)
+                !NoOutputGeneratedError.isInstance(error)
             ) {
                 throw error;
             }
@@ -2016,13 +2016,13 @@ export class AiAgentMemoryService extends BaseService {
             );
         const model = getModel(copilotConfig, { useFastModel: true });
         const system = await distillPromptPromise;
-        const result = await generateObject({
+        const result = await generateText({
             model: model.model,
             ...defaultAgentOptions,
             ...model.callOptions,
             providerOptions: model.providerOptions,
             maxRetries: 0,
-            schema: distillOutputSchema,
+            output: Output.object({ schema: distillOutputSchema }),
             system,
             abortSignal: args.abortSignal,
             ...getAiCallTelemetry({
@@ -2043,6 +2043,6 @@ export class AiAgentMemoryService extends BaseService {
                 },
             ],
         });
-        return result.object;
+        return result.output;
     }
 }

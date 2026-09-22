@@ -3,7 +3,7 @@ import {
     isToolName,
     type ToolName,
 } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { JSONDiff } from 'autoevals';
 import { compact, differenceWith } from 'lodash';
 import { z } from 'zod';
@@ -307,12 +307,12 @@ export const evaluateToolCallSequence = async (
         // key origin.
         keyManagement: null,
     });
-    const result = await generateObject({
+    const result = await generateText({
         model: judge,
         ...defaultAgentOptions,
         ...callOptions,
         ...telemetry,
-        schema: toolEvaluationSchema,
+        output: Output.object({ schema: toolEvaluationSchema }),
         prompt: `
 You are evaluating AI agent tool usage for business logic testing. Here is the data:
 [BEGIN DATA]
@@ -389,7 +389,7 @@ Use empty arrays for suggestions, missingTools, unnecessaryTools, validationErro
     });
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
-    return result.object;
+    return result.output;
 };
 
 export const llmAsJudgeForTools = async ({

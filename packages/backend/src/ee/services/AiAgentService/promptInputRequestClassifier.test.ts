@@ -1,4 +1,4 @@
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import type { AiAgentPromptInputRequestClassifiedEvent } from '../../../analytics/LightdashAnalytics';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import type { AiAgentModel } from '../../models/AiAgentModel';
@@ -12,10 +12,13 @@ import {
 } from './promptInputRequestClassifier';
 import { promptInputRequestClassifierEvalCases } from './promptInputRequestClassifier.fixtures';
 
-vi.mock('ai', () => ({ generateObject: vi.fn() }));
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: vi.fn(),
+}));
 vi.mock('../ai/models', () => ({ getModel: vi.fn() }));
 
-const generateObjectMock = vi.mocked(generateObject);
+const generateTextMock = vi.mocked(generateText);
 const getModelMock = vi.mocked(getModel);
 const model = {
     model: { modelId: 'claude-haiku-4-5', provider: 'anthropic.messages' },
@@ -119,12 +122,12 @@ describe('prompt input request classifier', () => {
             confidence: null,
         });
         expect(getModelMock).not.toHaveBeenCalled();
-        expect(generateObjectMock).not.toHaveBeenCalled();
+        expect(generateTextMock).not.toHaveBeenCalled();
     });
 
     it('asks the fast judge for a strict blocking verdict', async () => {
-        generateObjectMock.mockResolvedValue({
-            object: { needsUserInput: true, confidence: 0.92 },
+        generateTextMock.mockResolvedValue({
+            output: { needsUserInput: true, confidence: 0.92 },
             usage: {},
         } as never);
 
@@ -139,10 +142,10 @@ describe('prompt input request classifier', () => {
             expect.anything(),
             expect.objectContaining({ useFastModel: true }),
         );
-        expect(generateObjectMock).toHaveBeenCalledWith(
+        expect(generateTextMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 model: model.model,
-                schema: promptInputRequestClassifierOutputSchema,
+                output: expect.anything(),
                 abortSignal: expect.any(AbortSignal),
                 messages: [
                     expect.objectContaining({
@@ -162,8 +165,8 @@ describe('prompt input request classifier', () => {
     });
 
     it('rejects output outside the strict schema', async () => {
-        generateObjectMock.mockResolvedValue({
-            object: { needsUserInput: 'yes', confidence: 2 },
+        generateTextMock.mockResolvedValue({
+            output: { needsUserInput: 'yes', confidence: 2 },
             usage: {},
         } as never);
 
@@ -188,7 +191,7 @@ describe('prompt input request classifier', () => {
         const timeoutSpy = vi
             .spyOn(AbortSignal, 'timeout')
             .mockReturnValue(timeoutSignal);
-        generateObjectMock.mockImplementation(({ abortSignal }) =>
+        generateTextMock.mockImplementation(({ abortSignal }) =>
             Promise.reject(abortSignal?.reason),
         );
 
@@ -208,7 +211,7 @@ describe('prompt input request classifier', () => {
     });
 
     it('returns null when the model fails', async () => {
-        generateObjectMock.mockRejectedValue(new Error('provider failed'));
+        generateTextMock.mockRejectedValue(new Error('provider failed'));
 
         await expect(
             classifyPromptInputRequest({
@@ -248,7 +251,7 @@ describe('prompt input request classification run', () => {
         await runClassification(false, 'Which project did you mean?');
 
         expect(getModelMock).not.toHaveBeenCalled();
-        expect(generateObjectMock).not.toHaveBeenCalled();
+        expect(generateTextMock).not.toHaveBeenCalled();
         expect(updatePromptNeedsUserInput).not.toHaveBeenCalled();
         expect(track).not.toHaveBeenCalled();
     });
@@ -256,7 +259,7 @@ describe('prompt input request classification run', () => {
     it('persists and tracks a gate miss without calling the model', async () => {
         await runClassification(true, 'Revenue increased by 12%.');
 
-        expect(generateObjectMock).not.toHaveBeenCalled();
+        expect(generateTextMock).not.toHaveBeenCalled();
         expect(updatePromptNeedsUserInput).toHaveBeenCalledWith({
             promptUuid: 'prompt-uuid',
             needsUserInput: false,
@@ -285,7 +288,7 @@ describe('prompt input request classification run', () => {
     });
 
     it('tracks a failed model call without persisting a verdict', async () => {
-        generateObjectMock.mockRejectedValue(new Error('provider failed'));
+        generateTextMock.mockRejectedValue(new Error('provider failed'));
 
         await runClassification(true, 'Which project did you mean?');
 
@@ -302,8 +305,8 @@ describe('prompt input request classification run', () => {
     });
 
     it('records when the model disagrees with the gate', async () => {
-        generateObjectMock.mockResolvedValue({
-            object: { needsUserInput: false, confidence: 0.88 },
+        generateTextMock.mockResolvedValue({
+            output: { needsUserInput: false, confidence: 0.88 },
             usage: {},
         } as never);
 

@@ -1,4 +1,4 @@
-import { generateObject, ModelMessage } from 'ai';
+import { generateText, ModelMessage, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -30,12 +30,12 @@ export async function generateThreadTitle(
         'generateThreadTitle',
         'thread-title',
     );
-    const result = await generateObject({
+    const result = await generateText({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         ...telemetry,
-        schema: TitleSchema,
+        output: Output.object({ schema: TitleSchema }),
         allowSystemInMessages: true,
         messages: [
             {
@@ -63,5 +63,5 @@ The title should be clear, specific, and helpful for someone browsing a list of 
 
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
-    return result.object.title;
+    return result.output.title;
 }

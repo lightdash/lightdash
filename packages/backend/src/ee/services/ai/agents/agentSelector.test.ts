@@ -1,11 +1,11 @@
 import type { AiAgentWithContext } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { selectAgent } from './agentSelector';
 
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
-    generateObject: vi.fn(),
+    generateText: vi.fn(),
 }));
 
 const candidates = ['sales', 'finance'].map((uuid) => ({
@@ -22,8 +22,8 @@ describe('agent routing abstention', () => {
     it.each([false, true])(
         'preserves the legacy fallback unless decisions are enabled (%s)',
         async (enabled) => {
-            vi.mocked(generateObject).mockResolvedValueOnce({
-                object: {
+            vi.mocked(generateText).mockResolvedValueOnce({
+                output: {
                     agentUuid: 'unknown',
                     reasoning: '',
                     confidence: 'high',
@@ -84,8 +84,8 @@ describe('agent routing abstention', () => {
             timeoutMs: 100,
         });
         vi.spyOn(decisions, 'evaluate').mockResolvedValue(null);
-        vi.mocked(generateObject).mockResolvedValueOnce({
-            object: {
+        vi.mocked(generateText).mockResolvedValueOnce({
+            output: {
                 agentUuid: 'finance',
                 reasoning: '',
                 confidence: 'medium',

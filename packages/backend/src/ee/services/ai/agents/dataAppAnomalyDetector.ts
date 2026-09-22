@@ -1,4 +1,4 @@
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -140,11 +140,11 @@ export async function detectDataAppAnomalies(
         'detectDataAppAnomalies',
         'data-app-analysis',
     );
-    const result = await generateObject({
+    const result = await generateText({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        schema: DataAppDetectionSchema,
+        output: Output.object({ schema: DataAppDetectionSchema }),
         ...telemetry,
         allowSystemInMessages: true,
         messages: [
@@ -165,7 +165,7 @@ export async function detectDataAppAnomalies(
     });
     const usage = languageModelUsageToTokens(result.usage);
     emitAiUsage(telemetry, usage);
-    const { anomalies, ...rest } = result.object;
+    const { anomalies, ...rest } = result.output;
     return {
         detection: {
             ...rest,
