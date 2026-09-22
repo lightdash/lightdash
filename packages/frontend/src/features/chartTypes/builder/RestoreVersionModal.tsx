@@ -45,10 +45,8 @@ const RestoreVersionModal: FC<Props> = ({
         >
             <Stack gap="sm">
                 <Text fz="sm">
-                    Restoring creates a new latest version. Charts without a
-                    pinned version will use it, clearing any selected fields
-                    unavailable in that version. Pinned charts will keep their
-                    current version.
+                    Restoring creates a new version. Saved charts will keep
+                    their current version.
                 </Text>
                 {restoreError && (
                     <Callout variant="danger">

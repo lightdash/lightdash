@@ -37,12 +37,12 @@ describe('RestoreVersionModal', () => {
         setRestore();
     });
 
-    it('explains version pinning and restores on confirm', () => {
+    it('explains that saved charts keep their version and restores on confirm', () => {
         renderModal();
 
         expect(
             screen.getByText(
-                'Restoring creates a new latest version. Charts without a pinned version will use it, clearing any selected fields unavailable in that version. Pinned charts will keep their current version.',
+                'Restoring creates a new version. Saved charts will keep their current version.',
             ),
         ).toBeInTheDocument();
 
