@@ -57,6 +57,7 @@ import {
     requestDashboardRefresh,
     type LauncherCurrentDashboard,
 } from '../../store/aiAgentLauncherSlice';
+import { setPreview } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -482,7 +483,8 @@ export const AiChartQuickOptions = ({
     if (!metricQuery) return null;
 
     const canVerify = !!artifactData && canManageAgent;
-    const hasSavedChartAction = !!message.savedQueryUuid && !isEmbed;
+    const { savedQueryUuid } = message;
+    const hasSavedChartAction = !!savedQueryUuid;
     const hasSaveActions =
         !message.savedQueryUuid && (!merge || !!canonicalMerge);
     const canExploreFromEmbed =
@@ -553,12 +555,34 @@ export const AiChartQuickOptions = ({
                                 Download results
                             </Menu.Item>
                         )}
-                        {message.savedQueryUuid ? (
-                            !isEmbed && (
+                        {savedQueryUuid ? (
+                            isEmbed ? (
+                                // The full app is unreachable from an embed;
+                                // the saved chart opens in the side panel.
+                                <Menu.Item
+                                    onClick={() =>
+                                        dispatch(
+                                            setPreview({
+                                                type: 'savedChart',
+                                                savedChartUuid: savedQueryUuid,
+                                                messageUuid: message.uuid,
+                                                threadUuid: message.threadUuid,
+                                                projectUuid,
+                                                agentUuid,
+                                            }),
+                                        )
+                                    }
+                                    leftSection={
+                                        <MantineIcon icon={IconTableShortcut} />
+                                    }
+                                >
+                                    View saved chart
+                                </Menu.Item>
+                            ) : (
                                 <>
                                     <Menu.Item
                                         component={Link}
-                                        to={`/projects/${projectUuid}/saved/${message.savedQueryUuid}`}
+                                        to={`/projects/${projectUuid}/saved/${savedQueryUuid}`}
                                         target="_blank"
                                         leftSection={
                                             <MantineIcon

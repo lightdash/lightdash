@@ -12,6 +12,8 @@ import {
 import { type FC, type MouseEvent, type ReactNode } from 'react';
 import { Link, createPath, useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
 import { selectPreview, setPreview } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
@@ -29,12 +31,6 @@ export type SqlRunnerLinkState = {
     sql: string;
     limit?: number;
 };
-
-const REFERENCE_LINK_KINDS = {
-    'dashboard-link': 'dashboard',
-    'data-app-link': 'data_app',
-    'scheduled-delivery-link': 'scheduled_delivery',
-} as const;
 
 type ContentLinkProps = {
     contentType: ContentType | undefined;
@@ -61,6 +57,10 @@ export const ContentLink: FC<ContentLinkProps> = ({
     const location = useLocation();
     const dispatch = useAiAgentStoreDispatch();
     const currentPreview = useAiAgentStoreSelector(selectPreview);
+    // Inside an embedded agent the full app is unreachable: dashboards open
+    // on the embed route, charts in the side panel, everything else is static.
+    const isEmbed = isEmbedAiAgentRoute();
+    const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
     const resourceHref = typeof props.href === 'string' ? props.href : '';
     const title = typeof props.title === 'string' ? props.title : undefined;
     const dataAppUuid =
@@ -103,10 +103,11 @@ export const ContentLink: FC<ContentLinkProps> = ({
     }
 
     switch (contentType) {
+        // Documents have no embed surface, so the chip stays a static reference.
         case 'document-link':
             return (
                 <ContentReferenceLink
-                    to={resourceHref || undefined}
+                    to={isEmbed ? undefined : resourceHref || undefined}
                     kind="document"
                     title={title}
                 >
@@ -114,15 +115,48 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 </ContentReferenceLink>
             );
 
-        case 'dashboard-link':
-        // Resource view URL with ?scheduler_uuid — navigating opens that
-        // delivery's edit modal on the chart/dashboard page.
-        case 'scheduled-delivery-link':
+        case 'dashboard-link': {
+            const dashboardUuid =
+                'data-dashboard-uuid' in props &&
+                typeof props['data-dashboard-uuid'] === 'string'
+                    ? props['data-dashboard-uuid']
+                    : undefined;
+            if (openEmbedDashboard) {
+                return (
+                    <ContentReferenceLink
+                        kind="dashboard"
+                        onClick={
+                            dashboardUuid
+                                ? () => openEmbedDashboard(dashboardUuid)
+                                : undefined
+                        }
+                        title={title}
+                    >
+                        {children}
+                    </ContentReferenceLink>
+                );
+            }
             return (
                 <ContentReferenceLink
                     to={resourceHref || undefined}
-                    kind={REFERENCE_LINK_KINDS[contentType]}
+                    kind="dashboard"
                     onClick={handleResourceClick}
+                    title={title}
+                >
+                    {children}
+                </ContentReferenceLink>
+            );
+        }
+
+        // Resource view URL with ?scheduler_uuid — navigating opens that
+        // delivery's edit modal on the chart/dashboard page, which an embed
+        // cannot reach.
+        case 'scheduled-delivery-link':
+            return (
+                <ContentReferenceLink
+                    to={isEmbed ? undefined : resourceHref || undefined}
+                    kind="scheduled_delivery"
+                    onClick={isEmbed ? undefined : handleResourceClick}
                     title={title}
                 >
                     {children}
@@ -133,7 +167,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
             return (
                 <ContentReferenceLink
                     to={resourceHref || undefined}
-                    kind={REFERENCE_LINK_KINDS[contentType]}
+                    kind="data_app"
                     data-app-active={dataAppPreviewLink.isActive || undefined}
                     onClick={dataAppPreviewLink.onClick}
                     target="_blank"
@@ -190,6 +224,21 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     }),
                 );
             };
+
+            // In an embed the chart opens in the side panel only.
+            if (isEmbed) {
+                return (
+                    <ContentReferenceLink
+                        chartKind={chartTypeKind}
+                        kind="chart"
+                        data-chart-active={isActive || undefined}
+                        onClick={isSavedChart ? handleChartClick : undefined}
+                        title={title}
+                    >
+                        {children}
+                    </ContentReferenceLink>
+                );
+            }
 
             return (
                 <ContentReferenceLink
@@ -295,6 +344,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
                       : undefined;
 
             if (!settingsPath) return <a {...props}>{children}</a>;
+            if (isEmbed) return <>{children}</>;
 
             return (
                 <Anchor
@@ -321,7 +371,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
                       ? { sql: sqlRunnerLinkState.sql }
                       : undefined;
 
-            if (!state) return null;
+            if (!state || isEmbed) return null;
 
             return (
                 <Button

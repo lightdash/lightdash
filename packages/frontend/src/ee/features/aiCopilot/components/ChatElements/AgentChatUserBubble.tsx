@@ -8,6 +8,8 @@ import { Link, useParams } from 'react-router';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
+import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import { PinnedReviewContextGroup } from '../PinnedContextCard/PinnedReviewEntityCard';
 import { isReviewEntityItem } from '../PinnedContextCard/reviewEntityItem';
@@ -51,6 +53,7 @@ export const UserBubble: FC<Props> = ({
     const projectUuid = projectUuidProp ?? paramsProjectUuid;
     const agentUuid = agentUuidProp ?? paramsAgentUuid;
     const openChartEditor = useAiThreadChartEdit();
+    const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
     const timeAgo = useTimeAgo(message.createdAt);
     const name = getVisibleUserName(message.user.name);
     const app = useApp();
@@ -87,14 +90,22 @@ export const UserBubble: FC<Props> = ({
                     </Text>
                 ) : null}
                 <Tooltip label={format(parseISO(message.createdAt), 'PPpp')}>
-                    <Anchor
-                        component={Link}
-                        c="dimmed"
-                        fz="xs"
-                        to={`/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${message.threadUuid}/messages/${message.uuid}`}
-                    >
-                        {timeAgo}
-                    </Anchor>
+                    {isEmbedAiAgentRoute() ? (
+                        // The message permalink lives in the full app, which an
+                        // embed cannot open.
+                        <Text c="dimmed" fz="xs">
+                            {timeAgo}
+                        </Text>
+                    ) : (
+                        <Anchor
+                            component={Link}
+                            c="dimmed"
+                            fz="xs"
+                            to={`/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${message.threadUuid}/messages/${message.uuid}`}
+                        >
+                            {timeAgo}
+                        </Anchor>
+                    )}
                 </Tooltip>
             </Stack>
 
@@ -160,10 +171,19 @@ export const UserBubble: FC<Props> = ({
                             // File/repository (and thread) references have no
                             // in-app destination — only show the arrow and link
                             // affordance when there is somewhere to navigate to.
-                            const href = getPromptContextItemHref(
-                                segment.item,
-                                projectUuid,
-                            );
+                            // Inside an embed only dashboards have a route;
+                            // every other reference is static there.
+                            const embedDashboardUuid =
+                                openEmbedDashboard &&
+                                segment.item.type === 'dashboard'
+                                    ? segment.item.dashboardUuid
+                                    : null;
+                            const href = openEmbedDashboard
+                                ? null
+                                : getPromptContextItemHref(
+                                      segment.item,
+                                      projectUuid,
+                                  );
                             // Chart references open the in-place editor when
                             // the host provides one; the href keeps modified
                             // clicks (new tab) working.
@@ -172,13 +192,18 @@ export const UserBubble: FC<Props> = ({
                                     ? segment.item.chartUuid
                                     : null;
                             const handleClick =
-                                chartUuid && openChartEditor
-                                    ? (e: MouseEvent<HTMLAnchorElement>) => {
-                                          if (!isPlainLeftClick(e)) return;
-                                          e.preventDefault();
-                                          openChartEditor(chartUuid);
-                                      }
-                                    : undefined;
+                                openEmbedDashboard && embedDashboardUuid
+                                    ? () =>
+                                          openEmbedDashboard(embedDashboardUuid)
+                                    : !openEmbedDashboard &&
+                                        chartUuid &&
+                                        openChartEditor
+                                      ? (e: MouseEvent<HTMLAnchorElement>) => {
+                                            if (!isPlainLeftClick(e)) return;
+                                            e.preventDefault();
+                                            openChartEditor(chartUuid);
+                                        }
+                                      : undefined;
                             return (
                                 <ContentReferenceLink
                                     key={`${segment.key}-${idx}`}
@@ -193,9 +218,12 @@ export const UserBubble: FC<Props> = ({
                                     rel={href ? 'noreferrer' : undefined}
                                     target={href ? '_blank' : undefined}
                                     to={href ?? undefined}
-                                    showArrow={href !== null}
+                                    showArrow={
+                                        href !== null ||
+                                        embedDashboardUuid !== null
+                                    }
                                     trailingIcon={
-                                        handleClick
+                                        handleClick && !embedDashboardUuid
                                             ? IconWindowMaximize
                                             : undefined
                                     }

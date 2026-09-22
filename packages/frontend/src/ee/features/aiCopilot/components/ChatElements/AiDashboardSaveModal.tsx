@@ -26,6 +26,7 @@ import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useSpaceManagement } from '../../../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../../../hooks/useSpaces';
 import useApp from '../../../../../providers/App/useApp';
+import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
 import {
     getAiAgentDashboardChartVizQueryKey,
     useUpdateArtifactVersion,
@@ -67,6 +68,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
 }) => {
     const { user } = useApp();
     const navigate = useNavigate();
+    const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -262,9 +264,11 @@ export const AiDashboardSaveModal: FC<Props> = ({
                     action: {
                         children: 'Open dashboard',
                         onClick: () =>
-                            navigate(
-                                `/projects/${projectUuid}/dashboards/${dashboard.uuid}`,
-                            ),
+                            openEmbedDashboard
+                                ? openEmbedDashboard(dashboard.uuid)
+                                : navigate(
+                                      `/projects/${projectUuid}/dashboards/${dashboard.uuid}`,
+                                  ),
                     },
                 });
 
@@ -285,6 +289,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
             user.data?.userUuid,
             spaceManagement,
             navigate,
+            openEmbedDashboard,
             projectUuid,
             onSuccess,
             showToastSuccess,

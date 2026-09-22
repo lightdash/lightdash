@@ -3,6 +3,8 @@ import { IconWindowMaximize } from '@tabler/icons-react';
 import { type FC, type MouseEvent } from 'react';
 import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 import { elementRefChipLabel } from '../../../../../features/apps/utils/elementRefs';
+import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
 import {
     getDataAppContextItemLabel,
@@ -31,7 +33,6 @@ type Props = {
 
 type ItemMeta = {
     kind:
-        | 'dashboard'
         | 'thread'
         | 'file'
         | 'repository'
@@ -46,7 +47,6 @@ const getItemMeta = (
         AiPromptContextItem,
         {
             type:
-                | 'dashboard'
                 | 'thread'
                 | 'file'
                 | 'repository'
@@ -54,15 +54,8 @@ const getItemMeta = (
                 | 'data_app_element';
         }
     >,
-    projectUuid: string,
 ): ItemMeta => {
     switch (item.type) {
-        case 'dashboard':
-            return {
-                kind: 'dashboard',
-                label: item.displayName ?? 'Dashboard',
-                href: `/projects/${projectUuid}/dashboards/${item.dashboardUuid}`,
-            };
         // A pinned thread can live in another project, so there is no
         // reliable in-project URL to offer.
         case 'thread':
@@ -100,6 +93,7 @@ const PinnedChartCard: FC<{
     projectUuid: string;
 }> = ({ item, projectUuid }) => {
     const openChartEditor = useAiThreadChartEdit();
+    const isEmbed = isEmbedAiAgentRoute();
     const handleClick = openChartEditor
         ? (e: MouseEvent<HTMLAnchorElement>) => {
               if (!isPlainLeftClick(e)) return;
@@ -107,6 +101,20 @@ const PinnedChartCard: FC<{
               openChartEditor(item.chartUuid);
           }
         : undefined;
+
+    // The full app is unreachable from an embed, so the chip is a static
+    // reference there.
+    if (isEmbed) {
+        return (
+            <ContentReferenceLink
+                kind="chart"
+                chartKind={item.chartKind ?? undefined}
+                showArrow={false}
+            >
+                {item.displayName ?? 'Chart'}
+            </ContentReferenceLink>
+        );
+    }
 
     return (
         <ContentReferenceLink
@@ -120,6 +128,38 @@ const PinnedChartCard: FC<{
             trailingIcon={handleClick ? IconWindowMaximize : undefined}
         >
             {item.displayName ?? 'Chart'}
+        </ContentReferenceLink>
+    );
+};
+
+const PinnedDashboardCard: FC<{
+    item: Extract<AiPromptContextItem, { type: 'dashboard' }>;
+    projectUuid: string;
+}> = ({ item, projectUuid }) => {
+    const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
+    const label = item.displayName ?? 'Dashboard';
+
+    if (openEmbedDashboard) {
+        return (
+            <ContentReferenceLink
+                kind="dashboard"
+                onClick={() => openEmbedDashboard(item.dashboardUuid)}
+                showArrow
+            >
+                {label}
+            </ContentReferenceLink>
+        );
+    }
+
+    return (
+        <ContentReferenceLink
+            kind="dashboard"
+            rel="noreferrer"
+            to={`/projects/${projectUuid}/dashboards/${item.dashboardUuid}`}
+            target="_blank"
+            showArrow
+        >
+            {label}
         </ContentReferenceLink>
     );
 };
@@ -158,12 +198,15 @@ export const PinnedContextCard: FC<Props> = ({
         case 'chart':
             return <PinnedChartCard item={item} projectUuid={projectUuid} />;
         case 'dashboard':
+            return (
+                <PinnedDashboardCard item={item} projectUuid={projectUuid} />
+            );
         case 'thread':
         case 'file':
         case 'repository':
         case 'external_source':
         case 'data_app_element': {
-            const meta = getItemMeta(item, projectUuid);
+            const meta = getItemMeta(item);
             return (
                 <ContentReferenceLink
                     kind={meta.kind}
