@@ -1,11 +1,15 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { type ComponentProps } from 'react';
+import { type ComponentProps, type ReactNode } from 'react';
+import type ExploreTree from '../../../components/Explorer/ExploreTree';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { MergeSourceTree } from './MergeSourceTree';
 
 const state = vi.hoisted(() => ({
     setSourceExplore: vi.fn(),
+    exploreTreeProps: undefined as
+        | ComponentProps<typeof ExploreTree>
+        | undefined,
 }));
 
 vi.mock('../context/useMerge', () => ({
@@ -24,7 +28,10 @@ vi.mock('../context/useMerge', () => ({
 }));
 
 vi.mock('../../../hooks/useExplore', () => ({
-    useExplore: () => ({ data: undefined, isInitialLoading: false }),
+    useExplore: () => ({
+        data: { name: 'subscriptions' },
+        isInitialLoading: false,
+    }),
 }));
 
 vi.mock('../../../components/Explorer/ExploreSideBar/BasePanel', () => ({
@@ -51,8 +58,18 @@ vi.mock('../../../components/Explorer/ExploreSideBar/BasePanel', () => ({
 }));
 
 vi.mock('../../../components/Explorer/ExploreTree', () => ({
-    default: () => null,
+    default: (props: ComponentProps<typeof ExploreTree>) => {
+        state.exploreTreeProps = props;
+        return null;
+    },
 }));
+
+vi.mock(
+    '../../../components/Explorer/ExploreTree/TableTree/ItemDetailProvider',
+    () => ({
+        ItemDetailProvider: ({ children }: { children: ReactNode }) => children,
+    }),
+);
 
 const renderPicker = (
     overrides: Partial<ComponentProps<typeof MergeSourceTree>> = {},
@@ -73,6 +90,7 @@ const renderPicker = (
 describe('MergeSourceTree table picker', () => {
     beforeEach(() => {
         state.setSourceExplore.mockReset();
+        state.exploreTreeProps = undefined;
     });
 
     it('returns to the selected fields without changing the source', async () => {
@@ -108,5 +126,11 @@ describe('MergeSourceTree table picker', () => {
             'customers',
         );
         expect(setIsChoosingExplore).toHaveBeenCalledWith(false);
+    });
+
+    it('identifies the source that owns custom metrics from its field tree', () => {
+        renderPicker({ isChoosingExplore: false });
+
+        expect(state.exploreTreeProps?.customMetricSourceId).toBe('combined');
     });
 });

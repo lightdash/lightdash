@@ -263,6 +263,30 @@ describe('MergeProvider', () => {
         ).not.toHaveProperty('b');
     });
 
+    it('adds a custom metric to its source query and selects it', () => {
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        const metric = {
+            name: 'amount_sum',
+            label: 'Sum of amount',
+            table: 'payments',
+            sql: '${TABLE}.amount',
+            type: MetricType.SUM,
+            baseDimensionName: 'amount',
+        };
+
+        act(() => result.current.addSource('b'));
+        act(() => result.current.setSourceExplore('b', 'payments'));
+        act(() => result.current.addSourceAdditionalMetric('b', metric));
+        act(() => result.current.addSourceAdditionalMetric('b', metric));
+
+        expect(result.current.additionalSources[0]).toMatchObject({
+            id: 'b',
+            exploreName: 'payments',
+            additionalMetrics: [metric],
+            metrics: ['payments_amount_sum'],
+        });
+    });
+
     it('keeps the parameter values used by the merged run', async () => {
         executeMergeQuery.mockResolvedValueOnce({
             outcome: 'started',

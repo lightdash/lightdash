@@ -42,6 +42,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useUpdateDashboardCustomMetric } from '../../../hooks/dashboard/useUpdateDashboardCustomMetric';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
@@ -68,6 +69,8 @@ import {
     prepareCustomMetricData,
 } from './utils';
 
+const EMPTY_ADDITIONAL_METRICS: AdditionalMetric[] = [];
+
 export const CustomMetricModal = memo(() => {
     const {
         isOpen,
@@ -75,12 +78,25 @@ export const CustomMetricModal = memo(() => {
         item,
         type: customMetricType,
         label: initialLabel,
+        mergeSourceId,
     } = useExplorerSelector((state) => state.explorer.modals.additionalMetric);
 
     const dispatch = useExplorerDispatch();
-    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const explorerAdditionalMetrics = useExplorerSelector(
+        selectAdditionalMetrics,
+    );
     const metricQuery = useExplorerSelector(selectMetricQuery);
-    const tableName = useExplorerSelector(selectTableName);
+    const explorerTableName = useExplorerSelector(selectTableName);
+    const merge = useMergeSafe();
+    const mergeSource = mergeSourceId
+        ? merge?.additionalSources.find(({ id }) => id === mergeSourceId)
+        : undefined;
+    const additionalMetrics = mergeSourceId
+        ? (mergeSource?.additionalMetrics ?? EMPTY_ADDITIONAL_METRICS)
+        : explorerAdditionalMetrics;
+    const tableName = mergeSourceId
+        ? (mergeSource?.exploreName ?? undefined)
+        : explorerTableName;
 
     const { data: exploreData } = useExplore(tableName);
 
@@ -105,7 +121,20 @@ export const CustomMetricModal = memo(() => {
 
     let dimensionToCheck: Dimension | undefined;
 
-    const { projectUuid, fieldsMap, startOfWeek } = useDataForFiltersProvider();
+    const mergeQueryContext = useMemo(
+        () =>
+            mergeSourceId
+                ? {
+                      tableName,
+                      additionalMetrics: mergeSource?.additionalMetrics,
+                      customDimensions: mergeSource?.customDimensions,
+                      tableCalculations: [],
+                  }
+                : undefined,
+        [mergeSource, mergeSourceId, tableName],
+    );
+    const { projectUuid, fieldsMap, startOfWeek } =
+        useDataForFiltersProvider(mergeQueryContext);
 
     const dimensionsMap = useMemo(
         () => getFilterableDimensionsFromItemsMap(fieldsMap),
@@ -359,8 +388,12 @@ export const CustomMetricModal = memo(() => {
                     item,
                     customMetricType,
                     (isDimension(item)
-                        ? metricQuery.dimensionOverrides
-                        : metricQuery.metricOverrides)?.[getItemId(item)]
+                        ? mergeSourceId
+                            ? undefined
+                            : metricQuery.dimensionOverrides
+                        : mergeSourceId
+                          ? undefined
+                          : metricQuery.metricOverrides)?.[getItemId(item)]
                         ?.formatOptions,
                 );
                 if (baseFormat) {
@@ -377,6 +410,7 @@ export const CustomMetricModal = memo(() => {
             customMetricType,
             metricQuery.dimensionOverrides,
             metricQuery.metricOverrides,
+            mergeSourceId,
             setFieldValue,
         ],
     );
@@ -524,19 +558,20 @@ export const CustomMetricModal = memo(() => {
                             : 'Custom metric edited successfully',
                 });
             } else {
-                dispatch(
-                    explorerActions.addAdditionalMetric(
-                        buildNewAdditionalMetric({
-                            item,
-                            type: customMetricType,
-                            customMetricLabel,
-                            customMetricFiltersWithIds,
-                            exploreData,
-                            percentile,
-                            formatOptions: format,
-                        }),
-                    ),
-                );
+                const newMetric = buildNewAdditionalMetric({
+                    item,
+                    type: customMetricType,
+                    customMetricLabel,
+                    customMetricFiltersWithIds,
+                    exploreData,
+                    percentile,
+                    formatOptions: format,
+                });
+                if (mergeSourceId && mergeSource) {
+                    merge?.addSourceAdditionalMetric(mergeSourceId, newMetric);
+                } else if (!mergeSourceId) {
+                    dispatch(explorerActions.addAdditionalMetric(newMetric));
+                }
                 showToastSuccess({
                     title: 'Custom metric added successfully',
                 });
@@ -575,7 +610,7 @@ export const CustomMetricModal = memo(() => {
 
     const CUSTOM_METRIC_FORM_ID = 'custom-metric-form';
 
-    if (!isOpen) {
+    if (!isOpen || (mergeSourceId && !mergeSource)) {
         return null;
     }
 

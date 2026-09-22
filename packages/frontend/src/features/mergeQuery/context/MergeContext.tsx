@@ -1,6 +1,8 @@
 import {
     derivePivotConfigurationFromChart,
+    getItemId,
     MergeJoinType,
+    type AdditionalMetric,
     type ApiCompiledMergeQueryResults,
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
@@ -303,6 +305,30 @@ export const MergeProvider: FC<
         [],
     );
 
+    const addSourceAdditionalMetric = useCallback(
+        (sourceId: string, metric: AdditionalMetric) => {
+            const metricId = getItemId(metric);
+            setAdditionalSources((current) =>
+                current.map((source) => {
+                    if (source.id !== sourceId) return source;
+                    const additionalMetrics = source.additionalMetrics ?? [];
+                    return {
+                        ...source,
+                        additionalMetrics: additionalMetrics.some(
+                            (candidate) => getItemId(candidate) === metricId,
+                        )
+                            ? additionalMetrics
+                            : [...additionalMetrics, metric],
+                        metrics: source.metrics.includes(metricId)
+                            ? source.metrics
+                            : [...source.metrics, metricId],
+                    };
+                }),
+            );
+        },
+        [],
+    );
+
     // Mirror the relationship into the URL. Replace rather than push, so
     // building a merge does not fill the back button with every keystroke.
     useEffect(() => {
@@ -580,6 +606,7 @@ export const MergeProvider: FC<
             setJoinType,
             setRepeatValues,
             setSourceFilters,
+            addSourceAdditionalMetric,
         }),
         [
             isMerging,
@@ -613,6 +640,7 @@ export const MergeProvider: FC<
             removeJoinPart,
             setRepeatValues,
             setSourceFilters,
+            addSourceAdditionalMetric,
         ],
     );
 

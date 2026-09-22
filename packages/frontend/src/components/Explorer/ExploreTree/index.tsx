@@ -33,6 +33,7 @@ import {
 } from '../../../features/explorer/store';
 import { useModalHostedDashboardMetricIds } from '../../../providers/Explorer/useIsModalHosted';
 import MantineIcon from '../../common/MantineIcon';
+import { CustomMetricSourceContext } from './CustomMetricSourceContext';
 import SelectedFieldsSection, {
     type SelectedField,
 } from './SelectedFieldsSection';
@@ -62,6 +63,8 @@ type ExploreTreeProps = {
     selection?: ExploreTreeSelection;
     selectedFieldsOverride?: SelectedField[];
     hideSelectedFields?: boolean;
+    /** Merge source that owns custom metrics created from this tree. */
+    customMetricSourceId?: string;
 };
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
@@ -77,6 +80,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     selection,
     selectedFieldsOverride,
     hideSelectedFields = false,
+    customMetricSourceId,
 }) => {
     const explorerAdditionalMetrics = useExplorerSelector(
         selectAdditionalMetrics,
@@ -309,7 +313,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     ]);
 
     return (
-        <>
+        <CustomMetricSourceContext.Provider value={customMetricSourceId}>
             <TextInput
                 leftSection={<MantineIcon icon={IconSearch} />}
                 rightSectionPointerEvents={isPending ? 'none' : 'all'}
@@ -348,7 +352,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 onToggleGroup={toggleGroup}
                 onSelectedFieldChange={onSelectedFieldChange}
             />
-        </>
+        </CustomMetricSourceContext.Provider>
     );
 };
 

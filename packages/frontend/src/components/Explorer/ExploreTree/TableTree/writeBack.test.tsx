@@ -1,7 +1,11 @@
 import {
     BinType,
     CustomDimensionType,
+    DimensionType,
+    FieldType,
+    MetricType,
     type CustomBinDimension,
+    type Dimension,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -11,6 +15,7 @@ import {
     explorerActions,
 } from '../../../../features/explorer/store';
 import { renderWithProviders } from '../../../../testing/testUtils';
+import { CustomMetricSourceContext } from '../CustomMetricSourceContext';
 import TreeSingleNodeActions from './Tree/TreeSingleNodeActions';
 import {
     ITEM_HEIGHTS,
@@ -75,19 +80,24 @@ const makeBin = (binType: BinType): CustomBinDimension => {
     }
 };
 
-const renderNodeActions = (item: CustomBinDimension) => {
+const renderNodeActions = (
+    item: CustomBinDimension | Dimension,
+    customMetricSourceId?: string,
+) => {
     const store = createExplorerStore();
     renderWithProviders(
         <Provider store={store}>
-            <TreeSingleNodeActions
-                item={item}
-                isHovered
-                isSelected={false}
-                hasDescription={false}
-                isOpened
-                onMenuChange={vi.fn()}
-                onViewDescription={vi.fn()}
-            />
+            <CustomMetricSourceContext.Provider value={customMetricSourceId}>
+                <TreeSingleNodeActions
+                    item={item}
+                    isHovered
+                    isSelected={false}
+                    hasDescription={false}
+                    isOpened
+                    onMenuChange={vi.fn()}
+                    onViewDescription={vi.fn()}
+                />
+            </CustomMetricSourceContext.Provider>
         </Provider>,
     );
     return store;
@@ -185,5 +195,34 @@ describe('custom bin write-back in Explorer trees', () => {
                 'VirtualSectionHeader/WriteBackCustomDimensionsButton',
             ),
         ).not.toBeInTheDocument();
+    });
+});
+
+describe('merge-source custom metrics', () => {
+    it('keeps the source identity when opening the custom metric modal', async () => {
+        const user = userEvent.setup();
+        const amount: Dimension = {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.NUMBER,
+            name: 'amount',
+            label: 'Amount',
+            table: 'payments',
+            tableLabel: 'Payments',
+            sql: '${TABLE}.amount',
+            hidden: false,
+        };
+        const store = renderNodeActions(amount, 'combined');
+
+        await user.click(screen.getByRole('menuitem', { name: 'Sum' }));
+
+        expect(store.getState().explorer.modals.additionalMetric).toMatchObject(
+            {
+                isOpen: true,
+                isEditing: false,
+                item: amount,
+                type: MetricType.SUM,
+                mergeSourceId: 'combined',
+            },
+        );
     });
 });

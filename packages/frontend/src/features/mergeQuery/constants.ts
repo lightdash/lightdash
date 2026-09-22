@@ -49,4 +49,5 @@ export const EMPTY_MERGE = {
     setJoinType: () => {},
     setRepeatValues: () => {},
     setSourceFilters: () => {},
+    addSourceAdditionalMetric: () => {},
 };
