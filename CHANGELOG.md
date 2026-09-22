@@ -1,3 +1,10 @@
+# [2.300.0](https://github.com/lightdash/lightdash/compare/2.299.0...2.300.0) (2026-09-22)
+
+
+### Features
+
+* **data-apps:** 30-day retention for stored AI analyses ([#29738](https://github.com/lightdash/lightdash/issues/29738)) ([478e851](https://github.com/lightdash/lightdash/commit/478e851ed4949d13507bd0aa0916c01b97c23cc9)), closes [#29737](https://github.com/lightdash/lightdash/issues/29737)
+
 # [2.299.0](https://github.com/lightdash/lightdash/compare/2.298.0...2.299.0) (2026-09-22)
 
 
