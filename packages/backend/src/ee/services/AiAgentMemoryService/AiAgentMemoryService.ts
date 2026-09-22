@@ -30,7 +30,13 @@ import {
     type SessionUser,
     type UUID,
 } from '@lightdash/common';
-import { APICallError, generateText, NoObjectGeneratedError, Output } from 'ai';
+import {
+    APICallError,
+    generateText,
+    NoObjectGeneratedError,
+    NoOutputGeneratedError,
+    Output,
+} from 'ai';
 import { createHash, randomBytes } from 'crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -1739,10 +1745,15 @@ export class AiAgentMemoryService extends BaseService {
         } catch (error) {
             const retryableApiError =
                 APICallError.isInstance(error) && error.isRetryable;
-            if (
-                !retryableApiError &&
-                !NoObjectGeneratedError.isInstance(error)
-            ) {
+            // v6 raised NoObjectGeneratedError for both a schema failure and an
+            // empty response. v7 splits them: Output.object still throws that
+            // for parse failures, but an empty response throws
+            // NoOutputGeneratedError from the output getter. Both were retried
+            // before, so both have to be caught here.
+            const structuredOutputFailure =
+                NoObjectGeneratedError.isInstance(error) ||
+                NoOutputGeneratedError.isInstance(error);
+            if (!retryableApiError && !structuredOutputFailure) {
                 throw error;
             }
             args.abortSignal?.throwIfAborted();

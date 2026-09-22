@@ -6888,6 +6888,10 @@ export class AppGenerateService extends BaseService {
             extra: { template: template ?? 'custom' },
         });
         let result;
+        // v7 resolves the call and throws from the `output` getter instead, so
+        // the getter has to be read inside this try or an empty model response
+        // escapes the catch below and 500s the clarify step.
+        let output;
         try {
             result = await generateText({
                 model: modelOptions.model,
@@ -6931,6 +6935,7 @@ export class AppGenerateService extends BaseService {
                     },
                 ],
             });
+            output = result.output;
         } catch (err) {
             this.logger.warn(
                 `App clarify failed after ${AppGenerateService.elapsed(start)}ms (project=${projectUuid}, template=${template ?? 'custom'}, llm=${llmProvider}): ${getErrorMessage(err)}`,
@@ -6940,7 +6945,7 @@ export class AppGenerateService extends BaseService {
         emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
         const elapsedMs = AppGenerateService.elapsed(start);
 
-        const questions = result.output.questions
+        const questions = output.questions
             .map((q) => q.trim())
             .filter((q) => q.length > 0)
             .slice(0, 4);

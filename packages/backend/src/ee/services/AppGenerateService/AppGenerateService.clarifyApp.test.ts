@@ -1,7 +1,7 @@
 // Stub the e2b/ai SDKs before importing AppGenerateService so the tests never
 // reach the real sandbox or model client.
 import { DATA_APP_VIZ_TEMPLATE, type DataAppTemplate } from '@lightdash/common';
-import { generateText } from 'ai';
+import { generateText, NoOutputGeneratedError } from 'ai';
 import { AppGenerateService } from './AppGenerateService';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
@@ -157,6 +157,26 @@ async function clarify(template: DataAppTemplate | undefined) {
 beforeEach(() => {
     generateTextMock.mockReset();
     mockQuestions([]);
+});
+
+describe('AppGenerateService.clarifyApp empty model response', () => {
+    it('returns no questions instead of throwing', async () => {
+        // v7 resolves the call and throws from the `output` getter, so an empty
+        // response escapes a catch that only wraps the await.
+        generateTextMock.mockResolvedValue({
+            get output(): { questions: string[] } {
+                throw new NoOutputGeneratedError({
+                    message: 'No output generated.',
+                });
+            },
+            usage: {},
+        } as never);
+        const { service } = buildService();
+
+        await expect(
+            service.clarifyApp(USER, 'project-1', 'a radial gauge'),
+        ).resolves.toEqual({ questions: [] });
+    });
 });
 
 describe('AppGenerateService.clarifyApp model resolution', () => {

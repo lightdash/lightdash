@@ -191,7 +191,6 @@ import {
     ToolCallPart,
     ToolModelMessage,
     UserModelMessage,
-    type Output,
     type ToolSet,
 } from 'ai';
 import { createCanvas, loadImage } from 'canvas';
