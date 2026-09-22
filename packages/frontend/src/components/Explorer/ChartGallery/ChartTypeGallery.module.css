@@ -115,6 +115,12 @@
     );
 }
 
+/* Selection owns the color on the whole tile: the badge takes the selected
+   glyph's blue rather than clashing violet against it. */
+.cardWrapper:has(.card[data-selected='true']) .installedBadge {
+    color: light-dark(var(--mantine-color-blue-7), var(--mantine-color-blue-4));
+}
+
 /* An action tile among content tiles: outlined, not filled. */
 .createCard {
     border-style: dashed;
