@@ -273,6 +273,8 @@
         "filters.tableLabel": "Tabla: ",
         "filters.tablesLabel": "Tablas: ",
         "filters.invalidFilter": "Filtro no válido",
+        "filters.fieldHiddenInModel": "Este campo está oculto en el modelo. El filtro se sigue aplicando a tus gráficos.",
+        "filters.config.tilesTabHiddenFieldTooltip": "No se pueden cambiar los mosaicos mientras este campo esté oculto en el modelo",
         "filters.required.setValueTooltip": "Obligatorio: establece un valor para ejecutar este tablero",
         "filters.required.setValueGroupTooltip": "Obligatorio: establece un valor en este filtro o en uno alternativo para ejecutar este tablero",
         "filters.required.modalTitle": "Establece filtros para cargar este tablero",

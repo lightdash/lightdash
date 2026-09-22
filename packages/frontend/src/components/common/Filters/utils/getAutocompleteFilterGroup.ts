@@ -9,7 +9,10 @@ import {
     type FilterableItem,
 } from '@lightdash/common';
 import { v4 as uuid4 } from 'uuid';
-import { doesFilterApplyToTile } from '../../../../features/dashboardFilters/FilterConfiguration/utils';
+import {
+    doesFilterApplyToTile,
+    type SavedFilterFieldsByTileUuid,
+} from '../../../../features/dashboardFilters/FilterConfiguration/utils';
 
 type GetAutocompleteFilterGroupArgs = {
     filterId: string;
@@ -19,6 +22,7 @@ type GetAutocompleteFilterGroupArgs = {
     filterableFieldsByTileUuid:
         | Record<string, DashboardFilterableField[]>
         | undefined;
+    savedFilterFieldsByTileUuid: SavedFilterFieldsByTileUuid | undefined;
     activeTabUuid: string | undefined;
 };
 
@@ -28,6 +32,7 @@ export const getAutocompleteFilterGroup = ({
     dashboardFilters,
     dashboardTiles,
     filterableFieldsByTileUuid,
+    savedFilterFieldsByTileUuid,
     activeTabUuid,
 }: GetAutocompleteFilterGroupArgs): AndFilterGroup | undefined => {
     if (!dashboardFilters || !isField(item)) {
@@ -73,6 +78,7 @@ export const getAutocompleteFilterGroup = ({
                               currentFilter,
                               tile,
                               filterableFieldsByTileUuid,
+                              savedFilterFieldsByTileUuid,
                           );
                       })
                       .map((tile) => tile.uuid),
@@ -109,6 +115,7 @@ export const getAutocompleteFilterGroup = ({
                             dimensionFilterRule,
                             tile,
                             filterableFieldsByTileUuid,
+                            savedFilterFieldsByTileUuid,
                         ),
                 );
                 if (!hasOverlap) {

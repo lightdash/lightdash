@@ -256,6 +256,10 @@ export const DEFAULT_UI_STRINGS = {
     'filters.tableLabel': 'Table: ',
     'filters.tablesLabel': 'Tables: ',
     'filters.invalidFilter': 'Invalid filter',
+    'filters.fieldHiddenInModel':
+        'This field is hidden in the model. The filter still applies to your charts.',
+    'filters.config.tilesTabHiddenFieldTooltip':
+        'Tiles cannot be changed while this field is hidden in the model',
     'filters.required.setValueTooltip':
         'Required: set a value to run this dashboard',
     'filters.required.setValueGroupTooltip':

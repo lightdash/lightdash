@@ -23,6 +23,7 @@ import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
+import { type SavedFilterFieldsByTileUuid } from '../../dashboardFilters/FilterConfiguration/utils';
 import {
     DEFAULT_VALUES,
     DEFAULT_VALUES_ALERT,
@@ -61,6 +62,7 @@ export interface UseSchedulerFormModalProps {
     currentParameterValues?: ParametersValuesMap;
     initialFormValues?: Partial<SchedulerFormValues>;
     filterableFieldsByTileUuid?: Record<string, DashboardFilterableField[]>;
+    savedFilterFieldsByTileUuid?: SavedFilterFieldsByTileUuid;
 }
 
 export const useSchedulerFormModal = ({
@@ -75,6 +77,7 @@ export const useSchedulerFormModal = ({
     currentParameterValues,
     initialFormValues,
     filterableFieldsByTileUuid,
+    savedFilterFieldsByTileUuid,
 }: UseSchedulerFormModalProps) => {
     const isEditMode = !!schedulerUuid;
 
@@ -168,9 +171,10 @@ export const useSchedulerFormModal = ({
                       tiles: dashboard.tiles,
                       tabUuids: dashboard.tabs.map((tab) => tab.uuid),
                       filterableFieldsByTileUuid,
+                      savedFilterFieldsByTileUuid,
                   }
                 : undefined,
-        [dashboard, filterableFieldsByTileUuid],
+        [dashboard, filterableFieldsByTileUuid, savedFilterFieldsByTileUuid],
     );
 
     // Use the explicitly passed parameter values

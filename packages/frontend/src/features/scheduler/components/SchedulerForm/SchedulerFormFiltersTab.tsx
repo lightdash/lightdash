@@ -11,6 +11,7 @@ import { useProject } from '../../../../hooks/useProject';
 import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../../providers/Dashboard/useDashboardTileStatusContext';
 import { hasSavedFilterValueChanged } from '../../../dashboardFilters/FilterConfiguration/utils';
+import { useModelHiddenFields } from '../../../dashboardFilters/useModelHiddenFields';
 import {
     hasSchedulerFilterChanged,
     withDerivedDisabledState,
@@ -78,6 +79,8 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
+    const { savedFilterFieldsByTileUuid, getModelHiddenField } =
+        useModelHiddenFields();
 
     const tileNamesById = useDashboardTileStatusContext((c) => c.tileNamesById);
 
@@ -187,6 +190,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
             projectUuid={project.projectUuid}
             itemsMap={allFilterableFieldsMap}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
+            savedFilterFieldsByTileUuid={savedFilterFieldsByTileUuid}
             startOfWeek={project.warehouseConnection?.startOfWeek ?? undefined}
             dashboardFilters={currentDashboardFilters}
         >
@@ -216,6 +220,9 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                     <RemovedSchedulerFilterItem
                                         key={dashboardFilterRule.id}
                                         savedFilter={dashboardFilterRule}
+                                        modelHiddenField={getModelHiddenField(
+                                            dashboardFilterRule,
+                                        )}
                                         defaultLabel="Uses dashboard default"
                                         onRestore={() =>
                                             handleRestoreFilter(
@@ -237,6 +244,9 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                     key={draftFilter.id}
                                     savedFilter={originalFilter}
                                     schedulerFilter={draftFilter}
+                                    modelHiddenField={getModelHiddenField(
+                                        originalFilter,
+                                    )}
                                     isMissingRequiredValue={isMissingRequiredValue(
                                         originalFilter,
                                     )}
@@ -294,6 +304,9 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                     key={filter.id}
                                     savedFilter={filter}
                                     schedulerFilter={schedulerFilter}
+                                    modelHiddenField={getModelHiddenField(
+                                        filter,
+                                    )}
                                     isMissingRequiredValue={isMissingRequiredValue(
                                         filter,
                                     )}

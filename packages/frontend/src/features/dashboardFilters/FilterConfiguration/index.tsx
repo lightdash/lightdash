@@ -33,7 +33,12 @@ import {
     Tooltip,
     type PopoverProps,
 } from '@mantine/core';
-import { IconInfoCircle, IconRotate2, IconSql } from '@tabler/icons-react';
+import {
+    IconEyeOff,
+    IconInfoCircle,
+    IconRotate2,
+    IconSql,
+} from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { flushSync } from 'react-dom';
@@ -53,6 +58,7 @@ import {
     hasFilterValueSet,
     hasSavedFilterValueChanged,
     isFilterEnabled,
+    type ResolvedSavedFilterField,
 } from './utils';
 
 interface Props {
@@ -60,6 +66,7 @@ interface Props {
     tabs: DashboardTab[];
     activeTabUuid?: string;
     field?: DashboardFilterableField;
+    modelHiddenField?: ResolvedSavedFilterField;
     fields?: DashboardFilterableField[];
     availableTileFilters: Record<string, DashboardFilterableField[]>;
     originalFilterRule?: DashboardFilterRule;
@@ -91,6 +98,7 @@ const FilterConfiguration: FC<Props> = ({
     tabs,
     activeTabUuid,
     field,
+    modelHiddenField,
     fields,
     availableTileFilters,
     originalFilterRule,
@@ -236,6 +244,10 @@ const FilterConfiguration: FC<Props> = ({
             return getFilterTypeFromItem(selectedField);
         }
 
+        if (modelHiddenField) {
+            return getFilterTypeFromItemType(modelHiddenField.fallbackType);
+        }
+
         if (draftFilterRule?.target.fieldId) {
             const selectedColumn = columnsOptions.find(
                 (column) => column.reference === draftFilterRule.target.fieldId,
@@ -252,6 +264,7 @@ const FilterConfiguration: FC<Props> = ({
         columnsOptions,
         draftFilterRule?.target.fallbackType,
         draftFilterRule?.target.fieldId,
+        modelHiddenField,
         selectedField,
     ]);
 
@@ -448,15 +461,19 @@ const FilterConfiguration: FC<Props> = ({
 
                         <Tooltip
                             label={getUiString(
-                                tabs.length > 1
-                                    ? 'filters.config.tabsAndTilesTabTooltip'
-                                    : 'filters.config.tilesTabTooltip',
+                                modelHiddenField
+                                    ? 'filters.config.tilesTabHiddenFieldTooltip'
+                                    : tabs.length > 1
+                                      ? 'filters.config.tabsAndTilesTabTooltip'
+                                      : 'filters.config.tilesTabTooltip',
                             )}
                             position="top-start"
                         >
                             <Tabs.Tab
                                 value={FilterTabs.TILES}
-                                disabled={!draftFilterRule}
+                                disabled={
+                                    !draftFilterRule || !!modelHiddenField
+                                }
                             >
                                 {getUiString(
                                     tabs.length > 1
@@ -561,6 +578,30 @@ const FilterConfiguration: FC<Props> = ({
                                     </Tooltip>
                                 )}
                             </Group>
+                        ) : modelHiddenField ? (
+                            <Group gap="xs">
+                                <Tooltip
+                                    label={getUiString(
+                                        'filters.fieldHiddenInModel',
+                                    )}
+                                    multiline
+                                    maw={300}
+                                    withinPortal={false}
+                                >
+                                    <ActionIcon
+                                        size="xs"
+                                        aria-label={getUiString(
+                                            'filters.fieldHiddenInModel',
+                                        )}
+                                    >
+                                        <MantineIcon icon={IconEyeOff} />
+                                    </ActionIcon>
+                                </Tooltip>
+                                <Text span fz="sm" fw={500}>
+                                    {originalFilterRule?.label ||
+                                        draftFilterRule?.target.fieldId}
+                                </Text>
+                            </Group>
                         ) : (
                             <Group gap="xs">
                                 <MantineIcon
@@ -587,6 +628,7 @@ const FilterConfiguration: FC<Props> = ({
                                 isCreatingNew={isCreatingNew}
                                 filterType={filterType}
                                 field={selectedField}
+                                fallbackType={modelHiddenField?.fallbackType}
                                 filterRule={draftFilterRule}
                                 originalFilterRule={originalFilterRule}
                                 onChangeFilterRule={handleChangeFilterRule}

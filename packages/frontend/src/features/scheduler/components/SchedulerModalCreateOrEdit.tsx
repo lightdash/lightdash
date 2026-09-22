@@ -32,6 +32,7 @@ import DocumentationHelpButton from '../../../components/DocumentationHelpButton
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
+import { type SavedFilterFieldsByTileUuid } from '../../dashboardFilters/FilterConfiguration/utils';
 import { useSchedulerFormModal } from '../hooks/useSchedulerFormModal';
 import {
     getVisibleSections,
@@ -72,6 +73,7 @@ interface Props {
     currentParameterValues?: ParametersValuesMap;
     availableParameters?: ParameterDefinitions;
     filterableFieldsByTileUuid?: Record<string, DashboardFilterableField[]>;
+    savedFilterFieldsByTileUuid?: SavedFilterFieldsByTileUuid;
     /** undefined = create mode, string = edit mode */
     schedulerUuidToEdit: string | undefined;
     /** Create-mode only: pre-fills the new delivery. */
@@ -93,6 +95,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     currentParameterValues,
     availableParameters,
     filterableFieldsByTileUuid,
+    savedFilterFieldsByTileUuid,
     onClose,
     onBack,
 }) => {
@@ -147,6 +150,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         currentParameterValues,
         initialFormValues,
         filterableFieldsByTileUuid,
+        savedFilterFieldsByTileUuid,
     });
 
     // The AI agent selector filters by the delivered content's space.

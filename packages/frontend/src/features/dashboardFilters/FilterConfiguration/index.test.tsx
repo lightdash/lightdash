@@ -547,3 +547,142 @@ describe('FilterConfiguration', () => {
         );
     });
 });
+
+describe('FilterConfiguration for a dimension the model hides', () => {
+    const hiddenDateRule: DashboardFilterRule = {
+        id: 'hidden-date',
+        target: {
+            fieldId: 'orders_signup_date',
+            tableName: 'orders',
+        },
+        operator: FilterOperator.EQUALS,
+        values: [],
+        disabled: false,
+        label: 'Signup date',
+    };
+
+    const tile: DashboardTile = {
+        uuid: 'tile-1',
+        type: DashboardTileTypes.SAVED_CHART,
+        x: 0,
+        y: 0,
+        h: 1,
+        w: 1,
+        properties: { savedChartUuid: 'chart-1', title: 'Orders' },
+    } as DashboardTile;
+
+    const renderHiddenConfiguration = (
+        fallbackType: DimensionType,
+        isEditMode = true,
+    ) =>
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode={isEditMode}
+                tiles={[tile]}
+                tabs={[]}
+                availableTileFilters={{ 'tile-1': [mockField] }}
+                field={undefined}
+                modelHiddenField={{
+                    fieldId: 'orders_signup_date',
+                    fallbackType,
+                    hasConflictingTypes: false,
+                }}
+                defaultFilterRule={hiddenDateRule}
+                originalFilterRule={hiddenDateRule}
+                onSave={vi.fn()}
+            />,
+        );
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('never presents the field as a SQL column', () => {
+        const { container } = renderHiddenConfiguration(DimensionType.DATE);
+
+        expect(container.textContent).not.toContain('SQL column');
+        expect(
+            container.querySelector('.tabler-icon-sql'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('marks the field as hidden rather than leaving it unexplained', () => {
+        renderHiddenConfiguration(DimensionType.DATE);
+
+        expect(
+            screen.getByRole('button', {
+                name: 'This field is hidden in the model. The filter still applies to your charts.',
+            }),
+        ).toBeVisible();
+    });
+
+    it('keeps the saved label visible', () => {
+        renderHiddenConfiguration(DimensionType.DATE);
+
+        expect(screen.getByText('Signup date')).toBeVisible();
+    });
+
+    it('gives a hidden date dimension a date editor, not a timestamp one', () => {
+        const { container } = renderHiddenConfiguration(
+            DimensionType.DATE,
+            false,
+        );
+
+        expect(
+            container.querySelector('[class*="mantine-PillsInput"]'),
+        ).toBeInTheDocument();
+        expect(
+            container.querySelector('[class*="mantine-DateTimePicker"]'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('gives a hidden timestamp dimension the timestamp editor', () => {
+        const { container } = renderHiddenConfiguration(
+            DimensionType.TIMESTAMP,
+            false,
+        );
+
+        expect(
+            container.querySelector('[class*="mantine-DateTimePicker"]'),
+        ).toBeInTheDocument();
+    });
+
+    it('gives a hidden string dimension a text editor, not a date one', () => {
+        const { container } = renderHiddenConfiguration(
+            DimensionType.STRING,
+            false,
+        );
+
+        expect(
+            container.querySelector('[placeholder="Select a date"]'),
+        ).not.toBeInTheDocument();
+        expect(
+            container.querySelector(
+                '[placeholder="Start typing to filter results"]',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('disables tile retargeting instead of showing controls that do nothing', () => {
+        renderHiddenConfiguration(DimensionType.DATE);
+
+        expect(screen.getByRole('tab', { name: 'Tiles' })).toBeDisabled();
+    });
+
+    it('still offers tile retargeting for a normal field', () => {
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[tile]}
+                tabs={[]}
+                availableTileFilters={{ 'tile-1': [mockField] }}
+                field={mockField}
+                defaultFilterRule={anyValueRule}
+                originalFilterRule={anyValueRule}
+                onSave={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByRole('tab', { name: 'Tiles' })).toBeEnabled();
+    });
+});

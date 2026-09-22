@@ -102,9 +102,14 @@ const deleteDashboard = async (id: string, projectUuid: string) =>
 
 const postDashboardsAvailableFilters = async (
     savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+    dashboardUuid: string | undefined,
 ) =>
     lightdashApi<DashboardAvailableFilters>({
-        url: `/dashboards/availableFilters`,
+        url: dashboardUuid
+            ? `/dashboards/availableFilters?dashboardUuid=${encodeURIComponent(
+                  dashboardUuid,
+              )}`
+            : `/dashboards/availableFilters`,
         method: 'POST',
         body: JSON.stringify(savedChartUuidsAndTileUuids),
     });
@@ -123,16 +128,25 @@ export const useDashboardsAvailableFilters = (
     savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
     projectUuid?: string,
     embedToken?: string,
+    dashboardUuid?: string,
 ) =>
     useQuery<DashboardAvailableFilters, ApiError>(
-        ['dashboards', 'availableFilters', ...savedChartUuidsAndTileUuids],
+        [
+            'dashboards',
+            'availableFilters',
+            dashboardUuid,
+            ...savedChartUuidsAndTileUuids,
+        ],
         () =>
             embedToken && projectUuid
                 ? postEmbedDashboardsAvailableFilters(
                       projectUuid,
                       savedChartUuidsAndTileUuids,
                   )
-                : postDashboardsAvailableFilters(savedChartUuidsAndTileUuids),
+                : postDashboardsAvailableFilters(
+                      savedChartUuidsAndTileUuids,
+                      dashboardUuid,
+                  ),
         {
             enabled: savedChartUuidsAndTileUuids.length > 0,
         },

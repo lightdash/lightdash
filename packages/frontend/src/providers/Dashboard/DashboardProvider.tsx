@@ -923,6 +923,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         savedChartUuidsAndTileUuids ?? [],
         projectUuid,
         embedToken,
+        dashboardUuid,
     );
 
     const filterableFieldsByTileUuid = useMemo(() => {
@@ -1478,6 +1479,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setDateZoomGranularity,
     ]);
 
+    const savedFilterFieldsByTileUuid = useMemo(
+        () => dashboardAvailableFiltersData?.savedFilterFieldsByTile,
+        [dashboardAvailableFiltersData],
+    );
+
     const allFilterableFieldsMap = useMemo(() => {
         return dashboardAvailableFiltersData?.allFilterableFields &&
             dashboardAvailableFiltersData.allFilterableFields.length > 0
@@ -1869,6 +1875,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         isLoadingDashboardFilters,
         isFetchingDashboardFilters,
         filterableFieldsByTileUuid,
+        savedFilterFieldsByTileUuid,
         chartZoomableFieldsByTileUuid,
         setChartZoomableFields,
         allFilters,

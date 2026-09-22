@@ -273,6 +273,8 @@
         "filters.tableLabel": "ცხრილი: ",
         "filters.tablesLabel": "ცხრილები: ",
         "filters.invalidFilter": "არასწორი ფილტრი",
+        "filters.fieldHiddenInModel": "ეს ველი მოდელში დამალულია. ფილტრი კვლავ მოქმედებს თქვენს დიაგრამებზე.",
+        "filters.config.tilesTabHiddenFieldTooltip": "ფილების შეცვლა შეუძლებელია, სანამ ეს ველი მოდელში დამალულია",
         "filters.required.setValueTooltip": "სავალდებულოა: დააყენეთ მნიშვნელობა ამ დაფის გასაშვებად",
         "filters.required.setValueGroupTooltip": "სავალდებულოა: დააყენეთ მნიშვნელობა ამ ან ალტერნატიულ ფილტრზე ამ დაფის გასაშვებად",
         "filters.required.modalTitle": "დააყენეთ ფილტრები ამ დაფის ჩასატვირთად",

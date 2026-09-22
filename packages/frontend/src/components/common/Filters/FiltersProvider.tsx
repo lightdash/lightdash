@@ -9,6 +9,7 @@ import {
     type WeekDay,
 } from '@lightdash/common';
 import { useCallback, type ReactNode } from 'react';
+import { type SavedFilterFieldsByTileUuid } from '../../../features/dashboardFilters/FilterConfiguration/utils';
 import Context, {
     type DefaultFieldsMap,
     type FilterPopoverProps,
@@ -23,6 +24,7 @@ type Props<T extends DefaultFieldsMap> = {
     dashboardFilters?: DashboardFilters;
     dashboardTiles?: DashboardTile[];
     filterableFieldsByTileUuid?: Record<string, DashboardFilterableField[]>;
+    savedFilterFieldsByTileUuid?: SavedFilterFieldsByTileUuid;
     popoverProps?: FilterPopoverProps;
     parameterValues?: ParametersValuesMap;
     activeTabUuid?: string;
@@ -38,6 +40,7 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
     dashboardFilters,
     dashboardTiles,
     filterableFieldsByTileUuid,
+    savedFilterFieldsByTileUuid,
     popoverProps,
     parameterValues,
     activeTabUuid,
@@ -63,12 +66,14 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
                 dashboardFilters,
                 dashboardTiles,
                 filterableFieldsByTileUuid,
+                savedFilterFieldsByTileUuid,
                 activeTabUuid,
             }),
         [
             dashboardFilters,
             dashboardTiles,
             filterableFieldsByTileUuid,
+            savedFilterFieldsByTileUuid,
             activeTabUuid,
         ],
     );

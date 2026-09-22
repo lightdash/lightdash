@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     FilterType,
     type BaseFilterRule,
+    type DimensionType,
     type FilterableItem,
 } from '@lightdash/common';
 import { type FilterPopoverProps } from '../context';
@@ -12,6 +13,7 @@ import DefaultFilterInputs from './DefaultFilterInputs';
 export type FilterInputsProps<T extends BaseFilterRule> = {
     filterType: FilterType;
     field?: FilterableItem;
+    fallbackType?: DimensionType;
     rule: T;
     onChange: (value: T) => void;
     disabled?: boolean;
