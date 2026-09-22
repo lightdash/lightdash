@@ -18838,6 +18838,10 @@
                         "required": ["hit"],
                         "type": "object"
                     },
+                    "queryReuseHit": {
+                        "type": "boolean",
+                        "description": "Result came from an explicitly reused prior query, not cache lookup."
+                    },
                     "cacheHit": {
                         "type": "boolean"
                     },
@@ -28746,6 +28750,9 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "queryReuseHit": {
+                                                        "type": "boolean"
+                                                    },
                                                     "queryCacheHit": {
                                                         "type": "boolean"
                                                     },
@@ -29001,6 +29008,11 @@
             },
             "AiPromptResponseStageTiming": {
                 "properties": {
+                    "queryReuseHits": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Query tools served from a verified prior-query result."
+                    },
                     "queryCacheHits": {
                         "type": "number",
                         "format": "double",
@@ -29034,6 +29046,7 @@
                     }
                 },
                 "required": [
+                    "queryReuseHits",
                     "queryCacheHits",
                     "renderMs",
                     "apiMs",
@@ -64335,7 +64348,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.292.1",
+        "version": "2.292.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

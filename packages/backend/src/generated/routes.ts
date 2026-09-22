@@ -17753,6 +17753,7 @@ const models: TsoaRoute.Models = {
                         hit: { dataType: 'boolean', required: true },
                     },
                 },
+                queryReuseHit: { dataType: 'boolean' },
                 cacheHit: { dataType: 'boolean', required: true },
                 cacheKey: { dataType: 'string' },
                 cacheExpiresAt: { dataType: 'datetime' },
@@ -28067,6 +28068,16 @@ const models: TsoaRoute.Models = {
                                         {
                                             dataType: 'nestedObjectLiteral',
                                             nestedProperties: {
+                                                queryReuseHit: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        { dataType: 'boolean' },
+                                                        {
+                                                            dataType:
+                                                                'undefined',
+                                                        },
+                                                    ],
+                                                },
                                                 queryCacheHit: {
                                                     dataType: 'union',
                                                     subSchemas: [
@@ -28511,6 +28522,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                queryReuseHits: { dataType: 'double', required: true },
                 queryCacheHits: { dataType: 'double', required: true },
                 renderMs: { dataType: 'double', required: true },
                 apiMs: { dataType: 'double', required: true },

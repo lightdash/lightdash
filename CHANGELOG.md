@@ -1,3 +1,10 @@
+## [2.292.2](https://github.com/lightdash/lightdash/compare/2.292.1...2.292.2) (2026-09-22)
+
+
+### Bug Fixes
+
+* **ai-agents:** improve gated query reuse and evidence recovery ([#29715](https://github.com/lightdash/lightdash/issues/29715)) ([3a38d2f](https://github.com/lightdash/lightdash/commit/3a38d2f0b956b7d90c97484bfaf2a44f966234b3))
+
 ## [2.292.1](https://github.com/lightdash/lightdash/compare/2.292.0...2.292.1) (2026-09-22)
 
 
