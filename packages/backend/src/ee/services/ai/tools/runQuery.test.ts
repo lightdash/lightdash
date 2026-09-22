@@ -686,6 +686,51 @@ describe('getRunQuery', () => {
         expect(output.result).toContain('a_met1');
     });
 
+    it('keeps a table artifact for fast data answers in web chat', async () => {
+        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
+        const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
+            queryUuid: '11111111-1111-4111-8111-111111111111',
+            rows: [{ a_dim1: 'one', a_met1: 1 }],
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+        });
+        const queryTool = getRunQuery({
+            purpose: 'answer',
+            enableFastResponse: true,
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery,
+            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
+            enableMergeQueries: false,
+            enableFilterExpressions: false,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+            sendFile: vi.fn().mockResolvedValue(undefined),
+            createOrUpdateArtifact,
+            maxLimit: 500,
+            maxContextRows: Number.POSITIVE_INFINITY,
+            exposeQueryUuid: false,
+            enableDataAccess: true,
+            slackLinksOnly: false,
+            resolveCustomChartType: vi.fn().mockResolvedValue(null),
+            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
+        });
+
+        await queryTool.execute!(toolInput, {
+            messages: [],
+            toolCallId: 'tool-call-1',
+            experimental_context: new AgentContext([validExplore]),
+        });
+
+        expect(createOrUpdateArtifact).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                artifactType: 'chart',
+                vizConfig: expect.objectContaining({
+                    config: expect.objectContaining({ chartConfig: null }),
+                }),
+            }),
+        );
+    });
+
     it('resolves filter expressions before execution and persists replay args', async () => {
         const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
         const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({

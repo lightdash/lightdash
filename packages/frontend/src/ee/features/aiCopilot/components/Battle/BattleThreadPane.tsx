@@ -35,6 +35,7 @@ type TimingSummary = {
     source: 'live' | 'server';
     ttftMs: number | null;
     totalMs: number;
+    queryCacheHits: number | null;
 };
 
 export const BattleThreadPane: FC<Props> = ({
@@ -89,6 +90,7 @@ export const BattleThreadPane: FC<Props> = ({
                         ? null
                         : liveTiming.firstTokenAt - liveTiming.startedAt,
                 totalMs: now - liveTiming.startedAt,
+                queryCacheHits: null,
             };
         }
         const persisted =
@@ -96,7 +98,13 @@ export const BattleThreadPane: FC<Props> = ({
             lastAssistantMessage.status !== 'pending'
                 ? getResponseTimingMetrics(lastAssistantMessage.responseTiming)
                 : null;
-        if (persisted) return { source: 'server', ...persisted };
+        if (persisted)
+            return {
+                source: 'server',
+                ttftMs: persisted.ttftMs,
+                totalMs: persisted.totalMs,
+                queryCacheHits: persisted.stages?.queryCacheHits ?? null,
+            };
         if (liveTiming && liveTiming.finishedAt !== null) {
             return {
                 source: 'live',
@@ -105,6 +113,7 @@ export const BattleThreadPane: FC<Props> = ({
                         ? null
                         : liveTiming.firstTokenAt - liveTiming.startedAt,
                 totalMs: liveTiming.finishedAt - liveTiming.startedAt,
+                queryCacheHits: null,
             };
         }
         return null;
@@ -164,6 +173,12 @@ export const BattleThreadPane: FC<Props> = ({
                                     ? '(client)'
                                     : '(server)'}
                             </Text>
+                            {timing.queryCacheHits !== null &&
+                                timing.queryCacheHits > 0 && (
+                                    <Text size="xs" c="green" ml={2}>
+                                        cache hit
+                                    </Text>
+                                )}
                         </Group>
                     )}
                     {lastAssistantMessage?.tokenUsage && (

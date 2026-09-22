@@ -796,7 +796,11 @@ export const getRunQuery = ({
                         chartConfig: ToolRunQueryBuiltinChartConfig | null = null,
                         contentAsCode?: PreparedChartAsCode,
                     ) => {
-                        if (purpose === 'answer' && !isSlackPrompt(prompt))
+                        if (
+                            purpose === 'answer' &&
+                            !enableFastResponse &&
+                            !isSlackPrompt(prompt)
+                        )
                             return Promise.resolve(undefined);
                         const vizConfig =
                             persistedExpressionArgs === null
@@ -1132,7 +1136,11 @@ export const getRunQuery = ({
                     chartConfig: ToolRunQueryBuiltinChartConfig | null = null,
                     contentAsCode?: PreparedChartAsCode,
                 ) => {
-                    if (purpose === 'answer' && !isSlackPrompt(prompt))
+                    if (
+                        purpose === 'answer' &&
+                        !enableFastResponse &&
+                        !isSlackPrompt(prompt)
+                    )
                         return Promise.resolve(undefined);
                     const vizConfig =
                         chartConfig && customChartTypeBinding === null
