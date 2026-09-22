@@ -25,7 +25,6 @@ import {
     CircleMarker,
     GeoJSON,
     MapContainer,
-    TileLayer,
     Tooltip,
     useMap,
 } from 'react-leaflet';
@@ -59,6 +58,7 @@ import HeatmapLayer from './HeatmapLayer';
 import { MAX_HEXBIN_POINTS } from './hexbin/hexbinUtils';
 import MapContextMenu from './MapContextMenu';
 import MapLegend from './MapLegend';
+import MapTileLayer from './MapTileLayer';
 
 const HexbinLayer = lazy(() => import('./hexbin/HexbinLayer'));
 
@@ -1149,10 +1149,9 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                             hasSavedExtent={mapConfig.hasSavedExtent}
                         />
                         {activeTile.url && (
-                            <TileLayer
+                            <MapTileLayer
                                 key={activeTile.url}
-                                attribution={activeTile.attribution}
-                                url={activeTile.url}
+                                tile={activeTile}
                                 eventHandlers={combinedTileLayerEventHandlers}
                             />
                         )}
@@ -1354,10 +1353,9 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                             hasSavedExtent={mapConfig.hasSavedExtent}
                         />
                         {activeTile.url && (
-                            <TileLayer
+                            <MapTileLayer
                                 key={activeTile.url}
-                                attribution={activeTile.attribution}
-                                url={activeTile.url}
+                                tile={activeTile}
                                 eventHandlers={combinedTileLayerEventHandlers}
                             />
                         )}

@@ -46,6 +46,7 @@ export type TooltipFieldInfo = {
 export type TileConfig = {
     url: string | null;
     attribution: string;
+    isProxied?: boolean;
 };
 
 export type LeafletMapConfig = {
@@ -191,19 +192,22 @@ export const getTileConfig = (
 
         case MapTileBackground.LIGHT:
             return {
-                url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                url: '/map-tiles/light/{z}/{x}/{y}.png',
+                isProxied: true,
                 attribution: CARTO_ATTRIBUTION,
             };
 
         case MapTileBackground.DARK:
             return {
-                url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                url: '/map-tiles/dark/{z}/{x}/{y}.png',
+                isProxied: true,
                 attribution: CARTO_ATTRIBUTION,
             };
 
         case MapTileBackground.VOYAGER:
             return {
-                url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                url: '/map-tiles/voyager/{z}/{x}/{y}.png',
+                isProxied: true,
                 attribution: CARTO_ATTRIBUTION,
             };
 
