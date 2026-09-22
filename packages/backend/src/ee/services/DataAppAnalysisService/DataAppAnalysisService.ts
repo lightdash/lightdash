@@ -40,6 +40,7 @@ import { CsvService } from '../../../services/CsvService/CsvService';
 import { type SchedulerService } from '../../../services/SchedulerService/SchedulerService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
+    type DataAppAnalysisOperation,
     type DataAppSourceHash,
     type DbDataAppAnalysis,
 } from '../../database/entities/dataAppAnalyses';
@@ -123,8 +124,14 @@ const mapStoredQueryUuids = (
 const MAX_PROMPT_CHARS = 2000;
 const MAX_FOCUS_ENTRIES = 30;
 const MAX_FOCUS_VALUE_CHARS = 200;
-// Per viewer and app; in-process only, so a multi-pod deployment multiplies it.
-const PROMPT_RATE_LIMIT = { max: 20, windowMs: 60_000 };
+// Model runs per viewer and app per minute, counted in the database so
+// every pod shares one bucket. Cache hits and lookups are free.
+const RATE_LIMITS_PER_MINUTE: Record<DataAppAnalysisOperation, number> = {
+    detect: 6,
+    prompt: 20,
+    investigate: 3,
+};
+const RATE_WINDOW_MS = 60_000;
 // Hard budgets for one investigation; exhaustion yields a partial answer.
 const INVESTIGATE_MAX_STEPS = 12;
 const INVESTIGATE_MAX_WAREHOUSE_QUERIES = 15;
@@ -679,18 +686,24 @@ export class DataAppAnalysisService extends BaseService {
                 sources: body.sources,
             };
         }
-        const run = this.runDetect({
-            user,
-            projectUuid,
-            appUuid,
-            appVersion,
-            sources: body.sources,
-            instructions,
-            content,
-            grounding,
-            sectionHashes,
-            contentHash,
-        }).finally(() => this.inFlightDetects.delete(inFlightKey));
+        // Registered before any await so a concurrent caller joins this run
+        // instead of starting (and being counted for) its own.
+        const run = this.assertRate(user.userUuid, appUuid, 'detect')
+            .then(() =>
+                this.runDetect({
+                    user,
+                    projectUuid,
+                    appUuid,
+                    appVersion,
+                    sources: body.sources,
+                    instructions,
+                    content,
+                    grounding,
+                    sectionHashes,
+                    contentHash,
+                }),
+            )
+            .finally(() => this.inFlightDetects.delete(inFlightKey));
         this.inFlightDetects.set(inFlightKey, run);
         return (await run).analysis;
     }
@@ -777,23 +790,34 @@ export class DataAppAnalysisService extends BaseService {
         };
     }
 
-    private readonly promptTimestamps = new Map<string, number[]>();
-
-    private assertPromptRate(userUuid: string, appUuid: string): void {
-        const key = `${userUuid}:${appUuid}`;
+    private async assertRate(
+        userUuid: string,
+        appUuid: string,
+        operation: DataAppAnalysisOperation,
+    ): Promise<void> {
         const now = Date.now();
-        const isRecent = (t: number) => now - t < PROMPT_RATE_LIMIT.windowMs;
-        this.promptTimestamps.forEach((timestamps, k) => {
-            if (!timestamps.some(isRecent)) this.promptTimestamps.delete(k);
+        const windowStartedAt = new Date(
+            Math.floor(now / RATE_WINDOW_MS) * RATE_WINDOW_MS,
+        );
+        const count = await this.dataAppAnalysisModel.incrementRateCounter({
+            appUuid,
+            userUuid,
+            operation,
+            windowStartedAt,
         });
-        const recent = (this.promptTimestamps.get(key) ?? []).filter(isRecent);
-        if (recent.length >= PROMPT_RATE_LIMIT.max) {
+        const limit = RATE_LIMITS_PER_MINUTE[operation];
+        if (count > limit) {
+            const retryAfterSeconds = Math.max(
+                1,
+                Math.ceil(
+                    (windowStartedAt.getTime() + RATE_WINDOW_MS - now) / 1000,
+                ),
+            );
             throw new TooManyRequestsError(
-                `At most ${PROMPT_RATE_LIMIT.max} AI prompts per minute per app`,
+                `Too many AI ${operation} requests for this app. Try again in ${retryAfterSeconds}s.`,
+                { code: 'rate_limited', operation, retryAfterSeconds },
             );
         }
-        recent.push(now);
-        this.promptTimestamps.set(key, recent);
     }
 
     private static validatePrompt(body: DataAppPromptRequest): {
@@ -852,7 +876,7 @@ export class DataAppAnalysisService extends BaseService {
             projectUuid,
             appUuid,
         );
-        this.assertPromptRate(user.userUuid, appUuid);
+        await this.assertRate(user.userUuid, appUuid, 'prompt');
         const { content, grounding } = await this.buildContent(
             account,
             projectUuid,
@@ -1002,6 +1026,7 @@ export class DataAppAnalysisService extends BaseService {
             throw new NotFoundError('Anomaly not found in this analysis');
         }
         await this.assertAgentUsable(user, projectUuid, body.agentUuid);
+        await this.assertRate(user.userUuid, appUuid, 'investigate');
 
         return this.schedulerClient.dataAppInvestigate({
             organizationUuid: user.organizationUuid!,
@@ -1051,6 +1076,12 @@ export class DataAppAnalysisService extends BaseService {
      * viewer. Once `abortSignal` fires nothing is persisted or logged; the
      * worker's timeout handler owns that job's final status.
      */
+    /** Drops minute buckets older than a day; called by the daily sweep. */
+    async cleanRateCounters(now: Date = new Date()): Promise<number> {
+        const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        return this.dataAppAnalysisModel.deleteRateCountersBefore(cutoff);
+    }
+
     async runInvestigation(
         payload: DataAppInvestigateJobPayload,
         jobId: string,

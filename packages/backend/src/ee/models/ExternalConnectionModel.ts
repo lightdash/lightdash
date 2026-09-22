@@ -1176,4 +1176,10 @@ export class ExternalConnectionModel {
 
         return row.request_count;
     }
+
+    async deleteRateCountersBefore(cutoff: Date): Promise<number> {
+        return this.database(ExternalConnectionRateCountersTableName)
+            .where('window_started_at', '<', cutoff)
+            .delete();
+    }
 }

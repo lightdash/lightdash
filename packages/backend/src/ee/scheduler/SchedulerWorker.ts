@@ -29,6 +29,7 @@ import { type LinearAppService } from '../../services/LinearAppService/LinearApp
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
+import { type ExternalConnectionModel } from '../models/ExternalConnectionModel';
 import { type McpToolCallModel } from '../models/McpToolCallModel';
 import { type ScimRequestLogModel } from '../models/ScimRequestLogModel';
 import { AiAgentAdminService } from '../services/AiAgentAdminService';
@@ -138,6 +139,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     projectModel: ProjectModel;
     openIdIdentityModel: OpenIdIdentityModel;
     mcpToolCallModel: McpToolCallModel;
+    externalConnectionModel: ExternalConnectionModel;
     scimRequestLogModel: ScimRequestLogModel;
     projectHomepageService: Pick<
         ProjectHomepageService,
@@ -201,6 +203,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly mcpToolCallModel: McpToolCallModel;
 
+    protected readonly externalConnectionModel: ExternalConnectionModel;
+
     protected readonly scimRequestLogModel: ScimRequestLogModel;
 
     protected readonly projectHomepageService: CommercialSchedulerWorkerArguments['projectHomepageService'];
@@ -243,6 +247,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.projectModel = args.projectModel;
         this.openIdIdentityModel = args.openIdIdentityModel;
         this.mcpToolCallModel = args.mcpToolCallModel;
+        this.externalConnectionModel = args.externalConnectionModel;
         this.scimRequestLogModel = args.scimRequestLogModel;
         this.projectHomepageService = args.projectHomepageService;
         this.externalSourceService = args.externalSourceService;
@@ -344,6 +349,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 },
             },
             {
+                task: EE_SCHEDULER_TASKS.CLEAN_RATE_COUNTERS,
+                pattern: '50 0 * * *', // 00:50 UTC daily
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000,
+                    maxAttempts: 3,
+                },
+            },
+            {
                 task: EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS,
                 pattern: '41 * * * *',
                 options: {
@@ -436,6 +449,18 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     );
                 Logger.info(
                     `MCP tool call cleanup completed. Records deleted: ${deleted}`,
+                );
+            },
+            [EE_SCHEDULER_TASKS.CLEAN_RATE_COUNTERS]: async () => {
+                const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                const analysis =
+                    await this.dataAppAnalysisService.cleanRateCounters();
+                const external =
+                    await this.externalConnectionModel.deleteRateCountersBefore(
+                        cutoff,
+                    );
+                Logger.info(
+                    `Rate counter cleanup completed. Analysis windows deleted: ${analysis}; external connection windows deleted: ${external}`,
                 );
             },
             [EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: async (

@@ -7,6 +7,8 @@ import type {
 import { Knex } from 'knex';
 import {
     DataAppAnalysesTableName,
+    DataAppAnalysisRateCountersTableName,
+    type DataAppAnalysisOperation,
     type DataAppSourceHash,
     type DbDataAppAnalysis,
 } from '../database/entities/dataAppAnalyses';
@@ -169,5 +171,44 @@ export class DataAppAnalysisModel {
             })
             .first();
         return row ?? null;
+    }
+
+    /**
+     * Atomically bumps the viewer's counter for one operation in one minute
+     * window and returns the new count. Shared across pods.
+     */
+    async incrementRateCounter(args: {
+        appUuid: string;
+        userUuid: string;
+        operation: DataAppAnalysisOperation;
+        windowStartedAt: Date;
+    }): Promise<number> {
+        const [row] = await this.database(DataAppAnalysisRateCountersTableName)
+            .insert({
+                app_id: args.appUuid,
+                user_uuid: args.userUuid,
+                operation: args.operation,
+                window_started_at: args.windowStartedAt,
+                request_count: 1,
+            })
+            .onConflict([
+                'app_id',
+                'user_uuid',
+                'operation',
+                'window_started_at',
+            ])
+            .merge({
+                request_count: this.database.raw(
+                    `${DataAppAnalysisRateCountersTableName}.request_count + 1`,
+                ) as unknown as number,
+            })
+            .returning('request_count');
+        return row.request_count;
+    }
+
+    async deleteRateCountersBefore(cutoff: Date): Promise<number> {
+        return this.database(DataAppAnalysisRateCountersTableName)
+            .where('window_started_at', '<', cutoff)
+            .delete();
     }
 }

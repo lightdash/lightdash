@@ -239,6 +239,20 @@ function buildUnderlyingDataFilters(
     };
 }
 
+/**
+ * Thrown for a non-2xx response. `status` lets hosts tell a recoverable
+ * 429 (rate limited, retry later) from a real failure.
+ */
+export class LightdashApiError extends Error {
+    readonly status: number;
+
+    constructor(status: number, message: string) {
+        super(`Lightdash API error (${status}): ${message}`);
+        this.name = 'LightdashApiError';
+        this.status = status;
+    }
+}
+
 function createDefaultFetchAdapter(
     config: LightdashClientConfig,
 ): FetchAdapter {
@@ -268,7 +282,7 @@ function createDefaultFetchAdapter(
             } catch {
                 message = text;
             }
-            throw new Error(`Lightdash API error (${res.status}): ${message}`);
+            throw new LightdashApiError(res.status, message);
         }
 
         const json = (await res.json()) as ApiResponse<T>;
