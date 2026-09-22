@@ -68,6 +68,7 @@ const callAuthoringLlm: MemoryProjectContextAuthoringLlmCall = async ({
         providerOptions: model.providerOptions,
         ...telemetry,
         schema: memoryProjectContextAuthoringResultSchema,
+        allowSystemInMessages: true,
         messages,
     });
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));

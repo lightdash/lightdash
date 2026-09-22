@@ -229,6 +229,7 @@ export async function selectAgent({
         model,
         ...telemetryConfig,
         schema: AgentSelectionSchema,
+        allowSystemInMessages: true,
         messages: [
             { role: 'system', content: systemPrompt },
             {

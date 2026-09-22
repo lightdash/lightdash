@@ -56,6 +56,7 @@ const callAuthoringLlm: ProjectContextEntryAuthoringLlmCall = async ({
         providerOptions: model.providerOptions,
         ...telemetry,
         schema: aiAgentReviewClassifierJudgeProjectContextCallSchema,
+        allowSystemInMessages: true,
         messages,
     });
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
