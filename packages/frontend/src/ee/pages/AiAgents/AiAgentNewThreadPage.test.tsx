@@ -62,6 +62,13 @@ vi.mock('../../features/aiCopilot/hooks/useAiAgentBattleModeEnabled', () => ({
     useAiAgentBattleModeEnabled: () => false,
 }));
 
+vi.mock(
+    '../../features/aiCopilot/hooks/useAiAgentSpeedBattleAvailable',
+    () => ({
+        useAiAgentSpeedBattleAvailable: () => false,
+    }),
+);
+
 vi.mock('../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable', () => ({
     useAiAgentSqlModeAvailable: () => false,
 }));

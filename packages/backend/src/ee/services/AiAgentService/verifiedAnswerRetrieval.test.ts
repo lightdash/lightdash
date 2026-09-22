@@ -399,11 +399,17 @@ describe('battle profile response preparation', () => {
     afterEach(() => vi.restoreAllMocks());
 
     it.each([
-        ['fast', true],
-        ['baseline', false],
+        ['fast', true, true],
+        ['fast', false, false],
+        ['baseline', true, false],
+        ['baseline', false, false],
     ] as const)(
-        'uses the %s thread profile instead of the organization fast-decisions flag',
-        async (battleProfile, expectedFastDecisionsEnabled) => {
+        'gates the %s thread profile on the fast-decisions master flag (flag on: %s)',
+        async (
+            battleProfile,
+            masterFlagEnabled,
+            expectedFastDecisionsEnabled,
+        ) => {
             const aiAgentModel = {
                 getThread: vi.fn().mockResolvedValue({
                     agentUuid: 'agent',
@@ -440,13 +446,9 @@ describe('battle profile response preparation', () => {
                 },
                 'maybeCompactThreadBeforeResponse',
             ).mockResolvedValue(null);
-            const getDecisionClient = vi
-                .spyOn(service, 'getDecisionClient')
-                .mockImplementation(async (_user, enabledOverride) =>
-                    enabledOverride === false
-                        ? undefined
-                        : ({} as AiDecisionClient),
-                );
+            vi.spyOn(service, 'getDecisionClient').mockResolvedValue(
+                masterFlagEnabled ? ({} as AiDecisionClient) : undefined,
+            );
             const getHistory = vi
                 .spyOn(service, 'getChatHistoryFromThreadMessages')
                 .mockResolvedValue([]);
@@ -468,10 +470,6 @@ describe('battle profile response preparation', () => {
                 promptUuid: 'prompt',
             });
 
-            expect(getDecisionClient).toHaveBeenCalledWith(
-                user,
-                expectedFastDecisionsEnabled,
-            );
             expect(getHistory).toHaveBeenCalledWith(
                 expect.anything(),
                 expect.objectContaining({

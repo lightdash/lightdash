@@ -12,6 +12,7 @@ interface Props {
     onEnabledChange: (enabled: boolean) => void;
     battleType: BattleType;
     onBattleTypeChange: (type: BattleType) => void;
+    speedBattleAvailable: boolean;
     models: AiModelOption[];
     modelAKey: string | null;
     modelBKey: string | null;
@@ -24,6 +25,7 @@ export const BattleModeSetup: FC<Props> = ({
     onEnabledChange,
     battleType,
     onBattleTypeChange,
+    speedBattleAvailable,
     models,
     modelAKey,
     modelBKey,
@@ -49,17 +51,19 @@ export const BattleModeSetup: FC<Props> = ({
             />
             {enabled && (
                 <Group gap="xs" wrap="nowrap">
-                    <SegmentedControl
-                        size="xs"
-                        value={battleType}
-                        onChange={(value) =>
-                            onBattleTypeChange(value as BattleType)
-                        }
-                        data={[
-                            { value: 'speed', label: 'Speed features' },
-                            { value: 'models', label: 'Models' },
-                        ]}
-                    />
+                    {speedBattleAvailable && (
+                        <SegmentedControl
+                            size="xs"
+                            value={battleType}
+                            onChange={(value) =>
+                                onBattleTypeChange(value as BattleType)
+                            }
+                            data={[
+                                { value: 'speed', label: 'Speed features' },
+                                { value: 'models', label: 'Models' },
+                            ]}
+                        />
+                    )}
                     <ModelSelector
                         models={models}
                         value={modelAKey}

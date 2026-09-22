@@ -5,6 +5,7 @@ import {
     AI_AGENT_THREAD_TITLE_MAX_LENGTH,
     AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS,
     AiAgent,
+    AiAgentBattleProfile,
     AiAgentEvalRunJobPayload,
     AiAgentEvaluationRun,
     AiAgentEvaluationSummary,
@@ -1970,16 +1971,23 @@ export class AiAgentService extends BaseService {
 
     public async getDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-        enabledOverride?: boolean,
     ) {
         return resolveAiDecisionClient(this.lightdashConfig.ai.decisions, () =>
-            enabledOverride === undefined
-                ? this.featureFlagService.get({
-                      user,
-                      featureFlagId: FeatureFlags.AiAgentFastDecisions,
-                  })
-                : Promise.resolve({ enabled: enabledOverride }),
+            this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiAgentFastDecisions,
+            }),
         );
+    }
+
+    // Battle mode can only switch JEV off for the baseline side, never on past the master flag.
+    private async getBattleDecisionClient(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        battleProfile: AiAgentBattleProfile | null,
+    ) {
+        return battleProfile === 'baseline'
+            ? undefined
+            : this.getDecisionClient(user);
     }
 
     private async getPromptErrorMessage(
@@ -4152,6 +4160,11 @@ export class AiAgentService extends BaseService {
             });
             if (!battleMode.enabled || runtimeOptions) {
                 throw new ForbiddenError('AI agent battle mode is not enabled');
+            }
+            if (!(await this.getDecisionClient(user))) {
+                throw new ForbiddenError(
+                    'AI agent fast decisions must be enabled to compare profiles',
+                );
             }
         }
 
@@ -6939,11 +6952,6 @@ export class AiAgentService extends BaseService {
                 targetThreadMessages,
                 applicableCompaction?.compacted_through_ai_prompt_uuid ?? null,
             );
-        const fastDecisionsEnabledOverride =
-            prompt.battleProfile === null
-                ? undefined
-                : prompt.battleProfile === 'fast';
-
         const chatHistoryMessages = await this.getChatHistoryFromThreadMessages(
             compactedThreadMessages,
             {
@@ -6955,9 +6963,9 @@ export class AiAgentService extends BaseService {
                     this.getIsVerifiedArtifactsEnabled(),
                 currentPromptUuid: prompt.promptUuid,
                 userUuid: user.userUuid,
-                fastDecisionsEnabled: !!(await this.getDecisionClient(
+                fastDecisionsEnabled: !!(await this.getBattleDecisionClient(
                     user,
-                    fastDecisionsEnabledOverride,
+                    prompt.battleProfile,
                 )),
             },
         );
@@ -12239,9 +12247,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const battleProfile = isSlackPrompt(prompt)
             ? null
             : prompt.battleProfile;
-        const decisionClient = await this.getDecisionClient(
+        const decisionClient = await this.getBattleDecisionClient(
             user,
-            battleProfile === null ? undefined : battleProfile === 'fast',
+            battleProfile,
         );
         const decisionUsage = decisionClient
             ? { inputTokens: 0, outputTokens: 0 }
@@ -12249,8 +12257,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const decisions = decisionUsage
             ? decisionClient?.withUsage(decisionUsage)
             : undefined;
-        // The JEV decision client is the single gate for the complete fast
-        // experience. Battle mode overrides that same gate per side.
+        // AiAgentFastDecisions is the master gate; battle mode can only disable it per side.
         const fastExperienceEnabled = decisions !== undefined;
         const queryRefinementRequest =
             isChartQueryRefinementRequest(prompt.prompt) ||

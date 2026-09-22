@@ -60,6 +60,7 @@ import {
     getModelOptionByKey,
     useAiAgentModelSelection,
 } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
+import { useAiAgentSpeedBattleAvailable } from '../../features/aiCopilot/hooks/useAiAgentSpeedBattleAvailable';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useStartDeepResearchForThreadMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
 import { useDeepResearchAccess } from '../../features/aiCopilot/hooks/useDeepResearchAccess';
@@ -116,7 +117,11 @@ const AiAgentNewThreadPage: FC = () => {
     const navigate = useNavigate();
     const battleModeAvailable = useAiAgentBattleModeEnabled() && !isEmbed;
     const [battleMode, setBattleMode] = useState(false);
-    const [battleType, setBattleType] = useState<BattleType>('speed');
+    const speedBattleAvailable = useAiAgentSpeedBattleAvailable();
+    const [battleTypeChoice, setBattleType] = useState<BattleType>('speed');
+    const battleType: BattleType = speedBattleAvailable
+        ? battleTypeChoice
+        : 'models';
     const [battleModelBKey, setBattleModelBKey] = useState<string | null>(null);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const canStartDeepResearch = useDeepResearchAccess(projectUuid);
@@ -513,6 +518,7 @@ const AiAgentNewThreadPage: FC = () => {
                             onEnabledChange={setBattleMode}
                             battleType={battleType}
                             onBattleTypeChange={setBattleType}
+                            speedBattleAvailable={speedBattleAvailable}
                             models={battleModels}
                             modelAKey={selectedModelKey}
                             modelBKey={effectiveBattleModelBKey}
