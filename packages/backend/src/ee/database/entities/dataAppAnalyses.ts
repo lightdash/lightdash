@@ -26,6 +26,10 @@ type DbDataAppAnalysisBase = {
     reused_from_analysis_uuid: string | null;
     input_tokens: number | null;
     output_tokens: number | null;
+    /**
+     * detect/prompt: the model call only. investigate: the whole job from
+     * pickup, gates included. Don't average across operations.
+     */
     latency_ms: number | null;
     created_at: Date;
 };

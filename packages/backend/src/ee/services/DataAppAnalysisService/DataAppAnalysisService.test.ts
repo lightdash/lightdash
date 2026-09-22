@@ -347,7 +347,8 @@ describe('DataAppAnalysisService.detect', () => {
     });
 
     it('stores tokens and latency on the row and reports an ok outcome', async () => {
-        const { service, dataAppAnalysisModel, analytics } = buildService();
+        const { service, dataAppAnalysisModel, analytics, aiService } =
+            buildService();
         await service.detect(buildAccount(), 'proj-1', 'app-1', request);
         expect(dataAppAnalysisModel.create).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -377,6 +378,8 @@ describe('DataAppAnalysisService.detect', () => {
                 }),
             }),
         ]);
+        // The budget check resolved it; tracking must not look it up again.
+        expect(aiService.getAmbientKeyManagement).toHaveBeenCalledTimes(1);
     });
 
     it('reports denied when a gate refuses the request', async () => {
@@ -1421,6 +1424,53 @@ describe('DataAppAnalysisService.investigate', () => {
             queriesRun: 0,
             partial: false,
             appVersion: 3,
+            sourceCount: null,
+        });
+    });
+
+    it('reports a timed-out investigation from the worker callback', async () => {
+        const { service, analytics } = buildInvestigateService();
+        await service.trackInvestigationTimeout(jobPayload, 180_000);
+        expect(completedEvent(analytics)[0]).toMatchObject({
+            userId: 'user-1',
+            properties: expect.objectContaining({
+                organizationId: 'org-1',
+                appUuid: 'app-1',
+                operation: 'investigate',
+                outcome: 'timeout',
+                agentUuid: 'agent-1',
+            }),
+        });
+        expect(
+            completedEvent(analytics)[0].properties.latencyMs,
+        ).toBeGreaterThanOrEqual(180_000);
+    });
+
+    it('reports an error even when the viewer cannot be loaded', async () => {
+        const { service, analytics } = buildInvestigateService();
+        const deps = service as unknown as Record<string, unknown>;
+        deps.userModel = {
+            findSessionUserAndOrgByUuid: vi
+                .fn()
+                .mockRejectedValue(new Error('db down')),
+        };
+        deps.schedulerService = {
+            logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+        };
+        await expect(
+            service.runInvestigation(
+                jobPayload,
+                'job-1',
+                new Date('2026-09-15T10:00:00Z'),
+            ),
+        ).rejects.toThrow('db down');
+        expect(completedEvent(analytics)[0]).toMatchObject({
+            userId: 'user-1',
+            properties: expect.objectContaining({
+                organizationId: 'org-1',
+                operation: 'investigate',
+                outcome: 'error',
+            }),
         });
     });
 

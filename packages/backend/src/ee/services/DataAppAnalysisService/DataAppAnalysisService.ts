@@ -176,7 +176,11 @@ type OutcomeMeta = {
     threadUuid: string | null;
     queriesRun: number | null;
     partial: boolean | null;
+    /** Set by the budget check so tracking never resolves it a second time. */
+    keyManagement: AiKeyManagement | null;
 };
+
+type OutcomeIds = { userId: string; organizationId: string | null };
 
 const emptyOutcomeMeta = (sourceCount: number | null): OutcomeMeta => ({
     appVersion: null,
@@ -189,6 +193,7 @@ const emptyOutcomeMeta = (sourceCount: number | null): OutcomeMeta => ({
     threadUuid: null,
     queriesRun: null,
     partial: null,
+    keyManagement: null,
 });
 
 type Dependencies = {
@@ -238,7 +243,7 @@ const outcomeForError = (e: unknown): DataAppAnalysisOutcome => {
     ) {
         return 'denied';
     }
-    return 'model_error';
+    return 'error';
 };
 
 const fieldLegend = (fields: ItemsMap, fieldIds: string[]): string =>
@@ -728,20 +733,30 @@ export class DataAppAnalysisService extends BaseService {
                 body,
                 note,
             );
-            await this.trackOutcome(account, projectUuid, appUuid, {
-                operation: 'detect',
-                outcome,
-                startedAt,
-                meta,
-            });
+            await this.trackOutcome(
+                DataAppAnalysisService.idsFromAccount(account),
+                projectUuid,
+                appUuid,
+                {
+                    operation: 'detect',
+                    outcome,
+                    startedAt,
+                    meta,
+                },
+            );
             return analysis;
         } catch (e) {
-            await this.trackOutcome(account, projectUuid, appUuid, {
-                operation: 'detect',
-                outcome: outcomeForError(e),
-                startedAt,
-                meta,
-            });
+            await this.trackOutcome(
+                DataAppAnalysisService.idsFromAccount(account),
+                projectUuid,
+                appUuid,
+                {
+                    operation: 'detect',
+                    outcome: outcomeForError(e),
+                    startedAt,
+                    meta,
+                },
+            );
             throw e;
         }
     }
@@ -813,8 +828,9 @@ export class DataAppAnalysisService extends BaseService {
             .then(() =>
                 this.assertDailyBudget(user.organizationUuid!, 'detect'),
             )
-            .then(() =>
-                this.runDetect({
+            .then((keyManagement) => {
+                note({ keyManagement });
+                return this.runDetect({
                     user,
                     projectUuid,
                     appUuid,
@@ -825,8 +841,8 @@ export class DataAppAnalysisService extends BaseService {
                     grounding,
                     sectionHashes,
                     contentHash,
-                }),
-            )
+                });
+            })
             .finally(() => this.inFlightDetects.delete(inFlightKey));
         this.inFlightDetects.set(inFlightKey, run);
         const done = await run;
@@ -1059,20 +1075,30 @@ export class DataAppAnalysisService extends BaseService {
                 body,
                 note,
             );
-            await this.trackOutcome(account, projectUuid, appUuid, {
-                operation: 'prompt',
-                outcome: 'ok',
-                startedAt,
-                meta,
-            });
+            await this.trackOutcome(
+                DataAppAnalysisService.idsFromAccount(account),
+                projectUuid,
+                appUuid,
+                {
+                    operation: 'prompt',
+                    outcome: 'ok',
+                    startedAt,
+                    meta,
+                },
+            );
             return answer;
         } catch (e) {
-            await this.trackOutcome(account, projectUuid, appUuid, {
-                operation: 'prompt',
-                outcome: outcomeForError(e),
-                startedAt,
-                meta,
-            });
+            await this.trackOutcome(
+                DataAppAnalysisService.idsFromAccount(account),
+                projectUuid,
+                appUuid,
+                {
+                    operation: 'prompt',
+                    outcome: outcomeForError(e),
+                    startedAt,
+                    meta,
+                },
+            );
             throw e;
         }
     }
@@ -1092,7 +1118,12 @@ export class DataAppAnalysisService extends BaseService {
         );
         note({ appVersion });
         await this.assertRate(user.userUuid, appUuid, 'prompt');
-        await this.assertDailyBudget(user.organizationUuid!, 'prompt');
+        note({
+            keyManagement: await this.assertDailyBudget(
+                user.organizationUuid!,
+                'prompt',
+            ),
+        });
         const { content, grounding, truncated } = await this.buildContent(
             account,
             projectUuid,
@@ -1257,12 +1288,20 @@ export class DataAppAnalysisService extends BaseService {
             );
         } catch (e) {
             // A queued job reports its own outcome when it runs.
-            await this.trackOutcome(account, projectUuid, appUuid, {
-                operation: 'investigate',
-                outcome: outcomeForError(e),
-                startedAt,
-                meta: { ...emptyOutcomeMeta(null), agentUuid: body.agentUuid },
-            });
+            await this.trackOutcome(
+                DataAppAnalysisService.idsFromAccount(account),
+                projectUuid,
+                appUuid,
+                {
+                    operation: 'investigate',
+                    outcome: outcomeForError(e),
+                    startedAt,
+                    meta: {
+                        ...emptyOutcomeMeta(null),
+                        agentUuid: body.agentUuid,
+                    },
+                },
+            );
             throw e;
         }
     }
@@ -1379,17 +1418,16 @@ export class DataAppAnalysisService extends BaseService {
         });
         const startedAt = Date.now();
         const meta: OutcomeMeta = {
-            ...emptyOutcomeMeta(1),
+            ...emptyOutcomeMeta(null),
             agentUuid: payload.agentUuid,
         };
-        let account: Account | null = null;
         try {
             const sessionUser =
                 await this.userModel.findSessionUserAndOrgByUuid(
                     payload.userUuid,
                     payload.organizationUuid,
                 );
-            account = fromSession(sessionUser);
+            const account = fromSession(sessionUser);
             // Re-run every gate: consent or access may have changed since queueing.
             const { user, appVersion } = await this.assertViewer(
                 account,
@@ -1518,7 +1556,7 @@ export class DataAppAnalysisService extends BaseService {
                 status: SchedulerJobStatus.COMPLETED,
             });
             await this.trackOutcome(
-                account,
+                DataAppAnalysisService.idsFromPayload(payload),
                 payload.projectUuid,
                 payload.appUuid,
                 {
@@ -1539,26 +1577,61 @@ export class DataAppAnalysisService extends BaseService {
                 status: SchedulerJobStatus.ERROR,
                 details: { ...baseLog.details, error: getErrorMessage(e) },
             });
-            if (account) {
-                await this.trackOutcome(
-                    account,
-                    payload.projectUuid,
-                    payload.appUuid,
-                    {
-                        operation: 'investigate',
-                        outcome: outcomeForError(e),
-                        startedAt,
-                        meta,
-                    },
-                );
-            }
+            await this.trackOutcome(
+                DataAppAnalysisService.idsFromPayload(payload),
+                payload.projectUuid,
+                payload.appUuid,
+                {
+                    operation: 'investigate',
+                    outcome: outcomeForError(e),
+                    startedAt,
+                    meta,
+                },
+            );
             throw e;
         }
     }
 
     /** Never throws: analytics must not change an operation's result. */
+    /** The worker's wall-clock timeout aborts the run before it can report. */
+    async trackInvestigationTimeout(
+        payload: DataAppInvestigateJobPayload,
+        elapsedMs: number,
+    ): Promise<void> {
+        await this.trackOutcome(
+            DataAppAnalysisService.idsFromPayload(payload),
+            payload.projectUuid,
+            payload.appUuid,
+            {
+                operation: 'investigate',
+                outcome: 'timeout',
+                startedAt: Date.now() - elapsedMs,
+                meta: {
+                    ...emptyOutcomeMeta(null),
+                    agentUuid: payload.agentUuid,
+                },
+            },
+        );
+    }
+
+    private static idsFromAccount(account: Account): OutcomeIds {
+        return {
+            userId: account.user.id,
+            organizationId: account.organization?.organizationUuid ?? null,
+        };
+    }
+
+    private static idsFromPayload(
+        payload: DataAppInvestigateJobPayload,
+    ): OutcomeIds {
+        return {
+            userId: payload.userUuid,
+            organizationId: payload.organizationUuid,
+        };
+    }
+
     private async trackOutcome(
-        account: Account,
+        ids: OutcomeIds,
         projectUuid: string,
         appUuid: string,
         args: {
@@ -1569,26 +1642,31 @@ export class DataAppAnalysisService extends BaseService {
         },
     ): Promise<void> {
         try {
-            const organizationId = account.organization?.organizationUuid;
+            const { organizationId } = ids;
             if (!organizationId) return;
-            let keyManagement: AiKeyManagement | null = null;
-            if (args.outcome === 'ok' || args.outcome === 'budget') {
+            let { keyManagement } = args.meta;
+            // The budget check records it on the way through; a run that
+            // never reached it (or was refused by it) resolves it here.
+            if (
+                keyManagement === null &&
+                (args.outcome === 'ok' || args.outcome === 'budget')
+            ) {
                 keyManagement = await this.aiService
                     .getAmbientKeyManagement(organizationId)
                     .catch(() => null);
             }
             this.analytics.track({
                 event: 'data_app_analysis.completed',
-                userId: account.user.id,
+                userId: ids.userId,
                 properties: {
                     organizationId,
                     projectId: projectUuid,
                     appUuid,
                     operation: args.operation,
                     outcome: args.outcome,
-                    keyManagement,
                     latencyMs: Date.now() - args.startedAt,
                     ...args.meta,
+                    keyManagement,
                 },
             });
         } catch (e) {

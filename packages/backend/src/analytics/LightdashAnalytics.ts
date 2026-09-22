@@ -1969,7 +1969,10 @@ export type DataAppAnalysisOutcome =
     | 'denied'
     | 'rate_limited'
     | 'budget'
-    | 'model_error';
+    /** The worker's wall-clock limit stopped an investigation. */
+    | 'timeout'
+    /** Anything unexpected, from the model call to storing the row. */
+    | 'error';
 
 /** One per AI analysis operation on a data app, whatever the outcome. */
 export type DataAppAnalysisCompletedEvent = BaseTrack & {
