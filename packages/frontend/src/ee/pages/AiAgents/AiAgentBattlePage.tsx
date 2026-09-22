@@ -1,7 +1,18 @@
-import { Box, Center, Divider, Flex, Loader, Stack } from '@mantine/core';
-import { useCallback, type FC } from 'react';
+import {
+    Alert,
+    Box,
+    Center,
+    Divider,
+    Flex,
+    Loader,
+    Stack,
+    Text,
+} from '@mantine/core';
+import { IconAlertTriangle } from '@tabler/icons-react';
+import { useCallback, useMemo, type FC } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { compareBattleQueries } from '../../features/aiCopilot/components/Battle/battleQueryComparison';
 import { BattleThreadPane } from '../../features/aiCopilot/components/Battle/BattleThreadPane';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
@@ -91,6 +102,14 @@ const AiAgentBattlePage: FC = () => {
         pendingB.isStreaming ||
         pendingB.isThreadPending;
 
+    const queryComparison = useMemo(
+        () =>
+            threadA && threadB
+                ? compareBattleQueries(threadA.messages, threadB.messages)
+                : null,
+        [threadA, threadB],
+    );
+
     if (!projectUuid || !agentUuid || !threadA || !threadB) {
         return (
             <Center h="100%">
@@ -101,6 +120,21 @@ const AiAgentBattlePage: FC = () => {
 
     return (
         <Stack h="100%" gap={0}>
+            {!isBusy && queryComparison && !queryComparison.same && (
+                <Alert
+                    color="yellow"
+                    variant="light"
+                    icon={<IconAlertTriangle size={16} />}
+                    title="Different query semantics — timing is not comparable"
+                    radius={0}
+                    py="xs"
+                >
+                    <Text size="xs">
+                        JEV + flags: {queryComparison.left.summary} · Baseline:{' '}
+                        {queryComparison.right.summary}
+                    </Text>
+                </Alert>
+            )}
             <Flex flex={1} mih={0} wrap="nowrap" align="stretch">
                 <Box flex={1} miw={0} h="100%">
                     <BattleThreadPane

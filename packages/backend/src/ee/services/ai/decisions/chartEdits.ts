@@ -581,9 +581,12 @@ export const resolveChartEdit = async ({
                   },
               },
           });
+    const chartEditCompleteThreshold = 0.95;
     if (
         !exactEdit &&
-        (!answers || (decisionProbability(answers.complete) ?? 0) < 0.97)
+        (!answers ||
+            (decisionProbability(answers.complete) ?? 0) <
+                chartEditCompleteThreshold)
     )
         return null;
     const edit = exactEdit ?? confidentChoice(answers?.edit, 0.95);

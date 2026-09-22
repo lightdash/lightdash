@@ -97,6 +97,17 @@ export type FieldEntry = {
     verifiedUsage: number;
 };
 
+/** Joined copies with the same field definition should share one judgment. */
+export const getFieldDefinitionKey = (field: FieldEntry): string =>
+    JSON.stringify([
+        `${field.path.split('/')[1]}:${field.kind}`,
+        field.type,
+        field.label,
+        field.description,
+        field.aiHint,
+        field.defaultTimeDimension,
+    ]);
+
 /** One greppable explore: name/label/hint/tags, matched at the explore level. */
 export type ExploreEntry = {
     exploreName: string;
@@ -387,7 +398,24 @@ export const selectCandidateFields = (
         if (score > 0) scored.push({ entry, score });
     }
     scored.sort(compareScored);
-    return scored.slice(0, limit).map((s) => s.entry);
+
+    // Cover distinct definitions before spending shortlist slots on identical
+    // joined copies. JEV can only choose a field that reaches its candidates.
+    const definitions = new Set<string>();
+    const primary: typeof scored = [];
+    const joinedCopies: typeof scored = [];
+    for (const candidate of scored) {
+        const key = getFieldDefinitionKey(candidate.entry);
+        if (definitions.has(key)) joinedCopies.push(candidate);
+        else {
+            definitions.add(key);
+            primary.push(candidate);
+        }
+    }
+
+    return [...primary, ...joinedCopies]
+        .slice(0, limit)
+        .map(({ entry }) => entry);
 };
 
 const fieldLine = (f: FieldEntry): string => {

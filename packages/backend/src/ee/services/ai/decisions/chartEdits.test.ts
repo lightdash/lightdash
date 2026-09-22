@@ -328,6 +328,19 @@ describe('chart edits', () => {
         });
     });
 
+    it('accepts a high-confidence natural chart refinement', async () => {
+        const result = await resolveChartEdit({
+            decisions: client('area', 0.95),
+            prompt: 'Make it area actually',
+            artifact,
+        });
+
+        expect(result?.config.config.chartConfig).toMatchObject({
+            defaultVizType: 'line',
+            lineType: 'area',
+        });
+    });
+
     it('falls back when the requested change also needs new data', async () => {
         expect(
             await resolveChartEdit({
