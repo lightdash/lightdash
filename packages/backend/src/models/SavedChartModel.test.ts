@@ -1,4 +1,4 @@
-import { AnyType } from '@lightdash/common';
+import { AnyType, MetricType } from '@lightdash/common';
 import knex from 'knex';
 import type { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
@@ -653,6 +653,41 @@ describe('get', () => {
         const [query] = tracker.history.select;
         expect(query.sql).toContain(SavedChartSlugMappingsTableName);
         expect(query.bindings).toContain('chart-uuid');
+    });
+});
+
+describe('convertDbSavedChartAdditionalMetricToAdditionalMetric', () => {
+    const dbRow = {
+        saved_queries_version_additional_metric_id: 1,
+        table: 'orders',
+        name: 'total_order_amount_copy',
+        type: MetricType.SUM,
+        sql: '${TABLE}.amount',
+        uuid: 'metric-uuid',
+    };
+
+    test('keeps the explore metric a custom metric was cloned from', () => {
+        const metric =
+            SavedChartModel.convertDbSavedChartAdditionalMetricToAdditionalMetric(
+                { ...dbRow, base_metric_name: 'total_order_amount' },
+            );
+
+        expect(metric.baseMetricName).toBe('total_order_amount');
+        expect(metric.baseDimensionName).toBeUndefined();
+    });
+
+    test('omits the source metric when none was recorded', () => {
+        const metric =
+            SavedChartModel.convertDbSavedChartAdditionalMetricToAdditionalMetric(
+                {
+                    ...dbRow,
+                    base_metric_name: null,
+                    base_dimension_name: 'amount',
+                },
+            );
+
+        expect(metric).not.toHaveProperty('baseMetricName');
+        expect(metric.baseDimensionName).toBe('amount');
     });
 });
 

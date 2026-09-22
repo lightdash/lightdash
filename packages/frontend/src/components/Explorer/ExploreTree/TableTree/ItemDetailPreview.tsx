@@ -4,6 +4,7 @@ import {
     isWithValueFilter,
     type CompiledMetric,
     type Dimension,
+    type Metric,
 } from '@lightdash/common';
 import {
     Badge,
@@ -78,6 +79,29 @@ export const ItemDetailMarkdown: FC<{ source: string }> = ({ source }) => {
     );
 };
 
+const SourceFieldRow: FC<{ label: string; field: Dimension | Metric }> = ({
+    label,
+    field,
+}) => (
+    <>
+        <Divider color="ldGray.2" />
+        <Stack gap={4}>
+            <Text fz="xs" fw={500} c="ldDark.7">
+                {label}
+            </Text>
+            <Group gap="xs" wrap="nowrap">
+                <FieldIcon item={field} size="sm" />
+                <Text fz="xs" c="ldGray.7">
+                    {field.tableLabel}
+                </Text>
+                <Text fz="xs" fw={500} c="ldDark.7">
+                    {field.label || field.name}
+                </Text>
+            </Group>
+        </Stack>
+    </>
+);
+
 /**
  * Renders a truncated version of an item's description, with an option
  * to read the full description if necessary.
@@ -92,6 +116,7 @@ export const ItemDetailPreview: FC<{
         name: string;
         filters?: CompiledMetric['filters'];
         baseDimension?: Dimension;
+        baseMetric?: Metric;
     };
 }> = ({ description, onViewDescription, metricInfo }) => {
     /**
@@ -119,27 +144,16 @@ export const ItemDetailPreview: FC<{
                         <MetricTypeBadge type={metricInfo.type} />
                     </Group>
                     {metricInfo.baseDimension && (
-                        <>
-                            <Divider color="ldGray.2" />
-                            <Stack gap={4}>
-                                <Text fz="xs" fw={500} c="ldDark.7">
-                                    Source field
-                                </Text>
-                                <Group gap="xs" wrap="nowrap">
-                                    <FieldIcon
-                                        item={metricInfo.baseDimension}
-                                        size="sm"
-                                    />
-                                    <Text fz="xs" c="ldGray.7">
-                                        {metricInfo.baseDimension.tableLabel}
-                                    </Text>
-                                    <Text fz="xs" fw={500} c="ldDark.7">
-                                        {metricInfo.baseDimension.label ||
-                                            metricInfo.baseDimension.name}
-                                    </Text>
-                                </Group>
-                            </Stack>
-                        </>
+                        <SourceFieldRow
+                            label="Source field"
+                            field={metricInfo.baseDimension}
+                        />
+                    )}
+                    {metricInfo.baseMetric && (
+                        <SourceFieldRow
+                            label="Source metric"
+                            field={metricInfo.baseMetric}
+                        />
                     )}
                 </>
             )}

@@ -212,6 +212,9 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                 baseDimensionCandidate && isDimension(baseDimensionCandidate)
                     ? baseDimensionCandidate
                     : undefined;
+            const baseMetric = item.baseMetricName
+                ? exploreData?.tables[item.table]?.metrics[item.baseMetricName]
+                : undefined;
             const baseSql = item.sql ?? '';
             return {
                 type: item.type,
@@ -221,6 +224,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                 table: item.table,
                 name: item.name,
                 baseDimension,
+                baseMetric,
             };
         }
         return undefined;

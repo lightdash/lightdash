@@ -702,6 +702,9 @@ export const renameMetricQuery = (
             baseDimensionName: am.baseDimensionName
                 ? replaceFieldName(am.baseDimensionName)
                 : undefined,
+            baseMetricName: am.baseMetricName
+                ? replaceFieldName(am.baseMetricName)
+                : undefined,
             sql: replaceFieldReference(am.sql), // This reference can contain a ${TABLE} too
         })),
         customDimensions: metricQuery.customDimensions?.map((cd) =>

@@ -163,6 +163,7 @@ const additionalMetricColumns = [
     'distinct_keys',
     'filters',
     'base_dimension_name',
+    'base_metric_name',
     'uuid',
     'compact',
     'format_options',
@@ -525,6 +526,7 @@ const createSavedChartVersion = async (
                         ? JSON.stringify(additionalMetric.filters)
                         : null,
                 base_dimension_name: additionalMetric.baseDimensionName ?? null,
+                base_metric_name: additionalMetric.baseMetricName ?? null,
                 format_options: additionalMetric.formatOptions
                     ? JSON.stringify(additionalMetric.formatOptions)
                     : null,
@@ -1200,6 +1202,9 @@ export class SavedChartModel {
                 }),
             ...(additionalMetric.base_dimension_name && {
                 baseDimensionName: additionalMetric.base_dimension_name,
+            }),
+            ...(additionalMetric.base_metric_name && {
+                baseMetricName: additionalMetric.base_metric_name,
             }),
             ...(additionalMetric.filters && {
                 filters: additionalMetric.filters,

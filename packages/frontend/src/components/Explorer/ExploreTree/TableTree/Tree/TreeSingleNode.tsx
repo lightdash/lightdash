@@ -252,6 +252,9 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                 baseDimensionCandidate && isDimension(baseDimensionCandidate)
                     ? baseDimensionCandidate
                     : undefined;
+            const baseMetric = item.baseMetricName
+                ? exploreData?.tables[item.table]?.metrics[item.baseMetricName]
+                : undefined;
             const baseSql = item.sql ?? '';
             return {
                 type: item.type,
@@ -261,6 +264,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                 table: item.table,
                 name: item.name,
                 baseDimension,
+                baseMetric,
             };
         }
         return undefined;
