@@ -1,3 +1,11 @@
+## [2.293.2](https://github.com/lightdash/lightdash/compare/2.293.1...2.293.2) (2026-09-22)
+
+
+### Bug Fixes
+
+* **ai-agents:** render saved charts from the write space in the embedded agent ([#29725](https://github.com/lightdash/lightdash/issues/29725)) ([d2c966f](https://github.com/lightdash/lightdash/commit/d2c966f7e75da48ab5829005e499f7e9cc1932a9))
+* **autopilot:** standardize report voice ([#29745](https://github.com/lightdash/lightdash/issues/29745)) ([7b2545f](https://github.com/lightdash/lightdash/commit/7b2545fa1c29c46bcd7129dd034a1725e4203d9f))
+
 ## [2.293.1](https://github.com/lightdash/lightdash/compare/2.293.0...2.293.1) (2026-09-22)
 
 
