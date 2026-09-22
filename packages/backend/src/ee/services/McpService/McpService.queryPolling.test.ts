@@ -697,6 +697,8 @@ describe('MCP catalogue audit', () => {
                 expect(mcpToolCallModel.createToolCall).toHaveBeenCalledWith(
                     expect.objectContaining({
                         tool_name: 'tools/list',
+                        direction: 'inbound',
+                        ai_mcp_server_uuid: null,
                         result_metadata: {
                             catalogue: {
                                 projectPinned: pinnedProjectUuid !== undefined,

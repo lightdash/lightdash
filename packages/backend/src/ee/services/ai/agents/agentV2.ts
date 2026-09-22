@@ -4,6 +4,7 @@ import {
     AnyType,
     assertUnreachable,
     Explore,
+    getErrorMessage,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
     type CustomChartTypeLibrary,
@@ -18,6 +19,7 @@ import {
     StreamTextResult,
     type LanguageModelUsage,
     type ModelMessage,
+    type OnToolCallFinishEvent,
     type Output,
     type ToolCallPart,
     type ToolSet,
@@ -35,6 +37,7 @@ import {
     isDeepResearchRawSqlMcpTool,
     isDeepResearchWarehouseMcpTool,
 } from '../../AiDeepResearchService/toolClassification';
+import { MCP_UNTRUSTED_OUTPUT_NOTICE } from '../AiAgentMcpRuntimeClient';
 import { Compaction } from '../compaction';
 import {
     getAgentDecisionContext,
@@ -865,6 +868,60 @@ const trackFailedToolResult = (
             promptId: args.promptUuid,
         },
     });
+};
+
+const getMcpToolResultErrorText = (output: unknown): string | null => {
+    if (!output || typeof output !== 'object' || !('isError' in output)) {
+        return null;
+    }
+    if (output.isError !== true) {
+        return null;
+    }
+    const content = 'content' in output ? output.content : undefined;
+    // hardenMcpOutput prepends the untrusted-output notice as the first item
+    const text = Array.isArray(content)
+        ? content.find(
+              (item) =>
+                  item?.type === 'text' &&
+                  item.text !== MCP_UNTRUSTED_OUTPUT_NOTICE,
+          )?.text
+        : undefined;
+    return typeof text === 'string' ? text.slice(0, 500) : 'MCP tool error';
+};
+
+// Mirrors McpService.recordToolCall for the opposite direction: a Lightdash
+// agent calling a connected external MCP server
+const recordExternalMcpToolCall = (
+    dependencies: Pick<AiAgentDependencies, 'recordMcpToolCall'>,
+    mcpToolSetup: AgentMcpToolSetup,
+    event: OnToolCallFinishEvent,
+) => {
+    const mcpServerUuid =
+        mcpToolSetup.mcpToolNameToServerUuid[event.toolCall.toolName];
+    if (!mcpServerUuid) {
+        return;
+    }
+    const errorMessage = event.success
+        ? getMcpToolResultErrorText(event.output)
+        : getErrorMessage(event.error);
+    void dependencies
+        .recordMcpToolCall({
+            toolCallId: event.toolCall.toolCallId,
+            toolName: event.toolCall.toolName,
+            toolArgs: (event.toolCall.input ?? {}) as object,
+            mcpServerUuid,
+            status: errorMessage === null ? 'success' : 'error',
+            errorMessage,
+            // The SDK measures with performance.now(); the column is integer ms
+            durationMs: Math.round(event.durationMs),
+        })
+        .catch((error) => {
+            Logger.warn(
+                `[AiAgent][MCP] Failed to record external MCP tool call: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        });
 };
 
 type FastChartStep = {
@@ -2483,6 +2540,7 @@ export const generateAgentResponse = async ({
                 );
             },
             experimental_onToolCallFinish: (event) => {
+                recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
                 const toolTiming = timing.recordToolCallEnd(
                     event.toolCall.toolCallId,
                     event.success && isQueryCacheHit(event.output),
@@ -2893,6 +2951,9 @@ export const streamAgentResponse = async ({
             tools,
             messages,
             experimental_context: agentContext,
+            experimental_onToolCallFinish: (event) => {
+                recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
+            },
             onChunk: (event) => {
                 timing.recordChunk();
                 // Track time to first chunk (any type) - only once

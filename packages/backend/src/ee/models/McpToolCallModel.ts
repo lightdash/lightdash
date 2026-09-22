@@ -1,6 +1,7 @@
 import {
     KnexPaginateArgs,
     KnexPaginatedData,
+    McpActivityDirection,
     McpActivityFilters,
     McpActivityItem,
     McpActivitySort,
@@ -12,7 +13,10 @@ import { EmailTableName } from '../../database/entities/emails';
 import { ProjectTableName } from '../../database/entities/projects';
 import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
-import { AiAgentTableName } from '../database/entities/aiAgent';
+import {
+    AiAgentTableName,
+    AiMcpServerTableName,
+} from '../database/entities/aiAgent';
 import {
     DbMcpClientInfo,
     DbMcpToolCall,
@@ -288,6 +292,11 @@ export class McpToolCallModel {
                 `${AiAgentTableName}.ai_agent_uuid`,
                 `${McpToolCallTableName}.agent_uuid`,
             )
+            .leftJoin(
+                AiMcpServerTableName,
+                `${AiMcpServerTableName}.ai_mcp_server_uuid`,
+                `${McpToolCallTableName}.ai_mcp_server_uuid`,
+            )
             .select<
                 {
                     mcp_tool_call_uuid: string;
@@ -310,6 +319,9 @@ export class McpToolCallModel {
                     auth_type: string;
                     protocol_version: string | null;
                     mcp_session_id: string | null;
+                    direction: McpActivityDirection;
+                    ai_mcp_server_uuid: string | null;
+                    mcp_server_name: string | null;
                     session_group_key?: string;
                     session_call_count?: number;
                     session_error_count?: number;
@@ -337,6 +349,9 @@ export class McpToolCallModel {
                 `${McpToolCallTableName}.auth_type`,
                 `${McpToolCallTableName}.protocol_version`,
                 `${McpToolCallTableName}.mcp_session_id`,
+                `${McpToolCallTableName}.direction`,
+                `${McpToolCallTableName}.ai_mcp_server_uuid`,
+                `${AiMcpServerTableName}.name as mcp_server_name`,
             ]);
 
         if (isSessionGrouped) {
@@ -422,6 +437,13 @@ export class McpToolCallModel {
                 authType: row.auth_type,
                 protocolVersion: row.protocol_version,
                 sessionId: row.mcp_session_id,
+                direction: row.direction,
+                mcpServer: row.ai_mcp_server_uuid
+                    ? {
+                          uuid: row.ai_mcp_server_uuid,
+                          name: row.mcp_server_name ?? 'Unknown MCP server',
+                      }
+                    : null,
                 sessionGroup:
                     row.session_group_key !== undefined
                         ? {

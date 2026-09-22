@@ -42,6 +42,7 @@ const serializeArgs = (toolArgs: McpActivityItem['toolArgs']): string => {
 export const McpActivityDetail: FC<{ toolCall: McpActivityItem }> = ({
     toolCall,
 }) => {
+    const isOutbound = toolCall.direction === 'outbound';
     const rows: { label: string; value: ReactNode }[] = [
         {
             label: 'Time',
@@ -65,19 +66,38 @@ export const McpActivityDetail: FC<{ toolCall: McpActivityItem }> = ({
             label: 'Duration',
             value: formatToolCallDuration(toolCall.durationMs),
         },
-        {
-            label: 'Client',
-            value: toolCall.clientName
-                ? `${toolCall.clientName}${
-                      toolCall.clientVersion ? ` ${toolCall.clientVersion}` : ''
-                  }`
-                : '—',
-        },
-        { label: 'User agent', value: toolCall.userAgent ?? '—' },
+        ...(isOutbound
+            ? [
+                  {
+                      label: 'Direction',
+                      value: 'Agent → external MCP server',
+                  },
+                  {
+                      label: 'MCP server',
+                      value: toolCall.mcpServer?.name ?? 'Deleted MCP server',
+                  },
+              ]
+            : [
+                  {
+                      label: 'Direction',
+                      value: 'External client → Lightdash MCP server',
+                  },
+                  {
+                      label: 'Client',
+                      value: toolCall.clientName
+                          ? `${toolCall.clientName}${
+                                toolCall.clientVersion
+                                    ? ` ${toolCall.clientVersion}`
+                                    : ''
+                            }`
+                          : '—',
+                  },
+                  { label: 'User agent', value: toolCall.userAgent ?? '—' },
+                  { label: 'Protocol', value: toolCall.protocolVersion ?? '—' },
+              ]),
         { label: 'Auth', value: toolCall.authType },
-        { label: 'Protocol', value: toolCall.protocolVersion ?? '—' },
         {
-            label: 'Session',
+            label: isOutbound ? 'Thread' : 'Session',
             value: toolCall.sessionId ? (
                 <Text fz="sm" ff="monospace" ta="right" truncate>
                     {toolCall.sessionId}
