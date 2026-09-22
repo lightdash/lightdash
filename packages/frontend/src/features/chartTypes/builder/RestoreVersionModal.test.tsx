@@ -37,12 +37,12 @@ describe('RestoreVersionModal', () => {
         setRestore();
     });
 
-    it('warns about the consequence and restores on confirm', () => {
+    it('explains that saved charts keep their version and restores on confirm', () => {
         renderModal();
 
         expect(
             screen.getByText(
-                'All charts using this visualization will use the restored version. Selected fields unavailable in that version will be cleared.',
+                'Restoring creates a new version. Saved charts will keep their current version.',
             ),
         ).toBeInTheDocument();
 

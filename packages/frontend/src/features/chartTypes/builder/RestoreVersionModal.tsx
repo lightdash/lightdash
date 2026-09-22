@@ -12,10 +12,6 @@ type Props = {
     onClose: () => void;
 };
 
-/**
- * Restoring puts the version's contents back on top of the timeline as a new
- * version, so every chart using the visualization picks it up.
- */
 const RestoreVersionModal: FC<Props> = ({
     projectUuid,
     appUuid,
@@ -49,9 +45,8 @@ const RestoreVersionModal: FC<Props> = ({
         >
             <Stack gap="sm">
                 <Text fz="sm">
-                    All charts using this visualization will use the restored
-                    version. Selected fields unavailable in that version will be
-                    cleared.
+                    Restoring creates a new version. Saved charts will keep
+                    their current version.
                 </Text>
                 {restoreError && (
                     <Callout variant="danger">
