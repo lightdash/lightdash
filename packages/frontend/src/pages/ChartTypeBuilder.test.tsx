@@ -463,6 +463,11 @@ describe('ChartTypeBuilder', () => {
                 },
             },
         } as unknown as ReturnType<typeof useDataAppVisualization>);
+        const route =
+            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001';
+        const view = renderBuilder(route);
+        fireEvent.click(screen.getByRole('tab', { name: 'Display' }));
+
         vi.mocked(useDataAppVizBuild).mockReturnValue(
             buildStub({
                 isBuilding: true,
@@ -471,9 +476,7 @@ describe('ChartTypeBuilder', () => {
                 pendingPrompt: 'add markers',
             }),
         );
-        renderBuilder(
-            '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
-        );
+        view.rerender(builderRoutes(route));
 
         // Chart and options are one version: both stay legible under the
         // building pill, and both go out of play until the next one lands.
@@ -959,6 +962,7 @@ describe('ChartTypeBuilder', () => {
         renderBuilder(
             '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
         );
+        fireEvent.click(screen.getByRole('tab', { name: 'Display' }));
 
         expect(screen.getByLabelText('Show markers')).toBeInTheDocument();
 
@@ -991,6 +995,7 @@ describe('ChartTypeBuilder', () => {
         renderBuilder(
             '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
         );
+        fireEvent.click(screen.getByRole('tab', { name: 'Display' }));
 
         fireEvent.click(screen.getByLabelText('Show markers'));
         expect(screen.getByLabelText('Show markers')).not.toBeChecked();
