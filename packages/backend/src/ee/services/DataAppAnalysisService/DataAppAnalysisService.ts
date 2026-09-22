@@ -318,6 +318,21 @@ export class DataAppAnalysisService extends BaseService {
         }
     }
 
+    // The org setting can flip while the model runs: never store or serve
+    // a result produced after consent was withdrawn.
+    private async assertStillEnabled(organizationUuid: string): Promise<void> {
+        if (
+            !(await this.aiOrganizationSettingsService.isDataAppRuntimeAiEnabled(
+                organizationUuid,
+            ))
+        ) {
+            throw new DataAppAnalysisUnavailableError(
+                'AI analysis in data apps was turned off for this organization',
+                'org_setting_disabled',
+            );
+        }
+    }
+
     private async assertViewer(
         account: Account,
         projectUuid: string,
@@ -726,6 +741,7 @@ export class DataAppAnalysisService extends BaseService {
             limitations,
             dataAsOf: detection.dataAsOf,
         };
+        await this.assertStillEnabled(user.organizationUuid!);
 
         const row = await this.dataAppAnalysisModel.create({
             organizationUuid: user.organizationUuid!,
@@ -853,6 +869,7 @@ export class DataAppAnalysisService extends BaseService {
             { content, prompt, focus: focusForModel, projectUuid },
         );
         const result = { prompt, focus: focusForModel, text };
+        await this.assertStillEnabled(user.organizationUuid!);
         const row = await this.dataAppAnalysisModel.create({
             organizationUuid: user.organizationUuid!,
             projectUuid,
@@ -1131,6 +1148,7 @@ export class DataAppAnalysisService extends BaseService {
                     },
                 });
             if (abortSignal?.aborted) return;
+            await this.assertStillEnabled(payload.organizationUuid);
 
             const row = await this.dataAppAnalysisModel.create({
                 organizationUuid: payload.organizationUuid,

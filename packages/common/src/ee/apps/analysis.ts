@@ -1,4 +1,5 @@
 import type { ApiSuccess } from '../../types/api/success';
+import type { UUID } from '../../types/api/uuid';
 import type { TraceTaskBase } from '../../types/scheduler';
 
 /** Whether an app analyses on load: its own choice, or the org default. */
@@ -22,7 +23,7 @@ export const normalizeDataAppAutoAnalysis = (
 
 /** One query the host captured for the viewer's current view of a data app. */
 export type DataAppAnalysisSource = {
-    queryUuid: string;
+    queryUuid: UUID;
     label: string | null;
 };
 

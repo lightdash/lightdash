@@ -10,6 +10,7 @@ import {
     type DataAppInvestigateRequest,
     type DataAppLookupRequest,
     type DataAppPromptRequest,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -136,7 +137,7 @@ export class DataAppAnalysisController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
-        @Path() analysisId: string,
+        @Path() analysisId: UUID,
         @Body() body: DataAppInvestigateRequest,
     ): Promise<ApiDataAppInvestigateResponse> {
         if (!req.account) {
@@ -165,7 +166,7 @@ export class DataAppAnalysisController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
-        @Path() analysisId: string,
+        @Path() analysisId: UUID,
     ): Promise<ApiDataAppAnalysisResponse> {
         if (!req.account) {
             throw new ForbiddenError('Account is required');
