@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.291.0",
-  "previousVersion": "2.290.0",
-  "releaseDate": "2026-09-22T12:14:56.583Z",
+  "version": "2.291.1",
+  "previousVersion": "2.291.0",
+  "releaseDate": "2026-09-22T12:21:09.692Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260922120000_add_additional_metrics_base_metric_name_column.ts",
-        "edition": "core",
-        "tables": [
-          "saved_queries_version_additional_metrics"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

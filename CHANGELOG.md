@@ -1,3 +1,10 @@
+## [2.291.1](https://github.com/lightdash/lightdash/compare/2.291.0...2.291.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* align grouped series symbol visibility with chart settings ([#29723](https://github.com/lightdash/lightdash/issues/29723)) ([87a08a7](https://github.com/lightdash/lightdash/commit/87a08a701db3dfe0bf4e31b6328a93fd93035688))
+
 # [2.291.0](https://github.com/lightdash/lightdash/compare/2.290.0...2.291.0) (2026-09-22)
 
 
