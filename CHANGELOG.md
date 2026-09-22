@@ -1,3 +1,10 @@
+# [2.292.0](https://github.com/lightdash/lightdash/compare/2.291.1...2.292.0) (2026-09-22)
+
+
+### Features
+
+* report SDK fixes for targeted upgrade offers ([#29721](https://github.com/lightdash/lightdash/issues/29721)) ([be1bb34](https://github.com/lightdash/lightdash/commit/be1bb34a5186ea43e6eaf2f2549881d2433cc4b1))
+
 ## [2.291.1](https://github.com/lightdash/lightdash/compare/2.291.0...2.291.1) (2026-09-22)
 
 
