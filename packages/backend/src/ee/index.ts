@@ -913,6 +913,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiService: repository.getAiService<AiService>(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService<AiOrganizationSettingsService>(),
                 }),

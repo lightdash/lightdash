@@ -43,6 +43,7 @@ import {
     type DataAppSourceHash,
     type DbDataAppAnalysis,
 } from '../../database/entities/dataAppAnalyses';
+import { type AiAgentModel } from '../../models/AiAgentModel';
 import { type DataAppAnalysisModel } from '../../models/DataAppAnalysisModel';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -149,6 +150,7 @@ type Dependencies = {
     asyncQueryService: AsyncQueryService;
     aiService: AiService;
     aiAgentService: AiAgentService;
+    aiAgentModel: AiAgentModel;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
 };
 
@@ -240,6 +242,8 @@ export class DataAppAnalysisService extends BaseService {
 
     private readonly aiAgentService: AiAgentService;
 
+    private readonly aiAgentModel: AiAgentModel;
+
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
 
     constructor(deps: Dependencies) {
@@ -255,6 +259,7 @@ export class DataAppAnalysisService extends BaseService {
         this.asyncQueryService = deps.asyncQueryService;
         this.aiService = deps.aiService;
         this.aiAgentService = deps.aiAgentService;
+        this.aiAgentModel = deps.aiAgentModel;
         this.aiOrganizationSettingsService = deps.aiOrganizationSettingsService;
     }
 
@@ -1148,7 +1153,17 @@ export class DataAppAnalysisService extends BaseService {
                     },
                 });
             if (abortSignal?.aborted) return;
-            await this.assertStillEnabled(payload.organizationUuid);
+            try {
+                await this.assertStillEnabled(payload.organizationUuid);
+            } catch (e) {
+                // The agent run already persisted the prompt and answer in
+                // the thread; the thread is ours, so withdraw it too.
+                await this.aiAgentModel.deleteThread({
+                    organizationUuid: payload.organizationUuid,
+                    threadUuid: thread.uuid,
+                });
+                throw e;
+            }
 
             const row = await this.dataAppAnalysisModel.create({
                 organizationUuid: payload.organizationUuid,

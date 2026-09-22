@@ -43,6 +43,28 @@ const gatedQuery = {
 };
 
 type AiSettings = Body<{ dataAppRuntimeAiEnabled?: boolean }>;
+type UserAttribute = {
+    uuid: string;
+    name: string;
+    description?: string;
+    attributeDefaults: string[] | null;
+    users: Array<{ userUuid: string; values: string[] }>;
+    groups: Array<{ groupUuid: string; values: string[] }>;
+};
+// Body shape the create/update endpoints accept.
+const toAttributeBody = (attribute: UserAttribute) => ({
+    name: attribute.name,
+    description: attribute.description,
+    attributeDefaults: attribute.attributeDefaults,
+    users: attribute.users.map(({ userUuid, values }) => ({
+        userUuid,
+        values,
+    })),
+    groups: attribute.groups.map(({ groupUuid, values }) => ({
+        groupUuid,
+        values,
+    })),
+});
 type FeatureFlag = Body<{ enabled: boolean }>;
 type ErrorBody = {
     status: 'error';
@@ -81,7 +103,9 @@ describe('Data app analysis isolation', () => {
     let viewerA: ApiClient;
     let viewerB: ApiClient;
     let viewerAQueryUuid: string;
-    let attributeUuid: string | null = null;
+    // Either created here (delete after) or pre-existing (restore after).
+    let createdAttributeUuid: string | null = null;
+    let originalAttribute: UserAttribute | null = null;
     let originalRuntimeAi: boolean | null = null;
     let flagsToClear: string[] = [];
     // Copilot (and so AI analysis) is not enabled on every environment.
@@ -132,27 +156,41 @@ describe('Data app analysis isolation', () => {
         const me =
             await viewerA.get<Body<{ userUuid: string }>>('/api/v1/user');
 
-        // A stale attribute from an aborted run would block the create.
-        const existing =
-            await admin.get<Body<Array<{ uuid: string; name: string }>>>(
-                attributesUrl,
-            );
-        for (const attribute of existing.body.results) {
-            if (attribute.name === GATED_ATTRIBUTE) {
-                await admin.delete(`${attributesUrl}/${attribute.uuid}`);
-            }
-        }
-        const created = await admin.post<Body<{ uuid: string }>>(
-            attributesUrl,
-            {
-                name: GATED_ATTRIBUTE,
-                users: [{ userUuid: me.body.results.userUuid, value: 'true' }],
-                groups: [],
-                attributeDefault: null,
-            },
+        // An environment may already define the attribute: grant viewer A on
+        // top of it and put the original back afterwards, never replace it.
+        const viewerAGrant = {
+            userUuid: me.body.results.userUuid,
+            values: ['true'],
+        };
+        const existing = await admin.get<Body<UserAttribute[]>>(attributesUrl);
+        const found = existing.body.results.find(
+            (attribute) => attribute.name === GATED_ATTRIBUTE,
         );
-        expect(created.status).toBe(201);
-        attributeUuid = created.body.results.uuid;
+        if (found) {
+            originalAttribute = found;
+            const updated = await admin.put(`${attributesUrl}/${found.uuid}`, {
+                ...toAttributeBody(found),
+                users: [
+                    ...found.users.filter(
+                        (u) => u.userUuid !== viewerAGrant.userUuid,
+                    ),
+                    viewerAGrant,
+                ],
+            });
+            expect(updated.status).toBe(201);
+        } else {
+            const created = await admin.post<Body<{ uuid: string }>>(
+                attributesUrl,
+                {
+                    name: GATED_ATTRIBUTE,
+                    users: [viewerAGrant],
+                    groups: [],
+                    attributeDefaults: null,
+                },
+            );
+            expect(created.status).toBe(201);
+            createdAttributeUuid = created.body.results.uuid;
+        }
 
         const executed = await runGatedQuery(viewerA);
         expect(executed.status).toBe(200);
@@ -166,10 +204,17 @@ describe('Data app analysis isolation', () => {
 
     afterAll(async () => {
         if (!available) return;
-        if (attributeUuid) {
-            await admin.delete(`${attributesUrl}/${attributeUuid}`, {
+        if (createdAttributeUuid) {
+            await admin.delete(`${attributesUrl}/${createdAttributeUuid}`, {
                 failOnStatusCode: false,
             });
+        }
+        if (originalAttribute) {
+            await admin.put(
+                `${attributesUrl}/${originalAttribute.uuid}`,
+                toAttributeBody(originalAttribute),
+                { failOnStatusCode: false },
+            );
         }
         for (const flag of flagsToClear) {
             await admin.delete(`/api/v2/feature-flag/${flag}`, {

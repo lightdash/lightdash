@@ -134,6 +134,7 @@ function buildService(
             .fn()
             .mockResolvedValue(overrides.orgSettingEnabled ?? true),
     };
+    const aiAgentModel = { deleteThread: vi.fn().mockResolvedValue(undefined) };
     const service = new DataAppAnalysisService({
         dataAppAnalysisModel,
         appModel,
@@ -165,6 +166,7 @@ function buildService(
                 .fn()
                 .mockResolvedValue(overrides.copilotEnabled ?? true),
         },
+        aiAgentModel,
         aiOrganizationSettingsService,
     } as never);
     vi.spyOn(
@@ -177,6 +179,7 @@ function buildService(
         asyncQueryService,
         aiService,
         appModel,
+        aiAgentModel,
         aiOrganizationSettingsService,
     };
 }
@@ -729,6 +732,7 @@ describe('DataAppAnalysisService.investigate', () => {
             find,
             dataAppInvestigate,
             getAgent,
+            aiAgentModel: base.aiAgentModel,
             aiOrganizationSettingsService: base.aiOrganizationSettingsService,
         };
     }
@@ -963,8 +967,8 @@ describe('DataAppAnalysisService.investigate', () => {
         );
     });
 
-    it('stores nothing when the org setting is turned off while the agent runs', async () => {
-        const { service, aiOrganizationSettingsService } =
+    it('stores nothing and withdraws the agent thread when the org setting is turned off while the agent runs', async () => {
+        const { service, aiOrganizationSettingsService, aiAgentModel } =
             buildInvestigateService();
         aiOrganizationSettingsService.isDataAppRuntimeAiEnabled
             .mockResolvedValueOnce(true)
@@ -983,9 +987,25 @@ describe('DataAppAnalysisService.investigate', () => {
         ).rejects.toMatchObject({ data: { code: 'org_setting_disabled' } });
 
         expect(create).not.toHaveBeenCalled();
+        // The agent run persisted the answer in the thread; it must go too.
+        expect(aiAgentModel.deleteThread).toHaveBeenCalledWith({
+            organizationUuid: 'org-1',
+            threadUuid: 'thread-1',
+        });
         expect(logSchedulerJob.mock.calls.map(([log]) => log.status)).toEqual([
             'started',
             'error',
         ]);
+    });
+
+    it('keeps the agent thread when the investigation completes', async () => {
+        const { service, aiAgentModel } = buildInvestigateService();
+        primeRunInvestigation(service, async () => 'explanation');
+        await service.runInvestigation(
+            jobPayload,
+            'job-1',
+            new Date('2026-09-15T10:00:00Z'),
+        );
+        expect(aiAgentModel.deleteThread).not.toHaveBeenCalled();
     });
 });
