@@ -157,6 +157,7 @@ import {
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchPhase,
     type AiPromptContextInput,
+    type AiQuickReply,
     type AiSemanticChartArtifactConfig,
     type AiThreadCreatedFrom,
     type AiWebAppThreadCreatedFrom,
@@ -12197,10 +12198,46 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 vizConfig: { ...edit.config },
             });
 
+        return {
+            type: 'applied',
+            stream: await this.respondWithStaticText({
+                user,
+                prompt,
+                agent,
+                text: edit.response,
+                quickReplies: [],
+                responseStartedAt,
+                decisionUsage,
+            }),
+        };
+    }
+
+    private async respondWithStaticText({
+        user,
+        prompt,
+        agent,
+        text,
+        quickReplies,
+        responseStartedAt,
+        decisionUsage,
+    }: {
+        user: SessionUser;
+        prompt: AiWebAppPrompt;
+        agent: AiAgent;
+        text: string;
+        quickReplies: AiQuickReply[];
+        responseStartedAt: number;
+        decisionUsage: () => { inputTokens: number; outputTokens: number };
+    }): Promise<AgentResponseStream> {
+        if (quickReplies.length > 0)
+            await this.aiAgentModel.setPromptQuickReplies(
+                prompt.promptUuid,
+                quickReplies,
+            );
         await this.persistTrackedPromptUpdate(
             {
                 promptUuid: prompt.promptUuid,
-                response: edit.response,
+                response: text,
                 tokenUsage: initialPromptTokenUsage(
                     0,
                     decisionUsage().inputTokens,
@@ -12235,19 +12272,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 writer.write({
                     type: 'text-delta',
                     id: prompt.promptUuid,
-                    delta: edit.response,
+                    delta: text,
                 });
                 writer.write({ type: 'text-end', id: prompt.promptUuid });
                 writer.write({ type: 'finish' });
             },
         });
         return {
-            type: 'applied',
-            stream: {
-                pipeUIMessageStreamToResponse: (response) =>
-                    pipeUIMessageStreamToResponse({ response, stream }),
-                consumeStream: async () => {},
-            },
+            pipeUIMessageStreamToResponse: (response) =>
+                pipeUIMessageStreamToResponse({ response, stream }),
+            consumeStream: async () => {},
         };
     }
 
@@ -12283,6 +12317,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
         } else if (chart?.type === 'compound') {
             outcome = 'compound';
             intent = chart.steps;
+        } else if (chart?.type === 'clarify') {
+            outcome = 'clarify';
+            intent = chart.options;
         } else if (chart) outcome = chart.type;
         try {
             await this.aiAgentModel.createPromptDecision({
@@ -12501,6 +12538,30 @@ Use your existing tools to inspect them when relevant to the user's question (re
             chartResolution &&
             !isSlackPrompt(prompt)
         ) {
+            if (chartResolution.type === 'clarify') {
+                const clarification = await this.respondWithStaticText({
+                    user,
+                    prompt,
+                    agent: agentSettings,
+                    text: chartResolution.question,
+                    quickReplies: chartResolution.options,
+                    responseStartedAt,
+                    decisionUsage: () => ({
+                        inputTokens: decisionUsage?.inputTokens ?? 0,
+                        outputTokens: decisionUsage?.outputTokens ?? 0,
+                    }),
+                });
+                if (turn)
+                    await this.recordTurnDecision({
+                        promptUuid: prompt.promptUuid,
+                        decisions,
+                        turn,
+                        latencyMs: decisionLatencyMs,
+                        applied: true,
+                        fallbackReason: null,
+                    });
+                return clarification;
+            }
             if (
                 chartResolution.type === 'intent' ||
                 chartResolution.type === 'needs_values' ||

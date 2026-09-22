@@ -20,6 +20,7 @@ interface Props {
     thread: AiAgentThread;
     queuedCount: number;
     showTokens: boolean;
+    onQuickReply: (prompt: string) => void;
 }
 
 const useTicking = (active: boolean) => {
@@ -47,6 +48,7 @@ export const BattleThreadPane: FC<Props> = ({
     thread,
     queuedCount,
     showTokens,
+    onQuickReply,
 }) => {
     const stream = useAiAgentThreadStreamQuery(thread.uuid);
     const isStreaming = stream?.connection.status === 'streaming';
@@ -229,6 +231,7 @@ export const BattleThreadPane: FC<Props> = ({
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     renderArtifactsInline
+                    onQuickReply={onQuickReply}
                 />
             </Box>
         </Stack>

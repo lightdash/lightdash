@@ -399,6 +399,15 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     agentUuid={agentUuid}
                     showAddToEvalsButton={canManage}
                     onDashboardLinkClick={handleDashboardLinkClick}
+                    onQuickReply={
+                        inputDisabled || isBusy
+                            ? undefined
+                            : (prompt) =>
+                                  handleSubmit({
+                                      message: prompt,
+                                      toolHints: [],
+                                  })
+                    }
                     canRetryDeepResearch={
                         canStartDeepResearch && !inputDisabled && !isBusy
                     }

@@ -6,6 +6,7 @@ import {
     getItemLabelWithoutTableName,
     isCustomChartTypeSlugChartConfig,
     isDimension,
+    type AiQuickReply,
     type AiSemanticChartArtifactConfig,
     type Explore,
 } from '@lightdash/common';
@@ -79,6 +80,7 @@ export type ChartIntentResolution =
     | { type: 'intent'; intent: ChartIntent }
     | { type: 'needs_values'; filter: PendingValueFilter }
     | { type: 'compound'; steps: CompoundStep[] }
+    | { type: 'clarify'; question: string; options: AiQuickReply[] }
     | { type: 'not_an_edit' }
     | { type: 'unresolved'; reason: string };
 
@@ -94,6 +96,7 @@ export const isChartEditAttempt = (resolution: ChartIntentResolution) =>
     resolution.type === 'intent' ||
     resolution.type === 'needs_values' ||
     resolution.type === 'compound' ||
+    resolution.type === 'clarify' ||
     (resolution.type === 'unresolved' &&
         !NON_EDIT_REASONS.has(resolution.reason));
 
@@ -121,12 +124,15 @@ export type ChartIntentContext = {
 export const CHART_INTENT_THRESHOLDS = {
     intent: 0.45,
     multiple: 0.7,
-    wants: 0.6,
+    wants: 0.7,
     nonEdit: 0.5,
     field: 0.5,
     option: 0.5,
     value: 0.6,
     simpleDataAnswer: 0.7,
+    clarifyPair: 0.75,
+    clarifyRunnerUp: 0.2,
+    clarifyBelow: 0.8,
 } as const;
 
 const INTENTS = {
@@ -451,12 +457,12 @@ export const buildChartIntentQuestions = ({
         questions.addField = {
             type: 'choice',
             instructions:
-                'If the user wants to add a new breakdown field to the chart, which field do they mean? Choose none when the wanted field is not listed or the reference is ambiguous.',
+                'If the user wants to add a new breakdown field to the chart, which field do they mean? When several listed fields fit the wording, spread the probability across them.',
             criteria: {
                 ...fieldCriteria(context.addableFields, {
                     withDescriptions: true,
                 }),
-                none: 'The wanted field is not listed, or it is ambiguous',
+                none: 'No listed field fits what the user named',
             },
         };
     }
@@ -521,8 +527,52 @@ export type ChartIntentThresholds = {
     [Key in keyof typeof CHART_INTENT_THRESHOLDS]: number;
 };
 
+/** The two leading options when JEV splits between them instead of picking one. */
+const ambiguousPair = (
+    answer: DecisionAnswers[string] | undefined,
+    thresholds: ChartIntentThresholds,
+): [string, string] | null => {
+    if (answer?.type !== 'choice') return null;
+    const [first, second] = Object.entries(answer.probabilities)
+        .filter(([key]) => key !== 'none')
+        .sort(([, left], [, right]) => right - left);
+    if (!first || !second) return null;
+    return first[1] < thresholds.clarifyBelow &&
+        first[1] + second[1] >= thresholds.clarifyPair &&
+        second[1] >= thresholds.clarifyRunnerUp
+        ? [first[0], second[0]]
+        : null;
+};
+
+const clarifyLabels = (
+    fields: FieldCandidate[],
+    ids: [string, string],
+): [string, string] | null => {
+    const [first, second] = ids.map((id) =>
+        fields.find((field) => field.id === id),
+    );
+    if (!first || !second) return null;
+    return first.label === second.label
+        ? [
+              `${first.label} (${first.table})`,
+              `${second.label} (${second.table})`,
+          ]
+        : [first.label, second.label];
+};
+
+const CHART_TYPE_NAMES: Record<ChartTypeOption, string> = {
+    line: 'a line chart',
+    area: 'an area chart',
+    bar: 'a bar chart',
+    horizontal: 'a horizontal bar chart',
+    scatter: 'a scatter chart',
+    pie: 'a pie chart',
+    table: 'a table',
+};
+
 const resolveSort = (
     answers: DecisionAnswers,
+    context: ChartIntentContext,
     numbers: number[],
     thresholds: ChartIntentThresholds,
 ): ChartIntentResolution => {
@@ -530,13 +580,32 @@ const resolveSort = (
     const direction = confident(answers.sortDirection, option);
     const named = (decisionProbability(answers.sortFieldNamed) ?? 0) >= 0.5;
     const sortField = named ? confident(answers.sortField, field) : null;
-    if (!direction || (named && (!sortField || sortField === 'none')))
-        return { type: 'unresolved', reason: 'sort' };
     const stated = confident(answers.number, option);
     const limit =
         stated && stated !== 'none' && numbers.includes(Number(stated))
             ? Number(stated)
             : null;
+    if (direction && named) {
+        const pair = ambiguousPair(answers.sortField, thresholds);
+        const labels = pair && clarifyLabels(context.currentFields, pair);
+        if (labels) {
+            const order =
+                direction === 'descending' ? 'highest first' : 'lowest first';
+            const rows = limit
+                ? `, ${direction === 'descending' ? 'top' : 'bottom'} ${limit}`
+                : '';
+            return {
+                type: 'clarify',
+                question: 'Which field should I sort by?',
+                options: labels.map((label) => ({
+                    label,
+                    prompt: `Sort by ${label}, ${order}${rows}`,
+                })),
+            };
+        }
+    }
+    if (!direction || (named && (!sortField || sortField === 'none')))
+        return { type: 'unresolved', reason: 'sort' };
     return {
         type: 'intent',
         intent: {
@@ -609,9 +678,25 @@ const resolveFilter = (
 
 const resolveAddField = (
     answers: DecisionAnswers,
+    context: ChartIntentContext,
     thresholds: ChartIntentThresholds,
     chartType: ChartTypeOption | null,
 ): ChartIntentResolution => {
+    const pair = ambiguousPair(answers.addField, thresholds);
+    const labels = pair && clarifyLabels(context.addableFields, pair);
+    if (labels) {
+        const presentation = chartType
+            ? ` as ${CHART_TYPE_NAMES[chartType]}`
+            : '';
+        return {
+            type: 'clarify',
+            question: 'Which field should I add?',
+            options: labels.map((label) => ({
+                label,
+                prompt: `Add ${label} to the chart${presentation}`,
+            })),
+        };
+    }
     const fieldId = confident(answers.addField, thresholds.field);
     if (!fieldId || fieldId === 'none')
         return { type: 'unresolved', reason: 'add-field' };
@@ -669,6 +754,7 @@ const resolveCompound = (
             ? [
                   resolveAddField(
                       answers,
+                      context,
                       thresholds,
                       kinds.has('chart_type') ? chartType : null,
                   ),
@@ -678,7 +764,7 @@ const resolveCompound = (
             ? [resolveFilter(answers, context, numbers, thresholds)]
             : []),
         ...(kinds.has('sort')
-            ? [resolveSort(answers, numbers, thresholds)]
+            ? [resolveSort(answers, context, numbers, thresholds)]
             : []),
         ...(!addField && kinds.has('chart_type')
             ? [
@@ -770,6 +856,7 @@ export const interpretChartIntent = ({
         case 'add_field':
             return resolveAddField(
                 answers,
+                context,
                 thresholds,
                 isChartType(chartType) ? chartType : null,
             );
@@ -778,7 +865,7 @@ export const interpretChartIntent = ({
         case 'clear_filters':
             return { type: 'intent', intent: { kind: 'clear_filters' } };
         case 'sort':
-            return resolveSort(answers, numbers, thresholds);
+            return resolveSort(answers, context, numbers, thresholds);
         case 'clear_sort':
             return { type: 'intent', intent: { kind: 'clear_sort' } };
         case 'undo':

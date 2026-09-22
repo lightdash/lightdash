@@ -43,6 +43,7 @@ type Props = {
     renderArtifactsInline?: boolean;
     showAddToEvalsButton?: boolean;
     onDashboardLinkClick?: (url: string) => void;
+    onQuickReply?: (prompt: string) => void;
     canRetryDeepResearch?: boolean;
     onRunDeepResearchAgain?: (
         registration: DeepResearchRunRegistration,
@@ -104,6 +105,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     renderArtifactsInline = false,
     showAddToEvalsButton = false,
     onDashboardLinkClick,
+    onQuickReply,
     canRetryDeepResearch = false,
     onRunDeepResearchAgain,
 }) => {
@@ -252,6 +254,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                                     showAddToEvalsButton
                                                 }
                                                 mcpServers={mcpServers}
+                                                onQuickReply={onQuickReply}
                                                 renderArtifactsInline={
                                                     renderArtifactsInline
                                                 }

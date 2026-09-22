@@ -36,6 +36,7 @@ const explore = {
                 date: dimension('date', DimensionType.DATE, 'Date'),
                 status: dimension('status', DimensionType.STRING, 'Status'),
                 region: dimension('region', DimensionType.STRING, 'Region'),
+                city: dimension('city', DimensionType.STRING, 'City'),
             },
             metrics: {
                 count: {
@@ -314,6 +315,55 @@ describe('interpretChartIntent', () => {
         });
     });
 
+    it('asks which field when JEV splits between two candidates', () => {
+        expect(
+            interpret('segment by place', {
+                intent: choice('add_field'),
+                addField: {
+                    type: 'choice',
+                    choice: 'orders_region',
+                    confidence: 0.4,
+                    probabilities: {
+                        orders_region: 0.55,
+                        orders_city: 0.35,
+                        none: 0.1,
+                    },
+                },
+                chartType: choice('line'),
+            }),
+        ).toEqual({
+            type: 'clarify',
+            question: 'Which field should I add?',
+            options: [
+                {
+                    label: 'Region',
+                    prompt: 'Add Region to the chart as a line chart',
+                },
+                {
+                    label: 'City',
+                    prompt: 'Add City to the chart as a line chart',
+                },
+            ],
+        });
+    });
+
+    it('applies a confident field even when others share some probability', () => {
+        expect(
+            interpret('segment by region', {
+                intent: choice('add_field'),
+                addField: {
+                    type: 'choice',
+                    choice: 'orders_region',
+                    confidence: 0.85,
+                    probabilities: { orders_region: 0.85, orders_city: 0.15 },
+                },
+            }),
+        ).toMatchObject({
+            type: 'intent',
+            intent: { kind: 'add_field', fieldId: 'orders_region' },
+        });
+    });
+
     it('treats low-confidence intents as unresolved', () => {
         expect(interpret('hmm', { intent: choice('chart_type', 0.3) })).toEqual(
             { type: 'unresolved', reason: 'intent' },
@@ -333,6 +383,7 @@ describe('isChartEditAttempt', () => {
         [{ type: 'unresolved', reason: 'multiple' }, false],
         [{ type: 'unresolved', reason: 'non-edit' }, false],
         [{ type: 'compound', steps: [] }, true],
+        [{ type: 'clarify', question: 'Which?', options: [] }, true],
         [{ type: 'unresolved', reason: 'decision-unavailable' }, false],
         [{ type: 'not_an_edit' }, false],
     ])('%j -> %s', (resolution, expected) => {
@@ -349,6 +400,7 @@ describe('buildChartIntentContext', () => {
         });
         expect(context.addableFields.map(({ id }) => id)).toEqual([
             'orders_region',
+            'orders_city',
         ]);
         expect(context.currentFields.map(({ id }) => id)).toEqual([
             'orders_date',
