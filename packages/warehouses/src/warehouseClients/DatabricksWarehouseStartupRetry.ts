@@ -7,6 +7,7 @@ import StatusError from '@databricks/sql/dist/errors/StatusError';
 const DATABRICKS_WAREHOUSE_STARTING_MESSAGES: readonly RegExp[] = [
     // Pro/classic: OpenSession succeeds while stopped, then every op is rejected
     /Session handle: SessionHandle \[[^\]]*\] has not been initialized or had already closed/,
+    /Session \S+ is not fully initialized yet: no SparkSession is attached\./,
     // Cluster nodes still booting when the session is initialised
     /Couldn't create directory \/local_disk0\//,
     /is not ready to accept connections \(current state: STARTING\)/,
