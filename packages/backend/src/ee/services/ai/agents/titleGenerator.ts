@@ -52,12 +52,15 @@ Good examples:
 
 The title should be clear, specific, and helpful for someone browsing a list of conversations.`,
             },
+            ...messages,
+            // Last, not first: a thread ends on the assistant turn, and a
+            // structured-output request may not end on one — Anthropic rejects
+            // it as an attempt to pre-fill the assistant response.
             {
                 role: 'user',
                 content:
                     'Please create a title for this conversation based on the messages.',
             },
-            ...messages,
         ],
     });
 
