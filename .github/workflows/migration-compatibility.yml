@@ -1,4 +1,4 @@
-name: Migration compatibility
+name: Migration compatibility evidence
 
 on:
     pull_request:
@@ -8,8 +8,8 @@ on:
             - '.github/workflows/migration-compatibility.yml'
     workflow_dispatch:
         inputs:
-            application_ref:
-                description: Application commit or ref override
+            candidate_ref:
+                description: Compatible application commit or ref override
                 required: false
                 type: string
             migration_ref:
@@ -20,7 +20,7 @@ on:
             cases:
                 description: Comma-separated compatibility cases
                 required: true
-                default: ambiguous-column-broken,catalog-cache-stale,merged-manifest-stale,two-live-connections-wrong-warehouse
+                default: full
                 type: string
 
 permissions:
@@ -29,7 +29,7 @@ permissions:
 jobs:
     migration-compatibility:
         runs-on: ubuntu-latest
-        timeout-minutes: 20
+        timeout-minutes: 45
         services:
             postgres:
                 image: postgres:15-alpine
@@ -61,13 +61,13 @@ jobs:
               run: pnpm install --frozen-lockfile --prefer-offline --network-concurrency=16
             - name: Run compatibility cases
               env:
-                  APPLICATION_REF: ${{ inputs.application_ref }}
-                  COMPATIBILITY_CASES: ${{ inputs.cases || 'ambiguous-column-broken,catalog-cache-stale,merged-manifest-stale,two-live-connections-wrong-warehouse' }}
+                  CANDIDATE_REF: ${{ inputs.candidate_ref }}
+                  COMPATIBILITY_CASES: ${{ inputs.cases || 'full' }}
                   MIGRATION_REF: ${{ inputs.migration_ref || '4e4660f2c583613d08e3f6f085234f1aa73cedae' }}
                   PGCONNECTIONURI: postgresql://postgres:password@localhost:5432/postgres
               run: |
-                  args=(--case "$COMPATIBILITY_CASES" --migration-ref "$MIGRATION_REF")
-                  if [ -n "$APPLICATION_REF" ]; then
-                    args+=(--app-ref "$APPLICATION_REF")
+                  args=(--case "$COMPATIBILITY_CASES" --migration-ref "$MIGRATION_REF" --require-pairs)
+                  if [ -n "$CANDIDATE_REF" ]; then
+                    args+=(--candidate-ref "$CANDIDATE_REF")
                   fi
                   pnpm test:migration-compatibility -- "${args[@]}"

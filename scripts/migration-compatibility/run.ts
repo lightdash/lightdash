@@ -1,11 +1,14 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import {
     BASELINE_APP_REF,
+    compatibilityPairs,
+    fullCompatibilityCaseNames,
     getCompatibilityCases,
     MIGRATION_REF,
     type CompatibilityCase,
@@ -15,7 +18,7 @@ type JsonObject = Record<string, unknown>;
 
 const root = path.resolve(import.meta.dirname, '../..');
 const runtimeSource = path.join(import.meta.dirname, 'runtime');
-const runtimeDestination = 'packages/backend/src/migrationCompatibilityRuntime';
+const runtimeDestination = 'packages/backend/migration-compatibility-runtime';
 const runtimeEnvironment = {
     LIGHTDASH_SECRET: '0123456789abcdef0123456789abcdef',
     S3_ACCESS_KEY: 'migration-compatibility',
@@ -32,17 +35,21 @@ const argument = (flag: string): string | undefined => {
 };
 
 const parseArguments = () => {
-    const caseNames = argument('--case')
+    const requestedCaseNames = argument('--case')
         ?.split(',')
         .map((name) => name.trim())
         .filter(Boolean);
-    if (!caseNames || caseNames.length === 0)
+    if (!requestedCaseNames || requestedCaseNames.length === 0)
         throw new Error('--case is required');
+    const caseNames = requestedCaseNames.includes('full')
+        ? fullCompatibilityCaseNames
+        : requestedCaseNames;
     return {
         cases: getCompatibilityCases(caseNames),
         appRef: argument('--app-ref'),
         candidateRef: argument('--candidate-ref'),
         migrationRef: argument('--migration-ref') ?? MIGRATION_REF,
+        requirePairs: process.argv.includes('--require-pairs'),
     };
 };
 
@@ -93,23 +100,24 @@ const prepareArchive = async (
         cwd: root,
     });
     await run('tar', ['-xf', archive, '-C', destination], { cwd: root });
-    await fs.cp(runtimeSource, path.join(destination, runtimeDestination), {
-        recursive: true,
-    });
     await run(
         'corepack',
         [
             'pnpm',
             'install',
             '--frozen-lockfile',
-            '--ignore-scripts',
             '--prefer-offline',
             '--network-concurrency=16',
         ],
         { cwd: destination, env: { HUSKY: '0' } },
     );
+    await run('corepack', ['pnpm', 'formula:build'], { cwd: destination });
     await run('corepack', ['pnpm', 'common-build'], { cwd: destination });
     await run('corepack', ['pnpm', 'warehouses-build'], { cwd: destination });
+    await run('corepack', ['pnpm', 'backend-build'], { cwd: destination });
+    await fs.cp(runtimeSource, path.join(destination, runtimeDestination), {
+        recursive: true,
+    });
     return destination;
 };
 
@@ -150,7 +158,7 @@ const runRuntime = async (
                 'backend',
                 'exec',
                 'tsx',
-                `src/migrationCompatibilityRuntime/${file}`,
+                `migration-compatibility-runtime/${file}`,
                 ...args,
             ],
             {
@@ -177,6 +185,99 @@ const probeEnvironment = (connectionUri: string) => ({
     PGCONNECTIONURI: connectionUri,
     EXPERIMENTAL_CACHE: 'false',
 });
+
+const availablePort = async (): Promise<number> =>
+    new Promise((resolve, reject) => {
+        const server = net.createServer();
+        server.on('error', reject);
+        server.listen(0, '127.0.0.1', () => {
+            const address = server.address();
+            if (!address || typeof address === 'string') {
+                server.close();
+                reject(new Error('Could not allocate a backend port'));
+                return;
+            }
+            server.close((error) => {
+                if (error) reject(error);
+                else resolve(address.port);
+            });
+        });
+    });
+
+const startBackend = async (archive: string, connectionUri: string) => {
+    const port = await availablePort();
+    const output: string[] = [];
+    const child = spawn('node', ['packages/backend/dist/index.js'], {
+        cwd: archive,
+        env: {
+            ...process.env,
+            ...runtimeEnvironment,
+            ALLOW_MISSING_MIGRATIONS: 'true',
+            EXPERIMENTAL_CACHE: 'false',
+            LIGHTDASH_TELEMETRY_ENABLED: 'false',
+            LOG_LEVEL: 'error',
+            NODE_ENV: 'production',
+            PGCONNECTIONURI: connectionUri,
+            PORT: String(port),
+            RUDDERSTACK_ANALYTICS_DISABLED: 'true',
+            SCHEDULER_ENABLED: 'false',
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const appendOutput = (chunk: Buffer) => {
+        output.push(chunk.toString());
+        if (output.length > 200) output.shift();
+    };
+    child.stdout.on('data', appendOutput);
+    child.stderr.on('data', appendOutput);
+    const request = async (pathname: string) => {
+        const response = await fetch(`http://127.0.0.1:${port}${pathname}`);
+        const body: unknown = await response.json();
+        return { statusCode: response.status, body };
+    };
+    const deadline = Date.now() + 60_000;
+    while (Date.now() < deadline) {
+        if (child.exitCode !== null) {
+            throw new Error(
+                `Backend exited with code ${child.exitCode}\n${output.join('')}`,
+            );
+        }
+        try {
+            const live = await request('/api/v1/livez');
+            assertExact(
+                live,
+                { statusCode: 200, body: { status: 'ok' } },
+                'backend live probe',
+            );
+            return {
+                process: child,
+                request,
+                stop: async () => {
+                    if (child.exitCode !== null) return;
+                    child.kill('SIGTERM');
+                    await new Promise<void>((resolve) => {
+                        const timeout = setTimeout(() => {
+                            child.kill('SIGKILL');
+                        }, 10_000);
+                        child.once('close', () => {
+                            clearTimeout(timeout);
+                            resolve();
+                        });
+                    });
+                },
+            };
+        } catch {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+    }
+    child.kill('SIGKILL');
+    throw new Error(`Backend did not become live\n${output.join('')}`);
+};
+
+const findingPointers = {
+    project: '20000000-0000-4000-8000-000000000001',
+    connection: '20000000-0000-4000-8000-000000000002',
+};
 
 const runCase = async ({
     selectedCase,
@@ -205,12 +306,14 @@ const runCase = async ({
     if (typeof connectionUri !== 'string') {
         throw new Error('Database creation did not return a connection URI');
     }
+    let backend: Awaited<ReturnType<typeof startBackend>> | undefined;
     try {
         if (selectedCase.probe === 'finding-one') {
             await runRuntime(appArchive, 'probe.ts', ['finding-one-fixture'], {
                 ...probeEnvironment(connectionUri),
             });
         }
+        backend = await startBackend(appArchive, connectionUri);
         const boundary = await runRuntime(migrationArchive, 'database.ts', [
             'apply-through',
             '--connection-uri',
@@ -222,6 +325,20 @@ const runCase = async ({
             boundary.ledgerBoundary,
             selectedCase.through,
             `${selectedCase.name} migration boundary`,
+        );
+        const readiness = await backend.request('/api/v1/readyz');
+        assertExact(
+            {
+                statusCode: readiness.statusCode,
+                status:
+                    typeof readiness.body === 'object' &&
+                    readiness.body !== null &&
+                    'status' in readiness.body
+                        ? readiness.body.status
+                        : null,
+            },
+            { statusCode: 200, status: 'ready' },
+            `${selectedCase.name} deployed backend readiness`,
         );
         let result: JsonObject;
         if (selectedCase.probe === 'finding-one') {
@@ -237,6 +354,11 @@ const runCase = async ({
                 result.outcome,
                 selectedCase.expected,
                 selectedCase.name,
+            );
+            assertExact(
+                result.pointers,
+                findingPointers,
+                `${selectedCase.name} fixture pointers`,
             );
         } else if (
             selectedCase.probe === 'catalog-cache' ||
@@ -275,7 +397,12 @@ const runCase = async ({
             result = await runRuntime(
                 appArchive,
                 'probe.ts',
-                ['two-live-read'],
+                [
+                    'two-live-read',
+                    selectedCase.probe === 'saved-sql-connection'
+                        ? 'saved-sql'
+                        : 'context-free',
+                ],
                 probeEnvironment(connectionUri),
             );
             assertExact(
@@ -284,8 +411,18 @@ const runCase = async ({
                 selectedCase.name,
             );
         }
-        return { case: selectedCase.name, status: 'passed', result } as const;
+        return {
+            case: selectedCase.name,
+            role: selectedCase.role,
+            status: 'passed',
+            deployedBackend: {
+                startedBeforeMigrations: true,
+                readiness,
+            },
+            result,
+        } as const;
     } finally {
+        await backend?.stop();
         await runRuntime(migrationArchive, 'database.ts', [
             'drop',
             '--connection-uri',
@@ -300,29 +437,56 @@ const runCase = async ({
 
 const main = async () => {
     const startedAt = Date.now();
-    const { cases, appRef, candidateRef, migrationRef } = parseArguments();
+    const { cases, appRef, candidateRef, migrationRef, requirePairs } =
+        parseArguments();
     const adminUri = process.env.PGCONNECTIONURI;
     if (!adminUri) throw new Error('PGCONNECTIONURI is required');
-    if (
-        cases.some((selectedCase) => selectedCase.appRef === 'candidate') &&
-        !appRef &&
-        !candidateRef
-    ) {
-        throw new Error(
-            '--candidate-ref or --app-ref is required for compatible cases',
-        );
-    }
     const resolvedMigrationRef = await resolveRef(migrationRef);
     const resolvedCases = await Promise.all(
         cases.map(async (selectedCase) => ({
             selectedCase,
             appSha: await resolveRef(
-                selectedCase.appRef === 'candidate'
-                    ? (candidateRef ?? appRef!)
-                    : (appRef ?? selectedCase.appRef),
+                appRef ??
+                    (selectedCase.role === 'compatible' && candidateRef
+                        ? candidateRef
+                        : selectedCase.appRef),
             ),
         })),
     );
+    const resolvedPairs = Object.entries(compatibilityPairs)
+        .map(([pair, { broken, compatible }]) => {
+            const brokenCase = resolvedCases.find(
+                ({ selectedCase }) => selectedCase.name === broken,
+            );
+            const compatibleCase = resolvedCases.find(
+                ({ selectedCase }) => selectedCase.name === compatible,
+            );
+            if (
+                requirePairs &&
+                Boolean(brokenCase) !== Boolean(compatibleCase)
+            ) {
+                throw new Error(
+                    `Required pair ${pair} must include ${broken} and ${compatible}`,
+                );
+            }
+            if (
+                brokenCase &&
+                compatibleCase &&
+                brokenCase.appSha === compatibleCase.appSha
+            ) {
+                throw new Error(
+                    `Compatibility pair ${pair} resolved both cases to ${brokenCase.appSha}`,
+                );
+            }
+            return brokenCase && compatibleCase
+                ? {
+                      pair,
+                      broken: brokenCase.appSha,
+                      compatible: compatibleCase.appSha,
+                  }
+                : null;
+        })
+        .filter((pair) => pair !== null);
     const baselineSha = await resolveRef(BASELINE_APP_REF);
     const tempRoot = await fs.mkdtemp(
         path.join(os.tmpdir(), 'lightdash-migration-compatibility-'),
@@ -382,6 +546,7 @@ const main = async () => {
         }, Promise.resolve([]));
         summary = {
             status: 'passed',
+            scope: 'deployed-backend-and-compiled-production-modules',
             refs: {
                 baseline: baselineSha,
                 migration: resolvedMigrationRef,
@@ -392,6 +557,11 @@ const main = async () => {
                     ]),
                 ),
             },
+            pairs: resolvedPairs,
+            controls: results.filter(({ role }) => role === 'broken-control'),
+            compatibility: results.filter(
+                ({ role }) => role !== 'broken-control',
+            ),
             results,
         };
     } finally {

@@ -83,7 +83,7 @@ const completedMigrations = async (
 const applyThrough = async (connectionUri: string, through: string) => {
     const directory = path.resolve(
         import.meta.dirname,
-        '../database/migrations',
+        '../src/database/migrations',
     );
     const files = await migrationFiles(directory);
     const target = through === 'latest' ? files.at(-1) : through;

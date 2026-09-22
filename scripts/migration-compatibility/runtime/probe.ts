@@ -1,5 +1,4 @@
 import knex from 'knex';
-import { type EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 
 const writeResult = process.stdout.write.bind(process.stdout);
 process.stdout.write = ((chunk: string | Uint8Array) =>
@@ -17,6 +16,7 @@ const TWO_LIVE_PROJECT_UUID = '10000000-0000-4000-8000-000000000003';
 const CONNECTION_A_UUID = '30000000-0000-4000-8000-000000000001';
 const CONNECTION_B_UUID = '30000000-0000-4000-8000-000000000002';
 const SAVED_SQL_UUID = '40000000-0000-4000-8000-000000000001';
+const SAVED_SQL_SPACE_UUID = '50000000-0000-4000-8000-000000000001';
 
 const requireConnectionUri = (): string => {
     const value = process.env.PGCONNECTIONURI;
@@ -35,10 +35,19 @@ const credentials = (host: string) => ({
     sslmode: 'disable',
 });
 
-const encryptionUtil = {
-    encrypt: (value: string) => Buffer.from(value),
-    decrypt: (value: Buffer) => value.toString(),
-} as unknown as EncryptionUtil;
+const lightdashConfig = {
+    lightdashSecret: '0123456789abcdef0123456789abcdef',
+    lightdashSecrets: {
+        active: '0123456789abcdef0123456789abcdef',
+        all: ['0123456789abcdef0123456789abcdef'],
+    },
+};
+
+const encryption = async () => {
+    const { EncryptionUtil } =
+        await import('../dist/utils/EncryptionUtil/EncryptionUtil');
+    return new EncryptionUtil({ lightdashConfig: lightdashConfig as never });
+};
 
 const createProject = async (
     database: ReturnType<typeof knex>,
@@ -66,8 +75,10 @@ const createProject = async (
 };
 
 const model = async (database: ReturnType<typeof knex>) => {
-    const { ProjectModel } =
-        await import('../models/ProjectModel/ProjectModel');
+    const [{ ProjectModel }, encryptionUtil] = await Promise.all([
+        import('../dist/models/ProjectModel/ProjectModel'),
+        encryption(),
+    ]);
     return new ProjectModel({
         database,
         lightdashConfig: {} as never,
@@ -76,6 +87,7 @@ const model = async (database: ReturnType<typeof knex>) => {
 };
 
 const findingOneFixture = async (database: ReturnType<typeof knex>) => {
+    const encryptionUtil = await encryption();
     const [organization] = await database('organizations')
         .insert({ organization_name: 'Migration compatibility finding one' })
         .returning(['organization_id', 'organization_uuid']);
@@ -85,7 +97,7 @@ const findingOneFixture = async (database: ReturnType<typeof knex>) => {
             organization_uuid: organization.organization_uuid,
             name: 'Project authority',
             warehouse_type: 'postgres',
-            warehouse_connection: Buffer.from(
+            warehouse_connection: encryptionUtil.encrypt(
                 JSON.stringify(credentials('project-authority')),
             ),
         },
@@ -94,7 +106,7 @@ const findingOneFixture = async (database: ReturnType<typeof knex>) => {
             organization_uuid: organization.organization_uuid,
             name: 'Connection copy',
             warehouse_type: 'postgres',
-            warehouse_connection: Buffer.from(
+            warehouse_connection: encryptionUtil.encrypt(
                 JSON.stringify(credentials('connection-copy')),
             ),
         },
@@ -117,7 +129,7 @@ const findingOneFixture = async (database: ReturnType<typeof knex>) => {
     await database('warehouse_credentials').insert({
         project_id: project.project_id,
         warehouse_type: 'postgres',
-        encrypted_credentials: Buffer.from(
+        encrypted_credentials: encryptionUtil.encrypt(
             JSON.stringify(credentials('project-row')),
         ),
     });
@@ -125,7 +137,7 @@ const findingOneFixture = async (database: ReturnType<typeof knex>) => {
 };
 
 const findingOneRead = async (database: ReturnType<typeof knex>) => {
-    await database('warehouse_credentials')
+    const updated = await database('warehouse_credentials')
         .where(
             'project_id',
             database('projects')
@@ -135,6 +147,11 @@ const findingOneRead = async (database: ReturnType<typeof knex>) => {
         .update({
             organization_warehouse_credentials_uuid: CONNECTION_CREDENTIAL_UUID,
         });
+    if (updated !== 1) {
+        throw new Error(
+            `Expected one credential pointer update, got ${updated}`,
+        );
+    }
     const pointers = await database('projects')
         .innerJoin(
             'warehouse_credentials',
@@ -307,13 +324,14 @@ const twoLiveFixture = async (database: ReturnType<typeof knex>) => {
         TWO_LIVE_PROJECT_UUID,
         'Migration compatibility two live connections',
     );
+    const encryptionUtil = await encryption();
     await database('warehouse_credentials').insert([
         {
             warehouse_credentials_uuid: CONNECTION_A_UUID,
             project_id: projectId,
             warehouse_type: 'postgres',
             name: 'Connection A',
-            encrypted_credentials: Buffer.from(
+            encrypted_credentials: encryptionUtil.encrypt(
                 JSON.stringify(credentials('connection-a')),
             ),
             organization_warehouse_credentials_uuid: null,
@@ -324,28 +342,49 @@ const twoLiveFixture = async (database: ReturnType<typeof knex>) => {
             project_id: projectId,
             warehouse_type: 'postgres',
             name: 'Connection B',
-            encrypted_credentials: Buffer.from(
+            encrypted_credentials: encryptionUtil.encrypt(
                 JSON.stringify(credentials('connection-b')),
             ),
             organization_warehouse_credentials_uuid: null,
             superseded_at: null,
         },
     ]);
+    await database('spaces').insert({
+        space_uuid: SAVED_SQL_SPACE_UUID,
+        project_id: projectId,
+        name: 'Saved SQL compatibility',
+        slug: 'saved-sql-compatibility',
+        parent_space_uuid: null,
+        path: 'saved_sql_compatibility',
+        inherit_parent_permissions: true,
+        is_default_user_space: false,
+    });
     await database('saved_sql').insert({
         saved_sql_uuid: SAVED_SQL_UUID,
         project_uuid: TWO_LIVE_PROJECT_UUID,
+        space_uuid: SAVED_SQL_SPACE_UUID,
+        dashboard_uuid: null,
         name: 'Bound to connection B',
+        description: null,
+        created_by_user_uuid: null,
         slug: 'bound-to-connection-b',
     });
     await database('saved_sql_versions').insert({
         saved_sql_uuid: SAVED_SQL_UUID,
         sql: 'select 1',
+        limit: 500,
+        config: {},
+        chart_kind: 'vertical_bar',
+        created_by_user_uuid: null,
         connection_uuid: CONNECTION_B_UUID,
     });
     return { probe: 'two-live-connections-fixture', status: 'ok' } as const;
 };
 
-const twoLiveRead = async (database: ReturnType<typeof knex>) => {
+const twoLiveRead = async (
+    database: ReturnType<typeof knex>,
+    kind: 'saved-sql' | 'context-free',
+) => {
     await database.raw('SET enable_indexscan = off');
     await database.raw('SET enable_bitmapscan = off');
     const rows = await database('warehouse_credentials')
@@ -360,17 +399,43 @@ const twoLiveRead = async (database: ReturnType<typeof knex>) => {
     const binding = await database('saved_sql_versions')
         .where('saved_sql_uuid', SAVED_SQL_UUID)
         .first('connection_uuid');
+    const encryptionUtil = await encryption();
     const available = rows.map((row) => ({
         connectionUuid: row.warehouse_credentials_uuid as string,
         credentialMarker: JSON.parse(
             encryptionUtil.decrypt(row.encrypted_credentials as Buffer),
         ).host as string,
     }));
+    let resolvedContentBinding: string | null = null;
+    if (kind === 'saved-sql') {
+        const { SavedSqlModel } = await import('../dist/models/SavedSqlModel');
+        const savedSqlModel = new SavedSqlModel({
+            database,
+            lightdashConfig: {} as never,
+        });
+        const savedSql = await savedSqlModel.getByUuid(SAVED_SQL_UUID, {
+            projectUuid: TWO_LIVE_PROJECT_UUID,
+        });
+        resolvedContentBinding =
+            savedSql &&
+            'connectionUuid' in savedSql &&
+            typeof savedSql.connectionUuid === 'string'
+                ? savedSql.connectionUuid
+                : null;
+    }
     let outcome;
     try {
         const projectModel = await model(database);
-        const value = await projectModel.getWarehouseCredentialsForProject(
+        const getWarehouseCredentials =
+            projectModel.getWarehouseCredentialsForProject.bind(
+                projectModel,
+            ) as (
+                projectUuid: string,
+                connectionUuid?: string,
+            ) => Promise<Record<string, unknown>>;
+        const value = await getWarehouseCredentials(
             TWO_LIVE_PROJECT_UUID,
+            resolvedContentBinding ?? undefined,
         );
         const selectedMarker = 'host' in value ? value.host : null;
         const selected = available.find(
@@ -392,7 +457,8 @@ const twoLiveRead = async (database: ReturnType<typeof knex>) => {
         probe: 'two-live-connections',
         values: {
             available,
-            contentBinding: binding?.connection_uuid ?? null,
+            storedContentBinding: binding?.connection_uuid ?? null,
+            resolvedContentBinding,
             outcome,
         },
     } as const;
@@ -429,8 +495,11 @@ const main = async () => {
         if (command === 'two-live-fixture') {
             return await twoLiveFixture(database);
         }
-        if (command === 'two-live-read') {
-            return await twoLiveRead(database);
+        if (
+            command === 'two-live-read' &&
+            (kind === 'saved-sql' || kind === 'context-free')
+        ) {
+            return await twoLiveRead(database, kind);
         }
         throw new Error(`Unknown probe command: ${command ?? ''}`);
     } finally {
