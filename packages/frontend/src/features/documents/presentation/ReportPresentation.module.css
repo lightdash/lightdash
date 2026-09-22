@@ -299,10 +299,6 @@
 }
 
 .documentLayout {
-    .contentsRail {
-        border-right: 0;
-    }
-
     .contentsNav {
         padding: var(--mantine-spacing-lg) var(--mantine-spacing-xs)
             var(--mantine-spacing-lg) var(--mantine-spacing-md);
