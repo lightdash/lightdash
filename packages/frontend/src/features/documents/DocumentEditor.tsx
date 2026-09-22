@@ -130,7 +130,6 @@ const DocumentEditor = ({
         >
             <DocumentReportLayout
                 title={document.name}
-                description={document.description}
                 contentsLabel={null}
                 headings={headings}
             >

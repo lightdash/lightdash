@@ -22,7 +22,6 @@ const DocumentRenderer = ({
         <DocumentReportLayout
             title={document.name}
             contentsLabel={null}
-            description={document.description}
             headings={headings}
             variant="document"
             actions={actions}

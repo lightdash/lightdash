@@ -202,7 +202,7 @@ describe('Document page', () => {
         expect(screen.getByText('Loading document')).toBeInTheDocument();
     });
 
-    test('renders ordered markdown and chart cells with title and description', async () => {
+    test('renders ordered markdown and chart cells with a title but no description', async () => {
         const { container } = renderPage();
         expect(
             await screen.findByRole('heading', {
@@ -210,7 +210,9 @@ describe('Document page', () => {
                 level: 1,
             }),
         ).toBeInTheDocument();
-        expect(screen.getByText('Revenue and next steps')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Revenue and next steps'),
+        ).not.toBeInTheDocument();
         expect(
             screen.queryByText('Document', { exact: true }),
         ).not.toBeInTheDocument();
