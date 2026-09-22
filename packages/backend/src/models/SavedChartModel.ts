@@ -3199,6 +3199,8 @@ export class SavedChartModel {
     async getInfoForAvailableFilters(savedChartUuids: string[]): Promise<
         ({
             spaceUuid: Space['uuid'];
+            savedChartVersionId: number;
+            rowLimit: number;
         } & Pick<
             SavedChartDAO,
             'uuid' | 'name' | 'tableName' | 'dashboardUuid'
@@ -3217,6 +3219,8 @@ export class SavedChartModel {
                 spaceUuid: `${SpaceTableName}.space_uuid`,
                 dashboardUuid: `${SavedChartsTableName}.dashboard_uuid`,
                 tableName: `${SavedChartVersionsTableName}.explore_name`,
+                savedChartVersionId: `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                rowLimit: `${SavedChartVersionsTableName}.row_limit`,
                 projectUuid: `${SavedChartsTableName}.project_uuid`,
                 organizationUuid: 'organizations.organization_uuid',
             })
@@ -3238,7 +3242,7 @@ export class SavedChartModel {
             })
             .joinRaw(
                 `inner join lateral (
-                    select sqv.explore_name
+                    select sqv.saved_queries_version_id, sqv.explore_name, sqv.row_limit
                     from ?? as sqv
                     where sqv.saved_query_id = ??.saved_query_id
                     order by sqv.saved_queries_version_id desc
@@ -3267,6 +3271,67 @@ export class SavedChartModel {
             throw new NotFoundError('Saved queries not found');
         }
         return charts;
+    }
+
+    async getExploreNamesForAvailableFilters(
+        savedCharts: {
+            uuid: string;
+            tableName: string;
+            savedChartVersionId: number;
+            rowLimit: number;
+        }[],
+    ): Promise<Record<string, string[]>> {
+        if (savedCharts.length === 0) return {};
+        const mergeRows = await this.database('saved_queries_version_merges')
+            .select<
+                {
+                    saved_queries_version_id: number;
+                    schema_version: number;
+                    merge: unknown;
+                }[]
+            >(['saved_queries_version_id', 'schema_version', 'merge'])
+            .whereIn(
+                'saved_queries_version_id',
+                savedCharts.map(
+                    ({ savedChartVersionId }) => savedChartVersionId,
+                ),
+            );
+        const mergeByVersionId = new Map(
+            mergeRows.map((row) => [row.saved_queries_version_id, row]),
+        );
+        return Object.fromEntries(
+            savedCharts.map(
+                ({ uuid, tableName, savedChartVersionId, rowLimit }) => {
+                    const mergeRow = mergeByVersionId.get(savedChartVersionId);
+                    const merge = mergeRow
+                        ? parseStoredMergeDefinition({
+                              schemaVersion: mergeRow.schema_version,
+                              value: mergeRow.merge,
+                              chartMetricQuery: {
+                                  exploreName: tableName,
+                                  dimensions: [],
+                                  metrics: [],
+                                  filters: {},
+                                  sorts: [],
+                                  limit: rowLimit,
+                                  tableCalculations: [],
+                              },
+                          })
+                        : null;
+                    return [
+                        uuid,
+                        Array.from(
+                            new Set([
+                                tableName,
+                                ...Object.values(merge?.queries ?? {}).map(
+                                    ({ explore }) => explore,
+                                ),
+                            ]),
+                        ),
+                    ] as const;
+                },
+            ),
+        );
     }
 
     async findInfoForDbtExposures(

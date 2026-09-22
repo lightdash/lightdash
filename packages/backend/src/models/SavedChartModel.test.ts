@@ -1,4 +1,9 @@
-import { AnyType } from '@lightdash/common';
+import {
+    AnyType,
+    MergeJoinType,
+    SAVED_MERGE_QUERY_SCHEMA_VERSION,
+    SAVED_MERGE_QUERY_SCHEMA_VERSION_V2,
+} from '@lightdash/common';
 import knex from 'knex';
 import type { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
@@ -1284,5 +1289,131 @@ describe('findChartsForValidation', () => {
             expect(Array.isArray(binding)).toBe(true);
             expect(binding).toHaveLength(uniqueDashboardCount);
         });
+    });
+});
+
+describe('available filter merge explores', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new SavedChartModel({
+        database,
+        lightdashConfig: lightdashConfigMock,
+    });
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    test('projects the latest version needed for merge normalization', async () => {
+        tracker.on.select(/inner join lateral/).responseOnce([
+            {
+                uuid: 'chart-uuid',
+                name: 'Chart',
+                spaceUuid: 'space-uuid',
+                dashboardUuid: 'dashboard-uuid',
+                tableName: 'orders',
+                savedChartVersionId: 42,
+                rowLimit: 500,
+                projectUuid: 'project-uuid',
+                organizationUuid: 'organization-uuid',
+            },
+        ]);
+
+        const result = await model.getInfoForAvailableFilters(['chart-uuid']);
+
+        expect(result[0]).toMatchObject({
+            savedChartVersionId: 42,
+            rowLimit: 500,
+        });
+        const [query] = tracker.history.select;
+        expect(query.sql).toContain('sqv.saved_queries_version_id');
+        expect(query.sql).toContain('sqv.row_limit');
+    });
+
+    test('normalizes v2 and v3 merge sources in one batch', async () => {
+        tracker.on.select('saved_queries_version_merges').responseOnce([
+            {
+                saved_queries_version_id: 10,
+                schema_version: SAVED_MERGE_QUERY_SCHEMA_VERSION,
+                merge: {
+                    queries: {
+                        payments: {
+                            explore: 'payments',
+                            dimensions: ['payments_order_id'],
+                            metrics: [],
+                        },
+                    },
+                    join: MergeJoinType.LEFT,
+                    keys: { orders_id: ['payments.payments_order_id'] },
+                    limit: 500,
+                },
+            },
+            {
+                saved_queries_version_id: 20,
+                schema_version: SAVED_MERGE_QUERY_SCHEMA_VERSION_V2,
+                merge: {
+                    primarySourceId: 'orders',
+                    sources: [
+                        { id: 'orders', kind: 'chart' },
+                        {
+                            id: 'refunds',
+                            kind: 'query',
+                            metricQuery: {
+                                exploreName: 'refunds',
+                                dimensions: ['refunds_order_id'],
+                                metrics: [],
+                                filters: {},
+                                sorts: [],
+                                limit: 500,
+                                tableCalculations: [],
+                            },
+                        },
+                    ],
+                    joinKey: [
+                        {
+                            name: 'order_id',
+                            fieldIdBySourceId: {
+                                orders: 'orders_id',
+                                refunds: 'refunds_order_id',
+                            },
+                        },
+                    ],
+                    joinType: MergeJoinType.LEFT,
+                    tableCalculations: [],
+                },
+            },
+        ]);
+
+        const result = await model.getExploreNamesForAvailableFilters([
+            {
+                uuid: 'chart-v3',
+                tableName: 'orders',
+                savedChartVersionId: 10,
+                rowLimit: 500,
+            },
+            {
+                uuid: 'chart-v2',
+                tableName: 'orders',
+                savedChartVersionId: 20,
+                rowLimit: 500,
+            },
+        ]);
+
+        expect(result).toEqual({
+            'chart-v3': ['orders', 'payments'],
+            'chart-v2': ['orders', 'refunds'],
+        });
+        expect(tracker.history.select).toHaveLength(1);
+    });
+
+    test('skips merge lookup when there are no status charts', async () => {
+        await expect(
+            model.getExploreNamesForAvailableFilters([]),
+        ).resolves.toEqual({});
+        expect(tracker.history.select).toHaveLength(0);
     });
 });

@@ -6,6 +6,7 @@ import {
     convertExplores,
     CustomDimensionType,
     CustomSqlQueryForbiddenError,
+    DashboardTileTypes,
     DbtExposureType,
     DbtProjectType,
     DbtVersionOptionLatest,
@@ -49,6 +50,7 @@ import {
     type CreateBigqueryCredentials,
     type CreateProject,
     type CreateWarehouseCredentials,
+    type DashboardDAO,
     type DbtManifest,
     type DownloadFile,
     type EmbedContent,
@@ -343,6 +345,9 @@ const onboardingModel = {
 };
 const savedChartModel = {
     getInfoForAvailableFilters: vi.fn(),
+    getExploreNamesForAvailableFilters: vi.fn<
+        SavedChartModel['getExploreNamesForAvailableFilters']
+    >(async () => ({})),
     getAllSpaces: vi.fn(async () => spacesWithSavedCharts),
     find: vi.fn(async () => [] as ChartSummary[]),
     get: vi.fn(),
@@ -366,6 +371,7 @@ const savedChartModel = {
     ),
 };
 const dashboardModel = {
+    getByIdOrSlug: vi.fn<DashboardModel['getByIdOrSlug']>(),
     savedChartExistsInDashboard: vi.fn(async () => false),
     findInfoForDbtExposures: vi.fn<DashboardModel['findInfoForDbtExposures']>(
         async () => [],
@@ -9597,6 +9603,633 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
 });
 
 describe('dashboard available filters', () => {
+    test('returns typed executable saved fields without restricting pickers for unsaved tiles', async () => {
+        const filterAccount = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'view' },
+                    { subject: 'Dashboard', action: 'view' },
+                    { subject: 'SavedChart', action: 'view' },
+                ]),
+            },
+        } as typeof account;
+        const explore: Explore = {
+            ...validExplore,
+            name: 'orders',
+            tables: {
+                ...validExplore.tables,
+                a: {
+                    ...validExplore.tables.a,
+                    dimensions: {
+                        dim1: {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            type: DimensionType.DATE,
+                            hidden: true,
+                        },
+                    },
+                    metrics: {
+                        met1: {
+                            ...validExplore.tables.a.metrics.met1,
+                            type: MetricType.BOOLEAN,
+                            hidden: true,
+                        },
+                    },
+                },
+            },
+        };
+        const chart = {
+            uuid: 'chart-saved',
+            name: 'Saved chart',
+            tableName: explore.name,
+            projectUuid: projectSummary.projectUuid,
+            organizationUuid: account.organization.organizationUuid,
+            spaceUuid: 'space',
+            dashboardUuid: 'dashboard',
+            savedChartVersionId: 1,
+            rowLimit: 500,
+        };
+        const dashboard = {
+            uuid: 'dashboard',
+            name: 'Dashboard',
+            organizationUuid: account.organization.organizationUuid,
+            projectUuid: projectSummary.projectUuid,
+            spaceUuid: 'space',
+            tiles: [
+                {
+                    uuid: 'tile-saved',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { savedChartUuid: chart.uuid },
+                },
+            ],
+            filters: {
+                dimensions: [
+                    {
+                        id: 'date-filter',
+                        target: { fieldId: 'a_dim1', tableName: 'a' },
+                        operator: FilterOperator.EQUALS,
+                        values: [],
+                        disabled: true,
+                        label: undefined,
+                    },
+                    {
+                        id: 'missing-filter',
+                        target: { fieldId: 'a_missing', tableName: 'a' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['missing'],
+                        tileTargets: {
+                            'other-tile': {
+                                fieldId: 'b_dim1',
+                                tableName: 'stale-table-name',
+                            },
+                        },
+                        label: undefined,
+                    },
+                ],
+                metrics: [
+                    {
+                        id: 'metric-filter',
+                        target: { fieldId: 'a_met1', tableName: 'a' },
+                        operator: FilterOperator.EQUALS,
+                        values: [],
+                        label: undefined,
+                    },
+                ],
+                tableCalculations: [],
+            },
+        } as unknown as DashboardDAO;
+        vi.mocked(dashboardModel.getByIdOrSlug).mockResolvedValueOnce(
+            dashboard,
+        );
+        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce([
+            chart,
+        ]);
+        savedChartModel.getExploreNamesForAvailableFilters.mockResolvedValueOnce(
+            { [chart.uuid]: [chart.tableName] },
+        );
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce([
+            explore,
+        ]);
+        const spaceContext = {
+            organizationUuid: account.organization.organizationUuid,
+            projectUuid: projectSummary.projectUuid,
+            inheritsFromOrgOrProject: true,
+            access: [],
+        };
+        const service = getMockedProjectService(lightdashConfigMock, {
+            spacePermissionService: {
+                resolveAccess: vi.fn().mockResolvedValue(spaceContext),
+                resolveAccessBatch: vi.fn().mockResolvedValue([
+                    {
+                        target: { type: 'chart', chartUuid: chart.uuid },
+                        context: spaceContext,
+                    },
+                ]),
+            } as unknown as SpacePermissionService,
+        });
+
+        const result = await service.getAvailableFiltersForSavedQueries(
+            filterAccount,
+            [
+                { savedChartUuid: chart.uuid, tileUuid: 'tile-saved' },
+                { savedChartUuid: chart.uuid, tileUuid: 'tile-unsaved' },
+            ],
+            dashboard.uuid,
+        );
+
+        expect(result.savedFilterFieldsByTile).toEqual({
+            'tile-saved': [
+                { fieldId: 'a_dim1', fallbackType: DimensionType.DATE },
+                { fieldId: 'b_dim1', fallbackType: DimensionType.STRING },
+                { fieldId: 'a_met1', fallbackType: DimensionType.BOOLEAN },
+            ],
+        });
+        expect(result.savedQueryFilters['tile-unsaved']).toBeDefined();
+        expect(
+            result.allFilterableFields.map((field) => field.hidden),
+        ).not.toContain(true);
+        expect(result.allFilterableMetrics).toEqual([]);
+    });
+
+    test('returns a hidden saved field from a secondary merge explore without widening pickers', async () => {
+        const filterAccount = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'view' },
+                    { subject: 'Dashboard', action: 'view' },
+                    { subject: 'SavedChart', action: 'view' },
+                ]),
+            },
+        } as typeof account;
+        const primaryExplore: Explore = {
+            ...validExplore,
+            name: 'orders',
+        };
+        const secondaryExplore: Explore = {
+            ...validExplore,
+            name: 'payments',
+            baseTable: 'payments',
+            joinedTables: [],
+            tables: {
+                payments: {
+                    ...validExplore.tables.a,
+                    name: 'payments',
+                    dimensions: {
+                        paid_at: {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            name: 'paid_at',
+                            table: 'payments',
+                            type: DimensionType.DATE,
+                            hidden: true,
+                        },
+                    },
+                    metrics: {},
+                },
+            },
+        };
+        const chart = {
+            uuid: 'merge-chart',
+            name: 'Merge chart',
+            tableName: primaryExplore.name,
+            projectUuid: projectSummary.projectUuid,
+            organizationUuid: account.organization.organizationUuid,
+            spaceUuid: 'space',
+            dashboardUuid: 'merge-dashboard',
+            savedChartVersionId: 2,
+            rowLimit: 500,
+        };
+        const dashboard = {
+            uuid: chart.dashboardUuid,
+            name: 'Merge dashboard',
+            organizationUuid: account.organization.organizationUuid,
+            projectUuid: projectSummary.projectUuid,
+            spaceUuid: 'space',
+            tiles: [
+                {
+                    uuid: 'merge-tile',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { savedChartUuid: chart.uuid },
+                },
+            ],
+            filters: {
+                dimensions: [
+                    {
+                        id: 'payments-date',
+                        target: {
+                            fieldId: 'payments_paid_at',
+                            tableName: 'payments',
+                        },
+                        operator: FilterOperator.EQUALS,
+                        values: [],
+                        label: undefined,
+                    },
+                ],
+                metrics: [],
+                tableCalculations: [],
+            },
+        } as unknown as DashboardDAO;
+        vi.mocked(dashboardModel.getByIdOrSlug).mockResolvedValueOnce(
+            dashboard,
+        );
+        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce([
+            chart,
+        ]);
+        savedChartModel.getExploreNamesForAvailableFilters.mockResolvedValueOnce(
+            { [chart.uuid]: [primaryExplore.name, secondaryExplore.name] },
+        );
+        vi.mocked(projectModel.findExploresFromCache)
+            .mockResolvedValueOnce([primaryExplore])
+            .mockResolvedValueOnce([secondaryExplore]);
+        const spaceContext = {
+            organizationUuid: account.organization.organizationUuid,
+            projectUuid: projectSummary.projectUuid,
+            inheritsFromOrgOrProject: true,
+            access: [],
+        };
+        const service = getMockedProjectService(lightdashConfigMock, {
+            spacePermissionService: {
+                resolveAccess: vi.fn().mockResolvedValue(spaceContext),
+                resolveAccessBatch: vi.fn().mockResolvedValue([
+                    {
+                        target: { type: 'chart', chartUuid: chart.uuid },
+                        context: spaceContext,
+                    },
+                ]),
+            } as unknown as SpacePermissionService,
+        });
+
+        const result = await service.getAvailableFiltersForSavedQueries(
+            filterAccount,
+            [{ savedChartUuid: chart.uuid, tileUuid: 'merge-tile' }],
+            dashboard.uuid,
+        );
+
+        expect(result.savedFilterFieldsByTile).toEqual({
+            'merge-tile': [
+                {
+                    fieldId: 'payments_paid_at',
+                    fallbackType: DimensionType.DATE,
+                },
+            ],
+        });
+        expect(
+            result.allFilterableFields.some(
+                ({ table }) => table === 'payments',
+            ),
+        ).toBe(false);
+        expect(result.savedQueryFilters['merge-tile']).toBeDefined();
+    });
+
+    test.each([
+        { name: 'denied', canViewProject: false, expectedExploreLookups: 1 },
+        { name: 'missing', canViewProject: true, expectedExploreLookups: 2 },
+    ])(
+        'omits a $name secondary merge explore without breaking primary pickers',
+        async ({ canViewProject, expectedExploreLookups }) => {
+            vi.mocked(projectModel.findExploresFromCache).mockClear();
+            const primaryExplore: Explore = {
+                ...validExplore,
+                name: 'orders',
+            };
+            const abilityRules = [
+                { subject: 'Dashboard' as const, action: 'view' as const },
+                { subject: 'SavedChart' as const, action: 'view' as const },
+                ...(canViewProject
+                    ? [
+                          {
+                              subject: 'Project' as const,
+                              action: 'view' as const,
+                          },
+                      ]
+                    : [
+                          {
+                              subject: 'Explore' as const,
+                              action: 'view' as const,
+                              conditions: {
+                                  organizationUuid:
+                                      account.organization.organizationUuid,
+                                  projectUuid: projectSummary.projectUuid,
+                                  exploreNames: { $all: ['orders'] },
+                              },
+                          },
+                      ]),
+            ];
+            const filterAccount = {
+                ...account,
+                user: {
+                    ...account.user,
+                    ability: new Ability<PossibleAbilities>(abilityRules),
+                },
+            } as typeof account;
+            const chart = {
+                uuid: `merge-chart-${canViewProject}`,
+                name: 'Merge chart',
+                tableName: primaryExplore.name,
+                projectUuid: projectSummary.projectUuid,
+                organizationUuid: account.organization.organizationUuid,
+                spaceUuid: 'space',
+                dashboardUuid: `merge-dashboard-${canViewProject}`,
+                savedChartVersionId: 3,
+                rowLimit: 500,
+            };
+            const dashboard = {
+                uuid: chart.dashboardUuid,
+                name: 'Merge dashboard',
+                organizationUuid: account.organization.organizationUuid,
+                projectUuid: projectSummary.projectUuid,
+                spaceUuid: 'space',
+                tiles: [
+                    {
+                        uuid: 'merge-tile',
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: { savedChartUuid: chart.uuid },
+                    },
+                ],
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'payments-date',
+                            target: {
+                                fieldId: 'payments_paid_at',
+                                tableName: 'payments',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [],
+                            label: undefined,
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            } as unknown as DashboardDAO;
+            vi.mocked(dashboardModel.getByIdOrSlug).mockResolvedValueOnce(
+                dashboard,
+            );
+            savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce([
+                chart,
+            ]);
+            savedChartModel.getExploreNamesForAvailableFilters.mockResolvedValueOnce(
+                { [chart.uuid]: ['orders', 'payments'] },
+            );
+            vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
+                [primaryExplore],
+            );
+            if (canViewProject) {
+                vi.mocked(
+                    projectModel.findExploresFromCache,
+                ).mockResolvedValueOnce([]);
+            }
+            const spaceContext = {
+                organizationUuid: account.organization.organizationUuid,
+                projectUuid: projectSummary.projectUuid,
+                inheritsFromOrgOrProject: true,
+                access: [],
+            };
+            const service = getMockedProjectService(lightdashConfigMock, {
+                spacePermissionService: {
+                    resolveAccess: vi.fn().mockResolvedValue(spaceContext),
+                    resolveAccessBatch: vi.fn().mockResolvedValue([
+                        {
+                            target: { type: 'chart', chartUuid: chart.uuid },
+                            context: spaceContext,
+                        },
+                    ]),
+                } as unknown as SpacePermissionService,
+            });
+
+            const result = await service.getAvailableFiltersForSavedQueries(
+                filterAccount,
+                [{ savedChartUuid: chart.uuid, tileUuid: 'merge-tile' }],
+                dashboard.uuid,
+            );
+
+            expect(result.savedFilterFieldsByTile).toEqual({
+                'merge-tile': [],
+            });
+            expect(result.savedQueryFilters['merge-tile']).toBeDefined();
+            expect(projectModel.findExploresFromCache).toHaveBeenCalledTimes(
+                expectedExploreLookups,
+            );
+        },
+    );
+
+    test('skips merge status lookup for a requested chart outside persisted tile pairs', async () => {
+        savedChartModel.getExploreNamesForAvailableFilters.mockClear();
+        const filterAccount = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'view' },
+                    { subject: 'Dashboard', action: 'view' },
+                    { subject: 'SavedChart', action: 'view' },
+                ]),
+            },
+        } as typeof account;
+        const chart = {
+            uuid: 'foreign-chart',
+            name: 'Foreign chart',
+            tableName: validExplore.name,
+            projectUuid: projectSummary.projectUuid,
+            organizationUuid: account.organization.organizationUuid,
+            spaceUuid: 'space',
+            dashboardUuid: 'dashboard',
+            savedChartVersionId: 4,
+            rowLimit: 500,
+        };
+        const dashboard = {
+            uuid: 'dashboard',
+            name: 'Dashboard',
+            organizationUuid: account.organization.organizationUuid,
+            projectUuid: projectSummary.projectUuid,
+            spaceUuid: 'space',
+            tiles: [
+                {
+                    uuid: 'persisted-tile',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { savedChartUuid: 'persisted-chart' },
+                },
+            ],
+            filters: {
+                dimensions: [
+                    {
+                        id: 'saved-filter',
+                        target: { fieldId: 'a_dim1', tableName: 'a' },
+                        operator: FilterOperator.EQUALS,
+                        values: [],
+                        label: undefined,
+                    },
+                ],
+                metrics: [],
+                tableCalculations: [],
+            },
+        } as unknown as DashboardDAO;
+        vi.mocked(dashboardModel.getByIdOrSlug).mockResolvedValueOnce(
+            dashboard,
+        );
+        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce([
+            chart,
+        ]);
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce([
+            validExplore,
+        ]);
+        const spaceContext = {
+            organizationUuid: account.organization.organizationUuid,
+            projectUuid: projectSummary.projectUuid,
+            inheritsFromOrgOrProject: true,
+            access: [],
+        };
+        const service = getMockedProjectService(lightdashConfigMock, {
+            spacePermissionService: {
+                resolveAccess: vi.fn().mockResolvedValue(spaceContext),
+                resolveAccessBatch: vi.fn().mockResolvedValue([
+                    {
+                        target: { type: 'chart', chartUuid: chart.uuid },
+                        context: spaceContext,
+                    },
+                ]),
+            } as unknown as SpacePermissionService,
+        });
+
+        const result = await service.getAvailableFiltersForSavedQueries(
+            filterAccount,
+            [{ savedChartUuid: chart.uuid, tileUuid: 'unsaved-tile' }],
+            dashboard.uuid,
+        );
+
+        expect(result.savedFilterFieldsByTile).toEqual({});
+        expect(result.savedQueryFilters['unsaved-tile']).toBeDefined();
+        expect(
+            savedChartModel.getExploreNamesForAvailableFilters,
+        ).not.toHaveBeenCalled();
+    });
+
+    test('rejects saved field status when dashboard access is denied', async () => {
+        const dashboard = {
+            uuid: 'dashboard-denied',
+            name: 'Denied dashboard',
+            organizationUuid: account.organization.organizationUuid,
+            projectUuid: projectSummary.projectUuid,
+            spaceUuid: 'space',
+            tiles: [],
+            filters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+        } as unknown as DashboardDAO;
+        vi.mocked(dashboardModel.getByIdOrSlug).mockResolvedValueOnce(
+            dashboard,
+        );
+        const service = getMockedProjectService(lightdashConfigMock, {
+            spacePermissionService: {
+                resolveAccess: vi.fn().mockResolvedValue({
+                    organizationUuid: account.organization.organizationUuid,
+                    projectUuid: projectSummary.projectUuid,
+                    inheritsFromOrgOrProject: true,
+                    access: [],
+                }),
+            } as unknown as SpacePermissionService,
+        });
+
+        await expect(
+            service.getAvailableFiltersForSavedQueries(
+                viewerAccount,
+                [],
+                dashboard.uuid,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    test('excludes saved field status when chart access is denied', async () => {
+        const dashboardAccount = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'view' },
+                    { subject: 'Explore', action: 'view' },
+                    { subject: 'Dashboard', action: 'view' },
+                ]),
+            },
+        } as typeof account;
+        const chart = {
+            uuid: 'chart-denied',
+            name: 'Denied chart',
+            tableName: validExplore.name,
+            projectUuid: projectSummary.projectUuid,
+            organizationUuid: account.organization.organizationUuid,
+            spaceUuid: 'space',
+            dashboardUuid: 'dashboard-chart-denied',
+        };
+        const dashboard = {
+            uuid: chart.dashboardUuid,
+            name: 'Dashboard',
+            organizationUuid: account.organization.organizationUuid,
+            projectUuid: projectSummary.projectUuid,
+            spaceUuid: 'space',
+            tiles: [
+                {
+                    uuid: 'tile-denied',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { savedChartUuid: chart.uuid },
+                },
+            ],
+            filters: {
+                dimensions: [
+                    {
+                        id: 'saved-filter',
+                        target: { fieldId: 'a_dim1', tableName: 'a' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['value'],
+                        label: undefined,
+                    },
+                ],
+                metrics: [],
+                tableCalculations: [],
+            },
+        } as unknown as DashboardDAO;
+        vi.mocked(dashboardModel.getByIdOrSlug).mockResolvedValueOnce(
+            dashboard,
+        );
+        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce([
+            chart,
+        ]);
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce([
+            validExplore,
+        ]);
+        const spaceContext = {
+            organizationUuid: account.organization.organizationUuid,
+            projectUuid: projectSummary.projectUuid,
+            inheritsFromOrgOrProject: true,
+            access: [],
+        };
+        const service = getMockedProjectService(lightdashConfigMock, {
+            spacePermissionService: {
+                resolveAccess: vi.fn().mockResolvedValue(spaceContext),
+                resolveAccessBatch: vi.fn().mockResolvedValue([
+                    {
+                        target: { type: 'chart', chartUuid: chart.uuid },
+                        context: spaceContext,
+                    },
+                ]),
+            } as unknown as SpacePermissionService,
+        });
+
+        const result = await service.getAvailableFiltersForSavedQueries(
+            dashboardAccount,
+            [{ savedChartUuid: chart.uuid, tileUuid: 'tile-denied' }],
+            dashboard.uuid,
+        );
+
+        expect(result.savedFilterFieldsByTile).toEqual({});
+        expect(result.allFilterableFields).toEqual([]);
+        expect(result.savedQueryFilters).toEqual({});
+    });
+
     test('keeps a field per distinct label set and shares indexes across explores that agree', async () => {
         const filterAccount = {
             ...account,

@@ -261,6 +261,53 @@ describe('getFieldValuesMetricQuery', () => {
         expect(filterRules).toHaveLength(3);
     });
 
+    test('includes compatible filters when their dimension is hidden', async () => {
+        mockExploreResolver.findExploreByTableName.mockResolvedValue({
+            ...validExplore,
+            tables: {
+                ...validExplore.tables,
+                b: {
+                    ...validExplore.tables.b,
+                    dimensions: {
+                        ...validExplore.tables.b.dimensions,
+                        dim1: {
+                            ...validExplore.tables.b.dimensions.dim1,
+                            hidden: true,
+                        },
+                    },
+                },
+            },
+        });
+
+        const result = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'a',
+            initialFieldId: 'a_dim1',
+            search: '',
+            limit: 50,
+            maxLimit: 5000,
+            filters: {
+                id: 'filter-group',
+                and: [
+                    {
+                        id: 'hidden-filter',
+                        operator: FilterOperator.EQUALS,
+                        values: ['foo'],
+                        target: { fieldId: 'b_dim1' },
+                    },
+                ],
+            },
+            exploreResolver: mockExploreResolver,
+        });
+
+        const dimensions = result.metricQuery.filters?.dimensions;
+        const filterRules =
+            dimensions && 'and' in dimensions ? dimensions.and : [];
+        expect(filterRules).toContainEqual(
+            expect.objectContaining({ id: 'hidden-filter' }),
+        );
+    });
+
     test('fetches values from the configured dimension and ignores cascading filters', async () => {
         const sourceExplore = exploreWithFilterAutocomplete({
             fetchFromWarehouse: true,

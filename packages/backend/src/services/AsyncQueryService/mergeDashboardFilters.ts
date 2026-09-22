@@ -1,9 +1,9 @@
 import {
     addDashboardFiltersToMetricQuery,
     addFiltersToMetricQuery,
-    getAvailableFilterFieldIds,
     getDashboardFilterRulesForTables,
     getDashboardFiltersForTile,
+    getExecutableFilterFieldIds,
     getFilterRulesFromGroup,
     isAndFilterGroup,
     isFilterGroup,
@@ -75,7 +75,7 @@ const filtersForExplore = (
     explore: Explore,
     rules: DashboardFilters,
 ): DashboardFilters => {
-    const availableFieldIds = getAvailableFilterFieldIds(explore);
+    const availableFieldIds = getExecutableFilterFieldIds(explore);
     return {
         dimensions: getDashboardFilterRulesForTables(
             availableFieldIds,
@@ -244,7 +244,7 @@ export const applyFilterOverridesToMergeQuery = ({
                 };
             }
             const availableFieldIds = new Set(
-                getAvailableFilterFieldIds(explore),
+                getExecutableFilterFieldIds(explore),
             );
             const pruned: Filters = {
                 dimensions: pruneFilterGroup(

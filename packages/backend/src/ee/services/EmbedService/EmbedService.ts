@@ -35,13 +35,15 @@ import {
     ForbiddenError,
     formatRawRows,
     formatRows,
-    getAvailableFilterFieldIds,
     getColumnTimezone,
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
     getDimensions,
+    getExecutableFilterFieldIds,
+    getExecutableSavedFilterFields,
     getFilterInteractivityValue,
     getItemId,
+    getSavedDashboardFilterFieldIds,
     InteractivityOptions,
     IntrinsicUserAttributes,
     isAiAgentContent,
@@ -770,8 +772,14 @@ export class EmbedService extends BaseService {
                 allFilterableMetrics: [],
                 savedQueryMetricFilters: {},
                 defaultTimeDimensions: {},
+                savedFilterFieldsByTile: {},
             };
         }
+
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         let allFilters: {
             uuid: string;
@@ -923,12 +931,125 @@ export class EmbedService extends BaseService {
             };
         }, {});
 
+        const savedFilterFieldIds = getSavedDashboardFilterFieldIds(
+            dashboard.filters,
+        );
+        const savedChartsByTile = new Map(
+            dashboard.tiles
+                .filter(isDashboardChartTileType)
+                .flatMap((tile) =>
+                    tile.properties.savedChartUuid
+                        ? [[tile.uuid, tile.properties.savedChartUuid] as const]
+                        : [],
+                ),
+        );
+        const validatedSavedChartUuids = new Set(
+            savedChartUuidsAndTileUuids.flatMap(
+                ({ savedChartUuid, tileUuid }) =>
+                    savedChartsByTile.get(tileUuid) === savedChartUuid
+                        ? [savedChartUuid]
+                        : [],
+            ),
+        );
+        const statusCharts = savedCharts.filter(({ uuid }) =>
+            validatedSavedChartUuids.has(uuid),
+        );
+        const exploreNamesByChartUuid =
+            savedFilterFieldIds.length > 0 && statusCharts.length > 0
+                ? await this.savedChartModel.getExploreNamesForAvailableFilters(
+                      statusCharts,
+                  )
+                : {};
+        const statusExploreNames = Array.from(
+            new Set(Object.values(exploreNamesByChartUuid).flat()),
+        );
+        const auditedAbility = this.createAuditedAbility(account);
+        const authorizedStatusExploreNames = statusExploreNames.filter(
+            (exploreName) =>
+                auditedAbility.can(
+                    'view',
+                    subject('Project', {
+                        organizationUuid: dashboard.organizationUuid,
+                        projectUuid,
+                        exploreNames: [exploreName],
+                        metadata: { exploreNames: [exploreName] },
+                    }),
+                ) ||
+                auditedAbility.can(
+                    'view',
+                    subject('Explore', {
+                        organizationUuid: dashboard.organizationUuid,
+                        projectUuid,
+                        exploreNames: [exploreName],
+                        metadata: { exploreNames: [exploreName] },
+                    }),
+                ),
+        );
+        const statusExploresByName =
+            authorizedStatusExploreNames.length > 0
+                ? await this.projectService.findExplores({
+                      account,
+                      projectUuid,
+                      exploreNames: authorizedStatusExploreNames,
+                      organizationUuid: account.organization.organizationUuid,
+                  })
+                : {};
+        const savedFilterFieldsByChartUuid = new Map<
+            string,
+            NonNullable<
+                DashboardAvailableFilters['savedFilterFieldsByTile']
+            >[string]
+        >();
+        savedCharts.forEach((savedChart) => {
+            const explore = exploreCache[savedChart.tableName];
+            if (!explore || isExploreError(explore)) return;
+            if (savedFilterFieldIds.length === 0) {
+                savedFilterFieldsByChartUuid.set(savedChart.uuid, []);
+                return;
+            }
+            const primaryStatusExplore =
+                statusExploresByName[savedChart.tableName];
+            if (!primaryStatusExplore || isExploreError(primaryStatusExplore)) {
+                return;
+            }
+            const statusExplores = [
+                primaryStatusExplore,
+                ...(exploreNamesByChartUuid[savedChart.uuid] ?? [])
+                    .filter(
+                        (exploreName) => exploreName !== savedChart.tableName,
+                    )
+                    .map((exploreName) => statusExploresByName[exploreName])
+                    .filter(
+                        (statusExplore): statusExplore is Explore =>
+                            statusExplore !== undefined &&
+                            !isExploreError(statusExplore),
+                    ),
+            ];
+            savedFilterFieldsByChartUuid.set(
+                savedChart.uuid,
+                getExecutableSavedFilterFields(
+                    statusExplores,
+                    savedFilterFieldIds,
+                ),
+            );
+        });
+        const savedFilterFieldsByTile = savedChartUuidsAndTileUuids.reduce<
+            NonNullable<DashboardAvailableFilters['savedFilterFieldsByTile']>
+        >((acc, { savedChartUuid, tileUuid }) => {
+            if (savedChartsByTile.get(tileUuid) !== savedChartUuid) return acc;
+            const savedFilterFields =
+                savedFilterFieldsByChartUuid.get(savedChartUuid);
+            if (!savedFilterFields) return acc;
+            return { ...acc, [tileUuid]: savedFilterFields };
+        }, {});
+
         return {
             savedQueryFilters,
             allFilterableFields,
             allFilterableMetrics: [],
             savedQueryMetricFilters: {},
             defaultTimeDimensions: {},
+            savedFilterFieldsByTile,
         };
     }
 
@@ -1202,7 +1323,7 @@ export class EmbedService extends BaseService {
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
     ) {
-        const availableFieldIds = getAvailableFilterFieldIds(explore);
+        const availableFieldIds = getExecutableFilterFieldIds(explore);
 
         // Look up which tab this tile belongs to so we can evaluate lock state
         // for the right tab. Tiles created before tabs may have null/undefined.

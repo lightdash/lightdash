@@ -31,6 +31,7 @@ import {
     FilterOperator,
     FilterType,
     isAndFilterGroup,
+    isDashboardFieldTarget,
     isFilterGroup,
     isFilterRule,
     isJoinModelRequiredFilter,
@@ -51,7 +52,10 @@ import {
     type TimeBasedOverrideMap,
 } from '../types/filter';
 import { type MetricQuery } from '../types/metricQuery';
-import { type ResultColumn } from '../types/results';
+import {
+    convertItemTypeToDimensionType,
+    type ResultColumn,
+} from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { getDimensionMapFromTables, getMetricsMapFromTables } from './fields';
@@ -1825,6 +1829,49 @@ export const getAvailableFilterFieldIds = (explore: Explore): string[] => [
         .map(([fieldId]) => fieldId),
 ];
 
+export const getExecutableFilterFieldIds = (explore: Explore): string[] => [
+    ...Object.entries(getDimensionMapFromTables(explore.tables))
+        .filter(([, field]) => isFilterableDimension(field))
+        .map(([fieldId]) => fieldId),
+    ...Object.keys(getMetricsMapFromTables(explore.tables)),
+];
+
+export const getExecutableSavedFilterFields = (
+    explores: Explore[],
+    fieldIds: string[],
+): { fieldId: string; fallbackType: DimensionType }[] => {
+    const seen = new Set<string>();
+    return explores.flatMap((explore) => {
+        const dimensions = getDimensionMapFromTables(explore.tables);
+        const metrics = getMetricsMapFromTables(explore.tables);
+        const executableFieldIds = new Set(
+            getExecutableFilterFieldIds(explore),
+        );
+        return fieldIds.flatMap((fieldId) => {
+            const field = dimensions[fieldId] ?? metrics[fieldId];
+            if (!field || !executableFieldIds.has(fieldId)) return [];
+            const fallbackType = convertItemTypeToDimensionType(field);
+            const key = JSON.stringify([fieldId, fallbackType]);
+            if (seen.has(key)) return [];
+            seen.add(key);
+            return [{ fieldId, fallbackType }];
+        });
+    });
+};
+
+export const getSavedDashboardFilterFieldIds = (
+    filters: DashboardFilters,
+): string[] =>
+    Array.from(
+        new Set(
+            [...filters.dimensions, ...filters.metrics].flatMap((rule) =>
+                [rule.target, ...Object.values(rule.tileTargets ?? {})]
+                    .filter(isDashboardFieldTarget)
+                    .map(({ fieldId }) => fieldId),
+            ),
+        ),
+    );
+
 export const applyDashboardFiltersForTile = ({
     tileUuid,
     metricQuery,
@@ -1841,7 +1888,7 @@ export const applyDashboardFiltersForTile = ({
 } => {
     const appliedDashboardFilters = getDashboardFiltersForTileAndTables(
         tileUuid,
-        getAvailableFilterFieldIds(explore),
+        getExecutableFilterFieldIds(explore),
         dashboardFilters,
     );
     return {

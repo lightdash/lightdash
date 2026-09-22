@@ -139,9 +139,17 @@ dashboardRouter.post(
     isAuthenticated,
     async (req, res, next) => {
         try {
+            const dashboardUuid =
+                typeof req.query.dashboardUuid === 'string'
+                    ? req.query.dashboardUuid
+                    : undefined;
             const results = await req.services
                 .getProjectService()
-                .getAvailableFiltersForSavedQueries(req.account!, req.body);
+                .getAvailableFiltersForSavedQueries(
+                    req.account!,
+                    req.body,
+                    dashboardUuid,
+                );
 
             res.json({
                 status: 'ok',
