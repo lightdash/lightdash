@@ -215,6 +215,7 @@ export type AiCallRuntimeContextKey =
     | 'model'
     | 'provider'
     | 'keyManagement'
+    | 'appUuid'
     | 'runUuid'
     | 'deepResearchRunUuid'
     | 'deepResearchPhase';
