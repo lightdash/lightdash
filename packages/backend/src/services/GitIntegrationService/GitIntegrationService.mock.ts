@@ -48,10 +48,6 @@ const table = (
     ...extra,
 });
 
-/**
- * table_a with a repeated struct `items` (unnested as table_a__items) and a
- * repeated scalar `tags` (unnested as table_a__tags), plus a plain table_b.
- */
 export const EXPLORE: Explore = {
     name: 'table_a',
     label: 'table_a',
@@ -64,48 +60,6 @@ export const EXPLORE: Explore = {
             dimension('table_a', 'dim_a', '${TABLE}.dim_a', 0),
             dimension('table_a', 'dim_b', '${TABLE}.dim_b', 1),
         ]),
-        table_a__items: table(
-            'table_a__items',
-            [
-                dimension('table_a__items', 'sku', '${TABLE}.sku', 0),
-                dimension(
-                    'table_a__items',
-                    'offset',
-                    '`table_a__items__offset`',
-                    1,
-                ),
-            ],
-            {
-                nestedFrom: {
-                    parentTable: 'table_a',
-                    columnPath: 'items',
-                    elementSql: '`table_a__items`',
-                    offsetSql: '`table_a__items__offset`',
-                    joinCondition: 'TRUE',
-                },
-            },
-        ),
-        table_a__tags: table(
-            'table_a__tags',
-            [
-                dimension('table_a__tags', 'value', '${TABLE}', 0),
-                dimension(
-                    'table_a__tags',
-                    'offset',
-                    '`table_a__tags__offset`',
-                    1,
-                ),
-            ],
-            {
-                nestedFrom: {
-                    parentTable: 'table_a',
-                    columnPath: 'tags',
-                    elementSql: '`table_a__tags`',
-                    offsetSql: '`table_a__tags__offset`',
-                    joinCondition: 'TRUE',
-                },
-            },
-        ),
         table_b: table('table_b', [
             dimension('table_b', 'dim_a', '${TABLE}.dim_a', 0),
         ]),

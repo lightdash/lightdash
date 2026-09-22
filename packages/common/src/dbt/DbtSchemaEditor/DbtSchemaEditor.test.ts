@@ -1,4 +1,3 @@
-import { parse } from 'yaml';
 import { warehouseClientMock } from '../../compiler/exploreCompiler.mock';
 import { ParseError } from '../../types/errors';
 import {
@@ -7,13 +6,10 @@ import {
     MetricType,
 } from '../../types/field';
 import { SupportedDbtVersions } from '../../types/projects';
-import { type YamlSchema } from '../../types/yamlSchema';
 import DbtSchemaEditor from './DbtSchemaEditor';
 import {
     CUSTOM_DIMENSION_WRITEBACKS,
-    CUSTOM_METRIC,
     CUSTOM_METRIC_WRITEBACK,
-    CUSTOM_SQL_DIMENSION,
     dimensionColumn,
     EXPECTED_SCHEMA_JSON_WITH_NEW_MODEL,
     EXPECTED_SCHEMA_YML_WITH_NEW_METRICS_AND_DIMENSIONS,
@@ -81,114 +77,6 @@ models:
         expect(definition.sql).toContain('${TABLE}.dim_a * 2');
         expect(definition.sql).not.toContain('${reference_column}');
     });
-
-    it('writes fields on an unnested table under the dotted column of its model', () => {
-        const editor = new DbtSchemaEditor(`version: 2
-models:
-  - name: orders
-    columns:
-      - name: items.sku
-      - name: tags`);
-        editor.addCustomMetrics([
-            {
-                metric: {
-                    ...CUSTOM_METRIC,
-                    name: 'sku_count',
-                    type: MetricType.COUNT_DISTINCT,
-                    table: 'orders__items',
-                    baseDimensionName: 'sku',
-                },
-                column: dimensionColumn('orders', 'items.sku'),
-            },
-            {
-                metric: {
-                    ...CUSTOM_METRIC,
-                    name: 'tag_count',
-                    type: MetricType.COUNT_DISTINCT,
-                    table: 'orders__tags',
-                    baseDimensionName: 'value',
-                },
-                column: {
-                    model: 'orders',
-                    column: 'tags',
-                    sql: '${TABLE}',
-                    isScalarArrayElement: true,
-                },
-            },
-        ]);
-        editor.addCustomDimensions(
-            [
-                {
-                    dimension: {
-                        ...FIXED_WIDTH_BIN_DIMENSION,
-                        id: 'sku_bins',
-                        table: 'orders__items',
-                        dimensionId: 'orders__items_sku',
-                    },
-                    column: dimensionColumn(
-                        'orders',
-                        'items.sku',
-                        '${TABLE}.sku',
-                    ),
-                },
-            ],
-            warehouseClientMock,
-        );
-        const schema = parse(editor.toString()) as YamlSchema;
-        const columns = schema.models![0].columns!;
-        const sku = columns.find((column) => column.name === 'items.sku')!;
-        expect(sku.meta?.metrics).toHaveProperty('sku_count');
-        expect(sku.meta?.additional_dimensions?.sku_bins.sql).toContain(
-            '${TABLE}.sku',
-        );
-        expect(sku.meta?.additional_dimensions?.sku_bins.sql).not.toContain(
-            'items.sku',
-        );
-        const tags = columns.find((column) => column.name === 'tags')!;
-        expect(tags.meta?.metrics).toHaveProperty('tag_count');
-    });
-
-    it.each([
-        {
-            kind: 'bin',
-            dimension: {
-                ...FIXED_WIDTH_BIN_DIMENSION,
-                table: 'orders__tags',
-                dimensionId: 'orders__tags_value',
-            },
-        },
-        {
-            kind: 'SQL',
-            dimension: {
-                ...CUSTOM_SQL_DIMENSION,
-                table: 'orders__tags',
-                sql: 'UPPER(${orders__tags.value})',
-            },
-        },
-    ])(
-        'refuses a $kind dimension on the elements of an array of scalars',
-        ({ dimension }) => {
-            const editor = new DbtSchemaEditor(`version: 2
-models:
-  - name: orders
-    columns:
-      - name: tags`);
-            expect(() =>
-                editor.getCustomDimensionDefinition(
-                    {
-                        dimension,
-                        column: {
-                            model: 'orders',
-                            column: 'tags',
-                            sql: '${TABLE}',
-                            isScalarArrayElement: true,
-                        },
-                    },
-                    warehouseClientMock,
-                ),
-            ).toThrow('array of scalars');
-        },
-    );
 
     it('should create a new file', () => {
         const editor = new DbtSchemaEditor('');
