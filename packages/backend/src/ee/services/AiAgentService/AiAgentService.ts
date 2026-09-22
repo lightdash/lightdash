@@ -12526,7 +12526,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         const simpleDataAnswer =
             canUseFastToolModel &&
-            !enableSqlMode &&
             !compactionSummary &&
             mcpServers.length === 0 &&
             adaptiveModels?.enabled
@@ -12540,7 +12539,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         if (
             canUseFastToolModel &&
-            !enableSqlMode &&
             !prompt.modelConfig?.modelName &&
             !prompt.modelConfig?.modelProvider &&
             !compactionSummary &&
