@@ -13,6 +13,7 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import { AiDecisionClient } from './AiDecisionClient';
 import {
+    isChartPresentationRequest,
     isChartQueryRefinementRequest,
     isChartUndoRequest,
     parseExactChartEdit,
@@ -52,15 +53,23 @@ const artifact: AiSemanticChartArtifactConfig = {
     },
 };
 
-const client = (edit: string, complete = 0.999, dimension = 'keep') =>
+const client = (
+    edit: string,
+    complete = 0.999,
+    dimension = 'keep',
+    editConfidence = 0.99,
+) =>
     new AiDecisionClient(
         { apiKey: 'test', model: 'test', timeoutMs: 100 },
         async () => {
             const choice = (_key: string, value: string) => ({
                 type: 'choice',
                 choice: value,
-                confidence: 0.99,
-                probabilities: { [value]: 1 },
+                confidence: editConfidence,
+                probabilities:
+                    value === 'none'
+                        ? { none: 1 }
+                        : { [value]: editConfidence, none: 1 - editConfidence },
             });
             let grouping = 'split';
             if (dimension === 'keep') grouping = 'keep';
@@ -232,6 +241,139 @@ describe('chart edits', () => {
             yAxisMetrics: ['orders_revenue'],
             groupBy: null,
             xAxisType: 'category',
+        });
+    });
+
+    it('uses JEV to atomically add a dimension and change presentation', async () => {
+        const table = structuredClone(artifact);
+        if (!table.config.chartConfig) throw new Error('Expected chart config');
+        table.config.chartConfig = {
+            ...(table.config.chartConfig as ToolRunQueryBuiltinChartConfig),
+            defaultVizType: 'table',
+        };
+        const explore = structuredClone(refinementExplore) as Explore;
+        explore.tables.orders.dimensions.status = {
+            name: 'status',
+            table: 'orders',
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            label: 'Order status',
+        } as never;
+
+        const result = await resolveChartEdit({
+            decisions: client('bar', 0.89, 'keep', 0.85),
+            prompt: 'add status to the bar chart',
+            artifact: table,
+            explore,
+            allowQueryRefinements: true,
+        });
+
+        expect(result?.config.config.queryConfig.dimensions).toEqual([
+            'orders_date',
+            'orders_region',
+            'orders_status',
+        ]);
+        expect(result?.config.config.chartConfig).toMatchObject({
+            defaultVizType: 'bar',
+            xAxisDimension: 'orders_date',
+            groupBy: ['orders_region', 'orders_status'],
+        });
+        expect(result?.response).toBe(
+            'Added **Order status** and updated the chart.',
+        );
+    });
+
+    it('falls back when shorthand matches multiple dimensions', async () => {
+        const explore = structuredClone(refinementExplore) as Explore;
+        explore.tables.orders.dimensions.order_status = {
+            name: 'order_status',
+            table: 'orders',
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            label: 'Order status',
+        } as never;
+        explore.tables.orders.dimensions.shipment_status = {
+            name: 'shipment_status',
+            table: 'orders',
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            label: 'Shipment status',
+        } as never;
+
+        await expect(
+            resolveChartEdit({
+                decisions: client('bar'),
+                prompt: 'add status to the bar chart',
+                artifact,
+                explore,
+                allowQueryRefinements: true,
+            }),
+        ).resolves.toBeNull();
+    });
+
+    it('uses JEV to add a dimension while keeping presentation', async () => {
+        const explore = structuredClone(refinementExplore) as Explore;
+        explore.tables.orders.dimensions.status = {
+            name: 'status',
+            table: 'orders',
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            label: 'Status',
+        } as never;
+
+        const result = await resolveChartEdit({
+            decisions: client('keep'),
+            prompt: 'add status to the chart',
+            artifact,
+            explore,
+            allowQueryRefinements: true,
+        });
+
+        expect(result?.config.config.queryConfig.dimensions).toEqual([
+            'orders_date',
+            'orders_region',
+            'orders_status',
+        ]);
+        expect(result?.config.config.chartConfig).toMatchObject({
+            defaultVizType: 'bar',
+            groupBy: ['orders_region', 'orders_status'],
+        });
+    });
+
+    it('makes a newly added category visible on the axis when charting a table', async () => {
+        const table = structuredClone(artifact);
+        table.config.queryConfig.dimensions = ['orders_region'];
+        table.config.chartConfig = {
+            ...(table.config.chartConfig as ToolRunQueryBuiltinChartConfig),
+            defaultVizType: 'table',
+            xAxisDimension: 'orders_region',
+            groupBy: null,
+            xAxisType: 'category',
+            xAxisLabel: 'Region',
+        };
+        const explore = structuredClone(refinementExplore) as Explore;
+        explore.tables.orders.dimensions.status = {
+            name: 'status',
+            table: 'orders',
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            label: 'Order status',
+        } as never;
+
+        const result = await resolveChartEdit({
+            decisions: client('bar', 0.89, 'keep', 0.85),
+            prompt: 'add status to the bar chart',
+            artifact: table,
+            explore,
+            allowQueryRefinements: true,
+        });
+
+        expect(result?.config.config.chartConfig).toMatchObject({
+            defaultVizType: 'bar',
+            xAxisDimension: 'orders_status',
+            groupBy: ['orders_region'],
+            xAxisType: 'category',
+            xAxisLabel: 'Order status',
         });
     });
 
@@ -489,6 +631,45 @@ describe('chart edits', () => {
             lineType: 'area',
         });
     });
+
+    it('accepts a confident JEV edit when the completeness score is conservatively calibrated', async () => {
+        const result = await resolveChartEdit({
+            decisions: client('bar', 0.91),
+            prompt: 'Could you turn this into bars?',
+            artifact,
+        });
+
+        expect(result?.config.config.chartConfig).toMatchObject({
+            defaultVizType: 'bar',
+        });
+    });
+
+    it('rejects a JEV edit below the completeness threshold', async () => {
+        await expect(
+            resolveChartEdit({
+                decisions: client('bar', 0.89),
+                prompt: 'Could you turn this into bars?',
+                artifact,
+            }),
+        ).resolves.toBeNull();
+    });
+
+    it.each([
+        'Could you turn this into bars?',
+        'Show this as a bar graph',
+        'A line chart would be clearer',
+        'Use a table instead',
+        'Prefer a pie chart',
+    ])('routes natural chart wording to JEV: %s', (prompt) => {
+        expect(isChartPresentationRequest(prompt)).toBe(true);
+    });
+
+    it.each(['Explain bar charts', 'What is a line graph?'])(
+        'does not route chart explanations to JEV: %s',
+        (prompt) => {
+            expect(isChartPresentationRequest(prompt)).toBe(false);
+        },
+    );
 
     it('falls back when the requested change also needs new data', async () => {
         expect(

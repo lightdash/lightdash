@@ -89,7 +89,7 @@ export const BattleModeSetup: FC<Props> = ({
         {enabled && (
             <Text size="xs" c="dimmed" mt={6}>
                 {battleType === 'speed'
-                    ? 'Same prompt and model. A uses JEV plus fast/adaptive features; B is the baseline. Replies continue both threads side by side.'
+                    ? 'Same prompt and model. A uses the complete JEV fast path; B is the baseline. Replies continue both threads side by side.'
                     : 'Your prompt is sent to both models in separate threads. Replies continue both sides with timing and token usage.'}
             </Text>
         )}

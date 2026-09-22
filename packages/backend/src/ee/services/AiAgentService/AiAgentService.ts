@@ -12179,33 +12179,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const decisions = decisionUsage
             ? decisionClient?.withUsage(decisionUsage)
             : undefined;
-        let adaptiveModelsEnabled: boolean | undefined;
-        const getAdaptiveModelsEnabled = async () => {
-            if (adaptiveModelsEnabled !== undefined)
-                return adaptiveModelsEnabled;
-            if (battleProfile) {
-                adaptiveModelsEnabled = battleProfile === 'fast';
-            } else if (decisions) {
-                adaptiveModelsEnabled = (
-                    await this.featureFlagService
-                        .get({
-                            user,
-                            featureFlagId: FeatureFlags.AiAgentAdaptiveModels,
-                        })
-                        .catch(() => ({ enabled: false }))
-                ).enabled;
-            } else {
-                adaptiveModelsEnabled = false;
-            }
-            return adaptiveModelsEnabled;
-        };
+        // The JEV decision client is the single gate for the complete fast
+        // experience. Battle mode overrides that same gate per side.
+        const fastExperienceEnabled = decisions !== undefined;
         const queryRefinementRequest =
             isChartQueryRefinementRequest(prompt.prompt) ||
-            isChartUndoRequest(prompt.prompt);
+            isChartUndoRequest(prompt.prompt) ||
+            getChartSegmentationQuery(prompt.prompt) !== null;
         const allowQueryRefinements =
-            queryRefinementRequest &&
-            decisions !== undefined &&
-            (await getAdaptiveModelsEnabled());
+            queryRefinementRequest && fastExperienceEnabled;
         if (
             decisions &&
             stream &&
@@ -12664,16 +12646,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
         });
         const initialModelId = modelProperties.model.modelId;
 
-        // AiAgentFastDecisions is the master switch for the bounded fast
-        // experience, including its smaller tool-call model. The separate
-        // adaptive-model flag only controls replacing the main response model.
+        // AiAgentFastDecisions is the single switch for bounded decisions,
+        // query refinements, fast tool calls and adaptive model selection.
         const canUseFastToolModel =
             !!decisions &&
             responseExecution.mode === 'standard' &&
             prompt.modelConfig?.reasoning !== true &&
             !options.toolHints?.length;
         const adaptiveModels = canUseFastToolModel
-            ? { enabled: await getAdaptiveModelsEnabled() }
+            ? { enabled: fastExperienceEnabled }
             : null;
         let toolCallModel: AiAgentArgs['toolCallModel'];
         if (canUseFastToolModel) {

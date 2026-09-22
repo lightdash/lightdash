@@ -126,9 +126,7 @@ const AiAgentBattlePage: FC = () => {
                 <Box flex={1} miw={0} h="100%">
                     <BattleThreadPane
                         label={
-                            threadA.battleProfile === 'fast'
-                                ? 'JEV + flags'
-                                : 'A'
+                            threadA.battleProfile === 'fast' ? 'JEV on' : 'A'
                         }
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
