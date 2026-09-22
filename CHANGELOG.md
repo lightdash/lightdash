@@ -1,3 +1,10 @@
+# [2.296.0](https://github.com/lightdash/lightdash/compare/2.295.0...2.296.0) (2026-09-22)
+
+
+### Features
+
+* start Chart Studio from a saved chart ([#29731](https://github.com/lightdash/lightdash/issues/29731)) ([fb85f97](https://github.com/lightdash/lightdash/commit/fb85f9788f644b18d09709bc260943edff1f3f80))
+
 # [2.295.0](https://github.com/lightdash/lightdash/compare/2.294.1...2.295.0) (2026-09-22)
 
 
