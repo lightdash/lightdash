@@ -24,26 +24,21 @@
     overflow: hidden;
 }
 
-.selectedChartButton {
-    display: flex;
-    flex: 1 1 auto;
-    min-width: 0;
-    align-items: center;
-    gap: var(--mantine-spacing-sm);
-    text-align: left;
-}
-
-.selectedChartButton:focus-visible {
-    outline: 2px solid var(--mantine-primary-color-filled);
-    outline-offset: 2px;
-}
-
 .buttonAnchor {
     font-family: inherit;
     color: var(--mantine-color-dimmed);
 }
 
-.selectedChartButton:hover .buttonAnchor,
 .buttonAnchor:hover {
     color: var(--mantine-color-text);
+}
+
+.thumbnailButton {
+    flex-shrink: 0;
+    border-radius: var(--mantine-radius-sm);
+}
+
+.thumbnailButton:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
 }

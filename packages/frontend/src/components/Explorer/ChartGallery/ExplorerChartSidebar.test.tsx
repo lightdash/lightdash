@@ -129,25 +129,29 @@ describe('ExplorerChartSidebar', () => {
         ).toHaveLength(1);
     });
 
-    it('makes the selected chart thumbnail and name change the chart type', async () => {
+    it('opens the gallery from the thumbnail and restores keyboard focus', async () => {
         renderSidebar(
             <ExplorerChartSidebar
                 chartType={ChartType.TABLE}
                 onClose={vi.fn()}
             />,
         );
-
-        const changeButton = screen.getByRole('button', {
-            name: 'Change chart type',
+        const thumbnail = screen.getByRole('button', {
+            name: 'Choose chart type',
         });
-        expect(changeButton).toContainElement(
-            screen.getByText('Table thumbnail'),
+        expect(thumbnail).toContainElement(screen.getByText('Table thumbnail'));
+        expect(thumbnail).not.toContainElement(screen.getByText('Table'));
+        thumbnail.focus();
+        await userEvent.keyboard('{Enter}');
+        expect(
+            screen.getByRole('textbox', { name: 'Search chart types' }),
+        ).toHaveFocus();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Configure Table' }),
         );
-        expect(changeButton).toContainElement(screen.getByText('Table'));
-
-        await userEvent.click(screen.getByText('Table'));
-
-        expect(screen.getByText('Choose chart type')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Choose chart type' }),
+        ).toHaveFocus();
     });
 
     it('configures the selected chart without changing its state and restores focus', async () => {
@@ -485,6 +489,9 @@ describe('ExplorerChartSidebar', () => {
 
         expect(screen.getByText('Configure controls')).toBeInTheDocument();
         expect(screen.getByText('New chart type')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Choose chart type' }),
+        ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Change chart type' }),
         ).not.toBeInTheDocument();
