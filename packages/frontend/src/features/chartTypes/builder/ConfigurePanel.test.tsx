@@ -138,16 +138,12 @@ describe('ConfigurePanel', () => {
         expect(within(generalPanel).getByText('dimension')).toBeInTheDocument();
         expect(within(generalPanel).getAllByText('Y axis')).not.toHaveLength(0);
         expect(within(generalPanel).getByText('metric')).toBeInTheDocument();
-        expect(
-            screen.getByText('The category plotted across the chart.'),
-        ).toBeVisible();
-        expect(screen.getByText('Sample data')).toBeVisible();
+        expect(screen.getByLabelText('About X axis')).toBeInTheDocument();
         expect(screen.getByText('View sample data · 6 rows')).toBeVisible();
         // Required is conveyed with text, not colour alone.
         expect(screen.getByText('Required')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('tab', { name: 'Display' }));
         expect(screen.queryByText('Chart inputs')).not.toBeInTheDocument();
-        expect(screen.queryByText('Sample data')).not.toBeInTheDocument();
     });
 
     it('reveals only declared chart guidance on demand', async () => {
@@ -164,7 +160,7 @@ describe('ConfigurePanel', () => {
             name: 'View sample data · 6 rows',
         });
         expect(sampleDataLauncher.compareDocumentPosition(disclosure)).toBe(
-            Node.DOCUMENT_POSITION_FOLLOWING,
+            Node.DOCUMENT_POSITION_PRECEDING,
         );
         expect(disclosure).toHaveAttribute('aria-expanded', 'false');
         expect(screen.getByText(guidance)).not.toBeVisible();

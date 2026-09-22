@@ -2,14 +2,17 @@ import {
     ECHARTS_DEFAULT_COLORS,
     type DataAppVizContext,
 } from '@lightdash/common';
-import { Box, Stack, Text, Title } from '@mantine/core';
+import { Box, Divider, Stack, Text, Title } from '@mantine/core';
 import { type FC, type ReactNode, type RefObject } from 'react';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import { type AppIframePreviewHandle } from '../../apps/AppIframePreview';
 import AppPreview from '../../apps/components/AppPreview';
 import { type SdkManifest } from '../../apps/hooks/useAppSdkBridge';
 import classes from './BuilderCanvas.module.css';
+import { type BuilderPromptExamples as ExamplePromptOverrides } from './builderExamplePrompts';
 import BuilderPromptExamples from './BuilderPromptExamples';
+import { type SavedChartSourceControls } from './savedChartSource';
+import SavedChartSourceCard from './SavedChartSourceCard';
 
 type Props = {
     projectUuid: string;
@@ -42,6 +45,10 @@ type Props = {
     };
     previewRef: RefObject<AppIframePreviewHandle | null>;
     onScreenshotAvailabilityChange: (available: boolean) => void;
+    /** The saved chart the session runs on; null on hosts that offer none. */
+    savedChartSource?: SavedChartSourceControls | null;
+    /** Starter prompts rewritten around that chart's fields. */
+    examplePrompts?: ExamplePromptOverrides | null;
 };
 
 /** Same footprint and viewBox as an example card's thumbnail, so the canvas
@@ -100,7 +107,10 @@ const BuilderCanvas: FC<Props> = ({
     elementPickerProps,
     previewRef,
     onScreenshotAvailabilityChange,
+    savedChartSource = null,
+    examplePrompts = null,
 }) => {
+    const attachedChart = savedChartSource?.attached ?? null;
     const hasPreview = appUuid !== null && previewVersion !== null;
     const isFirstBuild = isBuilding && !hasPreview;
 
@@ -176,15 +186,30 @@ const BuilderCanvas: FC<Props> = ({
                             Create with Chart Studio
                         </Title>
                         <Text fz="xs" c="dimmed" maw={400} ta="center" lh={1.5}>
-                            Describe the chart you’ve always wanted, or start
-                            from an example.
+                            {attachedChart
+                                ? 'Describe the chart you want. The examples below use fields from your saved chart.'
+                                : 'Describe the chart you’ve always wanted, or start from an example.'}
                         </Text>
                     </Stack>
+                    {attachedChart && savedChartSource && (
+                        <SavedChartSourceCard source={savedChartSource} />
+                    )}
                     {onPickExample && (
                         <BuilderPromptExamples
                             projectUuid={projectUuid}
                             onPick={onPickExample}
+                            prompts={examplePrompts}
                         />
+                    )}
+                    {savedChartSource && !attachedChart && (
+                        <>
+                            <Divider
+                                className={classes.sourceDivider}
+                                label="or start from your data"
+                                labelPosition="center"
+                            />
+                            <SavedChartSourceCard source={savedChartSource} />
+                        </>
                     )}
                 </Stack>
             )}

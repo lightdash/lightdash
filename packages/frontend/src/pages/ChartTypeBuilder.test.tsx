@@ -22,11 +22,13 @@ import {
 } from '../features/apps/hooks/useSdkUpgradeStatus';
 import { useUpgradeApp } from '../features/apps/hooks/useUpgradeApp';
 import { appVersion } from '../features/apps/testing/appVersionHistory';
+import { useSavedChartPreviewData } from '../features/chartTypes/builder/useSavedChartPreviewData';
 import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVizBuild } from '../features/chartTypes/hooks/useDataAppVizBuild';
 import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
 import { clarificationStub } from '../features/chartTypes/testing/clarificationRoundStub';
 import { buildStub } from '../features/chartTypes/testing/dataAppVizBuildStub';
+import { ChartColorMappingContext } from '../hooks/useChartColorConfig/context';
 import { useExplores } from '../hooks/useExplores';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
@@ -65,6 +67,9 @@ vi.mock('../features/chartTypes/hooks/useDataAppVizBuild', () => ({
 }));
 vi.mock('../features/chartTypes/hooks/useDataAppVisualization', () => ({
     useDataAppVisualization: vi.fn(),
+}));
+vi.mock('../features/chartTypes/builder/useSavedChartPreviewData', () => ({
+    useSavedChartPreviewData: vi.fn(),
 }));
 vi.mock('../features/apps/hooks/useClarificationRound', () => ({
     useClarificationRound: vi.fn(),
@@ -220,37 +225,39 @@ const setApp = (meta: AppMeta | null, error: unknown = null) =>
 
 const builderRoutes = (path: string) => (
     <MemoryRouter initialEntries={[path]}>
-        <LocationDisplay />
-        <Routes>
-            <Route
-                path="/projects/:projectUuid/chart-types/new"
-                element={<ChartTypeBuilder />}
-            />
-            <Route
-                path="/projects/:projectUuid/chart-types/:dataAppVizUuid"
-                element={<ChartTypeBuilder />}
-            />
-            <Route
-                path="/projects/:projectUuid/chart-types"
-                element={<div>gallery</div>}
-            />
-            <Route
-                path="/projects/:projectUuid/home"
-                element={<div>home</div>}
-            />
-            <Route
-                path="/projects/:projectUuid/apps/:appUuid"
-                element={<div>app-builder</div>}
-            />
-            <Route
-                path="/projects/:projectUuid/tables"
-                element={<div>table-picker</div>}
-            />
-            <Route
-                path="/projects/:projectUuid/tables/:tableId"
-                element={<div>explorer</div>}
-            />
-        </Routes>
+        <ChartColorMappingContext.Provider value={{ colorMappings: new Map() }}>
+            <LocationDisplay />
+            <Routes>
+                <Route
+                    path="/projects/:projectUuid/chart-types/new"
+                    element={<ChartTypeBuilder />}
+                />
+                <Route
+                    path="/projects/:projectUuid/chart-types/:dataAppVizUuid"
+                    element={<ChartTypeBuilder />}
+                />
+                <Route
+                    path="/projects/:projectUuid/chart-types"
+                    element={<div>gallery</div>}
+                />
+                <Route
+                    path="/projects/:projectUuid/home"
+                    element={<div>home</div>}
+                />
+                <Route
+                    path="/projects/:projectUuid/apps/:appUuid"
+                    element={<div>app-builder</div>}
+                />
+                <Route
+                    path="/projects/:projectUuid/tables"
+                    element={<div>table-picker</div>}
+                />
+                <Route
+                    path="/projects/:projectUuid/tables/:tableId"
+                    element={<div>explorer</div>}
+                />
+            </Routes>
+        </ChartColorMappingContext.Provider>
     </MemoryRouter>
 );
 
@@ -295,6 +302,10 @@ describe('ChartTypeBuilder', () => {
         vi.mocked(useDataAppVisualization).mockReturnValue({
             data: undefined,
         } as ReturnType<typeof useDataAppVisualization>);
+        vi.mocked(useSavedChartPreviewData).mockReturnValue({
+            data: { status: 'notRun' },
+            retry: vi.fn(),
+        });
         setApp(null);
         vi.mocked(useAppVersionHistory).mockReturnValue(historyStub([], null));
         vi.mocked(useSdkUpgradeStatus).mockReturnValue({
@@ -313,6 +324,66 @@ describe('ChartTypeBuilder', () => {
         renderBuilder('/projects/p1/chart-types/new');
 
         expect(screen.getByText('home')).toBeInTheDocument();
+    });
+
+    it.each([
+        {
+            name: 'the data apps feature is disabled',
+            path: '/projects/p1/chart-types/new',
+            prepare: () => setFlag(false),
+        },
+        {
+            name: 'the data apps feature flag is loading',
+            path: '/projects/p1/chart-types/new',
+            prepare: () =>
+                vi.mocked(useServerFeatureFlag).mockReturnValue({
+                    data: undefined,
+                    isLoading: true,
+                } as ReturnType<typeof useServerFeatureFlag>),
+        },
+        {
+            name: 'the author cannot create chart types',
+            path: '/projects/p1/chart-types/new',
+            prepare: () =>
+                vi.mocked(useCanCreateDataApp).mockReturnValue(false),
+        },
+        {
+            name: 'the author cannot edit the chart type',
+            path: '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            prepare: () => {
+                setApp(appMeta());
+                vi.mocked(useCanEditDataApp).mockReturnValue(false);
+            },
+        },
+        {
+            name: 'the edit chart metadata is still loading',
+            path: '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            prepare: () => undefined,
+        },
+        {
+            name: 'the app is not a chart type',
+            path: '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            prepare: () =>
+                setApp(
+                    appMeta({ template: 'dashboard' as AppMeta['template'] }),
+                ),
+        },
+        {
+            name: 'the chart type is registry installed',
+            path: '/projects/p1/chart-types/1e9a3b2c-0000-4000-8000-000000000001',
+            prepare: () => setApp(appMeta({ registrySlug: 'radial-gauge' })),
+        },
+    ])('does not run a saved chart query while $name', ({ path, prepare }) => {
+        const savedChartUuid = '1e9a3b2c-0000-4000-8000-000000000010';
+        prepare();
+
+        renderBuilder(`${path}?savedChartUuid=${savedChartUuid}`);
+
+        expect(useSavedChartPreviewData).toHaveBeenCalledWith({
+            projectUuid: 'p1',
+            savedChartUuid,
+            enabled: false,
+        });
     });
 
     it('sends users who cannot create back to the gallery', () => {
@@ -529,6 +600,181 @@ describe('ChartTypeBuilder', () => {
 
         expect(screen.getByTestId('location')).toHaveTextContent(
             `/projects/jaffle-shop/chart-types/1e9a3b2c-0000-4000-8000-000000000009${search}`,
+        );
+    });
+
+    it('preserves the saved chart source when the create route adopts the app', () => {
+        vi.mocked(useDataAppVizBuild).mockReturnValue(
+            buildStub({
+                isBuilding: true,
+                appUuid: '1e9a3b2c-0000-4000-8000-000000000009',
+                claimedVersion: 1,
+                pendingPrompt: 'a stream graph of category share',
+            }),
+        );
+        const savedChartUuid = '1e9a3b2c-0000-4000-8000-000000000010';
+
+        renderBuilder(
+            `/projects/p1/chart-types/new?savedChartUuid=${savedChartUuid}`,
+        );
+
+        expect(screen.getByTestId('location')).toHaveTextContent(
+            `/projects/jaffle-shop/chart-types/1e9a3b2c-0000-4000-8000-000000000009?savedChartUuid=${savedChartUuid}`,
+        );
+    });
+
+    it('pauses and resumes the saved chart query while create adopts its uuid', () => {
+        const savedChartUuid = '1e9a3b2c-0000-4000-8000-000000000010';
+        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000009';
+        vi.mocked(useDataAppVizBuild).mockReturnValue(
+            buildStub({
+                isBuilding: true,
+                appUuid: dataAppVizUuid,
+                claimedVersion: 1,
+                pendingPrompt: 'a stream graph of category share',
+            }),
+        );
+
+        const view = renderBuilder(
+            `/projects/p1/chart-types/new?savedChartUuid=${savedChartUuid}`,
+        );
+
+        expect(useSavedChartPreviewData).toHaveBeenCalledWith({
+            projectUuid: 'p1',
+            savedChartUuid,
+            enabled: true,
+        });
+        expect(useSavedChartPreviewData).toHaveBeenLastCalledWith({
+            projectUuid: 'p1',
+            savedChartUuid,
+            enabled: false,
+        });
+
+        setApp(appMeta({ appUuid: dataAppVizUuid }));
+        view.rerender(
+            builderRoutes(
+                `/projects/jaffle-shop/chart-types/${dataAppVizUuid}?savedChartUuid=${savedChartUuid}`,
+            ),
+        );
+
+        expect(useSavedChartPreviewData).toHaveBeenLastCalledWith({
+            projectUuid: 'p1',
+            savedChartUuid,
+            enabled: true,
+        });
+        expect(screen.getByTestId('location')).toHaveTextContent(
+            `?savedChartUuid=${savedChartUuid}`,
+        );
+    });
+
+    it('uses a saved chart without sending its rows by default', () => {
+        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
+        const savedChartUuid = '1e9a3b2c-0000-4000-8000-000000000010';
+        setApp(appMeta({ appUuid: dataAppVizUuid }));
+        vi.mocked(useSavedChartPreviewData).mockReturnValue({
+            data: {
+                status: 'ready',
+                chartName: 'Orders by status',
+                spaceName: 'Sales',
+                rows: [],
+                itemsMap: {},
+                columns: [],
+                pivotDetails: null,
+                rowCount: 0,
+                ranAt: new Date('2026-09-22T00:00:00.000Z'),
+            },
+            retry: vi.fn(),
+        });
+
+        renderBuilder(
+            `/projects/p1/chart-types/${dataAppVizUuid}?savedChartUuid=${savedChartUuid}`,
+        );
+
+        expect(useDataAppVizBuild).toHaveBeenCalledWith(
+            expect.objectContaining({
+                chartReference: {
+                    uuid: savedChartUuid,
+                    includeSampleData: false,
+                },
+            }),
+        );
+    });
+
+    it('clears sample row consent when the saved chart is detached', () => {
+        const savedChartUuid = '1e9a3b2c-0000-4000-8000-000000000010';
+        vi.mocked(useSavedChartPreviewData).mockReturnValue({
+            data: {
+                status: 'ready',
+                chartName: 'Orders by status',
+                spaceName: 'Sales',
+                rows: [],
+                itemsMap: {},
+                columns: [],
+                pivotDetails: null,
+                rowCount: 0,
+                ranAt: new Date('2026-09-22T00:00:00.000Z'),
+            },
+            retry: vi.fn(),
+        });
+        renderBuilder(
+            `/projects/p1/chart-types/new?savedChartUuid=${savedChartUuid}`,
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Include sample data' }),
+        );
+        expect(screen.getByText(/Sample data included/)).toBeInTheDocument();
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Use sample data instead' }),
+        );
+
+        expect(screen.getByTestId('location')).not.toHaveTextContent(
+            'savedChartUuid',
+        );
+        expect(screen.getByText(/Rows aren’t sent/)).toBeInTheDocument();
+    });
+
+    it('keeps an attached saved chart when the author switches the preview to sample data', () => {
+        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
+        const savedChartUuid = '1e9a3b2c-0000-4000-8000-000000000010';
+        setApp(appMeta({ appUuid: dataAppVizUuid }));
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1 })], 1),
+        );
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: {
+                schema: { fields: [], configOptions: [], colorPalette: null },
+            },
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
+        vi.mocked(useSavedChartPreviewData).mockReturnValue({
+            data: {
+                status: 'ready',
+                chartName: 'Orders by status',
+                spaceName: 'Sales',
+                rows: [],
+                itemsMap: {},
+                columns: [],
+                pivotDetails: null,
+                rowCount: 0,
+                ranAt: new Date('2026-09-22T00:00:00.000Z'),
+            },
+            retry: vi.fn(),
+        });
+
+        renderBuilder(
+            `/projects/p1/chart-types/${dataAppVizUuid}?savedChartUuid=${savedChartUuid}`,
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Use sample data' }),
+        );
+
+        expect(
+            screen.getByRole('button', { name: 'Use saved chart' }),
+        ).toBeInTheDocument();
+        expect(screen.getByTestId('location')).toHaveTextContent(
+            `?savedChartUuid=${savedChartUuid}`,
         );
     });
 

@@ -1,0 +1,51 @@
+/* Dashed while nothing is attached: an offer, not a selection. */
+.emptyChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 8px 0 6px;
+    border: 1px dashed var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-xl);
+    color: var(--mantine-color-ldGray-7);
+}
+
+.emptyChip:hover:not(:disabled) {
+    background: var(--mantine-color-default-hover);
+}
+
+.emptyChip:disabled {
+    opacity: 0.5;
+}
+
+/* One meaning: which chart. Everything else lives in its menu. */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    max-width: 260px;
+    padding: 0 6px 0 6px;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-xl);
+    color: var(--mantine-color-ldGray-7);
+}
+
+.chip:hover:not(:disabled) {
+    background: var(--mantine-color-default-hover);
+}
+
+.chip:disabled {
+    opacity: 0.5;
+}
+
+.chipLabel {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chipChevron {
+    color: var(--mantine-color-dimmed);
+    flex-shrink: 0;
+}

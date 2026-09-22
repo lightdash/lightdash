@@ -52,6 +52,7 @@ import {
     useState,
     type ClipboardEvent,
     type FC,
+    type ReactNode,
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
@@ -63,6 +64,7 @@ import { useInfiniteContent } from '../../hooks/useContent';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
+import scrollAreaClasses from '../../styles/ScrollArea.module.css';
 import { useAppExternalConnections } from '../externalConnections/hooks/useAppExternalConnections';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
 import { useUnlinkAppExternalConnection } from '../externalConnections/hooks/useUnlinkAppExternalConnection';
@@ -296,7 +298,7 @@ const useLinkPasteHandler = (
  * Selecting a chart adds it to the parent and keeps the picker open so
  * multiple can be added in one flow.
  */
-const QueryPickerView: FC<{
+export const QueryPickerView: FC<{
     selectedCharts: SelectedChart[];
     onSelect: (chart: SelectedChart) => void;
     onDeselect: (uuid: string) => void;
@@ -304,6 +306,8 @@ const QueryPickerView: FC<{
     enabled: boolean;
     attachFromLink: AttachFromLink;
     isResolvingLink: boolean;
+    /** Replaces the Done button for surfaces that attach on the pick itself. */
+    footer?: ReactNode;
 }> = ({
     selectedCharts,
     onSelect,
@@ -312,6 +316,7 @@ const QueryPickerView: FC<{
     enabled,
     attachFromLink,
     isResolvingLink,
+    footer,
 }) => {
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState('');
@@ -395,7 +400,13 @@ const QueryPickerView: FC<{
                     autoFocus
                 />
             </Box>
-            <ScrollArea.Autosize mah={350} px="xs" pb="xs">
+            <ScrollArea.Autosize
+                mah={350}
+                px="xs"
+                pb="xs"
+                scrollbars="y"
+                classNames={{ content: scrollAreaClasses.verticalContent }}
+            >
                 {isInitialLoading ? (
                     <Group justify="center" p="sm">
                         <Loader size="sm" />
@@ -478,9 +489,11 @@ const QueryPickerView: FC<{
                 )}
             </ScrollArea.Autosize>
             <Box className={classes.attachPickerFooter}>
-                <Button size="compact-xs" onClick={onDone}>
-                    Done
-                </Button>
+                {footer ?? (
+                    <Button size="compact-xs" onClick={onDone}>
+                        Done
+                    </Button>
+                )}
             </Box>
         </>
     );

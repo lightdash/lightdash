@@ -1,10 +1,3 @@
-.sampleChip {
-    padding: 2px var(--mantine-spacing-xs);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-xl);
-    color: var(--mantine-color-dimmed);
-}
-
 .field {
     padding-bottom: var(--mantine-spacing-xs);
     border-bottom: 1px solid var(--mantine-color-default-border);
@@ -15,10 +8,10 @@
     border-bottom: 0;
 }
 
-.fieldDescription {
-    margin-top: 2px;
-}
-
 .fieldLabel {
     min-width: 0;
+}
+
+.fieldControl {
+    margin-top: var(--mantine-spacing-xs);
 }

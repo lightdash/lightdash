@@ -218,6 +218,8 @@ const workspaceStub = (
     toggleHistory: vi.fn(),
     isPromptBarMounted: true,
     promptSessionKey: 'viz-1',
+    includeSampleData: false,
+    setIncludeSampleData: vi.fn(),
     composerAppUuid: 'viz-1',
     sdkUpgradeOffer: {
         status: 'unknown',
