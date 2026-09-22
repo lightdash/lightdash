@@ -1,3 +1,10 @@
+# [2.288.0](https://github.com/lightdash/lightdash/compare/2.287.1...2.288.0) (2026-09-22)
+
+
+### Features
+
+* **chart-types:** browse the library in a modal from the Explorer picker ([#29688](https://github.com/lightdash/lightdash/issues/29688)) ([a34e1e7](https://github.com/lightdash/lightdash/commit/a34e1e7a06a7dd59ae77e481f4751722cd13fe6e))
+
 ## [2.287.1](https://github.com/lightdash/lightdash/compare/2.287.0...2.287.1) (2026-09-22)
 
 
