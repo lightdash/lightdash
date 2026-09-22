@@ -19,7 +19,11 @@ import {
     IconSend,
     type Icon,
 } from '@tabler/icons-react';
-import { type AnchorHTMLAttributes, type ReactNode } from 'react';
+import {
+    type AnchorHTMLAttributes,
+    type MouseEventHandler,
+    type ReactNode,
+} from 'react';
 import { Link, type LinkProps } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
@@ -213,6 +217,26 @@ export const ContentReferenceLink = ({
         td: 'none',
         classNames: { root: styles.contentLink },
     };
+
+    // A chip that acts in place (opens a panel, navigates inside an embed)
+    // has no destination to link to.
+    if (!to && props.onClick) {
+        const { href, onClick, rel, target, ...buttonProps } = anchorProps;
+        return (
+            <Anchor
+                {...buttonProps}
+                component="button"
+                type="button"
+                // The handler only reacts to the click; the element type differs.
+                onClick={
+                    onClick as unknown as MouseEventHandler<HTMLButtonElement>
+                }
+                data-content-link="true"
+            >
+                {content}
+            </Anchor>
+        );
+    }
 
     // With no destination, render a plain span — no link semantics, no pointer,
     // no hover — so the chip reads as a static reference, not a clickable link.

@@ -16,6 +16,13 @@ export const getAiAgentThreadPath = (
     threadUuid: string,
 ) => `${getAiAgentPageBase(projectUuid)}/${agentUuid}/threads/${threadUuid}`;
 
+/** Where an embedded AI agent opens a saved dashboard it references. */
+export const getEmbedAiAgentDashboardPath = (
+    projectUuid: string,
+    agentUuid: string,
+    dashboardUuid: string,
+) => `/embed/${projectUuid}/ai-agents/${agentUuid}/dashboards/${dashboardUuid}`;
+
 /** The thread on a full-page thread route, or null elsewhere. */
 export const getThreadUuidFromPathname = (pathname: string): string | null =>
     pathname.match(/\/ai-agents\/[^/]+\/threads\/([^/]+)/)?.[1] ?? null;

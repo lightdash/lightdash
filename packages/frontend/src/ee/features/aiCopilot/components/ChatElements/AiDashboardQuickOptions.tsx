@@ -14,6 +14,7 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
+import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
 import { AiDashboardSaveModal } from './AiDashboardSaveModal';
 
 type Props = {
@@ -30,6 +31,7 @@ export const AiDashboardQuickOptions: FC<Props> = ({
     dashboardConfig,
 }) => {
     const authoringEnabled = useContentAuthoringEnabled();
+    const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
     const [isModalOpen, setIsModalOpen] = useState(false);
     // The save modal only lists spaces the user can write to, so without one
     // the option opens an empty space picker.
@@ -46,16 +48,15 @@ export const AiDashboardQuickOptions: FC<Props> = ({
         setIsModalOpen(false);
     };
 
+    const { savedDashboardUuid } = artifactData;
+
     const handleSaveSuccess = (_dashboard: Dashboard) => {
         // TODO persist on artifact
         setIsModalOpen(false);
     };
 
     // Nothing to view and nothing to save leaves an empty dropdown.
-    if (
-        !artifactData.savedDashboardUuid &&
-        (!canSaveDashboard || !authoringEnabled)
-    ) {
+    if (!savedDashboardUuid && (!canSaveDashboard || !authoringEnabled)) {
         return null;
     }
 
@@ -69,17 +70,30 @@ export const AiDashboardQuickOptions: FC<Props> = ({
                 </Menu.Target>
                 <Menu.Dropdown>
                     <Menu.Label>Quick actions</Menu.Label>
-                    {artifactData.savedDashboardUuid ? (
-                        <Menu.Item
-                            component={Link}
-                            to={`/projects/${projectUuid}/dashboards/${artifactData.savedDashboardUuid}`}
-                            target="_blank"
-                            leftSection={
-                                <MantineIcon icon={IconTableShortcut} />
-                            }
-                        >
-                            View saved dashboard
-                        </Menu.Item>
+                    {savedDashboardUuid ? (
+                        openEmbedDashboard ? (
+                            <Menu.Item
+                                onClick={() =>
+                                    openEmbedDashboard(savedDashboardUuid)
+                                }
+                                leftSection={
+                                    <MantineIcon icon={IconTableShortcut} />
+                                }
+                            >
+                                View saved dashboard
+                            </Menu.Item>
+                        ) : (
+                            <Menu.Item
+                                component={Link}
+                                to={`/projects/${projectUuid}/dashboards/${savedDashboardUuid}`}
+                                target="_blank"
+                                leftSection={
+                                    <MantineIcon icon={IconTableShortcut} />
+                                }
+                            >
+                                View saved dashboard
+                            </Menu.Item>
+                        )
                     ) : (
                         canSaveDashboard && (
                             <Menu.Item
