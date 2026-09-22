@@ -125,6 +125,7 @@ describe('getExploreFromHereUrl', () => {
             ],
             joinType: MergeJoinType.LEFT,
             repeatValuesSourceIds: [],
+            tableCalculations: [],
         });
     });
 

@@ -1,10 +1,21 @@
-import { snakeCaseName, type MergeTableCalculation } from '@lightdash/common';
+import {
+    getItemId,
+    MERGE_TABLE_NAME,
+    snakeCaseName,
+    type MergeTableCalculation,
+} from '@lightdash/common';
 import { extractColumnRefs, parse } from '@lightdash/formula';
 import { Stack, Text, TextInput } from '@mantine/core';
 import { IconCalculator } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { type FieldSuggestionItem } from '../../../components/common/SuggestionList';
+import {
+    explorerActions,
+    selectSorts,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../explorer/store';
 import { FormulaEditor } from '../../tableCalculation/components/FormulaForm/FormulaEditor';
 import { useMerge } from '../context/useMerge';
 import { getMergeTableCalculationSuggestions } from '../utils/getMergeTableCalculationSuggestions';
@@ -36,6 +47,8 @@ export const MergeTableCalculationModal: FC<{
     tableCalculation?: MergeTableCalculation;
 }> = ({ opened, onClose, tableCalculation }) => {
     const merge = useMerge();
+    const dispatch = useExplorerDispatch();
+    const sorts = useExplorerSelector(selectSorts);
     const [displayName, setDisplayName] = useState(
         tableCalculation?.displayName ?? '',
     );
@@ -99,6 +112,25 @@ export const MergeTableCalculationModal: FC<{
         };
         if (tableCalculation) {
             merge.updateTableCalculation(tableCalculation.name, calculation);
+            if (tableCalculation.name !== calculation.name) {
+                const oldFieldId = getItemId({
+                    table: MERGE_TABLE_NAME,
+                    name: tableCalculation.name,
+                });
+                const newFieldId = getItemId({
+                    table: MERGE_TABLE_NAME,
+                    name: calculation.name,
+                });
+                dispatch(
+                    explorerActions.setSortFields(
+                        sorts.map((sort) =>
+                            sort.fieldId === oldFieldId
+                                ? { ...sort, fieldId: newFieldId }
+                                : sort,
+                        ),
+                    ),
+                );
+            }
         } else {
             merge.addTableCalculation(calculation);
         }
@@ -164,6 +196,8 @@ export const DeleteMergeTableCalculationModal: FC<{
     onClose: () => void;
 }> = ({ tableCalculation, onClose }) => {
     const merge = useMerge();
+    const dispatch = useExplorerDispatch();
+    const sorts = useExplorerSelector(selectSorts);
     return (
         <MantineModal
             opened
@@ -173,6 +207,15 @@ export const DeleteMergeTableCalculationModal: FC<{
             resourceType="table calculation"
             onConfirm={() => {
                 merge.removeTableCalculation(tableCalculation.name);
+                const fieldId = getItemId({
+                    table: MERGE_TABLE_NAME,
+                    name: tableCalculation.name,
+                });
+                dispatch(
+                    explorerActions.setSortFields(
+                        sorts.filter((sort) => sort.fieldId !== fieldId),
+                    ),
+                );
                 onClose();
             }}
         />
