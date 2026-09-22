@@ -55,7 +55,7 @@ const DocumentChartVisualization = ({
             <ReportChartFrame
                 ariaLabel={chart.name}
                 title={showTitle ? chart.name : undefined}
-                description={chart.description}
+                description={showTitle ? undefined : chart.description}
             >
                 <InlineErrorState
                     message={
@@ -82,7 +82,7 @@ const DocumentChartVisualization = ({
             <ReportChartFrame
                 ariaLabel={chart.name}
                 title={showTitle ? chart.name : undefined}
-                description={chart.description}
+                description={showTitle ? undefined : chart.description}
             >
                 <Text c="dimmed">
                     This chart type is not supported in documents.
@@ -95,7 +95,7 @@ const DocumentChartVisualization = ({
         <ReportChartFrame
             ariaLabel={chart.name}
             title={showTitle ? chart.name : undefined}
-            description={chart.description}
+            description={showTitle ? undefined : chart.description}
             actions={actions}
         >
             {isLoading ? (

@@ -130,6 +130,7 @@ describe('Document chart titles', () => {
     test('does not repeat the editor cell title when the frame title is hidden', () => {
         renderChart(semanticCell, false);
         expect(screen.queryByText('Orders')).not.toBeInTheDocument();
+        expect(screen.getByText('Daily order volume')).toBeInTheDocument();
         expect(
             screen.getByRole('figure', { name: 'Orders' }),
         ).toBeInTheDocument();
@@ -232,7 +233,7 @@ describe('Document chart titles', () => {
     });
 
     test.each(['loading', 'error', 'success'])(
-        'preserves the title and description exactly once while %s',
+        'shows the title without the description in reading mode while %s',
         (state) => {
             if (state === 'loading') {
                 mocks.query.data = undefined;
@@ -242,7 +243,9 @@ describe('Document chart titles', () => {
             }
             renderChart();
             expect(screen.getAllByText('Orders')).toHaveLength(1);
-            expect(screen.getAllByText('Daily order volume')).toHaveLength(1);
+            expect(
+                screen.queryByText('Daily order volume'),
+            ).not.toBeInTheDocument();
         },
     );
 
