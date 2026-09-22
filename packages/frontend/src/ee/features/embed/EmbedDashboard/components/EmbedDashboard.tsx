@@ -324,6 +324,15 @@ const EmbedDashboard: FC<{
         (c) => c.dashboardTemporaryFilters,
     );
     const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const setHaveFiltersChanged = useDashboardContext(
+        (c) => c.setHaveFiltersChanged,
+    );
+    const resetDashboardFilters = useDashboardContext(
+        (c) => c.resetDashboardFilters,
+    );
+    const isAddFilterDisabled = useDashboardContext(
+        (c) => c.isAddFilterDisabled,
+    );
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
@@ -395,11 +404,13 @@ const EmbedDashboard: FC<{
             setDraftDashboardName(updatedDashboard.name);
             setHaveTilesChanged(false);
             setHaveTabsChanged(false);
+            setHaveFiltersChanged(false);
             setIsEditMode(false);
         },
         [
             setDashboardTabs,
             setDashboardTiles,
+            setHaveFiltersChanged,
             setHaveTabsChanged,
             setHaveTilesChanged,
             setIsEditMode,
@@ -573,11 +584,16 @@ const EmbedDashboard: FC<{
     const [chartToEdit, setChartToEdit] = useState<SavedChart>();
     const hasDashboardNameChanged =
         !!dashboard && draftDashboardName.trim() !== dashboard.name;
+    const hasAddFilterDisabledChanged =
+        !!dashboard &&
+        (dashboard.config?.isAddFilterDisabled ?? false) !==
+            isAddFilterDisabled;
     const hasDashboardChanged =
         hasDashboardNameChanged ||
         haveTilesChanged ||
         haveFiltersChanged ||
-        haveTabsChanged;
+        haveTabsChanged ||
+        hasAddFilterDisabledChanged;
 
     const handleLayoutChange = useCallback(
         (layout: Layout[]) => {
@@ -713,10 +729,19 @@ const EmbedDashboard: FC<{
         }
     }, [isEditMode, resetDashboardDraft]);
 
+    // Filters are not part of resetDashboardDraft: it also runs on mount, where
+    // it would clobber the SDK/URL filter overrides the provider applies.
     const handleCancel = useCallback(() => {
         resetDashboardDraft();
+        resetDashboardFilters();
+        setHaveFiltersChanged(false);
         setIsEditMode(false);
-    }, [resetDashboardDraft, setIsEditMode]);
+    }, [
+        resetDashboardDraft,
+        resetDashboardFilters,
+        setHaveFiltersChanged,
+        setIsEditMode,
+    ]);
 
     const handleSaveDashboard = useCallback(() => {
         if (!dashboard) return;
@@ -743,7 +768,12 @@ const EmbedDashboard: FC<{
             ),
             name: draftDashboardName.trim() || dashboard.name,
             tabs: dashboardTabs,
-            config: dashboard.config,
+            config: {
+                ...dashboard.config,
+                isDateZoomDisabled:
+                    dashboard.config?.isDateZoomDisabled ?? false,
+                isAddFilterDisabled,
+            },
             parameters: dashboard.parameters,
         });
     }, [
@@ -751,6 +781,7 @@ const EmbedDashboard: FC<{
         dashboardFilters,
         dashboardTabs,
         dashboardTemporaryFilters,
+        isAddFilterDisabled,
         draftDashboardName,
         currentDashboardTiles,
         filterLabelOverrides,
@@ -926,6 +957,7 @@ const EmbedDashboard: FC<{
                         dashboard={dashboard}
                         projectUuid={projectUuid}
                         activeTiles={filteredTiles}
+                        isEditMode={canWriteDashboard && isEditMode}
                     />
                     {renderDashboardEditToolbar()}
                     <Box mt="lg">
@@ -948,6 +980,7 @@ const EmbedDashboard: FC<{
                         dashboard={dashboard}
                         projectUuid={projectUuid}
                         activeTiles={filteredTiles}
+                        isEditMode={canWriteDashboard && isEditMode}
                         tabs={
                             <Tabs.List px="lg">
                                 {visibleTabs.map((tab) => (
@@ -973,6 +1006,7 @@ const EmbedDashboard: FC<{
                         dashboard={dashboard}
                         projectUuid={projectUuid}
                         activeTiles={filteredTiles}
+                        isEditMode={canWriteDashboard && isEditMode}
                     />
                     {renderDashboardEditToolbar()}
                     {renderGridWithGuidedSetup()}

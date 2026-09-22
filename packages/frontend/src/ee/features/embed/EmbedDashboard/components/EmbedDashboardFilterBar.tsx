@@ -25,12 +25,14 @@ type Props = {
     shouldShowFilters: boolean;
     /** Tiles rendered on the active tab */
     activeTiles: DashboardTile[];
+    isEditMode?: boolean;
 };
 
 const EmbedDashboardFilterBar: FC<Props> = ({
     dashboard,
     shouldShowFilters,
     activeTiles,
+    isEditMode = false,
 }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -45,9 +47,14 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     const parametersEnabled = isParameterInteractivityEnabled(
         dashboard.parameterInteractivity,
     );
+    // `canAddFilters` governs viewers' temporary filters; an editor can always
+    // author saved filters, as in the app's edit mode.
     const canAddFilters =
         shouldShowFilters &&
-        canAddDashboardFiltersInEmbed(dashboard.dashboardFiltersInteractivity);
+        (isEditMode ||
+            canAddDashboardFiltersInEmbed(
+                dashboard.dashboardFiltersInteractivity,
+            ));
 
     const totalFiltersCount = shouldShowFilters
         ? dashboardFilters.dimensions.length +
@@ -108,7 +115,10 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                 miw={0}
             >
                 {shouldShowFilters && (
-                    <EmbedDashboardFilters canAddFilters={canAddFilters} />
+                    <EmbedDashboardFilters
+                        canAddFilters={canAddFilters}
+                        isEditMode={isEditMode}
+                    />
                 )}
                 {shouldShowFilters && hasVisibleParameters && (
                     <Divider

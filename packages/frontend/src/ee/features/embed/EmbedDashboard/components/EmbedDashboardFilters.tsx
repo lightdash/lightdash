@@ -14,9 +14,14 @@ import { embedContractClass } from '../../styles/embedClassContract';
 
 type Props = {
     canAddFilters?: boolean;
+    /** Dashboard edit mode via writeActions: filters become saved, removable and configurable */
+    isEditMode?: boolean;
 };
 
-const EmbedDashboardFilters: FC<Props> = ({ canAddFilters = false }) => {
+const EmbedDashboardFilters: FC<Props> = ({
+    canAddFilters = false,
+    isEditMode = false,
+}) => {
     const getUiString = useUiStrings();
     const { track } = useTracking();
     const [openPopoverId, setPopoverId] = useState<string>();
@@ -76,16 +81,18 @@ const EmbedDashboardFilters: FC<Props> = ({ canAddFilters = false }) => {
             const isMetricFilter = allFilterableMetrics?.some(
                 (m) => getItemId(m) === value.target.fieldId,
             );
+            const isTemporary = !isEditMode;
             if (isMetricFilter) {
-                addMetricDashboardFilter(value, true);
+                addMetricDashboardFilter(value, isTemporary);
             } else {
-                addDimensionDashboardFilter(value, true);
+                addDimensionDashboardFilter(value, isTemporary);
             }
         },
         [
             addDimensionDashboardFilter,
             addMetricDashboardFilter,
             allFilterableMetrics,
+            isEditMode,
             track,
         ],
     );
@@ -108,7 +115,7 @@ const EmbedDashboardFilters: FC<Props> = ({ canAddFilters = false }) => {
             <>
                 {canAddFilters && (
                     <AddFilterButton
-                        isEditMode={false}
+                        isEditMode={isEditMode}
                         activeTabUuid={activeTab?.uuid}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={handlePopoverOpen}
@@ -155,7 +162,7 @@ const EmbedDashboardFilters: FC<Props> = ({ canAddFilters = false }) => {
                     </Tooltip>
                 )}
                 <ActiveFilters
-                    isEditMode={false}
+                    isEditMode={isEditMode}
                     onPopoverOpen={handlePopoverOpen}
                     onPopoverClose={handlePopoverClose}
                     openPopoverId={openPopoverId}
