@@ -1,3 +1,10 @@
+## [2.288.3](https://github.com/lightdash/lightdash/compare/2.288.2...2.288.3) (2026-09-22)
+
+
+### Bug Fixes
+
+* clarify chart type restore version behavior ([#29719](https://github.com/lightdash/lightdash/issues/29719)) ([9bc2448](https://github.com/lightdash/lightdash/commit/9bc2448a1f544b67a619f7e4c66351048bf7310c))
+
 ## [2.288.2](https://github.com/lightdash/lightdash/compare/2.288.1...2.288.2) (2026-09-22)
 
 
