@@ -46,7 +46,6 @@ import {
     CachedWarehouse,
     DbtClient,
     ProjectAdapter,
-    type ExploreCompileOptions,
     type TrackingParams,
 } from '../types';
 
@@ -196,13 +195,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         trackingParams?: TrackingParams,
         loadSources: boolean = false,
         allowPartialCompilation: boolean = true,
-        compileOptions?: ExploreCompileOptions,
     ): Promise<(Explore | ExploreError)[]> {
         const stream = await this.prepareExploreStream(
             trackingParams,
             loadSources,
             allowPartialCompilation,
-            compileOptions,
         );
         const explores: (Explore | ExploreError)[] = [];
         for await (const explore of stream) explores.push(explore);
@@ -213,10 +210,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         trackingParams?: TrackingParams,
         loadSources: boolean = false,
         allowPartialCompilation: boolean = true,
-        compileOptions?: ExploreCompileOptions,
     ): Promise<AsyncIterable<Explore | ExploreError>> {
-        const unnestRepeatedColumns =
-            compileOptions?.unnestRepeatedColumns ?? false;
         Logger.debug('Install dependencies');
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
         if (this.dbtClient.installDeps !== undefined) {
@@ -358,7 +352,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     disableTimestampConversion,
                     allowPartialCompilation,
                     postProcessors,
-                    unnestRepeatedColumns,
                 },
             );
             return (async function* compiledExplores() {
@@ -421,7 +414,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                         disableTimestampConversion,
                         allowPartialCompilation,
                         postProcessors,
-                        unnestRepeatedColumns,
                     },
                 );
                 return (async function* compiledExplores() {

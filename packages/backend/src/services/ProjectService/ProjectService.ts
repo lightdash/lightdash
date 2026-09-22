@@ -353,11 +353,7 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
-import {
-    CachedWarehouse,
-    ProjectAdapter,
-    type ExploreCompileOptions,
-} from '../../types';
+import { CachedWarehouse, ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
@@ -3548,9 +3544,6 @@ export class ProjectService extends BaseService {
                                           trackingParams,
                                           false, // loadSources
                                           true, // allowPartialCompilation
-                                          await this.getExploreCompileOptions(
-                                              user,
-                                          ),
                                       );
                                   const compiledProjectConfig =
                                       await adapter.getLightdashProjectConfig(
@@ -4317,7 +4310,6 @@ export class ProjectService extends BaseService {
                                     trackingParams,
                                     false, // loadSources
                                     true, // allowPartialCompilation
-                                    await this.getExploreCompileOptions(user),
                                 );
                             timings.compileExplores.end = performance.now();
                             timings.getConfig.start = performance.now();
@@ -9096,7 +9088,6 @@ export class ProjectService extends BaseService {
                 trackingParams,
                 false, // loadSources
                 true, // allowPartialCompilation
-                await this.getExploreCompileOptions(user),
             );
             const onCompiled = (summary: ExploreCompilationSummary) => {
                 this.analytics.track({
@@ -12597,17 +12588,6 @@ export class ProjectService extends BaseService {
         });
     }
 
-    async getExploreCompileOptions(user: {
-        userUuid: string;
-        organizationUuid?: string;
-    }): Promise<ExploreCompileOptions> {
-        const { enabled } = await this.featureFlagModel.get({
-            featureFlagId: FeatureFlags.UnnestRepeatedColumns,
-            user,
-        });
-        return { unnestRepeatedColumns: enabled };
-    }
-
     async isTimezoneSupportEnabled(user: {
         userUuid: string;
         organizationUuid?: string;
@@ -13150,7 +13130,6 @@ export class ProjectService extends BaseService {
             {
                 disableTimestampConversion,
                 postProcessors: [preAggregatePostProcessor],
-                ...(await this.getExploreCompileOptions(user)),
             },
         );
         Logger.info(`Explore count: ${convertedExplores.length}`);

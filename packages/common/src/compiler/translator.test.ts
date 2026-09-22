@@ -3504,17 +3504,13 @@ describe('nested and repeated columns', () => {
     );
     const typedModels = attachTypesToModels([gaSessions], catalog, true);
 
-    const compile = async (
-        models: DbtModelNode[],
-        unnestRepeatedColumns: boolean,
-    ) => {
+    const compile = async (models: DbtModelNode[]) => {
         const explores = await convertExplores(
             models,
             false,
             SupportedDbtAdapter.BIGQUERY,
             bigqueryClientMock,
             { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
-            { unnestRepeatedColumns },
         );
         const explore = explores.find((e) => e.name === 'ga_sessions');
         if (!explore || isExploreError(explore)) {
@@ -3540,17 +3536,8 @@ describe('nested and repeated columns', () => {
         ]);
     });
 
-    it("keeps today's dotted dimensions when unnesting is off", async () => {
-        const explore = await compile(typedModels, false);
-        expect(Object.keys(explore.tables)).toEqual(['ga_sessions']);
-        expect(
-            explore.tables.ga_sessions.dimensions['hits.product.productSKU']
-                .compiledSql,
-        ).toEqual('`ga_sessions`.hits.product.productSKU');
-    });
-
     it('unnests each repeated node into a virtual table joined on TRUE', async () => {
-        const explore = await compile(typedModels, true);
+        const explore = await compile(typedModels);
         expect(Object.keys(explore.tables).sort()).toEqual([
             'ga_sessions',
             'ga_sessions__customDimensions',
@@ -3678,7 +3665,6 @@ describe('nested and repeated columns', () => {
             SupportedDbtAdapter.BIGQUERY,
             bigqueryClientMock,
             { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
-            { unnestRepeatedColumns: true },
         );
         const explore = explores.find((e) => e.name === 'orders');
         if (!explore || isExploreError(explore)) {
@@ -3724,7 +3710,6 @@ describe('nested and repeated columns', () => {
             SupportedDbtAdapter.BIGQUERY,
             bigqueryClientMock,
             { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
-            { unnestRepeatedColumns: true },
         );
         const explore = explores.find((e) => e.name === 'orders');
         if (!explore || isExploreError(explore)) {
@@ -3797,7 +3782,6 @@ describe('nested and repeated columns', () => {
         };
         const explore = await compile(
             attachTypesToModels([jobs], catalog, true),
-            true,
         );
         const table = explore.tables.ga_sessions;
         expect(Object.keys(table.dimensions).sort()).toEqual([
@@ -3844,7 +3828,6 @@ describe('nested and repeated columns', () => {
         };
         const explore = await compile(
             attachTypesToModels([taggedSessions], catalog, true),
-            true,
         );
         expect(Object.keys(explore.tables).sort()).toEqual([
             'ga_sessions',
@@ -3928,7 +3911,6 @@ describe('nested and repeated columns', () => {
             SupportedDbtAdapter.BIGQUERY,
             bigqueryClientMock,
             { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
-            { unnestRepeatedColumns: true },
         );
         const explore = explores.find((e) => e.name === 'ga_sessions');
         expect(explore && isExploreError(explore)).toBe(true);
@@ -4043,7 +4025,6 @@ describe('nested and repeated columns on Databricks', () => {
             SupportedDbtAdapter.DATABRICKS,
             databricksClientMock,
             { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
-            { unnestRepeatedColumns: true },
         );
         const explore = explores.find((e) => e.name === 'transactions');
         if (!explore || isExploreError(explore)) {
@@ -4237,7 +4218,6 @@ describe('nested and repeated columns on Databricks', () => {
             SupportedDbtAdapter.DATABRICKS,
             databricksClientMock,
             { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
-            { unnestRepeatedColumns: true },
         );
         const explore = explores.find((e) => e.name === 'transactions');
         if (!explore || isExploreError(explore)) {
@@ -4269,7 +4249,6 @@ describe('nested and repeated columns on Databricks', () => {
             SupportedDbtAdapter.POSTGRES,
             warehouseClientMock,
             { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
-            { unnestRepeatedColumns: true },
         );
         const explore = explores.find((e) => e.name === 'transactions');
         if (!explore || !isExploreError(explore)) {

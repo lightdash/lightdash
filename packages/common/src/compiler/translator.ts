@@ -675,7 +675,6 @@ export const convertTable = (
     allowPartialCompilation?: boolean,
     additionalTimeIntervals?: ResolvedAdditionalTimeIntervals,
     granularityLabels?: Partial<Record<TimeFrames, string>>,
-    unnestRepeatedColumns?: boolean,
 ): Omit<Table, 'lineageGraph'> => {
     // Config block takes priority, then meta block
     const meta = merge({}, model.meta, model.config?.meta);
@@ -689,8 +688,7 @@ export const convertTable = (
         ([prevDimensions, prevMetrics], column, index) => {
             // Config block takes priority, then meta block
             const columnMeta = merge({}, column.meta, column.config?.meta);
-            const routedByUnnest =
-                unnestRepeatedColumns && !columnMeta.dimension?.sql;
+            const routedByUnnest = !columnMeta.dimension?.sql;
             // Leaves under an array belong to the unnested table, unless
             // custom SQL made the column scalar on purpose.
             if (routedByUnnest && hasRepeatedAncestor(column)) {
@@ -1426,7 +1424,6 @@ export const instantiateNestedTables = ({
                     allowPartialCompilation,
                     additionalTimeIntervals,
                     granularityLabels,
-                    true,
                 ),
                 nestedFrom: {
                     parentTable,
@@ -1459,7 +1456,6 @@ export type ConvertExploresOptions = {
     disableTimestampConversion?: boolean;
     allowPartialCompilation?: boolean;
     postProcessors?: ExplorePostProcessor[];
-    unnestRepeatedColumns?: boolean;
 };
 
 const RESERVED_MODEL_META_KEY_SET = new Set<string>(RESERVED_MODEL_META_KEYS);
@@ -1489,7 +1485,6 @@ export async function* iterateExplores(
         disableTimestampConversion,
         allowPartialCompilation,
         postProcessors,
-        unnestRepeatedColumns = false,
     } = options ?? {};
     const resolvedNamesByUniqueId = qualifyManifestNames(
         models.map((model) => ({
@@ -1597,7 +1592,6 @@ export async function* iterateExplores(
                 allowPartialCompilation,
                 additionalTimeIntervals,
                 granularityLabels,
-                unnestRepeatedColumns,
             );
 
             // add lineage
@@ -1614,14 +1608,12 @@ export async function* iterateExplores(
             };
 
             tables.push(tableWithLineage);
-            if (unnestRepeatedColumns) {
-                const templates = getNestedTableTemplates(model);
-                if (templates.length > 0) {
-                    nestedTemplatesByModel.set(model.name, {
-                        model,
-                        templates,
-                    });
-                }
+            const templates = getNestedTableTemplates(model);
+            if (templates.length > 0) {
+                nestedTemplatesByModel.set(model.name, {
+                    model,
+                    templates,
+                });
             }
         } catch (e: unknown) {
             const exploreError: ExploreError = {

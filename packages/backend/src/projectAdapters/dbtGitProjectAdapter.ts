@@ -11,12 +11,7 @@ import * as path from 'path';
 import simpleGit, { SimpleGit, SimpleGitProgressEvent } from 'simple-git';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
-import {
-    CachedWarehouse,
-    ProjectAdapter,
-    type ExploreCompileOptions,
-    type TrackingParams,
-} from '../types';
+import { CachedWarehouse, ProjectAdapter, type TrackingParams } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 import { GitRepository } from './gitRepository';
 
@@ -138,14 +133,12 @@ export class DbtGitProjectAdapter
         trackingParams?: TrackingParams,
         loadSources?: boolean,
         allowPartialCompilation?: boolean,
-        compileOptions?: ExploreCompileOptions,
     ) {
         await this._refreshRepo();
         return super.prepareExploreStream(
             trackingParams,
             loadSources,
             allowPartialCompilation,
-            compileOptions,
         );
     }
 
