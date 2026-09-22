@@ -1,4 +1,4 @@
-# CLAUDE.md - CLI Package
+# AGENTS.md - CLI Package
 
 This file provides guidance to Claude Code when working with the Lightdash CLI package.
 

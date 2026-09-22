@@ -1,4 +1,4 @@
-# CLAUDE.md - e2e Package
+# AGENTS.md - e2e Package
 
 This file provides guidance to Claude Code when working with the `e2e` package
 (Cypress end-to-end tests).
@@ -13,7 +13,7 @@ rendering, navigation, etc.
 
 **If a test only needs the HTTP API and does not depend on the browser, write it
 in `packages/api-tests` instead** (Vitest, headless — see
-`packages/api-tests/CLAUDE.md`).
+`packages/api-tests/AGENTS.md`).
 
 Driving the UI just to assert on a network response is a common source of
 flakiness: the page can fire unrelated requests (e.g. an auto-fetch on load)

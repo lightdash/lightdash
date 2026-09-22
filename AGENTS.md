@@ -193,7 +193,7 @@ refresh/restart behavior, and remove temporary ENV overrides after rollout.
 
 `Release-safety preview` is a required check on `main`. It protects self-hosted upgrades: `unknown` means we could not confirm the change is safe, while `breaking` means we know it is incompatible. Both hold the upgrade, for different reasons.
 
-- For migration breaks, follow the detailed [migration release-safety declarations](packages/backend/src/database/migrations/CLAUDE.md#release-safety-declarations).
+- For migration breaks, follow the detailed [migration release-safety declarations](packages/backend/src/database/migrations/AGENTS.md#release-safety-declarations).
 - For API or type breaks, add a stable ID to `release-safety.declarations.json` with `reason` and `requiredStop`. The reason must be at least 24 characters, use more than one word, describe what breaks and for whom, and not use placeholder text. Omit `migration` for these entries.
 
 A declaration is active only for a Git range that adds its ID. The release generator compares the last release tag with the target ref. The pull request preview compares the merge base with the head. This makes the declaration expire after the release that first contains it. Do not remove it after release.
@@ -440,7 +440,7 @@ not built). Two embed-scoped mechanisms exist, with a strict boundary:
 
 When adding user-visible strings to embed-reachable surfaces (anything a
 dashboard viewer sees), follow the mandate in
-`packages/frontend/src/components/common/Filters/CLAUDE.md` — it generalizes
+`packages/frontend/src/components/common/Filters/AGENTS.md` — it generalizes
 beyond filters. English strings for those surfaces live only in the registry,
 never inline. Do not add an i18n framework; host apps own locale state.
 

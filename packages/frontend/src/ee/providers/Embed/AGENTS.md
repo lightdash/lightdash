@@ -86,7 +86,7 @@ const filter: SdkFilter = {
 - User abilities are automatically updated based on the embedded user's permissions
 - The provider supports navigation between dashboard and explore views while maintaining context
 - Content can be customized through language maps for white-label deployments
-- UI chrome strings are translated via the `uiOverrides` prop: `t()` on the context looks up a `UiStringKey` in it, and `useUiStrings()` adds the English-default fallback. `t()` resolves at a single point in the provider so a future direct-embed transport can add its source there. Shipped `UiStringKey`s are a public SDK contract — additive only, never rename or remove. See `packages/frontend/src/components/common/Filters/CLAUDE.md` for the full mandate on adding strings.
+- UI chrome strings are translated via the `uiOverrides` prop: `t()` on the context looks up a `UiStringKey` in it, and `useUiStrings()` adds the English-default fallback. `t()` resolves at a single point in the provider so a future direct-embed transport can add its source there. Shipped `UiStringKey`s are a public SDK contract — additive only, never rename or remove. See `packages/frontend/src/components/common/Filters/AGENTS.md` for the full mandate on adding strings.
 - Embed tokens contain permissions, user attributes, and expiration settings configured server-side
 </importantToKnow>
 

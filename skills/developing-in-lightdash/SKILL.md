@@ -18,7 +18,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 - Downloading, uploading, or locally developing data apps (enterprise)
 - Creating, editing, migrating, downloading, or uploading organization Data App themes
 
-**Don't use for:** Developing the Lightdash application itself (use the codebase CLAUDE.md), general dbt work without Lightdash metadata, or raw SQL unrelated to Lightdash models.
+**Don't use for:** Developing the Lightdash application itself (use the codebase AGENTS.md), general dbt work without Lightdash metadata, or raw SQL unrelated to Lightdash models.
 
 ## What You Can Do
 

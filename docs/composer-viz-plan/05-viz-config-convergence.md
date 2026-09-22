@@ -17,7 +17,7 @@ yet matched, and the AI tool-arg vocabulary retired.
 
 | Vocabulary | Addressing | Types | Wiring cost per new type |
 |---|---|---|---|
-| `ChartConfig`/`ChartType` (classic) | field ids via `ItemsMap`/Explore | 11 | ~9 layers (`LightdashVisualization/CLAUDE.md`) |
+| `ChartConfig`/`ChartType` (classic) | field ids via `ItemsMap`/Explore | 11 | ~9 layers (`LightdashVisualization/AGENTS.md`) |
 | `AllVizChartConfig`/`ChartKind` (SQL charts) | column references | 5 | ~4 layers (config type, data model, slice, switches) |
 | AI tool-args JSON | field ids, synthesised to `ChartConfig` via `getWebAiChartConfig` | 7 enum values | n/a (LLM-authored) |
 | `DataAppVizSchema` + `{dataAppVizUuid, fieldMapping, optionValues}` | declared slots → field ids | unbounded (generated code) | none (generated) |

@@ -134,7 +134,7 @@ Investigate and answer, with file/line evidence:
    NOT NULL columns must relax vs take sentinels, how get() hydrates the
    union, what last_version_chart_kind holds for composer charts, and the
    knex migration outline including release-safety declaration needs (see
-   packages/backend/src/database/migrations/CLAUDE.md).
+   packages/backend/src/database/migrations/AGENTS.md).
 
 3. Authorization. Read QuerySourceService.throwIfCannotRunQueries, the
    per-source checks (SemanticLayerQuerySource, SqlQuerySource,

@@ -7,7 +7,7 @@ Central place for developer documentation — technical references, architecture
 - Cross-cutting concerns that span multiple packages or services (e.g., timezone handling, authorization)
 - Non-obvious system behavior that would take significant code reading to understand
 - Decision records for architectural choices where the "why" matters
-- Don't create docs for things that are obvious from the code, covered by inline comments, or already in the root CLAUDE.md
+- Don't create docs for things that are obvious from the code, covered by inline comments, or already in the root AGENTS.md
 
 ## Standards
 

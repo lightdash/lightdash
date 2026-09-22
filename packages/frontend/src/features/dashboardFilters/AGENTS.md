@@ -111,4 +111,4 @@ toggles) stays literal. Shipped keys are a public SDK contract: additive
 only. Add new keys to both sdk-test-app locale bundles (es/ka), which are
 kept at 100% coverage so testing in KA exposes any missed key.
 
-Full mandate: `packages/frontend/src/components/common/Filters/CLAUDE.md`.
+Full mandate: `packages/frontend/src/components/common/Filters/AGENTS.md`.

@@ -61,7 +61,7 @@ console.log(`Found ${searchResults.pagination.totalResults} results`);
 <importantToKnow>
 - All entities use composite table types (DbEntity, CreateEntity, UpdateEntity) for type safety
 - UUIDs are used for external API identifiers while internal IDs are auto-incrementing integers
-- **Writing migrations**: all migration-authoring rules (frozen values / no application imports, no bind parameters in DDL, primary key requirements, FK indexing, safe migrations on large tables) live in `migrations/CLAUDE.md` — read it before creating or editing any migration.
+- **Writing migrations**: all migration-authoring rules (frozen values / no application imports, no bind parameters in DDL, primary key requirements, FK indexing, safe migrations on large tables) live in `migrations/AGENTS.md` — read it before creating or editing any migration.
 - KnexPaginate uses CTEs for efficient counting and supports both paginated and unpaginated modes
 - Development seeds provide realistic multi-tenant test data with encrypted credentials
 - Search functionality uses PostgreSQL vector embeddings and full-text search
@@ -72,8 +72,8 @@ console.log(`Found ${searchResults.pagination.totalResults} results`);
 
 <links>
 @/packages/backend/src/database/entities/ - Complete entity definitions directory
-@/packages/backend/src/database/entities/CLAUDE.md - Detailed guide for creating entity files
-@/packages/backend/src/database/migrations/CLAUDE.md - Migration-authoring rules and safe-migration patterns
+@/packages/backend/src/database/entities/AGENTS.md - Detailed guide for creating entity files
+@/packages/backend/src/database/migrations/AGENTS.md - Migration-authoring rules and safe-migration patterns
 @/packages/backend/src/database/migrations/ - Database migration history
 @/packages/backend/knexfile.ts - Database configuration and connection settings
 @/packages/backend/src/database/seeds/development/ - Development seed data
