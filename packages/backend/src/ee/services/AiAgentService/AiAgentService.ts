@@ -6930,6 +6930,10 @@ export class AiAgentService extends BaseService {
                 targetThreadMessages,
                 applicableCompaction?.compacted_through_ai_prompt_uuid ?? null,
             );
+        const fastDecisionsEnabledOverride =
+            prompt.battleProfile === null
+                ? undefined
+                : prompt.battleProfile === 'fast';
 
         const chatHistoryMessages = await this.getChatHistoryFromThreadMessages(
             compactedThreadMessages,
@@ -6942,7 +6946,10 @@ export class AiAgentService extends BaseService {
                     this.getIsVerifiedArtifactsEnabled(),
                 currentPromptUuid: prompt.promptUuid,
                 userUuid: user.userUuid,
-                fastDecisionsEnabled: !!(await this.getDecisionClient(user)),
+                fastDecisionsEnabled: !!(await this.getDecisionClient(
+                    user,
+                    fastDecisionsEnabledOverride,
+                )),
             },
         );
 
