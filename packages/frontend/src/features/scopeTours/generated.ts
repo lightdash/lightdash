@@ -1702,7 +1702,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 target: '[data-tour-scope="view:SavedChart"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/saved/:savedQueryUuid',
                 title: 'Share a saved chart',
-                body: 'Users with access to the containing space can find the chart under **Browse → All saved charts**, or you can send them its URL.',
+                body: 'Users with access to the containing space can find the chart under **Browse → All saved charts**, or you can send them its URL — a URL copied at any screen size opens the full chart for everyone.',
                 interactive: false,
                 advanceOnTargetClick: false,
                 advanceOnTargetInput: false,
