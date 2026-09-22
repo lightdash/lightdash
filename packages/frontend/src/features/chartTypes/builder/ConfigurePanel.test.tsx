@@ -163,7 +163,7 @@ describe('ConfigurePanel', () => {
         const sampleDataLauncher = screen.getByRole('button', {
             name: 'View sample data · 6 rows',
         });
-        expect(disclosure.compareDocumentPosition(sampleDataLauncher)).toBe(
+        expect(sampleDataLauncher.compareDocumentPosition(disclosure)).toBe(
             Node.DOCUMENT_POSITION_FOLLOWING,
         );
         expect(disclosure).toHaveAttribute('aria-expanded', 'false');

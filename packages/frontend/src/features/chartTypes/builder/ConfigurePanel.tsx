@@ -93,10 +93,10 @@ const ConfigurePanel: FC<Props> = ({
                 <Tabs.Panel value="general" className={classes.tabPanel}>
                     <Stack gap="sm" p="sm">
                         <ChartInputsList fields={schema.fields} />
+                        <ChartTypeSampleData context={previewContext} />
                         <DataAppVizInputGuidance
                             guidance={schema.inputGuidance}
                         />
-                        <ChartTypeSampleData context={previewContext} />
                         {optionGroups.length === 0 && (
                             <Text fz="xs" c="dimmed">
                                 This chart type declares no display options.
