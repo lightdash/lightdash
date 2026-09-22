@@ -94,7 +94,6 @@ import {
     ForbiddenError,
     formatRows,
     getAccountUserTimezone,
-    getAvailableFilterFieldIds,
     getAvailableParametersFromTables,
     getColumnTimezone,
     getCompiledModels,
@@ -104,6 +103,8 @@ import {
     getDbtEnvironmentVariableKeyError,
     getDimensions,
     getErrorMessage,
+    getExecutableFilterFieldIds,
+    getExecutableSavedFilterFields,
     getFieldFormatOverrideProps,
     getIntrinsicUserAttributes,
     getItemId,
@@ -115,6 +116,7 @@ import {
     getParameterReferences,
     getPreAggregateExploreName,
     getRequestMethod,
+    getSavedDashboardFilterFieldIds,
     getTimezoneLabel,
     getUnaccountedDimensions,
     GroupType,
@@ -125,6 +127,7 @@ import {
     isCartesianChartConfig,
     isCustomDimension,
     isCustomSqlDimension,
+    isDashboardChartTileType,
     isDateItem,
     isDimension,
     isExploreError,
@@ -8327,7 +8330,7 @@ export class ProjectService extends BaseService {
             dashboardUuid ? { source: 'dashboard', dashboardUuid } : undefined,
         );
 
-        const availableFieldIds = getAvailableFilterFieldIds(explore);
+        const availableFieldIds = getExecutableFilterFieldIds(explore);
         const appliedDashboardFilters = {
             dimensions: getDashboardFilterRulesForTables(
                 availableFieldIds,
@@ -11704,12 +11707,75 @@ export class ProjectService extends BaseService {
     async getAvailableFiltersForSavedQueries(
         account: Account,
         savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+        dashboardUuid?: string,
     ): Promise<DashboardAvailableFilters> {
         type ChartFilters = {
             uuid: string;
             filters: CompiledDimension[];
             metricFilters: Metric[];
+            savedFilterFields?: NonNullable<
+                DashboardAvailableFilters['savedFilterFieldsByTile']
+            >[string];
         };
+
+        const dashboard = dashboardUuid
+            ? await this.dashboardModel.getByIdOrSlug(dashboardUuid)
+            : undefined;
+        if (dashboard) {
+            const { inheritsFromOrgOrProject, access } =
+                await this.spacePermissionService.resolveAccess(
+                    account.user.id,
+                    {
+                        type: 'dashboard',
+                        dashboardUuid: dashboard.uuid,
+                        spaceUuid: dashboard.spaceUuid,
+                    },
+                );
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'view',
+                    subject('Dashboard', {
+                        organizationUuid: dashboard.organizationUuid,
+                        projectUuid: dashboard.projectUuid,
+                        inheritsFromOrgOrProject,
+                        access,
+                        metadata: {
+                            dashboardUuid: dashboard.uuid,
+                            dashboardName: dashboard.name,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        }
+
+        const savedChartsByTile = dashboard
+            ? new Map(
+                  dashboard.tiles
+                      .filter(isDashboardChartTileType)
+                      .flatMap((tile) =>
+                          tile.properties.savedChartUuid
+                              ? [
+                                    [
+                                        tile.uuid,
+                                        tile.properties.savedChartUuid,
+                                    ] as const,
+                                ]
+                              : [],
+                      ),
+              )
+            : undefined;
+        const validatedChartUuidsAndTileUuids = savedChartsByTile
+            ? savedChartUuidsAndTileUuids.filter(
+                  ({ tileUuid, savedChartUuid }) =>
+                      savedChartsByTile.get(tileUuid) === savedChartUuid,
+              )
+            : savedChartUuidsAndTileUuids;
+        const savedFilterFieldIds = dashboard
+            ? getSavedDashboardFilterFieldIds(dashboard.filters)
+            : [];
 
         let allFilters: ChartFilters[] = [];
 
@@ -11790,6 +11856,82 @@ export class ProjectService extends BaseService {
                         accessResults[index],
                     ]),
                 );
+                const validatedSavedChartUuids = new Set(
+                    validatedChartUuidsAndTileUuids.map(
+                        ({ savedChartUuid }) => savedChartUuid,
+                    ),
+                );
+
+                const statusCharts =
+                    dashboard && savedFilterFieldIds.length > 0
+                        ? savedCharts.filter((savedChart) =>
+                              Boolean(
+                                  chartAccess.get(savedChart.uuid) &&
+                                  validatedSavedChartUuids.has(savedChart.uuid),
+                              ),
+                          )
+                        : [];
+                const exploreNamesByChartUuid =
+                    statusCharts.length > 0
+                        ? await this.savedChartModel.getExploreNamesForAvailableFilters(
+                              statusCharts,
+                          )
+                        : {};
+                const secondaryExploreNames = Array.from(
+                    new Set(
+                        statusCharts.flatMap((savedChart) =>
+                            (
+                                exploreNamesByChartUuid[savedChart.uuid] ?? []
+                            ).filter(
+                                (exploreName) =>
+                                    exploreName !== savedChart.tableName,
+                            ),
+                        ),
+                    ),
+                );
+                const statusOrganizationUuid = dashboard?.organizationUuid;
+                const authorizedSecondaryExploreNames =
+                    statusOrganizationUuid === undefined
+                        ? []
+                        : secondaryExploreNames.filter(
+                              (exploreName) =>
+                                  auditedAbility.can(
+                                      'view',
+                                      subject('Project', {
+                                          organizationUuid:
+                                              statusOrganizationUuid,
+                                          projectUuid:
+                                              savedCharts[0].projectUuid,
+                                          exploreNames: [exploreName],
+                                          metadata: {
+                                              exploreNames: [exploreName],
+                                          },
+                                      }),
+                                  ) ||
+                                  auditedAbility.can(
+                                      'view',
+                                      subject('Explore', {
+                                          organizationUuid:
+                                              statusOrganizationUuid,
+                                          projectUuid:
+                                              savedCharts[0].projectUuid,
+                                          exploreNames: [exploreName],
+                                          metadata: {
+                                              exploreNames: [exploreName],
+                                          },
+                                      }),
+                                  ),
+                          );
+                const secondaryExploresMap =
+                    authorizedSecondaryExploreNames.length > 0
+                        ? await this.findExplores({
+                              account,
+                              projectUuid: savedCharts[0].projectUuid,
+                              exploreNames: authorizedSecondaryExploreNames,
+                              organizationUuid:
+                                  account.organization.organizationUuid,
+                          })
+                        : {};
 
                 return savedCharts.map((savedChart) => {
                     if (!chartAccess.get(savedChart.uuid)) {
@@ -11814,10 +11956,46 @@ export class ProjectService extends BaseService {
                         );
                     }
 
+                    const statusExplores =
+                        explore && !isExploreError(explore)
+                            ? [
+                                  explore,
+                                  ...(
+                                      exploreNamesByChartUuid[
+                                          savedChart.uuid
+                                      ] ?? []
+                                  )
+                                      .filter(
+                                          (exploreName) =>
+                                              exploreName !==
+                                              savedChart.tableName,
+                                      )
+                                      .map(
+                                          (exploreName) =>
+                                              secondaryExploresMap[exploreName],
+                                      )
+                                      .filter(
+                                          (
+                                              statusExplore,
+                                          ): statusExplore is Explore =>
+                                              statusExplore !== undefined &&
+                                              !isExploreError(statusExplore),
+                                      ),
+                              ]
+                            : [];
+                    const savedFilterFields =
+                        dashboard && statusExplores.length > 0
+                            ? getExecutableSavedFilterFields(
+                                  statusExplores,
+                                  savedFilterFieldIds,
+                              )
+                            : undefined;
+
                     return {
                         uuid: savedChart.uuid,
                         filters,
                         metricFilters,
+                        savedFilterFields,
                     };
                 });
             },
@@ -11888,11 +12066,29 @@ export class ProjectService extends BaseService {
             };
         }, {});
 
+        const savedFilterFieldsByTile = dashboard
+            ? validatedChartUuidsAndTileUuids.reduce<
+                  NonNullable<
+                      DashboardAvailableFilters['savedFilterFieldsByTile']
+                  >
+              >((acc, { savedChartUuid, tileUuid }) => {
+                  const filterResult = allFilters.find(
+                      ({ uuid }) => uuid === savedChartUuid,
+                  );
+                  if (!filterResult?.savedFilterFields) return acc;
+                  return {
+                      ...acc,
+                      [tileUuid]: filterResult.savedFilterFields,
+                  };
+              }, {})
+            : undefined;
+
         return {
             savedQueryFilters,
             allFilterableFields,
             allFilterableMetrics,
             savedQueryMetricFilters,
+            ...(savedFilterFieldsByTile ? { savedFilterFieldsByTile } : {}),
         };
     }
 

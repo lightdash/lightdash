@@ -2,10 +2,19 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     applyEmbedScopeAbilities,
     buildAbilityFromScopes,
+    DashboardTileTypes,
+    DimensionType,
+    FilterInteractivityValues,
+    FilterOperator,
     ForbiddenError,
+    MetricType,
     type AnonymousAccount,
     type CreateEmbedJwt,
+    type DashboardDAO,
+    type DashboardFilterRule,
+    type DashboardFilters,
     type EmbedContent,
+    type Explore,
     type MemberAbility,
     type PossibleAbilities,
     type SessionUser,
@@ -27,6 +36,339 @@ describe('EmbedService', () => {
     beforeEach(() => {
         service = new EmbedService(EmbedServiceArgumentsMock);
         vi.clearAllMocks();
+    });
+
+    describe('dashboard filter execution', () => {
+        const hiddenJoinedExplore: Explore = {
+            ...validExplore,
+            tables: {
+                ...validExplore.tables,
+                b: {
+                    ...validExplore.tables.b,
+                    dimensions: {
+                        ...validExplore.tables.b.dimensions,
+                        dim1: {
+                            ...validExplore.tables.b.dimensions.dim1,
+                            hidden: true,
+                        },
+                    },
+                },
+            },
+        };
+        const savedRule: DashboardFilterRule = {
+            id: 'hidden-filter',
+            target: { fieldId: 'b_dim1', tableName: 'stale-table-name' },
+            operator: FilterOperator.EQUALS,
+            values: ['saved-value'],
+            label: undefined,
+        };
+        const dashboard = {
+            uuid: 'dashboard-uuid',
+            filters: {
+                dimensions: [savedRule],
+                metrics: [],
+                tableCalculations: [],
+            },
+            tiles: [{ uuid: 'tile-uuid' }],
+            tabs: [],
+        } as unknown as DashboardDAO;
+        const getAppliedDashboardFilters = (
+            embedService: EmbedService,
+            account: AnonymousAccount,
+            overrides?: DashboardFilters,
+        ) =>
+            (
+                embedService as unknown as {
+                    _getAppliedDashboardFilters(
+                        account: AnonymousAccount,
+                        explore: Explore,
+                        dashboard: DashboardDAO,
+                        tileUuid: string,
+                        dashboardFilters?: DashboardFilters,
+                    ): Promise<DashboardFilters>;
+                }
+            )._getAppliedDashboardFilters(
+                account,
+                hiddenJoinedExplore,
+                dashboard,
+                'tile-uuid',
+                overrides,
+            );
+
+        test('applies a saved filter when its joined dimension becomes hidden', async () => {
+            const account = {
+                ...mockAccountWithPermission,
+                access: { content: { dashboardUuid: 'dashboard-uuid' } },
+            } as unknown as AnonymousAccount;
+
+            await expect(
+                getAppliedDashboardFilters(service, account),
+            ).resolves.toEqual({
+                dimensions: [savedRule],
+                metrics: [],
+                tableCalculations: [],
+            });
+        });
+
+        test('applies an interactive override on a hidden dimension', async () => {
+            const account = {
+                ...mockAccountWithPermission,
+                access: {
+                    content: { dashboardUuid: 'dashboard-uuid' },
+                    filtering: { enabled: FilterInteractivityValues.all },
+                },
+            } as unknown as AnonymousAccount;
+            const overrideRule = {
+                ...savedRule,
+                values: ['override-value'],
+            };
+
+            await expect(
+                getAppliedDashboardFilters(service, account, {
+                    dimensions: [overrideRule],
+                    metrics: [],
+                    tableCalculations: [],
+                }),
+            ).resolves.toEqual({
+                dimensions: [overrideRule],
+                metrics: [],
+                tableCalculations: [],
+            });
+        });
+    });
+
+    describe('dashboard available filters', () => {
+        test('returns typed hidden saved fields only for persisted tile-chart pairs', async () => {
+            const explore: Explore = {
+                ...validExplore,
+                name: 'orders',
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        dimensions: {
+                            dim1: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                type: DimensionType.DATE,
+                                hidden: true,
+                            },
+                        },
+                        metrics: {
+                            met1: {
+                                ...validExplore.tables.a.metrics.met1,
+                                type: MetricType.TIMESTAMP,
+                                hidden: true,
+                            },
+                        },
+                    },
+                },
+            };
+            const chart = {
+                uuid: 'chart-uuid',
+                name: 'Chart',
+                tableName: explore.name,
+                projectUuid: mockProjectUuid,
+                organizationUuid: mockOrganizationUuid,
+                spaceUuid: 'space-uuid',
+                dashboardUuid: 'dashboard-uuid',
+                savedChartVersionId: 1,
+                rowLimit: 500,
+            };
+            const secondaryExplore: Explore = {
+                ...validExplore,
+                name: 'payments',
+                baseTable: 'payments',
+                joinedTables: [],
+                tables: {
+                    payments: {
+                        ...validExplore.tables.a,
+                        name: 'payments',
+                        dimensions: {
+                            paid_at: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                name: 'paid_at',
+                                table: 'payments',
+                                type: DimensionType.DATE,
+                                hidden: true,
+                            },
+                        },
+                        metrics: {},
+                    },
+                },
+            };
+            const unsavedChart = {
+                ...chart,
+                uuid: 'unsaved-chart-uuid',
+                dashboardUuid: null,
+                savedChartVersionId: 2,
+            };
+            const getExploreNamesForAvailableFilters = vi
+                .fn()
+                .mockResolvedValue({
+                    [chart.uuid]: [explore.name, secondaryExplore.name],
+                });
+            const dashboard = {
+                uuid: 'dashboard-uuid',
+                projectUuid: mockProjectUuid,
+                organizationUuid: mockOrganizationUuid,
+                tiles: [
+                    {
+                        uuid: 'tile-saved',
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: { savedChartUuid: chart.uuid },
+                    },
+                ],
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'date-filter',
+                            target: { fieldId: 'a_dim1', tableName: 'a' },
+                            operator: FilterOperator.EQUALS,
+                            values: [],
+                            disabled: true,
+                            label: undefined,
+                        },
+                        {
+                            id: 'payments-date-filter',
+                            target: {
+                                fieldId: 'payments_paid_at',
+                                tableName: 'payments',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [],
+                            label: undefined,
+                        },
+                    ],
+                    metrics: [
+                        {
+                            id: 'metric-filter',
+                            target: { fieldId: 'a_met1', tableName: 'a' },
+                            operator: FilterOperator.EQUALS,
+                            values: [],
+                            label: undefined,
+                        },
+                    ],
+                    tableCalculations: [],
+                },
+            } as unknown as DashboardDAO;
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                embedModel: {
+                    get: vi.fn().mockResolvedValue({
+                        dashboardUuids: [dashboard.uuid],
+                        allowAllDashboards: false,
+                    }),
+                },
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue(dashboard),
+                    savedChartExistsInDashboard: vi
+                        .fn()
+                        .mockResolvedValue(true),
+                },
+                savedChartModel: {
+                    getInfoForAvailableFilters: vi
+                        .fn()
+                        .mockResolvedValue([chart, unsavedChart]),
+                    getExploreNamesForAvailableFilters,
+                },
+                projectModel: {
+                    getExploreFromCache: vi.fn().mockResolvedValue(explore),
+                },
+                projectService: {
+                    findExplores: vi.fn().mockResolvedValue({
+                        [explore.name]: explore,
+                        [secondaryExplore.name]: secondaryExplore,
+                    }),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const account = {
+                ...mockAccountWithPermission,
+                authentication: {
+                    type: 'jwt',
+                    source: 'token',
+                    data: {},
+                },
+                access: {
+                    content: { dashboardUuid: dashboard.uuid },
+                    filtering: { enabled: FilterInteractivityValues.all },
+                },
+            } as unknown as AnonymousAccount;
+
+            const result =
+                await scopedService.getAvailableFiltersForSavedQueries(
+                    mockProjectUuid,
+                    account,
+                    [
+                        {
+                            savedChartUuid: chart.uuid,
+                            tileUuid: 'tile-saved',
+                        },
+                        {
+                            savedChartUuid: chart.uuid,
+                            tileUuid: 'tile-unsaved',
+                        },
+                        {
+                            savedChartUuid: unsavedChart.uuid,
+                            tileUuid: 'tile-new',
+                        },
+                    ],
+                );
+
+            expect(result.savedFilterFieldsByTile).toEqual({
+                'tile-saved': [
+                    { fieldId: 'a_dim1', fallbackType: DimensionType.DATE },
+                    {
+                        fieldId: 'a_met1',
+                        fallbackType: DimensionType.TIMESTAMP,
+                    },
+                    {
+                        fieldId: 'payments_paid_at',
+                        fallbackType: DimensionType.DATE,
+                    },
+                ],
+            });
+            expect(result.savedQueryFilters['tile-unsaved']).toBeDefined();
+            expect(result.savedQueryFilters['tile-new']).toBeDefined();
+            expect(getExploreNamesForAvailableFilters).toHaveBeenCalledWith([
+                chart,
+            ]);
+            expect(
+                result.allFilterableFields.map((field) => field.hidden),
+            ).not.toContain(true);
+            expect(
+                result.allFilterableFields.some(
+                    ({ table }) => table === 'payments',
+                ),
+            ).toBe(false);
+        });
+
+        test('returns an empty saved field map when interactivity is disabled', async () => {
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                embedModel: {
+                    get: vi.fn().mockResolvedValue({
+                        dashboardUuids: ['dashboard-uuid'],
+                        allowAllDashboards: false,
+                    }),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            const account = {
+                ...mockAccountWithPermission,
+                access: {
+                    content: { dashboardUuid: 'dashboard-uuid' },
+                    filtering: { enabled: false },
+                },
+            } as unknown as AnonymousAccount;
+
+            const result =
+                await scopedService.getAvailableFiltersForSavedQueries(
+                    mockProjectUuid,
+                    account,
+                    [],
+                );
+
+            expect(result.savedFilterFieldsByTile).toEqual({});
+        });
     });
 
     test.each([undefined, 'default', 'roles'] as const)(
