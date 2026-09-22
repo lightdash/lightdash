@@ -1,5 +1,6 @@
 import type { ApiSuccess, KnexPaginatedData } from '../..';
 import type { AiDeepResearchLimits } from '../aiDeepResearch/types';
+import type { DataAppAnalysisLimits } from '../apps/analysis';
 import type {
     DataAppClaudeModel,
     DataAppCodingAgent,
@@ -427,6 +428,8 @@ export type AiOrganizationSettings = {
     dataAppContinueInAskAiEnabled?: boolean;
     // Org default for running AI analysis when a data app loads.
     dataAppAutoAnalysisEnabled?: boolean;
+    // Per-run ceilings and daily caps for AI analysis in data apps.
+    dataAppAnalysisLimits?: DataAppAnalysisLimits;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     // Optional to keep the response schema backwards-compatible for old clients.
@@ -456,6 +459,7 @@ export type UpdateAiOrganizationSettings = {
     dataAppRuntimeAiEnabled?: boolean;
     dataAppContinueInAskAiEnabled?: boolean;
     dataAppAutoAnalysisEnabled?: boolean;
+    dataAppAnalysisLimits?: DataAppAnalysisLimits;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig?: AiAgentModelConfig | null;
     modelVisibility?: AiOrgModelVisibility | null;

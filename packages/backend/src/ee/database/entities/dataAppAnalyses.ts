@@ -93,3 +93,19 @@ export type DataAppAnalysisRateCountersTable = Knex.CompositeTableType<
     DbDataAppAnalysisRateCounter,
     DbDataAppAnalysisRateCounter
 >;
+
+export const DataAppAnalysisDailyCountersTableName =
+    'data_app_analysis_daily_counters';
+
+export type DbDataAppAnalysisDailyCounter = {
+    organization_uuid: string;
+    operation: DataAppAnalysisOperation;
+    /** UTC calendar day, YYYY-MM-DD. */
+    day: string;
+    request_count: number;
+};
+
+export type DataAppAnalysisDailyCountersTable = Knex.CompositeTableType<
+    DbDataAppAnalysisDailyCounter,
+    DbDataAppAnalysisDailyCounter
+>;

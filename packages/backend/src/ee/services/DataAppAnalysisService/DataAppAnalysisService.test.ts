@@ -1,4 +1,5 @@
 import {
+    DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     DimensionType,
     FeatureFlags,
     FieldType,
@@ -100,6 +101,8 @@ function buildService(
         rebindSources: vi.fn().mockResolvedValue(undefined),
         incrementRateCounter: vi.fn().mockResolvedValue(1),
         deleteRateCountersBefore: vi.fn().mockResolvedValue(0),
+        incrementDailyCounter: vi.fn().mockResolvedValue(1),
+        deleteDailyCountersBefore: vi.fn().mockResolvedValue(0),
     };
     const asyncQueryService = {
         getAsyncQueryHistory: vi.fn().mockResolvedValue({
@@ -120,6 +123,7 @@ function buildService(
             text: 'Returns rose to 12.',
             modelId: 'fast-model',
         }),
+        getAmbientKeyManagement: vi.fn().mockResolvedValue('lightdash-managed'),
     };
     const appModel = {
         getApp: vi.fn().mockResolvedValue({
@@ -135,6 +139,9 @@ function buildService(
         isDataAppRuntimeAiEnabled: vi
             .fn()
             .mockResolvedValue(overrides.orgSettingEnabled ?? true),
+        getDataAppAnalysisLimits: vi
+            .fn()
+            .mockResolvedValue(DATA_APP_ANALYSIS_DEFAULT_LIMITS),
     };
     const aiAgentModel = { deleteThread: vi.fn().mockResolvedValue(undefined) };
     const service = new DataAppAnalysisService({
@@ -761,15 +768,117 @@ describe('DataAppAnalysisService rate limits', () => {
         ).not.toHaveBeenCalled();
     });
 
-    it('sweeps minute buckets older than a day', async () => {
+    it('sweeps minute buckets older than a day and daily counters older than two', async () => {
         const { service, dataAppAnalysisModel } = buildService();
         dataAppAnalysisModel.deleteRateCountersBefore.mockResolvedValue(12);
+        dataAppAnalysisModel.deleteDailyCountersBefore.mockResolvedValue(3);
         await expect(
             service.cleanRateCounters(new Date('2026-09-22T12:00:00Z')),
-        ).resolves.toBe(12);
+        ).resolves.toBe(15);
         expect(
             dataAppAnalysisModel.deleteRateCountersBefore,
         ).toHaveBeenCalledWith(new Date('2026-09-21T12:00:00Z'));
+        expect(
+            dataAppAnalysisModel.deleteDailyCountersBefore,
+        ).toHaveBeenCalledWith('2026-09-20');
+    });
+});
+
+describe('DataAppAnalysisService daily budget', () => {
+    beforeEach(() => {
+        vi.mocked(assertCanViewApp).mockResolvedValue({
+            directOnly: false,
+        } as never);
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('refuses detect with budget_exhausted once the org cap is passed', async () => {
+        vi.useFakeTimers({ now: Date.UTC(2026, 8, 22, 23, 59, 0) });
+        const { service, dataAppAnalysisModel, aiService } = buildService();
+        dataAppAnalysisModel.incrementDailyCounter.mockResolvedValue(301);
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toMatchObject({
+            statusCode: 403,
+            data: { code: 'budget_exhausted' },
+        });
+        expect(dataAppAnalysisModel.incrementDailyCounter).toHaveBeenCalledWith(
+            {
+                organizationUuid: buildAccount().organization.organizationUuid,
+                operation: 'detect',
+                day: '2026-09-22',
+            },
+        );
+        expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+    });
+
+    it('caps a Lightdash-managed key at the default even when the org raised it', async () => {
+        const { service, dataAppAnalysisModel, aiOrganizationSettingsService } =
+            buildService();
+        aiOrganizationSettingsService.getDataAppAnalysisLimits.mockResolvedValue(
+            { ...DATA_APP_ANALYSIS_DEFAULT_LIMITS, dailyDetectCap: 5000 },
+        );
+        dataAppAnalysisModel.incrementDailyCounter.mockResolvedValue(301);
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toMatchObject({ data: { code: 'budget_exhausted' } });
+    });
+
+    it('honours a raised or removed cap on the org’s own key', async () => {
+        const {
+            service,
+            dataAppAnalysisModel,
+            aiService,
+            aiOrganizationSettingsService,
+        } = buildService();
+        aiService.getAmbientKeyManagement.mockResolvedValue('self-managed');
+        aiOrganizationSettingsService.getDataAppAnalysisLimits.mockResolvedValue(
+            { ...DATA_APP_ANALYSIS_DEFAULT_LIMITS, dailyDetectCap: 5000 },
+        );
+        dataAppAnalysisModel.incrementDailyCounter.mockResolvedValue(301);
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).resolves.toMatchObject({ analysisId: 'analysis-1' });
+
+        aiOrganizationSettingsService.getDataAppAnalysisLimits.mockResolvedValue(
+            { ...DATA_APP_ANALYSIS_DEFAULT_LIMITS, dailyDetectCap: null },
+        );
+        dataAppAnalysisModel.incrementDailyCounter.mockClear();
+        await service.detect(buildAccount(), 'proj-1', 'app-1', {
+            ...request,
+            force: true,
+        });
+        expect(
+            dataAppAnalysisModel.incrementDailyCounter,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('caps prompts per org per day as well', async () => {
+        const { service, dataAppAnalysisModel, aiService } = buildService();
+        dataAppAnalysisModel.incrementDailyCounter.mockResolvedValue(501);
+        await expect(
+            service.prompt(buildAccount(), 'proj-1', 'app-1', {
+                sources: request.sources,
+                prompt: 'Why?',
+            }),
+        ).rejects.toMatchObject({ data: { code: 'budget_exhausted' } });
+        expect(dataAppAnalysisModel.incrementDailyCounter).toHaveBeenCalledWith(
+            expect.objectContaining({ operation: 'prompt' }),
+        );
+        expect(aiService.answerDataAppPrompt).not.toHaveBeenCalled();
+    });
+
+    it('does not spend the daily budget on a rate-limited request', async () => {
+        const { service, dataAppAnalysisModel } = buildService();
+        dataAppAnalysisModel.incrementRateCounter.mockResolvedValue(7);
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toMatchObject({ statusCode: 429 });
+        expect(
+            dataAppAnalysisModel.incrementDailyCounter,
+        ).not.toHaveBeenCalled();
     });
 });
 
@@ -1020,6 +1129,74 @@ describe('DataAppAnalysisService.investigate', () => {
             data: { code: 'rate_limited', operation: 'investigate' },
         });
         expect(dataAppInvestigate).not.toHaveBeenCalled();
+    });
+
+    it('refuses to queue an investigation once the org daily cap is passed', async () => {
+        const { service, dataAppInvestigate } = buildInvestigateService();
+        const deps = service as unknown as {
+            dataAppAnalysisModel: {
+                incrementDailyCounter: ReturnType<typeof vi.fn>;
+            };
+        };
+        deps.dataAppAnalysisModel.incrementDailyCounter.mockResolvedValue(101);
+        await expect(
+            service.investigate(
+                buildAccount(),
+                'proj-1',
+                'app-1',
+                'analysis-1',
+                { anomalyId: 'anom-1', agentUuid: 'agent-1' },
+            ),
+        ).rejects.toMatchObject({ data: { code: 'budget_exhausted' } });
+        expect(
+            deps.dataAppAnalysisModel.incrementDailyCounter,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ operation: 'investigate' }),
+        );
+        expect(dataAppInvestigate).not.toHaveBeenCalled();
+    });
+
+    it('runs the agent under the org’s configured per-run limits', async () => {
+        const { service, aiOrganizationSettingsService } =
+            buildInvestigateService();
+        aiOrganizationSettingsService.getDataAppAnalysisLimits.mockResolvedValue(
+            {
+                ...DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+                investigateMaxSteps: 3,
+                investigateMaxWarehouseQueries: 2,
+            },
+        );
+        const { create } = primeRunInvestigation(
+            service,
+            async (_user, { execution }) => {
+                expect((execution as { maxSteps?: number }).maxSteps).toBe(3);
+                let stoppedBy: unknown = null;
+                for (let i = 0; i < 10 && stoppedBy === null; i += 1) {
+                    try {
+                        void execution.onWarehouseQuery?.();
+                    } catch (e) {
+                        stoppedBy = e;
+                    }
+                }
+                expect(stoppedBy).toMatchObject({
+                    message: expect.stringContaining('(2)'),
+                });
+                return 'partial answer';
+            },
+        );
+        await service.runInvestigation(
+            jobPayload,
+            'job-1',
+            new Date('2026-09-15T10:00:00Z'),
+        );
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                result: expect.objectContaining({
+                    partial: true,
+                    queriesRun: 2,
+                }),
+            }),
+        );
     });
 
     it('reports agent_unavailable as 403 instead of picking another agent', async () => {

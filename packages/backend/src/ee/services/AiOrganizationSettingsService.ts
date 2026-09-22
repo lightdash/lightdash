@@ -7,6 +7,7 @@ import {
     BYO_AI_PROVIDERS,
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
+    DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     FeatureFlags,
     ForbiddenError,
     getVisibleDataAppClaudeModels,
@@ -21,6 +22,7 @@ import {
     type AiModelOption,
     type AiOrgModelVisibility,
     type ByoAiProvider,
+    type DataAppAnalysisLimits,
     type SessionUser,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -119,6 +121,39 @@ const DEEP_RESEARCH_LIMIT_BOUNDS: Record<
     maxToolCalls: { min: AI_DEEP_RESEARCH_MAX_WORKERS + 1, max: 1_000 },
     maxWarehouseQueries: { min: 1, max: 1_000 },
     deadlineMs: { min: 1_000, max: 3_600_000 },
+};
+
+const DATA_APP_ANALYSIS_LIMIT_BOUNDS = {
+    investigateMaxSteps: { min: 1, max: 100 },
+    investigateMaxWarehouseQueries: { min: 1, max: 200 },
+    dailyDetectCap: { min: 1, max: 100_000 },
+    dailyInvestigateCap: { min: 1, max: 100_000 },
+    dailyPromptCap: { min: 1, max: 100_000 },
+} as const;
+
+export const validateDataAppAnalysisLimits = (
+    limits: DataAppAnalysisLimits,
+): void => {
+    (
+        Object.entries(limits) as Array<
+            [keyof DataAppAnalysisLimits, number | null]
+        >
+    ).forEach(([key, value]) => {
+        const bounds = DATA_APP_ANALYSIS_LIMIT_BOUNDS[key];
+        if (!bounds) {
+            throw new ParameterError(`Unknown limit ${key}`);
+        }
+        // Daily caps may be null (no cap); per-run limits may not.
+        if (value === null && key.startsWith('daily')) return;
+        if (typeof value !== 'number' || !Number.isInteger(value)) {
+            throw new ParameterError(`${key} must be a positive integer`);
+        }
+        if (value < bounds.min || value > bounds.max) {
+            throw new ParameterError(
+                `${key} must be between ${bounds.min} and ${bounds.max}`,
+            );
+        }
+    });
 };
 
 export const validateDeepResearchLimits = (
@@ -386,6 +421,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 dataAppRuntimeAiEnabled: false,
                 dataAppContinueInAskAiEnabled: true,
                 dataAppAutoAnalysisEnabled: false,
+                dataAppAnalysisLimits: DATA_APP_ANALYSIS_DEFAULT_LIMITS,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
@@ -530,6 +566,19 @@ export class AiOrganizationSettingsService extends BaseService {
         return settings?.dataAppContinueInAskAiEnabled ?? true;
     }
 
+    /** Per-run ceilings and daily caps for AI analysis in data apps. */
+    async getDataAppAnalysisLimits(
+        organizationUuid: string,
+    ): Promise<DataAppAnalysisLimits> {
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return (
+            settings?.dataAppAnalysisLimits ?? DATA_APP_ANALYSIS_DEFAULT_LIMITS
+        );
+    }
+
     /** Org default for running AI analysis when a data app loads. */
     async isDataAppAutoAnalysisEnabled(
         organizationUuid: string,
@@ -600,6 +649,11 @@ export class AiOrganizationSettingsService extends BaseService {
 
         if (aiSettingsUpdate.deepResearchLimits !== undefined) {
             validateDeepResearchLimits(aiSettingsUpdate.deepResearchLimits);
+        }
+        if (aiSettingsUpdate.dataAppAnalysisLimits !== undefined) {
+            validateDataAppAnalysisLimits(
+                aiSettingsUpdate.dataAppAnalysisLimits,
+            );
         }
 
         if (aiSettingsUpdate.threadRetentionHours !== undefined) {

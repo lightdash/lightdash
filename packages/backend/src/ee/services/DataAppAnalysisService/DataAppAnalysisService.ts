@@ -1,5 +1,6 @@
 import {
     assertRegisteredAccount,
+    DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     EE_SCHEDULER_TASKS,
     FeatureFlags,
     ForbiddenError,
@@ -14,6 +15,7 @@ import {
     TooManyRequestsError,
     type Account,
     type DataAppAnalysis,
+    type DataAppAnalysisLimits,
     type DataAppAnalysisLookup,
     type DataAppAnalysisRecord,
     type DataAppAnalysisSource,
@@ -30,6 +32,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
+import { type AiKeyManagement } from '../../../analytics/aiUsage';
 import { fromSession, toSessionUser } from '../../../auth/account';
 import { type AppModel } from '../../../models/AppModel';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -132,18 +135,27 @@ const RATE_LIMITS_PER_MINUTE: Record<DataAppAnalysisOperation, number> = {
     investigate: 3,
 };
 const RATE_WINDOW_MS = 60_000;
-// Hard budgets for one investigation; exhaustion yields a partial answer.
-const INVESTIGATE_MAX_STEPS = 12;
-const INVESTIGATE_MAX_WAREHOUSE_QUERIES = 15;
-
+// Per-run budgets come from the org's dataAppAnalysisLimits; exhaustion
+// yields a partial answer.
 class InvestigationQueryBudgetError extends Error {
-    constructor() {
+    constructor(maxWarehouseQueries: number) {
         super(
-            `Query budget reached (${INVESTIGATE_MAX_WAREHOUSE_QUERIES}). Explain what you found so far.`,
+            `Query budget reached (${maxWarehouseQueries}). Explain what you found so far.`,
         );
         this.name = 'InvestigationQueryBudgetError';
     }
 }
+
+const utcDay = (now: Date): string => now.toISOString().slice(0, 10);
+
+const DAILY_CAP_KEY = {
+    detect: 'dailyDetectCap',
+    investigate: 'dailyInvestigateCap',
+    prompt: 'dailyPromptCap',
+} as const satisfies Record<
+    DataAppAnalysisOperation,
+    keyof DataAppAnalysisLimits
+>;
 
 type Dependencies = {
     dataAppAnalysisModel: DataAppAnalysisModel;
@@ -171,7 +183,8 @@ export class DataAppAnalysisUnavailableError extends ForbiddenError {
             | 'data_apps_disabled'
             | 'analysis_disabled'
             | 'unsupported_context'
-            | 'agent_unavailable',
+            | 'agent_unavailable'
+            | 'budget_exhausted',
     ) {
         super(message, { code });
         this.name = 'DataAppAnalysisUnavailableError';
@@ -693,6 +706,9 @@ export class DataAppAnalysisService extends BaseService {
         // instead of starting (and being counted for) its own.
         const run = this.assertRate(user.userUuid, appUuid, 'detect')
             .then(() =>
+                this.assertDailyBudget(user.organizationUuid!, 'detect'),
+            )
+            .then(() =>
                 this.runDetect({
                     user,
                     projectUuid,
@@ -823,6 +839,43 @@ export class DataAppAnalysisService extends BaseService {
         }
     }
 
+    /**
+     * Org daily cap on model runs. On a Lightdash-managed key the cap is at
+     * most the default, whatever the org configured; on the org's own key the
+     * configured value applies and null means uncapped.
+     */
+    private async assertDailyBudget(
+        organizationUuid: string,
+        operation: DataAppAnalysisOperation,
+    ): Promise<AiKeyManagement> {
+        const limits =
+            await this.aiOrganizationSettingsService.getDataAppAnalysisLimits(
+                organizationUuid,
+            );
+        const key = DAILY_CAP_KEY[operation];
+        const configured = limits[key];
+        const fallback = DATA_APP_ANALYSIS_DEFAULT_LIMITS[key] as number;
+        const keyManagement =
+            await this.aiService.getAmbientKeyManagement(organizationUuid);
+        const cap =
+            keyManagement === 'lightdash-managed'
+                ? Math.min(configured ?? fallback, fallback)
+                : configured;
+        if (cap === null) return keyManagement;
+        const count = await this.dataAppAnalysisModel.incrementDailyCounter({
+            organizationUuid,
+            operation,
+            day: utcDay(new Date()),
+        });
+        if (count > cap) {
+            throw new DataAppAnalysisUnavailableError(
+                `This organization has reached its daily limit of ${cap} AI ${operation} runs. It resets at midnight UTC.`,
+                'budget_exhausted',
+            );
+        }
+        return keyManagement;
+    }
+
     private static validatePrompt(body: DataAppPromptRequest): {
         prompt: string;
         focus: Record<string, string> | null;
@@ -880,6 +933,7 @@ export class DataAppAnalysisService extends BaseService {
             appUuid,
         );
         await this.assertRate(user.userUuid, appUuid, 'prompt');
+        await this.assertDailyBudget(user.organizationUuid!, 'prompt');
         const { content, grounding } = await this.buildContent(
             account,
             projectUuid,
@@ -1030,6 +1084,7 @@ export class DataAppAnalysisService extends BaseService {
         }
         await this.assertAgentUsable(user, projectUuid, body.agentUuid);
         await this.assertRate(user.userUuid, appUuid, 'investigate');
+        await this.assertDailyBudget(user.organizationUuid!, 'investigate');
 
         return this.schedulerClient.dataAppInvestigate({
             organizationUuid: user.organizationUuid!,
@@ -1079,10 +1134,24 @@ export class DataAppAnalysisService extends BaseService {
      * viewer. Once `abortSignal` fires nothing is persisted or logged; the
      * worker's timeout handler owns that job's final status.
      */
-    /** Drops minute buckets older than a day; called by the daily sweep. */
+    /**
+     * Drops minute buckets older than a day and daily counters older than
+     * two days; called by the daily sweep.
+     */
     async cleanRateCounters(now: Date = new Date()): Promise<number> {
-        const cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        return this.dataAppAnalysisModel.deleteRateCountersBefore(cutoff);
+        const minuteCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const dayCutoff = utcDay(
+            new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+        );
+        const minutes =
+            await this.dataAppAnalysisModel.deleteRateCountersBefore(
+                minuteCutoff,
+            );
+        const days =
+            await this.dataAppAnalysisModel.deleteDailyCountersBefore(
+                dayCutoff,
+            );
+        return minutes + days;
     }
 
     async runInvestigation(
@@ -1164,6 +1233,11 @@ export class DataAppAnalysisService extends BaseService {
                 );
             }
 
+            const limits =
+                await this.aiOrganizationSettingsService.getDataAppAnalysisLimits(
+                    payload.organizationUuid,
+                );
+            const maxQueries = limits.investigateMaxWarehouseQueries;
             let queriesRun = 0;
             let partial = false;
             const explanation =
@@ -1172,16 +1246,16 @@ export class DataAppAnalysisService extends BaseService {
                     threadUuid: thread.uuid,
                     execution: {
                         mode: 'standard',
-                        maxSteps: INVESTIGATE_MAX_STEPS,
+                        maxSteps: limits.investigateMaxSteps,
                         toolAllowlist: DATA_APP_INVESTIGATE_TOOL_NAMES,
                         abortSignal,
                         onWarehouseQuery: () => {
                             queriesRun += 1;
-                            if (
-                                queriesRun > INVESTIGATE_MAX_WAREHOUSE_QUERIES
-                            ) {
+                            if (queriesRun > maxQueries) {
                                 partial = true;
-                                throw new InvestigationQueryBudgetError();
+                                throw new InvestigationQueryBudgetError(
+                                    maxQueries,
+                                );
                             }
                         },
                     },
@@ -1214,10 +1288,7 @@ export class DataAppAnalysisService extends BaseService {
                     anomaly,
                     agentUuid: payload.agentUuid,
                     threadUuid: thread.uuid,
-                    queriesRun: Math.min(
-                        queriesRun,
-                        INVESTIGATE_MAX_WAREHOUSE_QUERIES,
-                    ),
+                    queriesRun: Math.min(queriesRun, maxQueries),
                     partial,
                 },
                 parentAnalysisUuid: payload.analysisId,

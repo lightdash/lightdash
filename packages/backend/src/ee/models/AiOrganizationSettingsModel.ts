@@ -5,6 +5,7 @@ import {
     AiProviderApiKeysSet,
     BYO_AI_PROVIDERS,
     CreateAiOrganizationSettings,
+    DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     NotFoundError,
     ParameterError,
     UpdateAiOrganizationSettings,
@@ -182,6 +183,8 @@ export class AiOrganizationSettingsModel {
             dataAppContinueInAskAiEnabled:
                 db.data_app_continue_in_ask_ai_enabled,
             dataAppAutoAnalysisEnabled: db.data_app_auto_analysis_enabled,
+            dataAppAnalysisLimits:
+                db.data_app_analysis_limits ?? DATA_APP_ANALYSIS_DEFAULT_LIMITS,
             requireExplicitSlackChannelLinking:
                 db.require_explicit_slack_channel_linking,
             defaultAiAgentModelConfig: db.default_ai_agent_model_config,
@@ -265,6 +268,7 @@ export class AiOrganizationSettingsModel {
                 data_app_continue_in_ask_ai_enabled:
                     data.dataAppContinueInAskAiEnabled,
                 data_app_auto_analysis_enabled: data.dataAppAutoAnalysisEnabled,
+                data_app_analysis_limits: data.dataAppAnalysisLimits ?? null,
                 require_explicit_slack_channel_linking:
                     data.requireExplicitSlackChannelLinking,
                 default_ai_agent_model_config: data.defaultAiAgentModelConfig,
@@ -296,6 +300,7 @@ export class AiOrganizationSettingsModel {
                 | 'data_app_runtime_ai_enabled'
                 | 'data_app_continue_in_ask_ai_enabled'
                 | 'data_app_auto_analysis_enabled'
+                | 'data_app_analysis_limits'
                 | 'require_explicit_slack_channel_linking'
                 | 'default_ai_agent_model_config'
                 | 'model_visibility'
@@ -336,6 +341,9 @@ export class AiOrganizationSettingsModel {
         if (data.dataAppAutoAnalysisEnabled !== undefined) {
             updateData.data_app_auto_analysis_enabled =
                 data.dataAppAutoAnalysisEnabled;
+        }
+        if (data.dataAppAnalysisLimits !== undefined) {
+            updateData.data_app_analysis_limits = data.dataAppAnalysisLimits;
         }
         if (data.requireExplicitSlackChannelLinking !== undefined) {
             updateData.require_explicit_slack_channel_linking =

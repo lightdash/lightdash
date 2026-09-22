@@ -25,6 +25,7 @@ import {
 import { generateText } from 'ai';
 import NodeCache from 'node-cache';
 import { createHash } from 'node:crypto';
+import { type AiKeyManagement } from '../../../analytics/aiUsage';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -193,6 +194,36 @@ export class AiService extends BaseService {
     }
 
     /**
+     * Who pays for ambient AI calls in this org: the same key selection as
+     * getAmbientAiModel, without building the model.
+     */
+    async getAmbientKeyManagement(
+        organizationUuid: string,
+    ): Promise<AiKeyManagement> {
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
+            );
+        return resolveKeyManagement(
+            copilotConfig,
+            AiService.pickAmbientProvider(copilotConfig),
+        );
+    }
+
+    /**
+     * Ambient calls run on the org's Anthropic key when it has one, else on
+     * the instance default provider. Shared by the model builder and the
+     * key-management lookup so the two can never disagree.
+     */
+    private static pickAmbientProvider(
+        copilotConfig: Parameters<typeof resolveKeyManagement>[0],
+    ): Parameters<typeof resolveKeyManagement>[1] {
+        return copilotConfig.providers.anthropic?.apiKey
+            ? 'anthropic'
+            : copilotConfig.defaultProvider;
+    }
+
+    /**
      * Gets a language model for ambient AI tasks.
      * 1. Checks anthropic shared key
      * 2. Falls back to AI Copilot if the feature flag is enabled for the user,
@@ -217,7 +248,10 @@ export class AiService extends BaseService {
 
         const anthropicConfig = copilotConfig.providers.anthropic;
 
-        if (anthropicConfig?.apiKey) {
+        if (
+            AiService.pickAmbientProvider(copilotConfig) === 'anthropic' &&
+            anthropicConfig?.apiKey
+        ) {
             // Prefer the fast model, but a BYO key may not have access to it
             // (e.g. a key that only unlocks claude-opus-4-8). Fall back to a
             // model the key can actually serve rather than failing at runtime.
