@@ -32,3 +32,19 @@
 .buttonAnchor:hover {
     color: var(--mantine-color-text);
 }
+
+.thumbnailButton {
+    flex-shrink: 0;
+    border-radius: var(--mantine-radius-sm);
+    cursor: pointer;
+}
+
+.thumbnailButton:hover > * {
+    background: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+}
+
+.thumbnailButton:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+}

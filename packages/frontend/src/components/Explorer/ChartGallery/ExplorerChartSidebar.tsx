@@ -3,7 +3,15 @@ import {
     isOfficialChartType,
     type ChartType,
 } from '@lightdash/common';
-import { ActionIcon, Anchor, Group, Stack, Text, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Anchor,
+    Group,
+    Stack,
+    Text,
+    Tooltip,
+    UnstyledButton,
+} from '@mantine/core';
 import {
     IconArrowLeft,
     IconLayoutSidebarRightCollapse,
@@ -57,6 +65,8 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
     // it. Only on a change, so restoring a step from the URL cannot steal
     // focus on load.
     const changeRef = useRef<HTMLButtonElement>(null);
+    const thumbnailRef = useRef<HTMLButtonElement>(null);
+    const openedFromThumbnail = useRef(false);
     const previousStep = useRef(step);
     useEffect(() => {
         if (previousStep.current === step) return;
@@ -65,7 +75,9 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
             document.getElementById(CHART_GALLERY_SEARCH_ID)?.focus();
         } else {
             (
-                changeRef.current ??
+                (openedFromThumbnail.current
+                    ? thumbnailRef.current
+                    : changeRef.current) ??
                 document.getElementById(CHART_GALLERY_SIDEBAR_TITLE_ID)
             )?.focus();
         }
@@ -182,11 +194,32 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                     ) : (
                         <Stack className={classes.configure} gap="md">
                             <Group wrap="nowrap" gap="sm" align="center">
-                                <ChartTypeThumbnail
-                                    small
-                                    icon={selectedItem.icon}
-                                    rotatedIcon={selectedItem.rotatedIcon}
-                                />
+                                {isAuthoring ? (
+                                    <ChartTypeThumbnail
+                                        small
+                                        icon={selectedItem.icon}
+                                        rotatedIcon={selectedItem.rotatedIcon}
+                                    />
+                                ) : (
+                                    <UnstyledButton
+                                        ref={thumbnailRef}
+                                        type="button"
+                                        aria-label="Choose chart type"
+                                        className={classes.thumbnailButton}
+                                        onClick={() => {
+                                            openedFromThumbnail.current = true;
+                                            showChoose();
+                                        }}
+                                    >
+                                        <ChartTypeThumbnail
+                                            small
+                                            icon={selectedItem.icon}
+                                            rotatedIcon={
+                                                selectedItem.rotatedIcon
+                                            }
+                                        />
+                                    </UnstyledButton>
+                                )}
                                 <Stack gap={2} flex={1} miw={0}>
                                     <Text
                                         id={
@@ -213,7 +246,10 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                                 className={classes.buttonAnchor}
                                                 fz="xs"
                                                 fw={500}
-                                                onClick={showChoose}
+                                                onClick={() => {
+                                                    openedFromThumbnail.current = false;
+                                                    showChoose();
+                                                }}
                                             >
                                                 Change
                                             </Anchor>
