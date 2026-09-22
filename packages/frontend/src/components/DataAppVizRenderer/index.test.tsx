@@ -920,6 +920,7 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
             onSdkManifest?: (manifest: {
                 sdkVersion: string;
                 features: string[];
+                fixes: string[];
             }) => void;
         };
 
@@ -943,6 +944,7 @@ describe('DataAppVizRenderer screenshot-ready contract', () => {
             lastIframeProps().onSdkManifest?.({
                 sdkVersion: '2.274.0',
                 features: ['viz-rendered'],
+                fixes: [],
             }),
         );
     };

@@ -294,3 +294,18 @@ pnpm -F query-sdk fix-format    # format with oxfmt
 ```
 
 See `example/` for a working F1 dashboard demo.
+
+## SDK feature and fix manifests
+
+The SDK announces the features and fixes built into every app bundle so
+Lightdash can offer a rebuild when a newer SDK adds something applicable. When
+adding a user-facing capability, register a stable kebab-case key in
+`src/features.ts`'s `SDK_FEATURES` and mirror it in
+`packages/common/src/ee/apps/sdkFeatures.ts`; features may include `wiring`
+when app code must opt in.
+
+When fixing SDK behavior that becomes active after a rebuild, add a stable key,
+label, description, and `appliesTo` target to `SDK_FIXES` in both registries.
+Fixes describe the shipped behavior only: never add `wiring`, infer old fixes
+from SDK versions, or backfill historical entries. The host lists missing
+applicable fixes separately from features and rebuilding activates them.

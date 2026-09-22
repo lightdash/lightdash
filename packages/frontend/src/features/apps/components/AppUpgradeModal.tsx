@@ -33,8 +33,10 @@ const AppUpgradeModal: FC<Props> = ({
     const { mutate, isLoading } = useUpgradeApp();
     const isChartType = resource === 'chartType';
     const noun = isChartType ? 'chart type' : 'app';
+    const hasNewFeatures = offer.newFeatures.length > 0;
+    const hasNewFixes = offer.newFixes.length > 0;
     const isFixesOnly =
-        offer.status === 'stale' && offer.newFeatures.length === 0;
+        offer.status === 'stale' && !hasNewFeatures && hasNewFixes;
 
     const handleUpgrade = useCallback(() => {
         mutate(
@@ -76,8 +78,8 @@ const AppUpgradeModal: FC<Props> = ({
             ? 'When it is ready, Version History will show the completed SDK upgrade.'
             : 'When it is ready, chat will show the completed SDK upgrade.'
         : isChartType
-          ? 'When it is ready, Version History will show what is now active and what you can ask the builder to add. Ask for them in the prompt bar; nothing that changes your chart is added automatically.'
-          : 'When it is ready, chat will show what is now active and what you can ask the builder to add. Ask for them in chat; nothing that changes your app is added automatically.';
+          ? 'When it is ready, Version History will show what is now active and which features you can ask the builder to add. Ask for features in the prompt bar; nothing that changes your chart is added automatically.'
+          : 'When it is ready, chat will show what is now active and which features you can ask the builder to add. Ask for features in chat; nothing that changes your app is added automatically.';
 
     return (
         <MantineModal
@@ -90,24 +92,50 @@ const AppUpgradeModal: FC<Props> = ({
             onConfirm={handleUpgrade}
         >
             <Stack gap="sm">
-                {offer.status === 'stale' && offer.newFeatures.length > 0 ? (
+                {offer.status === 'stale' && (hasNewFeatures || hasNewFixes) ? (
                     <>
                         <Text size="sm">
                             This creates a new version of the {noun} using the
                             latest SDK. New since this version was built:
                         </Text>
-                        <List spacing="xs" size="sm">
-                            {offer.newFeatures.map((feature) => (
-                                <List.Item key={feature.key}>
-                                    <Text size="sm" fw={500} span>
-                                        {feature.label}
-                                    </Text>{' '}
-                                    <Text size="sm" c="dimmed" span>
-                                        — {feature.description}
-                                    </Text>
-                                </List.Item>
-                            ))}
-                        </List>
+                        {hasNewFeatures && (
+                            <>
+                                <Text size="sm" fw={500}>
+                                    Features
+                                </Text>
+                                <List spacing="xs" size="sm">
+                                    {offer.newFeatures.map((feature) => (
+                                        <List.Item key={feature.key}>
+                                            <Text size="sm" fw={500} span>
+                                                {feature.label}
+                                            </Text>{' '}
+                                            <Text size="sm" c="dimmed" span>
+                                                — {feature.description}
+                                            </Text>
+                                        </List.Item>
+                                    ))}
+                                </List>
+                            </>
+                        )}
+                        {hasNewFixes && (
+                            <>
+                                <Text size="sm" fw={500}>
+                                    Fixes
+                                </Text>
+                                <List spacing="xs" size="sm">
+                                    {offer.newFixes.map((fix) => (
+                                        <List.Item key={fix.key}>
+                                            <Text size="sm" fw={500} span>
+                                                {fix.label}
+                                            </Text>{' '}
+                                            <Text size="sm" c="dimmed" span>
+                                                — {fix.description}
+                                            </Text>
+                                        </List.Item>
+                                    ))}
+                                </List>
+                            </>
+                        )}
                     </>
                 ) : offer.status === 'stale' ? (
                     <Text size="sm">
@@ -116,8 +144,9 @@ const AppUpgradeModal: FC<Props> = ({
                     </Text>
                 ) : offer.status === 'current' ? (
                     <Text size="sm">
-                        This {noun} is already on the latest SDK. Upgrading
-                        again creates a new version from the current template.
+                        This {noun} already includes the available SDK features
+                        and fixes. Upgrading again creates a new version from
+                        the current template.
                     </Text>
                 ) : (
                     <Text size="sm">

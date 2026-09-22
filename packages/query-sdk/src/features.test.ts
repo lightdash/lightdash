@@ -6,8 +6,9 @@ import {
     SDK_FEATURE_KEYS,
     SDK_FEATURE_TARGETS,
     SDK_FEATURES,
+    SDK_FIX_KEYS,
+    SDK_FIXES,
     SDK_MANIFEST_MESSAGE_TYPE,
-    MINIMUM_SDK_VERSION,
 } from './features';
 import { SDK_VERSION } from './generated/sdkVersion';
 import { announceSdkManifest } from './manifest';
@@ -84,6 +85,24 @@ describe('SDK_FEATURES registry', () => {
     });
 });
 
+describe('SDK_FIXES registry', () => {
+    it('has unique keys and non-empty prose', () => {
+        const keys = SDK_FIXES.map((fix) => fix.key);
+        expect(new Set(keys).size).toEqual(keys.length);
+        for (const fix of SDK_FIXES) {
+            expect(fix.key).toMatch(/^[a-z][a-z-]*$/);
+            expect(fix.label.trim().length).toBeGreaterThan(0);
+            expect(fix.description.trim().length).toBeGreaterThan(0);
+            expect(fix.appliesTo.length).toBeGreaterThan(0);
+            expect(new Set(fix.appliesTo).size).toEqual(fix.appliesTo.length);
+            for (const target of fix.appliesTo) {
+                expect(SDK_FEATURE_TARGETS).toContain(target);
+            }
+        }
+        expect(SDK_FIX_KEYS).toEqual(keys);
+    });
+});
+
 describe('registry mirror in @lightdash/common', () => {
     it('matches packages/common/src/ee/apps/sdkFeatures.ts exactly', async () => {
         // devDependency, test-only: the deployed frontend/backend build from
@@ -91,8 +110,7 @@ describe('registry mirror in @lightdash/common', () => {
         // When this fails, update BOTH files with the same change.
         const common = await import('@lightdash/common');
         expect(common.SDK_FEATURES).toEqual(SDK_FEATURES);
-        expect(common.MINIMUM_SDK_VERSION).toEqual(MINIMUM_SDK_VERSION);
-        expect(MINIMUM_SDK_VERSION).toEqual('1.6.0');
+        expect(common.SDK_FIXES).toEqual(SDK_FIXES);
     });
 });
 
@@ -101,6 +119,7 @@ describe('announceSdkManifest', () => {
         type: SDK_MANIFEST_MESSAGE_TYPE,
         sdkVersion: SDK_VERSION,
         features: SDK_FEATURE_KEYS,
+        fixes: SDK_FIX_KEYS,
     };
 
     let cleanup: () => void = () => {};

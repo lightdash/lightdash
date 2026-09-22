@@ -1,9 +1,8 @@
 import {
-    compareSemverVersions,
     getSdkFeaturesForTarget,
-    isSemverVersion,
-    MINIMUM_SDK_VERSION,
+    getSdkFixesForTarget,
     type SdkFeature,
+    type SdkFix,
     type SdkFeatureTarget,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -20,6 +19,9 @@ export type SdkUpgradeOffer = {
     /** Registry entries the running bundle lacks; empty for legacy (its
      *  feature set is unknown, so the What's-new UI shows generic copy). */
     newFeatures: SdkFeature[];
+    /** Registry fix entries the running bundle lacks. These apply on rebuild
+     *  and never require app-code wiring or go to the upgrade agent. */
+    newFixes: SdkFix[];
     /** What the upgrade request sends as possibly-new: the delta when stale,
      *  the full registry when legacy (feature set unknown). The in-sandbox
      *  agent verifies each against the installed SDK and never invents more. */
@@ -103,23 +105,21 @@ export const useSdkUpgradeStatus = ({
 
     const offer = useMemo<SdkUpgradeOffer>(() => {
         const registry = getSdkFeaturesForTarget(target);
+        const fixes = getSdkFixesForTarget(target);
         if (manifest) {
             const reported = new Set(manifest.features);
+            const reportedFixes = new Set(manifest.fixes);
             // Additions only: keys the bundle reports that the current
             // registry no longer has (removed features) are ignored.
             const newFeatures = registry.filter((f) => !reported.has(f.key));
-            const isBelowSdkFixFloor =
-                isSemverVersion(manifest.sdkVersion) &&
-                compareSemverVersions(
-                    manifest.sdkVersion,
-                    MINIMUM_SDK_VERSION,
-                ) < 0;
+            const newFixes = fixes.filter((fix) => !reportedFixes.has(fix.key));
             return {
                 status:
-                    newFeatures.length > 0 || isBelowSdkFixFloor
+                    newFeatures.length > 0 || newFixes.length > 0
                         ? 'stale'
                         : 'current',
                 newFeatures,
+                newFixes,
                 candidateFeatures: newFeatures,
                 reportedSdkVersion: manifest.sdkVersion,
                 reportedFeatures: manifest.features,
@@ -128,6 +128,7 @@ export const useSdkUpgradeStatus = ({
         return {
             status: timedOut ? 'legacy' : 'unknown',
             newFeatures: [],
+            newFixes: [],
             candidateFeatures: timedOut ? registry : [],
             reportedSdkVersion: null,
             reportedFeatures: null,

@@ -1,5 +1,6 @@
 import {
     SDK_FEATURE_KEYS,
+    SDK_FIX_KEYS,
     SDK_MANIFEST_MESSAGE_TYPE,
     type SdkManifestMessage,
 } from './features';
@@ -22,6 +23,7 @@ export function announceSdkManifest(targetWindow: Window): () => void {
         type: SDK_MANIFEST_MESSAGE_TYPE,
         sdkVersion: SDK_VERSION,
         features: SDK_FEATURE_KEYS,
+        fixes: SDK_FIX_KEYS,
     };
     // Wildcard on purpose — do NOT "fix" this to an origin. Cloud serves
     // bundles from {customer}.lightdash.app while the host page runs on
