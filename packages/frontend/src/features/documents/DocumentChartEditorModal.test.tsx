@@ -203,3 +203,36 @@ it('clears the old query only after confirmation and retains metadata for the re
         screen.getByRole('button', { name: 'Apply to Document' }),
     ).toBeDisabled();
 });
+
+it('submits the chart form from the header Apply button', async () => {
+    const apply = renderModal(chart);
+    const applyButton = screen.getByRole('button', {
+        name: 'Apply to Document',
+    });
+    const nameInput = screen.getByRole('textbox', { name: 'Chart name' });
+    expect(applyButton).toHaveAttribute('type', 'submit');
+    expect(applyButton).toHaveAttribute('form', nameInput.closest('form')?.id);
+    fireEvent.change(nameInput, { target: { value: 'Renamed orders' } });
+    fireEvent.submit(nameInput.closest('form')!);
+    await waitFor(() =>
+        expect(apply).toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: 'Renamed orders',
+                tableName: 'orders',
+            }),
+        ),
+    );
+});
+
+it('ignores a form submission while the query is invalid', async () => {
+    const apply = renderModal(null);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Chart name' }), {
+        target: { value: 'Pending chart' },
+    });
+    fireEvent.click(
+        await screen.findByRole('button', { name: 'Pick payments' }),
+    );
+    const nameInput = screen.getByRole('textbox', { name: 'Chart name' });
+    fireEvent.submit(nameInput.closest('form')!);
+    expect(apply).not.toHaveBeenCalled();
+});

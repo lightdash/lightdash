@@ -278,6 +278,8 @@ const DocumentEditor = ({
                                             cell={cell}
                                         />
                                     ) : cell.content.source === 'semantic' ? (
+                                        // Applying a chart edit remounts the preview so the
+                                        // visualization drops state it seeded from the old chart
                                         <DocumentDraftChart
                                             key={JSON.stringify(
                                                 cell.content.chart,

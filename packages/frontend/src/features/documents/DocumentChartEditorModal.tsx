@@ -37,6 +37,8 @@ type Props = {
 
 type ChartForm = UseFormReturnType<{ name: string; description: string }>;
 
+const CHART_FORM_ID = 'document-chart-editor-form';
+
 const CancelChartEditing = () => {
     const { requestClose } = useMantineModalClose();
     return (
@@ -69,6 +71,19 @@ const EditorSession = ({
     const dirty = form.isDirty() || !deepEqual(initialVersion, version);
     const unsupported = version.chartConfig.type === ChartType.DATA_APP_VIZ;
     const rightSidebar = useChartGalleryRightSidebar({ enabled: true });
+    const applyChart = form.onSubmit(({ name, description }) => {
+        if (!isValidQuery || unsupported || !name.trim()) {
+            return;
+        }
+        const result = getDocumentChartFromVersion(
+            version,
+            name.trim(),
+            description,
+        );
+        if (result) {
+            onApply(result);
+        }
+    });
     useBeforeUnload((event) => {
         if (dirty) {
             event.preventDefault();
@@ -88,21 +103,13 @@ const EditorSession = ({
                 <Group gap="sm">
                     <CancelChartEditing />
                     <Button
+                        type="submit"
+                        form={CHART_FORM_ID}
                         disabled={
                             !isValidQuery ||
                             !form.values.name.trim() ||
                             unsupported
                         }
-                        onClick={() => {
-                            const result = getDocumentChartFromVersion(
-                                version,
-                                form.values.name.trim(),
-                                form.values.description,
-                            );
-                            if (result) {
-                                onApply(result);
-                            }
-                        }}
                     >
                         Apply to Document
                     </Button>
@@ -132,17 +139,19 @@ const EditorSession = ({
                     {...rightSidebar}
                 >
                     <Stack gap="md">
-                        <Group align="end">
-                            <TextInput
-                                label="Chart name"
-                                {...form.getInputProps('name')}
-                            />
-                            <TextInput
-                                label="Description"
-                                {...form.getInputProps('description')}
-                            />
-                            <RefreshButton />
-                        </Group>
+                        <form id={CHART_FORM_ID} onSubmit={applyChart}>
+                            <Group align="end">
+                                <TextInput
+                                    label="Chart name"
+                                    {...form.getInputProps('name')}
+                                />
+                                <TextInput
+                                    label="Description"
+                                    {...form.getInputProps('description')}
+                                />
+                                <RefreshButton />
+                            </Group>
+                        </form>
                         {unsupported && (
                             <Callout variant="warning">
                                 Custom chart types are not supported in
