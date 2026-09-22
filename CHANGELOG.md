@@ -1,3 +1,12 @@
+## [2.287.1](https://github.com/lightdash/lightdash/compare/2.287.0...2.287.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **ai:** record agent calls to external MCP servers in MCP activity ([#29710](https://github.com/lightdash/lightdash/issues/29710)) ([b934a40](https://github.com/lightdash/lightdash/commit/b934a40ff89581694f094686fc2b9bc806fdec95))
+* **dashboards:** restore content space in small untitled tiles ([#29712](https://github.com/lightdash/lightdash/issues/29712)) ([5ff9686](https://github.com/lightdash/lightdash/commit/5ff96866ac83eb3ea4ddd307c6b2805e9ebc2062))
+* **embed:** edit and remove saved filters in embed edit mode ([#29708](https://github.com/lightdash/lightdash/issues/29708)) ([9fcbdc4](https://github.com/lightdash/lightdash/commit/9fcbdc449b75d9c0baa03b2a6a915c22810e5dbc)), closes [#29697](https://github.com/lightdash/lightdash/issues/29697)
+
 # [2.287.0](https://github.com/lightdash/lightdash/compare/2.286.8...2.287.0) (2026-09-22)
 
 

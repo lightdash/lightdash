@@ -1,14 +1,28 @@
 {
   "schemaVersion": "2",
-  "version": "2.287.0",
-  "previousVersion": "2.286.8",
-  "releaseDate": "2026-09-22T09:23:27.029Z",
+  "version": "2.287.1",
+  "previousVersion": "2.287.0",
+  "releaseDate": "2026-09-22T09:40:42.201Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20260922090000_add_direction_and_mcp_server_to_mcp_tool_call.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_mcp_server",
+          "mcp_tool_call"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

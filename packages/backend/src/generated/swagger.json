@@ -39045,8 +39045,29 @@
                 "type": "object",
                 "description": "Server-computed display group for session-grouped activity: a session\nsplit into segments on 1h inactivity gaps (sessionless calls chunk the\nsame way under a shared no-session block). Counts cover the whole\nsegment, not just the loaded page. Null when the query isn't\nsession-grouped (e.g. sorted by duration)."
             },
+            "McpActivityDirection": {
+                "type": "string",
+                "enum": ["inbound", "outbound"],
+                "description": "`inbound`: an external MCP client (Claude, Cursor, ...) called a tool on\nLightdash's MCP server. `outbound`: a Lightdash agent called a tool on a\nconnected external MCP server during a conversation."
+            },
             "McpActivityItem": {
                 "properties": {
+                    "mcpServer": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "direction": {
+                        "$ref": "#/components/schemas/McpActivityDirection"
+                    },
                     "sessionGroup": {
                         "allOf": [
                             {
@@ -39145,6 +39166,8 @@
                     }
                 },
                 "required": [
+                    "mcpServer",
+                    "direction",
                     "sessionGroup",
                     "sessionId",
                     "protocolVersion",
@@ -64297,7 +64320,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.287.0",
+        "version": "2.287.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
