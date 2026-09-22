@@ -1,3 +1,10 @@
+# [2.295.0](https://github.com/lightdash/lightdash/compare/2.294.1...2.295.0) (2026-09-22)
+
+
+### Features
+
+* **ai-agents:** show response timings by default ([#29748](https://github.com/lightdash/lightdash/issues/29748)) ([4c4a106](https://github.com/lightdash/lightdash/commit/4c4a106f775011c43a9c9045b3d554c8ff970078))
+
 ## [2.294.1](https://github.com/lightdash/lightdash/compare/2.294.0...2.294.1) (2026-09-22)
 
 
