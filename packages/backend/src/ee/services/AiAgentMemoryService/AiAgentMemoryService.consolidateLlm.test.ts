@@ -16,9 +16,9 @@ vi.mock('ai', async (importOriginal) => ({
 vi.mock('../ai/models', () => ({ getModel: vi.fn() }));
 vi.mock('../ai/agents/agentV2', () => ({ defaultAgentOptions: {} }));
 vi.mock('../ai/utils/aiCallTelemetry', () => ({
-    // Must mirror the real return shape, or the usage path this exercises
-    // silently no-ops: emitAiUsage reads telemetry.runtimeContext and needs a
-    // real feature.
+    // Mirrors the real return shape. This service never emits usage, so
+    // nothing here reads it today; the shape is kept honest so the mock does
+    // not drift from the function it stands in for.
     getAiCallTelemetry: () => ({
         runtimeContext: { feature: 'ai-agent-memory' },
         telemetry: { functionId: 'test' },

@@ -16,7 +16,10 @@ vi.mock('../ai/models', () => ({
     resolveKeyManagement: vi.fn(() => 'lightdash'),
 }));
 vi.mock('../ai/utils/aiCallTelemetry', () => ({
-    getAiCallTelemetry: vi.fn(() => ({ isEnabled: false })),
+    getAiCallTelemetry: vi.fn(() => ({
+        runtimeContext: { feature: 'data-app' },
+        telemetry: { functionId: 'test' },
+    })),
     getLanguageModelAttribution: vi.fn(() => ({})),
 }));
 
