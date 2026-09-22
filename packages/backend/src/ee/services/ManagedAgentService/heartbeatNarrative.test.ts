@@ -113,7 +113,12 @@ describe('composeHeartbeatNarrative', () => {
         const [system, request] = calls[0].prompt;
         expect(system.role).toBe('system');
         const systemText = JSON.stringify(system.content);
-        expect(systemText).toContain('Storytelling Over Stats');
+        expect(systemText).toContain('Manufactured drama');
+        expect(systemText).toContain('Template filling');
+        expect(systemText).toContain('Process leakage');
+        expect(systemText).toContain('Keep it under 200 words');
+        expect(systemText).not.toContain('warm, self-aware');
+        expect(systemText).not.toContain('standing ovation');
         expect(systemText).not.toContain('## Output Format');
         expect(systemText).toContain(
             'only if it appears in the saved actions list',
