@@ -725,6 +725,8 @@ class TracingService {
         private readonly otel: OtelTracingStrategy,
     ) {}
 
+    private telemetryRegistered = false;
+
     // Exclusive: OTel mode owns spans + propagation entirely, otherwise
     // Sentry does. Running both duplicated every span.
     private get strategy(): TracingStrategy {
@@ -742,6 +744,13 @@ class TracingService {
         //
         // The tracer is read from the @opentelemetry/api singleton in the
         // constructor, so this must run after the providers are initialised.
+        //
+        // registerTelemetry appends to a global list and never de-duplicates,
+        // so a second call emits every AI span twice. initialize() runs more
+        // than once per process: the bootstrap import and App's module body
+        // both call it, as does SchedulerApp when it shares the process.
+        if (this.telemetryRegistered) return;
+        this.telemetryRegistered = true;
         registerTelemetry(new LegacyOpenTelemetry());
     }
 
