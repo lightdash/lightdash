@@ -2,7 +2,6 @@ import { type DataAppVizField } from '@lightdash/common';
 import { Group, Stack, Text, VisuallyHidden } from '@mantine/core';
 import { type FC } from 'react';
 import DataAppVizFieldTypeBadge from '../components/DataAppVizFieldTypeBadge';
-import classes from './ConfigurePanel.module.css';
 
 type Props = {
     fields: DataAppVizField[];
@@ -13,7 +12,7 @@ const ChartInputsList: FC<Props> = ({ fields }) => {
     if (fields.length === 0) return null;
 
     return (
-        <Stack className={classes.chartInputs} gap="xs">
+        <Stack gap="xs">
             <Text fz="sm" fw={600}>
                 Chart inputs
             </Text>

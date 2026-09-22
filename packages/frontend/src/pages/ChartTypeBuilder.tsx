@@ -19,7 +19,6 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
-import { type PreviewDataSource } from '../features/chartTypes/builder/BuilderCanvas';
 import ChartTypeBuilderHeader from '../features/chartTypes/builder/ChartTypeBuilderHeader';
 import ChartTypeBuilderWorkspace from '../features/chartTypes/builder/ChartTypeBuilderWorkspace';
 import ConfigurePanel from '../features/chartTypes/builder/ConfigurePanel';
@@ -123,10 +122,6 @@ const ChartTypeBuilder: FC = () => {
                 : null,
         [workspace.dataAppViz?.schema, colorPalette, panel.optionValues],
     );
-    // Every preview here is fabricated from the schema alone.
-    const previewDataSource: PreviewDataSource | null = previewContext
-        ? { kind: 'sample' }
-        : null;
 
     const explorerDestination = useMemo(() => {
         if (!explorerChart || !activeVizUuid) return null;
@@ -278,7 +273,6 @@ const ChartTypeBuilder: FC = () => {
                 projectUuid={projectUuid}
                 workspace={workspace}
                 previewContext={previewContext}
-                previewDataSource={previewDataSource}
                 syncPreviewUrlState
                 configurePanel={configurePanel}
             />

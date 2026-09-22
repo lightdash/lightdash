@@ -31,8 +31,8 @@ type Props = {
 
 /**
  * The builder's configuration column: the options the current version declares,
- * split into the same tabs the explorer uses, with the palette picker in the
- * tab its declaration names. The option and palette state lives in the page,
+ * with inputs in General and options in the same tabs the explorer uses. The
+ * palette picker stays in the tab its declaration names. State lives in the page,
  * which derives the preview context from it.
  */
 const ConfigurePanel: FC<Props> = ({
@@ -56,74 +56,80 @@ const ConfigurePanel: FC<Props> = ({
         [schema.configOptions, schema.colorPalette],
     );
 
-    const [selectedTab, setSelectedTab] = useState<string | null>(
-        optionGroups[0]?.id ?? null,
-    );
+    const [selectedTab, setSelectedTab] = useState<string | null>('general');
     // A tab a rebuild stopped declaring must not leave the panel blank.
-    const activeTab = optionGroups.some((group) => group.id === selectedTab)
-        ? selectedTab
-        : (optionGroups[0]?.id ?? null);
+    const activeTab =
+        selectedTab === 'general' ||
+        optionGroups.some((group) => group.id === selectedTab)
+            ? selectedTab
+            : 'general';
 
     return (
         <Box className={classes.panel} data-stale={isStale} inert={isStale}>
-            <ChartInputsList fields={schema.fields} />
-
-            {/* The options are the generated contract, not Lightdash chart
-                config, and the chip says so. */}
             <Text className={classes.generatedChip}>Generated options</Text>
-
-            {optionGroups.length === 0 ? (
-                <Text fz="xs" c="dimmed" lh={1.5} px="sm" pb="sm">
-                    This chart type declares no display options.
-                </Text>
-            ) : (
-                <Tabs
-                    value={activeTab}
-                    onChange={setSelectedTab}
-                    keepMounted={false}
-                    className={classes.tabs}
-                >
-                    <OverflowTabsList className={classes.tabsList}>
-                        {optionGroups.map((group) => (
-                            <Tabs.Tab key={group.id} value={group.id} px="xs">
-                                {group.label}
-                            </Tabs.Tab>
-                        ))}
-                    </OverflowTabsList>
-
+            <Tabs
+                value={activeTab}
+                onChange={setSelectedTab}
+                keepMounted={false}
+                className={classes.tabs}
+            >
+                <OverflowTabsList className={classes.tabsList}>
+                    <Tabs.Tab value="general" px="xs">
+                        General
+                    </Tabs.Tab>
                     {optionGroups.map((group) => (
-                        <Tabs.Panel
-                            key={group.id}
-                            value={group.id}
-                            className={classes.tabPanel}
-                        >
-                            <Stack gap="sm" px="sm" pt="sm" pb="sm">
-                                {group.options.map((option) => (
-                                    <DataAppVizOptionControl
-                                        key={option.name}
-                                        option={option}
-                                        value={effectiveValues[option.name]}
-                                        colorPalette={resolvedColorPalette}
-                                        onChange={(value) =>
-                                            onOptionChange(option.name, value)
-                                        }
-                                    />
-                                ))}
-                                {group.hasPalette && (
-                                    <PalettePicker
-                                        label="Color palette"
-                                        value={colorPaletteUuid}
-                                        onChange={onPaletteChange}
-                                        palettes={palettes}
-                                        parentLabel="Project default"
-                                        showPreview={false}
-                                    />
-                                )}
-                            </Stack>
-                        </Tabs.Panel>
+                        <Tabs.Tab key={group.id} value={group.id} px="xs">
+                            {group.label}
+                        </Tabs.Tab>
                     ))}
-                </Tabs>
-            )}
+                </OverflowTabsList>
+
+                <Tabs.Panel value="general" className={classes.tabPanel}>
+                    <Stack gap="sm" p="sm">
+                        <ChartInputsList fields={schema.fields} />
+                        {optionGroups.length === 0 && (
+                            <Text fz="xs" c="dimmed">
+                                This chart type declares no display options.
+                            </Text>
+                        )}
+                    </Stack>
+                </Tabs.Panel>
+
+                {optionGroups.map((group) => (
+                    <Tabs.Panel
+                        key={group.id}
+                        value={group.id}
+                        className={classes.tabPanel}
+                    >
+                        <Stack gap="sm" px="sm" pt="sm" pb="sm">
+                            {group.options.map((option) => (
+                                <DataAppVizOptionControl
+                                    key={option.name}
+                                    option={option}
+                                    value={effectiveValues[option.name]}
+                                    colorPalette={resolvedColorPalette}
+                                    onChange={(value) =>
+                                        onOptionChange(option.name, value)
+                                    }
+                                />
+                            ))}
+                            {group.hasPalette && (
+                                <PalettePicker
+                                    label="Color palette"
+                                    value={colorPaletteUuid}
+                                    onChange={onPaletteChange}
+                                    palettes={palettes}
+                                    parentLabel="Project default"
+                                    showPreview={false}
+                                />
+                            )}
+                        </Stack>
+                    </Tabs.Panel>
+                ))}
+            </Tabs>
+            <Text size="xs" c="dimmed" className={classes.previewData}>
+                Preview uses sample data.
+            </Text>
         </Box>
     );
 };

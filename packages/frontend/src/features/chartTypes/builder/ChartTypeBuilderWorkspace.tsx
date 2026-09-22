@@ -8,7 +8,7 @@ import { type AppIframePreviewHandle } from '../../apps/AppIframePreview';
 import { useElementPicker } from '../../apps/hooks/useElementPicker';
 import { refToWireString } from '../../apps/utils/elementRefs';
 import { type VizBuildRequest } from '../hooks/useDataAppVizBuild';
-import BuilderCanvas, { type PreviewDataSource } from './BuilderCanvas';
+import BuilderCanvas from './BuilderCanvas';
 import BuilderPromptBar from './BuilderPromptBar';
 import classes from './ChartTypeBuilderWorkspace.module.css';
 import { type ChartTypeBuilderWorkspaceState } from './useChartTypeBuilderWorkspace';
@@ -19,8 +19,6 @@ type Props = {
     workspace: ChartTypeBuilderWorkspaceState;
     /** What the preview renders with; null renders the app bare. */
     previewContext: DataAppVizContext | null;
-    /** What backs `previewContext`; null when the host previews its own rows. */
-    previewDataSource: PreviewDataSource | null;
     /** Bounded sample of the host's current rows, even before a schema exists. */
     sampleRows?: Record<string, string>[];
     currentBuildContext?: VizBuildRequest['context'];
@@ -42,7 +40,6 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
     projectUuid,
     workspace,
     previewContext,
-    previewDataSource,
     sampleRows = [],
     currentBuildContext,
     syncPreviewUrlState,
@@ -134,7 +131,6 @@ const ChartTypeBuilderWorkspace: FC<Props> = ({
                                 isClarifyRoundOpen={isClarifyRoundOpen}
                                 clarifierUnavailable={clarification.fellThrough}
                                 previewContext={previewContext}
-                                previewDataSource={previewDataSource}
                                 configurePanel={configurePanel}
                                 onPickExample={onPickExample}
                                 onSdkManifest={onSdkManifest}

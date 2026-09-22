@@ -21,7 +21,6 @@ const renderCanvas = (
             isClarifyRoundOpen={false}
             clarifierUnavailable={false}
             previewContext={null}
-            previewDataSource={null}
             configurePanel={<div>Options panel</div>}
             onPickExample={null}
             onSdkManifest={vi.fn()}
@@ -49,15 +48,15 @@ describe('BuilderCanvas', () => {
         );
     });
 
-    it('shows the sample data badge when the preview is fabricated', () => {
-        renderCanvas({ previewDataSource: { kind: 'sample' } });
+    it('leaves the preview free of a sample-data header', () => {
+        renderCanvas();
 
-        expect(screen.getByText('Sample data')).toBeInTheDocument();
-        expect(screen.getByText('Made-up rows.')).toBeInTheDocument();
+        expect(screen.queryByText('Sample data')).not.toBeInTheDocument();
+        expect(screen.queryByText('Made-up rows.')).not.toBeInTheDocument();
     });
 
-    it('shows no sample data badge without a preview data source', () => {
-        renderCanvas({ previewDataSource: null });
+    it('renders the preview without a configure panel', () => {
+        renderCanvas({ configurePanel: null });
 
         expect(screen.queryByText('Sample data')).not.toBeInTheDocument();
     });
