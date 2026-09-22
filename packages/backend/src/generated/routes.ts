@@ -23507,6 +23507,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentBattleProfile: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['fast'] },
+                { dataType: 'enum', enums: ['baseline'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentUser: {
         dataType: 'refAlias',
         type: {
@@ -23585,6 +23597,14 @@ const models: TsoaRoute.Models = {
                         message: { dataType: 'string', required: true },
                         uuid: { dataType: 'string', required: true },
                     },
+                    required: true,
+                },
+                battleProfile: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiAgentBattleProfile' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                     required: true,
                 },
                 pinnedAt: {
@@ -24920,6 +24940,14 @@ const models: TsoaRoute.Models = {
                         message: { dataType: 'string', required: true },
                         uuid: { dataType: 'string', required: true },
                     },
+                    required: true,
+                },
+                battleProfile: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiAgentBattleProfile' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                     required: true,
                 },
                 pinnedAt: {
@@ -28511,6 +28539,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                decisionOutputTokens: { dataType: 'double' },
+                decisionInputTokens: { dataType: 'double' },
                 finalStepTotalTokens: { dataType: 'double' },
                 totalTokens: { dataType: 'double', required: true },
             },
@@ -29197,6 +29227,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                battleProfile: { ref: 'AiAgentBattleProfile' },
                 originatingInstallationUuid: { dataType: 'string' },
                 modelConfig: { ref: 'AiAgentModelConfig' },
                 context: { ref: 'AiPromptContextInput' },

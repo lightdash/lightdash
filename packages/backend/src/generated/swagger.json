@@ -25130,6 +25130,10 @@
                 "type": "string",
                 "enum": ["data_app", "slack", "web_app", "evals", "scheduler"]
             },
+            "AiAgentBattleProfile": {
+                "type": "string",
+                "enum": ["fast", "baseline"]
+            },
             "AiAgentUser": {
                 "properties": {
                     "name": {
@@ -25194,6 +25198,14 @@
                         "required": ["message", "uuid"],
                         "type": "object"
                     },
+                    "battleProfile": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentBattleProfile"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "pinnedAt": {
                         "type": "string",
                         "nullable": true
@@ -25223,6 +25235,7 @@
                     "liveStatus",
                     "user",
                     "firstMessage",
+                    "battleProfile",
                     "pinnedAt",
                     "titleGeneratedAt",
                     "title",
@@ -26488,6 +26501,14 @@
                         "required": ["message", "uuid"],
                         "type": "object"
                     },
+                    "battleProfile": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentBattleProfile"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "pinnedAt": {
                         "type": "string",
                         "nullable": true
@@ -26517,6 +26538,7 @@
                     "liveStatus",
                     "user",
                     "firstMessage",
+                    "battleProfile",
                     "pinnedAt",
                     "titleGeneratedAt",
                     "title",
@@ -28995,6 +29017,16 @@
             },
             "AiPromptTokenUsage": {
                 "properties": {
+                    "decisionOutputTokens": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "TypeSafe/JEV output tokens, tracked separately from the main agent model."
+                    },
+                    "decisionInputTokens": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "TypeSafe/JEV input tokens, tracked separately from the main agent model."
+                    },
                     "finalStepTotalTokens": {
                         "type": "number",
                         "format": "double",
@@ -29711,6 +29743,10 @@
             },
             "ApiAiAgentThreadCreateRequest": {
                 "properties": {
+                    "battleProfile": {
+                        "$ref": "#/components/schemas/AiAgentBattleProfile",
+                        "description": "Internal feature-speed battle; accepted only behind battle mode."
+                    },
                     "originatingInstallationUuid": {
                         "type": "string"
                     },
@@ -64397,7 +64433,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.300.0",
+        "version": "2.301.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

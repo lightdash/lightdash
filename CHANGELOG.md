@@ -1,3 +1,10 @@
+# [2.301.0](https://github.com/lightdash/lightdash/compare/2.300.0...2.301.0) (2026-09-22)
+
+
+### Features
+
+* **ai-agents:** add fast refinement battle mode ([#29746](https://github.com/lightdash/lightdash/issues/29746)) ([32e4460](https://github.com/lightdash/lightdash/commit/32e4460ddad509c18a0b5b10402ac7e717aeea1c))
+
 # [2.300.0](https://github.com/lightdash/lightdash/compare/2.299.0...2.300.0) (2026-09-22)
 
 
