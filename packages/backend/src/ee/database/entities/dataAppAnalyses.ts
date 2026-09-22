@@ -75,3 +75,21 @@ export type DataAppAnalysesTable = Knex.CompositeTableType<
     DbDataAppAnalysis,
     DbCreateDataAppAnalysis
 >;
+
+export const DataAppAnalysisRateCountersTableName =
+    'data_app_analysis_rate_counters';
+
+export type DataAppAnalysisOperation = 'detect' | 'prompt' | 'investigate';
+
+export type DbDataAppAnalysisRateCounter = {
+    app_id: string;
+    user_uuid: string;
+    operation: DataAppAnalysisOperation;
+    window_started_at: Date;
+    request_count: number;
+};
+
+export type DataAppAnalysisRateCountersTable = Knex.CompositeTableType<
+    DbDataAppAnalysisRateCounter,
+    DbDataAppAnalysisRateCounter
+>;

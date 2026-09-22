@@ -1597,6 +1597,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>(),
                 aiOrganizationSettingsModel:
                     context.models.getAiOrganizationSettingsModel<AiOrganizationSettingsModel>(),
+                externalConnectionModel:
+                    context.models.getExternalConnectionModel<ExternalConnectionModel>(),
                 aiAgentReviewNotificationService:
                     context.serviceRepository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
                 jiraAppService: context.serviceRepository.getJiraAppService(),

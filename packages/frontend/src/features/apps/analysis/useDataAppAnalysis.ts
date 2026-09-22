@@ -34,6 +34,9 @@ const errorMessage = (e: unknown): string =>
     (e as ApiError)?.error?.message ??
     (e instanceof Error ? e.message : 'Something went wrong');
 
+const isRateLimited = (e: unknown): boolean =>
+    (e as ApiError)?.error?.statusCode === 429;
+
 const LOOKUP_QUIET_MS = 400;
 
 type ScopedState = {
@@ -118,7 +121,11 @@ export const useDataAppAnalysis = ({
     );
 
     const analyse = useCallback(
-        async (sourcesToAnalyse: DataAppAnalysisSource[], force: boolean) => {
+        async (
+            sourcesToAnalyse: DataAppAnalysisSource[],
+            force: boolean,
+            auto = false,
+        ) => {
             runRef.current += 1;
             const run = runRef.current;
             patch(scope, (prev) => ({
@@ -141,6 +148,15 @@ export const useDataAppAnalysis = ({
                 }));
             } catch (e) {
                 if (run !== runRef.current) return;
+                // Auto-run hit the per-viewer rate limit: nothing to show,
+                // the next view change tries again.
+                if (auto && isRateLimited(e)) {
+                    patch(scope, (prev) => ({
+                        ...prev,
+                        state: { status: 'idle' },
+                    }));
+                    return;
+                }
                 patch(scope, (prev) => ({
                     ...prev,
                     state: { status: 'error', message: errorMessage(e) },
@@ -187,7 +203,7 @@ export const useDataAppAnalysis = ({
                     }
                     if (!found) {
                         if (autoAnalyseRef.current)
-                            void analyse(sources, false);
+                            void analyse(sources, false, true);
                         return;
                     }
                     patch(scope, (prev) => ({

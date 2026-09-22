@@ -15,7 +15,11 @@ export { useLightdash } from './useLightdash';
 export { LightdashProvider, useLightdashClient } from './LightdashProvider';
 
 // Transports
-export { createApiTransport, type FetchAdapter } from './apiTransport';
+export {
+    createApiTransport,
+    LightdashApiError,
+    type FetchAdapter,
+} from './apiTransport';
 export { createPostMessageTransport } from './postMessageTransport';
 
 // Feature manifest (also exported via the "./features" subpath for hosts)

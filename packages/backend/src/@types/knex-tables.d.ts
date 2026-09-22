@@ -576,6 +576,8 @@ import {
 import {
     DataAppAnalysesTable,
     DataAppAnalysesTableName,
+    DataAppAnalysisRateCountersTable,
+    DataAppAnalysisRateCountersTableName,
 } from '../ee/database/entities/dataAppAnalyses';
 import {
     AppExternalConnectionsTable,
@@ -840,6 +842,7 @@ declare module 'knex/types/tables' {
         [ServiceAccountsTableName]: ServiceAccountTable;
         [ScimRequestLogsTableName]: ScimRequestLogTable;
         [DataAppAnalysesTableName]: DataAppAnalysesTable;
+        [DataAppAnalysisRateCountersTableName]: DataAppAnalysisRateCountersTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
         [MetricsTreeLocksTableName]: MetricsTreeLocksTable;
         [MetricsTreesTableName]: MetricsTreesTable;

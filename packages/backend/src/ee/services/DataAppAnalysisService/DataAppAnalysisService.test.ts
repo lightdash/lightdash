@@ -98,6 +98,8 @@ function buildService(
         findLatestDetectByHash: vi.fn().mockResolvedValue(null),
         findInvestigations: vi.fn().mockResolvedValue([]),
         rebindSources: vi.fn().mockResolvedValue(undefined),
+        incrementRateCounter: vi.fn().mockResolvedValue(1),
+        deleteRateCountersBefore: vi.fn().mockResolvedValue(0),
     };
     const asyncQueryService = {
         getAsyncQueryHistory: vi.fn().mockResolvedValue({
@@ -657,20 +659,117 @@ describe('DataAppAnalysisService.prompt', () => {
         expect(dataAppAnalysisModel.create).not.toHaveBeenCalled();
     });
 
-    it('rate limits a viewer per app', async () => {
-        const { service } = buildService();
-        const account = buildAccount({ accountType: 'session' });
-        const body = { prompt: 'x', sources: request.sources };
-        for (let i = 0; i < 20; i += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            await service.prompt(account, 'proj-1', 'app-1', body);
-        }
+    it('rate limits prompts per viewer and app through the shared counter', async () => {
+        const { service, dataAppAnalysisModel, aiService } = buildService();
+        dataAppAnalysisModel.incrementRateCounter.mockResolvedValue(21);
         await expect(
-            service.prompt(account, 'proj-1', 'app-1', body),
+            service.prompt(buildAccount(), 'proj-1', 'app-1', {
+                prompt: 'x',
+                sources: request.sources,
+            }),
+        ).rejects.toMatchObject({
+            statusCode: 429,
+            data: { code: 'rate_limited', operation: 'prompt' },
+        });
+        expect(dataAppAnalysisModel.incrementRateCounter).toHaveBeenCalledWith(
+            expect.objectContaining({
+                appUuid: 'app-1',
+                userUuid: buildAccount().user.id,
+                operation: 'prompt',
+            }),
+        );
+        expect(aiService.answerDataAppPrompt).not.toHaveBeenCalled();
+    });
+});
+
+describe('DataAppAnalysisService rate limits', () => {
+    beforeEach(() => {
+        vi.mocked(assertCanViewApp).mockResolvedValue({
+            directOnly: false,
+        } as never);
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('counts detect against a minute bucket and tells the caller when to retry', async () => {
+        vi.useFakeTimers({ now: Date.UTC(2026, 8, 22, 12, 34, 56) });
+        const { service, dataAppAnalysisModel, aiService } = buildService();
+        dataAppAnalysisModel.incrementRateCounter.mockResolvedValue(7);
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toMatchObject({
+            statusCode: 429,
+            data: {
+                code: 'rate_limited',
+                operation: 'detect',
+                retryAfterSeconds: 4,
+            },
+        });
+        expect(dataAppAnalysisModel.incrementRateCounter).toHaveBeenCalledWith({
+            appUuid: 'app-1',
+            userUuid: buildAccount().user.id,
+            operation: 'detect',
+            windowStartedAt: new Date(Date.UTC(2026, 8, 22, 12, 34, 0)),
+        });
+        expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+        expect(dataAppAnalysisModel.create).not.toHaveBeenCalled();
+    });
+
+    it('lets the sixth detect through and blocks the seventh', async () => {
+        const { service, dataAppAnalysisModel, aiService } = buildService();
+        dataAppAnalysisModel.incrementRateCounter
+            .mockResolvedValueOnce(6)
+            .mockResolvedValueOnce(7);
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).resolves.toMatchObject({ analysisId: 'analysis-1' });
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', {
+                ...request,
+                force: true,
+            }),
         ).rejects.toBeInstanceOf(TooManyRequestsError);
+        expect(aiService.detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not count a detect served from a stored analysis', async () => {
+        const { service, dataAppAnalysisModel } = buildService();
+        dataAppAnalysisModel.findLatestDetectByHash.mockResolvedValue({
+            data_app_analysis_uuid: 'stored-1',
+            operation: 'detect',
+            app_id: 'app-1',
+            app_version: 3,
+            created_by_user_uuid: buildAccount().user.id,
+            sources: request.sources,
+            result: {
+                headline: 'h',
+                summary: 's',
+                anomalies: [],
+                limitations: [],
+                dataAsOf: null,
+            },
+            model_id: 'fast-model',
+            content_hash: 'hash',
+            source_hashes: [{ queryUuid: 'q1', hash: 'section-hash' }],
+            reused_from_analysis_uuid: null,
+            created_at: new Date('2026-09-15T09:00:00Z'),
+        });
+        await service.detect(buildAccount(), 'proj-1', 'app-1', request);
+        expect(
+            dataAppAnalysisModel.incrementRateCounter,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('sweeps minute buckets older than a day', async () => {
+        const { service, dataAppAnalysisModel } = buildService();
+        dataAppAnalysisModel.deleteRateCountersBefore.mockResolvedValue(12);
         await expect(
-            service.prompt(account, 'proj-1', 'app-2', body),
-        ).resolves.toMatchObject({ text: 'Returns rose to 12.' });
+            service.cleanRateCounters(new Date('2026-09-22T12:00:00Z')),
+        ).resolves.toBe(12);
+        expect(
+            dataAppAnalysisModel.deleteRateCountersBefore,
+        ).toHaveBeenCalledWith(new Date('2026-09-21T12:00:00Z'));
     });
 });
 
@@ -897,6 +996,29 @@ describe('DataAppAnalysisService.investigate', () => {
             'other-app',
             buildAccount().user.id,
         );
+        expect(dataAppInvestigate).not.toHaveBeenCalled();
+    });
+
+    it('rate limits investigations before queueing a job', async () => {
+        const { service, dataAppInvestigate } = buildInvestigateService();
+        const deps = service as unknown as {
+            dataAppAnalysisModel: {
+                incrementRateCounter: ReturnType<typeof vi.fn>;
+            };
+        };
+        deps.dataAppAnalysisModel.incrementRateCounter.mockResolvedValue(4);
+        await expect(
+            service.investigate(
+                buildAccount(),
+                'proj-1',
+                'app-1',
+                'analysis-1',
+                { anomalyId: 'anom-1', agentUuid: 'agent-1' },
+            ),
+        ).rejects.toMatchObject({
+            statusCode: 429,
+            data: { code: 'rate_limited', operation: 'investigate' },
+        });
         expect(dataAppInvestigate).not.toHaveBeenCalled();
     });
 

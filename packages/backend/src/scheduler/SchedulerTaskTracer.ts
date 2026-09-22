@@ -330,6 +330,7 @@ const getTagsForTask: {
         'ai_agent_memory.owner_user_uuid': payload.ownerUserUuid,
     }),
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: () => ({}),
+    [SCHEDULER_TASKS.CLEAN_RATE_COUNTERS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: () => ({}),
