@@ -1,3 +1,10 @@
+## [2.288.4](https://github.com/lightdash/lightdash/compare/2.288.3...2.288.4) (2026-09-22)
+
+
+### Bug Fixes
+
+* expand chart type change target ([#29718](https://github.com/lightdash/lightdash/issues/29718)) ([c28fb35](https://github.com/lightdash/lightdash/commit/c28fb35a516810ac6eba1956436251aa7eaa0e19))
+
 ## [2.288.3](https://github.com/lightdash/lightdash/compare/2.288.2...2.288.3) (2026-09-22)
 
 
