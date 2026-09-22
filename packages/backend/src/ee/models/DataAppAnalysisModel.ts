@@ -242,6 +242,22 @@ export class DataAppAnalysisModel {
             .delete();
     }
 
+    /**
+     * Deletes one batch of analyses created before the cutoff, oldest first.
+     * Investigations cascade from their detection; a reused detection's
+     * back-reference is set null. Returns the number of rows deleted.
+     */
+    async deleteExpiredBatch(cutoff: Date, batchSize: number): Promise<number> {
+        const expired = this.database(DataAppAnalysesTableName)
+            .select('data_app_analysis_uuid')
+            .where('created_at', '<', cutoff)
+            .orderBy('created_at', 'asc')
+            .limit(batchSize);
+        return this.database(DataAppAnalysesTableName)
+            .whereIn('data_app_analysis_uuid', expired)
+            .delete();
+    }
+
     async deleteRateCountersBefore(cutoff: Date): Promise<number> {
         return this.database(DataAppAnalysisRateCountersTableName)
             .where('window_started_at', '<', cutoff)

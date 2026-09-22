@@ -103,6 +103,7 @@ function buildService(
         deleteRateCountersBefore: vi.fn().mockResolvedValue(0),
         incrementDailyCounter: vi.fn().mockResolvedValue(1),
         deleteDailyCountersBefore: vi.fn().mockResolvedValue(0),
+        deleteExpiredBatch: vi.fn().mockResolvedValue(0),
     };
     const asyncQueryService = {
         getAsyncQueryHistory: vi.fn().mockResolvedValue({
@@ -885,6 +886,37 @@ describe('DataAppAnalysisService rate limits', () => {
         expect(
             dataAppAnalysisModel.deleteDailyCountersBefore,
         ).toHaveBeenCalledWith('2026-09-20');
+    });
+});
+
+describe('DataAppAnalysisService retention', () => {
+    it('deletes rows older than 30 days in batches until a short batch', async () => {
+        const { service, dataAppAnalysisModel } = buildService();
+        dataAppAnalysisModel.deleteExpiredBatch
+            .mockResolvedValueOnce(500)
+            .mockResolvedValueOnce(120);
+        await expect(
+            service.cleanExpiredAnalyses(new Date('2026-09-22T12:00:00Z')),
+        ).resolves.toEqual({ deleted: 620, hitBatchLimit: false });
+        expect(dataAppAnalysisModel.deleteExpiredBatch).toHaveBeenCalledTimes(
+            2,
+        );
+        expect(dataAppAnalysisModel.deleteExpiredBatch).toHaveBeenCalledWith(
+            new Date('2026-08-23T12:00:00Z'),
+            500,
+        );
+    });
+
+    it('stops after the batch cap and asks for another pass', async () => {
+        const { service, dataAppAnalysisModel } = buildService();
+        dataAppAnalysisModel.deleteExpiredBatch.mockResolvedValue(500);
+        await expect(service.cleanExpiredAnalyses()).resolves.toEqual({
+            deleted: 10_000,
+            hitBatchLimit: true,
+        });
+        expect(dataAppAnalysisModel.deleteExpiredBatch).toHaveBeenCalledTimes(
+            20,
+        );
     });
 });
 

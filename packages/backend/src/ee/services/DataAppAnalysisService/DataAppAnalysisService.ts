@@ -164,6 +164,11 @@ const DAILY_CAP_KEY = {
     keyof DataAppAnalysisLimits
 >;
 
+// Stored analyses describe a moment of the data; a month covers any reuse.
+export const DATA_APP_ANALYSIS_RETENTION_DAYS = 30;
+const RETENTION_BATCH_SIZE = 500;
+const RETENTION_MAX_BATCHES = 20;
+
 /** Filled in as an operation progresses so the outcome event has what it knows. */
 type OutcomeMeta = {
     appVersion: number | null;
@@ -1374,6 +1379,35 @@ export class DataAppAnalysisService extends BaseService {
      * viewer. Once `abortSignal` fires nothing is persisted or logged; the
      * worker's timeout handler owns that job's final status.
      */
+    /**
+     * Deletes analyses older than the retention window in bounded batches.
+     * `hitBatchLimit` tells the worker to queue another pass. Investigations
+     * cascade with their parent detection, so their boundary is the
+     * detection's age, not their own: they describe data it declared stale.
+     */
+    async cleanExpiredAnalyses(
+        now: Date = new Date(),
+    ): Promise<{ deleted: number; hitBatchLimit: boolean }> {
+        const cutoff = new Date(
+            now.getTime() -
+                DATA_APP_ANALYSIS_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+        );
+        let deleted = 0;
+        for (let batch = 0; batch < RETENTION_MAX_BATCHES; batch += 1) {
+            // Sequential on purpose: each batch bounds the delete's lock time.
+            // eslint-disable-next-line no-await-in-loop
+            const count = await this.dataAppAnalysisModel.deleteExpiredBatch(
+                cutoff,
+                RETENTION_BATCH_SIZE,
+            );
+            deleted += count;
+            if (count < RETENTION_BATCH_SIZE) {
+                return { deleted, hitBatchLimit: false };
+            }
+        }
+        return { deleted, hitBatchLimit: true };
+    }
+
     /**
      * Drops minute buckets older than a day and daily counters older than
      * two days; called by the daily sweep.
