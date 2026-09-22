@@ -1,6 +1,8 @@
+import { DbtProjectType, FeatureFlags } from '@lightdash/common';
 import { Alert, Text, Select } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { type FC } from 'react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import { useFormContext } from '../formContext';
 
@@ -20,6 +22,16 @@ const StartOfWeekSelect: FC<{
 }> = ({ disabled, isRedeployRequired = true }) => {
     const form = useFormContext();
     const field = form.getInputProps('warehouse.startOfWeek');
+    const { data: timezoneSupportFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTimezoneSupport,
+    );
+    const isTimezoneSupportEnabled = timezoneSupportFlag?.enabled ?? true;
+    const isCliDeployed = form.values.dbt?.type === DbtProjectType.NONE;
+    const isDaySelected = field.value !== null && field.value !== undefined;
+    const dayName = daysOfWeekOptions.find(
+        (option) => option.value === field.value?.toString(),
+    )?.label;
+
     return (
         <>
             <Select
@@ -27,7 +39,7 @@ const StartOfWeekSelect: FC<{
                 clearable
                 placeholder="Auto"
                 label="Start of week"
-                description="Will be taken into account when using 'WEEK' time interval"
+                description="Sets the first day of the week for week time intervals."
                 data={daysOfWeekOptions}
                 value={field.value?.toString()}
                 onChange={(value) =>
@@ -39,18 +51,38 @@ const StartOfWeekSelect: FC<{
                     middlewares: { flip: false },
                 }}
             />
-            {isRedeployRequired && parseInt(field.value) >= 0 && (
+            {isRedeployRequired && isCliDeployed && isDaySelected && (
                 <Alert
                     icon={<MantineIcon icon={IconInfoCircle} size={'md'} />}
-                    title="Required CLI option"
+                    title={
+                        isTimezoneSupportEnabled
+                            ? 'Date columns need a deploy'
+                            : 'Required CLI option'
+                    }
                     color="blue"
                 >
-                    Going forward, if you use the CLI to deploy the project, you
-                    will need to run the deploy command with the option{' '}
-                    <Text fw={500}>
-                        <code>--start-of-week={field.value}</code>
-                    </Text>
-                    , for the changes to take effect.
+                    {isTimezoneSupportEnabled ? (
+                        <>
+                            Your choice applies right away to week dimensions
+                            built on a timestamp column. Dimensions built on a
+                            date column keep the day they were compiled with, so
+                            run{' '}
+                            <Text fw={500} span>
+                                <code>{`lightdash deploy --start-of-week=${field.value}`}</code>
+                            </Text>{' '}
+                            ({dayName}) to update those.
+                        </>
+                    ) : (
+                        <>
+                            Going forward, if you use the CLI to deploy the
+                            project, you will need to run the deploy command
+                            with the option{' '}
+                            <Text fw={500} span>
+                                <code>--start-of-week={field.value}</code>
+                            </Text>
+                            , for the changes to take effect.
+                        </>
+                    )}
                 </Alert>
             )}
         </>
