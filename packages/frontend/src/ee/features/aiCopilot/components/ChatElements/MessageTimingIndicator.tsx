@@ -1,8 +1,6 @@
-import { FeatureFlags, type AiPromptResponseTiming } from '@lightdash/common';
+import type { AiPromptResponseTiming } from '@lightdash/common';
 import { Badge, Stack, Text, Tooltip } from '@mantine/core';
 import { type FC } from 'react';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
-import { useAiAgentBattleModeEnabled } from '../../hooks/useAiAgentBattleModeEnabled';
 import {
     formatDurationMs,
     getResponseTimingMetrics,
@@ -13,15 +11,7 @@ interface Props {
 }
 
 export const MessageTimingIndicator: FC<Props> = ({ responseTiming }) => {
-    const battleModeEnabled = useAiAgentBattleModeEnabled();
-    const fastDecisions = useServerFeatureFlag(
-        FeatureFlags.AiAgentFastDecisions,
-    );
-    if (
-        (!battleModeEnabled && fastDecisions.data?.enabled !== true) ||
-        !responseTiming
-    )
-        return null;
+    if (!responseTiming) return null;
 
     const metrics = getResponseTimingMetrics(responseTiming);
     if (!metrics) return null;
