@@ -4,23 +4,13 @@ import {
     FilterOperator,
     FilterType,
     MetricType,
-    parseAiArtifactChartConfig,
     UnitOfTime,
     type AiSemanticChartArtifactConfig,
     type Explore,
     type ToolRunQueryBuiltinChartConfig,
 } from '@lightdash/common';
-import { describe, expect, it, vi } from 'vitest';
-import { AiDecisionClient } from './AiDecisionClient';
-import {
-    getImplicitChartFilterCandidate,
-    isChartPresentationRequest,
-    isChartQueryRefinementRequest,
-    isChartUndoRequest,
-    parseExactChartEdit,
-    resolveChartEdit,
-    resolveExactChartQueryEdit,
-} from './chartEdits';
+import { describe, expect, it } from 'vitest';
+import { applyChartIntent, getFilterFieldIds } from './chartEdits';
 
 const artifact: AiSemanticChartArtifactConfig = {
     source: 'semantic',
@@ -54,64 +44,31 @@ const artifact: AiSemanticChartArtifactConfig = {
     },
 };
 
-const client = (
-    edit: string,
-    complete = 0.999,
-    dimension = 'keep',
-    editConfidence = 0.99,
-) =>
-    new AiDecisionClient(
-        { apiKey: 'test', model: 'test', timeoutMs: 100 },
-        async () => {
-            const choice = (_key: string, value: string) => ({
-                type: 'choice',
-                choice: value,
-                confidence: editConfidence,
-                probabilities:
-                    value === 'none'
-                        ? { none: 1 }
-                        : { [value]: editConfidence, none: 1 - editConfidence },
-            });
-            let grouping = 'split';
-            if (dimension === 'keep') grouping = 'keep';
-            if (dimension === 'orders_date') grouping = 'none';
-            return Response.json({
-                model: 'test',
-                answers: {
-                    edit: choice('edit', edit),
-                    complete: { type: 'noul', noul: complete },
-                    grouping: choice('grouping', grouping),
-                },
-            });
-        },
-    );
+const dimension = (name: string, type: DimensionType, label: string) => ({
+    name,
+    table: 'orders',
+    fieldType: FieldType.DIMENSION,
+    type,
+    label,
+});
 
-const refinementExplore = {
+const explore = {
     name: 'orders',
+    label: 'Orders',
+    baseTable: 'orders',
     tables: {
         orders: {
             label: 'Orders',
             dimensions: {
-                date: {
-                    name: 'date',
-                    table: 'orders',
-                    fieldType: FieldType.DIMENSION,
-                    type: DimensionType.DATE,
-                    label: 'Date',
-                },
-                region: {
-                    name: 'region',
-                    table: 'orders',
-                    fieldType: 'dimension',
-                    type: DimensionType.STRING,
-                    label: 'Region',
-                },
+                date: dimension('date', DimensionType.DATE, 'Date'),
+                region: dimension('region', DimensionType.STRING, 'Region'),
+                status: dimension('status', DimensionType.STRING, 'Status'),
             },
             metrics: {
                 revenue: {
                     name: 'revenue',
                     table: 'orders',
-                    fieldType: 'metric',
+                    fieldType: FieldType.METRIC,
                     type: MetricType.SUM,
                     label: 'Revenue',
                 },
@@ -120,883 +77,492 @@ const refinementExplore = {
     },
 } as unknown as Explore;
 
-describe('chart edits', () => {
-    it('recognizes only guarded query-refinement and undo commands', () => {
-        expect(isChartQueryRefinementRequest('only North')).toBe(true);
-        expect(isChartQueryRefinementRequest('segment by Status')).toBe(true);
-        expect(
-            isChartQueryRefinementRequest('sort by Revenue descending'),
-        ).toBe(true);
-        expect(isChartUndoRequest('undo that')).toBe(true);
-        expect(isChartQueryRefinementRequest('explain the filters')).toBe(
-            false,
-        );
-    });
+const withQuery = (
+    query: Partial<AiSemanticChartArtifactConfig['config']['queryConfig']>,
+    chartConfig: Partial<ToolRunQueryBuiltinChartConfig> = {},
+): AiSemanticChartArtifactConfig => {
+    const next = structuredClone(artifact);
+    Object.assign(next.config.queryConfig, query);
+    Object.assign(next.config.chartConfig ?? {}, chartConfig);
+    return next;
+};
 
-    it('segments by one unambiguous same-explore dimension without a provider request', async () => {
-        const request = vi.fn<typeof fetch>();
-        const decisions = new AiDecisionClient(
-            { apiKey: 'test', model: 'test', timeoutMs: 100 },
-            request,
-        );
-        const explore = structuredClone(refinementExplore) as Explore;
-        explore.tables.orders.dimensions.status = {
-            name: 'status',
-            table: 'orders',
-            fieldType: FieldType.DIMENSION,
-            type: DimensionType.STRING,
-            label: 'Status',
-        } as never;
+const chartOf = (edit: ReturnType<typeof applyChartIntent>) =>
+    edit?.config.config.chartConfig;
+const rulesOf = (edit: ReturnType<typeof applyChartIntent>) => {
+    const filters = edit?.config.config.queryConfig.filters;
+    return filters && !('type' in filters) ? filters.dimensions?.rules : null;
+};
 
-        const result = await resolveChartEdit({
-            decisions,
-            prompt: 'segment by status',
-            artifact,
-            explore,
-            allowQueryRefinements: true,
-        });
-
-        expect(result?.config.config.queryConfig.dimensions).toEqual([
-            'orders_date',
-            'orders_status',
-        ]);
-        expect(result?.config.config.chartConfig).toMatchObject({
-            xAxisDimension: 'orders_date',
-            groupBy: ['orders_status'],
-        });
-        expect(result?.response).toBe('Segmented by **Status**.');
-        expect(request).not.toHaveBeenCalled();
-    });
-
-    it('segments by a dimension from a table joined into the current explore', async () => {
-        const explore = structuredClone(refinementExplore) as Explore;
-        explore.name = 'payments';
-        explore.tables.payments = {
-            label: 'Payments',
-            dimensions: {
-                payment_method: {
-                    name: 'payment_method',
-                    table: 'payments',
-                    fieldType: FieldType.DIMENSION,
-                    type: DimensionType.STRING,
-                    label: 'Payment method',
-                },
-            },
-            metrics: {},
-        } as never;
-
-        const result = await resolveChartEdit({
-            decisions: client('none'),
-            prompt: 'segment by payment method',
-            artifact,
-            explore,
-            allowQueryRefinements: true,
-        });
-
-        expect(result?.config.config.queryConfig.dimensions).toEqual([
-            'orders_date',
-            'payments_payment_method',
-        ]);
-        expect(result?.config.config.queryConfig.exploreName).toBe('payments');
-        expect(result?.config.config.chartConfig).toMatchObject({
-            groupBy: ['payments_payment_method'],
-        });
-    });
-
-    it('adds the first dimension to a metric-only table', async () => {
-        const count = structuredClone(artifact);
-        count.config.queryConfig.dimensions = [];
-        count.config.chartConfig = null;
-        const explore = structuredClone(refinementExplore) as Explore;
-        explore.name = 'payments';
-        explore.tables.payments = {
-            label: 'Payments',
-            dimensions: {
-                payment_method: {
-                    name: 'payment_method',
-                    table: 'payments',
-                    fieldType: FieldType.DIMENSION,
-                    type: DimensionType.STRING,
-                    label: 'Payment method',
-                },
-            },
-            metrics: {},
-        } as never;
-
-        const result = await resolveChartEdit({
-            decisions: client('none'),
-            prompt: 'segment by payment method',
-            artifact: count,
-            explore,
-            allowQueryRefinements: true,
-        });
-
-        expect(result?.config.config.queryConfig).toMatchObject({
-            exploreName: 'payments',
-            dimensions: ['payments_payment_method'],
-            metrics: ['orders_revenue'],
-        });
-        expect(result?.config.config.chartConfig).toMatchObject({
-            defaultVizType: 'table',
-            xAxisDimension: 'payments_payment_method',
-            yAxisMetrics: ['orders_revenue'],
-            groupBy: null,
-            xAxisType: 'category',
-        });
-    });
-
-    it('uses JEV to atomically add a dimension and change presentation', async () => {
-        const table = structuredClone(artifact);
-        if (!table.config.chartConfig) throw new Error('Expected chart config');
-        table.config.chartConfig = {
-            ...(table.config.chartConfig as ToolRunQueryBuiltinChartConfig),
-            defaultVizType: 'table',
-        };
-        const explore = structuredClone(refinementExplore) as Explore;
-        explore.tables.orders.dimensions.status = {
-            name: 'status',
-            table: 'orders',
-            fieldType: FieldType.DIMENSION,
-            type: DimensionType.STRING,
-            label: 'Order status',
-        } as never;
-
-        const result = await resolveChartEdit({
-            decisions: client('bar', 0.89, 'keep', 0.85),
-            prompt: 'add status to the bar chart',
-            artifact: table,
-            explore,
-            allowQueryRefinements: true,
-        });
-
-        expect(result?.config.config.queryConfig.dimensions).toEqual([
-            'orders_date',
-            'orders_region',
-            'orders_status',
-        ]);
-        expect(result?.config.config.chartConfig).toMatchObject({
-            defaultVizType: 'bar',
-            xAxisDimension: 'orders_date',
-            groupBy: ['orders_region', 'orders_status'],
-        });
-        expect(result?.response).toBe(
-            'Added **Order status** and updated the chart.',
-        );
-    });
-
-    it('falls back when shorthand matches multiple dimensions', async () => {
-        const explore = structuredClone(refinementExplore) as Explore;
-        explore.tables.orders.dimensions.order_status = {
-            name: 'order_status',
-            table: 'orders',
-            fieldType: FieldType.DIMENSION,
-            type: DimensionType.STRING,
-            label: 'Order status',
-        } as never;
-        explore.tables.orders.dimensions.shipment_status = {
-            name: 'shipment_status',
-            table: 'orders',
-            fieldType: FieldType.DIMENSION,
-            type: DimensionType.STRING,
-            label: 'Shipment status',
-        } as never;
-
-        await expect(
-            resolveChartEdit({
-                decisions: client('bar'),
-                prompt: 'add status to the bar chart',
+describe('applyChartIntent', () => {
+    describe('presentation', () => {
+        it('changes the chart type while preserving the whole query', () => {
+            const edit = applyChartIntent({
+                intent: { kind: 'chart_type', chartType: 'line' },
                 artifact,
                 explore,
-                allowQueryRefinements: true,
-            }),
-        ).resolves.toBeNull();
-    });
-
-    it('uses JEV to add a dimension while keeping presentation', async () => {
-        const explore = structuredClone(refinementExplore) as Explore;
-        explore.tables.orders.dimensions.status = {
-            name: 'status',
-            table: 'orders',
-            fieldType: FieldType.DIMENSION,
-            type: DimensionType.STRING,
-            label: 'Status',
-        } as never;
-
-        const result = await resolveChartEdit({
-            decisions: client('keep'),
-            prompt: 'add status to the chart',
-            artifact,
-            explore,
-            allowQueryRefinements: true,
-        });
-
-        expect(result?.config.config.queryConfig.dimensions).toEqual([
-            'orders_date',
-            'orders_region',
-            'orders_status',
-        ]);
-        expect(result?.config.config.chartConfig).toMatchObject({
-            defaultVizType: 'bar',
-            groupBy: ['orders_region', 'orders_status'],
-        });
-    });
-
-    it('makes a newly added category visible on the axis when charting a table', async () => {
-        const table = structuredClone(artifact);
-        table.config.queryConfig.dimensions = ['orders_region'];
-        table.config.chartConfig = {
-            ...(table.config.chartConfig as ToolRunQueryBuiltinChartConfig),
-            defaultVizType: 'table',
-            xAxisDimension: 'orders_region',
-            groupBy: null,
-            xAxisType: 'category',
-            xAxisLabel: 'Region',
-        };
-        const explore = structuredClone(refinementExplore) as Explore;
-        explore.tables.orders.dimensions.status = {
-            name: 'status',
-            table: 'orders',
-            fieldType: FieldType.DIMENSION,
-            type: DimensionType.STRING,
-            label: 'Order status',
-        } as never;
-
-        const result = await resolveChartEdit({
-            decisions: client('bar', 0.89, 'keep', 0.85),
-            prompt: 'add status to the bar chart',
-            artifact: table,
-            explore,
-            allowQueryRefinements: true,
-        });
-
-        expect(result?.config.config.chartConfig).toMatchObject({
-            defaultVizType: 'bar',
-            xAxisDimension: 'orders_status',
-            groupBy: ['orders_region'],
-            xAxisType: 'category',
-            xAxisLabel: 'Order status',
-        });
-    });
-
-    it('filters the sole non-date query dimension through the shared grammar', () => {
-        const result = resolveExactChartQueryEdit({
-            prompt: 'only North',
-            artifact,
-            explore: refinementExplore,
-            validatedImplicitFilter: {
-                fieldId: 'orders_region',
-                value: 'North',
-            },
-        });
-
-        expect(result?.response).toBe('Filtered to **North**.');
-        expect(result?.config.config.queryConfig.filters).toMatchObject({
-            dimensions: {
-                connector: 'and',
-                rules: [
-                    {
-                        fieldId: 'orders_region',
-                        operator: 'equals',
-                        values: ['North'],
-                    },
-                ],
-            },
-        });
-    });
-
-    it('does not guess an implicit filter value belongs to the sole dimension', () => {
-        expect(
-            getImplicitChartFilterCandidate({
-                prompt: 'show only shipped orders',
-                artifact,
-                explore: refinementExplore,
-            }),
-        ).toEqual({
-            fieldId: 'orders_region',
-            requestedValue: 'shipped orders',
-            searchValue: 'shipped',
-        });
-        expect(
-            resolveExactChartQueryEdit({
-                prompt: 'show only shipped orders',
-                artifact,
-                explore: refinementExplore,
-            }),
-        ).toBeNull();
-    });
-
-    it('supports exact relative-date filters without model inference', () => {
-        const result = resolveExactChartQueryEdit({
-            prompt: 'last 30 days',
-            artifact,
-            explore: refinementExplore,
-        });
-
-        expect(result?.config.config.queryConfig.filters).toMatchObject({
-            dimensions: {
-                rules: [
-                    {
-                        fieldId: 'orders_date',
-                        operator: 'inThePast',
-                        values: [30],
-                        settings: {
-                            unitOfTime: 'days',
-                            completed: false,
-                        },
-                    },
-                ],
-            },
-        });
-    });
-
-    it('preserves other-field filters and rejects mixed connector patches', () => {
-        const filtered = structuredClone(artifact);
-        filtered.config.queryConfig.filters = {
-            type: 'and',
-            dimensions: [
-                {
-                    fieldId: 'orders_date',
-                    fieldType: DimensionType.DATE,
-                    fieldFilterType: FilterType.DATE,
-                    operator: FilterOperator.IN_THE_PAST,
-                    values: [90],
-                    settings: {
-                        unitOfTime: UnitOfTime.days,
-                        completed: false,
-                    },
-                },
-            ],
-            metrics: null,
-            tableCalculations: null,
-        };
-        const result = resolveExactChartQueryEdit({
-            prompt: 'only North',
-            artifact: filtered,
-            explore: refinementExplore,
-            validatedImplicitFilter: {
-                fieldId: 'orders_region',
-                value: 'North',
-            },
-        });
-        const resultFilters = result?.config.config.queryConfig.filters;
-        expect(
-            resultFilters && !('type' in resultFilters)
-                ? resultFilters.dimensions?.rules
-                : null,
-        ).toMatchObject([
-            { fieldId: 'orders_date', values: [90] },
-            { fieldId: 'orders_region', values: ['North'] },
-        ]);
-
-        const orFiltered = structuredClone(filtered);
-        orFiltered.config.queryConfig.filters = {
-            type: 'or',
-            dimensions:
-                filtered.config.queryConfig.filters &&
-                'type' in filtered.config.queryConfig.filters
-                    ? filtered.config.queryConfig.filters.dimensions
-                    : null,
-            metrics: null,
-            tableCalculations: null,
-        };
-        expect(
-            resolveExactChartQueryEdit({
-                prompt: 'only North',
-                artifact: orFiltered,
-                explore: refinementExplore,
-            }),
-        ).toBeNull();
-    });
-
-    it('uses canonical multi-filter grammar and replaces existing rules on the same field', () => {
-        const first = resolveExactChartQueryEdit({
-            prompt: 'only South',
-            artifact,
-            explore: refinementExplore,
-            validatedImplicitFilter: {
-                fieldId: 'orders_region',
-                value: 'South',
-            },
-        });
-        expect(first).not.toBeNull();
-        const result = resolveExactChartQueryEdit({
-            prompt: 'filter: orders_region equals=North AND orders_date inThePast=30{unit:days,completed:false}',
-            artifact: first!.config,
-            explore: refinementExplore,
-        });
-        const filters = result?.config.config.queryConfig.filters;
-        expect(
-            filters && !('type' in filters) ? filters.dimensions?.rules : null,
-        ).toMatchObject([
-            { fieldId: 'orders_region', values: ['North'] },
-            { fieldId: 'orders_date', values: [30] },
-        ]);
-    });
-
-    it('keeps refinement behavior behind its explicit gate', async () => {
-        const evaluate = vi.fn();
-        await expect(
-            resolveChartEdit({
-                decisions: { evaluate },
-                prompt: 'only North',
-                artifact,
-                explore: refinementExplore,
-            }),
-        ).resolves.toBeNull();
-        await expect(
-            resolveChartEdit({
-                decisions: { evaluate },
-                prompt: 'only North',
-                artifact,
-                explore: refinementExplore,
-                allowQueryRefinements: true,
-                validatedImplicitFilter: {
-                    fieldId: 'orders_region',
-                    value: 'North',
-                },
-            }),
-        ).resolves.toMatchObject({ changed: true });
-        expect(evaluate).not.toHaveBeenCalled();
-    });
-
-    it('sorts and limits only by selected unambiguous fields', () => {
-        const sorted = resolveExactChartQueryEdit({
-            prompt: 'sort by Revenue descending',
-            artifact,
-            explore: refinementExplore,
-        });
-        expect(sorted?.config.config.queryConfig.sorts).toEqual([
-            {
-                fieldId: 'orders_revenue',
-                descending: true,
-                nullsFirst: null,
-            },
-        ]);
-
-        const top = resolveExactChartQueryEdit({
-            prompt: 'top 5',
-            artifact,
-            explore: refinementExplore,
-        });
-        expect(top?.config.config.queryConfig).toMatchObject({
-            limit: 5,
-            sorts: [{ fieldId: 'orders_revenue', descending: true }],
-        });
-    });
-
-    it('does not add provider latency to ordinary data questions', async () => {
-        const fetcher = vi.fn<typeof fetch>();
-        const decisions = new AiDecisionClient(
-            { apiKey: 'test', model: 'test', timeoutMs: 100 },
-            fetcher,
-        );
-        expect(
-            await resolveChartEdit({
-                decisions,
-                prompt: 'What is revenue by month?',
-                artifact,
-            }),
-        ).toBeNull();
-        expect(fetcher).not.toHaveBeenCalled();
-    });
-    it('creates a valid chart patch while preserving the entire query', async () => {
-        const result = await resolveChartEdit({
-            decisions: client('line'),
-            prompt: 'Make it a line',
-            artifact,
-        });
-        expect(result?.config.config.chartConfig).toMatchObject({
-            defaultVizType: 'line',
-            lineType: 'line',
-            stackBars: null,
-        });
-        expect(result?.config.config.queryConfig).toEqual(
-            artifact.config.queryConfig,
-        );
-        expect(parseAiArtifactChartConfig(result?.config)).not.toBeNull();
-        expect(result?.config.config.description).toBe(
-            artifact.config.description,
-        );
-        expect(artifact.config.chartConfig).toMatchObject({
-            defaultVizType: 'bar',
-        });
-    });
-
-    it('resolves a bare chart type without a provider request', async () => {
-        const request = vi.fn<typeof fetch>();
-        const result = await resolveChartEdit({
-            decisions: new AiDecisionClient(
-                { apiKey: 'test', model: 'test', timeoutMs: 100 },
-                request,
-            ),
-            prompt: 'line',
-            artifact,
-        });
-
-        expect(result?.config.config.chartConfig).toMatchObject({
-            defaultVizType: 'line',
-            lineType: 'line',
-        });
-        expect(request).not.toHaveBeenCalled();
-    });
-
-    it('resolves an exact as-a-chart request without a provider request', async () => {
-        const request = vi.fn<typeof fetch>();
-        const result = await resolveChartEdit({
-            decisions: new AiDecisionClient(
-                { apiKey: 'test', model: 'test', timeoutMs: 100 },
-                request,
-            ),
-            prompt: 'as a bar chart',
-            artifact,
-        });
-
-        expect(result?.config.config.chartConfig).toMatchObject({
-            defaultVizType: 'bar',
-        });
-        expect(request).not.toHaveBeenCalled();
-    });
-
-    it('accepts a high-confidence natural chart refinement', async () => {
-        const result = await resolveChartEdit({
-            decisions: client('area', 0.95),
-            prompt: 'Make it area actually',
-            artifact,
-        });
-
-        expect(result?.config.config.chartConfig).toMatchObject({
-            defaultVizType: 'line',
-            lineType: 'area',
-        });
-    });
-
-    it('accepts a confident JEV edit when the completeness score is conservatively calibrated', async () => {
-        const result = await resolveChartEdit({
-            decisions: client('bar', 0.91),
-            prompt: 'Could you turn this into bars?',
-            artifact,
-        });
-
-        expect(result?.config.config.chartConfig).toMatchObject({
-            defaultVizType: 'bar',
-        });
-    });
-
-    it('rejects a JEV edit below the completeness threshold', async () => {
-        await expect(
-            resolveChartEdit({
-                decisions: client('bar', 0.89),
-                prompt: 'Could you turn this into bars?',
-                artifact,
-            }),
-        ).resolves.toBeNull();
-    });
-
-    it.each([
-        'Could you turn this into bars?',
-        'Show this as a bar graph',
-        'A line chart would be clearer',
-        'Use a table instead',
-        'Prefer a pie chart',
-    ])('routes natural chart wording to JEV: %s', (prompt) => {
-        expect(isChartPresentationRequest(prompt)).toBe(true);
-    });
-
-    it.each(['Explain bar charts', 'What is a line graph?'])(
-        'does not route chart explanations to JEV: %s',
-        (prompt) => {
-            expect(isChartPresentationRequest(prompt)).toBe(false);
-        },
-    );
-
-    it('falls back when the requested change also needs new data', async () => {
-        expect(
-            await resolveChartEdit({
-                decisions: client('line', 0.1),
-                prompt: 'Make it a line and show last year',
-                artifact,
-            }),
-        ).toBeNull();
-    });
-
-    it('never puts the x-axis into the series grouping', async () => {
-        expect(
-            await resolveChartEdit({
-                decisions: client('group', 0.999, 'orders_date'),
-                prompt: 'Split by date',
-                artifact,
-            }),
-        ).toBeNull();
-    });
-
-    it('changes series only to an existing non-axis dimension', async () => {
-        const result = await resolveChartEdit({
-            decisions: client('group', 0.999, 'orders_region'),
-            prompt: 'Split by region',
-            artifact,
-        });
-        expect(result?.config.config.chartConfig).toMatchObject({
-            groupBy: ['orders_region'],
-        });
-        expect(result?.config.config.queryConfig).toEqual(
-            artifact.config.queryConfig,
-        );
-    });
-
-    it('splits by multiple existing dimensions without dropping the result grain', async () => {
-        const grouped = structuredClone(artifact);
-        grouped.config.queryConfig.dimensions.push('orders_channel');
-        const result = await resolveChartEdit({
-            decisions: client('group', 0.999, 'orders_region,orders_channel'),
-            prompt: 'Split it by region and channel',
-            artifact: grouped,
-        });
-        expect(result?.config.config.chartConfig).toMatchObject({
-            groupBy: ['orders_region', 'orders_channel'],
-        });
-        expect(result?.config.config.queryConfig).toEqual(
-            grouped.config.queryConfig,
-        );
-    });
-
-    it('resolves a complete list of existing field IDs without a provider request', async () => {
-        const grouped = structuredClone(artifact);
-        grouped.config.queryConfig.dimensions.push('orders_channel');
-        const request = vi.fn<typeof fetch>();
-        const decisions = new AiDecisionClient(
-            { apiKey: 'test', model: 'test', timeoutMs: 100 },
-            request,
-        );
-        const result = await resolveChartEdit({
-            decisions,
-            prompt: 'Split by orders_channel and orders_region.',
-            artifact: grouped,
-        });
-        expect(result?.config.config.chartConfig).toMatchObject({
-            groupBy: ['orders_region', 'orders_channel'],
-        });
-        expect(result?.changed).toBe(true);
-        expect(request).not.toHaveBeenCalled();
-    });
-
-    it('recognizes an already-complete edit without rewriting description or creating a new version', async () => {
-        const result = await resolveChartEdit({
-            decisions: client('group'),
-            prompt: 'Split by orders_region.',
-            artifact,
-        });
-        expect(result).toEqual({
-            config: artifact,
-            changed: false,
-            response: 'The chart is already split that way.',
-        });
-    });
-
-    it('falls back when changing grouping would hide another query dimension', async () => {
-        const grouped = structuredClone(artifact);
-        grouped.config.queryConfig.dimensions.push('orders_channel');
-        expect(
-            await resolveChartEdit({
-                decisions: client('group', 0.999, 'orders_region'),
-                prompt: 'Split by orders_region',
-                artifact: grouped,
-            }),
-        ).toBeNull();
-    });
-
-    it.each(['Split it by territory.', 'Split this chart by order territory.'])(
-        'resolves a complete label command without a provider request: %s',
-        async (prompt) => {
-            const request = vi.fn<typeof fetch>();
-            const decisions = new AiDecisionClient(
-                { apiKey: 'test', model: 'test', timeoutMs: 100 },
-                request,
+            });
+            expect(edit?.changed).toBe(true);
+            expect(chartOf(edit)).toMatchObject({
+                defaultVizType: 'line',
+                lineType: 'line',
+                stackBars: null,
+            });
+            expect(edit?.config.config.queryConfig).toEqual(
+                artifact.config.queryConfig,
             );
-            const explore = {
-                name: 'orders',
+        });
+
+        it('maps area onto a line chart with an area line type', () => {
+            const edit = applyChartIntent({
+                intent: { kind: 'chart_type', chartType: 'area' },
+                artifact,
+                explore,
+            });
+            expect(chartOf(edit)).toMatchObject({
+                defaultVizType: 'line',
+                lineType: 'area',
+            });
+        });
+
+        it('reports an already-applied presentation without a new version', () => {
+            const edit = applyChartIntent({
+                intent: { kind: 'chart_type', chartType: 'bar' },
+                artifact,
+                explore,
+            });
+            expect(edit).toMatchObject({ changed: false, config: artifact });
+        });
+
+        it('swaps only bar charts', () => {
+            expect(
+                chartOf(
+                    applyChartIntent({
+                        intent: { kind: 'series', op: 'swap' },
+                        artifact,
+                        explore,
+                    }),
+                ),
+            ).toMatchObject({ defaultVizType: 'horizontal' });
+            expect(
+                applyChartIntent({
+                    intent: { kind: 'series', op: 'swap' },
+                    artifact: withQuery({}, { defaultVizType: 'line' }),
+                    explore,
+                }),
+            ).toBeNull();
+        });
+
+        it('stacks only charts that have series', () => {
+            expect(
+                chartOf(
+                    applyChartIntent({
+                        intent: { kind: 'series', op: 'stack' },
+                        artifact,
+                        explore,
+                    }),
+                ),
+            ).toMatchObject({ stackBars: true });
+            expect(
+                applyChartIntent({
+                    intent: { kind: 'series', op: 'stack' },
+                    artifact: withQuery({}, { groupBy: null }),
+                    explore,
+                }),
+            ).toBeNull();
+        });
+
+        it('splits series by every existing non-axis dimension and never the axis', () => {
+            const edit = applyChartIntent({
+                intent: { kind: 'series', op: 'split' },
+                artifact: withQuery({}, { groupBy: null }),
+                explore,
+            });
+            expect(chartOf(edit)).toMatchObject({
+                xAxisDimension: 'orders_date',
+                groupBy: ['orders_region'],
+            });
+            expect(edit?.response).toBe('Split the series by **Region**.');
+        });
+
+        it('keeps a plotted table calculation when changing presentation', () => {
+            const edit = applyChartIntent({
+                intent: { kind: 'chart_type', chartType: 'line' },
+                artifact: withQuery(
+                    {
+                        tableCalculations: [
+                            {
+                                name: 'growth',
+                                displayName: 'Growth',
+                                sql: '1',
+                                format: null,
+                                type: null,
+                            },
+                        ] as never,
+                    },
+                    { yAxisMetrics: ['orders_revenue', 'growth'] },
+                ),
+                explore,
+            });
+            expect(chartOf(edit)).toMatchObject({
+                yAxisMetrics: ['orders_revenue', 'growth'],
+            });
+        });
+    });
+
+    describe('add_field', () => {
+        it('adds a same-explore dimension as series while keeping the axis', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'add_field',
+                    fieldId: 'orders_status',
+                    chartType: null,
+                },
+                artifact,
+                explore,
+            });
+            expect(edit?.config.config.queryConfig.dimensions).toEqual([
+                'orders_date',
+                'orders_region',
+                'orders_status',
+            ]);
+            expect(chartOf(edit)).toMatchObject({
+                xAxisDimension: 'orders_date',
+                groupBy: ['orders_region', 'orders_status'],
+            });
+            expect(edit?.response).toBe('Added **Status**.');
+        });
+
+        it('makes the new field the axis of a table being charted', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'add_field',
+                    fieldId: 'orders_status',
+                    chartType: 'bar',
+                },
+                artifact: withQuery(
+                    { dimensions: ['orders_region'] },
+                    {
+                        defaultVizType: 'table',
+                        xAxisDimension: 'orders_region',
+                        groupBy: null,
+                        xAxisType: 'category',
+                    },
+                ),
+                explore,
+            });
+            expect(chartOf(edit)).toMatchObject({
+                defaultVizType: 'bar',
+                xAxisDimension: 'orders_status',
+                groupBy: ['orders_region'],
+                xAxisType: 'category',
+                xAxisLabel: 'Status',
+            });
+            expect(edit?.response).toBe(
+                'Added **Status** and updated the chart.',
+            );
+        });
+
+        it('uses the added field type for the axis of a metric-only chart', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'add_field',
+                    fieldId: 'orders_date',
+                    chartType: null,
+                },
+                artifact: withQuery(
+                    { dimensions: [] },
+                    { xAxisDimension: null, groupBy: null, xAxisType: null },
+                ),
+                explore,
+            });
+            expect(chartOf(edit)).toMatchObject({
+                xAxisDimension: 'orders_date',
+                xAxisType: 'time',
+            });
+        });
+
+        it('names the explore when the field comes from another one', () => {
+            const payments = {
+                ...explore,
+                name: 'payments',
+                label: 'Payments',
                 tables: {
-                    orders: {
-                        label: 'Orders',
+                    ...explore.tables,
+                    payments: {
+                        label: 'Payments',
                         dimensions: {
-                            region: {
-                                name: 'region',
-                                table: 'orders',
-                                fieldType: 'dimension',
-                                type: DimensionType.STRING,
-                                label: 'Territory',
+                            method: {
+                                ...dimension(
+                                    'method',
+                                    DimensionType.STRING,
+                                    'Method',
+                                ),
+                                table: 'payments',
                             },
                         },
                         metrics: {},
                     },
                 },
             } as unknown as Explore;
-            const result = await resolveChartEdit({
-                decisions,
-                prompt,
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'add_field',
+                    fieldId: 'payments_method',
+                    chartType: null,
+                },
+                artifact,
+                explore: payments,
+            });
+            expect(edit?.config.config.queryConfig.exploreName).toBe(
+                'payments',
+            );
+            expect(edit?.response).toBe('Added **Method** from **Payments**.');
+        });
+
+        it('rejects fields that are not dimensions of the explore', () => {
+            expect(
+                applyChartIntent({
+                    intent: {
+                        kind: 'add_field',
+                        fieldId: 'orders_revenue',
+                        chartType: null,
+                    },
+                    artifact,
+                    explore,
+                }),
+            ).toBeNull();
+        });
+    });
+
+    describe('filters', () => {
+        it('filters to the selected values of a query dimension', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'filter_values',
+                    fieldId: 'orders_region',
+                    exclude: false,
+                    values: ['North', 'South'],
+                },
                 artifact,
                 explore,
             });
-            expect(result?.config.config.chartConfig).toMatchObject({
-                groupBy: ['orders_region'],
-            });
-            expect(request).not.toHaveBeenCalled();
-        },
-    );
-
-    it('falls back when a label names multiple queried fields', async () => {
-        const grouped = structuredClone(artifact);
-        grouped.config.queryConfig.dimensions.push('orders_channel');
-        const dimension = (name: string) => ({
-            name,
-            table: 'orders',
-            fieldType: 'dimension',
-            type: DimensionType.STRING,
-            label: 'Category',
-        });
-        const explore = {
-            name: 'orders',
-            tables: {
-                orders: {
-                    dimensions: {
-                        region: dimension('region'),
-                        channel: dimension('channel'),
-                    },
-                    metrics: {},
+            expect(rulesOf(edit)).toMatchObject([
+                {
+                    fieldId: 'orders_region',
+                    operator: FilterOperator.EQUALS,
+                    values: ['North', 'South'],
                 },
-            },
-        } as unknown as Explore;
-        expect(
-            await resolveChartEdit({
-                decisions: client('none'),
-                prompt: 'Split by category.',
-                artifact: grouped,
+            ]);
+            expect(edit?.response).toBe('Filtered to **North**, **South**.');
+        });
+
+        it('accumulates exclusions on the same field', () => {
+            const first = applyChartIntent({
+                intent: {
+                    kind: 'filter_values',
+                    fieldId: 'orders_region',
+                    exclude: true,
+                    values: ['North'],
+                },
+                artifact,
                 explore,
-            }),
-        ).toBeNull();
+            });
+            const second = applyChartIntent({
+                intent: {
+                    kind: 'filter_values',
+                    fieldId: 'orders_region',
+                    exclude: true,
+                    values: ['South'],
+                },
+                artifact: first!.config,
+                explore,
+            });
+            expect(rulesOf(second)).toMatchObject([
+                {
+                    operator: FilterOperator.NOT_EQUALS,
+                    values: ['North', 'South'],
+                },
+            ]);
+        });
+
+        it('applies a trailing time window through the shared resolver', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'filter_period',
+                    fieldId: 'orders_date',
+                    period: { type: 'last', count: 30, unit: 'days' },
+                },
+                artifact,
+                explore,
+            });
+            expect(rulesOf(edit)).toMatchObject([
+                {
+                    fieldId: 'orders_date',
+                    fieldFilterType: FilterType.DATE,
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [30],
+                    settings: { unitOfTime: UnitOfTime.days, completed: false },
+                },
+            ]);
+            expect(edit?.response).toBe('Filtered to the last 30 days.');
+        });
+
+        it('applies the current calendar period', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'filter_period',
+                    fieldId: 'orders_date',
+                    period: { type: 'current', unit: 'months' },
+                },
+                artifact,
+                explore,
+            });
+            expect(rulesOf(edit)).toMatchObject([
+                { operator: FilterOperator.IN_THE_CURRENT },
+            ]);
+            expect(edit?.response).toBe('Filtered to this month.');
+        });
+
+        it('preserves other-field filters and rejects OR groups', () => {
+            const base = applyChartIntent({
+                intent: {
+                    kind: 'filter_period',
+                    fieldId: 'orders_date',
+                    period: { type: 'last', count: 90, unit: 'days' },
+                },
+                artifact,
+                explore,
+            })!.config;
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'filter_values',
+                    fieldId: 'orders_region',
+                    exclude: false,
+                    values: ['North'],
+                },
+                artifact: base,
+                explore,
+            });
+            expect(rulesOf(edit)?.map(({ fieldId }) => fieldId)).toEqual([
+                'orders_date',
+                'orders_region',
+            ]);
+            const orFilters = structuredClone(base);
+            const { filters } = orFilters.config.queryConfig;
+            if (filters && !('type' in filters) && filters.dimensions)
+                filters.dimensions.connector = 'or';
+            expect(
+                applyChartIntent({
+                    intent: {
+                        kind: 'filter_values',
+                        fieldId: 'orders_region',
+                        exclude: false,
+                        values: ['North'],
+                    },
+                    artifact: orFilters,
+                    explore,
+                }),
+            ).toBeNull();
+        });
+
+        it('only filters dimensions that are in the query', () => {
+            expect(
+                applyChartIntent({
+                    intent: {
+                        kind: 'filter_values',
+                        fieldId: 'orders_status',
+                        exclude: false,
+                        values: ['completed'],
+                    },
+                    artifact,
+                    explore,
+                }),
+            ).toBeNull();
+        });
+
+        it('clears filters', () => {
+            const filtered = applyChartIntent({
+                intent: {
+                    kind: 'filter_values',
+                    fieldId: 'orders_region',
+                    exclude: false,
+                    values: ['North'],
+                },
+                artifact,
+                explore,
+            })!.config;
+            const edit = applyChartIntent({
+                intent: { kind: 'clear_filters' },
+                artifact: filtered,
+                explore,
+            });
+            expect(edit?.config.config.queryConfig.filters).toBeNull();
+            expect(getFilterFieldIds(filtered)).toEqual(['orders_region']);
+        });
     });
 
-    it('does not let a compound field label bypass whole-request classification', async () => {
-        const explore = {
-            name: 'orders',
-            tables: {
-                orders: {
-                    dimensions: {
-                        region: {
-                            name: 'region',
-                            table: 'orders',
-                            fieldType: 'dimension',
-                            type: DimensionType.STRING,
-                            label: 'region and show last year',
+    describe('sort', () => {
+        it('sorts by the implied chart metric and applies a limit', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'sort',
+                    fieldId: null,
+                    descending: true,
+                    limit: 5,
+                },
+                artifact,
+                explore,
+            });
+            expect(edit?.config.config.queryConfig).toMatchObject({
+                sorts: [
+                    {
+                        fieldId: 'orders_revenue',
+                        descending: true,
+                        nullsFirst: null,
+                    },
+                ],
+                limit: 5,
+            });
+            expect(edit?.response).toBe(
+                'Sorted by **Revenue**, highest first; showing 5.',
+            );
+        });
+
+        it('only sorts by fields in the query', () => {
+            expect(
+                applyChartIntent({
+                    intent: {
+                        kind: 'sort',
+                        fieldId: 'orders_status',
+                        descending: false,
+                        limit: null,
+                    },
+                    artifact,
+                    explore,
+                }),
+            ).toBeNull();
+        });
+
+        it('clears the sort', () => {
+            const edit = applyChartIntent({
+                intent: { kind: 'clear_sort' },
+                artifact: withQuery({
+                    sorts: [
+                        {
+                            fieldId: 'orders_revenue',
+                            descending: true,
+                            nullsFirst: null,
                         },
-                    },
-                    metrics: {},
-                },
-            },
-        } as unknown as Explore;
-        expect(
-            await resolveChartEdit({
-                decisions: client('group', 0.1, 'orders_region'),
-                prompt: 'Split by region and show last year',
-                artifact,
+                    ],
+                }),
                 explore,
-            }),
-        ).toBeNull();
-    });
-
-    it('does not apply grouping to a chart type without series grouping', async () => {
-        const pie = structuredClone(artifact);
-        pie.config.chartConfig = {
-            ...(pie.config.chartConfig as ToolRunQueryBuiltinChartConfig),
-            defaultVizType: 'pie',
-        };
-        expect(
-            await resolveChartEdit({
-                decisions: client('group', 0.999, 'orders_region'),
-                prompt: 'Split by region',
-                artifact: pie,
-            }),
-        ).toBeNull();
-    });
-
-    it('keeps a plotted table calculation when changing presentation', async () => {
-        const calculated = structuredClone(artifact);
-        calculated.config.queryConfig.tableCalculations = [
-            {
-                name: 'growth',
-                displayName: 'Growth',
-                type: 'formula',
-                formula: '${orders_revenue} * 2',
-                format: null,
-                resultType: 'number',
-            },
-        ];
-        calculated.config.chartConfig = {
-            ...(calculated.config
-                .chartConfig as ToolRunQueryBuiltinChartConfig),
-            yAxisMetrics: ['growth'],
-        };
-        const result = await resolveChartEdit({
-            decisions: client('line'),
-            prompt: 'Make it a line chart',
-            artifact: calculated,
+            });
+            expect(edit).toMatchObject({
+                changed: true,
+                response: 'Cleared the chart sort.',
+            });
+            expect(edit?.config.config.queryConfig.sorts).toEqual([]);
         });
-        expect(result?.config.config.chartConfig).toMatchObject({
-            yAxisMetrics: ['growth'],
-            defaultVizType: 'line',
-        });
-        expect(result?.config.config.queryConfig).toEqual(
-            calculated.config.queryConfig,
-        );
-    });
-
-    it('falls back on unsupported operations or provider failure', async () => {
-        expect(
-            await resolveChartEdit({
-                decisions: client('none'),
-                prompt: 'Make it red',
-                artifact,
-            }),
-        ).toBeNull();
-        const offline = new AiDecisionClient(
-            { apiKey: 'test', model: 'test', timeoutMs: 100 },
-            async () => {
-                throw new Error('offline');
-            },
-        );
-        expect(
-            await resolveChartEdit({
-                decisions: offline,
-                prompt: 'Turn the visualization into a trend over time',
-                artifact,
-            }),
-        ).toBeNull();
-        expect(
-            await resolveChartEdit({
-                decisions: offline,
-                prompt: 'Make it a line chart',
-                artifact,
-            }),
-        ).not.toBeNull();
-    });
-
-    it.each([
-        'Make it a line chart and show last year',
-        'Make the other chart a line',
-        'Explain how to make it a line chart',
-        'Make it a pie and save it',
-        'Make it a line chart?',
-    ])(
-        'never partially executes a compound or unclear request: %s',
-        (prompt) => {
-            expect(parseExactChartEdit(prompt)).toBeNull();
-        },
-    );
-
-    it('recognizes only complete presentation commands', () => {
-        expect(
-            parseExactChartEdit('Please make it a horizontal bar chart.'),
-        ).toBe('horizontal');
-        expect(parseExactChartEdit('Switch to a table')).toBe('table');
-        expect(parseExactChartEdit('swap the axes')).toBe('swap');
     });
 });

@@ -5,8 +5,7 @@ import {
     type ToolRunQueryArgs,
 } from '@lightdash/common';
 import { validExplore } from '../../../../services/ProjectService/ProjectService.mock';
-import { AiDecisionClient } from '../decisions/AiDecisionClient';
-import { resolveChartEdit } from '../decisions/chartEdits';
+import { applyChartIntent } from '../decisions/chartEdits';
 import { prepareArtifactChartAsCode } from './artifactChartAsCode';
 
 const config: ToolRunQueryArgs = {
@@ -116,14 +115,10 @@ describe('existing artifact chart export', () => {
             };
             args.artifact.chartConfig = source;
             const originalExport = await prepareArtifactChartAsCode(args);
-            const request = vi.fn<typeof fetch>();
-            const edited = await resolveChartEdit({
-                decisions: new AiDecisionClient(
-                    { apiKey: 'test', model: 'test', timeoutMs: 100 },
-                    request,
-                ),
-                prompt: `Make it a ${chartType}`,
+            const edited = applyChartIntent({
+                intent: { kind: 'chart_type', chartType },
                 artifact: { ...source, contentAsCode: originalExport },
+                explore: validExplore,
             });
             expect(edited).not.toBeNull();
             expect(edited!.changed).toBe(chartType === 'line');
@@ -158,7 +153,6 @@ describe('existing artifact chart export', () => {
             expect(exported.parameters).toEqual(originalExport.parameters);
             if (chartType === 'table')
                 expect(edited!.config.contentAsCode).toEqual(originalExport);
-            expect(request).not.toHaveBeenCalled();
         },
     );
 

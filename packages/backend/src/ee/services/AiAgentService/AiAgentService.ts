@@ -83,6 +83,7 @@ import {
     ExternalSourceScope,
     ExternalSourceStatus,
     FeatureFlags,
+    FieldType,
     ForbiddenError,
     formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
@@ -335,18 +336,19 @@ import {
     type AiDecisionClient,
 } from '../ai/decisions/AiDecisionClient';
 import {
-    getChartSegmentationQuery,
-    getImplicitChartFilterCandidate,
-    isChartArtifactEditRequest,
-    isChartPresentationRequest,
-    isChartQueryRefinementRequest,
-    isChartUndoRequest,
-    parseExactChartEdit,
-    resolveChartEdit,
-    type ImplicitChartFilterCandidate,
-    type ValidatedImplicitChartFilter,
+    applyChartIntent,
+    getFilterFieldIds,
+    type ChartEdit,
 } from '../ai/decisions/chartEdits';
-import { canUseFastModel } from '../ai/decisions/modelRouting';
+import {
+    buildChartIntentContext,
+    decideTurn,
+    isChartEditAttempt,
+    selectFilterValues,
+    type ChartIntentContext,
+    type ChartIntentResolution,
+    type FieldCandidate,
+} from '../ai/decisions/chartIntent';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
@@ -518,6 +520,17 @@ type SuggestionThreadMessages = Awaited<
 type AgentConversationContext = {
     messageHistory: ModelMessage[];
     compactionSummary: string | null;
+};
+
+type ChartTurnContext = {
+    latest: Awaited<
+        ReturnType<AiAgentModel['findArtifactsByThreadUuid']>
+    >[number];
+    artifact: Awaited<ReturnType<AiAgentService['getArtifact']>>;
+    chartConfig: AiSemanticChartArtifactConfig;
+    explore: Explore;
+    catalogFields: Array<{ candidate: FieldCandidate; tableName: string }>;
+    intentContext: ChartIntentContext;
 };
 
 type AgentResponseStream = {
@@ -11727,72 +11740,64 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
     }
 
-    private async validateImplicitChartFilter({
+    private async searchAddableCatalogFields({
         user,
         projectUuid,
-        exploreName,
-        candidate,
+        prompt,
     }: {
         user: SessionUser;
         projectUuid: string;
-        exploreName: string;
-        candidate: ImplicitChartFilterCandidate;
-    }): Promise<ValidatedImplicitChartFilter | null> {
-        const normalize = (value: string) =>
-            value
-                .toLowerCase()
-                .replaceAll('_', ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
-        const requested = normalize(candidate.searchValue);
-        const search = requested.split(' ')[0];
-        if (!search) return null;
-
-        try {
-            const values = await this.projectService.searchFieldUniqueValues(
-                user,
-                projectUuid,
-                exploreName,
-                candidate.fieldId,
-                search,
-                25,
-                undefined,
-                false,
-                undefined,
-                undefined,
-                QueryExecutionContext.AI,
-            );
-            const matches = values.results.filter(
-                (value: unknown): value is string =>
-                    typeof value === 'string' && normalize(value) === requested,
-            );
-            return matches.length === 1
-                ? { fieldId: candidate.fieldId, value: matches[0] }
-                : null;
-        } catch {
-            return null;
-        }
+        prompt: string;
+    }): Promise<Array<{ candidate: FieldCandidate; tableName: string }>> {
+        if (!user.organizationUuid) return [];
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid: user.organizationUuid,
+                userUuid: user.userUuid,
+            });
+        const { data } = await this.catalogService.searchCatalog({
+            projectUuid,
+            userAttributes,
+            catalogSearch: { searchQuery: prompt, type: CatalogType.Field },
+            context: CatalogSearchContext.AI_AGENT,
+            paginateArgs: { page: 1, pageSize: 25 },
+            excludeUnmatched: true,
+            fullTextSearchOperator: 'OR',
+        });
+        return data.flatMap((item) =>
+            item.type === CatalogType.Field &&
+            item.fieldType === FieldType.DIMENSION
+                ? [
+                      {
+                          tableName: item.tableName,
+                          candidate: {
+                              id: getItemId({
+                                  table: item.tableName,
+                                  name: item.name,
+                              }),
+                              label: item.label ?? item.name,
+                              table: item.tableLabel ?? item.tableName,
+                              description:
+                                  item.description?.slice(0, 160) ?? null,
+                              isDate:
+                                  item.basicType === 'date' ||
+                                  item.basicType === 'timestamp',
+                          },
+                      },
+                  ]
+                : [],
+        );
     }
 
-    private async tryApplyChartEdit({
+    private async loadChartTurnContext({
         user,
         prompt,
         agent,
-        decisions,
-        messageHistory,
-        responseStartedAt,
-        allowQueryRefinements,
-        decisionUsage,
     }: {
         user: SessionUser;
         prompt: AiWebAppPrompt;
         agent: AiAgent;
-        decisions: AiDecisionClient;
-        messageHistory: ModelMessage[];
-        responseStartedAt: number;
-        allowQueryRefinements: boolean;
-        decisionUsage: () => { inputTokens: number; outputTokens: number };
-    }): Promise<AgentResponseStream | null> {
+    }): Promise<ChartTurnContext | null> {
         const [[latest], promptContext] = await Promise.all([
             this.aiAgentModel.findArtifactsByThreadUuid(
                 prompt.threadUuid,
@@ -11802,118 +11807,304 @@ Use your existing tools to inspect them when relevant to the user's question (re
         ]);
         if (latest?.chartConfig?.source !== 'semantic') return null;
         if (promptContext.get(prompt.promptUuid)?.length) return null;
-
         const artifact = await this.getArtifact(
             user,
             prompt.projectUuid,
             agent.uuid,
             latest.artifactUuid,
             latest.versionUuid,
-        );
-        const { chartConfig } = artifact;
-        if (chartConfig?.source !== 'semantic') return null;
-
-        const explore =
-            parseExactChartEdit(prompt.prompt) ||
-            isChartUndoRequest(prompt.prompt)
-                ? undefined
-                : await this.getExplore(
-                      user,
-                      prompt.projectUuid,
-                      agent.tags,
-                      chartConfig.config.queryConfig.exploreName,
-                  ).catch(() => undefined);
-        const implicitFilterCandidate =
-            allowQueryRefinements && explore
-                ? getImplicitChartFilterCandidate({
-                      prompt: prompt.prompt,
-                      artifact: chartConfig,
-                      explore,
-                  })
-                : null;
-        let validatedImplicitFilter: ValidatedImplicitChartFilter | undefined;
-        if (implicitFilterCandidate && explore) {
-            const validated = await this.validateImplicitChartFilter({
+        ).catch(() => null);
+        const chartConfig = artifact?.chartConfig;
+        if (!artifact || chartConfig?.source !== 'semantic') return null;
+        const [explore, catalogFields] = await Promise.all([
+            this.getExplore(
+                user,
+                prompt.projectUuid,
+                agent.tags,
+                chartConfig.config.queryConfig.exploreName,
+            ).catch(() => null),
+            this.searchAddableCatalogFields({
                 user,
                 projectUuid: prompt.projectUuid,
-                exploreName: explore.name,
-                candidate: implicitFilterCandidate,
-            });
-            if (!validated) return null;
-            validatedImplicitFilter = validated;
-        }
-        const previous =
-            allowQueryRefinements && isChartUndoRequest(prompt.prompt)
-                ? await this.aiAgentModel.getPreviousArtifactVersion(
-                      latest.artifactUuid,
-                      latest.versionNumber,
-                  )
-                : null;
-        const undoConfig =
-            previous?.chartConfig?.source === 'semantic'
-                ? previous.chartConfig
-                : null;
-        let edit = isChartUndoRequest(prompt.prompt)
-            ? {
-                  config: undoConfig ?? chartConfig,
-                  response: undoConfig
-                      ? 'Undid the last chart change.'
-                      : 'There is no earlier chart change to undo.',
-                  changed: undoConfig !== null,
-              }
-            : await resolveChartEdit({
-                  decisions,
-                  prompt: prompt.prompt,
-                  artifact: chartConfig,
-                  instructions: agent.instruction,
-                  conversation: messageHistory.slice(-3),
-                  explore,
-                  allowQueryRefinements,
-                  validatedImplicitFilter,
-              });
-        if (
-            !edit &&
-            allowQueryRefinements &&
-            explore &&
-            getChartSegmentationQuery(prompt.prompt)
-        ) {
-            const compatibleExplores = await this.findSegmentationExplores({
-                user,
-                projectUuid: prompt.projectUuid,
-                availableTags: agent.tags,
+                prompt: prompt.prompt,
+            }).catch(() => []),
+        ]);
+        if (!explore) return null;
+        return {
+            latest,
+            artifact,
+            chartConfig,
+            explore,
+            catalogFields,
+            intentContext: buildChartIntentContext({
                 prompt: prompt.prompt,
                 artifact: chartConfig,
-                currentExplore: explore,
-            }).catch(() => []);
-            const candidates = (
-                await Promise.all(
-                    compatibleExplores.map(async (compatibleExplore) => ({
-                        edit: await resolveChartEdit({
-                            decisions,
-                            prompt: prompt.prompt,
-                            artifact: chartConfig,
-                            instructions: agent.instruction,
-                            conversation: messageHistory.slice(-3),
-                            explore: compatibleExplore,
-                            allowQueryRefinements,
-                        }),
-                    })),
+                explore,
+                extraAddableFields: catalogFields.map(
+                    ({ candidate }) => candidate,
+                ),
+            }),
+        };
+    }
+
+    private async searchFilterValueCandidates({
+        user,
+        projectUuid,
+        exploreName,
+        fieldId,
+        prompt,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        exploreName: string;
+        fieldId: string;
+        prompt: string;
+    }): Promise<string[]> {
+        const search = (term: string, limit: number) =>
+            this.projectService
+                .searchFieldUniqueValues(
+                    user,
+                    projectUuid,
+                    exploreName,
+                    fieldId,
+                    term,
+                    limit,
+                    undefined,
+                    false,
+                    undefined,
+                    undefined,
+                    QueryExecutionContext.AI,
                 )
-            )
-                .map(({ edit: candidateEdit }) => candidateEdit)
-                .filter(
-                    (candidate): candidate is NonNullable<typeof candidate> =>
-                        Boolean(candidate),
+                .then(({ results }) =>
+                    results.filter(
+                        (value: unknown): value is string =>
+                            typeof value === 'string',
+                    ),
+                )
+                .catch(() => [] as string[]);
+        const terms = [
+            ...new Set(
+                prompt
+                    .toLowerCase()
+                    .split(/[^\p{L}\p{N}]+/u)
+                    .filter((term) => term.length >= 3),
+            ),
+        ].slice(0, 4);
+        const [matched, top] = await Promise.all([
+            Promise.all(terms.map((term) => search(term, 10))),
+            search('', 50),
+        ]);
+        return [...new Set([...matched.flat(), ...top])];
+    }
+
+    private async findExploreForAddedField({
+        user,
+        projectUuid,
+        availableTags,
+        artifact,
+        currentExplore,
+        tableName,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        availableTags: string[] | null;
+        artifact: AiSemanticChartArtifactConfig;
+        currentExplore: Explore;
+        tableName: string;
+    }): Promise<Explore | null> {
+        const query = artifact.config.queryConfig;
+        const filterFieldIds = getFilterFieldIds(artifact);
+        if (
+            filterFieldIds === null ||
+            query.customMetrics?.length ||
+            query.tableCalculations?.length
+        )
+            return null;
+        const referencedFieldIds = new Set([
+            ...query.dimensions,
+            ...query.metrics,
+            ...query.sorts.map(({ fieldId }) => fieldId),
+            ...filterFieldIds,
+        ]);
+        const currentFields = new Map(
+            getFields(currentExplore).map((field) => [getItemId(field), field]),
+        );
+        const safeCrossExploreMetricTypes = new Set([
+            MetricType.COUNT_DISTINCT,
+            MetricType.SUM_DISTINCT,
+            MetricType.AVERAGE_DISTINCT,
+        ]);
+        if (
+            query.metrics.some((fieldId) => {
+                const field = currentFields.get(fieldId);
+                return (
+                    !field ||
+                    !isMetric(field) ||
+                    !safeCrossExploreMetricTypes.has(field.type)
                 );
-            if (candidates.length === 1) [edit] = candidates;
+            })
+        )
+            return null;
+        const requiredTables = [...referencedFieldIds].flatMap((fieldId) => {
+            const table = currentFields.get(fieldId)?.table;
+            return table ? [table] : [];
+        });
+        if (requiredTables.length !== referencedFieldIds.size) return null;
+        const exploreNames = (
+            await this.projectModel.findExploreNamesContainingTables(
+                projectUuid,
+                [...requiredTables, tableName],
+            )
+        ).filter((name) => name !== currentExplore.name);
+        if (exploreNames.length === 0) return null;
+        const available = await this.getAvailableExplores(
+            user,
+            projectUuid,
+            availableTags,
+            exploreNames,
+        );
+        const compatible = available.filter((candidate) => {
+            const ids = new Set(getFields(candidate).map(getItemId));
+            return [...referencedFieldIds].every((fieldId) => ids.has(fieldId));
+        });
+        const baseTableMatches = compatible.filter(
+            (candidate) => candidate.baseTable === tableName,
+        );
+        if (baseTableMatches.length === 1) return baseTableMatches[0];
+        return compatible.length === 1 ? compatible[0] : null;
+    }
+
+    private async resolveChartIntent({
+        user,
+        prompt,
+        agent,
+        decisions,
+        chart,
+        resolution,
+    }: {
+        user: SessionUser;
+        prompt: AiWebAppPrompt;
+        agent: AiAgent;
+        decisions: AiDecisionClient;
+        chart: ChartTurnContext;
+        resolution: ChartIntentResolution;
+    }): Promise<{ edit: ChartEdit; undoneTo: AiArtifact | null } | null> {
+        if (resolution.type === 'needs_values') {
+            const { fieldId, exclude } = resolution.filter;
+            const fieldLabel =
+                chart.intentContext.currentFields.find(
+                    ({ id }) => id === fieldId,
+                )?.label ?? fieldId;
+            const candidates = await this.searchFilterValueCandidates({
+                user,
+                projectUuid: prompt.projectUuid,
+                exploreName: chart.explore.name,
+                fieldId,
+                prompt: prompt.prompt,
+            });
+            const values = await selectFilterValues({
+                decisions,
+                prompt: prompt.prompt,
+                filter: resolution.filter,
+                fieldLabel,
+                candidates,
+            });
+            if (!values) return null;
+            const edit = applyChartIntent({
+                intent: { kind: 'filter_values', fieldId, exclude, values },
+                artifact: chart.chartConfig,
+                explore: chart.explore,
+            });
+            return edit ? { edit, undoneTo: null } : null;
         }
-        if (!edit) return null;
+        if (resolution.type !== 'intent') return null;
+        const { intent } = resolution;
+        if (intent.kind === 'undo') {
+            const previous = await this.aiAgentModel.getPreviousArtifactVersion(
+                chart.latest.artifactUuid,
+                chart.latest.versionNumber,
+            );
+            const undoConfig =
+                previous?.chartConfig?.source === 'semantic'
+                    ? previous.chartConfig
+                    : null;
+            return {
+                edit: {
+                    config: undoConfig ?? chart.chartConfig,
+                    response: undoConfig
+                        ? 'Undid the last chart change.'
+                        : 'There is no earlier chart change to undo.',
+                    changed: undoConfig !== null,
+                },
+                undoneTo: undoConfig ? previous : null,
+            };
+        }
+        let { explore } = chart;
+        if (
+            intent.kind === 'add_field' &&
+            !getFields(explore).some(
+                (field) => getItemId(field) === intent.fieldId,
+            )
+        ) {
+            const tableName = chart.catalogFields.find(
+                ({ candidate }) => candidate.id === intent.fieldId,
+            )?.tableName;
+            const otherExplore = tableName
+                ? await this.findExploreForAddedField({
+                      user,
+                      projectUuid: prompt.projectUuid,
+                      availableTags: agent.tags,
+                      artifact: chart.chartConfig,
+                      currentExplore: chart.explore,
+                      tableName,
+                  }).catch(() => null)
+                : null;
+            if (!otherExplore) return null;
+            explore = otherExplore;
+        }
+        const edit = applyChartIntent({
+            intent,
+            artifact: chart.chartConfig,
+            explore,
+        });
+        return edit ? { edit, undoneTo: null } : null;
+    }
+
+    private async tryApplyChartEdit({
+        user,
+        prompt,
+        agent,
+        decisions,
+        chart,
+        resolution,
+        responseStartedAt,
+        decisionUsage,
+    }: {
+        user: SessionUser;
+        prompt: AiWebAppPrompt;
+        agent: AiAgent;
+        decisions: AiDecisionClient;
+        chart: ChartTurnContext;
+        resolution: ChartIntentResolution;
+        responseStartedAt: number;
+        decisionUsage: () => { inputTokens: number; outputTokens: number };
+    }): Promise<AgentResponseStream | null> {
+        const resolved = await this.resolveChartIntent({
+            user,
+            prompt,
+            agent,
+            decisions,
+            chart,
+            resolution,
+        });
+        if (!resolved) return null;
+        const { edit, undoneTo } = resolved;
 
         const [current, interrupted] = await Promise.all([
-            this.aiAgentModel.getArtifact(latest.artifactUuid),
+            this.aiAgentModel.getArtifact(chart.latest.artifactUuid),
             this.aiAgentModel.hasAiPromptInterrupt(prompt.promptUuid),
         ]);
-        if (current?.versionUuid !== latest.versionUuid || interrupted)
+        if (current?.versionUuid !== chart.latest.versionUuid || interrupted)
             return null;
 
         if (edit.changed)
@@ -11921,12 +12112,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 threadUuid: prompt.threadUuid,
                 promptUuid: prompt.promptUuid,
                 artifactType: 'chart',
-                title:
-                    (undoConfig ? previous?.title : artifact.title) ??
-                    undefined,
+                title: (undoneTo ?? chart.artifact).title ?? undefined,
                 description:
-                    (undoConfig
-                        ? previous?.description
+                    (undoneTo
+                        ? undoneTo.description
                         : edit.config.config.description) ?? undefined,
                 vizConfig: { ...edit.config },
             });
@@ -11980,134 +12169,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 pipeUIMessageStreamToResponse({ response, stream }),
             consumeStream: async () => {},
         };
-    }
-
-    private async findSegmentationExplores({
-        user,
-        projectUuid,
-        availableTags,
-        prompt,
-        artifact,
-        currentExplore,
-    }: {
-        user: SessionUser;
-        projectUuid: string;
-        availableTags: string[] | null;
-        prompt: string;
-        artifact: AiSemanticChartArtifactConfig;
-        currentExplore: Explore;
-    }): Promise<Explore[]> {
-        const searchQuery = getChartSegmentationQuery(prompt);
-        const query = artifact.config.queryConfig;
-        if (
-            !searchQuery ||
-            query.customMetrics?.length ||
-            query.tableCalculations?.length ||
-            !user.organizationUuid
-        )
-            return [];
-
-        const referencedFieldIds = new Set([
-            ...query.dimensions,
-            ...query.metrics,
-            ...query.sorts.map(({ fieldId }) => fieldId),
-        ]);
-        const collectFilterFields = (value: unknown): void => {
-            if (!value || typeof value !== 'object') return;
-            if (
-                'fieldId' in value &&
-                typeof (value as { fieldId?: unknown }).fieldId === 'string'
-            ) {
-                referencedFieldIds.add((value as { fieldId: string }).fieldId);
-            }
-            for (const child of Object.values(value))
-                collectFilterFields(child);
-        };
-        collectFilterFields(query.filters);
-
-        const currentFields = new Map(
-            getFields(currentExplore).map((field) => [getItemId(field), field]),
-        );
-        const safeCrossExploreMetricTypes = new Set([
-            MetricType.COUNT_DISTINCT,
-            MetricType.SUM_DISTINCT,
-            MetricType.AVERAGE_DISTINCT,
-        ]);
-        if (
-            query.metrics.some((fieldId) => {
-                const field = currentFields.get(fieldId);
-                return (
-                    !field ||
-                    !isMetric(field) ||
-                    !safeCrossExploreMetricTypes.has(field.type)
-                );
-            })
-        )
-            return [];
-        const requiredTables = [...referencedFieldIds].map(
-            (fieldId) => currentFields.get(fieldId)?.table,
-        );
-        if (requiredTables.some((table) => !table)) return [];
-
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid: user.organizationUuid,
-                userUuid: user.userUuid,
-            });
-        const { data } = await this.catalogService.searchCatalog({
-            projectUuid,
-            userAttributes,
-            catalogSearch: { searchQuery, type: CatalogType.Field },
-            context: CatalogSearchContext.AI_AGENT,
-            paginateArgs: { page: 1, pageSize: 25 },
-            excludeUnmatched: true,
-            fullTextSearchOperator: 'OR',
-        });
-        const normalize = (value: string) =>
-            value
-                .toLowerCase()
-                .replaceAll('_', ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
-        const normalizedQuery = normalize(searchQuery);
-        const candidateTables = _.uniq(
-            data
-                .filter((item) => item.type === CatalogType.Field)
-                .filter(
-                    (field) =>
-                        normalize(field.name) === normalizedQuery ||
-                        normalize(field.label ?? '') === normalizedQuery,
-                )
-                .map((field) => field.tableName),
-        );
-        const exploreNames = _.uniq(
-            (
-                await Promise.all(
-                    candidateTables.map((tableName) =>
-                        this.projectModel.findExploreNamesContainingTables(
-                            projectUuid,
-                            [...requiredTables, tableName] as string[],
-                        ),
-                    ),
-                )
-            ).flat(),
-        ).filter((name) => name !== currentExplore.name);
-        if (exploreNames.length === 0) return [];
-
-        const available = await this.getAvailableExplores(
-            user,
-            projectUuid,
-            availableTags,
-            exploreNames,
-        );
-        const compatible = available.filter((candidate) => {
-            const ids = new Set(getFields(candidate).map(getItemId));
-            return [...referencedFieldIds].every((fieldId) => ids.has(fieldId));
-        });
-        const baseTableMatches = compatible.filter((candidate) =>
-            candidateTables.includes(candidate.baseTable),
-        );
-        return baseTableMatches.length === 1 ? baseTableMatches : compatible;
     }
 
     async generateOrStreamAgentResponse(
@@ -12264,15 +12325,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             : undefined;
         // AiAgentFastDecisions is the master gate; battle mode can only disable it per side.
         const fastExperienceEnabled = decisions !== undefined;
-        const queryRefinementRequest =
-            isChartQueryRefinementRequest(prompt.prompt) ||
-            isChartUndoRequest(prompt.prompt) ||
-            getChartSegmentationQuery(prompt.prompt) !== null;
-        const allowQueryRefinements =
-            queryRefinementRequest && fastExperienceEnabled;
         let forceChartMutationRouting = false;
         let chartMutationContext: AiSemanticChartArtifactConfig | undefined;
-        if (
+        const chartTurn =
             decisions &&
             stream &&
             !isSlackPrompt(prompt) &&
@@ -12280,10 +12335,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             !options.runtimeOptions &&
             !options.toolHints?.length &&
             !compactionSummary &&
-            prompt.prompt.length <= 300 &&
-            isChartArtifactEditRequest(prompt.prompt) &&
-            (isChartPresentationRequest(prompt.prompt) ||
-                allowQueryRefinements) &&
             !responseExecution.toolAllowlist &&
             agentSettings.enableDataAccess &&
             messageHistory.length > 1 &&
@@ -12291,38 +12342,58 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 prompt.threadCreatedFrom,
                 undefined,
             ) === undefined
+                ? await this.loadChartTurnContext({
+                      user,
+                      prompt,
+                      agent: agentSettings,
+                  }).catch(() => null)
+                : null;
+        const turnDecision = decisions
+            ? (
+                  await decideTurn({
+                      decisions,
+                      prompt: prompt.prompt,
+                      instructions: agentSettings.instruction,
+                      conversation: messageHistory.slice(-3),
+                      context: chartTurn?.intentContext ?? null,
+                  })
+              ).decision
+            : null;
+        const chartResolution = turnDecision?.chart ?? null;
+        if (
+            decisions &&
+            chartTurn &&
+            chartResolution &&
+            !isSlackPrompt(prompt)
         ) {
-            const editResponse = await this.tryApplyChartEdit({
-                user,
-                prompt,
-                agent: agentSettings,
-                decisions,
-                messageHistory,
-                responseStartedAt,
-                allowQueryRefinements,
-                decisionUsage: () => ({
-                    inputTokens: decisionUsage?.inputTokens ?? 0,
-                    outputTokens: decisionUsage?.outputTokens ?? 0,
-                }),
-            });
-            if (editResponse) return editResponse;
-            const [latestChart] =
-                await this.aiAgentModel.findArtifactsByThreadUuid(
-                    prompt.threadUuid,
-                    'chart',
-                );
-            if (latestChart?.chartConfig?.source === 'semantic') {
-                const activeArtifact = await this.getArtifact(
+            if (
+                chartResolution.type === 'intent' ||
+                chartResolution.type === 'needs_values'
+            ) {
+                const editResponse = await this.tryApplyChartEdit({
                     user,
-                    prompt.projectUuid,
-                    agentSettings.uuid,
-                    latestChart.artifactUuid,
-                    latestChart.versionUuid,
-                ).catch(() => null);
-                if (activeArtifact?.chartConfig?.source === 'semantic') {
-                    forceChartMutationRouting = true;
-                    chartMutationContext = activeArtifact.chartConfig;
-                }
+                    prompt,
+                    agent: agentSettings,
+                    decisions,
+                    chart: chartTurn,
+                    resolution: chartResolution,
+                    responseStartedAt,
+                    decisionUsage: () => ({
+                        inputTokens: decisionUsage?.inputTokens ?? 0,
+                        outputTokens: decisionUsage?.outputTokens ?? 0,
+                    }),
+                }).catch((error) => {
+                    Logger.warn(
+                        `Fast chart edit failed; falling back to the agent: ${String(error)}`,
+                    );
+                    return null;
+                });
+                if (editResponse) return editResponse;
+            }
+            // JEV identified a chart edit the reducer could not apply, so the agent mutates the active chart.
+            if (isChartEditAttempt(chartResolution)) {
+                forceChartMutationRouting = true;
+                chartMutationContext = chartTurn.chartConfig;
             }
         }
         const enableSqlMode =
@@ -12782,13 +12853,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             canUseFastToolModel &&
             !compactionSummary &&
             mcpServers.length === 0 &&
-            adaptiveModels?.enabled
-                ? await canUseFastModel({
-                      decisions,
-                      prompt: prompt.prompt,
-                      instructions: agentSettings.instruction,
-                  })
-                : false;
+            adaptiveModels?.enabled === true &&
+            turnDecision?.simpleDataAnswer === true;
         const enableDataAnswerFastResponse = simpleDataAnswer;
 
         if (

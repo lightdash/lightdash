@@ -42,6 +42,7 @@ const LOGGED_OPERATIONS = new Set([
     'answer-claims',
     'catalog-ranking',
     'chart-edit',
+    'chart-intent',
     'chart-presentation',
     'chart-reuse',
     'content-relevance',
