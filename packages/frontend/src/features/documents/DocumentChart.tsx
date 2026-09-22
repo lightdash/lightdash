@@ -12,6 +12,7 @@ type Props = {
     versionUuid: string;
     cellIndex: number;
     cell: Extract<DocumentCell, { type: 'chart' }>;
+    showTitle?: boolean;
 };
 
 const DocumentChart = ({
@@ -21,6 +22,7 @@ const DocumentChart = ({
     versionUuid,
     cellIndex,
     cell,
+    showTitle = false,
 }: Props) => {
     const { chart } = cell.content;
     const authoringEnabled = useContentAuthoringEnabled();
@@ -36,6 +38,7 @@ const DocumentChart = ({
             projectUuid={projectUuid}
             spaceUuid={spaceUuid}
             chart={chart}
+            showTitle={showTitle}
             query={query}
             actions={
                 cell.content.source === 'semantic' &&

@@ -28,6 +28,7 @@ type Props = {
         'data' | 'error' | 'isFetching' | 'refetch'
     >;
     actions?: ReactNode;
+    showTitle?: boolean;
 };
 
 const DocumentChartVisualization = ({
@@ -36,6 +37,7 @@ const DocumentChartVisualization = ({
     chart,
     query,
     actions,
+    showTitle = false,
 }: Props) => {
     const palette = useProjectColorPalette(projectUuid, { spaceUuid });
     const results = useInfiniteQueryResults(
@@ -52,6 +54,7 @@ const DocumentChartVisualization = ({
         return (
             <ReportChartFrame
                 ariaLabel={chart.name}
+                title={showTitle ? chart.name : undefined}
                 description={chart.description}
             >
                 <InlineErrorState
@@ -78,6 +81,7 @@ const DocumentChartVisualization = ({
         return (
             <ReportChartFrame
                 ariaLabel={chart.name}
+                title={showTitle ? chart.name : undefined}
                 description={chart.description}
             >
                 <Text c="dimmed">
@@ -90,6 +94,7 @@ const DocumentChartVisualization = ({
     return (
         <ReportChartFrame
             ariaLabel={chart.name}
+            title={showTitle ? chart.name : undefined}
             description={chart.description}
             actions={actions}
         >

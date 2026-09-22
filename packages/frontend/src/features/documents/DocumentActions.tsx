@@ -6,7 +6,7 @@ import {
     getDocumentUrl,
     type Document,
 } from '@lightdash/common';
-import { ActionIcon, Button, Group, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Menu, Tooltip } from '@mantine/core';
 import {
     IconCode,
     IconCopy,
@@ -14,6 +14,7 @@ import {
     IconTrash,
     IconPin,
     IconPinnedOff,
+    IconUsers,
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -74,7 +75,7 @@ const DocumentActions = ({ document }: { document: Document }) => {
     });
     const url = `${window.location.origin}${getDocumentUrl(projectUrlIdentifier, document.documentUuid, document.slug)}`;
     return (
-        <Group gap="sm">
+        <Group gap="xs" wrap="nowrap">
             <FavoriteActionIcon
                 name={document.name}
                 isFavorite={isFavorite}
@@ -93,12 +94,14 @@ const DocumentActions = ({ document }: { document: Document }) => {
             <CopyActionIcon value={url} copyLabel="Copy document link" />
             {isAvailable && canManage && (
                 <>
-                    <Button
-                        variant="default"
-                        onClick={() => setShareOpen(true)}
-                    >
-                        Share
-                    </Button>
+                    <Tooltip label="Share">
+                        <ActionIcon
+                            aria-label="Share"
+                            onClick={() => setShareOpen(true)}
+                        >
+                            <MantineIcon icon={IconUsers} />
+                        </ActionIcon>
+                    </Tooltip>
                     {isShareOpen && (
                         <DirectAccessModal
                             opened

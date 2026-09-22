@@ -232,12 +232,7 @@ describe('Document page', () => {
                     'h1[data-report-heading], h2, [data-testid="document-chart"]',
                 ),
             ).map((element) => element.textContent),
-        ).toEqual([
-            'Findings',
-            'Orders chart',
-            'Orders chart',
-            'Recommendations',
-        ]);
+        ).toEqual(['Findings', 'Orders chart', 'Recommendations']);
     });
 
     test('shows unavailable content without leaking the server error', async () => {
@@ -319,12 +314,9 @@ describe('Document page', () => {
             },
         });
         renderPage();
-        expect(
-            await screen.findByRole('heading', {
-                name: 'Chart section',
-                level: 2,
-            }),
-        ).not.toHaveAttribute('data-report-heading');
+        expect(await screen.findByText('Chart section')).not.toHaveAttribute(
+            'data-report-heading',
+        );
         expect(
             screen.queryByRole('button', { name: 'Chart section' }),
         ).not.toBeInTheDocument();
@@ -336,7 +328,7 @@ describe('Document page', () => {
         ).not.toBeInTheDocument();
     });
 
-    test('preserves the chart title and Markdown navigation when its renderer throws', async () => {
+    test('preserves the chart title and Markdown navigation when a chart renderer throws', async () => {
         mocks.chartFails = true;
         const errorLog = vi
             .spyOn(console, 'error')
@@ -364,12 +356,14 @@ describe('Document page', () => {
         });
         try {
             renderPage();
+            await screen.findByRole('heading', { name: 'Findings' });
             expect(
-                await screen.findByRole('heading', {
-                    name: 'Failed chart section',
-                    level: 2,
-                }),
-            ).not.toHaveAttribute('data-report-heading');
+                screen.getByText('Failed chart section'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('figure', { name: 'Failed chart section' })
+                    .parentElement,
+            ).toContainElement(screen.getByText('Failed chart section'));
             expect(
                 screen.queryByRole('button', { name: 'Failed chart section' }),
             ).not.toBeInTheDocument();
@@ -412,9 +406,7 @@ describe('Document page', () => {
             },
         });
         const { container } = renderPage();
-        expect(
-            await screen.findByRole('heading', { name: title }),
-        ).toBeInTheDocument();
+        expect(await screen.findByText(title)).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: title }),
         ).not.toBeInTheDocument();
@@ -475,23 +467,26 @@ describe('Document page', () => {
     });
 
     test.each(['Weekly review', 'A long document name '.repeat(20)])(
-        'shows the document name in the toolbar without Back: %s',
+        'shows one document title with its actions and no Back: %s',
         async (name) => {
             mocks.api.mockResolvedValue({ ...document, name });
             renderPage('/projects/project-uuid/research');
             expect(
                 await screen.findByRole('heading', {
                     name: name.trim(),
-                    level: 6,
+                    level: 1,
                 }),
             ).toBeInTheDocument();
             expect(
-                screen.getByRole('heading', { name: name.trim(), level: 1 }),
-            ).toBeInTheDocument();
+                screen.getAllByRole('heading', { name: name.trim() }),
+            ).toHaveLength(1);
             expect(
-                screen.getByRole('heading', { name: name.trim(), level: 6 })
-                    .parentElement,
-            ).toHaveClass(reportStyles.reportControls);
+                screen
+                    .getByRole('heading', { name: name.trim() })
+                    .closest('header'),
+            ).toContainElement(
+                screen.getByRole('button', { name: 'Edit document' }),
+            );
             expect(
                 screen.queryByRole('link', { name: 'Back' }),
             ).not.toBeInTheDocument();

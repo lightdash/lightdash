@@ -3,10 +3,12 @@ import {
     type Document,
     type UuidOrSlug,
 } from '@lightdash/common';
-import { Button, Group } from '@mantine/core';
+import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
+import { IconPencil } from '@tabler/icons-react';
 import { lazy, Suspense, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
+import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import DocumentActions from '../features/documents/DocumentActions';
 import { getDocumentReturnUrl } from '../features/documents/documentNavigation';
@@ -38,23 +40,25 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
         );
     }
     return (
-        <DocumentPageLayout
-            name={document.name}
-            actions={
-                <Group gap="sm">
-                    {canEdit && (
-                        <Button
-                            variant="default"
-                            onClick={() => setEditingDocument(document)}
-                        >
-                            Edit document
-                        </Button>
-                    )}
-                    <DocumentActions document={document} />
-                </Group>
-            }
-        >
-            <DocumentRenderer document={document} />
+        <DocumentPageLayout name={document.name}>
+            <DocumentRenderer
+                document={document}
+                actions={
+                    <Group gap="xs" wrap="nowrap">
+                        {canEdit && (
+                            <Tooltip label="Edit document">
+                                <ActionIcon
+                                    aria-label="Edit document"
+                                    onClick={() => setEditingDocument(document)}
+                                >
+                                    <MantineIcon icon={IconPencil} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                        <DocumentActions document={document} />
+                    </Group>
+                }
+            />
         </DocumentPageLayout>
     );
 };

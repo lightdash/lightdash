@@ -298,6 +298,95 @@
     flex: 0 0 auto !important;
 }
 
+.documentLayout {
+    .contentsRail {
+        border-right: 0;
+    }
+
+    .contentsNav {
+        padding: var(--mantine-spacing-lg) var(--mantine-spacing-xs)
+            var(--mantine-spacing-lg) var(--mantine-spacing-md);
+    }
+
+    .contentsControl {
+        min-height: var(--mantine-spacing-xl);
+        padding: var(--mantine-spacing-xxs) var(--mantine-spacing-xs);
+        border-radius: var(--mantine-radius-sm);
+        white-space: normal;
+        overflow-wrap: anywhere;
+        text-overflow: clip;
+    }
+
+    .reportTitleRow {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--mantine-spacing-sm);
+    }
+
+    .reportTitle {
+        flex: 1 1 20rem;
+        min-width: 0;
+        font-size: var(--mantine-h1-font-size);
+        overflow-wrap: anywhere;
+    }
+
+    .reportActions {
+        flex: 0 0 auto;
+    }
+
+    .documentCells {
+        gap: var(--mantine-spacing-xl);
+    }
+
+    .reportFinding {
+        padding-block: 0;
+        border-top: 0;
+    }
+
+    .documentMarkdown {
+        h1 {
+            font-size: var(--mantine-h2-font-size);
+        }
+
+        h2 {
+            font-size: var(--mantine-h3-font-size);
+        }
+
+        h3 {
+            font-size: var(--mantine-h4-font-size);
+        }
+
+        h4 {
+            font-size: var(--mantine-h5-font-size);
+        }
+
+        h5 {
+            font-size: var(--mantine-h6-font-size);
+        }
+
+        h6 {
+            font-size: var(--mantine-font-size-xs);
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            margin-top: var(--mantine-spacing-xl);
+            margin-bottom: var(--mantine-spacing-sm);
+            line-height: 1.4;
+        }
+
+        :is(h1, h2, h3, h4, h5, h6):first-child {
+            margin-top: 0;
+        }
+    }
+}
+
 @media (max-width: 48em) {
     .reportLayout {
         display: block;

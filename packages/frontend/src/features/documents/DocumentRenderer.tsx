@@ -1,15 +1,21 @@
 import { type Document } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import DocumentChart from './DocumentChart';
 import { getDocumentHeadingId, getDocumentHeadings } from './documentHeadings';
 import DocumentReportLayout from './presentation/DocumentReportLayout';
+import ReportChartFrame from './presentation/ReportChartFrame';
 import ReportMarkdown from './presentation/ReportMarkdown';
 import styles from './presentation/ReportPresentation.module.css';
-import ReportSection from './presentation/ReportSection';
 
-const DocumentRenderer = ({ document }: { document: Document }) => {
+const DocumentRenderer = ({
+    document,
+    actions,
+}: {
+    document: Document;
+    actions?: ReactNode;
+}) => {
     const { cells } = document.version.content;
     const headings = useMemo(() => getDocumentHeadings(cells), [cells]);
     return (
@@ -18,6 +24,8 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
             contentsLabel={null}
             description={document.description}
             headings={headings}
+            variant="document"
+            actions={actions}
         >
             <Stack
                 className={`${styles.structuredReport} ${styles.documentCells}`}
@@ -27,21 +35,26 @@ const DocumentRenderer = ({ document }: { document: Document }) => {
                 )}
                 {cells.map((cell, index) =>
                     cell.type === 'chart' ? (
-                        <ReportSection
+                        <ErrorBoundary
                             key={`${document.version.versionUuid}:${index}`}
-                            title={cell.content.chart.name}
+                            fallbackWrapper={(fallback) => (
+                                <ReportChartFrame
+                                    title={cell.content.chart.name}
+                                >
+                                    {fallback}
+                                </ReportChartFrame>
+                            )}
                         >
-                            <ErrorBoundary>
-                                <DocumentChart
-                                    projectUuid={document.projectUuid}
-                                    spaceUuid={document.spaceUuid}
-                                    documentUuid={document.documentUuid}
-                                    versionUuid={document.version.versionUuid}
-                                    cellIndex={index}
-                                    cell={cell}
-                                />
-                            </ErrorBoundary>
-                        </ReportSection>
+                            <DocumentChart
+                                showTitle
+                                projectUuid={document.projectUuid}
+                                spaceUuid={document.spaceUuid}
+                                documentUuid={document.documentUuid}
+                                versionUuid={document.version.versionUuid}
+                                cellIndex={index}
+                                cell={cell}
+                            />
+                        </ErrorBoundary>
                     ) : cell.type === 'markdown' ? (
                         <ErrorBoundary
                             key={`${document.version.versionUuid}:${index}`}
