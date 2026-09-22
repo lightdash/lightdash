@@ -206,6 +206,17 @@ Sentry.init({
               profilesSampleRate: lightdashConfig.sentry.profilesSampleRate,
           }),
     beforeBreadcrumb(breadcrumb) {
+        if (breadcrumb.category === 'http' && breadcrumb.data?.url) {
+            const url = new URL(breadcrumb.data.url);
+            if (url.hostname === 'basemaps.cartocdn.com') {
+                // CARTO requires a query-string credential; keep it out of telemetry.
+                url.searchParams.delete('key');
+                return {
+                    ...breadcrumb,
+                    data: { ...breadcrumb.data, url: url.toString() },
+                };
+            }
+        }
         if (
             breadcrumb.category === 'http' &&
             breadcrumb?.data?.url &&

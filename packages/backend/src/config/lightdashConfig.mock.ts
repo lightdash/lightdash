@@ -146,6 +146,9 @@ export const lightdashConfigMock: LightdashConfig = {
     headway: {
         enabled: false,
     },
+    carto: {
+        apiKey: null,
+    },
     lightdashSecret: 'look away this is a secret',
     lightdashSecrets: {
         active: 'look away this is a secret',

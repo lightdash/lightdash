@@ -1617,6 +1617,9 @@ export type LightdashConfig = {
     intercom: IntercomConfig;
     pylon: PylonConfig;
     headway: HeadwayConfig;
+    carto: {
+        apiKey: string | null;
+    };
     siteUrl: string;
     staticIp: string;
     signupUrl: string | undefined;
@@ -3407,6 +3410,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         headway: {
             enabled: process.env.HEADWAY_ENABLED !== 'false',
+        },
+        carto: {
+            apiKey: process.env.CARTO_API_KEY?.trim() || null,
         },
         siteUrl,
         helpMenuUrl: process.env.HELP_MENU_URL,
