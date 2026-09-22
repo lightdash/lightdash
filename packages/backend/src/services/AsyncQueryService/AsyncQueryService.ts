@@ -1314,12 +1314,19 @@ export class AsyncQueryService extends ProjectService {
 
     private static getQuerySourceParameters(
         parameters: ExecuteAsyncQueryRequestParams | undefined,
-    ): { chartUuid?: string; references?: Record<string, string> } {
+    ): {
+        chartUuid?: string;
+        savedSqlUuid?: string;
+        references?: Record<string, string>;
+    } {
         if (!parameters) {
             return {};
         }
         if ('chartUuid' in parameters) {
             return { chartUuid: parameters.chartUuid };
+        }
+        if ('savedSqlUuid' in parameters) {
+            return { savedSqlUuid: parameters.savedSqlUuid };
         }
         if ('underlyingDataSourceQueryUuid' in parameters) {
             return {
@@ -1363,10 +1370,17 @@ export class AsyncQueryService extends ProjectService {
                 queryHistory.requestParameters.documentSource.documentUuid,
             );
         }
-        const { chartUuid, references } =
+        const { chartUuid, savedSqlUuid, references } =
             AsyncQueryService.getQuerySourceParameters(
                 queryHistory.requestParameters,
             );
+        if (savedSqlUuid) {
+            const sqlChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
+                projectUuid,
+            });
+            await this.assertSavedChartAccess(account, 'view', sqlChart);
+            return;
+        }
         if (!chartUuid) {
             await Promise.all(
                 Object.values(references ?? {}).map(async (sourceQueryUuid) => {
@@ -10137,6 +10151,7 @@ export class AsyncQueryService extends ProjectService {
             {
                 query: metricQuery,
                 invalidateCache,
+                savedSqlUuid: sqlChart.savedSqlUuid,
             },
         );
 
@@ -10292,6 +10307,7 @@ export class AsyncQueryService extends ProjectService {
             {
                 query: metricQuery,
                 invalidateCache,
+                savedSqlUuid: savedChart.savedSqlUuid,
             },
         );
 
