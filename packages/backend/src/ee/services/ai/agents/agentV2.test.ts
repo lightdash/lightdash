@@ -2944,9 +2944,11 @@ describe('external MCP tool call activity', () => {
                     toolName: 'mcp_issues_search',
                     input: { query: 'bug' },
                 },
-                success: true,
-                output: { content: [] },
-                durationMs: 42,
+                toolOutput: {
+                    type: 'tool-result' as const,
+                    output: { content: [] },
+                },
+                toolExecutionMs: 42,
             });
             await finish({
                 toolCall: {
@@ -2954,9 +2956,11 @@ describe('external MCP tool call activity', () => {
                     toolName: 'mcp_issues_search',
                     input: { query: 'boom' },
                 },
-                success: false,
-                error: new Error('upstream exploded'),
-                durationMs: 7,
+                toolOutput: {
+                    type: 'tool-error' as const,
+                    error: new Error('upstream exploded'),
+                },
+                toolExecutionMs: 7,
             });
             // A tool-level MCP error comes back as a successful execute with
             // isError set, behind the untrusted-output notice
@@ -2966,15 +2970,17 @@ describe('external MCP tool call activity', () => {
                     toolName: 'mcp_issues_search',
                     input: { query: 'rate limited' },
                 },
-                success: true,
-                output: {
-                    isError: true,
-                    content: [
-                        { type: 'text', text: MCP_UNTRUSTED_OUTPUT_NOTICE },
-                        { type: 'text', text: 'Rate limit exceeded' },
-                    ],
+                toolOutput: {
+                    type: 'tool-result' as const,
+                    output: {
+                        isError: true,
+                        content: [
+                            { type: 'text', text: MCP_UNTRUSTED_OUTPUT_NOTICE },
+                            { type: 'text', text: 'Rate limit exceeded' },
+                        ],
+                    },
                 },
-                durationMs: 1.6,
+                toolExecutionMs: 1.6,
             });
             // Built-in tools are not MCP activity
             await finish({
@@ -2983,9 +2989,8 @@ describe('external MCP tool call activity', () => {
                     toolName: 'findContent',
                     input: {},
                 },
-                success: true,
-                output: {},
-                durationMs: 1,
+                toolOutput: { type: 'tool-result' as const, output: {} },
+                toolExecutionMs: 1,
             });
 
             expect(recordMcpToolCall).toHaveBeenCalledTimes(3);
