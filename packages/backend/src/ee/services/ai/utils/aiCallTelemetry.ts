@@ -151,8 +151,10 @@ export const getAiCallTelemetry = ({
     // caller-controlled (see `generateArtifactQuestion`, which passes a
     // `Record<string, string>` straight through) and anything a caller ever adds
     // would silently reach the provider. Adding a span dimension is a deliberate
-    // edit here. `emitAiUsage` reads `runtimeContext` directly, so our own
-    // `ai.usage` analytics keeps every dimension regardless.
+    // edit here. `emitAiUsage` is not bound by this list — it reads
+    // `runtimeContext` directly, so our own `ai.usage` analytics also gets the
+    // dimensions kept off spans (`runUuid`, `deepResearch*`). It reads only the
+    // keys it names, so `extra` reaches neither sink.
     const includeRuntimeContext = Object.fromEntries(
         TELEMETRY_REPORTED_KEYS.filter((key) => key in metadata).map((key) => [
             key,
