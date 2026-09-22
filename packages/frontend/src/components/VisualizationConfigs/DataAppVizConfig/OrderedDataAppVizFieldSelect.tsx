@@ -15,6 +15,7 @@ type Props = {
     addItems?: Item[];
     selectedIds: string[];
     addDisabled: boolean;
+    addPosition?: 'header' | 'footer';
     emptyPlaceholder?: string;
     describedBy?: string;
     isFieldPending?: (id: string) => boolean;
@@ -30,6 +31,7 @@ const OrderedDataAppVizFieldSelect: FC<Props> = ({
     addItems,
     selectedIds,
     addDisabled,
+    addPosition = 'header',
     emptyPlaceholder = 'No fields available',
     describedBy,
     isFieldPending,
@@ -53,6 +55,14 @@ const OrderedDataAppVizFieldSelect: FC<Props> = ({
         onChange([...selectedIds, id]);
     };
 
+    const addButton = (
+        <AddButton
+            aria-label={`Add ${label.toLowerCase()}`}
+            disabled={addDisabled || !hasAvailableItem}
+            onClick={add}
+        />
+    );
+
     const replace = (index: number, item: Item | undefined) => {
         const currentId = selectedIds[index];
         if (!item) {
@@ -71,14 +81,12 @@ const OrderedDataAppVizFieldSelect: FC<Props> = ({
 
     return (
         <Stack gap="xs">
-            <Group justify="space-between" gap="xs" wrap="nowrap">
-                {header}
-                <AddButton
-                    aria-label={`Add ${label.toLowerCase()}`}
-                    disabled={addDisabled || !hasAvailableItem}
-                    onClick={add}
-                />
-            </Group>
+            {(header !== null || addPosition === 'header') && (
+                <Group justify="space-between" gap="xs" wrap="nowrap">
+                    {header}
+                    {addPosition === 'header' && addButton}
+                </Group>
+            )}
             {selectedIds.length === 0 && addDisabled && (
                 <FieldSelect
                     size="xs"
@@ -131,6 +139,7 @@ const OrderedDataAppVizFieldSelect: FC<Props> = ({
                     />,
                 ];
             })}
+            {addPosition === 'footer' && <Group>{addButton}</Group>}
         </Stack>
     );
 };

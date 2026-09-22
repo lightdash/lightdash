@@ -208,4 +208,51 @@ describe('OrderedDataAppVizFieldSelect', () => {
         await user.click(screen.getByLabelText('Remove First'));
         expect(onChange).toHaveBeenLastCalledWith(['orders_second']);
     });
+
+    it('keeps the add action in the header by default', () => {
+        renderWithProviders(
+            <OrderedDataAppVizFieldSelect
+                header={header}
+                label="Values"
+                items={[first, second]}
+                selectedIds={['orders_first']}
+                addDisabled={false}
+                onChange={vi.fn()}
+            />,
+        );
+
+        const addButton = screen.getByRole('button', { name: 'Add values' });
+        const selectedField = screen.getByText('First');
+        expect(addButton.compareDocumentPosition(selectedField)).toBe(
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        );
+    });
+
+    it('places a footer add action after selected fields and still appends', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+        renderWithProviders(
+            <OrderedDataAppVizFieldSelect
+                header={null}
+                label="Values"
+                items={[first, second]}
+                selectedIds={['orders_first']}
+                addDisabled={false}
+                addPosition="footer"
+                onChange={onChange}
+            />,
+        );
+
+        const selectedField = screen.getByText('First');
+        const addButton = screen.getByRole('button', { name: 'Add values' });
+        expect(selectedField.compareDocumentPosition(addButton)).toBe(
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        );
+
+        await user.click(addButton);
+        expect(onChange).toHaveBeenCalledWith([
+            'orders_first',
+            'orders_second',
+        ]);
+    });
 });

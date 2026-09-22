@@ -105,13 +105,13 @@ export const ChartTypeSampleData: FC<Props> = ({
         () => (context ? rowsFromVizContext(context) : null),
         [context],
     );
-    if (!context || context.rows.length === 0) return null;
+    if (!rows || getChartTypeRowColumns(rows).length === 0) return null;
 
     const isLive = dataSource.kind === 'live';
-    const rowLabel = context.rows.length === 1 ? 'row' : 'rows';
+    const rowLabel = rows.rows.length === 1 ? 'row' : 'rows';
     const launcherLabel = `${
         isLive ? 'View data' : 'View sample data'
-    } · ${context.rows.length} ${rowLabel}`;
+    } · ${rows.rows.length} ${rowLabel}`;
 
     return (
         <>

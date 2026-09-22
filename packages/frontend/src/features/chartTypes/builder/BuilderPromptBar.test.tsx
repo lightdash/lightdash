@@ -27,6 +27,7 @@ import {
 } from '../hooks/useDataAppVizBuild';
 import { clarificationStub } from '../testing/clarificationRoundStub';
 import BuilderPromptBar from './BuilderPromptBar';
+import { type SavedChartSourceControls } from './savedChartSource';
 
 const attachmentAdd = vi.hoisted(() => vi.fn());
 const showToastError = vi.hoisted(() => vi.fn());
@@ -222,6 +223,32 @@ const modelSelection = (
     clearPick: vi.fn(),
 });
 
+const savedChartSource = (
+    sourceIdentity: string | null,
+): SavedChartSourceControls => ({
+    sourceIdentity,
+    attached:
+        sourceIdentity === null
+            ? null
+            : {
+                  status: 'ready',
+                  chartName: sourceIdentity,
+                  spaceName: 'Test space',
+                  rowCount: 1,
+                  columns: [],
+                  ranAt: new Date('2026-09-22T00:00:00.000Z'),
+                  message: null,
+              },
+    previewSource: sourceIdentity === null ? 'sample' : 'chart',
+    setPreviewSource: vi.fn(),
+    includeRows: false,
+    setIncludeRows: vi.fn(),
+    attach: vi.fn(),
+    detach: vi.fn(),
+    viewRows: vi.fn(),
+    retry: vi.fn(),
+});
+
 // The host owns the sample-data button's state; the harness stands in for it.
 const ControlledPromptBar = (
     props: Omit<
@@ -253,6 +280,7 @@ const promptBar = ({
     // which is what most of these tests are watching for.
     clarification = clarificationStub({ send: build.send }),
     buildContext,
+    savedChartSource: source = null,
     elementPicker,
     onCaptureScreenshot,
 }: {
@@ -267,6 +295,7 @@ const promptBar = ({
     narration?: { reasoning: string[]; activity: string[] };
     clarification?: ClarificationRound<VizBuildRequest>;
     buildContext?: VizBuildRequest['context'];
+    savedChartSource?: SavedChartSourceControls | null;
     elementPicker?: UseElementPickerResult;
     onCaptureScreenshot?: () => Promise<File>;
 } = {}) => (
@@ -288,6 +317,7 @@ const promptBar = ({
             modelSelection={model}
             clarification={clarification}
             buildContext={buildContext}
+            savedChartSource={source}
             elementPicker={elementPicker}
             onCaptureScreenshot={onCaptureScreenshot}
         />
@@ -1086,6 +1116,7 @@ describe('BuilderPromptBar', () => {
                 build: buildState({ isBuilding: true, send }),
                 isBuilding: true,
                 buildContext: oldContext,
+                savedChartSource: savedChartSource('chart-a:1'),
             }),
         );
 
@@ -1103,6 +1134,7 @@ describe('BuilderPromptBar', () => {
                 build: buildState({ send }),
                 latestReadyVersion: 2,
                 buildContext: newContext,
+                savedChartSource: savedChartSource('chart-a:1'),
             }),
         );
 
@@ -1117,6 +1149,243 @@ describe('BuilderPromptBar', () => {
                 }),
             ),
         );
+    });
+
+    it.each([
+        { label: 'changes', nextSourceIdentity: 'chart-b:2' },
+        { label: 'is detached', nextSourceIdentity: null },
+        {
+            label: 'is detached and reattached',
+            nextSourceIdentity: 'chart-a:3',
+        },
+    ])(
+        'drops queued sample rows when the saved chart $label',
+        async ({ nextSourceIdentity }) => {
+            const send = vi.fn();
+            const chartAContext = {
+                schema: {
+                    fields: [],
+                    configOptions: [],
+                    colorPalette: null,
+                },
+                fieldMapping: {},
+                sampleRows: [{ customer_email: 'alice@example.com' }],
+            } as NonNullable<VizBuildRequest['context']>;
+            const chartBContext = {
+                schema: {
+                    fields: [],
+                    configOptions: [],
+                    colorPalette: null,
+                },
+                fieldMapping: {},
+                sampleRows: [{ account_balance: '$1,000' }],
+            } as NonNullable<VizBuildRequest['context']>;
+            const view = renderWithProviders(
+                promptBar({
+                    build: buildState({ isBuilding: true, send }),
+                    isBuilding: true,
+                    buildContext: chartAContext,
+                    savedChartSource: savedChartSource('chart-a:1'),
+                }),
+            );
+
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Include sample data' }),
+            );
+            await userEvent.type(
+                screen.getByPlaceholderText('Ask for another change…'),
+                'Revise it',
+            );
+            await userEvent.keyboard('{Enter}');
+
+            view.rerender(
+                promptBar({
+                    build: buildState({ send }),
+                    latestReadyVersion: 2,
+                    buildContext: chartBContext,
+                    savedChartSource: savedChartSource(nextSourceIdentity),
+                }),
+            );
+
+            await waitFor(() => expect(send).toHaveBeenCalledOnce());
+            expect(send.mock.lastCall?.[0]).toMatchObject({
+                includeSampleData: false,
+                context: {
+                    schema: chartBContext.schema,
+                    fieldMapping: chartBContext.fieldMapping,
+                },
+            });
+            expect(send.mock.lastCall?.[0].context).not.toHaveProperty(
+                'sampleRows',
+            );
+        },
+    );
+
+    it('does not restore queued row consent for editing after the source changes', async () => {
+        const send = vi.fn();
+        const chartAContext = {
+            schema: { fields: [], configOptions: [], colorPalette: null },
+            fieldMapping: {},
+            sampleRows: [{ customer_email: 'alice@example.com' }],
+        } as NonNullable<VizBuildRequest['context']>;
+        const chartBContext = {
+            schema: { fields: [], configOptions: [], colorPalette: null },
+            fieldMapping: {},
+            sampleRows: [{ account_balance: '$1,000' }],
+        } as NonNullable<VizBuildRequest['context']>;
+        const view = renderWithProviders(
+            promptBar({
+                build: buildState({ isBuilding: true, send }),
+                isBuilding: true,
+                buildContext: chartAContext,
+                savedChartSource: savedChartSource('chart-a:1'),
+            }),
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Include sample data' }),
+        );
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for another change…'),
+            'Revise it',
+        );
+        await userEvent.keyboard('{Enter}');
+
+        view.rerender(
+            promptBar({
+                build: buildState({ isBuilding: true, send }),
+                isBuilding: true,
+                buildContext: chartBContext,
+                savedChartSource: savedChartSource('chart-b:2'),
+            }),
+        );
+        await userEvent.click(
+            screen.getByLabelText('Edit queued prompt: Revise it'),
+        );
+
+        expect(
+            screen.getByRole('button', { name: 'Include sample data' }),
+        ).toHaveAttribute('aria-pressed', 'false');
+        await userEvent.click(
+            screen.getByPlaceholderText('Ask for another change…'),
+        );
+        await userEvent.keyboard('{Enter}');
+        view.rerender(
+            promptBar({
+                build: buildState({ send }),
+                latestReadyVersion: 2,
+                buildContext: chartBContext,
+                savedChartSource: savedChartSource('chart-b:2'),
+            }),
+        );
+
+        await waitFor(() => expect(send).toHaveBeenCalledOnce());
+        expect(send.mock.lastCall?.[0].includeSampleData).toBe(false);
+        expect(send.mock.lastCall?.[0].context).not.toHaveProperty(
+            'sampleRows',
+        );
+    });
+
+    it('drops queued row consent when sending now after the source changes', async () => {
+        const send = vi.fn();
+        const interrupt = vi.fn();
+        const chartAContext = {
+            schema: { fields: [], configOptions: [], colorPalette: null },
+            fieldMapping: {},
+            sampleRows: [{ customer_email: 'alice@example.com' }],
+        } as NonNullable<VizBuildRequest['context']>;
+        const chartBContext = {
+            schema: { fields: [], configOptions: [], colorPalette: null },
+            fieldMapping: {},
+            sampleRows: [{ account_balance: '$1,000' }],
+        } as NonNullable<VizBuildRequest['context']>;
+        const view = renderWithProviders(
+            promptBar({
+                build: buildState({ isBuilding: true, send, interrupt }),
+                isBuilding: true,
+                buildContext: chartAContext,
+                savedChartSource: savedChartSource('chart-a:1'),
+            }),
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Include sample data' }),
+        );
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for another change…'),
+            'Revise it',
+        );
+        await userEvent.keyboard('{Enter}');
+        view.rerender(
+            promptBar({
+                build: buildState({ isBuilding: true, send, interrupt }),
+                isBuilding: true,
+                buildContext: chartBContext,
+                savedChartSource: savedChartSource('chart-b:2'),
+            }),
+        );
+
+        await userEvent.click(screen.getByText('Send now'));
+        expect(interrupt).toHaveBeenCalledOnce();
+        view.rerender(
+            promptBar({
+                build: buildState({ send }),
+                buildContext: chartBContext,
+                savedChartSource: savedChartSource('chart-b:2'),
+            }),
+        );
+
+        await waitFor(() => expect(send).toHaveBeenCalledOnce());
+        expect(send.mock.lastCall?.[0].includeSampleData).toBe(false);
+        expect(send.mock.lastCall?.[0].context).not.toHaveProperty(
+            'sampleRows',
+        );
+    });
+
+    it('does not restore clarifying row consent after the source changes', async () => {
+        const request = {
+            description: 'Revise it',
+            fileIds: [],
+            claudeModel: 'sonnet',
+            clarifications: [],
+            externalConnections: [],
+            includeSampleData: true,
+            context: {
+                sampleRows: [{ customer_email: 'alice@example.com' }],
+            },
+        } satisfies VizBuildRequest;
+        const view = renderWithProviders(
+            promptBar({
+                buildContext: request.context,
+                savedChartSource: savedChartSource('chart-a:1'),
+            }),
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Include sample data' }),
+        );
+        await userEvent.type(
+            screen.getByPlaceholderText('Ask for a change…'),
+            request.description,
+        );
+        await userEvent.keyboard('{Enter}');
+        view.rerender(
+            promptBar({
+                buildContext: {
+                    sampleRows: [{ account_balance: '$1,000' }],
+                },
+                savedChartSource: savedChartSource('chart-b:2'),
+                clarification: clarificationStub({
+                    clarifyingPrompt: request.description,
+                    abandon: vi.fn(() => request),
+                }),
+            }),
+        );
+
+        await userEvent.click(screen.getByText('Cancel'));
+        expect(
+            screen.getByRole('button', { name: 'Include sample data' }),
+        ).toHaveAttribute('aria-pressed', 'false');
     });
 
     it('moves queued prompts back into the composer for editing', async () => {

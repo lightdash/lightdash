@@ -103,6 +103,19 @@ const ChartTypeBuilder: FC = () => {
     // `useGetApp` accepts slugs, so the raw URL param is the right key.
     const appQuery = useGetApp(projectUuid, urlVizUuid);
     const appMeta = appQuery.data?.pages[0] ?? null;
+    const canEdit = useCanEditDataApp(projectUuid, {
+        spaceUuid: appMeta?.spaceUuid ?? null,
+        createdByUserUuid: appMeta?.createdByUserUuid ?? null,
+    });
+    const canPreviewSavedChart =
+        !dataAppsFlag.isLoading &&
+        dataAppsFlag.data?.enabled === true &&
+        (urlVizUuid === undefined
+            ? canCreate
+            : appMeta !== null &&
+              appMeta.template === DATA_APP_VIZ_TEMPLATE &&
+              appMeta.registrySlug === null &&
+              canEdit);
     // The uuid every uuid-keyed hook runs against; a slug URL resolves to it
     // once the app row loads.
     const activeVizUuid =
@@ -112,7 +125,7 @@ const ChartTypeBuilder: FC = () => {
     const [searchParams] = useSearchParams();
     const savedChartUuid = searchParams.get(SAVED_CHART_PARAM);
     const { data: previewData, retry: retryPreview } = useSavedChartPreviewData(
-        { projectUuid, savedChartUuid },
+        { projectUuid, savedChartUuid, enabled: canPreviewSavedChart },
     );
     const liveRun = previewData.status === 'ready' ? previewData : null;
     const itemsMap = liveRun?.itemsMap ?? NO_ITEMS;
@@ -137,6 +150,7 @@ const ChartTypeBuilder: FC = () => {
         [liveRun],
     );
     const [isRowsModalOpen, setIsRowsModalOpen] = useState(false);
+    const [sourceRevision, setSourceRevision] = useState(0);
     // Slots the author rebound by hand, layered over the automap.
     const [fieldMappingOverrides, setFieldMappingOverrides] =
         useState<DataAppVizFieldMapping>(NO_MAPPING);
@@ -158,7 +172,8 @@ const ChartTypeBuilder: FC = () => {
         itemsMap,
         chartReference,
     });
-    const { build, history, isBuilding, isHistoryOpen } = workspace;
+    const { build, history, isBuilding, isHistoryOpen, setIncludeSampleData } =
+        workspace;
     const panel = useConfigurePanelState(activeVizUuid ?? null);
 
     const setSavedChartParam = useCallback(
@@ -166,6 +181,8 @@ const ChartTypeBuilder: FC = () => {
             const next = new URLSearchParams(location.search);
             if (uuid === null) next.delete(SAVED_CHART_PARAM);
             else next.set(SAVED_CHART_PARAM, uuid);
+            setSourceRevision((current) => current + 1);
+            setIncludeSampleData(false);
             setFieldMappingOverrides(NO_MAPPING);
             setSampleLens(false);
             void navigate(
@@ -173,7 +190,7 @@ const ChartTypeBuilder: FC = () => {
                 { replace: true },
             );
         },
-        [location.pathname, location.search, navigate],
+        [location.pathname, location.search, navigate, setIncludeSampleData],
     );
 
     const { showToastError } = useToaster();
@@ -336,12 +353,16 @@ const ChartTypeBuilder: FC = () => {
         const attach = (chart: PickedSavedChart) =>
             setSavedChartParam(chart.uuid);
         const controls = {
+            sourceIdentity:
+                savedChartUuid === null
+                    ? null
+                    : `${projectUuid}:${savedChartUuid}:${sourceRevision}`,
             attach,
             detach: () => setSavedChartParam(null),
             viewRows: () => setIsRowsModalOpen(true),
             retry: retryPreview,
             includeRows: workspace.includeSampleData,
-            setIncludeRows: workspace.setIncludeSampleData,
+            setIncludeRows: setIncludeSampleData,
             previewSource,
             setPreviewSource: (source: PreviewSource) =>
                 setSampleLens(source === 'sample'),
@@ -396,11 +417,13 @@ const ChartTypeBuilder: FC = () => {
         }
     }, [
         previewData,
+        projectUuid,
         retryPreview,
         setSavedChartParam,
         workspace.includeSampleData,
-        workspace.setIncludeSampleData,
+        setIncludeSampleData,
         savedChartUuid,
+        sourceRevision,
         sampleLens,
     ]);
 
@@ -446,11 +469,6 @@ const ChartTypeBuilder: FC = () => {
             false,
         );
     }, [activeVizUuid, explorerChart, projectUuid]);
-
-    const canEdit = useCanEditDataApp(projectUuid, {
-        spaceUuid: appMeta?.spaceUuid ?? null,
-        createdByUserUuid: appMeta?.createdByUserUuid ?? null,
-    });
 
     if (!projectUuid) return null;
     if (dataAppsFlag.isLoading) return null;

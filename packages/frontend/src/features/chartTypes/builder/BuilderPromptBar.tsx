@@ -106,6 +106,7 @@ type Props = {
 type QueuedPrompt = {
     id: number;
     request: VizBuildRequest;
+    sourceIdentity: string | null;
 };
 
 export type BuilderPromptBarHandle = {
@@ -209,6 +210,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const fileInputRef = useRef<HTMLInputElement>(null);
         const nextQueueId = useRef(0);
         const editingPrompt = useRef<QueuedPrompt | null>(null);
+        const clarifyingSourceIdentity = useRef<string | null>(null);
         const interruptPending = useRef(false);
         const queuePausedByStop = useRef(false);
         const lastHandledReadyVersion = useRef(latestReadyVersion);
@@ -230,6 +232,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const canIncludeSampleData =
             health.data?.dataApps.sampleDataEnabled !== false &&
             Boolean(buildContext?.sampleRows?.length);
+        const sourceIdentity = savedChartSource?.sourceIdentity ?? null;
         const { showToastError } = useToaster();
         const [composerPanel, setComposerPanel] = useState<ComposerPanel>(null);
         const { data: linkedConnections = [] } = useAppExternalConnections(
@@ -339,6 +342,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             const queuedPrompt: QueuedPrompt = {
                 id: editing?.id ?? nextQueueId.current++,
                 request,
+                sourceIdentity,
             };
             editingPrompt.current = null;
             composerRef.current?.clear();
@@ -353,6 +357,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             // Sending directly after a stop is an explicit request to resume
             // the session and lets the queue continue after that build.
             queuePausedByStop.current = false;
+            clarifyingSourceIdentity.current = sourceIdentity;
             clarification.send(request);
         };
 
@@ -361,7 +366,11 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             const request = clarification.abandon();
             if (request === null) return;
             setSelectedConnections(request.externalConnections);
-            onIncludeSampleDataChange(request.includeSampleData === true);
+            onIncludeSampleDataChange(
+                request.includeSampleData === true &&
+                    clarifyingSourceIdentity.current === sourceIdentity,
+            );
+            clarifyingSourceIdentity.current = null;
             composerRef.current?.insertContent([
                 { type: 'text', text: request.description },
             ]);
@@ -377,7 +386,10 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 item.request.codexModel ?? item.request.claudeModel,
             );
             setSelectedConnections(item.request.externalConnections);
-            onIncludeSampleDataChange(item.request.includeSampleData === true);
+            onIncludeSampleDataChange(
+                item.request.includeSampleData === true &&
+                    item.sourceIdentity === sourceIdentity,
+            );
             composerRef.current?.clear();
             composerRef.current?.insertContent([
                 { type: 'text', text: item.request.description },
@@ -406,9 +418,13 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         };
 
         const refreshQueuedRequest = useCallback(
-            (request: VizBuildRequest): VizBuildRequest => {
+            (item: QueuedPrompt): VizBuildRequest => {
+                const { request } = item;
+                const sourceMatches = item.sourceIdentity === sourceIdentity;
                 const sendSampleData =
-                    canIncludeSampleData && request.includeSampleData === true;
+                    sourceMatches &&
+                    canIncludeSampleData &&
+                    request.includeSampleData === true;
                 const latestContext = buildContext
                     ? {
                           ...buildContext,
@@ -424,7 +440,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     ),
                 };
             },
-            [buildContext, canIncludeSampleData],
+            [buildContext, canIncludeSampleData, sourceIdentity],
         );
 
         // Backend completion is the event that advances this session-local
@@ -444,7 +460,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                     interruptPending.current = false;
                     setInterruptNext(null);
                     setSendingPrompt(interruptNext);
-                    sendBuild(refreshQueuedRequest(interruptNext.request));
+                    sendBuild(refreshQueuedRequest(interruptNext));
                     return;
                 }
 
@@ -459,7 +475,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                 }
                 setQueuedPrompts(remaining);
                 setSendingPrompt(next);
-                sendBuild(refreshQueuedRequest(next.request));
+                sendBuild(refreshQueuedRequest(next));
             },
             [
                 buildError,

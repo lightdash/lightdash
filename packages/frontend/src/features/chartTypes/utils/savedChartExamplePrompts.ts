@@ -24,8 +24,9 @@ const grainOf = (dateDimension: Item | undefined): string =>
 
 /**
  * Rewrite the starter prompts around the attached chart's own fields, so the
- * examples describe a chart the run can actually draw. A card whose pieces the
- * run does not offer keeps its original text (`null`).
+ * examples describe a chart the run can actually draw. When a shape's ideal
+ * combination is unavailable, keep the wording generic but grounded in a
+ * column the query does return.
  */
 export const savedChartExamplePrompts = (
     itemsMap: ItemsMap,
@@ -45,22 +46,25 @@ export const savedChartExamplePrompts = (
     const metric1 = label(metrics[0]);
     const metric2 = label(metrics[1]) ?? metric1;
     const grain = grainOf(dateDimension);
+    const availableField = label(dimensions[0]) ?? metric1;
+    const fallback = (shape: string) =>
+        `A ${shape} using ${availableField ?? 'the available fields'}`;
 
     return {
         stream:
             metric1 && stringLabel
                 ? `A stream graph of ${metric1} by ${stringLabel} over time`
-                : null,
+                : fallback('stream graph'),
         funnel:
             metric2 && stringLabel
                 ? `A funnel of ${metric2} across ${stringLabel}`
-                : null,
+                : fallback('funnel'),
         heatmap:
             metric1 && dateLabel
                 ? `A calendar heatmap of ${metric1} by ${dateLabel}`
-                : null,
+                : fallback('heatmap'),
         waterfall: metric1
             ? `A waterfall of ${metric1} changes ${grain} to ${grain}`
-            : null,
+            : fallback('waterfall'),
     };
 };

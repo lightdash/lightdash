@@ -28,6 +28,9 @@ export type PickedSavedChart = { uuid: string; name: string };
  * host that has no saved-chart source of its own.
  */
 export type SavedChartSourceControls = {
+    /** The selected source generation. Stable while a chart retries or its
+     *  schema rebuilds; changes for every attach or detach action. */
+    sourceIdentity: string | null;
     attached: AttachedSavedChart | null;
     /** What the preview renders; 'chart' only while one is attached. */
     previewSource: PreviewSource;

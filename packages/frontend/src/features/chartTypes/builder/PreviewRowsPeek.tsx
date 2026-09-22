@@ -4,7 +4,7 @@ import {
     type DataAppVizContext,
     type DataAppVizField,
 } from '@lightdash/common';
-import { Box, Button, Group, Stack, Text } from '@mantine/core';
+import { Button, Group, Stack, Table, Text } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useMemo, useState, type FC } from 'react';
@@ -216,42 +216,51 @@ const PreviewRowsPeek: FC<Props> = ({ source, fields, context }) => {
             <Text component="h3" fz="sm" fw={600}>
                 {isChart ? 'Query results' : 'Sample data'}
             </Text>
-            <Box className={classes.table} role="table">
-                <Box className={classes.headerRow} role="row">
-                    {columns.map((column) => (
-                        <Text
-                            key={column.id}
-                            className={classes.headerCell}
-                            role="columnheader"
-                            fz={11}
-                            fw={600}
-                            truncate
-                        >
-                            {column.label}
-                        </Text>
-                    ))}
-                </Box>
-                {rows.map((row, index) => (
-                    <Box
-                        // Result rows carry no stable id of their own.
-                        key={index}
-                        className={classes.row}
-                        role="row"
-                    >
+            <Table
+                className={classes.table}
+                horizontalSpacing={0}
+                verticalSpacing={0}
+            >
+                <Table.Thead className={classes.headerRow}>
+                    <Table.Tr>
                         {columns.map((column) => (
-                            <Text
+                            <Table.Th
                                 key={column.id}
-                                className={classes.cell}
-                                role="cell"
-                                fz="xs"
-                                truncate
+                                className={classes.headerCell}
                             >
-                                {row[column.id] ?? ''}
-                            </Text>
+                                <Text
+                                    component="span"
+                                    fz="xs"
+                                    fw={600}
+                                    truncate
+                                >
+                                    {column.label}
+                                </Text>
+                            </Table.Th>
                         ))}
-                    </Box>
-                ))}
-            </Box>
+                    </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                    {rows.map((row, index) => (
+                        <Table.Tr
+                            // Result rows carry no stable id of their own.
+                            key={index}
+                            className={classes.row}
+                        >
+                            {columns.map((column) => (
+                                <Table.Td
+                                    key={column.id}
+                                    className={classes.cell}
+                                >
+                                    <Text component="span" fz="xs" truncate>
+                                        {row[column.id] ?? ''}
+                                    </Text>
+                                </Table.Td>
+                            ))}
+                        </Table.Tr>
+                    ))}
+                </Table.Tbody>
+            </Table>
             <Group justify="space-between" gap="xs" wrap="nowrap">
                 <Text fz="xs" c="dimmed" truncate>
                     {summary}

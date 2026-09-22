@@ -44,6 +44,7 @@ export type SavedChartPreviewRun = {
 
 type Args = {
     projectUuid: string | undefined;
+    enabled: boolean;
     /** The saved chart the session runs against; null runs nothing. */
     savedChartUuid: string | null;
 };
@@ -58,11 +59,14 @@ type Args = {
 export const useSavedChartPreviewData = ({
     projectUuid,
     savedChartUuid,
+    enabled: canPreview,
 }: Args): SavedChartPreviewRun => {
-    const enabled = Boolean(projectUuid) && savedChartUuid !== null;
+    const enabled =
+        canPreview && Boolean(projectUuid) && savedChartUuid !== null;
     const savedChart = useSavedQuery({
         uuidOrSlug: savedChartUuid ?? undefined,
         projectUuid,
+        useQueryOptions: { enabled },
     });
     const run = useQuery<SavedChartPreviewQueryResult, Error>({
         queryKey: [
@@ -87,7 +91,9 @@ export const useSavedChartPreviewData = ({
     const ranAt = run.dataUpdatedAt;
 
     return useMemo(() => {
-        const retry = () => void refetch();
+        const retry = () => {
+            if (enabled) void refetch();
+        };
         if (!enabled) return { data: { status: 'notRun' }, retry };
         if (error)
             return {

@@ -49,7 +49,7 @@ const SavedChartSourceChip: FC<Props> = ({ source, disabled }) => {
                     onClick={() => setPickerOpened((opened) => !opened)}
                 >
                     <MantineIcon icon={IconChartBar} size={12} />
-                    <Text fz={11} fw={500} span>
+                    <Text fz="xs" fw={500} span>
                         Add saved chart
                     </Text>
                 </UnstyledButton>
@@ -85,7 +85,7 @@ const SavedChartSourceChip: FC<Props> = ({ source, disabled }) => {
                                     />
                                 )}
                                 <Text
-                                    fz={11}
+                                    fz="xs"
                                     fw={500}
                                     span
                                     className={classes.chipLabel}

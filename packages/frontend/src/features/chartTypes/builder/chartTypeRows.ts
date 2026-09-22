@@ -30,7 +30,10 @@ export const getChartTypeRowColumns = ({
     labels,
 }: ChartTypeRows): ChartTypeRowColumn[] => {
     if (!pivotDetails) {
-        return Object.keys(rows[0] ?? {}).map((reference) => ({
+        const rowReferences = Object.keys(rows[0] ?? {});
+        const references =
+            rowReferences.length > 0 ? rowReferences : Object.keys(labels);
+        return references.map((reference) => ({
             reference,
             label: labels[reference] ?? reference,
         }));

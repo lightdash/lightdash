@@ -10,8 +10,10 @@ import {
     CloseButton,
     Group,
     Loader,
+    Paper,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine/core';
 import {
     IconChartBar,
@@ -79,37 +81,39 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
 
     if (!attached) {
         return (
-            <Group className={classes.emptyCard} gap="sm" wrap="nowrap">
-                <Box className={classes.iconTile}>
-                    <MantineIcon icon={IconChartBar} size={18} />
-                </Box>
-                <Stack gap={2} flex={1} miw={0}>
-                    <Text fz="sm" fw={500} c="ldGray.8">
-                        Use a saved chart
-                    </Text>
-                    <Text fz="xs" c="dimmed" lh={1.5}>
-                        Preview and build against real fields instead of sample
-                        data. You can switch back any time.
-                    </Text>
-                </Stack>
-                <SavedChartPickerPopover
-                    opened={pickerOpened}
-                    onOpenedChange={setPickerOpened}
-                    attached={null}
-                    onPick={source.attach}
-                >
-                    <Button
-                        variant="default"
-                        size="xs"
-                        leftSection={
-                            <MantineIcon icon={IconSearch} size={14} />
-                        }
-                        onClick={() => setPickerOpened((opened) => !opened)}
+            <Paper className={classes.emptyCard} variant="dotted">
+                <Group gap="sm" wrap="nowrap">
+                    <Box className={classes.iconTile}>
+                        <MantineIcon icon={IconChartBar} size={18} />
+                    </Box>
+                    <Stack gap={2} flex={1} miw={0}>
+                        <Text fz="sm" fw={500} c="ldGray.8">
+                            Use a saved chart
+                        </Text>
+                        <Text fz="xs" c="dimmed" lh={1.5}>
+                            Preview and build against real fields instead of
+                            sample data. You can switch back any time.
+                        </Text>
+                    </Stack>
+                    <SavedChartPickerPopover
+                        opened={pickerOpened}
+                        onOpenedChange={setPickerOpened}
+                        attached={null}
+                        onPick={source.attach}
                     >
-                        Choose saved chart
-                    </Button>
-                </SavedChartPickerPopover>
-            </Group>
+                        <Button
+                            variant="default"
+                            size="xs"
+                            leftSection={
+                                <MantineIcon icon={IconSearch} size={14} />
+                            }
+                            onClick={() => setPickerOpened((opened) => !opened)}
+                        >
+                            Choose saved chart
+                        </Button>
+                    </SavedChartPickerPopover>
+                </Group>
+            </Paper>
         );
     }
 
@@ -142,7 +146,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                                     wrap="nowrap"
                                 >
                                     <FieldIcon item={item} size={12} />
-                                    <Text fz={11} fw={500}>
+                                    <Text fz="xs" fw={500}>
                                         {getItemLabelWithoutTableName(item)}
                                     </Text>
                                 </Group>
@@ -195,10 +199,12 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                             Change
                         </Button>
                     </SavedChartPickerPopover>
-                    <CloseButton
-                        aria-label="Use sample data instead"
-                        onClick={source.detach}
-                    />
+                    <Tooltip label="Use sample data instead">
+                        <CloseButton
+                            aria-label="Use sample data instead"
+                            onClick={source.detach}
+                        />
+                    </Tooltip>
                 </Group>
             </Group>
             <Text fz="xs" c="dimmed" ta="center">

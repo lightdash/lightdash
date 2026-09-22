@@ -4,6 +4,10 @@
     border-radius: var(--mantine-radius-md);
 }
 
+.sourceButton:hover {
+    background: var(--mantine-color-default-hover);
+}
+
 .iconTile,
 .iconTileAccent {
     width: 28px;

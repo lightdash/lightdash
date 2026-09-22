@@ -5,17 +5,12 @@
     max-width: 100%;
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm)
         var(--mantine-spacing-sm) 14px;
-    background: var(--mantine-color-body);
-    border-radius: var(--mantine-radius-md);
-}
-
-/* Dashed until a chart is attached: an empty slot, not a filled one. */
-.emptyCard {
-    border: 1px dashed var(--mantine-color-default-border);
 }
 
 .attachedCard {
+    background: var(--mantine-color-body);
     border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-md);
 }
 
 .attachedWrapper {

@@ -1,15 +1,11 @@
 .table {
+    width: 100%;
+    table-layout: fixed;
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: var(--mantine-radius-sm);
+    border-collapse: separate;
+    border-spacing: 0;
     overflow: hidden;
-}
-
-.headerRow,
-.row {
-    display: grid;
-    /* Every mapped column gets the same share; the peek is a shape, not a grid. */
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(0, 1fr);
 }
 
 .headerRow {
@@ -29,4 +25,18 @@
 .cell {
     padding: 5px 8px;
     font-variant-numeric: tabular-nums;
+}
+
+.headerCell,
+.cell {
+    min-width: 0;
+}
+
+.headerCell > span,
+.cell > span {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }

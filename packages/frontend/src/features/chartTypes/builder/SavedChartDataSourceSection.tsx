@@ -10,24 +10,28 @@ import { formatDistanceToNow } from 'date-fns';
 import { useState, type FC, type ReactNode } from 'react';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
 import classes from './SavedChartDataSourceSection.module.css';
 import SavedChartPickerPopover from './SavedChartPickerPopover';
 import { type SavedChartSourceControls } from './savedChartSource';
 
 type Props = { source: SavedChartSourceControls };
+type PickerAnchor = 'action' | 'tile';
 
 /** The sidebar's "Data source": the tile the preview currently renders from,
  *  sample or saved chart, and the ways to change it. Switching to sample data
  *  keeps the chart attached. */
 const SavedChartDataSourceSection: FC<Props> = ({ source }) => {
-    const [pickerOpened, setPickerOpened] = useState(false);
+    const [pickerAnchor, setPickerAnchor] = useState<PickerAnchor | null>(null);
     const attached = source.attached;
     const showingChart = attached !== null && source.previewSource === 'chart';
 
     const pickerButton = (label: string, icon: typeof IconSearch) => (
         <SavedChartPickerPopover
-            opened={pickerOpened}
-            onOpenedChange={setPickerOpened}
+            opened={pickerAnchor === 'action'}
+            onOpenedChange={(opened) =>
+                setPickerAnchor(opened ? 'action' : null)
+            }
             attached={null}
             onPick={source.attach}
         >
@@ -35,7 +39,11 @@ const SavedChartDataSourceSection: FC<Props> = ({ source }) => {
                 variant="default"
                 size="compact-xs"
                 leftSection={<MantineIcon icon={icon} size={14} />}
-                onClick={() => setPickerOpened((opened) => !opened)}
+                onClick={() =>
+                    setPickerAnchor((current) =>
+                        current === 'action' ? null : 'action',
+                    )
+                }
             >
                 {label}
             </Button>
@@ -111,29 +119,63 @@ const SavedChartDataSourceSection: FC<Props> = ({ source }) => {
         );
     }
 
+    const sourceContent = (
+        <>
+            <Box
+                className={
+                    showingChart ? classes.iconTileAccent : classes.iconTile
+                }
+            >
+                <MantineIcon
+                    icon={showingChart ? IconChartBar : IconFlask}
+                    size={16}
+                />
+            </Box>
+            <Stack gap={2} flex={1} miw={0}>
+                <Text fz="sm" fw={500} truncate>
+                    {title}
+                </Text>
+                {meta}
+            </Stack>
+        </>
+    );
+
     return (
         <Stack gap="xs">
             <Text component="h3" fz="sm" fw={600}>
                 Data source
             </Text>
-            <Group className={classes.sourceRow} gap="sm" wrap="nowrap">
-                <Box
-                    className={
-                        showingChart ? classes.iconTileAccent : classes.iconTile
+            {showingChart ? (
+                <SavedChartPickerPopover
+                    opened={pickerAnchor === 'tile'}
+                    onOpenedChange={(opened) =>
+                        setPickerAnchor(opened ? 'tile' : null)
                     }
+                    attached={null}
+                    onPick={source.attach}
                 >
-                    <MantineIcon
-                        icon={showingChart ? IconChartBar : IconFlask}
-                        size={16}
-                    />
-                </Box>
-                <Stack gap={2} flex={1} miw={0}>
-                    <Text fz="sm" fw={500} truncate>
-                        {title}
-                    </Text>
-                    {meta}
-                </Stack>
-            </Group>
+                    <PolymorphicGroupButton
+                        component="button"
+                        type="button"
+                        className={`${classes.sourceRow} ${classes.sourceButton}`}
+                        gap="sm"
+                        wrap="nowrap"
+                        w="100%"
+                        aria-label={`Change saved chart: ${title}`}
+                        onClick={() =>
+                            setPickerAnchor((current) =>
+                                current === 'tile' ? null : 'tile',
+                            )
+                        }
+                    >
+                        {sourceContent}
+                    </PolymorphicGroupButton>
+                </SavedChartPickerPopover>
+            ) : (
+                <Group className={classes.sourceRow} gap="sm" wrap="nowrap">
+                    {sourceContent}
+                </Group>
+            )}
             {showingChart && attached.status === 'error' && (
                 <Callout variant="danger" title="Couldn’t run the query">
                     <Stack gap="xs" align="flex-start">

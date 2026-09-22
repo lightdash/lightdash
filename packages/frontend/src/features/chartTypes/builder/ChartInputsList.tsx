@@ -70,6 +70,7 @@ const BindingControl: FC<{
                 items={items}
                 selectedIds={selectedIds}
                 addDisabled={items.length === 0}
+                addPosition="footer"
                 emptyPlaceholder={`This query has no ${poolKeyForSlot(field)} to bind`}
                 onChange={(ids) => binding.onFieldChange(field.name, ids)}
             />
