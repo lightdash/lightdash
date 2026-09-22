@@ -60,7 +60,7 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
         );
     });
 
-    it('gives a multiple field ordered representative sample columns', () => {
+    it('uses one labeled sample column while preserving a multiple binding', () => {
         const context = buildSampleVizContext({
             ...flatSchema,
             fields: flatSchema.fields.map((field) =>
@@ -68,18 +68,12 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
             ),
         });
 
-        expect(context.fieldMapping.value).toEqual([
-            'sample_value_1',
-            'sample_value_2',
-            'sample_value_3',
+        expect(context.fieldMapping.value).toEqual(['sample_value']);
+        expect(context.fields.sample_value.label).toBe('Value');
+        expect(Object.keys(context.rows[0])).toEqual([
+            'sample_category',
+            'sample_value',
         ]);
-        expect(Object.keys(context.rows[0])).toEqual(
-            expect.arrayContaining([
-                'sample_value_1',
-                'sample_value_2',
-                'sample_value_3',
-            ]),
-        );
     });
 
     it('includes single and multiple column slots in sample rows', () => {
@@ -191,14 +185,24 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
     });
 
     describe('with a series field', () => {
-        it('counts pivot groups independently of the number of metrics', () => {
+        it('counts pivot groups independently of separately declared metrics', () => {
             const context = buildSampleVizContext({
                 ...schema,
-                fields: schema.fields.map((field) =>
-                    field.name === 'value'
-                        ? { ...field, multiple: true }
-                        : field,
-                ),
+                fields: [
+                    ...schema.fields,
+                    {
+                        name: 'second',
+                        label: 'Second measure',
+                        type,
+                        required: true,
+                    },
+                    {
+                        name: 'third',
+                        label: 'Third measure',
+                        type,
+                        required: true,
+                    },
+                ],
             });
 
             expect(context.pivotDetails?.valuesColumns).toHaveLength(9);

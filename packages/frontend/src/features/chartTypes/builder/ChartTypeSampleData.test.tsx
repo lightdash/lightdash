@@ -84,7 +84,7 @@ describe('ChartTypeSampleData', () => {
         await waitFor(() => expect(launcher).toHaveFocus());
     });
 
-    it('uses pivot metadata for every expanded metric and series column', async () => {
+    it('uses pivot metadata for every series column', async () => {
         const context = buildSampleVizContext({
             ...flatSchema,
             fields: [
