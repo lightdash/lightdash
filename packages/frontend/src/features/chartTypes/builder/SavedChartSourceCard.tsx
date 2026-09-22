@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     getItemLabelWithoutTableName,
+    MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
 } from '@lightdash/common';
 import {
     Box,
@@ -189,8 +190,9 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                 </Group>
             </Group>
             <Text fz="xs" c="dimmed" ta="center">
-                Preview only · rows are not sent with your prompt until you turn
-                on “Include query rows in build” on the chip below.
+                Preview only · rows are not sent with your prompt unless you
+                turn on the sample data button in the composer (up to{' '}
+                {MAX_APP_VIZ_BUILD_SAMPLE_ROWS} rows).
             </Text>
         </Stack>
     );

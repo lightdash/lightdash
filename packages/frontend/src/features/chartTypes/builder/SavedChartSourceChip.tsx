@@ -1,4 +1,3 @@
-import { MAX_APP_VIZ_BUILD_SAMPLE_ROWS } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -6,13 +5,11 @@ import {
     Loader,
     Menu,
     Text,
-    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import {
-    IconCheck,
     IconChartBar,
-    IconEye,
+    IconChevronDown,
     IconFlask,
     IconSwitchHorizontal,
     IconTable,
@@ -23,26 +20,17 @@ import SavedChartPickerPopover from './SavedChartPickerPopover';
 import { type SavedChartSourceControls } from './savedChartSource';
 import classes from './SavedChartSourceChip.module.css';
 
-const PREVIEW_HINT = `The preview uses this chart's query. Rows are not sent to the build; turn on “Include query rows in build” to send up to ${MAX_APP_VIZ_BUILD_SAMPLE_ROWS}.`;
-
 type Props = {
     source: SavedChartSourceControls;
-    /** Rows travel with the next prompt. Owned by the composer. */
-    includeRows: boolean;
-    onIncludeRowsChange: (include: boolean) => void;
     disabled: boolean;
 };
 
 /**
  * The attached saved chart in the composer tray: which chart the preview runs
- * on, whether its rows travel with the prompt, and the menu that changes both.
+ * on, and the menu that inspects or swaps it. Whether its rows travel with the
+ * prompt is the sample-data button's job, beside the tray.
  */
-const SavedChartSourceChip: FC<Props> = ({
-    source,
-    includeRows,
-    onIncludeRowsChange,
-    disabled,
-}) => {
+const SavedChartSourceChip: FC<Props> = ({ source, disabled }) => {
     const [pickerOpened, setPickerOpened] = useState(false);
     const attached = source.attached;
 
@@ -70,11 +58,6 @@ const SavedChartSourceChip: FC<Props> = ({
     }
 
     const isReady = attached.status === 'ready';
-    const canIncludeRows = isReady && (attached.rowCount ?? 0) > 0;
-    const rowsInBuild =
-        includeRows && canIncludeRows
-            ? Math.min(attached.rowCount ?? 0, MAX_APP_VIZ_BUILD_SAMPLE_ROWS)
-            : 0;
 
     return (
         <SavedChartPickerPopover
@@ -87,86 +70,37 @@ const SavedChartSourceChip: FC<Props> = ({
             <Box>
                 <Menu position="top-start" withinPortal>
                     <Menu.Target>
-                        <Tooltip
-                            label={PREVIEW_HINT}
-                            disabled={rowsInBuild > 0}
-                            multiline
-                            w={280}
-                            position="top"
+                        <UnstyledButton
+                            className={classes.chip}
+                            disabled={disabled}
+                            aria-label={`Saved chart: ${attached.chartName}`}
                         >
-                            <UnstyledButton
-                                className={classes.chip}
-                                data-in-build={rowsInBuild > 0 || undefined}
-                                disabled={disabled}
-                                aria-label={`Saved chart: ${attached.chartName}`}
-                            >
-                                <Group
-                                    className={classes.chipName}
-                                    gap={4}
-                                    wrap="nowrap"
-                                >
+                            <Group gap={4} wrap="nowrap">
+                                {attached.status === 'running' ? (
+                                    <Loader size={11} />
+                                ) : (
                                     <MantineIcon
                                         icon={IconChartBar}
                                         size={12}
                                     />
-                                    <Text
-                                        fz={11}
-                                        fw={500}
-                                        span
-                                        className={classes.chipLabel}
-                                    >
-                                        {attached.chartName}
-                                    </Text>
-                                </Group>
-                                <Group
-                                    className={classes.chipState}
-                                    gap={4}
-                                    wrap="nowrap"
+                                )}
+                                <Text
+                                    fz={11}
+                                    fw={500}
+                                    span
+                                    className={classes.chipLabel}
                                 >
-                                    {attached.status === 'running' ? (
-                                        <Loader size={11} />
-                                    ) : (
-                                        <MantineIcon
-                                            icon={
-                                                rowsInBuild > 0
-                                                    ? IconCheck
-                                                    : IconEye
-                                            }
-                                            size={12}
-                                        />
-                                    )}
-                                    <Text fz={11} fw={500} span>
-                                        {attached.status === 'running'
-                                            ? 'Running…'
-                                            : rowsInBuild > 0
-                                              ? `In build · ${rowsInBuild} rows`
-                                              : 'Preview'}
-                                    </Text>
-                                </Group>
-                            </UnstyledButton>
-                        </Tooltip>
+                                    {attached.chartName}
+                                </Text>
+                                <MantineIcon
+                                    icon={IconChevronDown}
+                                    size={11}
+                                    className={classes.chipChevron}
+                                />
+                            </Group>
+                        </UnstyledButton>
                     </Menu.Target>
                     <Menu.Dropdown>
-                        <Menu.Item
-                            disabled={!canIncludeRows}
-                            leftSection={
-                                <MantineIcon
-                                    icon={IconCheck}
-                                    size={14}
-                                    color={
-                                        includeRows ? 'blue.6' : 'transparent'
-                                    }
-                                />
-                            }
-                            rightSection={
-                                <Text fz={11} c="dimmed">
-                                    {MAX_APP_VIZ_BUILD_SAMPLE_ROWS} max
-                                </Text>
-                            }
-                            onClick={() => onIncludeRowsChange(!includeRows)}
-                        >
-                            Include query rows in build
-                        </Menu.Item>
                         <Menu.Item
                             disabled={!isReady}
                             leftSection={

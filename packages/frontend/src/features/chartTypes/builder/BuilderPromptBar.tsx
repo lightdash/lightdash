@@ -797,7 +797,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                     </ActionIcon>
                                 </Tooltip>
                             )}
-                            {canIncludeSampleData && !savedChartSource && (
+                            {canIncludeSampleData && (
                                 <SampleDataButton
                                     enabled={includeSampleData}
                                     onToggle={() =>
@@ -854,10 +854,6 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                 {savedChartSource && (
                                     <SavedChartSourceChip
                                         source={savedChartSource}
-                                        includeRows={includeSampleData}
-                                        onIncludeRowsChange={
-                                            setIncludeSampleData
-                                        }
                                         disabled={isComposerLocked}
                                     />
                                 )}
