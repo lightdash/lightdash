@@ -210,7 +210,9 @@ describe('ProjectModel', () => {
         await model.updateDbtSourceName(projectUuid, 'renamed source');
 
         const lockIndex = tracker.history.all.findIndex(({ sql }) =>
-            sql.startsWith('LOCK TABLE "project_dbt_sources" IN SHARE MODE'),
+            sql.startsWith(
+                'LOCK TABLE "project_dbt_sources" IN SHARE ROW EXCLUSIVE MODE',
+            ),
         );
         const firstUpdateIndex = tracker.history.all.findIndex(
             ({ method }) => method === 'update',
@@ -881,45 +883,60 @@ describe('ProjectModel', () => {
             expect(tracker.history.insert).toHaveLength(0);
         });
 
-        test('aborts the manifest write when scoped storage appears mid-write', async () => {
-            const manifest = Buffer.from('manifest');
+        test('locks the connection table before probing for scoped manifest storage', async () => {
+            schemaTables.add('project_connection_manifests');
+            schemaColumns.add('warehouse_credentials.superseded_at');
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .response([{ warehouse_credentials_uuid: 'connection-uuid' }]);
+            tracker.on
+                .insert(({ sql }) =>
+                    sql.includes('project_connection_manifests'),
+                )
+                .response([]);
             tracker.on
                 .insert(({ sql }) =>
                     sql.includes(ProjectMergedManifestsTableName),
                 )
-                .response(() => {
-                    schemaTables.add('project_connection_manifests');
-                    return [];
-                });
+                .response([]);
 
-            await expect(
-                model.upsertMergedManifest(projectUuid, manifest),
-            ).rejects.toThrow(
-                'The project_connection_manifests table was created while this write was in flight',
+            await model.upsertMergedManifest(
+                projectUuid,
+                Buffer.from('manifest'),
             );
-            expect(tracker.history.insert).toHaveLength(1);
-            expect(tracker.history.insert[0].sql).toContain(
-                ProjectMergedManifestsTableName,
+
+            const lockIndex = tracker.history.all.findIndex(({ sql }) =>
+                sql.startsWith(
+                    'LOCK TABLE "warehouse_credentials" IN ROW EXCLUSIVE MODE',
+                ),
             );
+            const probeIndex = tracker.history.all.findIndex(({ sql }) =>
+                sql.includes('information_schema.tables'),
+            );
+            expect(lockIndex).toBeGreaterThanOrEqual(0);
+            expect(probeIndex).toBeGreaterThan(lockIndex);
             expect(tracker.history.transactions).toHaveLength(1);
         });
 
-        test('aborts the manifest delete when scoped storage appears mid-write', async () => {
+        test('locks the connection table before probing on manifest delete', async () => {
             tracker.on
                 .delete(({ sql }) =>
                     sql.includes(ProjectMergedManifestsTableName),
                 )
-                .response(() => {
-                    schemaTables.add('project_connection_manifests');
-                    return 1;
-                });
+                .response(1);
 
-            await expect(
-                model.deleteMergedManifest(projectUuid),
-            ).rejects.toThrow(
-                'The project_connection_manifests table was created while this write was in flight',
+            await model.deleteMergedManifest(projectUuid);
+
+            const lockIndex = tracker.history.all.findIndex(({ sql }) =>
+                sql.startsWith(
+                    'LOCK TABLE "warehouse_credentials" IN ROW EXCLUSIVE MODE',
+                ),
             );
-            expect(tracker.history.delete).toHaveLength(1);
+            const probeIndex = tracker.history.all.findIndex(({ sql }) =>
+                sql.includes('information_schema.tables'),
+            );
+            expect(lockIndex).toBeGreaterThanOrEqual(0);
+            expect(probeIndex).toBeGreaterThan(lockIndex);
             expect(tracker.history.transactions).toHaveLength(1);
         });
 
@@ -1082,26 +1099,28 @@ describe('ProjectModel', () => {
         expect(tracker.history.insert).toHaveLength(0);
     });
 
-    test('aborts the catalog cache write when scoped storage appears mid-write', async () => {
+    test('locks the connection table before probing for scoped catalog storage', async () => {
         tracker.on
             .insert(({ sql }) => sql.includes('"cached_warehouse"'))
-            .response(() => {
-                schemaTables.add('project_connection_catalog_cache');
-                return [
-                    {
-                        project_uuid: projectUuid,
-                        warehouse: JSON.stringify({}),
-                    },
-                ];
-            });
+            .response([
+                {
+                    project_uuid: projectUuid,
+                    warehouse: JSON.stringify({}),
+                },
+            ]);
 
-        await expect(
-            model.saveWarehouseToCache(projectUuid, {}),
-        ).rejects.toThrow(
-            'The project_connection_catalog_cache table was created while this write was in flight',
+        await model.saveWarehouseToCache(projectUuid, {});
+
+        const lockIndex = tracker.history.all.findIndex(({ sql }) =>
+            sql.startsWith(
+                'LOCK TABLE "warehouse_credentials" IN ROW EXCLUSIVE MODE',
+            ),
         );
-        expect(tracker.history.insert).toHaveLength(1);
-        expect(tracker.history.insert[0].sql).toContain('"cached_warehouse"');
+        const probeIndex = tracker.history.all.findIndex(({ sql }) =>
+            sql.includes('information_schema.tables'),
+        );
+        expect(lockIndex).toBeGreaterThanOrEqual(0);
+        expect(probeIndex).toBeGreaterThan(lockIndex);
         expect(tracker.history.transactions).toHaveLength(1);
     });
 

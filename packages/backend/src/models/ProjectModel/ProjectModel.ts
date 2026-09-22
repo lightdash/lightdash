@@ -460,22 +460,12 @@ export class ProjectModel {
     private static async lockTableAgainstConcurrentDdl(
         database: Knex,
         tableName: string,
-        mode: 'ACCESS SHARE' | 'SHARE' = 'ACCESS SHARE',
+        mode:
+            | 'ACCESS SHARE'
+            | 'SHARE ROW EXCLUSIVE'
+            | 'ROW EXCLUSIVE' = 'ACCESS SHARE',
     ): Promise<void> {
         await database.raw(`LOCK TABLE ?? IN ${mode} MODE`, [tableName]);
-    }
-
-    private static async throwIfTableAppearedDuringWrite(
-        database: Knex,
-        tableName: string,
-        presentAtWriteStart: boolean,
-    ): Promise<void> {
-        if (presentAtWriteStart) return;
-        if (await database.schema.hasTable(tableName)) {
-            throw new UnexpectedServerError(
-                `The ${tableName} table was created while this write was in flight; retry the operation`,
-            );
-        }
     }
 
     private static async getActiveConnectionUuids(
@@ -525,10 +515,12 @@ export class ProjectModel {
         manifest: Buffer,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
-            const hasScopedManifests = await trx.schema.hasTable(
-                PROJECT_CONNECTION_MANIFESTS_TABLE,
+            await ProjectModel.lockTableAgainstConcurrentDdl(
+                trx,
+                WarehouseCredentialTableName,
+                'ROW EXCLUSIVE',
             );
-            if (hasScopedManifests) {
+            if (await trx.schema.hasTable(PROJECT_CONNECTION_MANIFESTS_TABLE)) {
                 const connectionUuid =
                     await ProjectModel.getConnectionScopedWriteTarget(
                         trx,
@@ -560,11 +552,6 @@ export class ProjectModel {
                     manifest,
                     created_at: trx.fn.now() as unknown as Date,
                 });
-            await ProjectModel.throwIfTableAppearedDuringWrite(
-                trx,
-                PROJECT_CONNECTION_MANIFESTS_TABLE,
-                hasScopedManifests,
-            );
         });
     }
 
@@ -583,10 +570,12 @@ export class ProjectModel {
 
     async deleteMergedManifest(projectUuid: string): Promise<void> {
         await this.database.transaction(async (trx) => {
-            const hasScopedManifests = await trx.schema.hasTable(
-                PROJECT_CONNECTION_MANIFESTS_TABLE,
+            await ProjectModel.lockTableAgainstConcurrentDdl(
+                trx,
+                WarehouseCredentialTableName,
+                'ROW EXCLUSIVE',
             );
-            if (hasScopedManifests) {
+            if (await trx.schema.hasTable(PROJECT_CONNECTION_MANIFESTS_TABLE)) {
                 await trx(PROJECT_CONNECTION_MANIFESTS_TABLE)
                     .where('project_uuid', projectUuid)
                     .delete();
@@ -594,11 +583,6 @@ export class ProjectModel {
             await ProjectMergedManifestsTable(trx)
                 .where('project_uuid', projectUuid)
                 .delete();
-            await ProjectModel.throwIfTableAppearedDuringWrite(
-                trx,
-                PROJECT_CONNECTION_MANIFESTS_TABLE,
-                hasScopedManifests,
-            );
         });
     }
 
@@ -797,7 +781,7 @@ export class ProjectModel {
             await ProjectModel.lockTableAgainstConcurrentDdl(
                 trx,
                 ProjectDbtSourcesTableName,
-                'SHARE',
+                'SHARE ROW EXCLUSIVE',
             );
             const updatedProjects = await trx(ProjectTableName)
                 .where('project_uuid', projectUuid)
@@ -3316,10 +3300,16 @@ export class ProjectModel {
     ): Promise<DbCachedWarehouse> {
         return this.database.transaction(async (trx) => {
             const serializedWarehouse = JSON.stringify(warehouse);
-            const hasScopedCatalogCache = await trx.schema.hasTable(
-                PROJECT_CONNECTION_CATALOG_CACHE_TABLE,
+            await ProjectModel.lockTableAgainstConcurrentDdl(
+                trx,
+                WarehouseCredentialTableName,
+                'ROW EXCLUSIVE',
             );
-            if (hasScopedCatalogCache) {
+            if (
+                await trx.schema.hasTable(
+                    PROJECT_CONNECTION_CATALOG_CACHE_TABLE,
+                )
+            ) {
                 const connectionUuid =
                     await ProjectModel.getConnectionScopedWriteTarget(
                         trx,
@@ -3344,11 +3334,6 @@ export class ProjectModel {
                 .onConflict('project_uuid')
                 .merge()
                 .returning('*');
-            await ProjectModel.throwIfTableAppearedDuringWrite(
-                trx,
-                PROJECT_CONNECTION_CATALOG_CACHE_TABLE,
-                hasScopedCatalogCache,
-            );
             return cachedWarehouse;
         });
     }
