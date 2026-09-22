@@ -8,12 +8,13 @@ import {
     Switch,
 } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { useCallback, type FC } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { BattleThreadPane } from '../../features/aiCopilot/components/Battle/BattleThreadPane';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
+import { useBattleFollowUpQueue } from '../../features/aiCopilot/hooks/useBattleFollowUpQueue';
 import { usePendingThreadRefetch } from '../../features/aiCopilot/hooks/usePendingThreadRefetch';
 import {
     useAiAgentThread,
@@ -67,25 +68,21 @@ const AiAgentBattlePage: FC = () => {
         key: 'ld.aiAgentBattle.showTokens.v1',
         defaultValue: true,
     });
-    const [queuedA, setQueuedA] = useState<BattleMessageInput | null>(null);
-    const [queuedB, setQueuedB] = useState<BattleMessageInput | null>(null);
-
     const busyA =
         messageA.isLoading || pendingA.isStreaming || pendingA.isThreadPending;
     const busyB =
         messageB.isLoading || pendingB.isStreaming || pendingB.isThreadPending;
 
-    useEffect(() => {
-        if (busyA || !queuedA) return;
-        setQueuedA(null);
-        void messageA.mutateAsync(queuedA);
-    }, [busyA, messageA, queuedA]);
-
-    useEffect(() => {
-        if (busyB || !queuedB) return;
-        setQueuedB(null);
-        void messageB.mutateAsync(queuedB);
-    }, [busyB, messageB, queuedB]);
+    const queueA = useBattleFollowUpQueue<BattleMessageInput>(
+        busyA,
+        messageA.mutateAsync,
+    );
+    const queueB = useBattleFollowUpQueue<BattleMessageInput>(
+        busyB,
+        messageB.mutateAsync,
+    );
+    const { enqueue: enqueueA } = queueA;
+    const { enqueue: enqueueB } = queueB;
 
     const handleSubmit = useCallback(
         ({
@@ -107,23 +104,19 @@ const AiAgentBattlePage: FC = () => {
                 context,
                 optimisticContext,
             };
-            const inputA = {
+            enqueueA({
                 ...shared,
                 modelConfig: getThreadModelConfig(threadA),
-            };
-            const inputB = {
+            });
+            enqueueB({
                 ...shared,
                 modelConfig: getThreadModelConfig(threadB),
-            };
-            if (busyA) setQueuedA(inputA);
-            else void messageA.mutateAsync(inputA);
-            if (busyB) setQueuedB(inputB);
-            else void messageB.mutateAsync(inputB);
+            });
         },
-        [busyA, busyB, messageA, messageB, threadA, threadB],
+        [enqueueA, enqueueB, threadA, threadB],
     );
 
-    const queueFull = queuedA !== null || queuedB !== null;
+    const queuedCount = Math.max(queueA.queuedCount, queueB.queuedCount);
 
     if (!projectUuid || !agentUuid || !threadA || !threadB) {
         return (
@@ -155,7 +148,7 @@ const AiAgentBattlePage: FC = () => {
                         agentUuid={agentUuid}
                         agentName={agent.name}
                         thread={threadA}
-                        queued={queuedA !== null}
+                        queuedCount={queueA.queuedCount}
                         showTokens={showTokens}
                     />
                 </Box>
@@ -171,7 +164,7 @@ const AiAgentBattlePage: FC = () => {
                         agentUuid={agentUuid}
                         agentName={agent.name}
                         thread={threadB}
-                        queued={queuedB !== null}
+                        queuedCount={queueB.queuedCount}
                         showTokens={showTokens}
                     />
                 </Box>
@@ -179,10 +172,9 @@ const AiAgentBattlePage: FC = () => {
             <Box {...ChatElementsUtils.centeredElementProps} h="unset" py="sm">
                 <AgentChatInput
                     onSubmit={handleSubmit}
-                    loading={queueFull}
                     placeholder={
-                        queueFull
-                            ? 'One follow-up is queued...'
+                        queuedCount > 0
+                            ? `${queuedCount} queued, keep asking...`
                             : 'Ask both sides a follow-up...'
                     }
                     projectUuid={projectUuid}

@@ -18,7 +18,7 @@ interface Props {
     agentUuid: string;
     agentName: string;
     thread: AiAgentThread;
-    queued: boolean;
+    queuedCount: number;
     showTokens: boolean;
 }
 
@@ -45,7 +45,7 @@ export const BattleThreadPane: FC<Props> = ({
     agentUuid,
     agentName,
     thread,
-    queued,
+    queuedCount,
     showTokens,
 }) => {
     const stream = useAiAgentThreadStreamQuery(thread.uuid);
@@ -150,7 +150,7 @@ export const BattleThreadPane: FC<Props> = ({
                     </Text>
                     <Text size="xs" c="dimmed">
                         {status}
-                        {queued ? ' · queued' : ''}
+                        {queuedCount > 0 ? ` · ${queuedCount} queued` : ''}
                     </Text>
                 </Group>
                 <Group gap="sm" wrap="nowrap">
