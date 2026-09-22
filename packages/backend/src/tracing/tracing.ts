@@ -737,10 +737,14 @@ class TracingService {
         this.sentry.initialize();
         this.otel.initialize();
         // AI SDK 7 only emits spans through a registered integration. Legacy
-        // integration on purpose: it keeps the v6 `ai.*` span names and
-        // attributes, so existing dashboards and alerts keep working. Moving to
-        // the GenAI semantic conventions (`invoke_agent`, `gen_ai.*`) is a
+        // integration on purpose: it keeps the v6 `ai.*` span names, so
+        // dashboards and alerts keyed on those keep working. Moving to the
+        // GenAI semantic conventions (`invoke_agent`, `gen_ai.*`) is a
         // deliberate, separately reviewable change.
+        //
+        // Span names carry over; attribution keys do not. v7 dropped
+        // `telemetry.metadata`, so those dimensions now land under
+        // `ai.settings.context.*` rather than `ai.telemetry.metadata.*`.
         //
         // The tracer is read from the @opentelemetry/api singleton in the
         // constructor, so this must run after the providers are initialised.
