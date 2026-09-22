@@ -169,6 +169,9 @@ const createPreferenceModel = (
             hasColumn: vi.fn().mockResolvedValue(hasConnectionUuid),
         },
     });
+    Object.defineProperty(database, 'raw', {
+        value: vi.fn().mockResolvedValue(undefined),
+    });
     Object.defineProperty(database, 'transaction', {
         value: vi.fn(async (callback) => callback(database)),
     });
@@ -441,6 +444,34 @@ describe('UserWarehouseCredentialsModel', () => {
             expect(vi.mocked(updateQuery.update)).toHaveBeenCalledWith({
                 user_warehouse_credentials_uuid: 'credentials-1',
             });
+        });
+
+        test('locks the preference table against the scoping migration before probing', async () => {
+            const updateQuery = createPreferenceQueryBuilder();
+            vi.mocked(updateQuery.returning).mockResolvedValueOnce([
+                { user_uuid: 'user-1' },
+            ] as never);
+            const { database, model } = createPreferenceModel(
+                [updateQuery],
+                false,
+            );
+
+            await model.upsertUserCredentialsPreference(
+                'user-1',
+                'project-1',
+                'credentials-1',
+            );
+
+            expect(vi.mocked(database.raw)).toHaveBeenCalledWith(
+                'LOCK TABLE ?? IN ACCESS SHARE MODE',
+                [ProjectUserWarehouseCredentialPreferenceTableName],
+            );
+            expect(
+                vi.mocked(database.raw).mock.invocationCallOrder[0],
+            ).toBeLessThan(
+                vi.mocked(database.schema.hasColumn).mock
+                    .invocationCallOrder[0],
+            );
         });
 
         test('inserts a legacy preference when no row exists', async () => {

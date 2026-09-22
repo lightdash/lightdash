@@ -118,6 +118,9 @@ describe('ProjectModel', () => {
         schemaColumns.clear();
         schemaTables.clear();
         tracker.on
+            .any(({ sql }) => sql.toUpperCase().startsWith('LOCK TABLE'))
+            .response([]);
+        tracker.on
             .any(({ sql }) => sql.includes('information_schema.columns'))
             .response(({ bindings }) =>
                 schemaColumns.has(`${bindings[0]}.${bindings[1]}`),
@@ -195,6 +198,26 @@ describe('ProjectModel', () => {
             expect.arrayContaining(['renamed source', projectUuid, true]),
         );
         expect(tracker.history.update[1].bindings[1]).toBeInstanceOf(Date);
+    });
+    test('locks the sources table against the binding migration before renaming', async () => {
+        tracker.on
+            .update(({ sql }) => sql.includes(`"${ProjectTableName}"`))
+            .response([{ project_uuid: projectUuid }]);
+        tracker.on
+            .update(({ sql }) => sql.includes('"project_dbt_sources"'))
+            .response(1);
+
+        await model.updateDbtSourceName(projectUuid, 'renamed source');
+
+        const lockIndex = tracker.history.all.findIndex(({ sql }) =>
+            sql.startsWith('LOCK TABLE "project_dbt_sources" IN SHARE MODE'),
+        );
+        const firstUpdateIndex = tracker.history.all.findIndex(
+            ({ method }) => method === 'update',
+        );
+        expect(lockIndex).toBeGreaterThanOrEqual(0);
+        expect(firstUpdateIndex).toBeGreaterThan(lockIndex);
+        expect(tracker.history.transactions).toHaveLength(1);
     });
     test('should get project tables configuration', async () => {
         tracker.on
@@ -858,6 +881,48 @@ describe('ProjectModel', () => {
             expect(tracker.history.insert).toHaveLength(0);
         });
 
+        test('aborts the manifest write when scoped storage appears mid-write', async () => {
+            const manifest = Buffer.from('manifest');
+            tracker.on
+                .insert(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response(() => {
+                    schemaTables.add('project_connection_manifests');
+                    return [];
+                });
+
+            await expect(
+                model.upsertMergedManifest(projectUuid, manifest),
+            ).rejects.toThrow(
+                'The project_connection_manifests table was created while this write was in flight',
+            );
+            expect(tracker.history.insert).toHaveLength(1);
+            expect(tracker.history.insert[0].sql).toContain(
+                ProjectMergedManifestsTableName,
+            );
+            expect(tracker.history.transactions).toHaveLength(1);
+        });
+
+        test('aborts the manifest delete when scoped storage appears mid-write', async () => {
+            tracker.on
+                .delete(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response(() => {
+                    schemaTables.add('project_connection_manifests');
+                    return 1;
+                });
+
+            await expect(
+                model.deleteMergedManifest(projectUuid),
+            ).rejects.toThrow(
+                'The project_connection_manifests table was created while this write was in flight',
+            );
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.transactions).toHaveLength(1);
+        });
+
         test('deletes the manifest from both stores when scoped storage exists', async () => {
             schemaTables.add('project_connection_manifests');
             tracker.on
@@ -1017,6 +1082,29 @@ describe('ProjectModel', () => {
         expect(tracker.history.insert).toHaveLength(0);
     });
 
+    test('aborts the catalog cache write when scoped storage appears mid-write', async () => {
+        tracker.on
+            .insert(({ sql }) => sql.includes('"cached_warehouse"'))
+            .response(() => {
+                schemaTables.add('project_connection_catalog_cache');
+                return [
+                    {
+                        project_uuid: projectUuid,
+                        warehouse: JSON.stringify({}),
+                    },
+                ];
+            });
+
+        await expect(
+            model.saveWarehouseToCache(projectUuid, {}),
+        ).rejects.toThrow(
+            'The project_connection_catalog_cache table was created while this write was in flight',
+        );
+        expect(tracker.history.insert).toHaveLength(1);
+        expect(tracker.history.insert[0].sql).toContain('"cached_warehouse"');
+        expect(tracker.history.transactions).toHaveLength(1);
+    });
+
     test('invalidates the previous MotherDuck connection after a credential update', async () => {
         const previousCredentials: CreateDuckdbMotherduckCredentials = {
             type: WarehouseTypes.DUCKDB,
@@ -1135,6 +1223,53 @@ describe('ProjectModel', () => {
                 sql.includes('"warehouse_credentials"'),
             ),
         ).toBe(false);
+    });
+
+    test('locks the connection table against the expansion migration before writing credentials', async () => {
+        schemaColumns.add('warehouse_credentials.superseded_at');
+        schemaColumns.add(
+            'warehouse_credentials.organization_warehouse_credentials_uuid',
+        );
+        const warehouseConnection = {
+            type: WarehouseTypes.BIGQUERY,
+        } as CreateWarehouseCredentials;
+        vi.spyOn(model, 'getWarehouseCredentialsForProject').mockResolvedValue(
+            warehouseConnection,
+        );
+        tracker.on
+            .update(({ sql }) => sql.includes('"projects"'))
+            .response([{ project_id: 1 }]);
+        tracker.on
+            .select(({ sql }) => sql.includes('"warehouse_credentials"'))
+            .response([{ warehouse_credentials_id: 41 }]);
+        tracker.on
+            .update(({ sql }) => sql.includes('"warehouse_credentials"'))
+            .response(1);
+
+        await model.update(projectUuid, {
+            name: expectedProject.name,
+            dbtConnection: expectedProject.dbtConnection,
+            dbtVersion: expectedProject.dbtVersion,
+            warehouseConnection,
+            organizationWarehouseCredentialsUuid: 'org-connection-uuid',
+        });
+
+        const lockIndex = tracker.history.all.findIndex(({ sql }) =>
+            sql.startsWith(
+                'LOCK TABLE "warehouse_credentials" IN ACCESS SHARE MODE',
+            ),
+        );
+        const probeIndex = tracker.history.all.findIndex(({ sql }) =>
+            sql.includes('information_schema.columns'),
+        );
+        const warehouseWriteIndex = tracker.history.all.findIndex(
+            ({ method, sql }) =>
+                method === 'update' && sql.includes('"warehouse_credentials"'),
+        );
+        expect(lockIndex).toBeGreaterThanOrEqual(0);
+        expect(probeIndex).toBeGreaterThan(lockIndex);
+        expect(warehouseWriteIndex).toBeGreaterThan(probeIndex);
+        expect(tracker.history.transactions).toHaveLength(1);
     });
 
     test('qualifies the project org pointer and ignores superseded connection rows', async () => {

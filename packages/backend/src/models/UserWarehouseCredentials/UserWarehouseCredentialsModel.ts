@@ -512,6 +512,9 @@ export class UserWarehouseCredentialsModel {
         userWarehouseCredentialsUuid: string,
     ) {
         await this.database.transaction(async (trx) => {
+            await trx.raw('LOCK TABLE ?? IN ACCESS SHARE MODE', [
+                ProjectUserWarehouseCredentialPreferenceTableName,
+            ]);
             const project = await trx(ProjectTableName)
                 .select('project_id')
                 .where('project_uuid', projectUuid)
