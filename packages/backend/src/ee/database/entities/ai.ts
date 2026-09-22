@@ -1,4 +1,5 @@
 import {
+    type AiAgentBattleProfile,
     type AiAgentModelConfig,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
@@ -34,6 +35,7 @@ export type DbAiThread = {
     title_generated_at: Date | null;
     sql_auto_approved_at: Date | null;
     pinned_at: Date | null;
+    battle_profile: AiAgentBattleProfile | null;
 };
 
 export type AiThreadTable = Knex.CompositeTableType<
@@ -41,7 +43,8 @@ export type AiThreadTable = Knex.CompositeTableType<
     Pick<
         DbAiThread,
         'organization_uuid' | 'project_uuid' | 'created_from' | 'agent_uuid'
-    >,
+    > &
+        Partial<Pick<DbAiThread, 'battle_profile'>>,
     Partial<
         Pick<
             DbAiThread,

@@ -39,8 +39,10 @@ import {
     getCandidateSearchTerms,
     getChartExportFastResponse,
     getChartFollowupFastResponse,
+    getDataAnswerFastResponse,
     getDataAppBuildFastResponse,
     getDeepResearchBudgetInstruction,
+    getFastDataAnswerPreparedContext,
     getPromptMcpServers,
     getRecentQueryFieldIds,
     getStepBudgetOverride,
@@ -99,6 +101,7 @@ const buildAgentArgs = (
         enableCodingAgent: false,
         enableContentTools: false,
         enableDataAccess: false,
+        enableDataAnswerFastResponse: false,
         enableEditProjectContext: false,
         enablePreviewDeploySetup: false,
         enableRepoDiscovery: false,
@@ -2397,7 +2400,13 @@ describe('buildAgentMessages', () => {
         ];
         expect(
             getChartFollowupFastResponse(
-                step({ result: 'rows', metadata: { status: 'success' } }),
+                step({
+                    result: 'rows',
+                    metadata: {
+                        status: 'success',
+                        artifactVersionUuid: 'version-1',
+                    },
+                }),
             ),
         ).toBe(
             "Created **Orders by month** using the preceding query's measure, filters and scope.",
@@ -2405,6 +2414,14 @@ describe('buildAgentMessages', () => {
         expect(
             getChartFollowupFastResponse(
                 step({ result: 'failed', metadata: { status: 'error' } }),
+            ),
+        ).toBeNull();
+        expect(
+            getChartFollowupFastResponse(
+                step({
+                    result: 'The query returned no rows.',
+                    metadata: { status: 'success' },
+                }),
             ),
         ).toBeNull();
     });
@@ -2490,6 +2507,87 @@ describe('buildAgentMessages', () => {
                 step({ result: 'failed', metadata: { status: 'error' } }),
             ),
         ).toBeNull();
+    });
+
+    it('finishes a successful simple data answer from validated query output', () => {
+        const result = (
+            output: unknown,
+            toolCallId = 'query-1',
+            toolName = 'runQuery',
+        ) => ({
+            toolCalls: [{ toolCallId, toolName, input: {} }],
+            toolResults: [{ toolCallId, toolName, output }],
+        });
+
+        expect(
+            getDataAnswerFastResponse([
+                result({
+                    result: 'csv',
+                    metadata: {
+                        status: 'success',
+                        fastResponse: '**Orders:** 64,357',
+                    },
+                }),
+            ]),
+        ).toBe('**Orders:** 64,357');
+        expect(
+            getDataAnswerFastResponse([
+                result({
+                    result: 'invalid date',
+                    metadata: { status: 'error' },
+                }),
+                result(
+                    {
+                        result: 'csv',
+                        metadata: {
+                            status: 'success',
+                            fastResponse: '**Orders:** 64,357',
+                        },
+                    },
+                    'query-2',
+                ),
+            ]),
+        ).toBeNull();
+        expect(
+            getDataAnswerFastResponse([
+                result({
+                    result: 'csv',
+                    metadata: {
+                        status: 'success',
+                        fastResponse: '**Orders:** 64,357',
+                    },
+                }),
+                result(
+                    {
+                        result: 'csv',
+                        metadata: {
+                            status: 'success',
+                            fastResponse: '**Orders:** 12,345',
+                        },
+                    },
+                    'query-2',
+                ),
+            ]),
+        ).toBeNull();
+    });
+
+    it('reuses the high-confidence first-turn data answer decision', () => {
+        const args = buildAgentArgs();
+        args.enableDataAnswerFastResponse = true;
+
+        expect(getFastDataAnswerPreparedContext(args)).toEqual({
+            content: null,
+            mcpToolNames: [],
+            projectContextEntryIds: [],
+            turnIntent: 'data_answer',
+        });
+
+        args.messageHistory = [
+            { role: 'user', content: 'How many orders?' },
+            { role: 'assistant', content: '151' },
+            { role: 'user', content: 'What about last year?' },
+        ];
+        expect(getFastDataAnswerPreparedContext(args)).toBeNull();
     });
 
     it.each(['success', 'error', 'pending', null])(

@@ -2,6 +2,7 @@ import { flattenAiHints, type Explore } from '@lightdash/common';
 import {
     compileMatcher,
     extractKeywords,
+    getFieldDefinitionKey,
     summarizeRequiredFilters,
     type FieldEntry,
 } from '../tools/grepFieldsIndex';
@@ -21,15 +22,6 @@ const FIELD_CORROBORATION_THRESHOLD = 0.9;
 
 const fieldId = (field: FieldEntry): string =>
     `${field.path.split('/')[1]}:${field.kind}`;
-const fieldKey = (field: FieldEntry): string =>
-    JSON.stringify([
-        fieldId(field),
-        field.type,
-        field.label,
-        field.description,
-        field.aiHint,
-        field.defaultTimeDimension,
-    ]);
 
 export const rankCatalog = async ({
     decisions,
@@ -67,9 +59,11 @@ export const rankCatalog = async ({
     };
     if (!query.trim() || query.length > 8_000) return fallback;
 
-    const keys = new Map(fields.map((field) => [field, fieldKey(field)]));
+    const keys = new Map(
+        fields.map((field) => [field, getFieldDefinitionKey(field)]),
+    );
     const keyForField = (field: FieldEntry): string =>
-        keys.get(field) ?? fieldKey(field);
+        keys.get(field) ?? getFieldDefinitionKey(field);
 
     // Identically annotated joined copies share a decision; explore fit checks grain.
     const fieldDefinitions = new Map<string, FieldEntry>();

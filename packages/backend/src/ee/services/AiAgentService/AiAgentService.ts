@@ -5,6 +5,7 @@ import {
     AI_AGENT_THREAD_TITLE_MAX_LENGTH,
     AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS,
     AiAgent,
+    AiAgentBattleProfile,
     AiAgentEvalRunJobPayload,
     AiAgentEvaluationRun,
     AiAgentEvaluationSummary,
@@ -60,6 +61,7 @@ import {
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     assertUnreachable,
+    CatalogType,
     CommercialFeatureFlags,
     ConflictError,
     ContentType,
@@ -81,12 +83,14 @@ import {
     ExternalSourceScope,
     ExternalSourceStatus,
     FeatureFlags,
+    FieldType,
     ForbiddenError,
     formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
     getAppDisplayName,
     getDataAppVizChartFromArtifact,
     getErrorMessage,
+    getFields,
     getGenerateDataAppBuildOutcome,
     getGroupByDimensions,
     getItemId,
@@ -107,12 +111,14 @@ import {
     isDashboardChartTileType,
     isGithubMcpServerUrl,
     isGitProjectType,
+    isMetric,
     isSlackMessageTooLongError,
     isSlackPrompt,
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
     MetricSourcedMergeQuery,
+    MetricType,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentity,
@@ -151,6 +157,7 @@ import {
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchPhase,
     type AiPromptContextInput,
+    type AiSemanticChartArtifactConfig,
     type AiThreadCreatedFrom,
     type AiWebAppThreadCreatedFrom,
     type AppGeneratePipelineJobPayload,
@@ -329,11 +336,19 @@ import {
     type AiDecisionClient,
 } from '../ai/decisions/AiDecisionClient';
 import {
-    isChartPresentationRequest,
-    parseExactChartEdit,
-    resolveChartEdit,
+    applyChartIntent,
+    getFilterFieldIds,
+    type ChartEdit,
 } from '../ai/decisions/chartEdits';
-import { canUseFastModel } from '../ai/decisions/modelRouting';
+import {
+    buildChartIntentContext,
+    decideTurn,
+    isChartEditAttempt,
+    selectFilterValues,
+    type ChartIntentContext,
+    type ChartIntentResolution,
+    type FieldCandidate,
+} from '../ai/decisions/chartIntent';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
@@ -505,6 +520,17 @@ type SuggestionThreadMessages = Awaited<
 type AgentConversationContext = {
     messageHistory: ModelMessage[];
     compactionSummary: string | null;
+};
+
+type ChartTurnContext = {
+    latest: Awaited<
+        ReturnType<AiAgentModel['findArtifactsByThreadUuid']>
+    >[number];
+    artifact: Awaited<ReturnType<AiAgentService['getArtifact']>>;
+    chartConfig: AiSemanticChartArtifactConfig;
+    explore: Explore;
+    catalogFields: Array<{ candidate: FieldCandidate; tableName: string }>;
+    intentContext: ChartIntentContext;
 };
 
 type AgentResponseStream = {
@@ -1965,6 +1991,16 @@ export class AiAgentService extends BaseService {
                 featureFlagId: FeatureFlags.AiAgentFastDecisions,
             }),
         );
+    }
+
+    // Battle mode can only switch JEV off for the baseline side, never on past the master flag.
+    private async getBattleDecisionClient(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        battleProfile: AiAgentBattleProfile | null,
+    ) {
+        return battleProfile === 'baseline'
+            ? undefined
+            : this.getDecisionClient(user);
     }
 
     private async getPromptErrorMessage(
@@ -4130,6 +4166,26 @@ export class AiAgentService extends BaseService {
               )
             : undefined;
 
+        if (body.battleProfile) {
+            const battleMode = await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiAgentBattleMode,
+            });
+            if (!battleMode.enabled) {
+                throw new ForbiddenError('AI agent battle mode is not enabled');
+            }
+            if (runtimeOptions) {
+                throw new ForbiddenError(
+                    'AI agent battle mode is not available in embedded threads',
+                );
+            }
+            if (!(await this.getDecisionClient(user))) {
+                throw new ForbiddenError(
+                    'AI agent fast decisions must be enabled to compare profiles',
+                );
+            }
+        }
+
         const threadUuid = await this.aiAgentModel.createWebAppThread({
             organizationUuid,
             projectUuid: agent.projectUuid,
@@ -4137,6 +4193,7 @@ export class AiAgentService extends BaseService {
             createdFrom,
             agentUuid,
             embedSpaceUuid: runtimeOptions?.embedSpaceUuid,
+            battleProfile: body.battleProfile ?? null,
         });
 
         const organizationDefaultModelConfig =
@@ -6913,7 +6970,6 @@ export class AiAgentService extends BaseService {
                 targetThreadMessages,
                 applicableCompaction?.compacted_through_ai_prompt_uuid ?? null,
             );
-
         const chatHistoryMessages = await this.getChatHistoryFromThreadMessages(
             compactedThreadMessages,
             {
@@ -6925,7 +6981,10 @@ export class AiAgentService extends BaseService {
                     this.getIsVerifiedArtifactsEnabled(),
                 currentPromptUuid: prompt.promptUuid,
                 userUuid: user.userUuid,
-                fastDecisionsEnabled: !!(await this.getDecisionClient(user)),
+                fastDecisionsEnabled: !!(await this.getBattleDecisionClient(
+                    user,
+                    prompt.battleProfile,
+                )),
             },
         );
 
@@ -10874,6 +10933,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             onWarehouseQuery?: () => void | Promise<void>;
             enableDocuments: boolean;
             enableRuntimeCache: boolean;
+            invalidateQueryCache?: boolean;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -10886,6 +10946,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             projectUuid,
             source: 'ai_agent',
             enableRuntimeCache: options?.enableRuntimeCache ?? false,
+            invalidateQueryCache: options?.invalidateQueryCache ?? false,
             enableDocuments: options?.enableDocuments ?? false,
             catalogSearchContext: CatalogSearchContext.AI_AGENT,
             defaultQueryExecutionContext: QueryExecutionContext.AI,
@@ -11679,21 +11740,64 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
     }
 
-    private async tryApplyChartEdit({
+    private async searchAddableCatalogFields({
+        user,
+        projectUuid,
+        prompt,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        prompt: string;
+    }): Promise<Array<{ candidate: FieldCandidate; tableName: string }>> {
+        if (!user.organizationUuid) return [];
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid: user.organizationUuid,
+                userUuid: user.userUuid,
+            });
+        const { data } = await this.catalogService.searchCatalog({
+            projectUuid,
+            userAttributes,
+            catalogSearch: { searchQuery: prompt, type: CatalogType.Field },
+            context: CatalogSearchContext.AI_AGENT,
+            paginateArgs: { page: 1, pageSize: 25 },
+            excludeUnmatched: true,
+            fullTextSearchOperator: 'OR',
+        });
+        return data.flatMap((item) =>
+            item.type === CatalogType.Field &&
+            item.fieldType === FieldType.DIMENSION
+                ? [
+                      {
+                          tableName: item.tableName,
+                          candidate: {
+                              id: getItemId({
+                                  table: item.tableName,
+                                  name: item.name,
+                              }),
+                              label: item.label ?? item.name,
+                              table: item.tableLabel ?? item.tableName,
+                              description:
+                                  item.description?.slice(0, 160) ?? null,
+                              isDate:
+                                  item.basicType === 'date' ||
+                                  item.basicType === 'timestamp',
+                          },
+                      },
+                  ]
+                : [],
+        );
+    }
+
+    private async loadChartTurnContext({
         user,
         prompt,
         agent,
-        decisions,
-        messageHistory,
-        responseStartedAt,
     }: {
         user: SessionUser;
         prompt: AiWebAppPrompt;
         agent: AiAgent;
-        decisions: AiDecisionClient;
-        messageHistory: ModelMessage[];
-        responseStartedAt: number;
-    }): Promise<AgentResponseStream | null> {
+    }): Promise<ChartTurnContext | null> {
         const [[latest], promptContext] = await Promise.all([
             this.aiAgentModel.findArtifactsByThreadUuid(
                 prompt.threadUuid,
@@ -11703,39 +11807,304 @@ Use your existing tools to inspect them when relevant to the user's question (re
         ]);
         if (latest?.chartConfig?.source !== 'semantic') return null;
         if (promptContext.get(prompt.promptUuid)?.length) return null;
-
         const artifact = await this.getArtifact(
             user,
             prompt.projectUuid,
             agent.uuid,
             latest.artifactUuid,
             latest.versionUuid,
-        );
-        if (artifact.chartConfig?.source !== 'semantic') return null;
+        ).catch(() => null);
+        const chartConfig = artifact?.chartConfig;
+        if (!artifact || chartConfig?.source !== 'semantic') return null;
+        const [explore, catalogFields] = await Promise.all([
+            this.getExplore(
+                user,
+                prompt.projectUuid,
+                agent.tags,
+                chartConfig.config.queryConfig.exploreName,
+            ).catch(() => null),
+            this.searchAddableCatalogFields({
+                user,
+                projectUuid: prompt.projectUuid,
+                prompt: prompt.prompt,
+            }).catch(() => []),
+        ]);
+        if (!explore) return null;
+        return {
+            latest,
+            artifact,
+            chartConfig,
+            explore,
+            catalogFields,
+            intentContext: buildChartIntentContext({
+                prompt: prompt.prompt,
+                artifact: chartConfig,
+                explore,
+                extraAddableFields: catalogFields.map(
+                    ({ candidate }) => candidate,
+                ),
+            }),
+        };
+    }
 
-        const explore = parseExactChartEdit(prompt.prompt)
-            ? undefined
-            : await this.getExplore(
-                  user,
-                  prompt.projectUuid,
-                  agent.tags,
-                  artifact.chartConfig.config.queryConfig.exploreName,
-              ).catch(() => undefined);
-        const edit = await resolveChartEdit({
-            decisions,
-            prompt: prompt.prompt,
-            artifact: artifact.chartConfig,
-            instructions: agent.instruction,
-            conversation: messageHistory.slice(-3),
+    private async searchFilterValueCandidates({
+        user,
+        projectUuid,
+        exploreName,
+        fieldId,
+        prompt,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        exploreName: string;
+        fieldId: string;
+        prompt: string;
+    }): Promise<string[]> {
+        const search = (term: string, limit: number) =>
+            this.projectService
+                .searchFieldUniqueValues(
+                    user,
+                    projectUuid,
+                    exploreName,
+                    fieldId,
+                    term,
+                    limit,
+                    undefined,
+                    false,
+                    undefined,
+                    undefined,
+                    QueryExecutionContext.AI,
+                )
+                .then(({ results }) =>
+                    results.filter(
+                        (value: unknown): value is string =>
+                            typeof value === 'string',
+                    ),
+                )
+                .catch(() => [] as string[]);
+        const terms = [
+            ...new Set(
+                prompt
+                    .toLowerCase()
+                    .split(/[^\p{L}\p{N}]+/u)
+                    .filter((term) => term.length >= 3),
+            ),
+        ].slice(0, 4);
+        const [matched, top] = await Promise.all([
+            Promise.all(terms.map((term) => search(term, 10))),
+            search('', 50),
+        ]);
+        return [...new Set([...matched.flat(), ...top])];
+    }
+
+    private async findExploreForAddedField({
+        user,
+        projectUuid,
+        availableTags,
+        artifact,
+        currentExplore,
+        tableName,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        availableTags: string[] | null;
+        artifact: AiSemanticChartArtifactConfig;
+        currentExplore: Explore;
+        tableName: string;
+    }): Promise<Explore | null> {
+        const query = artifact.config.queryConfig;
+        const filterFieldIds = getFilterFieldIds(artifact);
+        if (
+            filterFieldIds === null ||
+            query.customMetrics?.length ||
+            query.tableCalculations?.length
+        )
+            return null;
+        const referencedFieldIds = new Set([
+            ...query.dimensions,
+            ...query.metrics,
+            ...query.sorts.map(({ fieldId }) => fieldId),
+            ...filterFieldIds,
+        ]);
+        const currentFields = new Map(
+            getFields(currentExplore).map((field) => [getItemId(field), field]),
+        );
+        const safeCrossExploreMetricTypes = new Set([
+            MetricType.COUNT_DISTINCT,
+            MetricType.SUM_DISTINCT,
+            MetricType.AVERAGE_DISTINCT,
+        ]);
+        if (
+            query.metrics.some((fieldId) => {
+                const field = currentFields.get(fieldId);
+                return (
+                    !field ||
+                    !isMetric(field) ||
+                    !safeCrossExploreMetricTypes.has(field.type)
+                );
+            })
+        )
+            return null;
+        const requiredTables = [...referencedFieldIds].flatMap((fieldId) => {
+            const table = currentFields.get(fieldId)?.table;
+            return table ? [table] : [];
+        });
+        if (requiredTables.length !== referencedFieldIds.size) return null;
+        const exploreNames = (
+            await this.projectModel.findExploreNamesContainingTables(
+                projectUuid,
+                [...requiredTables, tableName],
+            )
+        ).filter((name) => name !== currentExplore.name);
+        if (exploreNames.length === 0) return null;
+        const available = await this.getAvailableExplores(
+            user,
+            projectUuid,
+            availableTags,
+            exploreNames,
+        );
+        const compatible = available.filter((candidate) => {
+            const ids = new Set(getFields(candidate).map(getItemId));
+            return [...referencedFieldIds].every((fieldId) => ids.has(fieldId));
+        });
+        const baseTableMatches = compatible.filter(
+            (candidate) => candidate.baseTable === tableName,
+        );
+        if (baseTableMatches.length === 1) return baseTableMatches[0];
+        return compatible.length === 1 ? compatible[0] : null;
+    }
+
+    private async resolveChartIntent({
+        user,
+        prompt,
+        agent,
+        decisions,
+        chart,
+        resolution,
+    }: {
+        user: SessionUser;
+        prompt: AiWebAppPrompt;
+        agent: AiAgent;
+        decisions: AiDecisionClient;
+        chart: ChartTurnContext;
+        resolution: ChartIntentResolution;
+    }): Promise<{ edit: ChartEdit; undoneTo: AiArtifact | null } | null> {
+        if (resolution.type === 'needs_values') {
+            const { fieldId, exclude } = resolution.filter;
+            const fieldLabel =
+                chart.intentContext.filterableFields.find(
+                    ({ id }) => id === fieldId,
+                )?.label ?? fieldId;
+            const candidates = await this.searchFilterValueCandidates({
+                user,
+                projectUuid: prompt.projectUuid,
+                exploreName: chart.explore.name,
+                fieldId,
+                prompt: prompt.prompt,
+            });
+            const values = await selectFilterValues({
+                decisions,
+                prompt: prompt.prompt,
+                filter: resolution.filter,
+                fieldLabel,
+                candidates,
+            });
+            if (!values) return null;
+            const edit = applyChartIntent({
+                intent: { kind: 'filter_values', fieldId, exclude, values },
+                artifact: chart.chartConfig,
+                explore: chart.explore,
+            });
+            return edit ? { edit, undoneTo: null } : null;
+        }
+        if (resolution.type !== 'intent') return null;
+        const { intent } = resolution;
+        if (intent.kind === 'undo') {
+            const previous = await this.aiAgentModel.getPreviousArtifactVersion(
+                chart.latest.artifactUuid,
+                chart.latest.versionNumber,
+            );
+            const undoConfig =
+                previous?.chartConfig?.source === 'semantic'
+                    ? previous.chartConfig
+                    : null;
+            return {
+                edit: {
+                    config: undoConfig ?? chart.chartConfig,
+                    response: undoConfig
+                        ? 'Undid the last chart change.'
+                        : 'There is no earlier chart change to undo.',
+                    changed: undoConfig !== null,
+                },
+                undoneTo: undoConfig ? previous : null,
+            };
+        }
+        let { explore } = chart;
+        if (
+            intent.kind === 'add_field' &&
+            !getFields(explore).some(
+                (field) => getItemId(field) === intent.fieldId,
+            )
+        ) {
+            const tableName = chart.catalogFields.find(
+                ({ candidate }) => candidate.id === intent.fieldId,
+            )?.tableName;
+            const otherExplore = tableName
+                ? await this.findExploreForAddedField({
+                      user,
+                      projectUuid: prompt.projectUuid,
+                      availableTags: agent.tags,
+                      artifact: chart.chartConfig,
+                      currentExplore: chart.explore,
+                      tableName,
+                  }).catch(() => null)
+                : null;
+            if (!otherExplore) return null;
+            explore = otherExplore;
+        }
+        const edit = applyChartIntent({
+            intent,
+            artifact: chart.chartConfig,
             explore,
         });
-        if (!edit) return null;
+        return edit ? { edit, undoneTo: null } : null;
+    }
+
+    private async tryApplyChartEdit({
+        user,
+        prompt,
+        agent,
+        decisions,
+        chart,
+        resolution,
+        responseStartedAt,
+        decisionUsage,
+    }: {
+        user: SessionUser;
+        prompt: AiWebAppPrompt;
+        agent: AiAgent;
+        decisions: AiDecisionClient;
+        chart: ChartTurnContext;
+        resolution: ChartIntentResolution;
+        responseStartedAt: number;
+        decisionUsage: () => { inputTokens: number; outputTokens: number };
+    }): Promise<AgentResponseStream | null> {
+        const resolved = await this.resolveChartIntent({
+            user,
+            prompt,
+            agent,
+            decisions,
+            chart,
+            resolution,
+        });
+        if (!resolved) return null;
+        const { edit, undoneTo } = resolved;
 
         const [current, interrupted] = await Promise.all([
-            this.aiAgentModel.getArtifact(latest.artifactUuid),
+            this.aiAgentModel.getArtifact(chart.latest.artifactUuid),
             this.aiAgentModel.hasAiPromptInterrupt(prompt.promptUuid),
         ]);
-        if (current?.versionUuid !== latest.versionUuid || interrupted)
+        if (current?.versionUuid !== chart.latest.versionUuid || interrupted)
             return null;
 
         if (edit.changed)
@@ -11743,8 +12112,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 threadUuid: prompt.threadUuid,
                 promptUuid: prompt.promptUuid,
                 artifactType: 'chart',
-                title: artifact.title ?? undefined,
-                description: edit.config.config.description,
+                title: (undoneTo ?? chart.artifact).title ?? undefined,
+                description:
+                    (undoneTo
+                        ? undoneTo.description
+                        : edit.config.config.description) ?? undefined,
                 vizConfig: { ...edit.config },
             });
 
@@ -11752,7 +12124,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
             {
                 promptUuid: prompt.promptUuid,
                 response: edit.response,
-                tokenUsage: initialPromptTokenUsage(0),
+                tokenUsage: initialPromptTokenUsage(
+                    0,
+                    decisionUsage().inputTokens,
+                    decisionUsage().outputTokens,
+                ),
                 responseTiming: {
                     startedAt: new Date(responseStartedAt).toISOString(),
                     firstTokenAt: new Date().toISOString(),
@@ -11934,8 +12310,24 @@ Use your existing tools to inspect them when relevant to the user's question (re
             );
 
         const agentSettings = await this.getAgentSettings(user, prompt);
-        const decisions = await this.getDecisionClient(user);
-        if (
+        const battleProfile = isSlackPrompt(prompt)
+            ? null
+            : prompt.battleProfile;
+        const decisionClient = await this.getBattleDecisionClient(
+            user,
+            battleProfile,
+        );
+        const decisionUsage = decisionClient
+            ? { inputTokens: 0, outputTokens: 0 }
+            : undefined;
+        const decisions = decisionUsage
+            ? decisionClient?.withUsage(decisionUsage)
+            : undefined;
+        // AiAgentFastDecisions is the master gate; battle mode can only disable it per side.
+        const fastExperienceEnabled = decisions !== undefined;
+        let forceChartMutationRouting = false;
+        let chartMutationContext: AiSemanticChartArtifactConfig | undefined;
+        const chartTurn =
             decisions &&
             stream &&
             !isSlackPrompt(prompt) &&
@@ -11943,8 +12335,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             !options.runtimeOptions &&
             !options.toolHints?.length &&
             !compactionSummary &&
-            prompt.prompt.length <= 300 &&
-            isChartPresentationRequest(prompt.prompt) &&
             !responseExecution.toolAllowlist &&
             agentSettings.enableDataAccess &&
             messageHistory.length > 1 &&
@@ -11952,16 +12342,59 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 prompt.threadCreatedFrom,
                 undefined,
             ) === undefined
+                ? await this.loadChartTurnContext({
+                      user,
+                      prompt,
+                      agent: agentSettings,
+                  }).catch(() => null)
+                : null;
+        const turnDecision = decisions
+            ? (
+                  await decideTurn({
+                      decisions,
+                      prompt: prompt.prompt,
+                      instructions: agentSettings.instruction,
+                      conversation: messageHistory.slice(-3),
+                      context: chartTurn?.intentContext ?? null,
+                  })
+              ).decision
+            : null;
+        const chartResolution = turnDecision?.chart ?? null;
+        if (
+            decisions &&
+            chartTurn &&
+            chartResolution &&
+            !isSlackPrompt(prompt)
         ) {
-            const editResponse = await this.tryApplyChartEdit({
-                user,
-                prompt,
-                agent: agentSettings,
-                decisions,
-                messageHistory,
-                responseStartedAt,
-            });
-            if (editResponse) return editResponse;
+            if (
+                chartResolution.type === 'intent' ||
+                chartResolution.type === 'needs_values'
+            ) {
+                const editResponse = await this.tryApplyChartEdit({
+                    user,
+                    prompt,
+                    agent: agentSettings,
+                    decisions,
+                    chart: chartTurn,
+                    resolution: chartResolution,
+                    responseStartedAt,
+                    decisionUsage: () => ({
+                        inputTokens: decisionUsage?.inputTokens ?? 0,
+                        outputTokens: decisionUsage?.outputTokens ?? 0,
+                    }),
+                }).catch((error) => {
+                    Logger.warn(
+                        `Fast chart edit failed; falling back to the agent: ${String(error)}`,
+                    );
+                    return null;
+                });
+                if (editResponse) return editResponse;
+            }
+            // JEV identified a chart edit the reducer could not apply, so the agent mutates the active chart.
+            if (isChartEditAttempt(chartResolution)) {
+                forceChartMutationRouting = true;
+                chartMutationContext = chartTurn.chartConfig;
+            }
         }
         const enableSqlMode =
             options.enableSqlMode ?? agentSettings.enableSqlMode;
@@ -12367,6 +12800,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             onWarehouseQuery: responseExecution.onWarehouseQuery,
             enableDocuments: canUseContentTools && documentsEnabled,
             enableRuntimeCache: !!decisions,
+            // Battle sides must not warm one another's result cache. Normal
+            // threads retain production cache behavior.
+            invalidateQueryCache: battleProfile !== null,
         });
 
         const availableSkills = canUseContentTools
@@ -12383,21 +12819,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
         });
         const initialModelId = modelProperties.model.modelId;
 
-        // AiAgentFastDecisions is the master switch for the bounded fast
-        // experience, including its smaller tool-call model. The separate
-        // adaptive-model flag only controls replacing the main response model.
+        // AiAgentFastDecisions is the single switch for bounded decisions,
+        // query refinements, fast tool calls and adaptive model selection.
         const canUseFastToolModel =
             !!decisions &&
             responseExecution.mode === 'standard' &&
             prompt.modelConfig?.reasoning !== true &&
             !options.toolHints?.length;
         const adaptiveModels = canUseFastToolModel
-            ? await this.featureFlagService
-                  .get({
-                      user,
-                      featureFlagId: FeatureFlags.AiAgentAdaptiveModels,
-                  })
-                  .catch(() => ({ enabled: false }))
+            ? { enabled: fastExperienceEnabled }
             : null;
         let toolCallModel: AiAgentArgs['toolCallModel'];
         if (canUseFastToolModel) {
@@ -12419,23 +12849,23 @@ Use your existing tools to inspect them when relevant to the user's question (re
             }
         }
 
+        const simpleDataAnswer =
+            canUseFastToolModel &&
+            !compactionSummary &&
+            mcpServers.length === 0 &&
+            adaptiveModels?.enabled === true &&
+            turnDecision?.simpleDataAnswer === true;
+        const enableDataAnswerFastResponse = simpleDataAnswer;
+
         if (
             canUseFastToolModel &&
-            !enableSqlMode &&
             !prompt.modelConfig?.modelName &&
             !prompt.modelConfig?.modelProvider &&
             !compactionSummary &&
             messageHistory.filter((message) => message.role === 'user')
                 .length === 1
         ) {
-            if (
-                adaptiveModels?.enabled &&
-                (await canUseFastModel({
-                    decisions,
-                    prompt: prompt.prompt,
-                    instructions: agentSettings.instruction,
-                }))
-            ) {
+            if (adaptiveModels?.enabled && simpleDataAnswer) {
                 modelProperties = getModel(copilotConfig, {
                     useFastModel: true,
                     enableReasoning: false,
@@ -12537,12 +12967,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
             adaptiveModelsEnabled: adaptiveModels?.enabled ?? false,
             adaptiveModelSelected:
                 modelProperties.model.modelId !== initialModelId,
+            dataAnswerFastResponseEnabled: enableDataAnswerFastResponse,
             mainModel: modelProperties.model.modelId,
             toolCallModel: toolCallModel?.model.modelId ?? null,
         });
         const args: AiAgentArgs = {
             decisions,
+            decisionUsage,
             toolCallModel,
+            enableDataAnswerFastResponse,
+            forceChartMutationRouting,
+            chartMutationContext,
             userQuestion: prompt.prompt,
             organizationId: user.organizationUuid,
             userId: user.userUuid,

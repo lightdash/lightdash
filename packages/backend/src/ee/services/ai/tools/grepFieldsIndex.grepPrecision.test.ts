@@ -436,6 +436,41 @@ describe('selectCandidateFields', () => {
             'different',
         ]);
     });
+
+    it('keeps distinct definitions when joined copies would fill the shortlist', () => {
+        const [base] = buildFieldIndex([
+            makeExplore({
+                name: 'orders',
+                fields: [{ name: 'completed_order_count', label: 'Orders' }],
+            }),
+        ]);
+        const completedCopies = Array.from({ length: 30 }, (_, index) => ({
+            ...base,
+            exploreName: `joined_orders_${index}`,
+            path: `joined_orders_${index}/orders_completed_order_count`,
+            kind: 'metric' as const,
+            type: MetricType.COUNT,
+            verifiedUsage: 1,
+        }));
+        const uniqueOrders = {
+            ...base,
+            path: 'orders/orders_unique_order_count',
+            kind: 'metric' as const,
+            type: MetricType.COUNT_DISTINCT,
+            label: 'Unique order count',
+            nameHaystack: 'orders_unique_order_count unique order count',
+            haystack: 'orders_unique_order_count unique order count',
+            verifiedUsage: 0,
+        };
+
+        const selected = selectCandidateFields(
+            [...completedCopies, uniqueOrders],
+            ['orders'],
+            25,
+        );
+
+        expect(selected).toContainEqual(uniqueOrders);
+    });
 });
 
 describe('buildFieldIndex parameter references', () => {

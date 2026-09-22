@@ -394,3 +394,88 @@ describe('verified examples in conversation history', () => {
         ).toEqual(legacy);
     });
 });
+
+describe('battle profile response preparation', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it.each([
+        ['fast', true, true],
+        ['fast', false, false],
+        ['baseline', true, false],
+        ['baseline', false, false],
+    ] as const)(
+        'gates the %s thread profile on the fast-decisions master flag (flag on: %s)',
+        async (
+            battleProfile,
+            masterFlagEnabled,
+            expectedFastDecisionsEnabled,
+        ) => {
+            const aiAgentModel = {
+                getThread: vi.fn().mockResolvedValue({
+                    agentUuid: 'agent',
+                    user: { uuid: 'user' },
+                }),
+                getAgent: vi.fn().mockResolvedValue({
+                    uuid: 'agent',
+                    projectUuid: 'project',
+                }),
+                getThreadMessages: vi
+                    .fn()
+                    .mockResolvedValue([{ ai_prompt_uuid: 'prompt' }]),
+                findWebAppPrompt: vi.fn().mockResolvedValue({
+                    promptUuid: 'prompt',
+                    threadUuid: 'thread',
+                    organizationUuid: 'org',
+                    projectUuid: 'project',
+                    battleProfile,
+                }),
+            };
+            const service = new AiAgentService({
+                lightdashConfig: lightdashConfigMock,
+                aiAgentModel,
+            } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
+            vi.spyOn(
+                service as unknown as {
+                    checkAgentThreadAccess: () => Promise<boolean>;
+                },
+                'checkAgentThreadAccess',
+            ).mockResolvedValue(true);
+            vi.spyOn(
+                service as unknown as {
+                    maybeCompactThreadBeforeResponse: () => Promise<null>;
+                },
+                'maybeCompactThreadBeforeResponse',
+            ).mockResolvedValue(null);
+            vi.spyOn(service, 'getDecisionClient').mockResolvedValue(
+                masterFlagEnabled ? ({} as AiDecisionClient) : undefined,
+            );
+            const getHistory = vi
+                .spyOn(service, 'getChatHistoryFromThreadMessages')
+                .mockResolvedValue([]);
+
+            await (
+                service as unknown as {
+                    prepareAgentThreadResponse: (
+                        requestUser: SessionUser,
+                        args: {
+                            agentUuid: string;
+                            threadUuid: string;
+                            promptUuid: string;
+                        },
+                    ) => Promise<unknown>;
+                }
+            ).prepareAgentThreadResponse(user, {
+                agentUuid: 'agent',
+                threadUuid: 'thread',
+                promptUuid: 'prompt',
+            });
+
+            expect(getHistory).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    fastDecisionsEnabled: expectedFastDecisionsEnabled,
+                }),
+            );
+        },
+    );
+});

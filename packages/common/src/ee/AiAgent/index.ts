@@ -24,6 +24,7 @@ import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import { type AiComposerChartArtifactConfig } from './composerArtifact';
 import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
+    type AiAgentBattleProfile,
     type AiAgentModelConfig,
     type AiPromptContext,
     type AiPromptContextInput,
@@ -347,6 +348,7 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     title: string | null;
     titleGeneratedAt: string | null;
     pinnedAt: string | null;
+    battleProfile: AiAgentBattleProfile | null;
     firstMessage: {
         uuid: string;
         message: string;
@@ -807,6 +809,8 @@ export type ApiAiAgentThreadCreateRequest = {
     context?: AiPromptContextInput;
     modelConfig?: AiAgentModelConfig;
     originatingInstallationUuid?: string;
+    /** Internal feature-speed battle; accepted only behind battle mode. */
+    battleProfile?: AiAgentBattleProfile;
 };
 
 export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;

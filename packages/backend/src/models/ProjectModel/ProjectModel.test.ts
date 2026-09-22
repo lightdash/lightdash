@@ -1722,6 +1722,31 @@ describe('ProjectModel', () => {
         });
     });
 
+    describe('findExploreNamesContainingTables', () => {
+        test('requires every requested table in the cached explore', async () => {
+            tracker.on
+                .select(
+                    ({ sql }) =>
+                        sql.includes('from "cached_explore"') &&
+                        sql.includes('ANY(table_names)'),
+                )
+                .response([{ name: 'payments' }]);
+
+            await expect(
+                model.findExploreNamesContainingTables(projectUuid, [
+                    'orders',
+                    'payments',
+                ]),
+            ).resolves.toEqual(['payments']);
+
+            expect(tracker.history.select.at(-1)?.bindings).toEqual([
+                projectUuid,
+                'orders',
+                'payments',
+            ]);
+        });
+    });
+
     describe('saveExploresToCache', () => {
         test('prunes deleted models while preserving unselected and user-managed explores', async () => {
             const incoming = { ...exploresWithSameName[0], name: 'selected' };

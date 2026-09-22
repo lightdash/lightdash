@@ -58,6 +58,17 @@ describe('prompt token usage', () => {
         });
     });
 
+    it('tracks JEV input separately from agent context usage', () => {
+        const usage = completedPromptTokenUsage(7500, 4000, 321, 12);
+        expect(usage).toEqual({
+            totalTokens: 7500,
+            finalStepTotalTokens: 4000,
+            decisionInputTokens: 321,
+            decisionOutputTokens: 12,
+        });
+        expect(getContextOccupancyTokens(usage)).toBe(4000);
+    });
+
     it('stores aggregate usage without inflating the compaction input', () => {
         const usage = completedPromptTokenUsage(120000, 40000);
         expect(usage).toEqual({

@@ -83,7 +83,10 @@ import {
     type ChartExportSource,
     type PreparedChartAsCode,
 } from '../utils/chartAsCode';
-import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import {
+    convertQueryResultsToCsv,
+    convertQueryResultsToMarkdown,
+} from '../utils/convertQueryResultsToCsv';
 import {
     formatFilterExpressionError,
     resolveFilterExpressionArgs,
@@ -129,6 +132,7 @@ const getChartExportReference = (
 
 type Dependencies = {
     purpose?: 'visualization' | 'answer';
+    enableFastResponse?: boolean;
     decisions?: AiDecisionClient;
     question?: string;
     conversation?: AgentDecisionContext;
@@ -495,7 +499,8 @@ const getSuccessMetadata = ({
     queryReuseHit,
     chartImageUrl,
     artifact,
-    deferredSlack,
+    deferredSlack: _deferredSlack,
+    fastResponse,
 }: {
     queryUuid: string;
     queryCacheHit: boolean;
@@ -503,15 +508,15 @@ const getSuccessMetadata = ({
     chartImageUrl?: string;
     artifact?: AiArtifact;
     deferredSlack: boolean;
+    fastResponse?: string;
 }) => ({
     status: 'success' as const,
     chartImageUrl,
-    ...(deferredSlack && artifact
-        ? { artifactVersionUuid: artifact.versionUuid }
-        : {}),
+    ...(artifact ? { artifactVersionUuid: artifact.versionUuid } : {}),
     queryUuid,
     queryCacheHit,
     queryReuseHit,
+    ...(fastResponse ? { fastResponse } : {}),
 });
 
 const registerChartExport = ({
@@ -540,6 +545,7 @@ const registerChartExport = ({
 
 export const getRunQuery = ({
     purpose = 'visualization',
+    enableFastResponse = false,
     updateProgress,
     runAsyncQuery,
     getPrompt,
@@ -788,7 +794,11 @@ export const getRunQuery = ({
                         chartConfig: ToolRunQueryBuiltinChartConfig | null = null,
                         contentAsCode?: PreparedChartAsCode,
                     ) => {
-                        if (purpose === 'answer' && !isSlackPrompt(prompt))
+                        if (
+                            purpose === 'answer' &&
+                            !enableFastResponse &&
+                            !isSlackPrompt(prompt)
+                        )
                             return Promise.resolve(undefined);
                         const vizConfig =
                             persistedExpressionArgs === null
@@ -978,6 +988,14 @@ export const getRunQuery = ({
                             chartImageUrl,
                             artifact,
                             deferredSlack: !!deferSlackVisualization,
+                            fastResponse:
+                                enableFastResponse &&
+                                purpose === 'answer' &&
+                                enableDataAccess
+                                    ? (convertQueryResultsToMarkdown(
+                                          queryResults,
+                                      ) ?? undefined)
+                                    : undefined,
                         }),
                     };
                 }
@@ -1116,7 +1134,11 @@ export const getRunQuery = ({
                     chartConfig: ToolRunQueryBuiltinChartConfig | null = null,
                     contentAsCode?: PreparedChartAsCode,
                 ) => {
-                    if (purpose === 'answer' && !isSlackPrompt(prompt))
+                    if (
+                        purpose === 'answer' &&
+                        !enableFastResponse &&
+                        !isSlackPrompt(prompt)
+                    )
                         return Promise.resolve(undefined);
                     const vizConfig =
                         chartConfig && customChartTypeBinding === null
@@ -1381,6 +1403,12 @@ export const getRunQuery = ({
                         chartImageUrl,
                         artifact,
                         deferredSlack: !!deferSlackVisualization,
+                        fastResponse:
+                            enableFastResponse && purpose === 'answer'
+                                ? (convertQueryResultsToMarkdown(
+                                      queryResults,
+                                  ) ?? undefined)
+                                : undefined,
                     }),
                 };
             } catch (e) {

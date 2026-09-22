@@ -18,6 +18,8 @@ interface Props {
     agentUuid: string;
     agentName: string;
     thread: AiAgentThread;
+    queuedCount: number;
+    showTokens: boolean;
 }
 
 const useTicking = (active: boolean) => {
@@ -34,6 +36,7 @@ type TimingSummary = {
     source: 'live' | 'server';
     ttftMs: number | null;
     totalMs: number;
+    queryCacheHits: number | null;
 };
 
 export const BattleThreadPane: FC<Props> = ({
@@ -42,6 +45,8 @@ export const BattleThreadPane: FC<Props> = ({
     agentUuid,
     agentName,
     thread,
+    queuedCount,
+    showTokens,
 }) => {
     const stream = useAiAgentThreadStreamQuery(thread.uuid);
     const isStreaming = stream?.connection.status === 'streaming';
@@ -87,6 +92,7 @@ export const BattleThreadPane: FC<Props> = ({
                         ? null
                         : liveTiming.firstTokenAt - liveTiming.startedAt,
                 totalMs: now - liveTiming.startedAt,
+                queryCacheHits: null,
             };
         }
         const persisted =
@@ -94,7 +100,13 @@ export const BattleThreadPane: FC<Props> = ({
             lastAssistantMessage.status !== 'pending'
                 ? getResponseTimingMetrics(lastAssistantMessage.responseTiming)
                 : null;
-        if (persisted) return { source: 'server', ...persisted };
+        if (persisted)
+            return {
+                source: 'server',
+                ttftMs: persisted.ttftMs,
+                totalMs: persisted.totalMs,
+                queryCacheHits: persisted.stages?.queryCacheHits ?? null,
+            };
         if (liveTiming && liveTiming.finishedAt !== null) {
             return {
                 source: 'live',
@@ -103,6 +115,7 @@ export const BattleThreadPane: FC<Props> = ({
                         ? null
                         : liveTiming.firstTokenAt - liveTiming.startedAt,
                 totalMs: liveTiming.finishedAt - liveTiming.startedAt,
+                queryCacheHits: null,
             };
         }
         return null;
@@ -129,7 +142,13 @@ export const BattleThreadPane: FC<Props> = ({
                 }}
             >
                 <Group gap="xs" wrap="nowrap" miw={0}>
-                    <Badge size="sm" variant="light" color="ldGray">
+                    <Badge
+                        size="sm"
+                        variant="light"
+                        color={
+                            thread.battleProfile === 'fast' ? 'violet' : 'gray'
+                        }
+                    >
                         {label}
                     </Badge>
                     <Text size="sm" fw={600} truncate>
@@ -137,6 +156,7 @@ export const BattleThreadPane: FC<Props> = ({
                     </Text>
                     <Text size="xs" c="dimmed">
                         {status}
+                        {queuedCount > 0 ? ` · ${queuedCount} queued` : ''}
                     </Text>
                 </Group>
                 <Group gap="sm" wrap="nowrap">
@@ -161,7 +181,34 @@ export const BattleThreadPane: FC<Props> = ({
                                     ? '(client)'
                                     : '(server)'}
                             </Text>
+                            {timing.queryCacheHits !== null &&
+                                timing.queryCacheHits > 0 && (
+                                    <Text size="xs" c="green" ml={2}>
+                                        cache hit
+                                    </Text>
+                                )}
                         </Group>
+                    )}
+                    {showTokens && lastAssistantMessage?.tokenUsage && (
+                        <Text size="xs" c="dimmed" ff="monospace">
+                            {lastAssistantMessage.tokenUsage.totalTokens.toLocaleString()}{' '}
+                            agent
+                            {(lastAssistantMessage.tokenUsage
+                                .decisionInputTokens !== undefined ||
+                                lastAssistantMessage.tokenUsage
+                                    .decisionOutputTokens !== undefined) && (
+                                <>
+                                    {' · '}
+                                    {(
+                                        (lastAssistantMessage.tokenUsage
+                                            .decisionInputTokens ?? 0) +
+                                        (lastAssistantMessage.tokenUsage
+                                            .decisionOutputTokens ?? 0)
+                                    ).toLocaleString()}{' '}
+                                    JEV
+                                </>
+                            )}
+                        </Text>
                     )}
                     <Anchor
                         component={Link}

@@ -56,6 +56,7 @@ import {
 } from '../decisions/catalogRanking';
 import {
     prepareRelevantContext,
+    type PreparedContext,
     type TurnIntent,
 } from '../decisions/prepareContext';
 import { queryErrorOverride } from '../decisions/queryErrors';
@@ -650,6 +651,16 @@ export const getCandidateSearchTerms = (
         12,
     );
 
+const getChartMutationFieldIds = (args: AiAgentArgs): string[] => {
+    const config = args.chartMutationContext?.config;
+    if (!config) return [];
+    return [
+        ...config.queryConfig.dimensions,
+        ...config.queryConfig.metrics,
+        ...config.queryConfig.sorts.map(({ fieldId }) => fieldId),
+    ].filter((fieldId, index, fields) => fields.indexOf(fieldId) === index);
+};
+
 const prepareCandidateSeed = async (
     args: AiAgentArgs,
     explores: Explore[],
@@ -659,9 +670,12 @@ const prepareCandidateSeed = async (
     if (!args.decisions || args.execution.mode !== 'standard') return undefined;
     const query = getAgentQuestion(args);
     const recentQueryFields = getRecentQueryFieldIds(args.messageHistory);
+    const carriedFields = recentQueryFields.length
+        ? recentQueryFields
+        : getChartMutationFieldIds(args);
     const candidates = selectCandidateFields(
         getCachedFieldIndex(explores, verifiedFieldUsage),
-        getCandidateSearchTerms(query, recentQueryFields),
+        getCandidateSearchTerms(query, carriedFields),
     );
     const ranked = await rankCatalog({
         decisions: args.decisions,
@@ -684,10 +698,14 @@ const prepareCandidateSeed = async (
         ranked.fieldRanks,
         ranked.exploreRanks,
     );
+    let carriedFieldContext: string | null = null;
+    if (args.chartMutationContext) {
+        carriedFieldContext = `The active chart below is authoritative. Mutate its query and visualization, preserving everything the user did not ask to change. A response claiming a change is only valid after generateVisualization succeeds.\n${JSON.stringify(args.chartMutationContext.config)}`;
+    } else if (carriedFields.length > 0) {
+        carriedFieldContext = `The preceding successful query already established these field IDs: ${recentQueryFields.join(', ')}. For a follow-up, reuse its tool input and preserve its measure, filters and scope. Change only the requested grain or presentation; skip field discovery when the candidates below cover it.`;
+    }
     return [
-        recentQueryFields.length > 0
-            ? `The preceding successful query already established these field IDs: ${recentQueryFields.join(', ')}. For a follow-up, reuse its tool input and preserve its measure, filters and scope. Change only the requested grain or presentation; skip field discovery when the candidates below cover it.`
-            : null,
+        carriedFieldContext,
         ranked.exploresRanked
             ? `Relevant explores, ordered by entity and grain fit: ${ranked.explores
                   .slice(0, 5)
@@ -956,7 +974,15 @@ export const getChartFollowupFastResponse = (
                 .filter(
                     (result) =>
                         result.toolName === 'generateVisualization' &&
-                        !isErrorToolResult(result.output),
+                        !isErrorToolResult(result.output) &&
+                        result.output !== null &&
+                        typeof result.output === 'object' &&
+                        'metadata' in result.output &&
+                        result.output.metadata !== null &&
+                        typeof result.output.metadata === 'object' &&
+                        'artifactVersionUuid' in result.output.metadata &&
+                        typeof result.output.metadata.artifactVersionUuid ===
+                            'string',
                 )
                 .map((result) => result.toolCallId),
         ),
@@ -1027,10 +1053,38 @@ export const getDataAppBuildFastResponse = (
     return 'Started the data app build. It will take a few minutes.';
 };
 
+export const getDataAnswerFastResponse = (
+    steps: ReadonlyArray<FastChartStep>,
+): string | null => {
+    const results = steps.flatMap((step) => step.toolResults);
+    if (results.some((result) => isErrorToolResult(result.output))) return null;
+
+    const queryResults = results.filter(
+        (result) => result.toolName === 'runQuery',
+    );
+    if (queryResults.length !== 1) return null;
+    const [{ output }] = queryResults;
+    if (!output || typeof output !== 'object' || !('metadata' in output))
+        return null;
+    const { metadata } = output;
+    if (!metadata || typeof metadata !== 'object') return null;
+    if (
+        !('status' in metadata) ||
+        metadata.status !== 'success' ||
+        !('fastResponse' in metadata) ||
+        typeof metadata.fastResponse !== 'string'
+    )
+        return null;
+    return metadata.fastResponse.trim() || null;
+};
+
 const getTurnFastResponse = (
+    enableDataAnswerFastResponse: boolean,
     turnIntent: TurnIntent | null | undefined,
     steps: ReadonlyArray<FastChartStep>,
 ) => {
+    if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
+        return getDataAnswerFastResponse(steps);
     if (turnIntent === 'chart_from_previous')
         return getChartFollowupFastResponse(steps);
     if (turnIntent === 'chart_export') return getChartExportFastResponse(steps);
@@ -1220,7 +1274,8 @@ export const buildPrepareStep = ({
         const explicitlyForced = forcedFirstStep?.({ stepNumber }) ?? {};
         const intentForcedTool = getFastIntentTool(
             intentToolGate?.intent === 'chart_from_previous' &&
-                getRecentQueryFieldIds(args.messageHistory).length === 0
+                getRecentQueryFieldIds(args.messageHistory).length === 0 &&
+                !args.chartMutationContext
                 ? null
                 : intentToolGate?.intent,
             preloadedMcpToolNames,
@@ -1546,6 +1601,7 @@ export const getAgentTools = (
         args.execution.mode === 'standard'
             ? getRunQuery({
                   purpose: 'answer',
+                  enableFastResponse: args.enableDataAnswerFastResponse,
                   decisions: args.decisions,
                   question: getAgentQuestion(args),
                   conversation: decisionContext,
@@ -2320,6 +2376,25 @@ const getMemoryBlock = async (
     );
 };
 
+export const getFastDataAnswerPreparedContext = (
+    args: AiAgentArgs,
+): PreparedContext | null => {
+    if (
+        !args.enableDataAnswerFastResponse ||
+        args.execution.mode !== 'standard' ||
+        args.messageHistory.filter((message) => message.role === 'user')
+            .length !== 1
+    )
+        return null;
+
+    return {
+        content: null,
+        mcpToolNames: [],
+        projectContextEntryIds: [],
+        turnIntent: 'data_answer',
+    };
+};
+
 /**
  * Builds the shared runtime for generate and stream turns. Keep context loading,
  * Jev preparation, tool gating, and prompt construction on one code path so the
@@ -2385,23 +2460,34 @@ const prepareAgentTurn = async ({
         agentContext.answerEvidence,
     );
     await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
+    // model-routing already classified this first turn as a simple data answer
+    // with >=99% confidence. Reuse that decision instead of serially asking
+    // JEV for the same intent plus catalog ranking before a fast model can
+    // start. Deterministic pre-grep still seeds fields, and query-intent checks
+    // validate the actual tool args in parallel with warehouse execution.
+    const fastDataAnswerContext = getFastDataAnswerPreparedContext(args);
     const [preparedSeed, preparedContext] = await Promise.all([
-        prepareCandidateSeed(
-            args,
-            availableExplores,
-            verifiedFieldUsage,
-            projectParameterDefinitions,
-        ),
-        prepareRelevantContext(
-            args,
-            dependencies,
-            tools,
-            Object.keys(mcpToolSetup.tools),
-        ),
+        fastDataAnswerContext
+            ? Promise.resolve(undefined)
+            : prepareCandidateSeed(
+                  args,
+                  availableExplores,
+                  verifiedFieldUsage,
+                  projectParameterDefinitions,
+              ),
+        fastDataAnswerContext
+            ? Promise.resolve(fastDataAnswerContext)
+            : prepareRelevantContext(
+                  args,
+                  dependencies,
+                  tools,
+                  Object.keys(mcpToolSetup.tools),
+              ),
     ]);
     if (
         preparedContext?.turnIntent === 'chart_from_previous' &&
-        getRecentQueryFieldIds(args.messageHistory).length === 0
+        getRecentQueryFieldIds(args.messageHistory).length === 0 &&
+        !args.chartMutationContext
     ) {
         preparedContext.turnIntent = 'chart';
     }
@@ -2559,8 +2645,11 @@ export const generateAgentResponse = async ({
                 stepCountIs(args.execution.maxSteps),
                 stopWhenPromptInterrupted,
                 ({ steps }) =>
-                    getTurnFastResponse(preparedContext?.turnIntent, steps) !==
-                    null,
+                    getTurnFastResponse(
+                        args.enableDataAnswerFastResponse,
+                        preparedContext?.turnIntent,
+                        steps,
+                    ) !== null,
             ],
             abortSignal,
             providerOptions: args.providerOptions,
@@ -2802,8 +2891,11 @@ export const generateAgentResponse = async ({
         });
         const responseText = result.text.trim()
             ? result.text
-            : (getTurnFastResponse(preparedContext?.turnIntent, result.steps) ??
-              result.text);
+            : (getTurnFastResponse(
+                  args.enableDataAnswerFastResponse,
+                  preparedContext?.turnIntent,
+                  result.steps,
+              ) ?? result.text);
 
         logger(
             'Generate Agent Response',
@@ -2846,6 +2938,8 @@ export const generateAgentResponse = async ({
                 tokenUsage: completedPromptTokenUsage(
                     result.totalUsage?.totalTokens,
                     result.usage.totalTokens,
+                    args.decisionUsage?.inputTokens,
+                    args.decisionUsage?.outputTokens,
                 ),
                 responseTiming: {
                     startedAt: new Date(startTime).toISOString(),
@@ -2970,6 +3064,7 @@ export const streamAgentResponse = async ({
             string,
             FastChartStep['toolCalls'][number]
         >();
+        const fastToolResults: FastChartStep['toolResults'][number][] = [];
         let fastStreamResponse: string | null = null;
         timing.recordPreparationFinished();
         const result = streamText({
@@ -2980,8 +3075,11 @@ export const streamAgentResponse = async ({
                 stepCountIs(args.execution.maxSteps),
                 stopWhenPromptInterrupted,
                 ({ steps }) =>
-                    getTurnFastResponse(preparedContext?.turnIntent, steps) !==
-                    null,
+                    getTurnFastResponse(
+                        args.enableDataAnswerFastResponse,
+                        preparedContext?.turnIntent,
+                        steps,
+                    ) !== null,
             ],
             providerOptions: args.providerOptions,
             experimental_repairToolCall: args.decisions
@@ -3132,19 +3230,20 @@ export const streamAgentResponse = async ({
                             event.chunk.toolCallId,
                         );
                         if (fastToolCall) {
+                            fastToolResults.push({
+                                toolCallId: event.chunk.toolCallId,
+                                toolName: event.chunk.toolName,
+                                output: event.chunk.output,
+                            });
                             fastStreamResponse = getTurnFastResponse(
+                                args.enableDataAnswerFastResponse,
                                 preparedContext?.turnIntent,
                                 [
                                     {
-                                        toolCalls: [fastToolCall],
-                                        toolResults: [
-                                            {
-                                                toolCallId:
-                                                    event.chunk.toolCallId,
-                                                toolName: event.chunk.toolName,
-                                                output: event.chunk.output,
-                                            },
-                                        ],
+                                        toolCalls: Array.from(
+                                            fastToolCalls.values(),
+                                        ),
+                                        toolResults: fastToolResults,
                                     },
                                 ],
                             );
@@ -3316,6 +3415,7 @@ export const streamAgentResponse = async ({
                 const responseText = modelResponse.trim()
                     ? modelResponse
                     : (getTurnFastResponse(
+                          args.enableDataAnswerFastResponse,
                           preparedContext?.turnIntent,
                           steps,
                       ) ?? modelResponse);
@@ -3375,6 +3475,8 @@ export const streamAgentResponse = async ({
                         tokenUsage: completedPromptTokenUsage(
                             totalUsage.totalTokens,
                             usage.totalTokens,
+                            args.decisionUsage?.inputTokens,
+                            args.decisionUsage?.outputTokens,
                         ),
                         responseTiming,
                     });
@@ -3385,6 +3487,8 @@ export const streamAgentResponse = async ({
                         tokenUsage: completedPromptTokenUsage(
                             totalUsage.totalTokens,
                             usage.totalTokens,
+                            args.decisionUsage?.inputTokens,
+                            args.decisionUsage?.outputTokens,
                         ),
                         responseTiming,
                     });

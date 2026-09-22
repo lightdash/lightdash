@@ -6,6 +6,7 @@ import {
     MergeJoinType,
     MetricType,
     TimeFrames,
+    type AiArtifact,
     type AiWebAppPrompt,
     type Explore,
     type SlackPrompt,
@@ -59,6 +60,7 @@ const makePrompt = (): AiWebAppPrompt => ({
     errorMessage: null,
     humanScore: null,
     modelConfig: null,
+    battleProfile: null,
 });
 
 const makeSlackPrompt = (): SlackPrompt => ({
@@ -151,8 +153,13 @@ const executeTool = async (
     enableFilterExpressions = false,
     explore: Explore = validExplore,
     agentContext = new AgentContext([explore]),
+    enableFastResponse = false,
+    purpose: 'visualization' | 'answer' = 'visualization',
+    artifact?: Pick<AiArtifact, 'artifactUuid' | 'versionUuid'>,
 ) => {
     const queryTool = getRunQuery({
+        purpose,
+        enableFastResponse,
         decisions,
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runAsyncQuery,
@@ -162,7 +169,7 @@ const executeTool = async (
         projectParameterDefinitions: {},
         getPrompt: vi.fn().mockResolvedValue(prompt),
         sendFile: vi.fn().mockResolvedValue(undefined),
-        createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
+        createOrUpdateArtifact: vi.fn().mockResolvedValue(artifact),
         maxLimit: 500,
         maxContextRows: Number.POSITIVE_INFINITY,
         exposeQueryUuid,
@@ -184,6 +191,38 @@ const executeTool = async (
 };
 
 describe('getRunQuery', () => {
+    it.each([false, true])(
+        'only exposes the internal fast response when explicitly enabled: %s',
+        async (enabled) => {
+            const output = await executeTool(
+                vi.fn().mockResolvedValue({
+                    queryUuid: 'query-1',
+                    rows: [{ a_dim1: 'x', a_met1: 1 }],
+                    fields: {},
+                    cacheMetadata: { cacheHit: false },
+                }),
+                true,
+                makePrompt(),
+                false,
+                false,
+                undefined,
+                toolInput,
+                false,
+                validExplore,
+                new AgentContext([validExplore]),
+                enabled,
+                'answer',
+            );
+
+            expect(output.metadata).toHaveProperty('status', 'success');
+            if (enabled) {
+                expect(output.metadata).toHaveProperty('fastResponse');
+            } else {
+                expect(output.metadata).not.toHaveProperty('fastResponse');
+            }
+        },
+    );
+
     it.each([false, true])(
         'only flagged presentation requests forward a previous result reference: %s',
         async (enabled) => {
@@ -649,6 +688,51 @@ describe('getRunQuery', () => {
         expect(output.result).toContain('a_met1');
     });
 
+    it('keeps a table artifact for fast data answers in web chat', async () => {
+        const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
+        const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
+            queryUuid: '11111111-1111-4111-8111-111111111111',
+            rows: [{ a_dim1: 'one', a_met1: 1 }],
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+        });
+        const queryTool = getRunQuery({
+            purpose: 'answer',
+            enableFastResponse: true,
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            runAsyncQuery,
+            runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
+            enableMergeQueries: false,
+            enableFilterExpressions: false,
+            projectParameterDefinitions: {},
+            getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+            sendFile: vi.fn().mockResolvedValue(undefined),
+            createOrUpdateArtifact,
+            maxLimit: 500,
+            maxContextRows: Number.POSITIVE_INFINITY,
+            exposeQueryUuid: false,
+            enableDataAccess: true,
+            slackLinksOnly: false,
+            resolveCustomChartType: vi.fn().mockResolvedValue(null),
+            exportCustomChartTypeImage: vi.fn() as ExportCustomChartTypeImageFn,
+        });
+
+        await queryTool.execute!(toolInput, {
+            messages: [],
+            toolCallId: 'tool-call-1',
+            experimental_context: new AgentContext([validExplore]),
+        });
+
+        expect(createOrUpdateArtifact).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                artifactType: 'chart',
+                vizConfig: expect.objectContaining({
+                    config: expect.objectContaining({ chartConfig: null }),
+                }),
+            }),
+        );
+    });
+
     it('resolves filter expressions before execution and persists replay args', async () => {
         const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);
         const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
@@ -975,6 +1059,41 @@ describe('getRunQuery', () => {
                 status: 'success',
                 queryUuid: '11111111-1111-4111-8111-111111111111',
                 queryCacheHit: false,
+            },
+        });
+    });
+
+    it('returns the artifact version in successful web visualization metadata', async () => {
+        const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
+            queryUuid: '11111111-1111-4111-8111-111111111111',
+            rows: [{ a_dim1: 'one', a_met1: 1 }],
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+        });
+
+        await expect(
+            executeTool(
+                runAsyncQuery,
+                true,
+                makePrompt(),
+                false,
+                false,
+                undefined,
+                toolInput,
+                false,
+                validExplore,
+                new AgentContext([validExplore]),
+                false,
+                'visualization',
+                {
+                    artifactUuid: 'artifact-uuid',
+                    versionUuid: 'version-uuid',
+                },
+            ),
+        ).resolves.toMatchObject({
+            metadata: {
+                status: 'success',
+                artifactVersionUuid: 'version-uuid',
             },
         });
     });

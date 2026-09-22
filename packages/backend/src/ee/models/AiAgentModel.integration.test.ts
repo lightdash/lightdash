@@ -144,6 +144,17 @@ describe('AiAgentModel prompt activity', () => {
         );
         const byPrompt =
             await model.findArtifactVersionsByPromptUuid(promptUuid);
+        const previous = await model.getPreviousArtifactVersion(
+            created.artifactUuid,
+            version.versionNumber,
+        );
+        const beforeFirst = await model.getPreviousArtifactVersion(
+            created.artifactUuid,
+            created.versionNumber,
+        );
+
+        expect(previous?.versionUuid).toBe(created.versionUuid);
+        expect(beforeFirst).toBeNull();
 
         for (const artifact of [
             created,

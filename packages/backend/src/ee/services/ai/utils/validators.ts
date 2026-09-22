@@ -1548,6 +1548,12 @@ export function validateAxisFields(
     const customMetricIds = customMetrics?.map(getItemId) ?? [];
     const selectableMetrics = [...selectedMetrics, ...customMetricIds];
 
+    const shapeErrors: string[] = [];
+    if (chartConfig.defaultVizType !== 'table' && !chartConfig.xAxisDimension) {
+        shapeErrors.push(
+            `Error: ${chartConfig.defaultVizType} chart requires an x-axis dimension. Add a dimension to queryConfig.dimensions and use its field id as xAxisDimension.`,
+        );
+    }
     // Validate both axis fields
     const xAxisErrors = validateXAxisField(
         chartConfig.xAxisDimension,
@@ -1568,7 +1574,7 @@ export function validateAxisFields(
         );
     }
 
-    const errors = [...xAxisErrors, ...yAxisErrors];
+    const errors = [...shapeErrors, ...xAxisErrors, ...yAxisErrors];
 
     if (errors.length > 0) {
         const errorMessage = `Invalid axis field configuration:
@@ -1576,6 +1582,7 @@ export function validateAxisFields(
 ${errors.join('\n\n')}
 
 Remember:
+- non-table charts require an x-axis dimension
 - xAxisDimension must be included in queryConfig.dimensions
 - yAxisMetrics must be included in queryConfig.metrics or tableCalculations`;
 

@@ -1,0 +1,419 @@
+import {
+    DimensionType,
+    FieldType,
+    MetricType,
+    type AiSemanticChartArtifactConfig,
+    type Explore,
+} from '@lightdash/common';
+import { describe, expect, it, vi } from 'vitest';
+import type { DecisionAnswers } from './AiDecisionClient';
+import {
+    buildChartIntentContext,
+    decideTurn,
+    extractNumberCandidates,
+    interpretChartIntent,
+    isChartEditAttempt,
+    selectFilterValues,
+} from './chartIntent';
+
+const dimension = (name: string, type: DimensionType, label: string) => ({
+    name,
+    table: 'orders',
+    fieldType: FieldType.DIMENSION,
+    type,
+    label,
+});
+
+const explore = {
+    name: 'orders',
+    label: 'Orders',
+    baseTable: 'orders',
+    tables: {
+        orders: {
+            label: 'Orders',
+            dimensions: {
+                date: dimension('date', DimensionType.DATE, 'Date'),
+                status: dimension('status', DimensionType.STRING, 'Status'),
+                region: dimension('region', DimensionType.STRING, 'Region'),
+            },
+            metrics: {
+                count: {
+                    name: 'count',
+                    table: 'orders',
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.COUNT,
+                    label: 'Count',
+                },
+            },
+        },
+    },
+} as unknown as Explore;
+
+const artifact: AiSemanticChartArtifactConfig = {
+    source: 'semantic',
+    config: {
+        title: 'Orders',
+        description: 'Orders over time',
+        queryConfig: {
+            exploreName: 'orders',
+            dimensions: ['orders_date', 'orders_status'],
+            metrics: ['orders_count'],
+            sorts: [],
+            limit: 500,
+            parameters: null,
+            customMetrics: null,
+            tableCalculations: null,
+            filters: null,
+        },
+        chartConfig: {
+            defaultVizType: 'bar',
+            xAxisDimension: 'orders_date',
+            yAxisMetrics: ['orders_count'],
+            groupBy: ['orders_status'],
+            xAxisType: 'time',
+            stackBars: null,
+            lineType: null,
+            xAxisLabel: '',
+            yAxisLabel: '',
+            secondaryYAxisMetric: null,
+            secondaryYAxisLabel: null,
+        },
+    },
+};
+
+const choice = (value: string, probability = 0.95) => ({
+    type: 'choice' as const,
+    choice: value,
+    confidence: probability,
+    probabilities: { [value]: probability, other: 1 - probability },
+});
+const noul = (value: number) => ({ type: 'noul' as const, noul: value });
+
+const interpret = (prompt: string, answers: Partial<DecisionAnswers>) =>
+    interpretChartIntent({
+        answers: { multiple: noul(0.05), ...answers } as DecisionAnswers,
+        prompt,
+        context: buildChartIntentContext({ prompt, artifact, explore }),
+    });
+
+describe('interpretChartIntent', () => {
+    it('leaves new questions to the agent', () => {
+        expect(
+            interpret('why did orders drop?', {
+                intent: choice('new_question'),
+            }),
+        ).toEqual({ type: 'not_an_edit' });
+    });
+
+    it('refuses to partially apply a request that asks for several things', () => {
+        expect(
+            interpret('make it a line and filter to last year', {
+                intent: choice('chart_type'),
+                multiple: noul(0.9),
+                chartType: choice('line'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'multiple' });
+    });
+
+    it('resolves a chart type and prefers it over a swap', () => {
+        expect(
+            interpret('horizontal bars', {
+                intent: choice('swap_axes'),
+                chartType: choice('horizontal'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: { kind: 'chart_type', chartType: 'horizontal' },
+        });
+    });
+
+    it('adds a chosen field together with a named chart type', () => {
+        expect(
+            interpret('add region to the line chart', {
+                intent: choice('add_field'),
+                addField: choice('orders_region'),
+                chartType: choice('line'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'add_field',
+                fieldId: 'orders_region',
+                chartType: 'line',
+            },
+        });
+    });
+
+    it('does not add a field JEV could not pick confidently', () => {
+        expect(
+            interpret('segment by colour of the moon', {
+                intent: choice('add_field'),
+                addField: choice('none'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'add-field' });
+    });
+
+    it('asks for warehouse values before applying a value filter', () => {
+        expect(
+            interpret('drop the cancelled ones', {
+                intent: choice('filter'),
+                filterKind: choice('exclude_values'),
+                filterField: choice('orders_status'),
+            }),
+        ).toEqual({
+            type: 'needs_values',
+            filter: { fieldId: 'orders_status', exclude: true },
+        });
+    });
+
+    it('never assumes the filter field when JEV names none', () => {
+        expect(
+            interpret('only the ones from the website', {
+                intent: choice('filter'),
+                filterKind: choice('include_values'),
+                filterField: choice('none'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'filter-field' });
+    });
+
+    it('uses the only date dimension for a trailing window', () => {
+        expect(
+            interpret('last 6 months', {
+                intent: choice('filter'),
+                filterKind: choice('last_period'),
+                periodUnit: choice('months'),
+                number: choice('6'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'filter_period',
+                fieldId: 'orders_date',
+                period: { type: 'last', count: 6, unit: 'months' },
+            },
+        });
+    });
+
+    it('only accepts numbers stated in the prompt', () => {
+        expect(
+            interpret('top few', {
+                intent: choice('sort'),
+                sortDirection: choice('descending'),
+                sortFieldNamed: noul(0.1),
+                number: choice('10'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'sort',
+                fieldId: null,
+                descending: true,
+                limit: null,
+            },
+        });
+    });
+
+    it('sorts by a named field', () => {
+        expect(
+            interpret('sort by count, lowest first', {
+                intent: choice('sort'),
+                sortDirection: choice('ascending'),
+                sortFieldNamed: noul(0.95),
+                sortField: choice('orders_count'),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'sort',
+                fieldId: 'orders_count',
+                descending: false,
+                limit: null,
+            },
+        });
+    });
+
+    it('treats low-confidence intents as unresolved', () => {
+        expect(interpret('hmm', { intent: choice('chart_type', 0.3) })).toEqual(
+            { type: 'unresolved', reason: 'intent' },
+        );
+    });
+});
+
+describe('isChartEditAttempt', () => {
+    it.each([
+        [{ type: 'intent', intent: { kind: 'undo' } }, true],
+        [
+            { type: 'needs_values', filter: { fieldId: 'a', exclude: false } },
+            true,
+        ],
+        [{ type: 'unresolved', reason: 'add-field' }, true],
+        [{ type: 'unresolved', reason: 'intent' }, false],
+        [{ type: 'unresolved', reason: 'multiple' }, false],
+        [{ type: 'unresolved', reason: 'decision-unavailable' }, false],
+        [{ type: 'not_an_edit' }, false],
+    ] as const)('%j -> %s', (resolution, expected) => {
+        expect(isChartEditAttempt(resolution)).toBe(expected);
+    });
+});
+
+describe('buildChartIntentContext', () => {
+    it('offers only unselected visible dimensions as addable fields', () => {
+        const context = buildChartIntentContext({
+            prompt: 'segment by region',
+            artifact,
+            explore,
+        });
+        expect(context.addableFields.map(({ id }) => id)).toEqual([
+            'orders_region',
+        ]);
+        expect(context.currentFields.map(({ id }) => id)).toEqual([
+            'orders_date',
+            'orders_status',
+            'orders_count',
+        ]);
+    });
+
+    it('caps large explores while keeping fields that overlap the prompt', () => {
+        const extra = Array.from({ length: 120 }, (_, index) => ({
+            id: `other_field_${index}`,
+            label: `Field ${index}`,
+            table: 'Other',
+            description: null,
+            isDate: false,
+        }));
+        const context = buildChartIntentContext({
+            prompt: 'segment by warehouse zone',
+            artifact,
+            explore,
+            extraAddableFields: [
+                ...extra,
+                {
+                    id: 'other_warehouse_zone',
+                    label: 'Warehouse zone',
+                    table: 'Other',
+                    description: null,
+                    isDate: false,
+                },
+            ],
+        });
+        expect(context.addableFields).toHaveLength(80);
+        expect(context.addableFields[0].id).toBe('other_warehouse_zone');
+    });
+});
+
+describe('extractNumberCandidates', () => {
+    it('reads digits and number words', () => {
+        expect(extractNumberCandidates('top five of the last 30 days')).toEqual(
+            [30, 5],
+        );
+    });
+});
+
+describe('decideTurn', () => {
+    it('asks only the routing question outside chart threads', async () => {
+        const evaluate = vi.fn().mockResolvedValue({ simple: noul(0.9) });
+        const { decision } = await decideTurn({
+            decisions: { evaluate },
+            prompt: 'how many orders so far?',
+            instructions: null,
+            conversation: [],
+            context: null,
+        });
+        expect(decision).toEqual({ simpleDataAnswer: true, chart: null });
+        expect(evaluate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                operation: 'model-routing',
+                questions: { simple: expect.anything() },
+            }),
+        );
+    });
+
+    it('batches routing and chart questions into one request on chart threads', async () => {
+        const evaluate = vi.fn().mockResolvedValue({
+            intent: choice('chart_type'),
+            multiple: noul(0.05),
+            chartType: choice('line'),
+            simple: noul(0.95),
+        });
+        const { decision } = await decideTurn({
+            decisions: { evaluate },
+            prompt: 'as a line',
+            instructions: null,
+            conversation: [],
+            context: buildChartIntentContext({
+                prompt: 'as a line',
+                artifact,
+                explore,
+            }),
+        });
+        expect(evaluate).toHaveBeenCalledTimes(1);
+        expect(Object.keys(evaluate.mock.calls[0][0].questions)).toEqual(
+            expect.arrayContaining([
+                'intent',
+                'multiple',
+                'simple',
+                'addField',
+                'sortField',
+                'filterField',
+            ]),
+        );
+        expect(decision).toEqual({
+            simpleDataAnswer: false,
+            chart: {
+                type: 'intent',
+                intent: { kind: 'chart_type', chartType: 'line' },
+            },
+        });
+    });
+
+    it('falls back to the agent when JEV is unavailable', async () => {
+        const { decision } = await decideTurn({
+            decisions: { evaluate: vi.fn().mockResolvedValue(null) },
+            prompt: 'as a line',
+            instructions: null,
+            conversation: [],
+            context: buildChartIntentContext({
+                prompt: 'as a line',
+                artifact,
+                explore,
+            }),
+        });
+        expect(decision).toEqual({
+            simpleDataAnswer: false,
+            chart: { type: 'unresolved', reason: 'decision-unavailable' },
+        });
+    });
+});
+
+describe('selectFilterValues', () => {
+    it('keeps every candidate value JEV selects', async () => {
+        const evaluate = vi.fn().mockResolvedValue({
+            value0: noul(0.95),
+            value1: noul(0.1),
+            value2: noul(0.9),
+        });
+        await expect(
+            selectFilterValues({
+                decisions: { evaluate },
+                prompt: 'just shipped and completed',
+                filter: { fieldId: 'orders_status', exclude: false },
+                fieldLabel: 'Status',
+                candidates: ['shipped', 'placed', 'completed'],
+            }),
+        ).resolves.toEqual(['shipped', 'completed']);
+    });
+
+    it('returns null when nothing matches', async () => {
+        await expect(
+            selectFilterValues({
+                decisions: {
+                    evaluate: vi.fn().mockResolvedValue({ value0: noul(0.1) }),
+                },
+                prompt: 'only the website ones',
+                filter: { fieldId: 'orders_status', exclude: false },
+                fieldLabel: 'Status',
+                candidates: ['placed'],
+            }),
+        ).resolves.toBeNull();
+    });
+});

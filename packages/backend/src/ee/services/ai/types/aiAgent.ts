@@ -16,6 +16,7 @@ import {
     type AiDeepResearchWorkerResult,
     type AiDeepResearchWorkerTask,
     type AiDeepResearchWorkerTaskInput,
+    type AiSemanticChartArtifactConfig,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -25,7 +26,10 @@ import {
     type AiUsageTokens,
 } from '../../../../analytics/aiUsage';
 import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
-import type { AiDecisionClient } from '../decisions/AiDecisionClient';
+import type {
+    AiDecisionClient,
+    AiDecisionUsage,
+} from '../decisions/AiDecisionClient';
 import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
 import type {
@@ -204,6 +208,13 @@ export type AiAgentDeepResearchRunContext = {
 
 export type AiAgentArgs = AnyAiModel & {
     decisions?: AiDecisionClient;
+    decisionUsage?: AiDecisionUsage;
+    /** Finish a high-confidence simple data answer from validated query rows. */
+    enableDataAnswerFastResponse: boolean;
+    /** A chart-edit preflight found an active chart but could not safely apply it. */
+    forceChartMutationRouting?: boolean;
+    /** Authoritative active chart supplied when recent model history lacks a query call. */
+    chartMutationContext?: AiSemanticChartArtifactConfig;
     /** Optional, provider-aware fast model used only for schema-constrained steps. */
     toolCallModel?: {
         model: AnyAiModel['model'];

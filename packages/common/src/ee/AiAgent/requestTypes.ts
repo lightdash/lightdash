@@ -72,10 +72,17 @@ export type AiPromptTokenUsage = {
     totalTokens: number;
     /** Final step's total — the proxy for resident context size, drives compaction. */
     finalStepTotalTokens?: number;
+    /** TypeSafe/JEV input tokens, tracked separately from the main agent model. */
+    decisionInputTokens?: number;
+    /** TypeSafe/JEV output tokens, tracked separately from the main agent model. */
+    decisionOutputTokens?: number;
 };
 
-/** Write shape: both figures are required so a writer can't omit the compaction input. */
-export type AiPromptTokenUsageUpdate = Required<AiPromptTokenUsage>;
+/** Write shape: agent figures are required; decision usage is rollout-safe. */
+export type AiPromptTokenUsageUpdate = Required<
+    Pick<AiPromptTokenUsage, 'totalTokens' | 'finalStepTotalTokens'>
+> &
+    Pick<AiPromptTokenUsage, 'decisionInputTokens' | 'decisionOutputTokens'>;
 
 /** Wall-clock timing of one model run, stamped by the agent loop. ISO strings. */
 export type AiPromptResponseStageTiming = {
@@ -164,7 +171,10 @@ export type CreateWebAppThread = {
     createdFrom: AiWebAppThreadCreatedFrom;
     agentUuid: string | null;
     embedSpaceUuid?: string | null;
+    battleProfile?: AiAgentBattleProfile | null;
 };
+
+export type AiAgentBattleProfile = 'fast' | 'baseline';
 
 export type AiPrompt = {
     organizationUuid: string;
@@ -181,6 +191,8 @@ export type AiPrompt = {
     errorMessage: string | null;
     humanScore: number | null;
     modelConfig: AiAgentModelConfig | null;
+    /** Internal paired-run profile inherited from the web thread. */
+    battleProfile: AiAgentBattleProfile | null;
 };
 
 export type SlackPrompt = AiPrompt & {

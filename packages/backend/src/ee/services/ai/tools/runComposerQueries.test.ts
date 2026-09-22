@@ -28,6 +28,7 @@ const makePrompt = (): AiWebAppPrompt => ({
     errorMessage: null,
     humanScore: null,
     modelConfig: null,
+    battleProfile: null,
 });
 
 type ComposerNode = ToolComposerQueriesArgs['queries'][number];

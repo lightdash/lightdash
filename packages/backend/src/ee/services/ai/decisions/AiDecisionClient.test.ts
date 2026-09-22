@@ -57,6 +57,19 @@ describe('AiDecisionClient', () => {
         );
     });
 
+    it('tracks provider usage without mixing it into the decision answers', async () => {
+        const usage = { inputTokens: 0, outputTokens: 0 };
+        const client = new AiDecisionClient(config, async () =>
+            Response.json({
+                ...result,
+                usage: { input_tokens: 123, output_tokens: 4 },
+            }),
+        ).withUsage(usage);
+
+        expect(await client.evaluate(request)).toEqual(result.answers);
+        expect(usage).toEqual({ inputTokens: 123, outputTokens: 4 });
+    });
+
     it.each([
         { pick: { ...result.answers.pick, choice: 'invented' } },
         { pick: { type: 'noul', noul: 0.9 } },
