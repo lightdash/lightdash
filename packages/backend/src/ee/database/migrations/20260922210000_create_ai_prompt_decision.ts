@@ -2,6 +2,11 @@ import { Knex } from 'knex';
 
 const AiPromptDecisionTableName = 'ai_prompt_decision';
 
+export const classification = {
+    kind: 'safe',
+    reason: 'Creates a new empty ai_prompt_decision table; existing tables and readers are unaffected.',
+};
+
 export async function up(knex: Knex): Promise<void> {
     await knex.raw(`SET lock_timeout = '10s'`);
     try {
