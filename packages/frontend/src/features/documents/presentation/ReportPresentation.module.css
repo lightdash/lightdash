@@ -356,6 +356,11 @@
         margin-inline: auto;
     }
 
+    .reportHeader {
+        padding-bottom: var(--mantine-spacing-xl);
+        border-bottom: 1px solid var(--mantine-color-default-border);
+    }
+
     .reportTitleRow {
         display: flex;
         align-items: flex-start;
@@ -485,6 +490,11 @@
         :is(h1, h2, h3, h4, h5, h6):first-child {
             margin-top: 0;
         }
+    }
+
+    .documentMarkdown h1[data-first-heading] {
+        padding-top: 0;
+        border-top: 0;
     }
 }
 

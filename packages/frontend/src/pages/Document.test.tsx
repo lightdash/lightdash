@@ -238,6 +238,31 @@ describe('Document page', () => {
         ).toEqual(['Findings', 'Orders chart', 'Recommendations']);
     });
 
+    test('identifies the opening section even when an introductory cell precedes it', async () => {
+        mocks.api.mockResolvedValue({
+            ...document,
+            version: {
+                ...document.version,
+                content: {
+                    cells: [
+                        {
+                            type: 'markdown',
+                            content: { markdown: 'Opening narrative' },
+                        },
+                        ...document.version.content.cells,
+                    ],
+                },
+            },
+        });
+        renderPage();
+        expect(
+            await screen.findByRole('heading', { name: 'Findings' }),
+        ).toHaveAttribute('data-first-heading', 'true');
+        expect(
+            screen.getByRole('heading', { name: 'Recommendations' }),
+        ).not.toHaveAttribute('data-first-heading');
+    });
+
     test('shows unavailable content without leaking the server error', async () => {
         mocks.api.mockRejectedValue({
             error: { message: 'Internal detail', statusCode: 404 },

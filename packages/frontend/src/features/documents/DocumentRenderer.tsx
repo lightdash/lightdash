@@ -68,6 +68,7 @@ const DocumentRenderer = ({
                         >
                             <ReportMarkdown
                                 markdown={cell.content.markdown}
+                                firstHeadingId={headings[0]?.id}
                                 headingId={(offset) =>
                                     getDocumentHeadingId(index, offset)
                                 }
