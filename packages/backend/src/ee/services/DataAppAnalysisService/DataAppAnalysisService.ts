@@ -32,7 +32,14 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
-import { type AiKeyManagement } from '../../../analytics/aiUsage';
+import {
+    type AiKeyManagement,
+    type AiUsageTokens,
+} from '../../../analytics/aiUsage';
+import {
+    type DataAppAnalysisOutcome,
+    type LightdashAnalytics,
+} from '../../../analytics/LightdashAnalytics';
 import { fromSession, toSessionUser } from '../../../auth/account';
 import { type AppModel } from '../../../models/AppModel';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -157,6 +164,38 @@ const DAILY_CAP_KEY = {
     keyof DataAppAnalysisLimits
 >;
 
+/** Filled in as an operation progresses so the outcome event has what it knows. */
+type OutcomeMeta = {
+    appVersion: number | null;
+    sourceCount: number | null;
+    truncated: boolean | null;
+    model: string | null;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    agentUuid: string | null;
+    threadUuid: string | null;
+    queriesRun: number | null;
+    partial: boolean | null;
+    /** Set by the budget check so tracking never resolves it a second time. */
+    keyManagement: AiKeyManagement | null;
+};
+
+type OutcomeIds = { userId: string; organizationId: string | null };
+
+const emptyOutcomeMeta = (sourceCount: number | null): OutcomeMeta => ({
+    appVersion: null,
+    sourceCount,
+    truncated: null,
+    model: null,
+    inputTokens: null,
+    outputTokens: null,
+    agentUuid: null,
+    threadUuid: null,
+    queriesRun: null,
+    partial: null,
+    keyManagement: null,
+});
+
 type Dependencies = {
     dataAppAnalysisModel: DataAppAnalysisModel;
     appModel: AppModel;
@@ -171,6 +210,7 @@ type Dependencies = {
     aiAgentService: AiAgentService;
     aiAgentModel: AiAgentModel;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
+    analytics: LightdashAnalytics;
 };
 
 /** Stable error code the host and SDK key their "unavailable" states on. */
@@ -190,6 +230,21 @@ export class DataAppAnalysisUnavailableError extends ForbiddenError {
         this.name = 'DataAppAnalysisUnavailableError';
     }
 }
+
+const outcomeForError = (e: unknown): DataAppAnalysisOutcome => {
+    if (e instanceof TooManyRequestsError) return 'rate_limited';
+    if (e instanceof DataAppAnalysisUnavailableError) {
+        return e.data.code === 'budget_exhausted' ? 'budget' : 'denied';
+    }
+    if (
+        e instanceof ForbiddenError ||
+        e instanceof NotFoundError ||
+        e instanceof ParameterError
+    ) {
+        return 'denied';
+    }
+    return 'error';
+};
 
 const fieldLegend = (fields: ItemsMap, fieldIds: string[]): string =>
     fieldIds
@@ -264,6 +319,8 @@ export class DataAppAnalysisService extends BaseService {
 
     private readonly aiAgentModel: AiAgentModel;
 
+    private readonly analytics: LightdashAnalytics;
+
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
 
     constructor(deps: Dependencies) {
@@ -281,6 +338,7 @@ export class DataAppAnalysisService extends BaseService {
         this.aiAgentService = deps.aiAgentService;
         this.aiAgentModel = deps.aiAgentModel;
         this.aiOrganizationSettingsService = deps.aiOrganizationSettingsService;
+        this.analytics = deps.analytics;
     }
 
     private async getProjectContext(
@@ -411,6 +469,8 @@ export class DataAppAnalysisService extends BaseService {
         content: string;
         grounding: GroundingSource[];
         sectionHashes: DataAppSourceHash[];
+        /** Rows or whole charts left out to fit the model budget. */
+        truncated: boolean;
     }> {
         const grounding: GroundingSource[] = [];
         const sectionHashes: DataAppSourceHash[] = [];
@@ -472,6 +532,9 @@ export class DataAppAnalysisService extends BaseService {
             content: serializeSections(sections),
             grounding,
             sectionHashes,
+            truncated:
+                sections.omittedCharts.length > 0 ||
+                sections.parts.some((part) => part.includes('[Data truncated')),
         };
     }
 
@@ -657,6 +720,57 @@ export class DataAppAnalysisService extends BaseService {
         appUuid: string,
         body: DataAppDetectRequest,
     ): Promise<DataAppAnalysis> {
+        const startedAt = Date.now();
+        const meta = emptyOutcomeMeta(body.sources.length);
+        const note = (patch: Partial<OutcomeMeta>) => {
+            Object.assign(meta, patch);
+        };
+        try {
+            const { analysis, outcome } = await this.detectWithOutcome(
+                account,
+                projectUuid,
+                appUuid,
+                body,
+                note,
+            );
+            await this.trackOutcome(
+                DataAppAnalysisService.idsFromAccount(account),
+                projectUuid,
+                appUuid,
+                {
+                    operation: 'detect',
+                    outcome,
+                    startedAt,
+                    meta,
+                },
+            );
+            return analysis;
+        } catch (e) {
+            await this.trackOutcome(
+                DataAppAnalysisService.idsFromAccount(account),
+                projectUuid,
+                appUuid,
+                {
+                    operation: 'detect',
+                    outcome: outcomeForError(e),
+                    startedAt,
+                    meta,
+                },
+            );
+            throw e;
+        }
+    }
+
+    private async detectWithOutcome(
+        account: Account,
+        projectUuid: string,
+        appUuid: string,
+        body: DataAppDetectRequest,
+        note: (patch: Partial<OutcomeMeta>) => void,
+    ): Promise<{
+        analysis: DataAppAnalysis;
+        outcome: Extract<DataAppAnalysisOutcome, 'ok' | 'cached'>;
+    }> {
         DataAppAnalysisService.validateSources(body.sources);
         const instructions = body.instructions?.trim() || null;
         const { user, appVersion } = await this.assertViewer(
@@ -664,14 +778,13 @@ export class DataAppAnalysisService extends BaseService {
             projectUuid,
             appUuid,
         );
+        note({ appVersion });
         // Content is read before the rate check on purpose: the hash decides
         // whether a stored analysis serves this request, and cache hits must
         // stay free. The 429 protects model spend, not the result reads.
-        const { content, grounding, sectionHashes } = await this.buildContent(
-            account,
-            projectUuid,
-            body.sources,
-        );
+        const { content, grounding, sectionHashes, truncated } =
+            await this.buildContent(account, projectUuid, body.sources);
+        note({ truncated });
         const contentHash = contentHashOf(sectionHashes, instructions);
         if (!body.force) {
             const reusable = await this.findReusable({
@@ -684,7 +797,9 @@ export class DataAppAnalysisService extends BaseService {
                 sectionHashes,
                 contentHash,
             });
-            if (reusable) return reusable.analysis;
+            if (reusable) {
+                return { analysis: reusable.analysis, outcome: 'cached' };
+            }
         }
         const inFlightKey = `${user.userUuid}:${appUuid}:${appVersion}:${contentHash}`;
         const inFlight = this.inFlightDetects.get(inFlightKey);
@@ -697,9 +812,14 @@ export class DataAppAnalysisService extends BaseService {
                 sectionHashes,
             );
             return {
-                ...shared.analysis,
-                ...(mapping ? remapQueryUuids(shared.analysis, mapping) : {}),
-                sources: body.sources,
+                analysis: {
+                    ...shared.analysis,
+                    ...(mapping
+                        ? remapQueryUuids(shared.analysis, mapping)
+                        : {}),
+                    sources: body.sources,
+                },
+                outcome: 'cached',
             };
         }
         // Registered before any await so a concurrent caller joins this run
@@ -708,8 +828,9 @@ export class DataAppAnalysisService extends BaseService {
             .then(() =>
                 this.assertDailyBudget(user.organizationUuid!, 'detect'),
             )
-            .then(() =>
-                this.runDetect({
+            .then((keyManagement) => {
+                note({ keyManagement });
+                return this.runDetect({
                     user,
                     projectUuid,
                     appUuid,
@@ -720,11 +841,17 @@ export class DataAppAnalysisService extends BaseService {
                     grounding,
                     sectionHashes,
                     contentHash,
-                }),
-            )
+                });
+            })
             .finally(() => this.inFlightDetects.delete(inFlightKey));
         this.inFlightDetects.set(inFlightKey, run);
-        return (await run).analysis;
+        const done = await run;
+        note({
+            model: done.modelId,
+            inputTokens: done.usage.inputTokens,
+            outputTokens: done.usage.outputTokens,
+        });
+        return { analysis: done.analysis, outcome: 'ok' };
     }
 
     private async runDetect(args: {
@@ -741,6 +868,8 @@ export class DataAppAnalysisService extends BaseService {
     }): Promise<{
         analysis: DataAppAnalysis;
         sectionHashes: DataAppSourceHash[];
+        modelId: string | null;
+        usage: AiUsageTokens;
     }> {
         const {
             user,
@@ -752,11 +881,13 @@ export class DataAppAnalysisService extends BaseService {
             content,
             grounding,
         } = args;
-        const { detection, modelId } =
+        const modelStartedAt = Date.now();
+        const { detection, modelId, usage } =
             await this.aiService.detectDataAppAnomalies(user, {
                 content,
                 instructions,
                 projectUuid,
+                appUuid,
             });
         const { anomalies, droppedCount } = groundAnomalies(
             detection.anomalies,
@@ -791,6 +922,9 @@ export class DataAppAnalysisService extends BaseService {
             instructions,
             result,
             modelId,
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+            latencyMs: Date.now() - modelStartedAt,
             contentHash: args.contentHash,
             sourceHashes: args.sectionHashes,
             reusedFromAnalysisUuid: null,
@@ -806,6 +940,8 @@ export class DataAppAnalysisService extends BaseService {
                 generatedAt: row.created_at,
             },
             sectionHashes: args.sectionHashes,
+            modelId,
+            usage,
         };
     }
 
@@ -926,19 +1062,74 @@ export class DataAppAnalysisService extends BaseService {
         appUuid: string,
         body: DataAppPromptRequest,
     ): Promise<DataAppPromptAnswer> {
+        const startedAt = Date.now();
+        const meta = emptyOutcomeMeta(body.sources?.length ?? null);
+        const note = (patch: Partial<OutcomeMeta>) => {
+            Object.assign(meta, patch);
+        };
+        try {
+            const answer = await this.promptWithOutcome(
+                account,
+                projectUuid,
+                appUuid,
+                body,
+                note,
+            );
+            await this.trackOutcome(
+                DataAppAnalysisService.idsFromAccount(account),
+                projectUuid,
+                appUuid,
+                {
+                    operation: 'prompt',
+                    outcome: 'ok',
+                    startedAt,
+                    meta,
+                },
+            );
+            return answer;
+        } catch (e) {
+            await this.trackOutcome(
+                DataAppAnalysisService.idsFromAccount(account),
+                projectUuid,
+                appUuid,
+                {
+                    operation: 'prompt',
+                    outcome: outcomeForError(e),
+                    startedAt,
+                    meta,
+                },
+            );
+            throw e;
+        }
+    }
+
+    private async promptWithOutcome(
+        account: Account,
+        projectUuid: string,
+        appUuid: string,
+        body: DataAppPromptRequest,
+        note: (patch: Partial<OutcomeMeta>) => void,
+    ): Promise<DataAppPromptAnswer> {
         const { prompt, focus } = DataAppAnalysisService.validatePrompt(body);
         const { user, appVersion } = await this.assertViewer(
             account,
             projectUuid,
             appUuid,
         );
+        note({ appVersion });
         await this.assertRate(user.userUuid, appUuid, 'prompt');
-        await this.assertDailyBudget(user.organizationUuid!, 'prompt');
-        const { content, grounding } = await this.buildContent(
+        note({
+            keyManagement: await this.assertDailyBudget(
+                user.organizationUuid!,
+                'prompt',
+            ),
+        });
+        const { content, grounding, truncated } = await this.buildContent(
             account,
             projectUuid,
             body.sources,
         );
+        note({ truncated });
         // Only field ids the sources actually carry reach the model.
         const knownFieldIds = new Set(
             grounding.flatMap((source) => [...source.fieldIds]),
@@ -950,10 +1141,20 @@ export class DataAppAnalysisService extends BaseService {
         );
         const focusForModel =
             Object.keys(groundedFocus).length > 0 ? groundedFocus : null;
-        const { text, modelId } = await this.aiService.answerDataAppPrompt(
-            user,
-            { content, prompt, focus: focusForModel, projectUuid },
-        );
+        const modelStartedAt = Date.now();
+        const { text, modelId, usage } =
+            await this.aiService.answerDataAppPrompt(user, {
+                content,
+                prompt,
+                focus: focusForModel,
+                projectUuid,
+                appUuid,
+            });
+        note({
+            model: modelId,
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+        });
         const result = { prompt, focus: focusForModel, text };
         await this.assertStillEnabled(user.organizationUuid!);
         const row = await this.dataAppAnalysisModel.create({
@@ -967,6 +1168,9 @@ export class DataAppAnalysisService extends BaseService {
             instructions: null,
             result,
             modelId,
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+            latencyMs: Date.now() - modelStartedAt,
         });
         return {
             ...result,
@@ -1067,6 +1271,42 @@ export class DataAppAnalysisService extends BaseService {
      * from the stored detection under the same viewer.
      */
     async investigate(
+        account: Account,
+        projectUuid: string,
+        appUuid: string,
+        analysisId: string,
+        body: DataAppInvestigateRequest,
+    ): Promise<{ jobId: string }> {
+        const startedAt = Date.now();
+        try {
+            return await this.investigateChecked(
+                account,
+                projectUuid,
+                appUuid,
+                analysisId,
+                body,
+            );
+        } catch (e) {
+            // A queued job reports its own outcome when it runs.
+            await this.trackOutcome(
+                DataAppAnalysisService.idsFromAccount(account),
+                projectUuid,
+                appUuid,
+                {
+                    operation: 'investigate',
+                    outcome: outcomeForError(e),
+                    startedAt,
+                    meta: {
+                        ...emptyOutcomeMeta(null),
+                        agentUuid: body.agentUuid,
+                    },
+                },
+            );
+            throw e;
+        }
+    }
+
+    private async investigateChecked(
         account: Account,
         projectUuid: string,
         appUuid: string,
@@ -1176,6 +1416,11 @@ export class DataAppAnalysisService extends BaseService {
             ...baseLog,
             status: SchedulerJobStatus.STARTED,
         });
+        const startedAt = Date.now();
+        const meta: OutcomeMeta = {
+            ...emptyOutcomeMeta(null),
+            agentUuid: payload.agentUuid,
+        };
         try {
             const sessionUser =
                 await this.userModel.findSessionUserAndOrgByUuid(
@@ -1189,6 +1434,7 @@ export class DataAppAnalysisService extends BaseService {
                 payload.projectUuid,
                 payload.appUuid,
             );
+            meta.appVersion = appVersion;
             const detection = await this.getDetectionForViewer(
                 user,
                 payload.appUuid,
@@ -1232,6 +1478,7 @@ export class DataAppAnalysisService extends BaseService {
                     'Failed to create investigation thread',
                 );
             }
+            meta.threadUuid = thread.uuid;
 
             const limits =
                 await this.aiOrganizationSettingsService.getDataAppAnalysisLimits(
@@ -1291,6 +1538,7 @@ export class DataAppAnalysisService extends BaseService {
                     queriesRun: Math.min(queriesRun, maxQueries),
                     partial,
                 },
+                latencyMs: Date.now() - startedAt,
                 parentAnalysisUuid: payload.analysisId,
                 anomalyId: payload.anomalyId,
                 agentUuid: payload.agentUuid,
@@ -1307,6 +1555,21 @@ export class DataAppAnalysisService extends BaseService {
                 },
                 status: SchedulerJobStatus.COMPLETED,
             });
+            await this.trackOutcome(
+                DataAppAnalysisService.idsFromPayload(payload),
+                payload.projectUuid,
+                payload.appUuid,
+                {
+                    operation: 'investigate',
+                    outcome: 'ok',
+                    startedAt,
+                    meta: {
+                        ...meta,
+                        queriesRun: Math.min(queriesRun, maxQueries),
+                        partial,
+                    },
+                },
+            );
         } catch (e) {
             if (abortSignal?.aborted) return;
             await this.schedulerService.logSchedulerJob({
@@ -1314,7 +1577,102 @@ export class DataAppAnalysisService extends BaseService {
                 status: SchedulerJobStatus.ERROR,
                 details: { ...baseLog.details, error: getErrorMessage(e) },
             });
+            await this.trackOutcome(
+                DataAppAnalysisService.idsFromPayload(payload),
+                payload.projectUuid,
+                payload.appUuid,
+                {
+                    operation: 'investigate',
+                    outcome: outcomeForError(e),
+                    startedAt,
+                    meta,
+                },
+            );
             throw e;
+        }
+    }
+
+    /** Never throws: analytics must not change an operation's result. */
+    /** The worker's wall-clock timeout aborts the run before it can report. */
+    async trackInvestigationTimeout(
+        payload: DataAppInvestigateJobPayload,
+        elapsedMs: number,
+    ): Promise<void> {
+        await this.trackOutcome(
+            DataAppAnalysisService.idsFromPayload(payload),
+            payload.projectUuid,
+            payload.appUuid,
+            {
+                operation: 'investigate',
+                outcome: 'timeout',
+                startedAt: Date.now() - elapsedMs,
+                meta: {
+                    ...emptyOutcomeMeta(null),
+                    agentUuid: payload.agentUuid,
+                },
+            },
+        );
+    }
+
+    private static idsFromAccount(account: Account): OutcomeIds {
+        return {
+            userId: account.user.id,
+            organizationId: account.organization?.organizationUuid ?? null,
+        };
+    }
+
+    private static idsFromPayload(
+        payload: DataAppInvestigateJobPayload,
+    ): OutcomeIds {
+        return {
+            userId: payload.userUuid,
+            organizationId: payload.organizationUuid,
+        };
+    }
+
+    private async trackOutcome(
+        ids: OutcomeIds,
+        projectUuid: string,
+        appUuid: string,
+        args: {
+            operation: 'detect' | 'prompt' | 'investigate';
+            outcome: DataAppAnalysisOutcome;
+            startedAt: number;
+            meta: OutcomeMeta;
+        },
+    ): Promise<void> {
+        try {
+            const { organizationId } = ids;
+            if (!organizationId) return;
+            let { keyManagement } = args.meta;
+            // The budget check records it on the way through; a run that
+            // never reached it (or was refused by it) resolves it here.
+            if (
+                keyManagement === null &&
+                (args.outcome === 'ok' || args.outcome === 'budget')
+            ) {
+                keyManagement = await this.aiService
+                    .getAmbientKeyManagement(organizationId)
+                    .catch(() => null);
+            }
+            this.analytics.track({
+                event: 'data_app_analysis.completed',
+                userId: ids.userId,
+                properties: {
+                    organizationId,
+                    projectId: projectUuid,
+                    appUuid,
+                    operation: args.operation,
+                    outcome: args.outcome,
+                    latencyMs: Date.now() - args.startedAt,
+                    ...args.meta,
+                    keyManagement,
+                },
+            });
+        } catch (e) {
+            this.logger.warn(
+                `Failed to track data app analysis outcome: ${getErrorMessage(e)}`,
+            );
         }
     }
 }

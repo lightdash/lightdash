@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
+    type AiUsageTokens,
 } from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
@@ -133,7 +134,7 @@ export async function detectDataAppAnomalies(
         /** Calendar date the run happens on; the model has no clock. */
         today: string;
     },
-): Promise<DataAppDetection> {
+): Promise<{ detection: DataAppDetection; usage: AiUsageTokens }> {
     const telemetry = getGeneratorTelemetry(
         modelOptions,
         'detectDataAppAnomalies',
@@ -161,13 +162,17 @@ export async function detectDataAppAnomalies(
             },
         ],
     });
-    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
+    const usage = languageModelUsageToTokens(result.usage);
+    emitAiUsage(telemetry, usage);
     const { anomalies, ...rest } = result.object;
     return {
-        ...rest,
-        anomalies: anomalies.map(({ rowIdentity, ...anomaly }) => ({
-            ...anomaly,
-            dimensionValues: toDimensionValues(rowIdentity),
-        })),
+        detection: {
+            ...rest,
+            anomalies: anomalies.map(({ rowIdentity, ...anomaly }) => ({
+                ...anomaly,
+                dimensionValues: toDimensionValues(rowIdentity),
+            })),
+        },
+        usage,
     };
 }

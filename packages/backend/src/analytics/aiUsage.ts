@@ -127,6 +127,7 @@ export type AiUsageEvent = BaseTrack & {
         aiAgentId: string | null;
         threadId: string | null;
         promptId: string | null;
+        dataAppId: string | null;
         model: string | null;
         provider: string | null;
         keyManagement: AiKeyManagement | null;
@@ -191,6 +192,7 @@ export const emitAiUsage = (
             aiAgentId: getMetadataString(metadata, 'agentUuid'),
             threadId: getMetadataString(metadata, 'threadUuid'),
             promptId: getMetadataString(metadata, 'promptUuid'),
+            dataAppId: getMetadataString(metadata, 'appUuid'),
             model: getMetadataString(metadata, 'model'),
             provider: getMetadataString(metadata, 'provider'),
             keyManagement: parseKeyManagement(

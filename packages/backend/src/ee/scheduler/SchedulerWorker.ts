@@ -554,6 +554,10 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     DATA_APP_INVESTIGATE_TIMEOUT_MS,
                     async (job, e) => {
                         abort.abort();
+                        await this.dataAppAnalysisService.trackInvestigationTimeout(
+                            payload,
+                            DATA_APP_INVESTIGATE_TIMEOUT_MS,
+                        );
                         await this.schedulerService.logSchedulerJob({
                             task: EE_SCHEDULER_TASKS.DATA_APP_INVESTIGATE,
                             jobId: job.id,

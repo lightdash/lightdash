@@ -2,6 +2,7 @@ import { generateText } from 'ai';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
+    type AiUsageTokens,
 } from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
@@ -31,7 +32,7 @@ export async function answerDataAppPrompt(
         prompt: string;
         focus: Record<string, string> | null;
     },
-): Promise<string> {
+): Promise<{ text: string; usage: AiUsageTokens }> {
     const telemetry = getGeneratorTelemetry(
         modelOptions,
         'answerDataAppPrompt',
@@ -62,6 +63,7 @@ export async function answerDataAppPrompt(
             },
         ],
     });
-    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
-    return result.text.trim();
+    const usage = languageModelUsageToTokens(result.usage);
+    emitAiUsage(telemetry, usage);
+    return { text: result.text.trim(), usage };
 }

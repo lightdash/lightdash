@@ -1963,6 +1963,42 @@ export type DataAppFileUploadedEvent = BaseTrack & {
     };
 };
 
+export type DataAppAnalysisOutcome =
+    | 'ok'
+    | 'cached'
+    | 'denied'
+    | 'rate_limited'
+    | 'budget'
+    /** The worker's wall-clock limit stopped an investigation. */
+    | 'timeout'
+    /** Anything unexpected, from the model call to storing the row. */
+    | 'error';
+
+/** One per AI analysis operation on a data app, whatever the outcome. */
+export type DataAppAnalysisCompletedEvent = BaseTrack & {
+    event: 'data_app_analysis.completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        appVersion: number | null;
+        operation: 'detect' | 'prompt' | 'investigate';
+        outcome: DataAppAnalysisOutcome;
+        sourceCount: number | null;
+        truncated: boolean | null;
+        model: string | null;
+        keyManagement: AiKeyManagement | null;
+        agentUuid: string | null;
+        threadUuid: string | null;
+        queriesRun: number | null;
+        partial: boolean | null;
+        latencyMs: number;
+        inputTokens: number | null;
+        outputTokens: number | null;
+    };
+};
+
 export type DataAppViewedEvent = BaseTrack & {
     event: 'data_app.view';
     userId: string;
@@ -4223,6 +4259,7 @@ type TypedEvent =
     | PersistentFileUrlRequestedEvent
     | PersistentFileUrlRespondedEvent
     | UpgradeTelemetryAnalyticsEvent
+    | DataAppAnalysisCompletedEvent
     | AiUsageEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &

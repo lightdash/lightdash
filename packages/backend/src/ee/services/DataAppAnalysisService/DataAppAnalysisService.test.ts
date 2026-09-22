@@ -115,13 +115,22 @@ function buildService(
             displayTimezone: null,
         }),
     };
+    const usage = {
+        inputTokens: 1200,
+        outputTokens: 80,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+        reasoningTokens: null,
+        totalTokens: 1280,
+    };
     const aiService = {
         detectDataAppAnomalies: vi
             .fn()
-            .mockResolvedValue({ detection, modelId: 'fast-model' }),
+            .mockResolvedValue({ detection, modelId: 'fast-model', usage }),
         answerDataAppPrompt: vi.fn().mockResolvedValue({
             text: 'Returns rose to 12.',
             modelId: 'fast-model',
+            usage,
         }),
         getAmbientKeyManagement: vi.fn().mockResolvedValue('lightdash-managed'),
     };
@@ -144,6 +153,7 @@ function buildService(
             .mockResolvedValue(DATA_APP_ANALYSIS_DEFAULT_LIMITS),
     };
     const aiAgentModel = { deleteThread: vi.fn().mockResolvedValue(undefined) };
+    const analytics = { track: vi.fn() };
     const service = new DataAppAnalysisService({
         dataAppAnalysisModel,
         appModel,
@@ -177,6 +187,7 @@ function buildService(
         },
         aiAgentModel,
         aiOrganizationSettingsService,
+        analytics,
     } as never);
     vi.spyOn(
         service as unknown as { createAuditedAbility: () => unknown },
@@ -190,8 +201,14 @@ function buildService(
         appModel,
         aiAgentModel,
         aiOrganizationSettingsService,
+        analytics,
     };
 }
+
+const completedEvent = (analytics: { track: ReturnType<typeof vi.fn> }) =>
+    analytics.track.mock.calls
+        .map(([event]) => event)
+        .filter((event) => event.event === 'data_app_analysis.completed');
 
 const request = { sources: [{ queryUuid: 'q1', label: 'Orders by status' }] };
 
@@ -327,6 +344,57 @@ describe('DataAppAnalysisService.detect', () => {
         expect(appModel.getApp).toHaveBeenCalledWith('app-1', 'other-proj');
         expect(asyncQueryService.getAsyncQueryHistory).not.toHaveBeenCalled();
         expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+    });
+
+    it('stores tokens and latency on the row and reports an ok outcome', async () => {
+        const { service, dataAppAnalysisModel, analytics, aiService } =
+            buildService();
+        await service.detect(buildAccount(), 'proj-1', 'app-1', request);
+        expect(dataAppAnalysisModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                inputTokens: 1200,
+                outputTokens: 80,
+                latencyMs: expect.any(Number),
+            }),
+        );
+        expect(completedEvent(analytics)).toEqual([
+            expect.objectContaining({
+                userId: buildAccount().user.id,
+                properties: expect.objectContaining({
+                    organizationId:
+                        buildAccount().organization.organizationUuid,
+                    projectId: 'proj-1',
+                    appUuid: 'app-1',
+                    appVersion: 3,
+                    operation: 'detect',
+                    outcome: 'ok',
+                    sourceCount: 1,
+                    truncated: false,
+                    model: 'fast-model',
+                    keyManagement: 'lightdash-managed',
+                    inputTokens: 1200,
+                    outputTokens: 80,
+                    latencyMs: expect.any(Number),
+                }),
+            }),
+        ]);
+        // The budget check resolved it; tracking must not look it up again.
+        expect(aiService.getAmbientKeyManagement).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports denied when a gate refuses the request', async () => {
+        const { service, analytics } = buildService({
+            orgSettingEnabled: false,
+        });
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toBeInstanceOf(DataAppAnalysisUnavailableError);
+        expect(completedEvent(analytics)[0].properties).toMatchObject({
+            operation: 'detect',
+            outcome: 'denied',
+            appVersion: null,
+            keyManagement: null,
+        });
     });
 
     it('neither stores nor serves a detection when the org setting is turned off mid-run', async () => {
@@ -599,6 +667,22 @@ describe('DataAppAnalysisService.prompt', () => {
         );
     });
 
+    it('reports a prompt outcome with tokens', async () => {
+        const { service, analytics } = buildService();
+        await service.prompt(buildAccount(), 'proj-1', 'app-1', {
+            sources: request.sources,
+            prompt: 'Why did returns rise?',
+        });
+        expect(completedEvent(analytics)[0].properties).toMatchObject({
+            operation: 'prompt',
+            outcome: 'ok',
+            appVersion: 3,
+            model: 'fast-model',
+            inputTokens: 1200,
+            outputTokens: 80,
+        });
+    });
+
     it('drops focus fields the sources do not carry', async () => {
         const { service, aiService } = buildService();
         const answer = await service.prompt(
@@ -723,6 +807,20 @@ describe('DataAppAnalysisService rate limits', () => {
         expect(dataAppAnalysisModel.create).not.toHaveBeenCalled();
     });
 
+    it('reports a rate_limited outcome', async () => {
+        const { service, dataAppAnalysisModel, analytics } = buildService();
+        dataAppAnalysisModel.incrementRateCounter.mockResolvedValue(7);
+        await expect(
+            service.detect(buildAccount(), 'proj-1', 'app-1', request),
+        ).rejects.toBeInstanceOf(TooManyRequestsError);
+        expect(completedEvent(analytics)[0].properties).toMatchObject({
+            operation: 'detect',
+            outcome: 'rate_limited',
+            appVersion: 3,
+            sourceCount: 1,
+        });
+    });
+
     it('lets the sixth detect through and blocks the seventh', async () => {
         const { service, dataAppAnalysisModel, aiService } = buildService();
         dataAppAnalysisModel.incrementRateCounter
@@ -741,7 +839,7 @@ describe('DataAppAnalysisService rate limits', () => {
     });
 
     it('does not count a detect served from a stored analysis', async () => {
-        const { service, dataAppAnalysisModel } = buildService();
+        const { service, dataAppAnalysisModel, analytics } = buildService();
         dataAppAnalysisModel.findLatestDetectByHash.mockResolvedValue({
             data_app_analysis_uuid: 'stored-1',
             operation: 'detect',
@@ -766,6 +864,12 @@ describe('DataAppAnalysisService rate limits', () => {
         expect(
             dataAppAnalysisModel.incrementRateCounter,
         ).not.toHaveBeenCalled();
+        expect(completedEvent(analytics)[0].properties).toMatchObject({
+            operation: 'detect',
+            outcome: 'cached',
+            model: null,
+            inputTokens: null,
+        });
     });
 
     it('sweeps minute buckets older than a day and daily counters older than two', async () => {
@@ -796,7 +900,8 @@ describe('DataAppAnalysisService daily budget', () => {
 
     it('refuses detect with budget_exhausted once the org cap is passed', async () => {
         vi.useFakeTimers({ now: Date.UTC(2026, 8, 22, 23, 59, 0) });
-        const { service, dataAppAnalysisModel, aiService } = buildService();
+        const { service, dataAppAnalysisModel, aiService, analytics } =
+            buildService();
         dataAppAnalysisModel.incrementDailyCounter.mockResolvedValue(301);
         await expect(
             service.detect(buildAccount(), 'proj-1', 'app-1', request),
@@ -812,6 +917,10 @@ describe('DataAppAnalysisService daily budget', () => {
             },
         );
         expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+        expect(completedEvent(analytics)[0].properties).toMatchObject({
+            outcome: 'budget',
+            keyManagement: 'lightdash-managed',
+        });
     });
 
     it('caps a Lightdash-managed key at the default even when the org raised it', async () => {
@@ -942,6 +1051,7 @@ describe('DataAppAnalysisService.investigate', () => {
             getAgent,
             aiAgentModel: base.aiAgentModel,
             aiOrganizationSettingsService: base.aiOrganizationSettingsService,
+            analytics: base.analytics,
         };
     }
 
@@ -1298,7 +1408,7 @@ describe('DataAppAnalysisService.investigate', () => {
     });
 
     it('keeps the agent thread when the investigation completes', async () => {
-        const { service, aiAgentModel } = buildInvestigateService();
+        const { service, aiAgentModel, analytics } = buildInvestigateService();
         primeRunInvestigation(service, async () => 'explanation');
         await service.runInvestigation(
             jobPayload,
@@ -1306,5 +1416,81 @@ describe('DataAppAnalysisService.investigate', () => {
             new Date('2026-09-15T10:00:00Z'),
         );
         expect(aiAgentModel.deleteThread).not.toHaveBeenCalled();
+        expect(completedEvent(analytics)[0].properties).toMatchObject({
+            operation: 'investigate',
+            outcome: 'ok',
+            agentUuid: 'agent-1',
+            threadUuid: 'thread-1',
+            queriesRun: 0,
+            partial: false,
+            appVersion: 3,
+            sourceCount: null,
+        });
+    });
+
+    it('reports a timed-out investigation from the worker callback', async () => {
+        const { service, analytics } = buildInvestigateService();
+        await service.trackInvestigationTimeout(jobPayload, 180_000);
+        expect(completedEvent(analytics)[0]).toMatchObject({
+            userId: 'user-1',
+            properties: expect.objectContaining({
+                organizationId: 'org-1',
+                appUuid: 'app-1',
+                operation: 'investigate',
+                outcome: 'timeout',
+                agentUuid: 'agent-1',
+            }),
+        });
+        expect(
+            completedEvent(analytics)[0].properties.latencyMs,
+        ).toBeGreaterThanOrEqual(180_000);
+    });
+
+    it('reports an error even when the viewer cannot be loaded', async () => {
+        const { service, analytics } = buildInvestigateService();
+        const deps = service as unknown as Record<string, unknown>;
+        deps.userModel = {
+            findSessionUserAndOrgByUuid: vi
+                .fn()
+                .mockRejectedValue(new Error('db down')),
+        };
+        deps.schedulerService = {
+            logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+        };
+        await expect(
+            service.runInvestigation(
+                jobPayload,
+                'job-1',
+                new Date('2026-09-15T10:00:00Z'),
+            ),
+        ).rejects.toThrow('db down');
+        expect(completedEvent(analytics)[0]).toMatchObject({
+            userId: 'user-1',
+            properties: expect.objectContaining({
+                organizationId: 'org-1',
+                operation: 'investigate',
+                outcome: 'error',
+            }),
+        });
+    });
+
+    it('reports a refused investigation without queueing', async () => {
+        const { service, analytics } = buildInvestigateService({
+            agentAccessible: false,
+        });
+        await expect(
+            service.investigate(
+                buildAccount(),
+                'proj-1',
+                'app-1',
+                'analysis-1',
+                { anomalyId: 'anom-1', agentUuid: 'agent-x' },
+            ),
+        ).rejects.toMatchObject({ data: { code: 'agent_unavailable' } });
+        expect(completedEvent(analytics)[0].properties).toMatchObject({
+            operation: 'investigate',
+            outcome: 'denied',
+            agentUuid: 'agent-x',
+        });
     });
 });

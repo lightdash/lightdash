@@ -35,6 +35,7 @@ const aiUsageEvent: AiUsageEvent = {
         aiAgentId: 'agent-1',
         threadId: 'thread-1',
         promptId: 'prompt-1',
+        dataAppId: null,
         model: 'claude-sonnet-5',
         provider: 'anthropic',
         keyManagement: 'self-managed',

@@ -27,6 +27,9 @@ type CreateBase = {
     sources: DataAppAnalysisSource[];
     instructions: string | null;
     modelId: string | null;
+    inputTokens?: number | null;
+    outputTokens?: number | null;
+    latencyMs?: number | null;
 };
 
 export type CreateDataAppAnalysis = CreateBase &
@@ -69,6 +72,9 @@ export class DataAppAnalysisModel {
                 instructions: data.instructions,
                 result: JSON.stringify(data.result),
                 model_id: data.modelId,
+                input_tokens: data.inputTokens ?? null,
+                output_tokens: data.outputTokens ?? null,
+                latency_ms: data.latencyMs ?? null,
                 content_hash:
                     data.operation === 'detect' ? data.contentHash : null,
                 source_hashes:

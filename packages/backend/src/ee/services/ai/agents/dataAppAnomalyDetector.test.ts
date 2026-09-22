@@ -54,7 +54,7 @@ describe('detectDataAppAnomalies', () => {
         expect(messages[0].content).toMatch(/each source section on its own/);
         expect(messages[0].content).toMatch(/largest category.*not a finding/);
         expect(messages[1].content).toMatch(/^Today is 2026-09-16\./);
-        expect(result.anomalies[0].dimensionValues).toEqual({
+        expect(result.detection.anomalies[0].dimensionValues).toEqual({
             orders_month: '2025-01-01',
         });
     });
