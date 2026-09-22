@@ -452,12 +452,13 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 );
             },
             [EE_SCHEDULER_TASKS.CLEAN_RATE_COUNTERS]: async () => {
-                const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                // One clock for both tables so their windows line up.
+                const now = new Date();
                 const analysis =
-                    await this.dataAppAnalysisService.cleanRateCounters();
+                    await this.dataAppAnalysisService.cleanRateCounters(now);
                 const external =
                     await this.externalConnectionModel.deleteRateCountersBefore(
-                        cutoff,
+                        new Date(now.getTime() - 24 * 60 * 60 * 1000),
                     );
                 Logger.info(
                     `Rate counter cleanup completed. Analysis windows deleted: ${analysis}; external connection windows deleted: ${external}`,
