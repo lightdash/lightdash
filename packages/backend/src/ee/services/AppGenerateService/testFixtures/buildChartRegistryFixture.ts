@@ -21,6 +21,12 @@ import { pack } from 'tar-stream';
  * Kept dependency-free (node builtins + tar-stream, already a direct backend
  * dependency) so it doubles as the seed of the future charts-repo publish
  * script.
+ *
+ * The fixture chart is also a host-contract probe: it renders the pushed viz
+ * context and speaks the raw bridge protocol (see the point-menu wiring in
+ * DIST_ASSET_APP_JS), so host features — context fields, bridge virtual
+ * routes, install/upgrade flows — can be regression-tested here in minutes.
+ * Extend it with more probes rather than hand-building SDK test charts.
  */
 
 const FIXTURE_SLUG = 'fixture-gauge';
@@ -58,25 +64,69 @@ const SOURCE_APP_JSX = `export default function App() { return null; }\n`;
 // `'self'`/the preview origin/blob:, matching what a same-origin external
 // file needs.
 const DIST_ASSET_APP_JS = `const root = document.getElementById('root');
+let ctx = null;
+let fetchId = 0;
 
-function render(text) {
-  root.textContent = text;
+// Point-menu wiring at the raw bridge protocol (what pointMenu.open posts),
+// so the fixture exercises the host menu without bundling the SDK.
+function openPointMenu(event, row) {
+  const id = 'fixture-pm-' + (fetchId += 1);
+  const onResponse = (e) => {
+    const d = e.data;
+    if (!d || d.type !== 'lightdash:sdk:fetch-response' || d.id !== id) return;
+    window.removeEventListener('message', onResponse);
+    const status = document.getElementById('pm-status');
+    if (status) {
+      status.textContent = d.error
+        ? 'point-menu error: ' + d.error
+        : 'point-menu shown: ' + String(d.result && d.result.shown);
+    }
+  };
+  window.addEventListener('message', onResponse);
+  window.parent?.postMessage(
+    {
+      type: 'lightdash:sdk:fetch',
+      id,
+      method: 'POST',
+      path: '/__sdk/viz/point-menu',
+      body: { x: event.clientX, y: event.clientY, row, metric: 'value' },
+    },
+    '*',
+  );
 }
 
-render('Fixture Gauge');
+function render() {
+  root.textContent = '';
+  const title = document.createElement('div');
+  const enabled = !!(ctx && ctx.pointMenu && ctx.pointMenu.enabled);
+  title.textContent = ctx
+    ? 'Fixture Gauge \\u2014 rows: ' +
+      (Array.isArray(ctx.rows) ? ctx.rows.length : 0) +
+      ', pointMenu.enabled: ' +
+      String(enabled)
+    : 'Fixture Gauge';
+  root.appendChild(title);
+  const status = document.createElement('div');
+  status.id = 'pm-status';
+  root.appendChild(status);
+  (ctx && Array.isArray(ctx.rows) ? ctx.rows : []).forEach((row, i) => {
+    const bar = document.createElement('button');
+    bar.type = 'button';
+    bar.textContent = 'row ' + i;
+    bar.style.cssText =
+      'display:block;margin:4px 0;padding:6px 12px;cursor:pointer;';
+    bar.addEventListener('click', (event) => openPointMenu(event, row));
+    root.appendChild(bar);
+  });
+}
+
+render();
 
 window.addEventListener('message', (event) => {
   const data = event.data;
   if (!data || data.type !== 'lightdash:sdk:data-app-viz-context') return;
-  const fieldMapping = data.fieldMapping || {};
-  const fieldNames = Object.keys(fieldMapping);
-  const rowCount = Array.isArray(data.rows) ? data.rows.length : 0;
-  render(
-    'Fixture Gauge \\u2014 fields: ' +
-      (fieldNames.length ? fieldNames.join(', ') : '(none)') +
-      ', rows: ' +
-      rowCount,
-  );
+  ctx = data;
+  render();
 });
 
 window.parent?.postMessage({ type: 'lightdash:sdk:viz-context-request' }, '*');
