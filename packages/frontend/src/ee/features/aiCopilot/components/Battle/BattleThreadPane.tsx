@@ -19,6 +19,7 @@ interface Props {
     agentName: string;
     thread: AiAgentThread;
     queued: boolean;
+    showTokens: boolean;
 }
 
 const useTicking = (active: boolean) => {
@@ -45,6 +46,7 @@ export const BattleThreadPane: FC<Props> = ({
     agentName,
     thread,
     queued,
+    showTokens,
 }) => {
     const stream = useAiAgentThreadStreamQuery(thread.uuid);
     const isStreaming = stream?.connection.status === 'streaming';
@@ -181,7 +183,7 @@ export const BattleThreadPane: FC<Props> = ({
                                 )}
                         </Group>
                     )}
-                    {lastAssistantMessage?.tokenUsage && (
+                    {showTokens && lastAssistantMessage?.tokenUsage && (
                         <Text size="xs" c="dimmed" ff="monospace">
                             {lastAssistantMessage.tokenUsage.totalTokens.toLocaleString()}{' '}
                             agent

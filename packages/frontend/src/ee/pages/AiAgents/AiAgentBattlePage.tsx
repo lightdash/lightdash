@@ -1,4 +1,13 @@
-import { Box, Center, Divider, Flex, Loader, Stack } from '@mantine/core';
+import {
+    Box,
+    Center,
+    Divider,
+    Flex,
+    Loader,
+    Stack,
+    Switch,
+} from '@mantine/core';
+import { useLocalStorage } from '@mantine/hooks';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -54,6 +63,10 @@ const AiAgentBattlePage: FC = () => {
 
     const threadA = threadAQuery.data;
     const threadB = threadBQuery.data;
+    const [showTokens, setShowTokens] = useLocalStorage<boolean>({
+        key: 'ld.aiAgentBattle.showTokens.v1',
+        defaultValue: true,
+    });
     const [queuedA, setQueuedA] = useState<BattleMessageInput | null>(null);
     const [queuedB, setQueuedB] = useState<BattleMessageInput | null>(null);
 
@@ -122,6 +135,16 @@ const AiAgentBattlePage: FC = () => {
 
     return (
         <Stack h="100%" gap={0}>
+            <Flex justify="flex-end" px="sm" py={6}>
+                <Switch
+                    size="xs"
+                    label="Show tokens"
+                    checked={showTokens}
+                    onChange={(event) =>
+                        setShowTokens(event.currentTarget.checked)
+                    }
+                />
+            </Flex>
             <Flex flex={1} mih={0} wrap="nowrap" align="stretch">
                 <Box flex={1} miw={0} h="100%">
                     <BattleThreadPane
@@ -133,6 +156,7 @@ const AiAgentBattlePage: FC = () => {
                         agentName={agent.name}
                         thread={threadA}
                         queued={queuedA !== null}
+                        showTokens={showTokens}
                     />
                 </Box>
                 <Divider orientation="vertical" />
@@ -148,6 +172,7 @@ const AiAgentBattlePage: FC = () => {
                         agentName={agent.name}
                         thread={threadB}
                         queued={queuedB !== null}
+                        showTokens={showTokens}
                     />
                 </Box>
             </Flex>
