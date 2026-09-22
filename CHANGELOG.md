@@ -1,3 +1,10 @@
+# [2.290.0](https://github.com/lightdash/lightdash/compare/2.289.0...2.290.0) (2026-09-22)
+
+
+### Features
+
+* **query-sdk:** pointMenu surface, transport route and feature entry ([#29685](https://github.com/lightdash/lightdash/issues/29685)) ([cc5bb5f](https://github.com/lightdash/lightdash/commit/cc5bb5fa904c49d5e5bd72b3dd2835ac25d915ba))
+
 # [2.289.0](https://github.com/lightdash/lightdash/compare/2.288.4...2.289.0) (2026-09-22)
 
 
