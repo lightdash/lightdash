@@ -511,6 +511,8 @@ const explorerSlice = createSlice({
                       isEditing: boolean;
                       /** Label typed before handing over from quick create */
                       label?: string;
+                      /** Merge source that owns this custom metric. */
+                      mergeSourceId?: string;
                   }
                 | undefined
             >,

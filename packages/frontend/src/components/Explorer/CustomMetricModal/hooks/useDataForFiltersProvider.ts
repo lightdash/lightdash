@@ -1,3 +1,8 @@
+import type {
+    AdditionalMetric,
+    CustomDimension,
+    TableCalculation,
+} from '@lightdash/common';
 import {
     selectAdditionalMetrics,
     selectCustomDimensions,
@@ -11,14 +16,40 @@ import { useProject } from '../../../../hooks/useProject';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useFieldsWithSuggestions } from '../../FiltersCard/useFieldsWithSuggestions';
 
-export const useDataForFiltersProvider = () => {
+type CustomMetricQueryContext = {
+    tableName: string | undefined;
+    additionalMetrics: AdditionalMetric[] | undefined;
+    customDimensions: CustomDimension[] | undefined;
+    tableCalculations: TableCalculation[] | undefined;
+};
+
+export const useDataForFiltersProvider = (
+    queryContext?: CustomMetricQueryContext,
+) => {
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
 
-    const tableName = useExplorerSelector(selectTableName);
-    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
-    const customDimensions = useExplorerSelector(selectCustomDimensions);
-    const tableCalculations = useExplorerSelector(selectTableCalculations);
+    const explorerTableName = useExplorerSelector(selectTableName);
+    const explorerAdditionalMetrics = useExplorerSelector(
+        selectAdditionalMetrics,
+    );
+    const explorerCustomDimensions = useExplorerSelector(
+        selectCustomDimensions,
+    );
+    const explorerTableCalculations = useExplorerSelector(
+        selectTableCalculations,
+    );
+
+    const tableName = queryContext ? queryContext.tableName : explorerTableName;
+    const additionalMetrics = queryContext
+        ? queryContext.additionalMetrics
+        : explorerAdditionalMetrics;
+    const customDimensions = queryContext
+        ? queryContext.customDimensions
+        : explorerCustomDimensions;
+    const tableCalculations = queryContext
+        ? queryContext.tableCalculations
+        : explorerTableCalculations;
 
     const { queryResults } = useExplorerQuery();
     const rows = queryResults.rows;
@@ -27,7 +58,7 @@ export const useDataForFiltersProvider = () => {
 
     const fieldsWithSuggestions = useFieldsWithSuggestions({
         exploreData,
-        rows,
+        rows: queryContext ? [] : rows,
         customDimensions,
         additionalMetrics,
         tableCalculations,

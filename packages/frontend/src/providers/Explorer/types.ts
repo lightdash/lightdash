@@ -307,6 +307,8 @@ export interface ExplorerReduceState {
             item?: Dimension | AdditionalMetric | CustomDimension | Metric;
             type?: MetricType;
             label?: string;
+            /** Merge source that owns this custom metric. */
+            mergeSourceId?: string;
         };
         customDimension: {
             isOpen: boolean;

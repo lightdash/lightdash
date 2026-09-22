@@ -47,6 +47,7 @@ import { useRequestRegistryMetricDelete } from '../../../../../providers/Explore
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
+import { useCustomMetricSourceId } from '../../CustomMetricSourceContext';
 
 type Props = {
     item: Metric | Dimension | AdditionalMetric | CustomDimension;
@@ -86,6 +87,7 @@ const TreeSingleNodeActions: FC<Props> = ({
     const { track } = useTracking();
 
     const dispatch = useExplorerDispatch();
+    const customMetricSourceId = useCustomMetricSourceId();
     const customDimensionWriteBackError = isCustomDimension(item)
         ? getCustomDimensionWriteBackError(item)
         : null;
@@ -186,6 +188,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                     type: item.type,
                                     item,
                                     isEditing: false,
+                                    mergeSourceId: customMetricSourceId,
                                 }),
                             );
                         }}
@@ -485,6 +488,8 @@ const TreeSingleNodeActions: FC<Props> = ({
                                                     type: metric,
                                                     item,
                                                     isEditing: false,
+                                                    mergeSourceId:
+                                                        customMetricSourceId,
                                                 },
                                             ),
                                         );

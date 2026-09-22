@@ -94,6 +94,7 @@ export const MergeSourceTree: FC<{
                     <ItemDetailProvider>
                         <ExploreTree
                             explore={explore}
+                            customMetricSourceId={source.id}
                             selection={selection}
                             onSelectedFieldChange={(fieldId, isDimension) =>
                                 merge.toggleSourceField(

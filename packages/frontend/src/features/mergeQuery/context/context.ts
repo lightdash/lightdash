@@ -1,4 +1,5 @@
 import {
+    type AdditionalMetric,
     type ApiError,
     type Filters,
     type ItemsMap,
@@ -135,6 +136,10 @@ export type MergeContextValue = {
     setJoinType: (joinType: MergeJoinType) => void;
     setRepeatValues: (sourceId: string, repeatValues: boolean) => void;
     setSourceFilters: (sourceId: string, filters: Filters) => void;
+    addSourceAdditionalMetric: (
+        sourceId: string,
+        metric: AdditionalMetric,
+    ) => void;
 };
 
 export const MergeContext = createContext<MergeContextValue | undefined>(

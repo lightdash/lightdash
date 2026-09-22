@@ -60,6 +60,7 @@ import {
 } from '../../../../../utils/fieldColors';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
+import { useCustomMetricSourceId } from '../../CustomMetricSourceContext';
 import { useCustomMetricDelete } from '../../useCustomMetricDelete';
 import { ItemDetailPreview } from '../ItemDetailPreview';
 import previewClasses from '../ItemDetailPreview.module.css';
@@ -191,6 +192,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const addFilter = useAddFilter();
 
     const dispatch = useExplorerDispatch();
+    const customMetricSourceId = useCustomMetricSourceId();
 
     const [isHover, toggleHover] = useToggle(false);
     const [isMenuOpen, toggleMenu] = useToggle(false);
@@ -380,9 +382,20 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const openQuickCreate = useCallback(
         (type: MetricType) => {
             toggleHover(false);
-            setQuickCreateType(type);
+            if (customMetricSourceId && quickCreateItem) {
+                dispatch(
+                    explorerActions.toggleAdditionalMetricModal({
+                        type,
+                        item: quickCreateItem,
+                        isEditing: false,
+                        mergeSourceId: customMetricSourceId,
+                    }),
+                );
+            } else {
+                setQuickCreateType(type);
+            }
         },
-        [toggleHover],
+        [customMetricSourceId, dispatch, quickCreateItem, toggleHover],
     );
     const closeQuickCreate = useCallback(() => setQuickCreateType(null), []);
 
