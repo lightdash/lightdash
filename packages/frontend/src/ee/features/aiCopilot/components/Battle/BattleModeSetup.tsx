@@ -7,6 +7,9 @@ import { ModelSelector } from '../../../../../components/common/ModelSelector/Mo
 
 export type BattleType = 'models' | 'speed';
 
+const isBattleType = (value: string): value is BattleType =>
+    value === 'models' || value === 'speed';
+
 interface Props {
     enabled: boolean;
     onEnabledChange: (enabled: boolean) => void;
@@ -55,9 +58,10 @@ export const BattleModeSetup: FC<Props> = ({
                         <SegmentedControl
                             size="xs"
                             value={battleType}
-                            onChange={(value) =>
-                                onBattleTypeChange(value as BattleType)
-                            }
+                            onChange={(value) => {
+                                if (isBattleType(value))
+                                    onBattleTypeChange(value);
+                            }}
                             data={[
                                 { value: 'speed', label: 'Speed features' },
                                 { value: 'models', label: 'Models' },

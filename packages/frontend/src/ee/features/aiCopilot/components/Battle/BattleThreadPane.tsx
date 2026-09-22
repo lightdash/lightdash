@@ -142,7 +142,13 @@ export const BattleThreadPane: FC<Props> = ({
                 }}
             >
                 <Group gap="xs" wrap="nowrap" miw={0}>
-                    <Badge size="sm" variant="light" color="ldGray">
+                    <Badge
+                        size="sm"
+                        variant="light"
+                        color={
+                            thread.battleProfile === 'fast' ? 'violet' : 'gray'
+                        }
+                    >
                         {label}
                     </Badge>
                     <Text size="sm" fw={600} truncate>

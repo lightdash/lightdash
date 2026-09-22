@@ -4158,8 +4158,13 @@ export class AiAgentService extends BaseService {
                 user,
                 featureFlagId: FeatureFlags.AiAgentBattleMode,
             });
-            if (!battleMode.enabled || runtimeOptions) {
+            if (!battleMode.enabled) {
                 throw new ForbiddenError('AI agent battle mode is not enabled');
+            }
+            if (runtimeOptions) {
+                throw new ForbiddenError(
+                    'AI agent battle mode is not available in embedded threads',
+                );
             }
             if (!(await this.getDecisionClient(user))) {
                 throw new ForbiddenError(
