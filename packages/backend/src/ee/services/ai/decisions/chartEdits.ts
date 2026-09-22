@@ -191,8 +191,8 @@ const applyFilter = (
     let next: FilterExpressionResolvedFiltersV2 | null = null;
     let response = 'Cleared the chart filters.';
     if (intent.kind !== 'clear_filters') {
-        if (!artifact.config.queryConfig.dimensions.includes(intent.fieldId))
-            return null;
+        const target = fieldMap(explore).get(intent.fieldId);
+        if (!target || !isDimension(target)) return null;
         const existing = current.dimensions;
         if (existing && existing.connector !== 'and') return null;
         const rules =

@@ -107,6 +107,7 @@ export type ChartIntentContext = {
     artifact: AiSemanticChartArtifactConfig;
     currentFields: FieldCandidate[];
     addableFields: FieldCandidate[];
+    filterableFields: FieldCandidate[];
 };
 
 // Thresholds are calibrated against the labelled prompt set; see chartIntent.eval.
@@ -226,14 +227,14 @@ const tokens = (value: string) =>
         .split(/[^a-z0-9]+/)
         .filter((token) => token.length > 1);
 
-const MAX_ADDABLE_FIELDS = 80;
+const MAX_FIELD_OPTIONS = 80;
 
-/** Keeps the addable-field list within one Choice by preferring lexical overlap with the prompt. */
-const prefilterAddableFields = (
+/** Keeps a field list within one Choice by preferring lexical overlap with the prompt. */
+const prefilterFields = (
     prompt: string,
     fields: FieldCandidate[],
 ): FieldCandidate[] => {
-    if (fields.length <= MAX_ADDABLE_FIELDS) return fields;
+    if (fields.length <= MAX_FIELD_OPTIONS) return fields;
     const promptTokens = new Set(tokens(prompt));
     const score = (field: FieldCandidate) =>
         tokens(`${field.label} ${field.id} ${field.table}`).filter((token) =>
@@ -242,7 +243,7 @@ const prefilterAddableFields = (
     return fields
         .map((field, index) => ({ field, index, score: score(field) }))
         .sort((a, b) => b.score - a.score || a.index - b.index)
-        .slice(0, MAX_ADDABLE_FIELDS)
+        .slice(0, MAX_FIELD_OPTIONS)
         .map(({ field }) => field);
 };
 
@@ -271,13 +272,23 @@ export const buildChartIntentContext = ({
         .filter((field) => !field.hidden && !selected.has(getItemId(field)))
         .map((field) => toCandidate(field, explore));
     const known = new Set(sameExplore.map(({ id }) => id));
-    const addableFields = prefilterAddableFields(prompt, [
+    const addableFields = prefilterFields(prompt, [
         ...sameExplore,
         ...extraAddableFields.filter(
             ({ id }) => !known.has(id) && !selected.has(id),
         ),
     ]);
-    return { artifact, currentFields, addableFields };
+    const queryDimensions = currentFields.filter(({ id }) =>
+        query.dimensions.includes(id),
+    );
+    const filterableFields = [
+        ...queryDimensions,
+        ...prefilterFields(
+            prompt,
+            sameExplore.slice(0, MAX_FIELD_OPTIONS * 4),
+        ).slice(0, MAX_FIELD_OPTIONS - queryDimensions.length),
+    ];
+    return { artifact, currentFields, addableFields, filterableFields };
 };
 
 const describeChart = (context: ChartIntentContext) => {
@@ -326,9 +337,6 @@ export const buildChartIntentQuestions = ({
     context: ChartIntentContext;
 }): Record<string, DecisionQuestion> => {
     const numbers = extractNumberCandidates(prompt);
-    const dimensionFields = context.currentFields.filter(({ id }) =>
-        context.artifact.config.queryConfig.dimensions.includes(id),
-    );
     const questions: Record<string, DecisionQuestion> = {
         intent: {
             type: 'choice',
@@ -422,13 +430,13 @@ export const buildChartIntentQuestions = ({
             },
         };
     }
-    if (dimensionFields.length > 0) {
+    if (context.filterableFields.length > 0) {
         questions.filterField = {
             type: 'choice',
             instructions:
-                'If the user wants to filter the chart, which field do the filtered values or time window belong to? For values like a status, region or name, pick the field those values come from.',
+                'If the user wants to filter the chart, which field do the filtered values or time window belong to? For values like a status, region or name, pick the field those values come from. Prefer fields already in `chart.dimensions` when they fit.',
             criteria: {
-                ...fieldCriteria(dimensionFields),
+                ...fieldCriteria(context.filterableFields),
                 none: 'The filter is on a field not in this list',
             },
         };
@@ -505,16 +513,20 @@ const resolveFilter = (
     const kind = confident(answers.filterKind, option);
     if (!kind || kind === 'other')
         return { type: 'unresolved', reason: 'filter-kind' };
-    const dimensions = context.currentFields.filter(({ id }) =>
-        context.artifact.config.queryConfig.dimensions.includes(id),
+    const chosen = confident(answers.filterField, field);
+    const chosenField = context.filterableFields.find(
+        ({ id }) => id === chosen,
     );
     if (kind === 'last_period' || kind === 'current_period') {
-        const dateFields = dimensions.filter(({ isDate }) => isDate);
-        const chosen = confident(answers.filterField, field);
+        const queryDates = context.currentFields.filter(
+            ({ id, isDate }) =>
+                isDate &&
+                context.artifact.config.queryConfig.dimensions.includes(id),
+        );
         const dateField =
-            dateFields.length === 1
-                ? dateFields[0]
-                : dateFields.find(({ id }) => id === chosen);
+            queryDates.length === 1
+                ? queryDates[0]
+                : [chosenField].find((candidate) => candidate?.isDate);
         const unit = confident(answers.periodUnit, option);
         if (!dateField || !isPeriodUnit(unit))
             return { type: 'unresolved', reason: 'filter-period' };
@@ -539,9 +551,7 @@ const resolveFilter = (
             },
         };
     }
-    const valueFields = dimensions.filter(({ isDate }) => !isDate);
-    const chosen = confident(answers.filterField, field);
-    const valueField = valueFields.find(({ id }) => id === chosen);
+    const valueField = chosenField?.isDate ? undefined : chosenField;
     if (!valueField) return { type: 'unresolved', reason: 'filter-field' };
     return {
         type: 'needs_values',
@@ -699,7 +709,6 @@ export const selectFilterValues = async ({
 }): Promise<string[] | null> => {
     const values = [...new Set(candidates)].slice(0, MAX_VALUE_CANDIDATES);
     if (values.length === 0) return null;
-    const verb = filter.exclude ? 'exclude' : 'keep only';
     const answers = await decisions.evaluate({
         operation: 'filter-value',
         state: { prompt, field: fieldLabel, candidates: values },
@@ -708,7 +717,7 @@ export const selectFilterValues = async ({
                 `value${index}`,
                 {
                     type: 'noul' as const,
-                    instructions: `Does the user want to ${verb} the ${fieldLabel} value ${JSON.stringify(value)}?`,
+                    instructions: `Does the user's request name or clearly refer to the ${fieldLabel} value ${JSON.stringify(value)}, by its name, a close spelling or an obvious shorthand? Whether they want it kept or removed does not matter.`,
                 },
             ]),
         ),

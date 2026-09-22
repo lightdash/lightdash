@@ -466,14 +466,28 @@ describe('applyChartIntent', () => {
             ).toBeNull();
         });
 
-        it('only filters dimensions that are in the query', () => {
+        it('filters any dimension of the explore but nothing else', () => {
+            expect(
+                rulesOf(
+                    applyChartIntent({
+                        intent: {
+                            kind: 'filter_values',
+                            fieldId: 'orders_status',
+                            exclude: false,
+                            values: ['completed'],
+                        },
+                        artifact,
+                        explore,
+                    }),
+                ),
+            ).toMatchObject([{ fieldId: 'orders_status' }]);
             expect(
                 applyChartIntent({
                     intent: {
                         kind: 'filter_values',
-                        fieldId: 'orders_status',
+                        fieldId: 'orders_revenue',
                         exclude: false,
-                        values: ['completed'],
+                        values: ['1'],
                     },
                     artifact,
                     explore,

@@ -11992,7 +11992,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         if (resolution.type === 'needs_values') {
             const { fieldId, exclude } = resolution.filter;
             const fieldLabel =
-                chart.intentContext.currentFields.find(
+                chart.intentContext.filterableFields.find(
                     ({ id }) => id === fieldId,
                 )?.label ?? fieldId;
             const candidates = await this.searchFilterValueCandidates({
