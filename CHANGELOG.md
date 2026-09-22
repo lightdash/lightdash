@@ -1,3 +1,15 @@
+# [2.289.0](https://github.com/lightdash/lightdash/compare/2.288.4...2.289.0) (2026-09-22)
+
+
+### Bug Fixes
+
+* keep CARTO basemap API key server-side ([#29726](https://github.com/lightdash/lightdash/issues/29726)) ([8726f07](https://github.com/lightdash/lightdash/commit/8726f075e8905377da978bd40884234ec683f372))
+
+
+### Features
+
+* **common:** point-menu contract types for data app vizzes ([#29684](https://github.com/lightdash/lightdash/issues/29684)) ([c7fe58b](https://github.com/lightdash/lightdash/commit/c7fe58b35875beb93811e53107077f2b17b93766))
+
 ## [2.288.4](https://github.com/lightdash/lightdash/compare/2.288.3...2.288.4) (2026-09-22)
 
 

@@ -57,6 +57,8 @@ import { JiraController } from './../controllers/jiraController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { LinearController } from './../controllers/linearController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { MapTileController } from './../controllers/mapTileController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MetricsExplorerController } from './../controllers/metricsExplorerController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { NotificationsController } from './../controllers/notificationsController';
@@ -54843,6 +54845,15 @@ const models: TsoaRoute.Models = {
                 pivotQuery: { dataType: 'string' },
                 query: { dataType: 'string', required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CartoTileStyle: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'enum',
+            enums: ['dark', 'light', 'voyager'],
             validators: {},
         },
     },
@@ -110158,6 +110169,68 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'compileMetricTotalQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsMapTileController_getTile: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        style: {
+            in: 'path',
+            name: 'style',
+            required: true,
+            ref: 'CartoTileStyle',
+        },
+        z: { in: 'path', name: 'z', required: true, dataType: 'double' },
+        x: { in: 'path', name: 'x', required: true, dataType: 'double' },
+        y: { in: 'path', name: 'y', required: true, dataType: 'double' },
+    };
+    app.get(
+        '/api/v1/map-tiles/:style/:z/:x/:y.png',
+        ...fetchMiddlewares<RequestHandler>(MapTileController),
+        ...fetchMiddlewares<RequestHandler>(
+            MapTileController.prototype.getTile,
+        ),
+
+        async function MapTileController_getTile(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsMapTileController_getTile,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<MapTileController>(MapTileController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getTile',
                     controller,
                     response,
                     next,

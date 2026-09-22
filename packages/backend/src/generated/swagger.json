@@ -54878,6 +54878,11 @@
                 "required": ["parameterReferences", "query"],
                 "type": "object"
             },
+            "CartoTileStyle": {
+                "type": "string",
+                "enum": ["dark", "light", "voyager"],
+                "nullable": false
+            },
             "LinearInstallation": {
                 "properties": {
                     "requiresReconnect": {
@@ -64330,7 +64335,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.288.4",
+        "version": "2.289.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -93584,6 +93589,67 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/map-tiles/{style}/{z}/{x}/{y}.png": {
+            "get": {
+                "operationId": "getMapTile",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Serve CARTO basemap images without exposing the provider credential.\nSession and verified embed accounts are both supported.",
+                "summary": "Get map tile",
+                "tags": ["Map"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "style",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/CartoTileStyle"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "z",
+                        "required": true,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "x",
+                        "required": true,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "y",
+                        "required": true,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/linear/install": {
