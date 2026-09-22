@@ -20,29 +20,48 @@ const SAMPLE_SOURCE: ChartTypePreviewDataSource = { kind: 'sample' };
 type Column = { reference: string; label: string };
 type SampleRow = DataAppVizContext['rows'][number];
 
-const getColumns = (context: DataAppVizContext): Column[] => {
-    if (!context.pivotDetails) {
-        return Object.keys(context.rows[0] ?? {}).map((reference) => ({
+/** The rows a modal lists, with a label per column; independent of a schema
+ *  so a query can be inspected before any version exists. */
+export type ChartTypeRows = {
+    rows: DataAppVizContext['rows'];
+    pivotDetails: DataAppVizContext['pivotDetails'];
+    labels: Record<string, string>;
+};
+
+const rowsFromVizContext = (context: DataAppVizContext): ChartTypeRows => ({
+    rows: context.rows,
+    pivotDetails: context.pivotDetails,
+    labels: Object.fromEntries(
+        Object.entries(context.fields).map(([id, field]) => [id, field.label]),
+    ),
+});
+
+const getColumns = ({
+    rows,
+    pivotDetails,
+    labels,
+}: ChartTypeRows): Column[] => {
+    if (!pivotDetails) {
+        return Object.keys(rows[0] ?? {}).map((reference) => ({
             reference,
-            label: context.fields[reference]?.label ?? reference,
+            label: labels[reference] ?? reference,
         }));
     }
 
-    const indexColumns = normalizeIndexColumns(
-        context.pivotDetails.indexColumn,
-    ).map(({ reference }) => ({
-        reference,
-        label:
-            context.fields[reference]?.label ??
-            context.pivotDetails?.originalColumns[reference]?.label ??
+    const indexColumns = normalizeIndexColumns(pivotDetails.indexColumn).map(
+        ({ reference }) => ({
             reference,
-    }));
-    const valueColumns = context.pivotDetails.valuesColumns.map((column) => ({
+            label:
+                labels[reference] ??
+                pivotDetails.originalColumns[reference]?.label ??
+                reference,
+        }),
+    );
+    const valueColumns = pivotDetails.valuesColumns.map((column) => ({
         reference: column.pivotColumnName,
         label: [
-            context.fields[column.referenceField]?.label ??
-                context.pivotDetails?.originalColumns[column.referenceField]
-                    ?.label ??
+            labels[column.referenceField] ??
+                pivotDetails.originalColumns[column.referenceField]?.label ??
                 column.referenceField,
             ...column.pivotValues.map((value) => value.formatted),
         ].join(' · '),
@@ -54,7 +73,7 @@ const getColumns = (context: DataAppVizContext): Column[] => {
 const cellValue = (value: SampleRow[string]) => value?.value.formatted ?? '';
 
 type ModalProps = {
-    context: DataAppVizContext | null;
+    data: ChartTypeRows | null;
     opened: boolean;
     onClose: () => void;
     title: string;
@@ -63,15 +82,15 @@ type ModalProps = {
 
 /** Every row behind the preview, in a modal the host opens. */
 export const ChartTypeRowsModal: FC<ModalProps> = ({
-    context,
+    data,
     opened,
     onClose,
     title,
     subtitle,
 }) => {
     const availableColumns = useMemo(
-        () => (context ? getColumns(context) : []),
-        [context],
+        () => (data ? getColumns(data) : []),
+        [data],
     );
     const columns = useMemo<ContentTableColumnDef<SampleRow>[]>(
         () =>
@@ -85,7 +104,7 @@ export const ChartTypeRowsModal: FC<ModalProps> = ({
     );
     const table = useContentTable({
         columns,
-        data: context?.rows ?? [],
+        data: data?.rows ?? [],
         enableBottomToolbar: false,
         enableColumnResizing: false,
         enableEditing: false,
@@ -105,7 +124,7 @@ export const ChartTypeRowsModal: FC<ModalProps> = ({
             highlightOnHover: true,
         },
     });
-    if (!context || availableColumns.length === 0) return null;
+    if (!data || availableColumns.length === 0) return null;
 
     return (
         <MantineModal
@@ -131,6 +150,10 @@ export const ChartTypeSampleData: FC<Props> = ({
     dataSource = SAMPLE_SOURCE,
 }) => {
     const [opened, setOpened] = useState(false);
+    const rows = useMemo(
+        () => (context ? rowsFromVizContext(context) : null),
+        [context],
+    );
     if (!context || context.rows.length === 0) return null;
 
     const isLive = dataSource.kind === 'live';
@@ -151,7 +174,7 @@ export const ChartTypeSampleData: FC<Props> = ({
                 {launcherLabel}
             </Button>
             <ChartTypeRowsModal
-                context={context}
+                data={rows}
                 opened={opened}
                 onClose={() => setOpened(false)}
                 title={isLive ? 'Preview data' : 'Sample data'}

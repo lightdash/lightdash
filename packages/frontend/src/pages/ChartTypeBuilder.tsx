@@ -3,6 +3,7 @@ import {
     ChartType,
     DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
+    getItemLabelWithoutTableName,
     type AppChartReference,
     type DataAppVizFieldMapping,
     type ItemsMap,
@@ -30,7 +31,10 @@ import {
 } from '../features/chartTypes/builder/ChartInputsList';
 import ChartTypeBuilderHeader from '../features/chartTypes/builder/ChartTypeBuilderHeader';
 import ChartTypeBuilderWorkspace from '../features/chartTypes/builder/ChartTypeBuilderWorkspace';
-import { ChartTypeRowsModal } from '../features/chartTypes/builder/ChartTypeSampleData';
+import {
+    ChartTypeRowsModal,
+    type ChartTypeRows,
+} from '../features/chartTypes/builder/ChartTypeSampleData';
 import ConfigurePanel from '../features/chartTypes/builder/ConfigurePanel';
 import {
     type PickedSavedChart,
@@ -113,6 +117,23 @@ const ChartTypeBuilder: FC = () => {
     );
     const liveRun = previewData.status === 'ready' ? previewData : null;
     const itemsMap = liveRun?.itemsMap ?? NO_ITEMS;
+    // The run's rows, listable before any version declares a schema.
+    const liveRows = useMemo<ChartTypeRows | null>(
+        () =>
+            liveRun
+                ? {
+                      rows: liveRun.rows,
+                      pivotDetails: liveRun.pivotDetails,
+                      labels: Object.fromEntries(
+                          Object.entries(liveRun.itemsMap).map(([id, item]) => [
+                              id,
+                              getItemLabelWithoutTableName(item),
+                          ]),
+                      ),
+                  }
+                : null,
+        [liveRun],
+    );
     const [isRowsModalOpen, setIsRowsModalOpen] = useState(false);
     // Slots the author rebound by hand, layered over the automap.
     const [fieldMappingOverrides, setFieldMappingOverrides] =
@@ -549,8 +570,8 @@ const ChartTypeBuilder: FC = () => {
                 configurePanel={configurePanel}
             />
             <ChartTypeRowsModal
-                context={previewContext}
-                opened={isRowsModalOpen && liveRun !== null}
+                data={liveRows}
+                opened={isRowsModalOpen && liveRows !== null}
                 onClose={() => setIsRowsModalOpen(false)}
                 title="Query results"
                 subtitle={`Rows returned by ${
