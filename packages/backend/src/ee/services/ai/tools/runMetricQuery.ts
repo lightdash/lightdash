@@ -13,7 +13,6 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
-import { z } from 'zod';
 import { CsvService } from '../../../../services/CsvService/CsvService';
 import { getAgentQuestion } from '../decisions/agentQuestion';
 import type { AiDecisionClient } from '../decisions/AiDecisionClient';

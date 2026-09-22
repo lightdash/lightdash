@@ -45,10 +45,7 @@ import {
     getAgentQuestion,
 } from '../decisions/agentQuestion';
 import { AnswerClaimVerifier } from '../decisions/answerClaims';
-import {
-    withAnswerEvidence,
-    type AnswerEvidence,
-} from '../decisions/answerEvidence';
+import { withAnswerEvidence } from '../decisions/answerEvidence';
 import { prepareCatalogMetadata } from '../decisions/catalogMetadata';
 import {
     CATALOG_AMBIGUITY_GUIDANCE,

@@ -1,5 +1,4 @@
 import type { Explore } from '@lightdash/common';
-import { z } from 'zod';
 import { AnswerEvidence } from '../decisions/answerEvidence';
 import type { ChartExportSource } from './chartAsCode';
 import { GeneratedResponseBlocks } from './GeneratedResponseBlocks';
@@ -90,11 +89,3 @@ export class AgentContext {
         return explore;
     }
 }
-
-/**
- * Tool context carrying the turn's AgentContext. A tool context must be a plain
- * object (`Record<string, unknown>`), so the instance is passed as a property.
- */
-export const agentToolContextSchema = z.object({
-    agentContext: z.instanceof(AgentContext),
-});

@@ -4,7 +4,6 @@ import {
     type ToolDashboardV2ArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { z } from 'zod';
 import type { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { chooseDashboardLayout } from '../decisions/dashboardLayout';
 import type {
