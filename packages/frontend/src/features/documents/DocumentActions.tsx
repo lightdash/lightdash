@@ -99,31 +99,17 @@ const DocumentActions = ({ document }: { document: Document }) => {
                 value={url}
                 copyLabel="Copy document link"
             />
-            {isAvailable && canManage && (
-                <>
-                    <Tooltip label="Share">
-                        <ActionIcon
-                            variant="default"
-                            size="lg"
-                            aria-label="Share"
-                            onClick={() => setShareOpen(true)}
-                        >
-                            <MantineIcon icon={IconUsers} />
-                        </ActionIcon>
-                    </Tooltip>
-                    {isShareOpen && (
-                        <DirectAccessModal
-                            opened
-                            onClose={() => setShareOpen(false)}
-                            projectUuid={document.projectUuid}
-                            resource={{
-                                resourceType: DirectAccessResourceType.DOCUMENT,
-                                resourceUuid: document.documentUuid,
-                                name: document.name,
-                            }}
-                        />
-                    )}
-                </>
+            {isAvailable && canManage && isShareOpen && (
+                <DirectAccessModal
+                    opened
+                    onClose={() => setShareOpen(false)}
+                    projectUuid={document.projectUuid}
+                    resource={{
+                        resourceType: DirectAccessResourceType.DOCUMENT,
+                        resourceUuid: document.documentUuid,
+                        name: document.name,
+                    }}
+                />
             )}
             <Menu>
                 <Menu.Target>
@@ -138,6 +124,14 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     </Tooltip>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    {isAvailable && canManage && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconUsers} />}
+                            onClick={() => setShareOpen(true)}
+                        >
+                            Share
+                        </Menu.Item>
+                    )}
                     {canPin && (
                         <Menu.Item
                             leftSection={

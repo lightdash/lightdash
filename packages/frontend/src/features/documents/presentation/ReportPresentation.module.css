@@ -299,9 +299,9 @@
 }
 
 .documentLayout {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 4fr);
+    grid-template-columns: 16rem minmax(0, 1fr);
     width: 100%;
-    max-width: var(--page-content-max-width-large);
+    max-width: none;
 
     .contentsRail {
         background: var(--ld-color-page);
@@ -317,15 +317,12 @@
 
     .contentsControl {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         gap: var(--mantine-spacing-xs);
         padding: var(--mantine-spacing-xs);
         border-radius: var(--mantine-radius-md);
         font-size: var(--mantine-font-size-xs);
         line-height: var(--mantine-line-height-md);
-        white-space: normal;
-        overflow-wrap: anywhere;
-        text-overflow: clip;
 
         &::before {
             content: '';
@@ -347,17 +344,17 @@
     .report {
         min-width: 0;
         padding: var(--mantine-spacing-3xl) var(--mantine-spacing-5xl)
-            var(--mantine-spacing-xl);
+            var(--mantine-spacing-emptySpace);
     }
 
     .reportContent {
         min-width: 0;
-        max-width: 80ch;
+        max-width: 48rem;
         margin-inline: auto;
     }
 
     .reportHeader {
-        padding-bottom: var(--mantine-spacing-xl);
+        padding-bottom: var(--mantine-spacing-lg);
         border-bottom: 1px solid var(--mantine-color-default-border);
     }
 
@@ -373,9 +370,9 @@
         flex: 1 1 50%;
         min-width: 0;
         font-size: var(--mantine-h1-font-size);
-        font-weight: var(--mantine-h1-font-weight);
+        font-weight: 700;
         line-height: var(--mantine-h1-line-height);
-        letter-spacing: normal;
+        letter-spacing: -0.02em;
         overflow-wrap: anywhere;
     }
 
@@ -421,10 +418,13 @@
             overflow-x: auto;
         }
 
+        /* The base inset ring sits under the header fill, so use a real border */
         table {
             font-size: var(--mantine-font-size-sm);
-            border-radius: var(--mantine-radius-lg);
             margin: 0;
+            border: 1px solid var(--mantine-color-default-border);
+            border-radius: var(--mantine-radius-lg);
+            box-shadow: none;
         }
 
         th,
@@ -443,36 +443,31 @@
             border-bottom-color: currentColor;
         }
 
+        /* Title 28 > H1 24 > H2 18 > H3 16 > rest 14: skips the 20px step so
+           each level reads as a distinct drop instead of a 2px nudge */
         h1 {
             font-size: var(--mantine-h2-font-size);
             line-height: var(--mantine-h2-line-height);
+            letter-spacing: -0.015em;
             padding-top: var(--mantine-spacing-xl);
             border-top: 1px solid var(--mantine-color-default-border);
         }
 
         h2 {
-            font-size: var(--mantine-h3-font-size);
-            line-height: var(--mantine-h3-line-height);
-        }
-
-        h3 {
             font-size: var(--mantine-h4-font-size);
             line-height: var(--mantine-h4-line-height);
         }
 
-        h4 {
+        h3 {
             font-size: var(--mantine-h5-font-size);
             line-height: var(--mantine-h5-line-height);
         }
 
-        h5 {
+        h4,
+        h5,
+        h6 {
             font-size: var(--mantine-h6-font-size);
             line-height: var(--mantine-h6-line-height);
-        }
-
-        h6 {
-            font-size: var(--mantine-font-size-xs);
-            line-height: var(--mantine-line-height-xs);
         }
 
         h1,
@@ -484,6 +479,13 @@
             margin-top: var(--mantine-spacing-xl);
             margin-bottom: var(--mantine-spacing-sm);
             font-weight: var(--mantine-h2-font-weight);
+        }
+
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
             letter-spacing: normal;
         }
 

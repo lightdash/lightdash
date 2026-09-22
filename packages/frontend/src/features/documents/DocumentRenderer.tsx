@@ -32,28 +32,33 @@ const DocumentRenderer = ({
             variant="document"
             actions={actions}
             metadata={
-                <Group gap="sm">
+                <Group gap="xs" wrap="nowrap">
                     {document.createdBy && (
-                        <Group
-                            gap="xs"
-                            wrap="nowrap"
-                            role="group"
-                            aria-label="Created by"
-                        >
-                            <LightdashUserAvatar
-                                userUuid={document.createdBy.userUuid}
-                                avatarUrl={document.createdBy.avatarUrl}
-                                avatarGradient={
-                                    document.createdBy.avatarGradient
-                                }
-                                name={creatorName ?? undefined}
-                                size="sm"
-                                aria-hidden
-                            />
-                            <Text fz="xs" fw={500}>
-                                {creatorName}
+                        <>
+                            <Group
+                                gap="xs"
+                                wrap="nowrap"
+                                role="group"
+                                aria-label="Created by"
+                            >
+                                <LightdashUserAvatar
+                                    userUuid={document.createdBy.userUuid}
+                                    avatarUrl={document.createdBy.avatarUrl}
+                                    avatarGradient={
+                                        document.createdBy.avatarGradient
+                                    }
+                                    name={creatorName ?? undefined}
+                                    size="sm"
+                                    aria-hidden
+                                />
+                                <Text fz="xs" fw={500} c="dimmed">
+                                    {creatorName}
+                                </Text>
+                            </Group>
+                            <Text fz="xs" c="dimmed" aria-hidden>
+                                ·
                             </Text>
-                        </Group>
+                        </>
                     )}
                     <UpdatedInfo
                         updatedAt={document.updatedAt}

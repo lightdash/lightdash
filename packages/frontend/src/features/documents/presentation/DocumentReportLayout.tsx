@@ -105,7 +105,9 @@ const DocumentReportLayout = ({
                                             </Text>
                                         </Group>
                                     ) : (
-                                        heading.label
+                                        <Text component="span" inherit truncate>
+                                            {heading.label}
+                                        </Text>
                                     )}
                                 </UnstyledButton>
                             ))}
