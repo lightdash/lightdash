@@ -24,6 +24,9 @@ type DbDataAppAnalysisBase = {
     content_hash: string | null;
     source_hashes: DataAppSourceHash[] | null;
     reused_from_analysis_uuid: string | null;
+    input_tokens: number | null;
+    output_tokens: number | null;
+    latency_ms: number | null;
     created_at: Date;
 };
 

@@ -25,7 +25,10 @@ import {
 import { generateText } from 'ai';
 import NodeCache from 'node-cache';
 import { createHash } from 'node:crypto';
-import { type AiKeyManagement } from '../../../analytics/aiUsage';
+import {
+    type AiKeyManagement,
+    type AiUsageTokens,
+} from '../../../analytics/aiUsage';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -668,22 +671,35 @@ export class AiService extends BaseService {
             content,
             instructions,
             projectUuid,
+            appUuid,
         }: {
             content: string;
             instructions: string | null;
             projectUuid: string;
+            appUuid: string;
         },
-    ): Promise<{ detection: DataAppDetection; modelId: string | null }> {
+    ): Promise<{
+        detection: DataAppDetection;
+        modelId: string | null;
+        usage: AiUsageTokens;
+    }> {
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
         });
-        const detection = await detectDataAppAnomalies(modelOptions, {
-            content,
-            instructions,
-            today: new Date().toISOString().slice(0, 10),
-        });
+        const { detection, usage } = await detectDataAppAnomalies(
+            {
+                ...modelOptions,
+                telemetry: { ...modelOptions.telemetry, appUuid },
+            },
+            {
+                content,
+                instructions,
+                today: new Date().toISOString().slice(0, 10),
+            },
+        );
         return {
             detection,
+            usage,
             modelId:
                 getLanguageModelAttribution(modelOptions.model).model ?? null,
         };
@@ -696,23 +712,28 @@ export class AiService extends BaseService {
             prompt,
             focus,
             projectUuid,
+            appUuid,
         }: {
             content: string;
             prompt: string;
             focus: Record<string, string> | null;
             projectUuid: string;
+            appUuid: string;
         },
-    ): Promise<{ text: string; modelId: string | null }> {
+    ): Promise<{ text: string; modelId: string | null; usage: AiUsageTokens }> {
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
         });
-        const text = await answerDataAppPrompt(modelOptions, {
-            content,
-            prompt,
-            focus,
-        });
+        const { text, usage } = await answerDataAppPrompt(
+            {
+                ...modelOptions,
+                telemetry: { ...modelOptions.telemetry, appUuid },
+            },
+            { content, prompt, focus },
+        );
         return {
             text,
+            usage,
             modelId:
                 getLanguageModelAttribution(modelOptions.model).model ?? null,
         };

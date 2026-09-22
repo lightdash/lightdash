@@ -895,7 +895,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     aiService: repository.getAiService<AiService>(),
                 }),
-            dataAppAnalysisService: ({ models, repository, clients }) =>
+            dataAppAnalysisService: ({
+                models,
+                repository,
+                clients,
+                context,
+            }) =>
                 new DataAppAnalysisService({
                     dataAppAnalysisModel:
                         models.getDataAppAnalysisModel<DataAppAnalysisModel>(),
@@ -916,6 +921,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService<AiOrganizationSettingsService>(),
+                    analytics: context.lightdashAnalytics,
                 }),
             scimService: ({ models, context, repository }) =>
                 new ScimService({
