@@ -161,9 +161,30 @@ type AiCallTelemetryConfig = {
     runtimeContext: Record<string, string | number | boolean>;
 };
 
+/**
+ * Dimensions this event is built from. The runtime context is a flat bag
+ * because callers may add their own keys, so naming the readable ones here is
+ * what stops a typo silently resolving to `null`. `getAiCallTelemetry` imports
+ * this to decide which dimensions may reach telemetry providers.
+ */
+export type AiCallRuntimeContextKey =
+    | 'feature'
+    | 'organizationUuid'
+    | 'projectUuid'
+    | 'agentUuid'
+    | 'threadUuid'
+    | 'promptUuid'
+    | 'userUuid'
+    | 'model'
+    | 'provider'
+    | 'keyManagement'
+    | 'runUuid'
+    | 'deepResearchRunUuid'
+    | 'deepResearchPhase';
+
 const getMetadataString = (
     metadata: AiCallTelemetryConfig['runtimeContext'],
-    key: string,
+    key: AiCallRuntimeContextKey,
 ): string | null => {
     const value = metadata[key];
     return typeof value === 'string' ? value : null;

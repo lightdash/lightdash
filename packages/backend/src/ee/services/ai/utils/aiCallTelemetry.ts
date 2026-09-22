@@ -1,6 +1,7 @@
 import type { LanguageModel } from 'ai';
 import type {
     AiCallFeature,
+    AiCallRuntimeContextKey,
     AiKeyManagement,
 } from '../../../../analytics/aiUsage';
 
@@ -98,7 +99,10 @@ const ATTRIBUTION_KEYS: (keyof AiCallAttribution)[] = [
  * Attribution dimensions that may be sent to telemetry providers. Everything
  * else stays local to Lightdash's own `ai.usage` analytics.
  */
-const TELEMETRY_REPORTED_KEYS: string[] = ['feature', ...ATTRIBUTION_KEYS];
+const TELEMETRY_REPORTED_KEYS: AiCallRuntimeContextKey[] = [
+    'feature',
+    ...ATTRIBUTION_KEYS,
+];
 
 /**
  * Builds the telemetry options for any Vercel AI SDK call (generateText /
