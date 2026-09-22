@@ -111,6 +111,22 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: '/embed/:projectUuid/ai-agents/:agentUuid/dashboards/:agentDashboardUuid',
+                lazy: async () => {
+                    const EmbedAiAgentDashboard = await loadLazyRouteDefault(
+                        './pages/EmbedAiAgentDashboard',
+                        () => import('./pages/EmbedAiAgentDashboard'),
+                    );
+                    return {
+                        Component: () => (
+                            <TrackPage name={PageName.EMBED_DASHBOARD}>
+                                <EmbedAiAgentDashboard />
+                            </TrackPage>
+                        ),
+                    };
+                },
+            },
+            {
                 path: '/embed/:projectUuid/ai-agents/not-authorized',
                 lazy: async () => {
                     const AiAgentsNotAuthorizedPage =

@@ -100,6 +100,8 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const embedToken = encodedToken || window.location.hash.replace('#', '');
     const params = useParams();
     const projectUuid = projectUuidFromProps || params.projectUuid;
+    // Only the AI-agent dashboard route carries this param.
+    const dashboardUuid = params.agentDashboardUuid;
 
     // Synced during render, not in an effect: direct embeds strip the token hash
     // on first render, and the empty prop that follows must not wipe the store.
@@ -107,12 +109,21 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     if (
         embedToken &&
         (storedEmbed?.token !== embedToken ||
-            storedEmbed?.projectUuid !== projectUuid)
+            storedEmbed?.projectUuid !== projectUuid ||
+            storedEmbed?.dashboardUuid !== dashboardUuid)
     ) {
         setToInMemoryStorage(EMBED_KEY, {
             projectUuid,
             token: embedToken,
+            dashboardUuid,
         });
+    } else if (
+        storedEmbed?.token &&
+        storedEmbed.dashboardUuid !== dashboardUuid
+    ) {
+        // In-app navigation between the conversation and a dashboard keeps the
+        // stored token; only the viewed dashboard changes.
+        setToInMemoryStorage(EMBED_KEY, { ...storedEmbed, dashboardUuid });
     }
 
     // Parse theme params from URL once on mount (before hash is stripped)
@@ -213,6 +224,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             customSqlProvenanceChartUuid,
             savedQueryUuid,
             appUuid,
+            dashboardUuid,
             onBackToDashboard: onBackToDashboard
                 ? () => onBackToDashboard(embedJwtPayload?.content)
                 : undefined,
@@ -238,6 +250,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         customSqlProvenanceChartUuid,
         savedQueryUuid,
         appUuid,
+        dashboardUuid,
         onBackToDashboard,
         mode,
         embedThemeParams.theme,

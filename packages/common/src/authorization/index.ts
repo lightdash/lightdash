@@ -47,6 +47,8 @@ type UserAbilityBuilderArgs = {
 };
 
 export const JWT_HEADER_NAME = 'lightdash-embed-token';
+/** Dashboard an embedded AI agent is viewing; resolved against its write space. */
+export const EMBED_DASHBOARD_HEADER_NAME = 'lightdash-embed-dashboard';
 
 export type UserAbilityBuilderResult = {
     builder: AbilityBuilder<MemberAbility>;

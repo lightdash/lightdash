@@ -339,6 +339,7 @@ const EmbedDashboard: FC<{
     const haveTabsChanged = useDashboardContext((c) => c.haveTabsChanged);
 
     const {
+        dashboardUuid: embedDashboardUuid,
         embedToken,
         embedWriteContext,
         languageMap,
@@ -378,6 +379,7 @@ const EmbedDashboard: FC<{
         projectUuid,
         paletteUuid,
         !initialDashboard,
+        embedDashboardUuid,
     );
     useEffect(() => {
         if (initialDashboard) {

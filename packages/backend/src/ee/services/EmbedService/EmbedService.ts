@@ -24,6 +24,7 @@ import {
     Embed,
     EmbedContent,
     EmbedDashboard,
+    EmbedJwtContentAiAgent,
     EmbedUrl,
     ExecuteAsyncDashboardChartRequestParams,
     Explore,
@@ -584,8 +585,7 @@ export class EmbedService extends BaseService {
     ): Promise<EmbedDashboard> {
         const { data: decodedToken, source: embedToken } =
             account.authentication;
-        const { dashboardUuids, allowAllDashboards, user } =
-            await this.embedModel.get(projectUuid);
+        const { dashboardUuids, allowAllDashboards, user } = account.embed;
         const { dashboardUuid } = account.access.content;
 
         if (decodedToken.content.type !== 'dashboard') {
@@ -759,8 +759,7 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const { dashboardUuids, allowAllDashboards } =
-            await this.embedModel.get(projectUuid);
+        const { dashboardUuids, allowAllDashboards } = account.embed;
 
         if (!isFilterInteractivityEnabled(account.access.filtering)) {
             // If dashboard filters interactivity is not enabled, we return an empty list
@@ -1293,13 +1292,11 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const [{ dashboardUuids, allowAllDashboards, user }, dashboard] =
-            await Promise.all([
-                this.embedModel.get(projectUuid),
-                this.dashboardModel.getByIdOrSlug(dashboardUuid, {
-                    projectUuid,
-                }),
-            ]);
+        const { dashboardUuids, allowAllDashboards, user } = account.embed;
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const chart = await this._getChartFromDashboardTiles(
             dashboard,
@@ -1567,8 +1564,7 @@ export class EmbedService extends BaseService {
         userParameters?: ParametersValuesMap,
         checkPermissions: boolean = true,
     ) {
-        const { dashboardUuids, allowAllDashboards, user } =
-            await this.embedModel.get(projectUuid);
+        const { dashboardUuids, allowAllDashboards, user } = account.embed;
 
         const { dashboardUuid } = account.access.content;
 
@@ -2410,8 +2406,7 @@ export class EmbedService extends BaseService {
         timezone?: string;
         parameters?: ParametersValuesMap;
     }): Promise<FieldValueSearchResult> {
-        const { dashboardUuids, allowAllDashboards, user } =
-            await this.embedModel.get(projectUuid);
+        const { dashboardUuids, allowAllDashboards, user } = account.embed;
         const { dashboardUuid } = account.access.content;
         let dashboard: DashboardDAO | undefined;
         let resolvedTableName: string;
@@ -2634,7 +2629,14 @@ export class EmbedService extends BaseService {
         return this.embedModel.get(projectUuid);
     }
 
-    async getAccountFromJwt(projectUuid: string, encodedJwt: string) {
+    async getAccountFromJwt(
+        projectUuid: string,
+        encodedJwt: string,
+        options?: {
+            /** Dashboard an embedded AI agent asks to view (request header). */
+            dashboardUuid?: string;
+        },
+    ) {
         return wrapSentryTransaction(
             'EmbedService.getAccountFromJwt',
             { project_uuid: projectUuid },
@@ -2644,6 +2646,21 @@ export class EmbedService extends BaseService {
                     encodedJwt,
                     embed.encodedSecret,
                 );
+                if (
+                    isAiAgentContent(decodedToken.content) &&
+                    options?.dashboardUuid
+                ) {
+                    return this.getAiAgentDashboardViewerAccount({
+                        projectUuid,
+                        encodedJwt,
+                        decodedToken: {
+                            ...decodedToken,
+                            content: decodedToken.content,
+                        },
+                        embed,
+                        dashboardUuid: options.dashboardUuid,
+                    });
+                }
                 const userAttributesPromise = this.getEmbedUserAttributes(
                     embed.organization.organizationUuid,
                     decodedToken,
@@ -2719,6 +2736,112 @@ export class EmbedService extends BaseService {
                 });
             },
         );
+    }
+
+    /**
+     * An embedded AI agent opens a saved dashboard from its write space as a
+     * read-only dashboard viewer: the request is authorized as the write actor
+     * (space + view access) and then served exactly like a dashboard embed
+     * limited to that one dashboard, with the token's user attributes applied.
+     */
+    private async getAiAgentDashboardViewerAccount({
+        projectUuid,
+        encodedJwt,
+        decodedToken,
+        embed,
+        dashboardUuid,
+    }: {
+        projectUuid: string;
+        encodedJwt: string;
+        decodedToken: CreateEmbedJwt & { content: EmbedJwtContentAiAgent };
+        embed: Embed;
+        dashboardUuid: string;
+    }): Promise<AnonymousAccount> {
+        const { organizationUuid } = embed.organization;
+        const [userAttributes, embedWriteUser] = await Promise.all([
+            this.getEmbedUserAttributes(organizationUuid, decodedToken),
+            this.getEmbedWriteUser(decodedToken, organizationUuid),
+        ]);
+        const { writeActions } = decodedToken;
+        const embedWriteContext = await this.getEmbedWriteContext(
+            decodedToken,
+            embedWriteUser,
+            projectUuid,
+            await this.getContentUuidFromJwt(decodedToken, projectUuid),
+        );
+        if (
+            !writeActions ||
+            !embedWriteUser ||
+            embedWriteContext?.canUseAiAgent !== true
+        ) {
+            throw new ForbiddenError(
+                embedWriteContext?.aiAgentErrorMessage ??
+                    'Embed token does not allow AI agent actions',
+            );
+        }
+
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
+        if (dashboard.spaceUuid !== writeActions.spaceUuid) {
+            throw new ForbiddenError('Dashboard is outside the embedded space');
+        }
+        const spaceAccess = await this.spacePermissionService.resolveAccess(
+            embedWriteUser.userUuid,
+            { type: 'space', spaceUuid: dashboard.spaceUuid },
+        );
+        const actorAbility = this.createAuditedAbility(embedWriteUser);
+        if (
+            actorAbility.cannot(
+                'view',
+                subject('Dashboard', {
+                    organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject:
+                        spaceAccess.inheritsFromOrgOrProject,
+                    access: spaceAccess.access,
+                    metadata: { dashboardUuid: dashboard.uuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const viewerToken: CreateEmbedJwt = {
+            content: {
+                type: 'dashboard',
+                projectUuid,
+                dashboardUuid: dashboard.uuid,
+                canExplore:
+                    decodedToken.content.canExplore === true ||
+                    actorAbility.can(
+                        'view',
+                        subject('EmbedExplore', {
+                            organizationUuid,
+                            projectUuid,
+                        }),
+                    ),
+                // Defaults to enabled for dashboard tokens; the viewer is read-only.
+                canExportPagePdf: false,
+            },
+            userAttributes: decodedToken.userAttributes,
+            user: decodedToken.user,
+            iat: decodedToken.iat,
+            exp: decodedToken.exp,
+        };
+
+        return fromJwt({
+            decodedToken: viewerToken,
+            source: encodedJwt,
+            embed: {
+                ...embed,
+                dashboardUuids: [dashboard.uuid],
+                allowAllDashboards: false,
+            },
+            content: await this.getContentUuidFromJwt(viewerToken, projectUuid),
+            userAttributes,
+        });
     }
 
     // Re-verifies the token and re-asserts the export ability against the

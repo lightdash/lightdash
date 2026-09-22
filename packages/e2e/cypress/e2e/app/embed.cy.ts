@@ -1,6 +1,7 @@
 import {
     CreateEmbedJwt,
     FilterInteractivityValues,
+    SEED_ORG_1_ADMIN,
     SEED_PROJECT,
 } from '@lightdash/common';
 
@@ -398,6 +399,53 @@ describe('Embedded dashboard', () => {
                     cy.url().should('include', 'dateZoom=month');
                 });
             });
+        });
+    });
+});
+
+describe('Embedded AI agent dashboard viewer', () => {
+    beforeEach(() => {
+        cy.login();
+    });
+
+    // An aiAgent token opens a saved dashboard from its write space on the
+    // embed's own route, read-only, and returns to the conversation.
+    it('opens a write-space dashboard read-only with a way back', () => {
+        const agentUuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+        getJaffleDashboard().then((dashboardsResp) => {
+            const dashboard = dashboardsResp.body.results.data[0];
+            cy.request(`/api/v1/dashboards/${dashboard.uuid}`).then(
+                (dashboardResp) => {
+                    const { spaceUuid } = dashboardResp.body.results;
+                    getEmbedUrl({
+                        content: { type: 'aiAgent', agentUuid },
+                        writeActions: {
+                            userUuid: SEED_ORG_1_ADMIN.user_uuid,
+                            spaceUuid,
+                        },
+                    }).then((resp) => {
+                        cy.logout();
+
+                        const token = resp.body.results.url.split('#')[1];
+                        const threadsPath = `/embed/${SEED_PROJECT.project_uuid}/ai-agents/${agentUuid}/threads`;
+                        cy.visit(
+                            `/embed/${SEED_PROJECT.project_uuid}/ai-agents/${agentUuid}/dashboards/${dashboard.uuid}?embedBackUrl=${encodeURIComponent(threadsPath)}#${token}`,
+                        );
+
+                        cy.contains('Payments total revenue');
+                        cy.contains(`What's the average spend per customer?`);
+
+                        // Read-only: no exports in the tile menu.
+                        openTileMenu(`What's the average spend per customer?`);
+                        cy.contains('Download data').should('not.exist');
+                        cy.contains('Export image').should('not.exist');
+                        cy.get('body').click(1, 1);
+
+                        cy.findByRole('button', { name: 'Back to AI' }).click();
+                        cy.location('pathname').should('eq', threadsPath);
+                    });
+                },
+            );
         });
     });
 });

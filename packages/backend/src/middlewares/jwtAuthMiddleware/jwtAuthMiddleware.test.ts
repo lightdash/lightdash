@@ -1,4 +1,8 @@
-import { ForbiddenError, JWT_HEADER_NAME } from '@lightdash/common';
+import {
+    EMBED_DASHBOARD_HEADER_NAME,
+    ForbiddenError,
+    JWT_HEADER_NAME,
+} from '@lightdash/common';
 import express from 'express';
 import { buildAccount } from '../../auth/account/account.mock';
 import { jwtAuthMiddleware } from './jwtAuthMiddleware';
@@ -49,9 +53,30 @@ describe('Embed Auth Middleware', () => {
             expect(mockEmbedService.getAccountFromJwt).toHaveBeenCalledWith(
                 mockProjectUuid,
                 mockEmbedToken,
+                undefined,
             );
             expect(mockRequest.account).toBeDefined();
             expect(mockRequest.account).toBe(mockAccount);
+            expect(mockNext).toHaveBeenCalledWith();
+        });
+
+        it('forwards the dashboard an AI-agent embed asks to view', async () => {
+            mockRequest.headers = {
+                [JWT_HEADER_NAME]: mockEmbedToken,
+                [EMBED_DASHBOARD_HEADER_NAME]: 'dashboard-uuid',
+            };
+
+            await jwtAuthMiddleware(
+                mockRequest as express.Request,
+                mockResponse as express.Response,
+                mockNext,
+            );
+
+            expect(mockEmbedService.getAccountFromJwt).toHaveBeenCalledWith(
+                mockProjectUuid,
+                mockEmbedToken,
+                { dashboardUuid: 'dashboard-uuid' },
+            );
             expect(mockNext).toHaveBeenCalledWith();
         });
 
@@ -75,6 +100,7 @@ describe('Embed Auth Middleware', () => {
                 expect(mockEmbedService.getAccountFromJwt).toHaveBeenCalledWith(
                     victimProjectUuid,
                     mockEmbedToken,
+                    undefined,
                 );
                 expect(mockRequest.project).toEqual({
                     projectUuid: victimProjectUuid,
@@ -257,6 +283,7 @@ describe('Embed Auth Middleware', () => {
                 expect(mockEmbedService.getAccountFromJwt).toHaveBeenCalledWith(
                     mockProjectUuid,
                     mockEmbedToken,
+                    undefined,
                 );
                 expect(mockRequest.project).toEqual({
                     projectUuid: mockProjectUuid,
@@ -305,6 +332,7 @@ describe('Embed Auth Middleware', () => {
             expect(mockEmbedService.getAccountFromJwt).toHaveBeenCalledWith(
                 mockProjectUuid,
                 mockEmbedToken,
+                undefined,
             );
             expect(mockRequest.account!.authentication.source).toBe(
                 mockEmbedToken,

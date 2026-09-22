@@ -1,4 +1,5 @@
 import {
+    EMBED_DASHBOARD_HEADER_NAME,
     JWT_HEADER_NAME,
     LightdashRequestMethodHeader,
     LightdashSdkVersionHeader,
@@ -76,6 +77,9 @@ const finalizeHeaders = (
 
     if (embed?.token && isSafeToAddEmbedHeader(headers)) {
         requestHeaders[JWT_HEADER_NAME] = embed.token;
+        if (embed.dashboardUuid) {
+            requestHeaders[EMBED_DASHBOARD_HEADER_NAME] = embed.dashboardUuid;
+        }
     }
 
     if (sentryTrace) {
