@@ -463,6 +463,7 @@ export type RunAsyncQueryFn = (
     additionalMetrics?: AdditionalMetric[],
     parameters?: ParametersValuesMap,
     abortSignal?: AbortSignal,
+    reuseQueryUuid?: string,
 ) => Promise<{
     queryUuid: string;
     rows: Record<string, AnyType>[];

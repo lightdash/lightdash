@@ -11,6 +11,8 @@ const ERROR_CATEGORIES = {
     context: 'The AI model input or conversation exceeds its context limit',
     rate: 'Requests are temporarily rate limited or throttled',
     timeout: 'An operation exceeded its time limit',
+    resource:
+        'The warehouse rejected execution because of compute, memory, scan, quota or cost limits',
     billing:
         'The configured AI provider has insufficient credit or a billing issue',
     other: 'Unknown, ambiguous, or none of these causes',
@@ -41,7 +43,14 @@ const DOMAIN_CATEGORIES: Record<
 > = {
     query: {
         label: 'warehouse query',
-        categories: ['permissions', 'connection', 'query', 'other'],
+        categories: [
+            'permissions',
+            'connection',
+            'resource',
+            'timeout',
+            'query',
+            'other',
+        ],
     },
     mcp: {
         label: 'remote MCP service',
@@ -107,12 +116,7 @@ export const classifyUnknownError = async ({
             return null;
         if (domain === 'query') {
             const repairable = decisionProbability(answers?.repairable);
-            if (
-                !['permissions', 'connection'].includes(category) ||
-                repairable === null ||
-                repairable > 0.05
-            )
-                return null;
+            if (repairable === null || repairable > 0.05) return null;
         }
         return category as ErrorCategory;
     } catch {

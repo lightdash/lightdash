@@ -149,6 +149,7 @@ import {
     summarizeToolResult,
 } from '../utils/toolSummaries';
 import { getMcpActiveTools } from './mcpToolGating';
+import { compactChartDiscovery, getPreviousQueryUuid } from './previousQuery';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { repairQueryToolCall } from './queryToolCallRepair';
 import {
@@ -583,7 +584,7 @@ const FIELD_ID_KEYS = new Set([
     'dimensions',
 ]);
 
-export const getRecentQueryFieldKeywords = (
+export const getRecentQueryFieldIds = (
     messageHistory: ModelMessage[],
 ): string[] => {
     const latestUserIndex = messageHistory.findLastIndex(
@@ -640,7 +641,7 @@ export const getRecentQueryFieldKeywords = (
     return [...found].slice(0, 12);
 };
 
-export const getCandidateSeedKeywords = (
+export const getCandidateSearchTerms = (
     query: string,
     recentQueryFields: string[],
 ): string[] =>
@@ -657,10 +658,10 @@ const prepareCandidateSeed = async (
 ): Promise<string | undefined> => {
     if (!args.decisions || args.execution.mode !== 'standard') return undefined;
     const query = getAgentQuestion(args);
-    const recentQueryFields = getRecentQueryFieldKeywords(args.messageHistory);
+    const recentQueryFields = getRecentQueryFieldIds(args.messageHistory);
     const candidates = selectCandidateFields(
         getCachedFieldIndex(explores, verifiedFieldUsage),
-        getCandidateSeedKeywords(query, recentQueryFields),
+        getCandidateSearchTerms(query, recentQueryFields),
     );
     const ranked = await rankCatalog({
         decisions: args.decisions,
@@ -847,6 +848,15 @@ const isQueryCacheHit = (output: unknown): boolean =>
     typeof output.metadata === 'object' &&
     'queryCacheHit' in output.metadata &&
     output.metadata.queryCacheHit === true;
+
+const isQueryReuseHit = (output: unknown): boolean =>
+    !!output &&
+    typeof output === 'object' &&
+    'metadata' in output &&
+    !!output.metadata &&
+    typeof output.metadata === 'object' &&
+    'queryReuseHit' in output.metadata &&
+    output.metadata.queryReuseHit === true;
 
 const trackFailedToolResult = (
     dependencies: Pick<AiAgentDependencies, 'trackEvent'>,
@@ -1176,6 +1186,7 @@ export const buildPrepareStep = ({
     intentToolGate,
     logger,
     invalidToolCallIds,
+    agentContext,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
@@ -1187,6 +1198,7 @@ export const buildPrepareStep = ({
     // Ids of tool calls the AI SDK dropped for invalid input, recorded by
     // onStepFinish/onChunk as the turn progresses (shared mutable set).
     invalidToolCallIds: ReadonlySet<string>;
+    agentContext?: AgentContext;
 }) => {
     const forcedFirstStep = buildForcedFirstStep(args, tools);
     const retryMarkersPersisted = new Set<string>();
@@ -1204,15 +1216,16 @@ export const buildPrepareStep = ({
         stepNumber: number;
         messages: ModelMessage[];
     }) => {
+        if (stepNumber > 0) agentContext?.clearPreviousQuery();
         const explicitlyForced = forcedFirstStep?.({ stepNumber }) ?? {};
         const intentForcedTool = getFastIntentTool(
             intentToolGate?.intent === 'chart_from_previous' &&
-                getRecentQueryFieldKeywords(args.messageHistory).length === 0
+                getRecentQueryFieldIds(args.messageHistory).length === 0
                 ? null
                 : intentToolGate?.intent,
             preloadedMcpToolNames,
         );
-        const forced =
+        let forced =
             !explicitlyForced.toolChoice &&
             stepNumber === 0 &&
             intentForcedTool !== null &&
@@ -1247,22 +1260,25 @@ export const buildPrepareStep = ({
 
         // ZAP-574: bound repeated query-tool failures so a slow/looping
         // visualization can't stack multi-minute warehouse scans in one turn.
+        const semanticErrorRouting =
+            args.execution.mode === 'standard' ? args.decisions : undefined;
         const retryOverride =
-            buildQueryRetryStepOverride(
-                messages,
-                Object.keys(tools),
-                invalidToolCallIds,
-                args.execution.mode,
-            ) ??
-            (args.decisions && args.execution.mode === 'standard'
+            (semanticErrorRouting
                 ? await queryErrorOverride({
-                      decisions: args.decisions,
+                      decisions: semanticErrorRouting,
                       messages,
                       checked: checkedErrors,
                       allToolNames: Object.keys(tools),
                       invalidToolCallIds,
                   })
-                : null);
+                : null) ??
+            buildQueryRetryStepOverride(
+                messages,
+                Object.keys(tools),
+                invalidToolCallIds,
+                args.execution.mode,
+                !!semanticErrorRouting,
+            );
         if (retryOverride) {
             activeTools = activeTools
                 ? activeTools.filter((name) =>
@@ -1308,6 +1324,9 @@ export const buildPrepareStep = ({
                   stepNumber,
               });
         if (steers.length > 0) {
+            agentContext?.clearPreviousQuery();
+            if (args.decisions && !explicitlyForced.toolChoice)
+                forced = explicitlyForced;
             intentToolGate?.restore();
             logger(
                 'Prepare Step',
@@ -1343,7 +1362,16 @@ export const buildPrepareStep = ({
             );
         }
 
+        const stepMessages =
+            args.decisions &&
+            stepNumber === 0 &&
+            intentToolGate?.intent === 'chart_from_previous' &&
+            forced.toolChoice &&
+            steers.length === 0
+                ? compactChartDiscovery(messages)
+                : messages;
         if (
+            stepMessages === messages &&
             extraMessages.length === 0 &&
             activeTools === undefined &&
             stepBudgetOverride === undefined
@@ -1361,7 +1389,7 @@ export const buildPrepareStep = ({
             ...(stepBudgetOverride?.toolChoice !== undefined
                 ? { toolChoice: stepBudgetOverride.toolChoice }
                 : {}),
-            messages: [...messages, ...extraMessages],
+            messages: [...stepMessages, ...extraMessages],
         };
     };
 };
@@ -2373,9 +2401,18 @@ const prepareAgentTurn = async ({
     ]);
     if (
         preparedContext?.turnIntent === 'chart_from_previous' &&
-        getRecentQueryFieldKeywords(args.messageHistory).length === 0
+        getRecentQueryFieldIds(args.messageHistory).length === 0
     ) {
         preparedContext.turnIntent = 'chart';
+    }
+    if (
+        args.decisions &&
+        args.execution.mode === 'standard' &&
+        preparedContext?.turnIntent === 'chart_from_previous'
+    ) {
+        agentContext.previousQueryUuid = getPreviousQueryUuid(
+            args.messageHistory,
+        );
     }
     const intentToolGate = createIntentToolGate(
         tools,
@@ -2420,6 +2457,7 @@ const prepareAgentTurn = async ({
         intentToolGate,
         logger,
         invalidToolCallIds,
+        agentContext,
     });
 
     return {
@@ -2544,6 +2582,7 @@ export const generateAgentResponse = async ({
                 const toolTiming = timing.recordToolCallEnd(
                     event.toolCall.toolCallId,
                     event.success && isQueryCacheHit(event.output),
+                    event.success && isQueryReuseHit(event.output),
                 );
                 if (toolTiming) {
                     dependencies.trackEvent({
@@ -2561,6 +2600,7 @@ export const generateAgentResponse = async ({
                             durationMs: toolTiming.durationMs,
                             stage: toolTiming.stage,
                             queryCacheHit: toolTiming.queryCacheHit,
+                            queryReuseHit: toolTiming.queryReuseHit,
                             status:
                                 !event.success ||
                                 isErrorToolResult(event.output)
@@ -3146,6 +3186,7 @@ export const streamAgentResponse = async ({
                         const toolTiming = timing.recordToolCallEnd(
                             event.chunk.toolCallId,
                             isQueryCacheHit(event.chunk.output),
+                            isQueryReuseHit(event.chunk.output),
                         );
                         if (toolTiming) {
                             dependencies.trackEvent({
@@ -3164,6 +3205,8 @@ export const streamAgentResponse = async ({
                                     stage: toolTiming.stage,
                                     queryCacheHit:
                                         toolTiming.queryCacheHit || null,
+                                    queryReuseHit:
+                                        toolTiming.queryReuseHit || null,
                                     status: isErrorToolResult(
                                         event.chunk.output as AnyType,
                                     )

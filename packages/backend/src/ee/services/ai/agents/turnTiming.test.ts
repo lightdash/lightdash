@@ -307,7 +307,7 @@ describe('TurnTimingTracker', () => {
         tracker.recordToolCallStart('query-a', 'runQuery');
         tracker.recordToolCallStart('query-b', 'runSavedChart');
         c.advance(200);
-        tracker.recordToolCallEnd('query-a', true);
+        tracker.recordToolCallEnd('query-a', true, true);
         c.advance(100);
         tracker.recordToolCallEnd('query-b');
         tracker.completeStep(0);
@@ -319,6 +319,7 @@ describe('TurnTimingTracker', () => {
             apiMs: 0,
             renderMs: 0,
             queryCacheHits: 1,
+            queryReuseHits: 1,
         });
     });
 

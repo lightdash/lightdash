@@ -11,7 +11,7 @@ const decisionClient = (
     category: string,
     { confidence = 0.99, probability = 0.99, repairable = 0.01 } = {},
 ) => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async () =>
         Response.json({
             model: 'test',
             answers: {
@@ -87,8 +87,8 @@ describe('unknown error classification', () => {
         },
     );
 
-    it.each(['query', 'invented'])(
-        'does not stop for category %s',
+    it.each(['invented'])(
+        'does not classify unsupported category %s',
         async (category) => {
             const { decisions } = decisionClient(category);
             expect(
@@ -100,6 +100,17 @@ describe('unknown error classification', () => {
             ).toBeNull();
         },
     );
+
+    it('returns a supported repairability classification without deciding recovery policy', async () => {
+        const { decisions } = decisionClient('query');
+        expect(
+            await classifyUnknownError({
+                decisions,
+                error: 'request rejected',
+                domain: 'query',
+            }),
+        ).toBe('query');
+    });
 
     it('does not serialize an object or send an empty message', async () => {
         const { decisions, fetcher } = decisionClient('permissions');
@@ -134,38 +145,70 @@ describe('unknown error classification', () => {
         expect(fetcher).toHaveBeenCalledOnce();
     });
 
-    it.each([
-        ['Query timed out', false],
-        ['Connection lost during execution', false],
-        ['Query exceeded memory limit', false],
-        ['Invalid input shape', true],
-    ])(
-        'leaves deterministic handling of %s alone',
-        async (message, invalid) => {
-            const { decisions, fetcher } = decisionClient('permissions');
-            const messages: ModelMessage[] = [
-                {
-                    role: 'tool',
-                    content: [
-                        {
-                            type: 'tool-result',
-                            toolCallId: 'failed',
-                            toolName: 'runSql',
-                            output: { type: 'error-text', value: message },
+    it('uses Jev rather than error keywords for bounded resource recovery', async () => {
+        const { decisions, fetcher } = decisionClient('resource');
+        const checked = new Map<string, string | null>();
+        const messages: ModelMessage[] = [];
+        const addFailure = (toolCallId: string, value: string) =>
+            messages.push({
+                role: 'tool',
+                content: [
+                    {
+                        type: 'tool-result',
+                        toolCallId,
+                        toolName: 'runSql',
+                        output: { type: 'error-text', value },
+                    },
+                ],
+            } as ModelMessage);
+
+        addFailure('first', 'opaque warehouse response alpha');
+        const recovery = await queryErrorOverride({
+            decisions,
+            messages,
+            checked,
+            allToolNames: ['runSql', 'grepFields'],
+        });
+        expect(recovery?.activeTools).toContain('runSql');
+
+        addFailure('second', 'opaque warehouse response beta');
+        const stopped = await queryErrorOverride({
+            decisions,
+            messages,
+            checked,
+            allToolNames: ['runSql', 'grepFields'],
+        });
+        expect(stopped?.activeTools).toEqual(['grepFields']);
+        expect(fetcher).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not classify AI SDK schema failures from their prose', async () => {
+        const { decisions, fetcher } = decisionClient('permissions');
+        const messages: ModelMessage[] = [
+            {
+                role: 'tool',
+                content: [
+                    {
+                        type: 'tool-result',
+                        toolCallId: 'failed',
+                        toolName: 'runSql',
+                        output: {
+                            type: 'error-text',
+                            value: 'arbitrary SDK wording',
                         },
-                    ],
-                },
-            ];
-            expect(
-                await queryErrorOverride({
-                    decisions,
-                    messages,
-                    checked: new Map(),
-                    allToolNames: ['runSql'],
-                    invalidToolCallIds: new Set(invalid ? ['failed'] : []),
-                }),
-            ).toBeNull();
-            expect(fetcher).not.toHaveBeenCalled();
-        },
-    );
+                    },
+                ],
+            } as ModelMessage,
+        ];
+        expect(
+            await queryErrorOverride({
+                decisions,
+                messages,
+                checked: new Map(),
+                allToolNames: ['runSql'],
+                invalidToolCallIds: new Set(['failed']),
+            }),
+        ).toBeNull();
+        expect(fetcher).not.toHaveBeenCalled();
+    });
 });

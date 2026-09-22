@@ -829,6 +829,54 @@ describe('AiAgentToolsService', () => {
         });
     });
 
+    it.each([
+        { source: 'ai_agent' as const, enabled: false },
+        { source: 'ai_agent' as const, enabled: true },
+        { source: 'mcp' as const, enabled: true },
+    ])(
+        'forwards a reuse reference only for enabled AI runtimes: $source, $enabled',
+        async ({ source, enabled }) => {
+            const executeMetricQueryAndGetResults = vi.fn().mockResolvedValue({
+                queryUuid: 'result',
+                rows: [],
+                fields: {},
+                cacheMetadata: { cacheHit: false },
+            });
+            const service = makeService({
+                explores: { orders: makeExplore({ name: 'orders' }) },
+                asyncQueryService: { executeMetricQueryAndGetResults },
+            });
+            const context = makeRuntimeContext({ enableRuntimeCache: enabled });
+            const runtime =
+                source === 'mcp'
+                    ? service.createRuntime({ ...context, source: 'mcp' })
+                    : service.createRuntime(context);
+            await runtime.runAsyncQuery(
+                {
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 10,
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                    customMetrics: null,
+                },
+                undefined,
+                undefined,
+                undefined,
+                'previous',
+            );
+            const forwarded = executeMetricQueryAndGetResults.mock.calls[0];
+            expect(forwarded).toHaveLength(
+                source === 'ai_agent' && enabled ? 3 : 2,
+            );
+            if (source === 'ai_agent' && enabled)
+                expect(forwarded[2]).toBe('previous');
+        },
+    );
+
     it('extends query result retention when the runtime opts in', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-07-31T12:00:00.000Z'));

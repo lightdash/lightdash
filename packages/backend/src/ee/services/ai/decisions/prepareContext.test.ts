@@ -112,7 +112,7 @@ describe('context preloading', () => {
         },
     );
 
-    it('prefers a confident Jev route over a lexical fallback', async () => {
+    it('uses a confident Jev route for mixed requests', async () => {
         const { args, dependencies, request } = setup();
         args.availableSkills = [];
         args.knowledgeDocuments = [];
@@ -239,7 +239,7 @@ describe('context preloading', () => {
         expect(context?.turnIntent).toBe('chart_from_previous');
     });
 
-    it('routes an explicit chart conversion deterministically when Jev confidence is low', async () => {
+    it('does not narrow tools when Jev confidence is low for a chart follow-up', async () => {
         const { args, dependencies, request } = setup();
         args.availableSkills = [];
         args.knowledgeDocuments = [];
@@ -272,7 +272,7 @@ describe('context preloading', () => {
         const context = await prepareRelevantContext(args, dependencies, {
             loadAgentTools: getLoadAgentTools(),
         });
-        expect(context?.turnIntent).toBe('chart_from_previous');
+        expect(context).toBeNull();
     });
 
     it.each([
@@ -280,7 +280,7 @@ describe('context preloading', () => {
         'Show order trends over the last 5 years',
         'Compare order volume by month for 2024 vs 2025',
     ])(
-        'routes an unmistakable analytical answer deterministically: %s',
+        'does not infer analytical intent from prompt keywords: %s',
         async (query) => {
             const { args, dependencies, request } = setup();
             args.availableSkills = [];
@@ -303,7 +303,7 @@ describe('context preloading', () => {
             const context = await prepareRelevantContext(args, dependencies, {
                 loadAgentTools: getLoadAgentTools(),
             });
-            expect(context?.turnIntent).toBe('data_answer');
+            expect(context).toBeNull();
         },
     );
 
@@ -339,7 +339,7 @@ describe('context preloading', () => {
         },
     );
 
-    it('keeps deterministic analytical routing when Jev is unavailable', async () => {
+    it('keeps the full toolbox when Jev is unavailable', async () => {
         const { args, dependencies, request } = setup();
         args.availableSkills = [];
         args.knowledgeDocuments = [];
@@ -351,12 +351,60 @@ describe('context preloading', () => {
         const context = await prepareRelevantContext(args, dependencies, {
             loadAgentTools: getLoadAgentTools(),
         });
-        expect(context).toEqual({
-            content: null,
-            mcpToolNames: [],
-            projectContextEntryIds: [],
-            turnIntent: 'data_answer',
+        expect(context).toBeNull();
+    });
+
+    it('retains narrow routing for a self-contained first question with long agent instructions', async () => {
+        const { args, dependencies, request } = setup();
+        args.availableSkills = [];
+        args.agentSettings = {
+            ...args.agentSettings,
+            instruction: 'Preserve all business rules. '.repeat(1000),
+        };
+        args.messageHistory = [
+            {
+                role: 'user',
+                content: 'Which organisation owns this identifier?',
+            },
+        ];
+        request.mockResolvedValue(
+            Response.json({
+                model: 'test',
+                answers: { turnIntent: choice('data_answer') },
+            }),
+        );
+        const context = await prepareRelevantContext(args, dependencies, {
+            loadAgentTools: getLoadAgentTools(),
         });
+        expect(context?.turnIntent).toBe('data_answer');
+        expect(args.agentSettings.instruction?.length).toBeGreaterThan(4000);
+    });
+
+    it('routes presentation follow-ups when only older context was omitted', async () => {
+        const { args, dependencies, request } = setup();
+        args.availableSkills = [];
+        args.messageHistory = [
+            { role: 'user', content: 'Unrelated older history '.repeat(1000) },
+            { role: 'user', content: 'Count orders by month for last year' },
+            {
+                role: 'assistant',
+                content: 'January: 12 orders. February: 18 orders.',
+            },
+            {
+                role: 'user',
+                content: 'Could you turn those results into bars with a line?',
+            },
+        ];
+        request.mockResolvedValue(
+            Response.json({
+                model: 'test',
+                answers: { turnIntent: choice('chart_from_previous') },
+            }),
+        );
+        const context = await prepareRelevantContext(args, dependencies, {
+            loadAgentTools: getLoadAgentTools(),
+        });
+        expect(context?.turnIntent).toBe('chart_from_previous');
     });
 
     it('never narrows the toolbox when relevant conversation is incomplete', async () => {

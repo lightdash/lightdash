@@ -53,6 +53,11 @@ export const MessageTimingIndicator: FC<Props> = ({ responseTiming }) => {
                                       stages.queryCacheHits === 1 ? '' : 's'
                                   }`
                                 : ''}
+                            {stages.queryReuseHits > 0
+                                ? ` · ${stages.queryReuseHits} prior result reuse${
+                                      stages.queryReuseHits === 1 ? '' : 's'
+                                  }`
+                                : ''}
                         </Text>
                     )}
                     <Text size="xs" c="dimmed">

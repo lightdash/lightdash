@@ -27,6 +27,11 @@ type AgentStage = 'query' | 'api' | 'render';
  * ```
  */
 export class AgentContext {
+    previousQueryUuid: string | undefined;
+
+    clearPreviousQuery(): void {
+        this.previousQueryUuid = undefined;
+    }
     readonly answerEvidence: AnswerEvidence | undefined;
     readonly responseBlocks = new GeneratedResponseBlocks();
 

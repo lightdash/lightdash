@@ -960,6 +960,8 @@ export type CacheMetadata = {
     cacheExpiresAt?: Date;
     cacheKey?: string;
     cacheHit: boolean;
+    /** Result came from an explicitly reused prior query, not cache lookup. */
+    queryReuseHit?: boolean;
     preAggregate?: {
         hit: boolean;
         name?: string;

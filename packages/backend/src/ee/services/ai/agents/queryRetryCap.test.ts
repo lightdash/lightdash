@@ -60,12 +60,16 @@ const makeTurn = () => {
                 content: [{ type: 'text', text: 'Trying a narrower query.' }],
             } as unknown as ModelMessage);
         },
-        override: (executionMode: 'standard' | 'deep_research' = 'standard') =>
+        override: (
+            executionMode: 'standard' | 'deep_research' = 'standard',
+            semanticErrorRoutingEnabled = false,
+        ) =>
             buildQueryRetryStepOverride(
                 messages,
                 ALL_TOOLS,
                 invalidToolCallIds,
                 executionMode,
+                semanticErrorRoutingEnabled,
             ),
     };
 };
@@ -332,5 +336,54 @@ describe('query retry cap', () => {
         expect(turn.override('deep_research')?.markerKey).toBe(
             'resource-recovery-1',
         );
+    });
+});
+
+describe('semantic error routing', () => {
+    it('retains the general failure cap without classifying error prose', () => {
+        const turn = makeTurn();
+        turn.failure('runQuery', 'opaque failure A');
+        turn.failure('runQuery', 'opaque failure B');
+        turn.failure('runQuery', 'opaque failure C');
+        expect(turn.override('standard', true)?.activeTools).not.toContain(
+            'runQuery',
+        );
+    });
+    it('does not carry query failures into a new user turn', () => {
+        const messages: ModelMessage[] = [
+            {
+                role: 'tool',
+                content: [
+                    {
+                        type: 'tool-result',
+                        toolCallId: 'old',
+                        toolName: 'runQuery',
+                        output: {
+                            type: 'error-text',
+                            value: 'bytesBilledLimitExceeded: Query exceeded limit for bytes billed',
+                        },
+                    },
+                ],
+            },
+            { role: 'user', content: 'Now count completed orders' },
+        ];
+        expect(
+            buildQueryRetryStepOverride(
+                messages,
+                ALL_TOOLS,
+                new Set(),
+                'standard',
+                true,
+            ),
+        ).toBeNull();
+    });
+
+    it('does not infer an error category from message keywords', () => {
+        const turn = makeTurn();
+        turn.failure(
+            'runQuery',
+            'bytesBilledLimitExceeded: Query exceeded limit for bytes billed',
+        );
+        expect(turn.override('standard', true)).toBeNull();
     });
 });

@@ -20,6 +20,7 @@ import type {
     AiAgentDependencies,
     AiDeepResearchExecutionRole,
 } from '../types/aiAgent';
+import { AgentContext } from '../utils/AgentContext';
 import {
     AiAgentEmptyResponseError,
     AiAgentStepCapReachedError,
@@ -35,13 +36,13 @@ import {
     generateAgentResponse,
     getAgentMessages,
     getAgentTools,
-    getCandidateSeedKeywords,
+    getCandidateSearchTerms,
     getChartExportFastResponse,
     getChartFollowupFastResponse,
     getDataAppBuildFastResponse,
     getDeepResearchBudgetInstruction,
     getPromptMcpServers,
-    getRecentQueryFieldKeywords,
+    getRecentQueryFieldIds,
     getStepBudgetOverride,
     normalizeToolOutput,
     recordAgentStepUsage,
@@ -849,6 +850,7 @@ describe('generateAgentResponse token usage persistence', () => {
                     apiMs: expect.any(Number),
                     renderMs: expect.any(Number),
                     queryCacheHits: expect.any(Number),
+                    queryReuseHits: expect.any(Number),
                 }),
             },
         });
@@ -1202,6 +1204,11 @@ describe('buildPrepareStep worker isolation', () => {
         async (status) => {
             const fastModel = {} as AiAgentArgs['model'];
             const args = buildAgentArgs();
+            args.decisions = new AiDecisionClient({
+                apiKey: null,
+                model: 'test',
+                timeoutMs: 100,
+            });
             args.messageHistory = [
                 { role: 'user', content: 'How many orders?' },
                 {
@@ -1231,6 +1238,23 @@ describe('buildPrepareStep worker isolation', () => {
                         },
                     ],
                 },
+                {
+                    role: 'tool',
+                    content: [
+                        {
+                            type: 'tool-result',
+                            toolCallId: 'catalog',
+                            toolName: 'getMetadata',
+                            output: {
+                                type: 'json',
+                                value: {
+                                    status: 'success',
+                                    result: 'Large catalog payload',
+                                },
+                            },
+                        },
+                    ],
+                },
                 { role: 'assistant', content: 'Previous answer' },
                 { role: 'user', content: 'As a line chart' },
             ];
@@ -1245,11 +1269,15 @@ describe('buildPrepareStep worker isolation', () => {
                 grepFields: {} as never,
             };
             const gate = createIntentToolGate(tools, 'chart_from_previous');
+            const agentContext = new AgentContext([]);
+            agentContext.previousQueryUuid = 'previous';
+            const consumePromptSteers = vi.fn().mockResolvedValue([]);
             const prepareStep = buildPrepareStep({
+                agentContext,
                 args,
                 dependencies: {
                     ...buildAgentDependencies(vi.fn()),
-                    consumePromptSteers: vi.fn().mockResolvedValue([]),
+                    consumePromptSteers,
                 },
                 tools: gate.tools,
                 mcpToolNames: [],
@@ -1267,6 +1295,34 @@ describe('buildPrepareStep worker isolation', () => {
                 expect(first).not.toHaveProperty('model');
                 return;
             }
+            expect(
+                JSON.stringify(
+                    'messages' in first ? first.messages : args.messageHistory,
+                ),
+            ).not.toContain('Large catalog payload');
+            expect(JSON.stringify(args.messageHistory)).toContain(
+                'Large catalog payload',
+            );
+            const next = await prepareStep({
+                stepNumber: 1,
+                messages: args.messageHistory,
+            });
+            expect(
+                JSON.stringify(
+                    'messages' in next ? next.messages : args.messageHistory,
+                ),
+            ).toContain('Large catalog payload');
+            expect(agentContext.previousQueryUuid).toBeUndefined();
+            consumePromptSteers.mockResolvedValue([
+                { message: 'Actually explain the metric definition' },
+            ]);
+            const steered = await prepareStep({
+                stepNumber: 0,
+                messages: args.messageHistory,
+            });
+            expect(steered).not.toHaveProperty('toolChoice');
+            expect(steered).not.toHaveProperty('model');
+            expect(JSON.stringify(steered)).toContain('Large catalog payload');
             expect(first).toMatchObject({
                 activeTools: ['generateVisualization'],
                 toolChoice: { type: 'tool', toolName: 'generateVisualization' },
@@ -2440,7 +2496,7 @@ describe('buildAgentMessages', () => {
         'only carries confirmed successful query fields: %s',
         (status) => {
             expect(
-                getRecentQueryFieldKeywords([
+                getRecentQueryFieldIds([
                     { role: 'user', content: 'How many orders?' },
                     {
                         role: 'assistant',
@@ -2496,17 +2552,19 @@ describe('buildAgentMessages', () => {
             { length: 12 },
             (_, index) => `patient_health_scores_previous_${index}`,
         );
-        const keywords = getCandidateSeedKeywords(
+        const searchTerms = getCandidateSearchTerms(
             'Break down these patients by cost tier',
             previous,
         );
-        const cost = keywords.find((keyword) => keyword.includes('cost'));
+        const cost = searchTerms.find((term) => term.includes('cost'));
         expect(cost).toBeDefined();
-        expect(keywords).toEqual(expect.arrayContaining(['tier', previous[0]]));
-        expect(keywords.indexOf(cost!)).toBeLessThan(
-            keywords.indexOf(previous[0]),
+        expect(searchTerms).toEqual(
+            expect.arrayContaining(['tier', previous[0]]),
         );
-        expect(keywords).toHaveLength(12);
+        expect(searchTerms.indexOf(cost!)).toBeLessThan(
+            searchTerms.indexOf(previous[0]),
+        );
+        expect(searchTerms).toHaveLength(12);
     });
 
     it('can omit speculative catalog candidates without altering the reference question', () => {

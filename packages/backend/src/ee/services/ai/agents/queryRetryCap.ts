@@ -47,9 +47,6 @@ type ToolResultOutput = { type: string; value: string };
 const WAREHOUSE_SLOW =
     /timed out|timeout|polling|connection (terminated|lost)|econnreset/i;
 
-export const isKnownQueryRetryError = (message: string): boolean =>
-    isWarehouseResourceLimitError(message) || WAREHOUSE_SLOW.test(message);
-
 /**
  * Resource-limit recovery needs a small stable vocabulary shared by warehouse
  * errors (bytes, memory, quota, and resource exhaustion). Other warehouse
@@ -60,13 +57,18 @@ export const isKnownQueryRetryError = (message: string): boolean =>
 const classifyQueryResult = (
     output: ToolResultOutput,
     isInvalidInput: boolean,
+    classifyWarehouseErrorText: boolean,
 ): QueryResultClass => {
     if (output.type !== 'error-text') return 'ok';
     if (isInvalidInput) return 'invalid-input';
-    if (isWarehouseResourceLimitError(output.value)) {
+    if (
+        classifyWarehouseErrorText &&
+        isWarehouseResourceLimitError(output.value)
+    ) {
         return 'warehouse-resource-limit';
     }
-    if (WAREHOUSE_SLOW.test(output.value)) return 'warehouse-slow';
+    if (classifyWarehouseErrorText && WAREHOUSE_SLOW.test(output.value))
+        return 'warehouse-slow';
     return 'other';
 };
 
@@ -134,6 +136,7 @@ type QueryResult = { class: QueryResultClass; value: string; round: number };
 const collectQueryResults = (
     messages: ModelMessage[],
     invalidToolCallIds: ReadonlySet<string>,
+    classifyWarehouseErrorText = true,
 ): QueryResult[] => {
     const results: QueryResult[] = [];
     let round = -1;
@@ -160,6 +163,7 @@ const collectQueryResults = (
                         class: classifyQueryResult(
                             output,
                             invalidToolCallIds.has(part.toolCallId as string),
+                            classifyWarehouseErrorText,
                         ),
                         value:
                             typeof output.value === 'string'
@@ -303,8 +307,20 @@ export const buildQueryRetryStepOverride = (
     allToolNames: string[],
     invalidToolCallIds: ReadonlySet<string>,
     executionMode: 'standard' | 'deep_research' = 'standard',
+    semanticErrorRoutingEnabled = false,
 ): { activeTools: string[]; nudge: string; markerKey: string } | null => {
-    const results = collectQueryResults(messages, invalidToolCallIds);
+    const turnMessages =
+        semanticErrorRoutingEnabled && executionMode === 'standard'
+            ? messages.slice(
+                  messages.findLastIndex((message) => message.role === 'user') +
+                      1,
+              )
+            : messages;
+    const results = collectQueryResults(
+        turnMessages,
+        invalidToolCallIds,
+        !(semanticErrorRoutingEnabled && executionMode === 'standard'),
+    );
     if (executionMode === 'deep_research') {
         const resourceRecovery = buildDeepResearchResourceRecoveryOverride(
             results,

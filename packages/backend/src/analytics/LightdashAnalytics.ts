@@ -3017,6 +3017,7 @@ export type AiAgentResponseStreamed = BaseTrack & {
         apiMs: number;
         renderMs: number;
         queryCacheHits: number;
+        queryReuseHits: number;
         fastDecisionsEnabled: boolean;
         fastToolModelEnabled: boolean;
         turnIntent: string | null;
@@ -3198,6 +3199,7 @@ export type AiAgentToolCallCompletedEvent = BaseTrack & {
         durationMs: number;
         stage: 'query' | 'api' | 'render';
         queryCacheHit: boolean | null;
+        queryReuseHit: boolean | null;
         status: 'success' | 'error';
     };
 };

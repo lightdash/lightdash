@@ -34,6 +34,7 @@ import {
     QuerySourceType,
     QueryTrigger,
     ResultColumns,
+    ResultsExpiredError,
     upgradeSavedMergeQuery,
     VizAggregationOptions,
     VizIndexType,
@@ -2549,6 +2550,131 @@ describe('AsyncQueryService', () => {
             },
         );
 
+        it.each([false, true])(
+            'retries normal execution once if a reused result disappears (aborted: %s)',
+            async (aborted) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const controller = new AbortController();
+                service.executeAsyncMetricQuery = vi
+                    .fn()
+                    .mockResolvedValueOnce({
+                        queryUuid: 'previous',
+                        fields: {},
+                        cacheMetadata: { cacheHit: true },
+                    })
+                    .mockResolvedValue({
+                        queryUuid: 'fresh',
+                        fields: {},
+                        cacheMetadata: { cacheHit: false },
+                    });
+                service.pollForQueryCompletion = vi
+                    .fn()
+                    .mockResolvedValue({ status: QueryHistoryStatus.READY });
+                const getReady = vi
+                    .fn()
+                    .mockImplementationOnce(async () => {
+                        if (aborted) controller.abort(new Error('Cancelled'));
+                        throw new ResultsExpiredError();
+                    })
+                    .mockResolvedValue({
+                        rows: [{ count: 42 }],
+                        fields: {},
+                        cacheMetadata: { cacheHit: false },
+                    });
+                (service as AnyType).getReadyQueryResults = getReady;
+                const args = {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.AI,
+                };
+                const result = service.executeMetricQueryAndGetResults(
+                    args,
+                    { abortSignal: controller.signal },
+                    'previous',
+                );
+                if (aborted) {
+                    await expect(result).rejects.toThrow('Cancelled');
+                    expect(
+                        service.executeAsyncMetricQuery,
+                    ).toHaveBeenCalledTimes(1);
+                } else {
+                    await expect(result).resolves.toMatchObject({
+                        queryUuid: 'fresh',
+                        rows: [{ count: 42 }],
+                    });
+                    expect(
+                        service.executeAsyncMetricQuery,
+                    ).toHaveBeenNthCalledWith(2, args);
+                }
+            },
+        );
+
+        it('does not retry again if the fresh result also expires', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            service.executeAsyncMetricQuery = vi
+                .fn()
+                .mockResolvedValueOnce({
+                    queryUuid: 'previous',
+                    fields: {},
+                    cacheMetadata: { cacheHit: true },
+                })
+                .mockResolvedValueOnce({
+                    queryUuid: 'fresh',
+                    fields: {},
+                    cacheMetadata: { cacheHit: false },
+                });
+            service.pollForQueryCompletion = vi.fn().mockResolvedValue({
+                status: QueryHistoryStatus.READY,
+            });
+            (service as AnyType).getReadyQueryResults = vi
+                .fn()
+                .mockRejectedValue(new ResultsExpiredError());
+
+            await expect(
+                service.executeMetricQueryAndGetResults(
+                    {
+                        account: sessionAccount,
+                        projectUuid,
+                        metricQuery: metricQueryMock,
+                        context: QueryExecutionContext.AI,
+                    },
+                    undefined,
+                    'previous',
+                ),
+            ).rejects.toBeInstanceOf(ResultsExpiredError);
+            expect(service.executeAsyncMetricQuery).toHaveBeenCalledTimes(2);
+        });
+
+        it('does not rerun a reused query after an unrelated result-read failure', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            service.executeAsyncMetricQuery = vi.fn().mockResolvedValue({
+                queryUuid: 'previous',
+                fields: {},
+                cacheMetadata: { cacheHit: true },
+            });
+            service.pollForQueryCompletion = vi.fn().mockResolvedValue({
+                status: QueryHistoryStatus.READY,
+            });
+            (service as AnyType).getReadyQueryResults = vi
+                .fn()
+                .mockRejectedValue(new Error('Result storage unavailable'));
+
+            await expect(
+                service.executeMetricQueryAndGetResults(
+                    {
+                        account: sessionAccount,
+                        projectUuid,
+                        metricQuery: metricQueryMock,
+                        context: QueryExecutionContext.AI,
+                    },
+                    undefined,
+                    'previous',
+                ),
+            ).rejects.toThrow('Result storage unavailable');
+            expect(service.executeAsyncMetricQuery).toHaveBeenCalledOnce();
+        });
+
         it('preserves the query UUID with the ready results', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             service.executeAsyncMetricQuery = vi.fn().mockResolvedValue({
@@ -2627,6 +2753,110 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncMetricQuery', () => {
+        test.each([
+            'reuse',
+            'scope-change',
+            'expired',
+            'denied',
+            'ordinary',
+        ] as const)(
+            'presentation reuse keeps current authorization and compilation: %s',
+            async (scenario) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const access = vi
+                    .spyOn(service, 'getExploreWithUserAccessControls')
+                    .mockResolvedValue({
+                        explore: validExplore,
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                    });
+                if (scenario === 'denied')
+                    access.mockRejectedValue(new ForbiddenError());
+                service['getWarehouseCredentials'] = vi
+                    .fn()
+                    .mockResolvedValue(warehouseClientMock.credentials);
+                service.combineParameters = vi
+                    .fn()
+                    .mockResolvedValue(undefined);
+                const composer = createQueryComposerMock({
+                    sql:
+                        scenario === 'scope-change'
+                            ? 'SELECT * FROM test WHERE region = 2'
+                            : 'SELECT * FROM test',
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                });
+                const prepare = vi
+                    .spyOn(
+                        service as unknown as {
+                            prepareMetricQueryAsyncQueryArgs: () => Promise<QueryComposer>;
+                        },
+                        'prepareMetricQueryAsyncQueryArgs',
+                    )
+                    .mockResolvedValue(composer);
+                const execute = vi.fn().mockResolvedValue({
+                    queryUuid: 'new',
+                    cacheMetadata: { cacheHit: false },
+                });
+                service['executeAsyncQuery'] = execute;
+                const history = vi
+                    .spyOn(service, 'getAsyncQueryHistory')
+                    .mockResolvedValue({
+                        queryUuid: 'previous',
+                        status: QueryHistoryStatus.READY,
+                        compiledSql: 'SELECT * FROM test',
+                        usedParameters: {},
+                        createdByUserUuid: sessionAccount.user.id,
+                        resultsFileName: 'results.jsonl',
+                        createdAt: new Date(),
+                        resultsExpiresAt: new Date(
+                            Date.now() +
+                                (scenario === 'expired' ? -60_000 : 60_000),
+                        ),
+                    } as QueryHistory);
+                const result = service.executeAsyncMetricQuery(
+                    {
+                        account: sessionAccount,
+                        projectUuid,
+                        metricQuery: metricQueryMock,
+                        context: QueryExecutionContext.AI,
+                    },
+                    scenario === 'ordinary' ? undefined : 'previous',
+                );
+                if (scenario === 'denied') {
+                    await expect(result).rejects.toThrow(ForbiddenError);
+                    expect(history).not.toHaveBeenCalled();
+                    expect(execute).not.toHaveBeenCalled();
+                    return;
+                }
+                const resolved = await result;
+                expect(resolved.queryUuid).toBe(
+                    scenario === 'reuse' ? 'previous' : 'new',
+                );
+                expect(resolved.cacheMetadata.queryReuseHit).toBe(
+                    scenario === 'reuse' ? true : undefined,
+                );
+                expect(access).toHaveBeenCalled();
+                expect(prepare).toHaveBeenCalled();
+                expect(execute).toHaveBeenCalledTimes(
+                    scenario === 'reuse' ? 0 : 1,
+                );
+                if (scenario === 'ordinary')
+                    expect(history).not.toHaveBeenCalled();
+                else
+                    expect(history).toHaveBeenCalledWith({
+                        account: sessionAccount,
+                        projectUuid,
+                        queryUuid: 'previous',
+                    });
+            },
+        );
+
         test('forwards trusted provenance inputs to custom SQL authorization', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             const assertCustomSqlAuthorizedForQuery = vi

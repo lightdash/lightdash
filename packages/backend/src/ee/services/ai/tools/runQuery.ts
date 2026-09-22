@@ -58,6 +58,7 @@ import {
     createQueryReviewer,
     EMPTY_QUERY_GUIDANCE,
 } from '../decisions/queryReview';
+import { joinedMeasureGuidance } from '../decisions/sourceEvidence';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     CreateOrUpdateArtifactFn,
@@ -491,12 +492,14 @@ const sendSlackVisualization = async ({
 const getSuccessMetadata = ({
     queryUuid,
     queryCacheHit,
+    queryReuseHit,
     chartImageUrl,
     artifact,
     deferredSlack,
 }: {
     queryUuid: string;
     queryCacheHit: boolean;
+    queryReuseHit: boolean;
     chartImageUrl?: string;
     artifact?: AiArtifact;
     deferredSlack: boolean;
@@ -508,6 +511,7 @@ const getSuccessMetadata = ({
         : {}),
     queryUuid,
     queryCacheHit,
+    queryReuseHit,
 });
 
 const registerChartExport = ({
@@ -968,6 +972,9 @@ export const getRunQuery = ({
                             queryUuid: queryResults.queryUuid,
                             queryCacheHit:
                                 queryResults.cacheMetadata.cacheHit === true,
+                            queryReuseHit:
+                                queryResults.cacheMetadata.queryReuseHit ===
+                                true,
                             chartImageUrl,
                             artifact,
                             deferredSlack: !!deferSlackVisualization,
@@ -1178,6 +1185,11 @@ export const getRunQuery = ({
                             metricQuery,
                             populatedCustomMetrics,
                             queryTool.queryConfig.parameters ?? undefined,
+                            ...((decisions &&
+                            purpose === 'visualization' &&
+                            ctx.previousQueryUuid
+                                ? [undefined, ctx.previousQueryUuid]
+                                : []) as [AbortSignal?, string?]),
                         ),
                     ),
                     decisions && enableDataAccess
@@ -1338,6 +1350,9 @@ export const getRunQuery = ({
                             queryUuid: queryResults.queryUuid,
                             queryCacheHit:
                                 queryResults.cacheMetadata.cacheHit === true,
+                            queryReuseHit:
+                                queryResults.cacheMetadata.queryReuseHit ===
+                                true,
                             chartImageUrl,
                             artifact,
                             deferredSlack: !!deferSlackVisualization,
@@ -1354,13 +1369,15 @@ export const getRunQuery = ({
                         `${resultSummary}${getContextTruncationNote({
                             rowCount: queryResults.rows.length,
                             maxContextRows,
-                        })}${queryReference}${exportReference}${intentNote}${presentationNote}${decisions ? chartQualityHints(queryTool, queryResults.rows) : ''}`,
+                        })}${queryReference}${exportReference}${intentNote}${presentationNote}${decisions ? joinedMeasureGuidance(queryTool.queryConfig.metrics, explore, queryResults.rows, ctx.getAvailableExplores()) + chartQualityHints(queryTool, queryResults.rows) : ''}`,
                         serializeData(csv, 'csv'),
                     ].join('\n\n'),
                     metadata: getSuccessMetadata({
                         queryUuid: queryResults.queryUuid,
                         queryCacheHit:
                             queryResults.cacheMetadata.cacheHit === true,
+                        queryReuseHit:
+                            queryResults.cacheMetadata.queryReuseHit === true,
                         chartImageUrl,
                         artifact,
                         deferredSlack: !!deferSlackVisualization,
@@ -1377,8 +1394,14 @@ export const getRunQuery = ({
                         : '';
                 return {
                     result:
-                        toolErrorHandler(e, `Error running query.`) +
-                        fieldAdvice,
+                        toolErrorHandler(
+                            decisions && e instanceof AiAgentUnknownFieldsError
+                                ? new Error(
+                                      `${e.conciseMessage}\nFull field inventory omitted. Use the suggested IDs below or grepFields/getMetadata for the missing definitions.`,
+                                  )
+                                : e,
+                            `Error running query.`,
+                        ) + fieldAdvice,
                     metadata: { status: 'error' },
                 };
             }
