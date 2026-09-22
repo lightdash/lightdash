@@ -5,7 +5,7 @@ import {
     type Filters,
     type MetricQuery,
 } from '@lightdash/common';
-import { Badge, Box, Divider, Group, Stack, Text } from '@mantine/core';
+import { Badge, Divider, Group, Stack, Text } from '@mantine/core';
 import { Fragment, useCallback, useEffect, useState, type FC } from 'react';
 import CollapsableCard from '../../../components/common/CollapsableCard/CollapsableCard';
 import FiltersForm from '../../../components/common/Filters';
@@ -26,14 +26,15 @@ import {
 } from '../../explorer/store';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMerge } from '../context/useMerge';
+import { useMergeSourceNames } from '../hooks/useMergeSourceNames';
 import { getMergeSourceMetricQuery } from '../utils/getMergeSourceMetricQuery';
 import { syncMergeJoinFilters } from '../utils/syncMergeJoinFilters';
 
 const SourceFilters: FC<{
     query: MetricQuery;
-    primary: boolean;
+    sourceName: string;
     setFilters: (filters: Filters) => void;
-}> = ({ query, primary, setFilters }) => {
+}> = ({ query, sourceName, setFilters }) => {
     const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
     const isEditMode = useExplorerSelector(selectIsEditMode);
@@ -48,24 +49,17 @@ const SourceFilters: FC<{
         includeHiddenFields: false,
     });
     const count = countTotalFilterRules(query.filters);
+    const exploreLabel = explore?.label ?? query.exploreName;
+    const displayLabel =
+        sourceName === query.exploreName
+            ? exploreLabel
+            : `${exploreLabel} · ${sourceName}`;
     return (
-        <Stack gap="xs">
-            <Group justify="space-between" gap="xs" px="xs" pt={4} pb={2}>
-                <Group gap={7}>
-                    <Box
-                        w={7}
-                        h={7}
-                        style={{
-                            borderRadius: 2,
-                            background: primary
-                                ? 'var(--mantine-color-blue-6)'
-                                : 'var(--mantine-color-orange-6)',
-                        }}
-                    />
-                    <Text size="xs" fw={600}>
-                        {explore?.label ?? query.exploreName}
-                    </Text>
-                </Group>
+        <Stack gap={0} py="xs">
+            <Group justify="space-between" gap="xs" px="sm" mih={24}>
+                <Text size="xs" fw={600}>
+                    {displayLabel}
+                </Text>
                 <Text size="xs" c="dimmed">
                     {count === 0 ? 'No filters' : `${count} active`}
                 </Text>
@@ -86,6 +80,7 @@ const SourceFilters: FC<{
                 }
             >
                 <FiltersForm
+                    compact
                     isEditMode={isEditMode}
                     filters={query.filters}
                     setFilters={setFilters}
@@ -98,6 +93,7 @@ const SourceFilters: FC<{
 /** Join-key rules are shared across every source; other filters stay local. */
 export const MergeFiltersCard: FC = () => {
     const merge = useMerge();
+    const sourceNames = useMergeSourceNames();
     const dispatch = useExplorerDispatch();
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const filterIsOpen = useExplorerSelector(selectIsFiltersExpanded);
@@ -107,12 +103,17 @@ export const MergeFiltersCard: FC = () => {
         if (filterIsOpen) setHasEverOpened(true);
     }, [filterIsOpen]);
     const sources = [
-        { id: PRIMARY_SOURCE_ID, query: metricQuery },
+        {
+            id: PRIMARY_SOURCE_ID,
+            query: metricQuery,
+            sourceName: sourceNames.nameByHandle[PRIMARY_SOURCE_ID],
+        },
         ...merge.additionalSources
             .filter((source) => source.exploreName)
             .map((source) => ({
                 id: source.id,
                 query: getMergeSourceMetricQuery(source, metricQuery.limit),
+                sourceName: sourceNames.nameByHandle[source.id],
             })),
     ];
     const total = new Set(
@@ -164,20 +165,21 @@ export const MergeFiltersCard: FC = () => {
             }
         >
             {hasEverOpened && (
-                <Stack gap="md">
+                <Stack gap={0}>
                     {sources.map((source, index) => (
                         <Fragment key={source.id}>
                             {index > 0 && <Divider />}
                             <SourceFilters
                                 query={source.query}
-                                primary={source.id === PRIMARY_SOURCE_ID}
+                                sourceName={source.sourceName}
                                 setFilters={(filters) =>
                                     setFilters(source.id, filters)
                                 }
                             />
                         </Fragment>
                     ))}
-                    <Text size="xs" c="dimmed" px="xs" pb="xs">
+                    <Divider />
+                    <Text size="xs" c="dimmed" px="sm" py="xs">
                         Filters on a matching field apply to all queries. Other
                         filters stay with their query.
                     </Text>
