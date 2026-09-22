@@ -1159,6 +1159,27 @@ export const getCartesianLabelPosition = ({
     return position === 'top' ? 'insideTop' : position;
 };
 
+// Keep symbols enabled with zero size so value labels still render.
+// https://github.com/apache/echarts/issues/19178
+const getSeriesSymbolConfig = (series: Series) => {
+    const { showSymbol, type } = series;
+    switch (type) {
+        case CartesianSeriesType.LINE:
+        case CartesianSeriesType.AREA:
+            return {
+                showSymbol: true,
+                symbolSize: showSymbol ? 4 : 0,
+            };
+        case CartesianSeriesType.BAR:
+        case CartesianSeriesType.SCATTER:
+            return {
+                showSymbol: showSymbol ?? true,
+            };
+        default:
+            return assertUnreachable(type, `unexpected series type: ${type}`);
+    }
+};
+
 const getPivotSeries = ({
     series,
     pivotReference,
@@ -1235,7 +1256,7 @@ const getPivotSeries = ({
                 resolvedTimezone,
             ),
         },
-        showSymbol: series.showSymbol ?? true,
+        ...getSeriesSymbolConfig(series),
         ...(series.label?.show && {
             label: {
                 ...series.label,
@@ -1289,31 +1310,6 @@ const getPivotSeries = ({
             },
         }),
     };
-};
-
-/**
- * Get the series symbol configuration for a simple series
- * This is used to hide the symbol if showSymbol is false for line and area charts
- *
- * Issue reference: https://github.com/apache/echarts/issues/19178
- */
-const getSimpleSeriesSymbolConfig = (series: Series) => {
-    const { showSymbol, type } = series;
-    switch (type) {
-        case CartesianSeriesType.LINE:
-        case CartesianSeriesType.AREA:
-            return {
-                showSymbol: true,
-                symbolSize: showSymbol ? 4 : 0,
-            };
-        case CartesianSeriesType.BAR:
-        case CartesianSeriesType.SCATTER:
-            return {
-                showSymbol: showSymbol ?? true,
-            };
-        default:
-            return assertUnreachable(type, `unexpected series type: ${type}`);
-    }
 };
 
 const applyReadableColorsToMarkLine = (
@@ -1418,7 +1414,7 @@ const getSimpleSeries = ({
             resolvedTimezone,
         ),
     },
-    ...getSimpleSeriesSymbolConfig(series),
+    ...getSeriesSymbolConfig(series),
     ...(series.label?.show && {
         label: {
             ...series.label,
@@ -1484,7 +1480,7 @@ const getSimpleSeries = ({
 });
 
 // New series generation for pre-pivoted data from backend
-const getEchartsSeriesFromPivotedData = (
+export const getEchartsSeriesFromPivotedData = (
     itemsMap: ItemsMap,
     cartesianChart: CartesianChart,
     rowKeyMap: RowKeyMap,

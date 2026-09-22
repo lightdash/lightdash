@@ -31,6 +31,7 @@ import {
     getCartesianLabelLayout,
     getCartesianLabelPosition,
     getCategoryDateAxisConfig,
+    getEchartsSeriesFromPivotedData,
     getLongestLabelsForAxis,
     getMinAndMaxValues,
     getNiceTickBound,
@@ -3092,4 +3093,49 @@ describe('assignSeriesZByOrder', () => {
     test('handles an empty series list', () => {
         expect(assignSeriesZByOrder([])).toEqual([]);
     });
+});
+
+describe('series symbol visibility', () => {
+    test.each([CartesianSeriesType.LINE, CartesianSeriesType.AREA])(
+        '%s symbols match the checkbox for grouped and ungrouped series',
+        (type) => {
+            for (const grouped of [false, true]) {
+                for (const showSymbol of [undefined, false, true]) {
+                    const yRef = {
+                        field: 'revenue',
+                        ...(grouped && {
+                            pivotValues: [
+                                { field: 'status', value: 'complete' },
+                            ],
+                        }),
+                    };
+                    const chart: CartesianChart = {
+                        layout: { xField: 'date', yField: ['revenue'] },
+                        eChartsConfig: {
+                            series: [
+                                {
+                                    type,
+                                    showSymbol,
+                                    label: { show: true },
+                                    encode: { xRef: { field: 'date' }, yRef },
+                                },
+                            ],
+                        },
+                    };
+                    const [series] = getEchartsSeriesFromPivotedData(
+                        {},
+                        chart,
+                        { revenue: grouped ? yRef : 'revenue' },
+                    );
+
+                    expect(series.pivotReference).toEqual(
+                        grouped ? yRef : undefined,
+                    );
+                    expect(series.showSymbol).toBe(true);
+                    expect(series.symbolSize).toBe(showSymbol ? 4 : 0);
+                    expect(series.label?.show).toBe(true);
+                }
+            }
+        },
+    );
 });
