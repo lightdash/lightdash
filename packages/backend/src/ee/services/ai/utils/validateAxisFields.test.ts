@@ -315,6 +315,26 @@ describe('validateAxisFields', () => {
     });
 
     describe('Error Cases - xAxisDimension', () => {
+        it('should reject a non-table chart without an x-axis dimension', () => {
+            const chartConfig: ToolRunQueryArgsTransformed['chartConfig'] = {
+                defaultVizType: 'bar',
+                xAxisDimension: null,
+                yAxisMetrics: ['orders_total_revenue'],
+                groupBy: null,
+                xAxisType: null,
+                stackBars: null,
+                lineType: null,
+                xAxisLabel: 'Orders',
+                yAxisLabel: 'Revenue',
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
+            };
+
+            expect(() =>
+                validateAxisFields(chartConfig, [], ['orders_total_revenue']),
+            ).toThrow(/bar chart requires an x-axis dimension/i);
+        });
+
         it('should throw when xAxisDimension is not in queryConfig.dimensions', () => {
             const chartConfig: ToolRunQueryArgsTransformed['chartConfig'] = {
                 defaultVizType: 'bar',

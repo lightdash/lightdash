@@ -346,6 +346,23 @@ describe('chart edits', () => {
         expect(request).not.toHaveBeenCalled();
     });
 
+    it('resolves an exact as-a-chart request without a provider request', async () => {
+        const request = vi.fn<typeof fetch>();
+        const result = await resolveChartEdit({
+            decisions: new AiDecisionClient(
+                { apiKey: 'test', model: 'test', timeoutMs: 100 },
+                request,
+            ),
+            prompt: 'as a bar chart',
+            artifact,
+        });
+
+        expect(result?.config.config.chartConfig).toMatchObject({
+            defaultVizType: 'bar',
+        });
+        expect(request).not.toHaveBeenCalled();
+    });
+
     it('accepts a high-confidence natural chart refinement', async () => {
         const result = await resolveChartEdit({
             decisions: client('area', 0.95),

@@ -45,7 +45,7 @@ export type ChartEdit = {
 // Gate only an optimization, not the request's meaning. Ordinary data questions
 // should not pay for a serial chart-edit decision before entering the agent.
 export const isChartPresentationRequest = (prompt: string): boolean =>
-    /^(?:(?:line|area|bar|horizontal bar|scatter|pie|table)(?: chart)?[.!]?|(?:(?:please|(?:can|could|would) you)\s+)?(?:make|change|switch|turn|stack|unstack|split|group|separate|break|swap|rotate|flip)\b)/i.test(
+    /^(?:(?:line|area|bar|horizontal bar|scatter|pie|table)(?: chart)?[.!]?|(?:please\s+)?(?:show\s+(?:it|this|this chart|the chart)\s+)?as\s+(?:a\s+|an\s+)?(?:line|area|bar|horizontal bar|scatter|pie|table)(?: chart)?[.!]?|(?:(?:please|(?:can|could|would) you)\s+)?(?:make|change|switch|turn|stack|unstack|split|group|separate|break|swap|rotate|flip)\b)/i.test(
         prompt.trim(),
     );
 
@@ -73,6 +73,9 @@ export const parseExactChartEdit = (
     const text = prompt.trim().toLowerCase().replace(/[.!]$/, '').trim();
     const type =
         /^(line|area|bar|horizontal bar|scatter|pie|table)(?: chart)?$/.exec(
+            text,
+        )?.[1] ??
+        /^(?:please )?(?:show (?:it|this|this chart|the chart) )?as (?:a |an )?(line|area|bar|horizontal bar|scatter|pie|table)(?: chart)?$/.exec(
             text,
         )?.[1] ??
         /^(?:please )?(?:make (?:it|this|this chart|the chart)|change (?:it|this|this chart|the chart) to|switch to) (?:a |an )?(line|area|bar|horizontal bar|scatter|pie|table)(?: chart)?$/.exec(
