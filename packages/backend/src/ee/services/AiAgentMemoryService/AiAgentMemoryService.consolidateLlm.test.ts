@@ -16,7 +16,13 @@ vi.mock('ai', async (importOriginal) => ({
 vi.mock('../ai/models', () => ({ getModel: vi.fn() }));
 vi.mock('../ai/agents/agentV2', () => ({ defaultAgentOptions: {} }));
 vi.mock('../ai/utils/aiCallTelemetry', () => ({
-    getAiCallTelemetry: () => ({ functionId: 'test', metadata: {} }),
+    // Must mirror the real return shape, or the usage path this exercises
+    // silently no-ops: emitAiUsage reads telemetry.runtimeContext and needs a
+    // real feature.
+    getAiCallTelemetry: () => ({
+        runtimeContext: { feature: 'ai-agent-memory' },
+        telemetry: { functionId: 'test' },
+    }),
     getLanguageModelAttribution: () => ({}),
 }));
 

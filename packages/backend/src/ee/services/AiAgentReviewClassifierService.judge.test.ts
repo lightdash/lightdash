@@ -13,9 +13,13 @@ vi.mock('ai', () => ({ generateObject: vi.fn() }));
 vi.mock('./ai/models', () => ({ getModel: vi.fn() }));
 vi.mock('./ai/agents/agentV2', () => ({ defaultAgentOptions: {} }));
 vi.mock('./ai/utils/aiCallTelemetry', () => ({
-    // Valid shape so the real emitAiUsage doesn't throw internally when the
-    // classifier emits usage (it reads telemetry.metadata).
-    getAiCallTelemetry: () => ({ functionId: 'test', metadata: {} }),
+    // Must mirror the real return shape, or the usage path this exercises
+    // silently no-ops: emitAiUsage reads telemetry.runtimeContext and needs a
+    // real feature.
+    getAiCallTelemetry: () => ({
+        runtimeContext: { feature: 'review-classifier' },
+        telemetry: { functionId: 'test' },
+    }),
     getLanguageModelAttribution: () => ({}),
 }));
 
