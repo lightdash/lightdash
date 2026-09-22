@@ -415,6 +415,7 @@ type AiThreadSummaryRow = Pick<
     | 'title'
     | 'title_generated_at'
     | 'pinned_at'
+    | 'battle_profile'
 > &
     Pick<DbAiPrompt, 'prompt' | 'ai_prompt_uuid'> & {
         user_uuid: DbUser['user_uuid'] | null;
@@ -3034,6 +3035,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.title`,
                 `${AiThreadTableName}.title_generated_at`,
                 `${AiThreadTableName}.pinned_at`,
+                `${AiThreadTableName}.battle_profile`,
                 `${AiPromptTableName}.prompt`,
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${UserTableName}.user_uuid`,
@@ -3062,6 +3064,7 @@ export class AiAgentModel {
             title: row.title,
             titleGeneratedAt: row.title_generated_at?.toString() ?? null,
             pinnedAt: row.pinned_at?.toString() ?? null,
+            battleProfile: row.battle_profile,
             firstMessage: {
                 uuid: row.ai_prompt_uuid,
                 message: row.prompt,
@@ -5508,6 +5511,7 @@ export class AiAgentModel {
                 slackThreadTs: `${AiSlackThreadTableName}.slack_thread_ts`,
                 humanScore: `${AiPromptTableName}.human_score`,
                 modelConfig: `${AiPromptTableName}.model_config`,
+                battleProfile: `${AiThreadTableName}.battle_profile`,
             })
             .where(`${AiPromptTableName}.ai_prompt_uuid`, promptUuid)
             .first();
@@ -6468,6 +6472,7 @@ export class AiAgentModel {
                 metricQuery: `${AiPromptTableName}.metric_query`,
                 savedQueryUuid: `${AiPromptTableName}.saved_query_uuid`,
                 modelConfig: `${AiPromptTableName}.model_config`,
+                battleProfile: `${AiThreadTableName}.battle_profile`,
                 tokenUsage: `${AiPromptTableName}.token_usage`,
             })
             .where(`${AiPromptTableName}.ai_prompt_uuid`, promptUuid)
@@ -6485,6 +6490,7 @@ export class AiAgentModel {
                     project_uuid: data.projectUuid,
                     created_from: data.createdFrom,
                     agent_uuid: data.agentUuid,
+                    battle_profile: data.battleProfile ?? null,
                 })
                 .returning('ai_thread_uuid');
             if (row === undefined) {
@@ -8714,6 +8720,53 @@ export class AiAgentModel {
             ...result,
             chartConfig: parseAiArtifactChartConfig(result.chartConfig),
         };
+    }
+
+    async getPreviousArtifactVersion(
+        artifactUuid: string,
+        beforeVersionNumber: number,
+    ): Promise<AiArtifact | null> {
+        const result = await this.database
+            .select({
+                artifactUuid: `${AiArtifactsTableName}.ai_artifact_uuid`,
+                threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
+                artifactType: `${AiArtifactsTableName}.artifact_type`,
+                savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
+                savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
+                savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
+                createdAt: `${AiArtifactsTableName}.created_at`,
+                versionNumber: `${AiArtifactVersionsTableName}.version_number`,
+                versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                title: `${AiArtifactVersionsTableName}.title`,
+                description: `${AiArtifactVersionsTableName}.description`,
+                chartConfig: `${AiArtifactVersionsTableName}.chart_config`,
+                dashboardConfig: `${AiArtifactVersionsTableName}.dashboard_config`,
+                promptUuid: `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+                versionCreatedAt: `${AiArtifactVersionsTableName}.created_at`,
+                verifiedByUserUuid: `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
+                verifiedAt: `${AiArtifactVersionsTableName}.verified_at`,
+            } satisfies Record<keyof AiArtifact, string>)
+            .from(AiArtifactsTableName)
+            .join(
+                AiArtifactVersionsTableName,
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
+                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+            )
+            .where(`${AiArtifactsTableName}.ai_artifact_uuid`, artifactUuid)
+            .andWhere(
+                `${AiArtifactVersionsTableName}.version_number`,
+                '<',
+                beforeVersionNumber,
+            )
+            .orderBy(`${AiArtifactVersionsTableName}.version_number`, 'desc')
+            .first<AiArtifact>();
+
+        return result
+            ? {
+                  ...result,
+                  chartConfig: parseAiArtifactChartConfig(result.chartConfig),
+              }
+            : null;
     }
 
     async findArtifactsByThreadUuid(

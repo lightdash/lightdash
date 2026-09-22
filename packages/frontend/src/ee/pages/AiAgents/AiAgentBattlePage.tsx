@@ -104,7 +104,11 @@ const AiAgentBattlePage: FC = () => {
             <Flex flex={1} mih={0} wrap="nowrap" align="stretch">
                 <Box flex={1} miw={0} h="100%">
                     <BattleThreadPane
-                        label="A"
+                        label={
+                            threadA.battleProfile === 'fast'
+                                ? 'JEV + flags'
+                                : 'A'
+                        }
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
                         agentName={agent.name}
@@ -114,7 +118,11 @@ const AiAgentBattlePage: FC = () => {
                 <Divider orientation="vertical" />
                 <Box flex={1} miw={0} h="100%">
                     <BattleThreadPane
-                        label="B"
+                        label={
+                            threadB.battleProfile === 'baseline'
+                                ? 'Baseline'
+                                : 'B'
+                        }
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
                         agentName={agent.name}
@@ -126,7 +134,7 @@ const AiAgentBattlePage: FC = () => {
                 <AgentChatInput
                     onSubmit={handleSubmit}
                     loading={isBusy}
-                    placeholder="Ask both models a follow-up..."
+                    placeholder="Ask both sides a follow-up..."
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     messageCount={threadA.messages.length}

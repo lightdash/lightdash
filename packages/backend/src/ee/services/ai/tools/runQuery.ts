@@ -132,6 +132,7 @@ const getChartExportReference = (
 
 type Dependencies = {
     purpose?: 'visualization' | 'answer';
+    enableFastResponse?: boolean;
     decisions?: AiDecisionClient;
     question?: string;
     conversation?: AgentDecisionContext;
@@ -517,7 +518,7 @@ const getSuccessMetadata = ({
     queryUuid,
     queryCacheHit,
     queryReuseHit,
-    fastResponse,
+    ...(fastResponse ? { fastResponse } : {}),
 });
 
 const registerChartExport = ({
@@ -546,6 +547,7 @@ const registerChartExport = ({
 
 export const getRunQuery = ({
     purpose = 'visualization',
+    enableFastResponse = false,
     updateProgress,
     runAsyncQuery,
     getPrompt,
@@ -985,7 +987,9 @@ export const getRunQuery = ({
                             artifact,
                             deferredSlack: !!deferSlackVisualization,
                             fastResponse:
-                                purpose === 'answer' && enableDataAccess
+                                enableFastResponse &&
+                                purpose === 'answer' &&
+                                enableDataAccess
                                     ? (convertQueryResultsToMarkdown(
                                           queryResults,
                                       ) ?? undefined)
@@ -1394,7 +1398,7 @@ export const getRunQuery = ({
                         artifact,
                         deferredSlack: !!deferSlackVisualization,
                         fastResponse:
-                            purpose === 'answer'
+                            enableFastResponse && purpose === 'answer'
                                 ? (convertQueryResultsToMarkdown(
                                       queryResults,
                                   ) ?? undefined)

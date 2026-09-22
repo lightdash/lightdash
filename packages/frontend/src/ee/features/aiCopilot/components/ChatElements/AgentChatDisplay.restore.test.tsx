@@ -100,6 +100,7 @@ const thread: AiAgentThread = {
     title: 'Revenue app',
     titleGeneratedAt: null,
     pinnedAt: null,
+    battleProfile: null,
     liveStatus: null,
     firstMessage: { uuid: 'prompt-1', message: 'Build me a revenue app' },
     user: { uuid: 'user-1', name: 'Demo User' },

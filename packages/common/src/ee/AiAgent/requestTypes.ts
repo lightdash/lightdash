@@ -164,7 +164,10 @@ export type CreateWebAppThread = {
     createdFrom: AiWebAppThreadCreatedFrom;
     agentUuid: string | null;
     embedSpaceUuid?: string | null;
+    battleProfile?: AiAgentBattleProfile | null;
 };
+
+export type AiAgentBattleProfile = 'fast' | 'baseline';
 
 export type AiPrompt = {
     organizationUuid: string;
@@ -181,6 +184,8 @@ export type AiPrompt = {
     errorMessage: string | null;
     humanScore: number | null;
     modelConfig: AiAgentModelConfig | null;
+    /** Internal paired-run profile inherited from the web thread. */
+    battleProfile: AiAgentBattleProfile | null;
 };
 
 export type SlackPrompt = AiPrompt & {

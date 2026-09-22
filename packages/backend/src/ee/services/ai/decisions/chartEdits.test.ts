@@ -1,13 +1,23 @@
 import {
     DimensionType,
+    FilterOperator,
+    FilterType,
+    MetricType,
     parseAiArtifactChartConfig,
+    UnitOfTime,
     type AiSemanticChartArtifactConfig,
     type Explore,
     type ToolRunQueryBuiltinChartConfig,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import { AiDecisionClient } from './AiDecisionClient';
-import { parseExactChartEdit, resolveChartEdit } from './chartEdits';
+import {
+    isChartQueryRefinementRequest,
+    isChartUndoRequest,
+    parseExactChartEdit,
+    resolveChartEdit,
+    resolveExactChartQueryEdit,
+} from './chartEdits';
 
 const artifact: AiSemanticChartArtifactConfig = {
     source: 'semantic',
@@ -65,7 +75,221 @@ const client = (edit: string, complete = 0.999, dimension = 'keep') =>
         },
     );
 
+const refinementExplore = {
+    name: 'orders',
+    tables: {
+        orders: {
+            label: 'Orders',
+            dimensions: {
+                date: {
+                    name: 'date',
+                    table: 'orders',
+                    fieldType: 'dimension',
+                    type: DimensionType.DATE,
+                    label: 'Date',
+                },
+                region: {
+                    name: 'region',
+                    table: 'orders',
+                    fieldType: 'dimension',
+                    type: DimensionType.STRING,
+                    label: 'Region',
+                },
+            },
+            metrics: {
+                revenue: {
+                    name: 'revenue',
+                    table: 'orders',
+                    fieldType: 'metric',
+                    type: MetricType.SUM,
+                    label: 'Revenue',
+                },
+            },
+        },
+    },
+} as unknown as Explore;
+
 describe('chart edits', () => {
+    it('recognizes only guarded query-refinement and undo commands', () => {
+        expect(isChartQueryRefinementRequest('only North')).toBe(true);
+        expect(
+            isChartQueryRefinementRequest('sort by Revenue descending'),
+        ).toBe(true);
+        expect(isChartUndoRequest('undo that')).toBe(true);
+        expect(isChartQueryRefinementRequest('explain the filters')).toBe(
+            false,
+        );
+    });
+
+    it('filters the sole non-date query dimension through the shared grammar', () => {
+        const result = resolveExactChartQueryEdit({
+            prompt: 'only North',
+            artifact,
+            explore: refinementExplore,
+        });
+
+        expect(result?.response).toBe('Filtered to **North**.');
+        expect(result?.config.config.queryConfig.filters).toMatchObject({
+            dimensions: {
+                connector: 'and',
+                rules: [
+                    {
+                        fieldId: 'orders_region',
+                        operator: 'equals',
+                        values: ['North'],
+                    },
+                ],
+            },
+        });
+    });
+
+    it('supports exact relative-date filters without model inference', () => {
+        const result = resolveExactChartQueryEdit({
+            prompt: 'last 30 days',
+            artifact,
+            explore: refinementExplore,
+        });
+
+        expect(result?.config.config.queryConfig.filters).toMatchObject({
+            dimensions: {
+                rules: [
+                    {
+                        fieldId: 'orders_date',
+                        operator: 'inThePast',
+                        values: [30],
+                        settings: {
+                            unitOfTime: 'days',
+                            completed: false,
+                        },
+                    },
+                ],
+            },
+        });
+    });
+
+    it('preserves other-field filters and rejects mixed connector patches', () => {
+        const filtered = structuredClone(artifact);
+        filtered.config.queryConfig.filters = {
+            type: 'and',
+            dimensions: [
+                {
+                    fieldId: 'orders_date',
+                    fieldType: DimensionType.DATE,
+                    fieldFilterType: FilterType.DATE,
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [90],
+                    settings: {
+                        unitOfTime: UnitOfTime.days,
+                        completed: false,
+                    },
+                },
+            ],
+            metrics: null,
+            tableCalculations: null,
+        };
+        const result = resolveExactChartQueryEdit({
+            prompt: 'only North',
+            artifact: filtered,
+            explore: refinementExplore,
+        });
+        const resultFilters = result?.config.config.queryConfig.filters;
+        expect(
+            resultFilters && !('type' in resultFilters)
+                ? resultFilters.dimensions?.rules
+                : null,
+        ).toMatchObject([
+            { fieldId: 'orders_date', values: [90] },
+            { fieldId: 'orders_region', values: ['North'] },
+        ]);
+
+        const orFiltered = structuredClone(filtered);
+        orFiltered.config.queryConfig.filters = {
+            type: 'or',
+            dimensions:
+                filtered.config.queryConfig.filters &&
+                'type' in filtered.config.queryConfig.filters
+                    ? filtered.config.queryConfig.filters.dimensions
+                    : null,
+            metrics: null,
+            tableCalculations: null,
+        };
+        expect(
+            resolveExactChartQueryEdit({
+                prompt: 'only North',
+                artifact: orFiltered,
+                explore: refinementExplore,
+            }),
+        ).toBeNull();
+    });
+
+    it('uses canonical multi-filter grammar and replaces existing rules on the same field', () => {
+        const first = resolveExactChartQueryEdit({
+            prompt: 'only South',
+            artifact,
+            explore: refinementExplore,
+        });
+        expect(first).not.toBeNull();
+        const result = resolveExactChartQueryEdit({
+            prompt: 'filter: orders_region equals=North AND orders_date inThePast=30{unit:days,completed:false}',
+            artifact: first!.config,
+            explore: refinementExplore,
+        });
+        const filters = result?.config.config.queryConfig.filters;
+        expect(
+            filters && !('type' in filters) ? filters.dimensions?.rules : null,
+        ).toMatchObject([
+            { fieldId: 'orders_region', values: ['North'] },
+            { fieldId: 'orders_date', values: [30] },
+        ]);
+    });
+
+    it('keeps refinement behavior behind its explicit gate', async () => {
+        const evaluate = vi.fn();
+        await expect(
+            resolveChartEdit({
+                decisions: { evaluate },
+                prompt: 'only North',
+                artifact,
+                explore: refinementExplore,
+            }),
+        ).resolves.toBeNull();
+        await expect(
+            resolveChartEdit({
+                decisions: { evaluate },
+                prompt: 'only North',
+                artifact,
+                explore: refinementExplore,
+                allowQueryRefinements: true,
+            }),
+        ).resolves.toMatchObject({ changed: true });
+        expect(evaluate).not.toHaveBeenCalled();
+    });
+
+    it('sorts and limits only by selected unambiguous fields', () => {
+        const sorted = resolveExactChartQueryEdit({
+            prompt: 'sort by Revenue descending',
+            artifact,
+            explore: refinementExplore,
+        });
+        expect(sorted?.config.config.queryConfig.sorts).toEqual([
+            {
+                fieldId: 'orders_revenue',
+                descending: true,
+                nullsFirst: null,
+            },
+        ]);
+
+        const top = resolveExactChartQueryEdit({
+            prompt: 'top 5',
+            artifact,
+            explore: refinementExplore,
+        });
+        expect(top?.config.config.queryConfig).toMatchObject({
+            limit: 5,
+            sorts: [{ fieldId: 'orders_revenue', descending: true }],
+        });
+    });
+
     it('does not add provider latency to ordinary data questions', async () => {
         const fetcher = vi.fn<typeof fetch>();
         const decisions = new AiDecisionClient(

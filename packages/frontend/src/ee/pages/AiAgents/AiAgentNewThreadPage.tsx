@@ -32,7 +32,10 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { AiAgentNewThreadMcpConnections } from '../../features/aiCopilot/components/AiAgentNewThreadMcpConnections';
-import { BattleModeSetup } from '../../features/aiCopilot/components/Battle/BattleModeSetup';
+import {
+    BattleModeSetup,
+    type BattleType,
+} from '../../features/aiCopilot/components/Battle/BattleModeSetup';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import {
     mergeAiPromptContextInput,
@@ -113,6 +116,7 @@ const AiAgentNewThreadPage: FC = () => {
     const navigate = useNavigate();
     const battleModeAvailable = useAiAgentBattleModeEnabled() && !isEmbed;
     const [battleMode, setBattleMode] = useState(false);
+    const [battleType, setBattleType] = useState<BattleType>('speed');
     const [battleModelBKey, setBattleModelBKey] = useState<string | null>(null);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const canStartDeepResearch = useDeepResearchAccess(projectUuid);
@@ -205,7 +209,7 @@ const AiAgentNewThreadPage: FC = () => {
         () => modelOptions?.filter((model) => !model.deprecated) ?? [],
         [modelOptions],
     );
-    const showBattleSetup = battleModeAvailable && battleModels.length > 1;
+    const showBattleSetup = battleModeAvailable && battleModels.length > 0;
     // Model B defaults to the first option that isn't model A, and falls
     // back to that whenever A is changed to match the current B.
     const effectiveBattleModelBKey =
@@ -261,6 +265,7 @@ const AiAgentNewThreadPage: FC = () => {
                             ? getModelKey(selectedModel)
                             : null,
                         modelB: modelB ? getModelKey(modelB) : null,
+                        battleType,
                     },
                 });
                 const shared = {
@@ -271,17 +276,25 @@ const AiAgentNewThreadPage: FC = () => {
                     enableSqlMode: sqlModeAvailable && sqlMode,
                     toolHints,
                 };
+                const modelAConfig = getAiAgentModelConfig(
+                    selectedModel,
+                    false,
+                );
                 void Promise.all([
                     createBattleThread({
                         ...shared,
-                        modelConfig: getAiAgentModelConfig(
-                            selectedModel,
-                            false,
-                        ),
+                        modelConfig: modelAConfig,
+                        battleProfile:
+                            battleType === 'speed' ? 'fast' : undefined,
                     }),
                     createBattleThread({
                         ...shared,
-                        modelConfig: getAiAgentModelConfig(modelB, false),
+                        modelConfig:
+                            battleType === 'speed'
+                                ? modelAConfig
+                                : getAiAgentModelConfig(modelB, false),
+                        battleProfile:
+                            battleType === 'speed' ? 'baseline' : undefined,
                     }),
                 ]).then(([threadA, threadB]) =>
                     navigate(
@@ -318,6 +331,7 @@ const AiAgentNewThreadPage: FC = () => {
             selectedModel,
             battleModels,
             effectiveBattleModelBKey,
+            battleType,
             navigate,
             track,
         ],
@@ -497,6 +511,8 @@ const AiAgentNewThreadPage: FC = () => {
                         <BattleModeSetup
                             enabled={battleMode}
                             onEnabledChange={setBattleMode}
+                            battleType={battleType}
+                            onBattleTypeChange={setBattleType}
                             models={battleModels}
                             modelAKey={selectedModelKey}
                             modelBKey={effectiveBattleModelBKey}

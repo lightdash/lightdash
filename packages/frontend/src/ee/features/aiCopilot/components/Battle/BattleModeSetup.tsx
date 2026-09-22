@@ -1,13 +1,17 @@
 import type { AiModelOption } from '@lightdash/common';
-import { Group, Paper, Switch, Text } from '@mantine/core';
+import { Group, Paper, SegmentedControl, Switch, Text } from '@mantine/core';
 import { IconSwords } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
 
+export type BattleType = 'models' | 'speed';
+
 interface Props {
     enabled: boolean;
     onEnabledChange: (enabled: boolean) => void;
+    battleType: BattleType;
+    onBattleTypeChange: (type: BattleType) => void;
     models: AiModelOption[];
     modelAKey: string | null;
     modelBKey: string | null;
@@ -18,6 +22,8 @@ interface Props {
 export const BattleModeSetup: FC<Props> = ({
     enabled,
     onEnabledChange,
+    battleType,
+    onBattleTypeChange,
     models,
     modelAKey,
     modelBKey,
@@ -43,9 +49,17 @@ export const BattleModeSetup: FC<Props> = ({
             />
             {enabled && (
                 <Group gap="xs" wrap="nowrap">
-                    <Text size="xs" c="dimmed">
-                        A
-                    </Text>
+                    <SegmentedControl
+                        size="xs"
+                        value={battleType}
+                        onChange={(value) =>
+                            onBattleTypeChange(value as BattleType)
+                        }
+                        data={[
+                            { value: 'speed', label: 'Speed features' },
+                            { value: 'models', label: 'Models' },
+                        ]}
+                    />
                     <ModelSelector
                         models={models}
                         value={modelAKey}
@@ -54,28 +68,29 @@ export const BattleModeSetup: FC<Props> = ({
                         color="gray"
                         size="xs"
                     />
-                    <Text size="xs" c="dimmed">
-                        vs
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                        B
-                    </Text>
-                    <ModelSelector
-                        models={models}
-                        value={modelBKey}
-                        onChange={onModelBChange}
-                        variant="subtle"
-                        color="gray"
-                        size="xs"
-                    />
+                    {battleType === 'models' && (
+                        <>
+                            <Text size="xs" c="dimmed">
+                                vs
+                            </Text>
+                            <ModelSelector
+                                models={models}
+                                value={modelBKey}
+                                onChange={onModelBChange}
+                                variant="subtle"
+                                color="gray"
+                                size="xs"
+                            />
+                        </>
+                    )}
                 </Group>
             )}
         </Group>
         {enabled && (
             <Text size="xs" c="dimmed" mt={6}>
-                Your prompt is sent to both models in separate threads. You will
-                see both answers side by side with time to first token and total
-                response time.
+                {battleType === 'speed'
+                    ? 'Same prompt and model. A uses JEV plus fast/adaptive features; B is the baseline. Replies continue both threads side by side.'
+                    : 'Your prompt is sent to both models in separate threads. Replies continue both sides with timing and token usage.'}
             </Text>
         )}
     </Paper>

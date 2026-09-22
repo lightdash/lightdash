@@ -1574,6 +1574,7 @@ export const getAgentTools = (
         args.execution.mode === 'standard'
             ? getRunQuery({
                   purpose: 'answer',
+                  enableFastResponse: args.enableDataAnswerFastResponse,
                   decisions: args.decisions,
                   question: getAgentQuestion(args),
                   conversation: decisionContext,

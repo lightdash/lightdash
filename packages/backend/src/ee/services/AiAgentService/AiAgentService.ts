@@ -329,7 +329,10 @@ import {
     type AiDecisionClient,
 } from '../ai/decisions/AiDecisionClient';
 import {
+    isChartArtifactEditRequest,
     isChartPresentationRequest,
+    isChartQueryRefinementRequest,
+    isChartUndoRequest,
     parseExactChartEdit,
     resolveChartEdit,
 } from '../ai/decisions/chartEdits';
@@ -1958,12 +1961,15 @@ export class AiAgentService extends BaseService {
 
     public async getDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        enabledOverride?: boolean,
     ) {
         return resolveAiDecisionClient(this.lightdashConfig.ai.decisions, () =>
-            this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiAgentFastDecisions,
-            }),
+            enabledOverride === undefined
+                ? this.featureFlagService.get({
+                      user,
+                      featureFlagId: FeatureFlags.AiAgentFastDecisions,
+                  })
+                : Promise.resolve({ enabled: enabledOverride }),
         );
     }
 
@@ -4130,6 +4136,16 @@ export class AiAgentService extends BaseService {
               )
             : undefined;
 
+        if (body.battleProfile) {
+            const battleMode = await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiAgentBattleMode,
+            });
+            if (!battleMode.enabled || runtimeOptions) {
+                throw new ForbiddenError('AI agent battle mode is not enabled');
+            }
+        }
+
         const threadUuid = await this.aiAgentModel.createWebAppThread({
             organizationUuid,
             projectUuid: agent.projectUuid,
@@ -4137,6 +4153,7 @@ export class AiAgentService extends BaseService {
             createdFrom,
             agentUuid,
             embedSpaceUuid: runtimeOptions?.embedSpaceUuid,
+            battleProfile: body.battleProfile ?? null,
         });
 
         const organizationDefaultModelConfig =
@@ -11686,6 +11703,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         decisions,
         messageHistory,
         responseStartedAt,
+        allowQueryRefinements,
     }: {
         user: SessionUser;
         prompt: AiWebAppPrompt;
@@ -11693,6 +11711,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         decisions: AiDecisionClient;
         messageHistory: ModelMessage[];
         responseStartedAt: number;
+        allowQueryRefinements: boolean;
     }): Promise<AgentResponseStream | null> {
         const [[latest], promptContext] = await Promise.all([
             this.aiAgentModel.findArtifactsByThreadUuid(
@@ -11713,22 +11732,44 @@ Use your existing tools to inspect them when relevant to the user's question (re
         );
         if (artifact.chartConfig?.source !== 'semantic') return null;
 
-        const explore = parseExactChartEdit(prompt.prompt)
-            ? undefined
-            : await this.getExplore(
-                  user,
-                  prompt.projectUuid,
-                  agent.tags,
-                  artifact.chartConfig.config.queryConfig.exploreName,
-              ).catch(() => undefined);
-        const edit = await resolveChartEdit({
-            decisions,
-            prompt: prompt.prompt,
-            artifact: artifact.chartConfig,
-            instructions: agent.instruction,
-            conversation: messageHistory.slice(-3),
-            explore,
-        });
+        const explore =
+            parseExactChartEdit(prompt.prompt) ||
+            isChartUndoRequest(prompt.prompt)
+                ? undefined
+                : await this.getExplore(
+                      user,
+                      prompt.projectUuid,
+                      agent.tags,
+                      artifact.chartConfig.config.queryConfig.exploreName,
+                  ).catch(() => undefined);
+        const previous =
+            allowQueryRefinements && isChartUndoRequest(prompt.prompt)
+                ? await this.aiAgentModel.getPreviousArtifactVersion(
+                      latest.artifactUuid,
+                      latest.versionNumber,
+                  )
+                : null;
+        const undoConfig =
+            previous?.chartConfig?.source === 'semantic'
+                ? previous.chartConfig
+                : null;
+        const edit = isChartUndoRequest(prompt.prompt)
+            ? {
+                  config: undoConfig ?? artifact.chartConfig,
+                  response: undoConfig
+                      ? 'Undid the last chart change.'
+                      : 'There is no earlier chart change to undo.',
+                  changed: undoConfig !== null,
+              }
+            : await resolveChartEdit({
+                  decisions,
+                  prompt: prompt.prompt,
+                  artifact: artifact.chartConfig,
+                  instructions: agent.instruction,
+                  conversation: messageHistory.slice(-3),
+                  explore,
+                  allowQueryRefinements,
+              });
         if (!edit) return null;
 
         const [current, interrupted] = await Promise.all([
@@ -11743,8 +11784,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 threadUuid: prompt.threadUuid,
                 promptUuid: prompt.promptUuid,
                 artifactType: 'chart',
-                title: artifact.title ?? undefined,
-                description: edit.config.config.description,
+                title:
+                    (undoConfig ? previous?.title : artifact.title) ??
+                    undefined,
+                description:
+                    (undoConfig
+                        ? previous?.description
+                        : edit.config.config.description) ?? undefined,
                 vizConfig: { ...edit.config },
             });
 
@@ -11934,7 +11980,40 @@ Use your existing tools to inspect them when relevant to the user's question (re
             );
 
         const agentSettings = await this.getAgentSettings(user, prompt);
-        const decisions = await this.getDecisionClient(user);
+        const battleProfile = isSlackPrompt(prompt)
+            ? null
+            : prompt.battleProfile;
+        const decisions = await this.getDecisionClient(
+            user,
+            battleProfile === null ? undefined : battleProfile === 'fast',
+        );
+        let adaptiveModelsEnabled: boolean | undefined;
+        const getAdaptiveModelsEnabled = async () => {
+            if (adaptiveModelsEnabled !== undefined)
+                return adaptiveModelsEnabled;
+            if (battleProfile) {
+                adaptiveModelsEnabled = battleProfile === 'fast';
+            } else if (decisions) {
+                adaptiveModelsEnabled = (
+                    await this.featureFlagService
+                        .get({
+                            user,
+                            featureFlagId: FeatureFlags.AiAgentAdaptiveModels,
+                        })
+                        .catch(() => ({ enabled: false }))
+                ).enabled;
+            } else {
+                adaptiveModelsEnabled = false;
+            }
+            return adaptiveModelsEnabled;
+        };
+        const queryRefinementRequest =
+            isChartQueryRefinementRequest(prompt.prompt) ||
+            isChartUndoRequest(prompt.prompt);
+        const allowQueryRefinements =
+            queryRefinementRequest &&
+            decisions !== undefined &&
+            (await getAdaptiveModelsEnabled());
         if (
             decisions &&
             stream &&
@@ -11944,7 +12023,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             !options.toolHints?.length &&
             !compactionSummary &&
             prompt.prompt.length <= 300 &&
-            isChartPresentationRequest(prompt.prompt) &&
+            isChartArtifactEditRequest(prompt.prompt) &&
+            (isChartPresentationRequest(prompt.prompt) ||
+                allowQueryRefinements) &&
             !responseExecution.toolAllowlist &&
             agentSettings.enableDataAccess &&
             messageHistory.length > 1 &&
@@ -11960,6 +12041,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 decisions,
                 messageHistory,
                 responseStartedAt,
+                allowQueryRefinements,
             });
             if (editResponse) return editResponse;
         }
@@ -12392,12 +12474,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             prompt.modelConfig?.reasoning !== true &&
             !options.toolHints?.length;
         const adaptiveModels = canUseFastToolModel
-            ? await this.featureFlagService
-                  .get({
-                      user,
-                      featureFlagId: FeatureFlags.AiAgentAdaptiveModels,
-                  })
-                  .catch(() => ({ enabled: false }))
+            ? { enabled: await getAdaptiveModelsEnabled() }
             : null;
         let toolCallModel: AiAgentArgs['toolCallModel'];
         if (canUseFastToolModel) {

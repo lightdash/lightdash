@@ -163,6 +163,12 @@ export const BattleThreadPane: FC<Props> = ({
                             </Text>
                         </Group>
                     )}
+                    {lastAssistantMessage?.tokenUsage && (
+                        <Text size="xs" c="dimmed" ff="monospace">
+                            {lastAssistantMessage.tokenUsage.totalTokens.toLocaleString()}{' '}
+                            tokens
+                        </Text>
+                    )}
                     <Anchor
                         component={Link}
                         to={`${getAiAgentPageBase(

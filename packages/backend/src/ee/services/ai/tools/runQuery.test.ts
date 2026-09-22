@@ -59,6 +59,7 @@ const makePrompt = (): AiWebAppPrompt => ({
     errorMessage: null,
     humanScore: null,
     modelConfig: null,
+    battleProfile: null,
 });
 
 const makeSlackPrompt = (): SlackPrompt => ({
@@ -151,8 +152,12 @@ const executeTool = async (
     enableFilterExpressions = false,
     explore: Explore = validExplore,
     agentContext = new AgentContext([explore]),
+    enableFastResponse = false,
+    purpose: 'visualization' | 'answer' = 'visualization',
 ) => {
     const queryTool = getRunQuery({
+        purpose,
+        enableFastResponse,
         decisions,
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runAsyncQuery,
@@ -184,6 +189,38 @@ const executeTool = async (
 };
 
 describe('getRunQuery', () => {
+    it.each([false, true])(
+        'only exposes the internal fast response when explicitly enabled: %s',
+        async (enabled) => {
+            const output = await executeTool(
+                vi.fn().mockResolvedValue({
+                    queryUuid: 'query-1',
+                    rows: [{ a_dim1: 'x', a_met1: 1 }],
+                    fields: {},
+                    cacheMetadata: { cacheHit: false },
+                }),
+                true,
+                makePrompt(),
+                false,
+                false,
+                undefined,
+                toolInput,
+                false,
+                validExplore,
+                new AgentContext([validExplore]),
+                enabled,
+                'answer',
+            );
+
+            expect(output.metadata).toHaveProperty('status', 'success');
+            if (enabled) {
+                expect(output.metadata).toHaveProperty('fastResponse');
+            } else {
+                expect(output.metadata).not.toHaveProperty('fastResponse');
+            }
+        },
+    );
+
     it.each([false, true])(
         'only flagged presentation requests forward a previous result reference: %s',
         async (enabled) => {
