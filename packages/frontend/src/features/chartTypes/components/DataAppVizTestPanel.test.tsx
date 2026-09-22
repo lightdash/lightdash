@@ -537,6 +537,7 @@ describe('DataAppVizTestPanel', () => {
                 pivotDetails: null,
                 underlyingData: { enabled: false },
                 drillDown: { enabled: false },
+                pointMenu: { enabled: false },
             }),
         );
 
@@ -559,6 +560,7 @@ describe('DataAppVizTestPanel', () => {
                 pivotDetails: null,
                 underlyingData: { enabled: false },
                 drillDown: { enabled: false },
+                pointMenu: { enabled: false },
             }),
         );
     });
@@ -590,6 +592,7 @@ describe('DataAppVizTestPanel', () => {
                 pivotDetails: null,
                 underlyingData: { enabled: false },
                 drillDown: { enabled: false },
+                pointMenu: { enabled: false },
             }),
         );
 
@@ -612,6 +615,7 @@ describe('DataAppVizTestPanel', () => {
                 pivotDetails: null,
                 underlyingData: { enabled: false },
                 drillDown: { enabled: false },
+                pointMenu: { enabled: false },
             }),
         );
     });

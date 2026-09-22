@@ -461,6 +461,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
                 openEnabled: underlyingDataOpenEnabled,
             },
             drillDown: { enabled: drillDownEnabled },
+            pointMenu: { enabled: false },
         };
     }, [
         reconciledFieldMapping,

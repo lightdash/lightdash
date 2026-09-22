@@ -268,6 +268,7 @@ export const buildSampleVizContext = (
         // Sample rows come from no query — there is nothing to drill into.
         underlyingData: { enabled: false },
         drillDown: { enabled: false },
+        pointMenu: { enabled: false },
         ...(shouldPivot ? buildPivotedSample(fields) : buildFlatSample(fields)),
     };
 };

@@ -71,5 +71,6 @@ export const buildExplorerVizContext = ({
         pivotDetails,
         underlyingData: { enabled: false },
         drillDown: { enabled: false },
+        pointMenu: { enabled: false },
     };
 };

@@ -1252,6 +1252,7 @@ describe('data-app-viz-context push', () => {
         pivotDetails: null,
         underlyingData: { enabled: false },
         drillDown: { enabled: false },
+        pointMenu: { enabled: false },
     };
 
     function renderWithDataAppVizContext(ctx: DataAppVizContext | undefined) {

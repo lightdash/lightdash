@@ -1391,6 +1391,23 @@ export type DataAppVizDrillDownIntent = {
     fieldId?: string;
 };
 
+// Bridge-only virtual route: the viz posts a data-point click here and the
+// host renders its native context menu over the iframe. Never forwarded to
+// the API — `useAppSdkBridge` answers it before allowlist matching.
+export const APP_SDK_VIZ_POINT_MENU_PATH = '/__sdk/viz/point-menu';
+
+// Data-point menu intent a viz sends to the virtual route: the untransformed
+// source row and metric slot (as for drill-down), plus the click position in
+// the iframe's client coordinates so the host can place the menu.
+export type DataAppVizPointMenuIntent = {
+    row: ResultRow;
+    metric: string;
+    /** Required by hosts for a multi-metric slot; must belong to that slot. */
+    fieldId?: string;
+    x: number;
+    y: number;
+};
+
 // Display metadata for one bound query field, keyed by field id in
 // `DataAppVizContext.fields`. `label` is the field label without the table
 // prefix; `format` is the normalized semantic-layer format so a viz can build
@@ -1408,10 +1425,10 @@ export type DataAppVizFieldMetadata = {
 // resolved for this chart (org → project → space → dashboard → chart, dark-mode
 // corrected), plus the host-resolved colors for pivot columns and raw dimension
 // values. `colorPalette` is pushed whether or not the viz declared one, so a viz
-// that colours series never has to check first. `underlyingData.enabled` and
-// `drillDown.enabled` are required so every push site decides availability
-// explicitly. `fields` carries display metadata for every bound field id, so a
-// viz labels axes and legends without parsing raw ids.
+// that colours series never has to check first. `underlyingData.enabled`,
+// `drillDown.enabled` and `pointMenu.enabled` are required so every push site
+// decides availability explicitly. `fields` carries display metadata for every
+// bound field id, so a viz labels axes and legends without parsing raw ids.
 export type DataAppVizContext = {
     fieldMapping: Record<string, string | string[]>;
     fields: Record<string, DataAppVizFieldMetadata>;
@@ -1423,4 +1440,5 @@ export type DataAppVizContext = {
     pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     underlyingData: { enabled: boolean; openEnabled?: boolean };
     drillDown: { enabled: boolean };
+    pointMenu: { enabled: boolean };
 };
