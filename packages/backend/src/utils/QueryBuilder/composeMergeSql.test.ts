@@ -283,6 +283,30 @@ describe('buildComposeMergeSql', () => {
         ]);
     });
 
+    test('executes a formula over fields from both sources', async () => {
+        const rows = await runOnDuckdb(
+            toSql(
+                build({
+                    tableCalculations: [
+                        {
+                            name: 'ratio',
+                            displayName: 'Ratio',
+                            sql: '',
+                            formula: '=a_orders_count / b_payments_sum',
+                        },
+                    ],
+                }),
+            ),
+            SETUP,
+        );
+
+        expect(
+            rows
+                .filter((row) => row.a_orders_count && row.b_payments_sum)
+                .map((row) => Number(row.ratio)),
+        ).toEqual([7 / 20.5, 0.5]);
+    });
+
     test('casts string keys before coalescing', () => {
         const sql = toSql(
             build({

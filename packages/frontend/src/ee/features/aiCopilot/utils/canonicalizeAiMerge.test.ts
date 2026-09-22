@@ -112,6 +112,7 @@ describe('canonicalizeAiMerge', () => {
             ],
             joinType: MergeJoinType.FULL,
             repeatValuesSourceIds: [],
+            tableCalculations: [],
         });
     });
 

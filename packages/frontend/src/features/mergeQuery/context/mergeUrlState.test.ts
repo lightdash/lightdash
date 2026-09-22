@@ -34,11 +34,31 @@ const state: MergeUrlState = {
     ],
     joinType: MergeJoinType.LEFT,
     repeatValuesSourceIds: [],
+    tableCalculations: [],
 };
 
 describe('merge url state', () => {
     it('round-trips source-addressed editor state', () => {
         expect(parseMergeState(serializeMergeState(state))).toEqual(state);
+    });
+
+    it('round-trips merge-level formulas', () => {
+        const withCalculation: MergeUrlState = {
+            ...state,
+            tableCalculations: [
+                {
+                    name: 'conversion_rate',
+                    displayName: 'Conversion rate',
+                    sql: '',
+                    formula:
+                        '=orders_orders_total / subscriptions_subscriptions_total',
+                },
+            ],
+        };
+
+        expect(parseMergeState(serializeMergeState(withCalculation))).toEqual(
+            withCalculation,
+        );
     });
 
     it('round-trips which sources repeat their values and drops unknown ones', () => {
@@ -129,6 +149,7 @@ describe('merge url state', () => {
             ],
             joinType: MergeJoinType.LEFT,
             repeatValuesSourceIds: [],
+            tableCalculations: [],
         });
     });
 
@@ -150,6 +171,7 @@ describe('merge url state', () => {
             joinParts: [{ fieldIdBySourceId: { a: null, b: null } }],
             joinType: MergeJoinType.FULL,
             repeatValuesSourceIds: [],
+            tableCalculations: [],
         });
     });
 

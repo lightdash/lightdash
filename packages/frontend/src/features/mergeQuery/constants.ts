@@ -38,6 +38,7 @@ export const EMPTY_MERGE = {
     ] as MergeJoinPart[],
     joinType: MergeJoinType.FULL,
     repeatValuesSourceIds: [] as string[],
+    tableCalculations: [],
     addSource: () => {},
     removeSource: () => {},
     setFocus: () => {},
@@ -50,4 +51,7 @@ export const EMPTY_MERGE = {
     setRepeatValues: () => {},
     setSourceFilters: () => {},
     addSourceAdditionalMetric: () => {},
+    addTableCalculation: () => {},
+    updateTableCalculation: () => {},
+    removeTableCalculation: () => {},
 };

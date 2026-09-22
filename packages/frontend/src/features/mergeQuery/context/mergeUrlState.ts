@@ -1,4 +1,8 @@
-import { MergeJoinType, type Filters } from '@lightdash/common';
+import {
+    MergeJoinType,
+    type Filters,
+    type MergeTableCalculation,
+} from '@lightdash/common';
 import {
     DEFAULT_ADDITIONAL_SOURCE_ID,
     MAX_MERGE_SOURCES,
@@ -21,6 +25,7 @@ export type MergeUrlState = {
     joinParts: MergeJoinPart[];
     joinType: MergeJoinType;
     repeatValuesSourceIds: string[];
+    tableCalculations: MergeTableCalculation[];
 };
 
 type SerializedSource = {
@@ -47,6 +52,8 @@ type SerializedMerge = {
     f: string;
     /** Sources repeating their values; omitted when none do. */
     r?: string[];
+    /** Merge-level table calculations; omitted when none exist. */
+    t?: MergeTableCalculation[];
 };
 
 /** URL shape emitted before editor state became source-addressed. */
@@ -105,6 +112,9 @@ export const serializeMergeState = (state: MergeUrlState): string =>
         f: state.focus.kind === 'join' ? 'join' : state.focus.sourceId,
         ...(state.repeatValuesSourceIds.length > 0
             ? { r: state.repeatValuesSourceIds }
+            : {}),
+        ...(state.tableCalculations.length > 0
+            ? { t: state.tableCalculations }
             : {}),
     } satisfies SerializedMerge);
 
@@ -191,6 +201,9 @@ const parseCurrent = (value: Record<string, unknown>): MergeUrlState | null => {
         repeatValuesSourceIds: asStringArray(value.r).filter((id) =>
             sourceIds.includes(id),
         ),
+        tableCalculations: Array.isArray(value.t)
+            ? (value.t as MergeTableCalculation[])
+            : [],
     };
 };
 
@@ -236,6 +249,7 @@ const parseLegacy = (value: LegacySerializedMerge): MergeUrlState => {
                   ],
         joinType: isJoinType(value.j) ? value.j : MergeJoinType.FULL,
         repeatValuesSourceIds: [],
+        tableCalculations: [],
     };
 };
 

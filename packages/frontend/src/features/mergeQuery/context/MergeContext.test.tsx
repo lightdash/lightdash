@@ -149,6 +149,7 @@ describe('MergeProvider', () => {
                 ],
                 joinType: MergeJoinType.FULL,
                 repeatValuesSourceIds: [],
+                tableCalculations: [],
             }),
         );
         const { result } = renderHook(() => useMerge(), { wrapper });
@@ -219,6 +220,32 @@ describe('MergeProvider', () => {
         act(() => result.current.setJoinType(MergeJoinType.LEFT));
 
         expect(result.current.joinType).toBe(MergeJoinType.LEFT);
+    });
+
+    it('owns merge-level table calculations independently of either source', () => {
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        const calculation = {
+            name: 'ratio',
+            displayName: 'Ratio',
+            sql: '',
+            formula: '=a_total / b_total',
+        };
+
+        act(() => result.current.addTableCalculation(calculation));
+        expect(result.current.tableCalculations).toEqual([calculation]);
+
+        act(() =>
+            result.current.updateTableCalculation('ratio', {
+                ...calculation,
+                displayName: 'Conversion rate',
+            }),
+        );
+        expect(result.current.tableCalculations[0].displayName).toBe(
+            'Conversion rate',
+        );
+
+        act(() => result.current.removeTableCalculation('ratio'));
+        expect(result.current.tableCalculations).toEqual([]);
     });
 
     it('adds, deselects, and removes source fields without orphaning join state', () => {

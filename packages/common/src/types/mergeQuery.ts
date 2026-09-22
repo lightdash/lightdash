@@ -115,15 +115,21 @@ export type MergeJoinKeyPart = {
 };
 
 /**
- * A calculation over the *merged* result, which is the only place a row-wise
- * calculation across two queries can correctly live. References name a source
- * and one of its fields, `${sourceId.fieldId}`, because the merged statement
- * renames columns to keep two sources from colliding.
+ * A calculation over the *merged* result, where a row-wise calculation across
+ * source queries can correctly live. Formula references use merged field ids;
+ * legacy SQL references use `${sourceId.fieldId}`.
  */
 export type MergeTableCalculation = {
     name: string;
     displayName: string;
+    /**
+     * Legacy SQL expression. Kept required for API/storage compatibility;
+     * formula calculations store an empty string here and compile `formula`
+     * on the compose engine instead.
+     */
     sql: string;
+    /** Spreadsheet-like formula over merged field ids. */
+    formula?: string;
 };
 
 /** `${sourceId.fieldId}` inside a merge table calculation. */
@@ -1083,7 +1089,9 @@ const resolveMergeDefinitionSortField = (
     >,
     chartName: string,
 ): FieldId => {
-    if (merge.tableCalculations?.some(({ name }) => name === by)) return by;
+    if (merge.tableCalculations?.some(({ name }) => name === by)) {
+        return getItemId({ table: MERGE_TABLE_NAME, name: by });
+    }
     if (by in merge.keys) {
         return getItemId({
             table: MERGE_TABLE_NAME,
@@ -1109,7 +1117,12 @@ const toMergeDefinitionSortReference = (
         calculationNames: string[];
     },
 ): string | null => {
-    if (calculationNames.includes(mergedFieldId)) return mergedFieldId;
+    const calculationName = calculationNames.find(
+        (name) =>
+            mergedFieldId === name ||
+            mergedFieldId === getItemId({ table: MERGE_TABLE_NAME, name }),
+    );
+    if (calculationName) return calculationName;
     const keyPart = joinKey.find(
         (part) =>
             getItemId({ table: MERGE_TABLE_NAME, name: part.name }) ===

@@ -7346,6 +7346,53 @@ describe('ProjectService', () => {
             );
         });
 
+        test('compiles a formula over fields from both sources after the join', async () => {
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    tableCalculations: [
+                        {
+                            name: 'cross_source_ratio',
+                            displayName: 'Cross-source ratio',
+                            sql: '',
+                            formula: '=a_a_met1 / b_a_met1',
+                        },
+                    ],
+                }),
+            });
+
+            expect(result.errors).toEqual([]);
+            expect(result.coreSql).toContain(
+                '("c0_0" / NULLIF("c1_0", 0)) AS "cross_source_ratio"',
+            );
+        });
+
+        test('refuses a merge formula referencing a field outside the merged result', async () => {
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    tableCalculations: [
+                        {
+                            name: 'ghost',
+                            displayName: 'Ghost',
+                            sql: '',
+                            formula: '=a_a_met1 / b_ghost_metric',
+                        },
+                    ],
+                }),
+            });
+
+            expect(result.sql).toBeNull();
+            expect(result.errors).toContainEqual(
+                expect.objectContaining({
+                    kind: MergeQueryErrorKind.UNRESOLVED_CALCULATION_REFERENCE,
+                    fieldIds: ['b_ghost_metric'],
+                }),
+            );
+        });
+
         // Sorts name merged fields: a second-source value column and the join
         // key column here. A sort the Explorer left behind on a primary field
         // id is not a merged field and is dropped, never refused.

@@ -91,6 +91,7 @@ describe('restoreSavedMerge', () => {
             ],
             joinType: MergeJoinType.FULL,
             repeatValuesSourceIds: ['b'],
+            tableCalculations: [],
         });
     });
 

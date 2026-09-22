@@ -55,5 +55,6 @@ export const toMergeUrlState = ({
                 ? [handleBySourceId[source.id] ?? source.id]
                 : [],
         ),
+        tableCalculations: mergeQuery.tableCalculations,
     };
 };

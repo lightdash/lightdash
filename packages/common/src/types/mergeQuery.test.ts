@@ -640,7 +640,7 @@ describe('saved merge schemas', () => {
                 { fieldId: 'payments_payments_unique', descending: true },
                 { fieldId: 'merge_orders_order_date_month', descending: false },
                 { fieldId: 'orders_orders_total', descending: false },
-                { fieldId: 'ratio', descending: true },
+                { fieldId: 'merge_ratio', descending: true },
             ],
             limit: 250,
         };
