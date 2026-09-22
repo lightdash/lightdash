@@ -150,6 +150,7 @@ const executeTool = async (
     input: ToolRunQueryArgs | ToolRunQueryExpressionRuntimeArgs = toolInput,
     enableFilterExpressions = false,
     explore: Explore = validExplore,
+    agentContext = new AgentContext([explore]),
 ) => {
     const queryTool = getRunQuery({
         decisions,
@@ -174,7 +175,7 @@ const executeTool = async (
     const output = await queryTool.execute!(input, {
         messages: [],
         toolCallId: 'tool-call-1',
-        experimental_context: new AgentContext([explore]),
+        experimental_context: agentContext,
     });
     if (Symbol.asyncIterator in output) {
         throw new Error('Expected a non-streaming tool result');
@@ -183,6 +184,46 @@ const executeTool = async (
 };
 
 describe('getRunQuery', () => {
+    it.each([false, true])(
+        'only flagged presentation requests forward a previous result reference: %s',
+        async (enabled) => {
+            const ctx = new AgentContext([validExplore]);
+            ctx.previousQueryUuid = 'previous-query';
+            const run = vi.fn().mockResolvedValue({
+                queryUuid: 'previous-query',
+                rows: [{ a_dim1: 'x', a_met1: 0 }],
+                fields: {},
+                cacheMetadata: {
+                    cacheHit: enabled,
+                    queryReuseHit: enabled,
+                },
+            });
+            const decisions = enabled
+                ? new AiDecisionClient({
+                      apiKey: null,
+                      model: 'test',
+                      timeoutMs: 100,
+                  })
+                : undefined;
+            const output = await executeTool(
+                run,
+                true,
+                makePrompt(),
+                false,
+                false,
+                decisions,
+                toolInput,
+                false,
+                validExplore,
+                ctx,
+            );
+            expect(output.metadata.status).toBe('success');
+            expect(run.mock.calls[0].length).toBe(enabled ? 5 : 3);
+            if (enabled) expect(run.mock.calls[0][4]).toBe('previous-query');
+            expect(output.metadata.queryReuseHit).toBe(enabled);
+        },
+    );
+
     it('suggests an authorized dimension for an unknown expression-filter field without rewriting it', async () => {
         const decisions = new AiDecisionClient({
             apiKey: null,
@@ -281,7 +322,20 @@ describe('getRunQuery', () => {
         );
         expect(output.metadata.status).toBe('error');
         expect(output.result).toContain('"total_sales" → "a_met1"');
-        expect(output.result).toContain('does not exist in the explore');
+        expect(output.result).toContain('Unknown or incompatible metric IDs');
+        expect(output.result).toContain('Full field inventory omitted');
+        expect(output.result).not.toContain('Available fields:');
+        const legacy = await executeTool(
+            runAsyncQuery,
+            true,
+            makePrompt(),
+            false,
+            false,
+            undefined,
+            input,
+        );
+        expect(legacy.result).toContain('Available fields:');
+        expect(legacy.result).not.toContain('Full field inventory omitted');
         expect(runAsyncQuery).not.toHaveBeenCalled();
         expect(input.queryConfig.metrics).toEqual(['total_sales']);
     });

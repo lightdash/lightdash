@@ -8268,6 +8268,9 @@ Use them whenever the question needs math the metric query alone can't express: 
             "queryCacheHit": {
               "type": "boolean",
             },
+            "queryReuseHit": {
+              "type": "boolean",
+            },
             "status": {
               "enum": [
                 "success",
@@ -10587,6 +10590,9 @@ Use them whenever the question needs math the metric query alone can't express: 
             ],
           },
           "queryCacheHit": {
+            "type": "boolean",
+          },
+          "queryReuseHit": {
             "type": "boolean",
           },
           "status": {

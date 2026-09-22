@@ -260,66 +260,90 @@ describe('verified examples in conversation history', () => {
         ]);
     });
 
-    it('preserves prior query inputs and successful results when refreshing examples', async () => {
-        const { service, aiAgentModel } = setup();
-        const input = {
-            queryConfig: {
-                exploreName: 'orders',
-                filters: { status: 'completed' },
-                parameters: { region: 'EU' },
-            },
-        };
-        aiAgentModel.getToolCallsAndResultsForPrompt.mockImplementation(
-            async (uuid) =>
-                uuid === 'first'
-                    ? [
-                          {
-                              toolCall: {
-                                  toolCallId: 'query',
-                                  toolName: 'runQuery',
-                                  toolArgs: input,
-                              },
-                              toolResult: {
-                                  toolCallId: 'query',
-                                  toolName: 'runQuery',
-                                  result: 'count: 42',
-                                  metadata: { status: 'success' },
-                              },
-                          },
-                      ]
-                    : [],
-        );
-        vi.spyOn(service, 'retrieveRelevantArtifacts').mockResolvedValue([]);
-        const result = await service.getChatHistoryFromThreadMessages(history, {
-            ...options,
-            fastDecisionsEnabled: true,
-        });
-        expect(result).toContainEqual({
-            role: 'assistant',
-            content: [
-                {
-                    type: 'tool-call',
-                    toolCallId: 'query',
-                    toolName: 'runQuery',
-                    input,
+    it.each(
+        [false, true].flatMap((fastDecisionsEnabled) =>
+            [undefined, 'previous-query'].map((queryUuid) => ({
+                fastDecisionsEnabled,
+                queryUuid,
+            })),
+        ),
+    )(
+        'preserves prior query inputs and successful result references: $queryUuid, enabled: $fastDecisionsEnabled',
+        async ({ queryUuid, fastDecisionsEnabled }) => {
+            const { service, aiAgentModel } = setup();
+            const input = {
+                queryConfig: {
+                    exploreName: 'orders',
+                    filters: { status: 'completed' },
+                    parameters: { region: 'EU' },
                 },
-            ],
-        });
-        expect(result).toContainEqual({
-            role: 'tool',
-            content: [
+            };
+            aiAgentModel.getToolCallsAndResultsForPrompt.mockImplementation(
+                async (uuid) =>
+                    uuid === 'first'
+                        ? [
+                              {
+                                  toolCall: {
+                                      toolCallId: 'query',
+                                      toolName: 'runQuery',
+                                      toolArgs: input,
+                                  },
+                                  toolResult: {
+                                      toolCallId: 'query',
+                                      toolName: 'runQuery',
+                                      result: 'count: 42',
+                                      metadata: {
+                                          status: 'success',
+                                          ...(queryUuid ? { queryUuid } : {}),
+                                      },
+                                  },
+                              },
+                          ]
+                        : [],
+            );
+            vi.spyOn(service, 'retrieveRelevantArtifacts').mockResolvedValue(
+                [],
+            );
+            const result = await service.getChatHistoryFromThreadMessages(
+                history,
                 {
-                    type: 'tool-result',
-                    toolCallId: 'query',
-                    toolName: 'runQuery',
-                    output: {
-                        type: 'json',
-                        value: { result: 'count: 42', status: 'success' },
+                    ...options,
+                    fastDecisionsEnabled,
+                },
+            );
+            expect(result).toContainEqual({
+                role: 'assistant',
+                content: [
+                    {
+                        type: 'tool-call',
+                        toolCallId: 'query',
+                        toolName: 'runQuery',
+                        input,
                     },
-                },
-            ],
-        });
-    });
+                ],
+            });
+            expect(result).toContainEqual({
+                role: 'tool',
+                content: [
+                    {
+                        type: 'tool-result',
+                        toolCallId: 'query',
+                        toolName: 'runQuery',
+                        output: {
+                            type: 'json',
+                            value: fastDecisionsEnabled
+                                ? {
+                                      result: 'count: 42',
+                                      status: 'success',
+                                      ...(queryUuid ? { queryUuid } : {}),
+                                  }
+                                : 'count: 42',
+                        },
+                    },
+                ],
+            });
+        },
+    );
 
     it('compacts representation without discarding any query semantics', () => {
         const example = {

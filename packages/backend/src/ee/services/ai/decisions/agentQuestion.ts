@@ -123,7 +123,9 @@ export const getAgentRetrievalContext = (
         | 'compactionSummary'
         | 'userQuestion'
     >,
-): Omit<AgentDecisionContext, 'references'> => {
+): Omit<AgentDecisionContext, 'references'> & {
+    routingContextComplete: boolean;
+} => {
     const context = getAgentDecisionContext({
         messageHistory: args.messageHistory,
         agentSettings: args.agentSettings,
@@ -159,5 +161,50 @@ export const getAgentRetrievalContext = (
                 result.incomplete = true;
             }
         });
-    return result;
+    const exchange = context.messages
+        .filter((_, index) => index !== currentIndex)
+        .slice(-2);
+    const lastUser = args.messageHistory.findLastIndex(
+        (message) => message.role === 'user',
+    );
+    const previousText = args.messageHistory
+        .slice(0, lastUser)
+        .filter(
+            (message) =>
+                (message.role === 'user' || message.role === 'assistant') &&
+                (typeof message.content === 'string'
+                    ? !!message.content
+                    : message.content.some(
+                          (part) => part.type === 'text' && !!part.text,
+                      )),
+        )
+        .slice(-2);
+    const recentExchangeComplete =
+        previousText.length === 2 &&
+        exchange.length === 2 &&
+        exchange[0].role === 'user' &&
+        exchange[1].role === 'assistant' &&
+        previousText.every((message, index) => {
+            const text =
+                typeof message.content === 'string'
+                    ? message.content
+                    : message.content
+                          .filter((part) => part.type === 'text')
+                          .map((part) => part.text)
+                          .join('\n');
+            return (
+                exchange[index].text === text &&
+                result.messages.some(
+                    (retained) =>
+                        retained.role === message.role &&
+                        retained.text === text,
+                )
+            );
+        });
+    return {
+        ...result,
+        routingContextComplete:
+            recentExchangeComplete ||
+            (previousText.length === 0 && !args.compactionSummary),
+    };
 };

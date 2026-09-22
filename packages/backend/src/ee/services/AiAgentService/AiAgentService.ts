@@ -9809,6 +9809,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                     value: preserveToolResultStatus
                                         ? {
                                               result: toolResult.result,
+                                              ...(toolResult.metadata &&
+                                              'queryUuid' in
+                                                  toolResult.metadata &&
+                                              typeof toolResult.metadata
+                                                  .queryUuid === 'string'
+                                                  ? {
+                                                        queryUuid:
+                                                            toolResult.metadata
+                                                                .queryUuid,
+                                                    }
+                                                  : {}),
                                               status:
                                                   typeof toolResult.metadata
                                                       ?.status === 'string'

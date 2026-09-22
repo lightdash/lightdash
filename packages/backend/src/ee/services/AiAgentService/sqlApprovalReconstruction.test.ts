@@ -1,4 +1,4 @@
-import { getRecentQueryFieldKeywords } from '../ai/agents/agentV2';
+import { getRecentQueryFieldIds } from '../ai/agents/agentV2';
 import { AiAgentService } from './AiAgentService';
 
 type Row = Parameters<
@@ -51,11 +51,11 @@ describe('AiAgentService SQL-approval history reconstruction', () => {
                 ...messages,
                 { role: 'user' as const, content: 'As a line chart' },
             ];
-            expect(getRecentQueryFieldKeywords(history)).toEqual(
+            expect(getRecentQueryFieldIds(history)).toEqual(
                 status === 'success' ? ['orders_count'] : [],
             );
             expect(
-                getRecentQueryFieldKeywords([
+                getRecentQueryFieldIds([
                     ...history,
                     {
                         role: 'assistant',

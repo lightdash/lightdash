@@ -44,6 +44,7 @@ export const agentStepsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'tool_duration_ms', type: 'BIGINT' },
     { name: 'tool_stage', type: 'VARCHAR' },
     { name: 'query_cache_hit', type: 'BOOLEAN' },
+    { name: 'query_reuse_hit', type: 'BOOLEAN' },
     { name: 'tool_status', type: 'VARCHAR' },
 ];
 
@@ -83,6 +84,7 @@ const projectAgentStepEvent = (
             tool_duration_ms: null,
             tool_stage: null,
             query_cache_hit: null,
+            query_reuse_hit: null,
             tool_status: null,
         },
     };
@@ -124,6 +126,7 @@ const projectAgentToolCallCompletedEvent = (
             tool_duration_ms: properties.durationMs,
             tool_stage: properties.stage,
             query_cache_hit: properties.queryCacheHit,
+            query_reuse_hit: properties.queryReuseHit,
             tool_status: properties.status,
         },
     };

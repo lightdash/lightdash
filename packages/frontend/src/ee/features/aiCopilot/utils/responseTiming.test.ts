@@ -40,6 +40,7 @@ describe('getResponseTimingMetrics', () => {
             apiMs: 50,
             renderMs: 25,
             queryCacheHits: 1,
+            queryReuseHits: 0,
         };
         expect(
             getResponseTimingMetrics({

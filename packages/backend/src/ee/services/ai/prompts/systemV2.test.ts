@@ -301,6 +301,9 @@ describe('getSystemPromptV2 merge queries', () => {
             'Correlation, timing and subgroup differences do not establish causation',
         );
         expect(fast).toContain('Label untested explanations as hypotheses');
+        expect(fast).toContain(
+            'The earliest observed record in one source does not establish the true first occurrence',
+        );
     });
 
     test('allows complete web tables and avoids redundant titles in fast mode', () => {

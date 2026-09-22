@@ -91,6 +91,8 @@ export type AiPromptResponseStageTiming = {
     renderMs: number;
     /** Query tools whose execution returned a result-cache hit. */
     queryCacheHits: number;
+    /** Query tools served from a verified prior-query result. */
+    queryReuseHits: number;
 };
 
 export type AiPromptResponseTiming = {

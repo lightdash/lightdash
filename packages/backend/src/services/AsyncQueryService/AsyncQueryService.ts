@@ -309,6 +309,7 @@ import {
     type PreAggregateStrategy,
     type PreAggregationRoutingDecision,
 } from './PreAggregateStrategy';
+import { canReuseQueryResult } from './queryResultReuse';
 import {
     ExecuteAsyncSqlQueryArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
@@ -5273,6 +5274,7 @@ export class AsyncQueryService extends ProjectService {
 
     async executeAsyncMetricQuery(
         args: ExecuteAsyncMetricQueryArgs,
+        reuseQueryUuid?: string,
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
         const {
             account,
@@ -5345,6 +5347,8 @@ export class AsyncQueryService extends ProjectService {
         return this.runAsyncMetricQueryWithoutPermissionCheck(
             args,
             organizationUuid,
+            undefined,
+            reuseQueryUuid,
         );
     }
 
@@ -5368,6 +5372,7 @@ export class AsyncQueryService extends ProjectService {
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
         sourceQueryHistory?: QueryHistory,
+        reuseQueryUuid?: string,
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -5548,6 +5553,46 @@ export class AsyncQueryService extends ProjectService {
                 routingDecision.preAggregateMetadata.hit,
                 routingDecision.preAggregateMetadata.reason?.reason,
             );
+        }
+
+        if (reuseQueryUuid && !invalidateCache && !documentQueryContext) {
+            const previous = await this.getAsyncQueryHistory({
+                account,
+                projectUuid,
+                queryUuid: reuseQueryUuid,
+            }).catch((error: unknown) => {
+                if (
+                    error instanceof NotFoundError ||
+                    error instanceof ForbiddenError
+                )
+                    return null;
+                throw error;
+            });
+            if (
+                previous &&
+                canReuseQueryResult(previous, {
+                    userUuid: account.user.id,
+                    sql: queryComposer.getSql({
+                        columnLimit:
+                            this.lightdashConfig.pivotTable.maxColumnLimit,
+                    }),
+                    parameters: queryComposer.getUsedParameters(),
+                })
+            ) {
+                return {
+                    queryUuid: previous.queryUuid,
+                    cacheMetadata: {
+                        cacheHit: true,
+                        queryReuseHit: true,
+                    },
+                    metricQuery: effectiveMetricQuery,
+                    fields,
+                    warnings: queryComposer.getWarnings(),
+                    parameterReferences: queryComposer.getParameterReferences(),
+                    usedParametersValues: queryComposer.getUsedParameters(),
+                    resolvedTimezone: queryComposer.getDisplayTimezone(),
+                };
+            }
         }
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -10339,6 +10384,7 @@ export class AsyncQueryService extends ProjectService {
     async executeMetricQueryAndGetResults(
         args: ExecuteAsyncMetricQueryArgs,
         pollingOptions?: PollingOptions,
+        reuseQueryUuid?: string,
     ): Promise<{
         queryUuid: string;
         rows: Record<string, unknown>[];
@@ -10352,7 +10398,10 @@ export class AsyncQueryService extends ProjectService {
         abortSignal?.throwIfAborted();
 
         const { queryUuid, cacheMetadata, fields } =
-            await this.executeAsyncMetricQuery(args);
+            await this.executeAsyncMetricQuery(
+                args,
+                ...(reuseQueryUuid ? ([reuseQueryUuid] as const) : []),
+            );
 
         try {
             await this.pollForQueryCompletion({
@@ -10386,15 +10435,28 @@ export class AsyncQueryService extends ProjectService {
             throw error;
         }
 
-        const results = await this.getReadyQueryResults({
-            account,
-            projectUuid,
-            queryUuid,
-            cacheMetadata,
-            fields,
-        });
-
-        return { queryUuid, ...results };
+        try {
+            const results = await this.getReadyQueryResults({
+                account,
+                projectUuid,
+                queryUuid,
+                cacheMetadata,
+                fields,
+            });
+            return { queryUuid, ...results };
+        } catch (error) {
+            abortSignal?.throwIfAborted();
+            if (
+                reuseQueryUuid === queryUuid &&
+                error instanceof ResultsExpiredError
+            ) {
+                return this.executeMetricQueryAndGetResults(
+                    args,
+                    pollingOptions,
+                );
+            }
+            throw error;
+        }
     }
 
     async extendQueryResultsExpiration({

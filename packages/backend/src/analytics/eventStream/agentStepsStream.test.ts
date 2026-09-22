@@ -67,6 +67,7 @@ const toolCallEvent: AiAgentToolCallCompletedEvent = {
         durationMs: 1_300,
         stage: 'query',
         queryCacheHit: true,
+        queryReuseHit: true,
         status: 'success',
     },
 };
@@ -109,6 +110,7 @@ describe('agentStepsStream', () => {
             tool_duration_ms: 1_300,
             tool_stage: 'query',
             query_cache_hit: true,
+            query_reuse_hit: true,
             tool_status: 'success',
         });
     });

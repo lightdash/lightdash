@@ -32,39 +32,6 @@ export type TurnIntent =
     | 'repository_change'
     | 'other';
 
-const CHART_FOLLOWUP_PATTERN =
-    /^(?:(?:please\s+)?(?:show|plot|chart|visuali[sz]e|render|display)\s+)?(?:(?:it|that|this|the\s+(?:result|data|answer|chart))\s+)?(?:as|in)\s+(?:an?\s+)?(?:line|bar|area|scatter|pie|funnel|heatmap|table|big\s+number)(?:\s+(?:chart|graph|plot|visuali[sz]ation))?[.!?]*$/iu;
-
-const EXPLICIT_VISUALIZATION_PATTERN =
-    /\b(?:chart|graph|plot|visuali[sz](?:e|ation))\b/iu;
-const REFERENCE_QUESTION_PATTERN =
-    /\b(?:definition|define|meaning|rule|policy|document|context)\b/iu;
-const CONTENT_COUNT_PATTERN =
-    /\b(?:charts?|dashboards?|projects?|spaces?|fields?|metrics?|dimensions?|explores?|tables?)\b/iu;
-const HIGH_CONFIDENCE_DATA_QUESTION_PATTERN =
-    /^(?:please\s+)?(?:how\s+(?:many|much)\b|(?:show|list|give\s+me|compare|calculate)\b[\s\S]*\b(?:orders?|revenue|sales|count|volume|average|total|trend|customers?|users?)\b)/iu;
-
-export const getDeterministicTurnIntent = (
-    query: string,
-    conversation: Pick<ReturnType<typeof getAgentRetrievalContext>, 'messages'>,
-): TurnIntent | null => {
-    const normalized = query.trim();
-    if (CHART_FOLLOWUP_PATTERN.test(normalized)) {
-        return conversation.messages.at(-1)?.role === 'assistant'
-            ? 'chart_from_previous'
-            : null;
-    }
-    if (
-        HIGH_CONFIDENCE_DATA_QUESTION_PATTERN.test(normalized) &&
-        !EXPLICIT_VISUALIZATION_PATTERN.test(normalized) &&
-        !REFERENCE_QUESTION_PATTERN.test(normalized) &&
-        !CONTENT_COUNT_PATTERN.test(normalized)
-    ) {
-        return 'data_answer';
-    }
-    return null;
-};
-
 // Keep complete rules, not excerpts that could omit exceptions. Lexical recall
 // moves late matching entries into the bounded semantic pool; ties retain order.
 const boundCandidates = <T>(
@@ -299,10 +266,6 @@ export const prepareRelevantContext = async (
                 `First resolve the subject of state.query from prior user/assistant messages, project instructions and the compactionSummary in state.conversation. The current request takes precedence; do not continue unrelated prior tasks. If omitted context leaves a reference ambiguous, abstain. ${questions[key].instructions}`;
         });
     }
-    const deterministicTurnIntent = getDeterministicTurnIntent(
-        query,
-        conversation,
-    );
     const answers = await args.decisions.evaluate({
         operation: 'context-preload',
         state: {
@@ -323,16 +286,7 @@ export const prepareRelevantContext = async (
         },
         questions,
     });
-    if (!answers) {
-        return deterministicTurnIntent
-            ? {
-                  content: null,
-                  mcpToolNames: [],
-                  projectContextEntryIds: [],
-                  turnIntent: deterministicTurnIntent,
-              }
-            : null;
-    }
+    if (!answers) return null;
     const selectedMcpTool = confidentChoice(answers.mcpTool, 0.95);
     const selectedMcpToolIndex = /^tool_(\d+)$/u.exec(
         selectedMcpTool ?? '',
@@ -415,9 +369,10 @@ export const prepareRelevantContext = async (
     ) as TurnIntent | null;
     let turnIntent: TurnIntent | null = null;
     if (questions.turnIntent) {
-        turnIntent = conversation.incomplete
-            ? deterministicTurnIntent
-            : (classifiedTurnIntent ?? deterministicTurnIntent);
+        turnIntent =
+            conversation.incomplete && !conversation.routingContextComplete
+                ? null
+                : classifiedTurnIntent;
     }
     return content || preloadedMcpTool || turnIntent
         ? {

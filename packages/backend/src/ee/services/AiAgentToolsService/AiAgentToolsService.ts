@@ -698,6 +698,7 @@ export class AiAgentToolsService extends BaseService {
                 additionalMetrics,
                 parameters,
                 abortSignal,
+                reuseQueryUuid,
             ) =>
                 this.runAsyncQuery(
                     context,
@@ -705,6 +706,7 @@ export class AiAgentToolsService extends BaseService {
                     additionalMetrics,
                     parameters,
                     abortSignal,
+                    reuseQueryUuid,
                 ),
             runAsyncMergeQuery: (mergeQuery, parameters) =>
                 this.runAsyncMergeQuery(context, mergeQuery, parameters),
@@ -2828,6 +2830,7 @@ export class AiAgentToolsService extends BaseService {
         _additionalMetrics: Parameters<RunAsyncQueryFn>[1],
         parameters: Parameters<RunAsyncQueryFn>[2],
         abortSignal?: AbortSignal,
+        reuseQueryUuid?: string,
     ): ReturnType<RunAsyncQueryFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.runAsyncQuery`,
@@ -2880,6 +2883,11 @@ export class AiAgentToolsService extends BaseService {
                                 context.userAttributeOverrides,
                         },
                         { abortSignal },
+                        ...(context.source === 'ai_agent' &&
+                        context.enableRuntimeCache &&
+                        reuseQueryUuid
+                            ? ([reuseQueryUuid] as const)
+                            : []),
                     );
 
                 if (context.queryResultsExpirationMs) {

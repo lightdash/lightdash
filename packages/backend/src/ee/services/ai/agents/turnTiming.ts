@@ -16,6 +16,7 @@ export type ToolCallTiming = {
     durationMs: number;
     stage: ToolStage;
     queryCacheHit: boolean;
+    queryReuseHit: boolean;
 };
 
 export type ToolStage = 'query' | 'api' | 'render';
@@ -27,6 +28,7 @@ export type TurnStageTiming = {
     apiMs: number;
     renderMs: number;
     queryCacheHits: number;
+    queryReuseHits: number;
 };
 
 const QUERY_TOOLS = new Set([
@@ -192,6 +194,7 @@ export class TurnTimingTracker {
     recordToolCallEnd(
         toolCallId: string,
         queryCacheHit = false,
+        queryReuseHit = false,
     ): ToolCallTiming | null {
         const open = this.openToolCalls.get(toolCallId);
         if (!open) {
@@ -206,6 +209,7 @@ export class TurnTimingTracker {
             durationMs: this.now() - open.startedAt,
             stage: getToolStage(open.toolName),
             queryCacheHit,
+            queryReuseHit,
         };
         this.completedToolCalls.push(timing);
         return timing;
@@ -305,6 +309,9 @@ export class TurnTimingTracker {
             renderMs: stageMs('render'),
             queryCacheHits: this.completedToolCalls.filter(
                 ({ queryCacheHit }) => queryCacheHit,
+            ).length,
+            queryReuseHits: this.completedToolCalls.filter(
+                ({ queryReuseHit }) => queryReuseHit,
             ).length,
         };
     }
