@@ -470,6 +470,7 @@ describe('renameMetricQuery', () => {
                     table: 'payment',
                     sql: '${TABLE}.amount',
                     type: MetricType.SUM,
+                    baseMetricName: 'amount',
                     filters: [
                         {
                             id: '954711ae-88e0-4b24-9b27-47a676597b18',
@@ -514,6 +515,7 @@ describe('renameMetricQuery', () => {
                 : undefined,
         ).toBe('${payment.cost} * 2');
         expect(result.additionalMetrics?.[0].sql).toBe('${TABLE}.cost');
+        expect(result.additionalMetrics?.[0].baseMetricName).toBe('cost');
         expect(
             result.additionalMetrics?.[0].filters?.[0].target?.fieldRef,
         ).toBe('payment.cost');
