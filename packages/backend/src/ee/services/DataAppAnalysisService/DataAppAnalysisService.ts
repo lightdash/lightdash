@@ -651,6 +651,9 @@ export class DataAppAnalysisService extends BaseService {
             projectUuid,
             appUuid,
         );
+        // Content is read before the rate check on purpose: the hash decides
+        // whether a stored analysis serves this request, and cache hits must
+        // stay free. The 429 protects model spend, not the result reads.
         const { content, grounding, sectionHashes } = await this.buildContent(
             account,
             projectUuid,
