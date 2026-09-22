@@ -64,6 +64,7 @@ import {
     getPivotValueColumnName,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
+    isAiAgentContent,
     isCartesianChartConfig,
     isCustomBinDimension,
     isCustomDimension,
@@ -6186,9 +6187,22 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError('Chart does not belong to project');
         }
 
+        // An embedded AI agent previews saved charts from its write space (chat
+        // chips, saved answers) as the write actor, the same gate the dashboard
+        // tile path applies in checkDashboardChartQueryPermissions. Any other
+        // JWT still needs a chart token for this chart.
+        const embedAiAgentWriteActor =
+            isJwtUser(account) &&
+            isAiAgentContent(account.authentication.data.content) &&
+            account.embedWriteContext?.canUseAiAgent === true &&
+            account.authentication.data.writeActions?.spaceUuid ===
+                savedChartSpaceUuid
+                ? account.embedWriteUser
+                : undefined;
+
         let access;
         let inheritsFromOrgOrProject;
-        if (isJwtUser(account)) {
+        if (isJwtUser(account) && !embedAiAgentWriteActor) {
             if (!ProjectService.isChartEmbed(account)) {
                 throw new ForbiddenError();
             }
@@ -6210,7 +6224,7 @@ export class AsyncQueryService extends ProjectService {
             inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
         } else {
             const ctx = await this.spacePermissionService.resolveAccess(
-                account.user.id,
+                embedAiAgentWriteActor?.userUuid ?? account.user.id,
                 {
                     type: 'chart',
                     chartUuid: savedChart.uuid,
@@ -6222,7 +6236,9 @@ export class AsyncQueryService extends ProjectService {
             inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
         }
 
-        const auditedAbility = this.createAuditedAbility(account);
+        const auditedAbility = this.createAuditedAbility(
+            embedAiAgentWriteActor ?? account,
+        );
         if (
             auditedAbility.cannot(
                 'view',
