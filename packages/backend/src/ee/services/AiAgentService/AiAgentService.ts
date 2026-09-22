@@ -10898,6 +10898,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             onWarehouseQuery?: () => void | Promise<void>;
             enableDocuments: boolean;
             enableRuntimeCache: boolean;
+            invalidateQueryCache?: boolean;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -10910,6 +10911,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             projectUuid,
             source: 'ai_agent',
             enableRuntimeCache: options?.enableRuntimeCache ?? false,
+            invalidateQueryCache: options?.invalidateQueryCache ?? false,
             enableDocuments: options?.enableDocuments ?? false,
             catalogSearchContext: CatalogSearchContext.AI_AGENT,
             defaultQueryExecutionContext: QueryExecutionContext.AI,
@@ -12472,6 +12474,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             onWarehouseQuery: responseExecution.onWarehouseQuery,
             enableDocuments: canUseContentTools && documentsEnabled,
             enableRuntimeCache: !!decisions,
+            // Battle sides must not warm one another's result cache. Normal
+            // threads retain production cache behavior.
+            invalidateQueryCache: battleProfile !== null,
         });
 
         const availableSkills = canUseContentTools

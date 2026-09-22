@@ -209,6 +209,7 @@ export type AiAgentToolsRuntimeContext = {
     onWarehouseQuery?: () => void | Promise<void>;
     queryResultsExpirationMs?: number;
     enableRuntimeCache?: boolean;
+    invalidateQueryCache?: boolean;
 };
 
 export type McpRuntimeSuccess<TData> = {
@@ -2881,6 +2882,9 @@ export class AiAgentToolsService extends BaseService {
                             parameters,
                             userAttributeOverrides:
                                 context.userAttributeOverrides,
+                            ...(context.invalidateQueryCache
+                                ? { invalidateCache: true }
+                                : {}),
                         },
                         { abortSignal },
                         ...(context.source === 'ai_agent' &&
@@ -2927,6 +2931,9 @@ export class AiAgentToolsService extends BaseService {
                             mode: { type: 'interactive' },
                             userAttributeOverrides:
                                 context.userAttributeOverrides,
+                            ...(context.invalidateQueryCache
+                                ? { invalidateCache: true }
+                                : {}),
                         },
                     );
 
@@ -2973,6 +2980,9 @@ export class AiAgentToolsService extends BaseService {
                             chartUuid: args.chartUuid,
                             limit,
                             context: context.defaultQueryExecutionContext,
+                            ...(context.invalidateQueryCache
+                                ? { invalidateCache: true }
+                                : {}),
                         },
                         undefined,
                         args.onQueryPrepared,
@@ -3019,6 +3029,9 @@ export class AiAgentToolsService extends BaseService {
                         dashboardSorts: [],
                         limit,
                         context: context.defaultQueryExecutionContext,
+                        ...(context.invalidateQueryCache
+                            ? { invalidateCache: true }
+                            : {}),
                     },
                     undefined,
                     args.onQueryPrepared,

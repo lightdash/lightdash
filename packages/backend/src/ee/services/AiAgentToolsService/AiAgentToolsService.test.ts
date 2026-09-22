@@ -877,6 +877,39 @@ describe('AiAgentToolsService', () => {
         },
     );
 
+    it('invalidates the result cache when the runtime opts in', async () => {
+        const executeMetricQueryAndGetResults = vi.fn().mockResolvedValue({
+            queryUuid: 'result',
+            rows: [],
+            fields: {},
+            cacheMetadata: { cacheHit: false },
+        });
+        const service = makeService({
+            explores: { orders: makeExplore({ name: 'orders' }) },
+            asyncQueryService: { executeMetricQueryAndGetResults },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ invalidateQueryCache: true }),
+        );
+
+        await runtime.runAsyncQuery({
+            exploreName: 'orders',
+            dimensions: [],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: 10,
+            tableCalculations: [],
+            additionalMetrics: [],
+            customMetrics: null,
+        });
+
+        expect(executeMetricQueryAndGetResults).toHaveBeenCalledWith(
+            expect.objectContaining({ invalidateCache: true }),
+            expect.anything(),
+        );
+    });
+
     it('extends query result retention when the runtime opts in', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-07-31T12:00:00.000Z'));
