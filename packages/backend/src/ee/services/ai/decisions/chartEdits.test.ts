@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    FieldType,
     FilterOperator,
     FilterType,
     MetricType,
@@ -84,7 +85,7 @@ const refinementExplore = {
                 date: {
                     name: 'date',
                     table: 'orders',
-                    fieldType: 'dimension',
+                    fieldType: FieldType.DIMENSION,
                     type: DimensionType.DATE,
                     label: 'Date',
                 },
@@ -112,6 +113,7 @@ const refinementExplore = {
 describe('chart edits', () => {
     it('recognizes only guarded query-refinement and undo commands', () => {
         expect(isChartQueryRefinementRequest('only North')).toBe(true);
+        expect(isChartQueryRefinementRequest('segment by Status')).toBe(true);
         expect(
             isChartQueryRefinementRequest('sort by Revenue descending'),
         ).toBe(true);
@@ -119,6 +121,118 @@ describe('chart edits', () => {
         expect(isChartQueryRefinementRequest('explain the filters')).toBe(
             false,
         );
+    });
+
+    it('segments by one unambiguous same-explore dimension without a provider request', async () => {
+        const request = vi.fn<typeof fetch>();
+        const decisions = new AiDecisionClient(
+            { apiKey: 'test', model: 'test', timeoutMs: 100 },
+            request,
+        );
+        const explore = structuredClone(refinementExplore) as Explore;
+        explore.tables.orders.dimensions.status = {
+            name: 'status',
+            table: 'orders',
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            label: 'Status',
+        } as never;
+
+        const result = await resolveChartEdit({
+            decisions,
+            prompt: 'segment by status',
+            artifact,
+            explore,
+            allowQueryRefinements: true,
+        });
+
+        expect(result?.config.config.queryConfig.dimensions).toEqual([
+            'orders_date',
+            'orders_status',
+        ]);
+        expect(result?.config.config.chartConfig).toMatchObject({
+            xAxisDimension: 'orders_date',
+            groupBy: ['orders_status'],
+        });
+        expect(result?.response).toBe('Segmented by **Status**.');
+        expect(request).not.toHaveBeenCalled();
+    });
+
+    it('segments by a dimension from a table joined into the current explore', async () => {
+        const explore = structuredClone(refinementExplore) as Explore;
+        explore.name = 'payments';
+        explore.tables.payments = {
+            label: 'Payments',
+            dimensions: {
+                payment_method: {
+                    name: 'payment_method',
+                    table: 'payments',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    label: 'Payment method',
+                },
+            },
+            metrics: {},
+        } as never;
+
+        const result = await resolveChartEdit({
+            decisions: client('none'),
+            prompt: 'segment by payment method',
+            artifact,
+            explore,
+            allowQueryRefinements: true,
+        });
+
+        expect(result?.config.config.queryConfig.dimensions).toEqual([
+            'orders_date',
+            'payments_payment_method',
+        ]);
+        expect(result?.config.config.queryConfig.exploreName).toBe('payments');
+        expect(result?.config.config.chartConfig).toMatchObject({
+            groupBy: ['payments_payment_method'],
+        });
+    });
+
+    it('adds the first dimension to a metric-only table', async () => {
+        const count = structuredClone(artifact);
+        count.config.queryConfig.dimensions = [];
+        count.config.chartConfig = null;
+        const explore = structuredClone(refinementExplore) as Explore;
+        explore.name = 'payments';
+        explore.tables.payments = {
+            label: 'Payments',
+            dimensions: {
+                payment_method: {
+                    name: 'payment_method',
+                    table: 'payments',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    label: 'Payment method',
+                },
+            },
+            metrics: {},
+        } as never;
+
+        const result = await resolveChartEdit({
+            decisions: client('none'),
+            prompt: 'segment by payment method',
+            artifact: count,
+            explore,
+            allowQueryRefinements: true,
+        });
+
+        expect(result?.config.config.queryConfig).toMatchObject({
+            exploreName: 'payments',
+            dimensions: ['payments_payment_method'],
+            metrics: ['orders_revenue'],
+        });
+        expect(result?.config.config.chartConfig).toMatchObject({
+            defaultVizType: 'table',
+            xAxisDimension: 'payments_payment_method',
+            yAxisMetrics: ['orders_revenue'],
+            groupBy: null,
+            xAxisType: 'category',
+        });
     });
 
     it('filters the sole non-date query dimension through the shared grammar', () => {

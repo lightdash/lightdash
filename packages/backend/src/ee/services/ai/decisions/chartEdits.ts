@@ -8,6 +8,7 @@ import {
     getItemLabelWithoutTableName,
     isAndFilterGroup,
     isCustomChartTypeSlugChartConfig,
+    isDimension,
     isFilterRule,
     parseAiArtifactChartConfig,
     type AiSemanticChartArtifactConfig,
@@ -50,7 +51,7 @@ export const isChartPresentationRequest = (prompt: string): boolean =>
     );
 
 export const isChartQueryRefinementRequest = (prompt: string): boolean =>
-    /^(?:(?:please|(?:can|could|would) you)\s+)?(?:only\b|show only\b|keep only\b|exclude\b|filter:|filter to\b|where\b|last\s+\d+\s+(?:days?|weeks?|months?|quarters?|years?)\b|this\s+(?:day|week|month|quarter|year)\b|clear (?:the )?filters?\b|remove (?:the )?filters?\b|sort\b|top\s+\d+\b|bottom\s+\d+\b|clear (?:the )?sort\b)/i.test(
+    /^(?:(?:please|(?:can|could|would) you)\s+)?(?:only\b|show only\b|keep only\b|exclude\b|filter:|filter to\b|where\b|last\s+\d+\s+(?:days?|weeks?|months?|quarters?|years?)\b|this\s+(?:day|week|month|quarter|year)\b|clear (?:the )?filters?\b|remove (?:the )?filters?\b|sort\b|top\s+\d+\b|bottom\s+\d+\b|clear (?:the )?sort\b|segment(?:\s+(?:it|this|this chart|the chart))?\s+by\b|group(?:\s+(?:it|this|this chart|the chart))?\s+by\b|break(?:\s+(?:it|this|this chart|the chart))?\s+down\s+by\b)/i.test(
         prompt.trim(),
     );
 
@@ -475,6 +476,143 @@ const applyExactSort = (
     };
 };
 
+export const getChartSegmentationQuery = (prompt: string): string | null =>
+    /^(?:please\s+)?(?:(?:segment|group)(?:\s+(?:it|this|this chart|the chart))?\s+by|break(?:\s+(?:it|this|this chart|the chart))?\s+down\s+by)\s+(.+?)[.!]?$/i.exec(
+        prompt.trim(),
+    )?.[1] ?? null;
+
+const parseSegmentationFields = (
+    prompt: string,
+    explore: Explore,
+): { ids: string[]; labels: string[] } | null => {
+    const requested = getChartSegmentationQuery(prompt);
+    if (!requested) return null;
+    const names = requested
+        .toLowerCase()
+        .split(/\s*,\s*|\s+and\s+/)
+        .map((name) => name.trim());
+    if (names.some((name) => !name)) return null;
+
+    const dimensions = getFields(explore)
+        .filter(isDimension)
+        .map((field) => ({
+            id: getItemId(field),
+            label: getItemLabelWithoutTableName(field),
+        }));
+    const matches = names.map((name) =>
+        dimensions.filter(
+            ({ id, label }) =>
+                id.toLowerCase() === name || label.toLowerCase() === name,
+        ),
+    );
+    if (matches.some((fields) => fields.length !== 1)) return null;
+
+    const selected = matches.map(([field]) => field);
+    if (new Set(selected.map(({ id }) => id)).size !== selected.length)
+        return null;
+    return {
+        ids: selected.map(({ id }) => id),
+        labels: selected.map(({ label }) => label),
+    };
+};
+
+const applyExactSegmentation = (
+    prompt: string,
+    artifact: AiSemanticChartArtifactConfig,
+    explore: Explore,
+): ChartEdit | null => {
+    const selected = parseSegmentationFields(prompt, explore);
+    const currentChart = artifact.config.chartConfig;
+    if (!selected || isCustomChartTypeSlugChartConfig(currentChart))
+        return null;
+    const metricIds = [
+        ...artifact.config.queryConfig.metrics,
+        ...(artifact.config.queryConfig.tableCalculations ?? []).map(
+            ({ name }) => name,
+        ),
+    ];
+    if (metricIds.length === 0) return null;
+    const chart = currentChart ?? {
+        defaultVizType: 'table' as const,
+        xAxisDimension: null,
+        yAxisMetrics: metricIds,
+        groupBy: null,
+        xAxisType: null,
+        stackBars: null,
+        lineType: null,
+        xAxisLabel: '',
+        yAxisLabel: '',
+        secondaryYAxisMetric: null,
+        secondaryYAxisLabel: null,
+    };
+
+    const currentAxis =
+        chart.xAxisDimension &&
+        artifact.config.queryConfig.dimensions.includes(chart.xAxisDimension)
+            ? chart.xAxisDimension
+            : null;
+    const xAxisDimension = currentAxis ?? selected.ids[0];
+    const groupBy = selected.ids.filter((id) => id !== xAxisDimension);
+    const dimensions = [xAxisDimension, ...groupBy];
+    const keptFieldIds = new Set([...dimensions, ...metricIds]);
+    const yAxisMetrics = (chart.yAxisMetrics ?? []).filter((id) =>
+        metricIds.includes(id),
+    );
+    const selectedAxis = getFields(explore).find(
+        (field) => getItemId(field) === xAxisDimension,
+    );
+    let { xAxisType } = chart;
+    if (currentAxis === null) {
+        xAxisType =
+            selectedAxis &&
+            isDimension(selectedAxis) &&
+            getFilterTypeFromItemType(selectedAxis.type) === FilterType.DATE
+                ? 'time'
+                : 'category';
+    }
+    const nextChart = {
+        ...chart,
+        xAxisDimension,
+        yAxisMetrics: yAxisMetrics.length ? yAxisMetrics : metricIds,
+        groupBy: groupBy.length ? groupBy : null,
+        xAxisType,
+        xAxisLabel:
+            currentAxis === null
+                ? (selected.labels[0] ?? chart.xAxisLabel)
+                : chart.xAxisLabel,
+    };
+    const { contentAsCode: _contentAsCode, ...currentArtifact } = artifact;
+    const parsed = parseAiArtifactChartConfig({
+        ...currentArtifact,
+        config: {
+            ...artifact.config,
+            queryConfig: {
+                ...artifact.config.queryConfig,
+                exploreName: explore.name,
+                dimensions,
+                sorts: artifact.config.queryConfig.sorts.filter(({ fieldId }) =>
+                    keptFieldIds.has(fieldId),
+                ),
+            },
+            chartConfig: nextChart,
+        },
+    });
+    if (!parsed || parsed.source !== 'semantic') return null;
+
+    const changed =
+        JSON.stringify(parsed.config.queryConfig) !==
+            JSON.stringify(artifact.config.queryConfig) ||
+        JSON.stringify(parsed.config.chartConfig) !==
+            JSON.stringify(currentChart);
+    return {
+        config: parsed,
+        response: changed
+            ? `Segmented by ${selected.labels.map((label) => `**${label}**`).join(' and ')}.`
+            : 'The chart already uses that segmentation.',
+        changed,
+    };
+};
+
 export const resolveExactChartQueryEdit = ({
     prompt,
     artifact,
@@ -484,6 +622,8 @@ export const resolveExactChartQueryEdit = ({
     artifact: AiSemanticChartArtifactConfig;
     explore: Explore;
 }): ChartEdit | null => {
+    const segmentation = applyExactSegmentation(prompt, artifact, explore);
+    if (segmentation) return segmentation;
     const filter = parseExactFilter(prompt, artifact, explore);
     if (filter) return applyExactFilter(filter, artifact, explore);
     return applyExactSort(prompt, artifact, explore);

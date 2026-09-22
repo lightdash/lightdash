@@ -2529,6 +2529,20 @@ export class ProjectModel {
         return cachedExplores[tableName];
     }
 
+    async findExploreNamesContainingTables(
+        projectUuid: string,
+        tableNames: string[],
+    ): Promise<string[]> {
+        if (tableNames.length === 0) return [];
+        const query = this.database(CachedExploreTableName)
+            .select<{ name: string }[]>('name')
+            .where('project_uuid', projectUuid);
+        for (const tableName of new Set(tableNames)) {
+            query.andWhereRaw('? = ANY(table_names)', [tableName]);
+        }
+        return (await query).map(({ name }) => name);
+    }
+
     private async findExploreCacheContainingTable(
         projectUuid: string,
         tableName: string,

@@ -60,6 +60,7 @@ import {
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     assertUnreachable,
+    CatalogType,
     CommercialFeatureFlags,
     ConflictError,
     ContentType,
@@ -87,6 +88,7 @@ import {
     getAppDisplayName,
     getDataAppVizChartFromArtifact,
     getErrorMessage,
+    getFields,
     getGenerateDataAppBuildOutcome,
     getGroupByDimensions,
     getItemId,
@@ -107,12 +109,14 @@ import {
     isDashboardChartTileType,
     isGithubMcpServerUrl,
     isGitProjectType,
+    isMetric,
     isSlackMessageTooLongError,
     isSlackPrompt,
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
     MetricSourcedMergeQuery,
+    MetricType,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentity,
@@ -151,6 +155,7 @@ import {
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchPhase,
     type AiPromptContextInput,
+    type AiSemanticChartArtifactConfig,
     type AiThreadCreatedFrom,
     type AiWebAppThreadCreatedFrom,
     type AppGeneratePipelineJobPayload,
@@ -329,6 +334,7 @@ import {
     type AiDecisionClient,
 } from '../ai/decisions/AiDecisionClient';
 import {
+    getChartSegmentationQuery,
     isChartArtifactEditRequest,
     isChartPresentationRequest,
     isChartQueryRefinementRequest,
@@ -11741,7 +11747,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             latest.artifactUuid,
             latest.versionUuid,
         );
-        if (artifact.chartConfig?.source !== 'semantic') return null;
+        const { chartConfig } = artifact;
+        if (chartConfig?.source !== 'semantic') return null;
 
         const explore =
             parseExactChartEdit(prompt.prompt) ||
@@ -11751,7 +11758,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       user,
                       prompt.projectUuid,
                       agent.tags,
-                      artifact.chartConfig.config.queryConfig.exploreName,
+                      chartConfig.config.queryConfig.exploreName,
                   ).catch(() => undefined);
         const previous =
             allowQueryRefinements && isChartUndoRequest(prompt.prompt)
@@ -11764,9 +11771,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             previous?.chartConfig?.source === 'semantic'
                 ? previous.chartConfig
                 : null;
-        const edit = isChartUndoRequest(prompt.prompt)
+        let edit = isChartUndoRequest(prompt.prompt)
             ? {
-                  config: undoConfig ?? artifact.chartConfig,
+                  config: undoConfig ?? chartConfig,
                   response: undoConfig
                       ? 'Undid the last chart change.'
                       : 'There is no earlier chart change to undo.',
@@ -11775,12 +11782,48 @@ Use your existing tools to inspect them when relevant to the user's question (re
             : await resolveChartEdit({
                   decisions,
                   prompt: prompt.prompt,
-                  artifact: artifact.chartConfig,
+                  artifact: chartConfig,
                   instructions: agent.instruction,
                   conversation: messageHistory.slice(-3),
                   explore,
                   allowQueryRefinements,
               });
+        if (
+            !edit &&
+            allowQueryRefinements &&
+            explore &&
+            getChartSegmentationQuery(prompt.prompt)
+        ) {
+            const compatibleExplores = await this.findSegmentationExplores({
+                user,
+                projectUuid: prompt.projectUuid,
+                availableTags: agent.tags,
+                prompt: prompt.prompt,
+                artifact: chartConfig,
+                currentExplore: explore,
+            }).catch(() => []);
+            const candidates = (
+                await Promise.all(
+                    compatibleExplores.map(async (compatibleExplore) => ({
+                        edit: await resolveChartEdit({
+                            decisions,
+                            prompt: prompt.prompt,
+                            artifact: chartConfig,
+                            instructions: agent.instruction,
+                            conversation: messageHistory.slice(-3),
+                            explore: compatibleExplore,
+                            allowQueryRefinements,
+                        }),
+                    })),
+                )
+            )
+                .map(({ edit: candidateEdit }) => candidateEdit)
+                .filter(
+                    (candidate): candidate is NonNullable<typeof candidate> =>
+                        Boolean(candidate),
+                );
+            if (candidates.length === 1) [edit] = candidates;
+        }
         if (!edit) return null;
 
         const [current, interrupted] = await Promise.all([
@@ -11854,6 +11897,134 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 pipeUIMessageStreamToResponse({ response, stream }),
             consumeStream: async () => {},
         };
+    }
+
+    private async findSegmentationExplores({
+        user,
+        projectUuid,
+        availableTags,
+        prompt,
+        artifact,
+        currentExplore,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        availableTags: string[] | null;
+        prompt: string;
+        artifact: AiSemanticChartArtifactConfig;
+        currentExplore: Explore;
+    }): Promise<Explore[]> {
+        const searchQuery = getChartSegmentationQuery(prompt);
+        const query = artifact.config.queryConfig;
+        if (
+            !searchQuery ||
+            query.customMetrics?.length ||
+            query.tableCalculations?.length ||
+            !user.organizationUuid
+        )
+            return [];
+
+        const referencedFieldIds = new Set([
+            ...query.dimensions,
+            ...query.metrics,
+            ...query.sorts.map(({ fieldId }) => fieldId),
+        ]);
+        const collectFilterFields = (value: unknown): void => {
+            if (!value || typeof value !== 'object') return;
+            if (
+                'fieldId' in value &&
+                typeof (value as { fieldId?: unknown }).fieldId === 'string'
+            ) {
+                referencedFieldIds.add((value as { fieldId: string }).fieldId);
+            }
+            for (const child of Object.values(value))
+                collectFilterFields(child);
+        };
+        collectFilterFields(query.filters);
+
+        const currentFields = new Map(
+            getFields(currentExplore).map((field) => [getItemId(field), field]),
+        );
+        const safeCrossExploreMetricTypes = new Set([
+            MetricType.COUNT_DISTINCT,
+            MetricType.SUM_DISTINCT,
+            MetricType.AVERAGE_DISTINCT,
+        ]);
+        if (
+            query.metrics.some((fieldId) => {
+                const field = currentFields.get(fieldId);
+                return (
+                    !field ||
+                    !isMetric(field) ||
+                    !safeCrossExploreMetricTypes.has(field.type)
+                );
+            })
+        )
+            return [];
+        const requiredTables = [...referencedFieldIds].map(
+            (fieldId) => currentFields.get(fieldId)?.table,
+        );
+        if (requiredTables.some((table) => !table)) return [];
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid: user.organizationUuid,
+                userUuid: user.userUuid,
+            });
+        const { data } = await this.catalogService.searchCatalog({
+            projectUuid,
+            userAttributes,
+            catalogSearch: { searchQuery, type: CatalogType.Field },
+            context: CatalogSearchContext.AI_AGENT,
+            paginateArgs: { page: 1, pageSize: 25 },
+            excludeUnmatched: true,
+            fullTextSearchOperator: 'OR',
+        });
+        const normalize = (value: string) =>
+            value
+                .toLowerCase()
+                .replaceAll('_', ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        const normalizedQuery = normalize(searchQuery);
+        const candidateTables = _.uniq(
+            data
+                .filter((item) => item.type === CatalogType.Field)
+                .filter(
+                    (field) =>
+                        normalize(field.name) === normalizedQuery ||
+                        normalize(field.label ?? '') === normalizedQuery,
+                )
+                .map((field) => field.tableName),
+        );
+        const exploreNames = _.uniq(
+            (
+                await Promise.all(
+                    candidateTables.map((tableName) =>
+                        this.projectModel.findExploreNamesContainingTables(
+                            projectUuid,
+                            [...requiredTables, tableName] as string[],
+                        ),
+                    ),
+                )
+            ).flat(),
+        ).filter((name) => name !== currentExplore.name);
+        if (exploreNames.length === 0) return [];
+
+        const available = await this.getAvailableExplores(
+            user,
+            projectUuid,
+            availableTags,
+            exploreNames,
+        );
+        const compatible = available.filter((candidate) => {
+            const ids = new Set(getFields(candidate).map(getItemId));
+            return [...referencedFieldIds].every((fieldId) => ids.has(fieldId));
+        });
+        const baseTableMatches = compatible.filter((candidate) =>
+            candidateTables.includes(candidate.baseTable),
+        );
+        return baseTableMatches.length === 1 ? baseTableMatches : compatible;
     }
 
     async generateOrStreamAgentResponse(
