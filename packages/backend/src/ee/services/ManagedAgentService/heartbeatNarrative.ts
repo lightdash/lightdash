@@ -72,8 +72,8 @@ export const formatSavedActions = (actions: ReportAction[]): string => {
         : 'None. This run changed nothing.';
 };
 
-// The Slack messaging skill is the writing brief; its output section targets
-// a different format and asks for placeholder values, so it is dropped.
+// The Slack messaging skill is the writing brief. Strip skill metadata and any
+// optional output instructions that are not part of the report voice.
 const loadWritingBrief = async (): Promise<string> => {
     const raw = await fs.readFile(BRIEF_PATH, 'utf8');
     return raw
@@ -103,7 +103,7 @@ export const buildReportSystemPrompt = (brief: string): string =>
             '- Say that something was flagged, deleted, repaired, created or reversed only if it appears in the saved actions list. If that list is empty, say the run made no changes.',
             '- Do not add a counts section; the application appends one after your report.',
             '- Do not mention tools, tool names, prompts or these rules, and do not add notes about which writing techniques you used.',
-            '- Keep it under 400 words.',
+            '- Keep it under 200 words.',
         ].join('\n'),
     ].join('\n\n');
 
