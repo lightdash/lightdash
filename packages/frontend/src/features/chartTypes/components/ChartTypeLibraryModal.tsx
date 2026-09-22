@@ -8,6 +8,8 @@ import ChartTypeLibrarySection from './ChartTypeLibrarySection';
 type Props = {
     projectUuid: string;
     onClose: () => void;
+    /** Called after a successful install with the installed app's uuid. */
+    onInstalled?: (appUuid: string) => void;
 };
 
 /**
@@ -15,7 +17,11 @@ type Props = {
  * Explorer, so the picked fields and picker state survive the detour. The
  * gallery page stays linked for the full-width view.
  */
-const ChartTypeLibraryModal: FC<Props> = ({ projectUuid, onClose }) => (
+const ChartTypeLibraryModal: FC<Props> = ({
+    projectUuid,
+    onClose,
+    onInstalled,
+}) => (
     <MantineModal
         opened
         onClose={onClose}
@@ -35,7 +41,11 @@ const ChartTypeLibraryModal: FC<Props> = ({ projectUuid, onClose }) => (
         }
         bodyScrollAreaMaxHeight="calc(100vh - 200px)"
     >
-        <ChartTypeLibrarySection projectUuid={projectUuid} withHeader={false} />
+        <ChartTypeLibrarySection
+            projectUuid={projectUuid}
+            withHeader={false}
+            onInstalled={onInstalled}
+        />
     </MantineModal>
 );
 

@@ -14,6 +14,8 @@ import ChartTypeLibraryDetailModal from './ChartTypeLibraryDetailModal';
 type Props = {
     projectUuid: string;
     withHeader?: boolean;
+    /** Called after a successful install with the installed app's uuid. */
+    onInstalled?: (appUuid: string) => void;
 };
 
 /**
@@ -25,6 +27,7 @@ type Props = {
 const ChartTypeLibrarySection: FC<Props> = ({
     projectUuid,
     withHeader = true,
+    onInstalled,
 }) => {
     const flagQuery = useServerFeatureFlag(FeatureFlags.ChartTypeRegistry);
     const flagEnabled = flagQuery.data?.enabled ?? false;
@@ -147,6 +150,7 @@ const ChartTypeLibrarySection: FC<Props> = ({
                     projectUuid={projectUuid}
                     item={selected}
                     onClose={() => setSelectedSlug(null)}
+                    onInstalled={onInstalled}
                 />
             )}
         </Stack>

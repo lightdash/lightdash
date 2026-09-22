@@ -516,6 +516,9 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [showAllProjectTypes, setShowAllProjectTypes] = useState(false);
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+    const [pendingInstalledUuid, setPendingInstalledUuid] = useState<
+        string | null
+    >(null);
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
         true;
@@ -545,6 +548,17 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
         () => data?.pages.flatMap((page) => page.data) ?? [],
         [data?.pages],
     );
+    // A library install should land selected: the install invalidates the
+    // list, and this picks the new type up from the refetch exactly once.
+    useEffect(() => {
+        if (pendingInstalledUuid === null) return;
+        const installed = projectTypes.find(
+            (viz) => viz.dataAppVizUuid === pendingInstalledUuid,
+        );
+        if (installed === undefined) return;
+        setPendingInstalledUuid(null);
+        selectProjectChartType(installed, itemsMap ?? {});
+    }, [pendingInstalledUuid, projectTypes, selectProjectChartType, itemsMap]);
     const selectedProjectUuid = isDataAppVizVisualizationConfig(
         visualizationConfig,
     )
@@ -729,6 +743,11 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                 <ChartTypeLibraryModal
                     projectUuid={projectUuid}
                     onClose={() => setIsLibraryOpen(false)}
+                    // Close on install so the selection is visible at once.
+                    onInstalled={(appUuid) => {
+                        setPendingInstalledUuid(appUuid);
+                        setIsLibraryOpen(false);
+                    }}
                 />
             ) : null}
         </>

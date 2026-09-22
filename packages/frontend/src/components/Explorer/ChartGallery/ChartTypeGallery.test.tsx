@@ -1,8 +1,11 @@
+import { Ability } from '@casl/ability';
 import {
     ChartType,
     FeatureFlags,
     type DataAppViz,
     type ItemsMap,
+    type PossibleAbilities,
+    type RegistryChartTypeListItem,
 } from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
 import { screen, waitFor, within } from '@testing-library/react';
@@ -12,6 +15,7 @@ import { MemoryRouter } from 'react-router';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
+import { AbilityContext } from '../../../providers/Ability/context';
 import { renderWithProviders } from '../../../testing/testUtils';
 import ExplorerChartTypeGallery, {
     ChartTypeGallery,
@@ -31,6 +35,7 @@ const { mocks, visualizationConfig } = vi.hoisted(() => ({
         dispatch: vi.fn(),
         canCreateDataApp: vi.fn(() => true),
         canEditChartType: vi.fn(() => true),
+        installChartType: vi.fn(),
     },
     visualizationConfig: {
         current: {
@@ -62,6 +67,25 @@ const installedChartType = {
     description: 'Ranked bars from the library',
     registrySlug: 'official-pulse',
 } satisfies DataAppViz;
+
+// Just the fields the library card and detail modal read.
+const registryChart = {
+    slug: 'official-pulse',
+    name: 'Official pulse',
+    description: 'Ranked bars from the library',
+    version: '1.0.0',
+    channel: 'stable',
+    releaseStage: 'stable',
+    state: 'not_installed',
+    publishedAt: new Date('2026-09-01T00:00:00Z'),
+    thumbnail: null,
+    thumbnailDark: null,
+    screenshots: [],
+    vizSchema: { fields: [], configOptions: [] },
+    installedAppUuid: null,
+    installedRegistryVersion: null,
+    installedCreatedByUserUuid: null,
+} as unknown as RegistryChartTypeListItem;
 
 const itemsMap = { orders_status: { name: 'status' } } as unknown as ItemsMap;
 
@@ -100,16 +124,31 @@ vi.mock('../../../features/apps/hooks/useCanCreateDataApp', () => ({
 vi.mock('../../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
 }));
-// The library modal's section fetches the registry; an enabled, empty
-// registry keeps the modal renderable without network.
+// The library modal's section fetches the registry; an enabled registry
+// keeps the modal renderable without network. Tests that need entries set
+// registryState.current.
+const { registryState } = vi.hoisted(() => ({
+    registryState: {
+        current: { registryEnabled: true, charts: [] as unknown[] },
+    },
+}));
 vi.mock('../../../features/chartTypes/hooks/useRegistryChartTypes', () => ({
     useRegistryChartTypes: () => ({
-        data: { registryEnabled: true, charts: [] },
+        data: registryState.current,
         error: null,
         isInitialLoading: false,
         refetch: vi.fn(),
     }),
 }));
+vi.mock(
+    '../../../features/chartTypes/hooks/useInstallRegistryChartType',
+    () => ({
+        useInstallRegistryChartType: () => ({
+            isLoading: false,
+            mutate: mocks.installChartType,
+        }),
+    }),
+);
 vi.mock('../../../features/apps/hooks/useCanEditDataApp', () => ({
     useCanEditDataAppChecker: () => mocks.canEditChartType,
 }));
@@ -707,11 +746,18 @@ const setProjectItems = (items: DataAppViz[]) => {
 };
 
 // The library modal renders router Links, so the gallery needs a router.
-const renderGallery = (onConfigure = vi.fn()) => {
+// Can-gated actions (the library's Install) see an empty ability unless a
+// test passes one — the mocked provider tree carries no AbilityProvider.
+const renderGallery = (
+    onConfigure = vi.fn(),
+    ability: Ability<PossibleAbilities> = new Ability<PossibleAbilities>(),
+) => {
     renderWithProviders(
-        <MemoryRouter>
-            <ExplorerChartTypeGallery onConfigure={onConfigure} />
-        </MemoryRouter>,
+        <AbilityContext.Provider value={ability}>
+            <MemoryRouter>
+                <ExplorerChartTypeGallery onConfigure={onConfigure} />
+            </MemoryRouter>
+        </AbilityContext.Provider>,
     );
     return onConfigure;
 };
@@ -732,6 +778,7 @@ describe('ExplorerChartTypeGallery', () => {
         // so existing selection/search tests keep a single "Event pulse"
         // match; edit-affordance tests opt in explicitly.
         mocks.canEditChartType.mockReturnValue(false);
+        registryState.current = { registryEnabled: true, charts: [] };
         setProjectQuery();
     });
 
@@ -1196,6 +1243,55 @@ describe('ExplorerChartTypeGallery', () => {
         expect(
             screen.queryByRole('button', { name: 'Find new chart types' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('selects a chart type installed from the library modal', async () => {
+        registryState.current = {
+            registryEnabled: true,
+            charts: [registryChart],
+        };
+        setProjectItems([installedChartType]);
+        mocks.installChartType.mockImplementation(
+            (
+                _variables: unknown,
+                options?: { onSuccess?: (result: unknown) => void },
+            ) =>
+                options?.onSuccess?.({
+                    appUuid: installedChartType.dataAppVizUuid,
+                    slug: installedChartType.slug,
+                    version: 1,
+                    action: 'installed',
+                    upgradedChartCount: 0,
+                }),
+        );
+        renderGallery(
+            vi.fn(),
+            new Ability<PossibleAbilities>([
+                { action: 'create', subject: 'DataApp' },
+            ]),
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Find new chart types' }),
+        );
+        const libraryDialog = await screen.findByRole('dialog');
+        await userEvent.click(
+            within(libraryDialog).getByText('Ranked bars from the library'),
+        );
+        await userEvent.click(
+            await screen.findByRole('button', { name: 'Install' }),
+        );
+
+        // The install lands selected and both modals get out of its way.
+        await waitFor(() =>
+            expect(mocks.selectProjectChartType).toHaveBeenCalledWith(
+                installedChartType,
+                itemsMap,
+            ),
+        );
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
     });
 
     it('hides the empty custom shelf for library-only customers', () => {

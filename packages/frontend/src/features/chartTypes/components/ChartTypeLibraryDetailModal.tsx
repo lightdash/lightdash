@@ -26,12 +26,15 @@ type Props = {
     projectUuid: string;
     item: RegistryChartTypeListItem;
     onClose: () => void;
+    /** Called after a successful install with the installed app's uuid. */
+    onInstalled?: (appUuid: string) => void;
 };
 
 const ChartTypeLibraryDetailModal: FC<Props> = ({
     projectUuid,
     item,
     onClose,
+    onInstalled,
 }) => {
     const { user } = useApp();
     const publishedAgo = useTimeAgo(item.publishedAt);
@@ -73,7 +76,12 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
         });
         installMutation.mutate(
             { projectUuid, chartSlug: item.slug },
-            { onSuccess: onClose },
+            {
+                onSuccess: (result) => {
+                    onInstalled?.(result.appUuid);
+                    onClose();
+                },
+            },
         );
     };
 
