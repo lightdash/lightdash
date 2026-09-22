@@ -1,3 +1,10 @@
+## [2.296.1](https://github.com/lightdash/lightdash/compare/2.296.0...2.296.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **navbar:** stop the navbar flashing light when it remounts ([#29741](https://github.com/lightdash/lightdash/issues/29741)) ([56c0cbc](https://github.com/lightdash/lightdash/commit/56c0cbc5668ae37e608dfe48a0146d5ade88e668))
+
 # [2.296.0](https://github.com/lightdash/lightdash/compare/2.295.0...2.296.0) (2026-09-22)
 
 
