@@ -17,6 +17,9 @@ const statusError = (errorMessage: string) =>
 const sessionHandleError = statusError(
     'requirement failed: Session handle: SessionHandle [01f19fd1-ac81-1e09-bb7c-357018ed26f1] has not been initialized or had already closed.',
 );
+const sessionInitializingError = statusError(
+    'Session 01f19fd1-ac81-1e09-bb7c-357018ed26f1 is not fully initialized yet: no SparkSession is attached.',
+);
 const diskDirectoryError = statusError(
     "Couldn't create directory /local_disk0/tmp/a1b2c3d4-0000-1111-2222-333344445555/_resources",
 );
@@ -140,24 +143,25 @@ describe('DatabricksWarehouseStartupRetry', () => {
         return result;
     };
 
-    it('waits with backoff before retrying a warehouse startup error', async () => {
-        const retry = new DatabricksWarehouseStartupRetry();
+    it.each([sessionHandleError, sessionInitializingError])(
+        'waits with backoff before retrying a warehouse startup error: %s',
+        async (error) => {
+            const retry = new DatabricksWarehouseStartupRetry();
 
-        const start = Date.now();
-        await expect(waitBeforeRetry(retry, sessionHandleError)).resolves.toBe(
-            true,
-        );
-        expect(Date.now() - start).toBe(2_000);
-        await expect(waitBeforeRetry(retry, diskDirectoryError)).resolves.toBe(
-            true,
-        );
-        expect(Date.now() - start).toBe(6_000);
+            const start = Date.now();
+            await expect(waitBeforeRetry(retry, error)).resolves.toBe(true);
+            expect(Date.now() - start).toBe(2_000);
+            await expect(
+                waitBeforeRetry(retry, diskDirectoryError),
+            ).resolves.toBe(true);
+            expect(Date.now() - start).toBe(6_000);
 
-        expect(console.warn).toHaveBeenCalledTimes(2);
-        expect(vi.mocked(console.warn).mock.calls[0][0]).toContain(
-            'has not been initialized',
-        );
-    });
+            expect(console.warn).toHaveBeenCalledTimes(2);
+            expect(vi.mocked(console.warn).mock.calls[0][0]).toContain(
+                error.message,
+            );
+        },
+    );
 
     it('does not wait for errors that are not warehouse startup errors', async () => {
         const retry = new DatabricksWarehouseStartupRetry();
