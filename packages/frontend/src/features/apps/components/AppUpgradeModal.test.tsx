@@ -24,6 +24,12 @@ const staleOffer: SdkUpgradeOffer = {
     reportedFeatures: ['query'],
 };
 
+const fixesOnlyOffer: SdkUpgradeOffer = {
+    ...staleOffer,
+    newFeatures: [],
+    candidateFeatures: [],
+};
+
 describe('AppUpgradeModal', () => {
     it('submits the reported manifest and explains the chart type follow-up', () => {
         const onClose = vi.fn();
@@ -97,5 +103,36 @@ describe('AppUpgradeModal', () => {
 
         expect(screen.getByText('Upgrade app')).toBeInTheDocument();
         expect(screen.getByText(/ask for them in chat/i)).toBeInTheDocument();
+    });
+
+    it('explains that an upgrade only applies SDK fixes when no new features are missing', () => {
+        vi.mocked(useUpgradeApp).mockReturnValue({
+            mutate: vi.fn(),
+            isLoading: false,
+        } as unknown as ReturnType<typeof useUpgradeApp>);
+
+        renderWithProviders(
+            <AppUpgradeModal
+                opened
+                onClose={vi.fn()}
+                projectUuid="project-1"
+                appUuid="app-1"
+                offer={fixesOnlyOffer}
+                resource="dataApp"
+            />,
+        );
+
+        expect(
+            screen.getByText(/includes SDK fixes and compatibility updates/i),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText(/new since this version was built/i),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(/ask for them in chat/i),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByText(/chat will show the completed SDK upgrade/i),
+        ).toBeInTheDocument();
     });
 });

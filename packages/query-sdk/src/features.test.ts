@@ -7,6 +7,7 @@ import {
     SDK_FEATURE_TARGETS,
     SDK_FEATURES,
     SDK_MANIFEST_MESSAGE_TYPE,
+    MINIMUM_SDK_VERSION,
 } from './features';
 import { SDK_VERSION } from './generated/sdkVersion';
 import { announceSdkManifest } from './manifest';
@@ -49,7 +50,9 @@ describe('SDK_FEATURES registry', () => {
     it('covers every *:available message literal in the SDK source (drift guard)', () => {
         const srcDir = dirname(fileURLToPath(import.meta.url));
         const sources = readdirSync(srcDir)
-            .filter((f: string) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f))
+            .filter(
+                (f: string) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f),
+            )
             .map((f: string) => readFileSync(join(srcDir, f), 'utf-8'))
             .join('\n');
         const found = new Set<string>(
@@ -88,6 +91,8 @@ describe('registry mirror in @lightdash/common', () => {
         // When this fails, update BOTH files with the same change.
         const common = await import('@lightdash/common');
         expect(common.SDK_FEATURES).toEqual(SDK_FEATURES);
+        expect(common.MINIMUM_SDK_VERSION).toEqual(MINIMUM_SDK_VERSION);
+        expect(MINIMUM_SDK_VERSION).toEqual('1.6.0');
     });
 });
 

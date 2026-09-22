@@ -1,5 +1,8 @@
 import {
+    compareSemverVersions,
     getSdkFeaturesForTarget,
+    isSemverVersion,
+    MINIMUM_SDK_VERSION,
     type SdkFeature,
     type SdkFeatureTarget,
 } from '@lightdash/common';
@@ -105,8 +108,17 @@ export const useSdkUpgradeStatus = ({
             // Additions only: keys the bundle reports that the current
             // registry no longer has (removed features) are ignored.
             const newFeatures = registry.filter((f) => !reported.has(f.key));
+            const isBelowSdkFixFloor =
+                isSemverVersion(manifest.sdkVersion) &&
+                compareSemverVersions(
+                    manifest.sdkVersion,
+                    MINIMUM_SDK_VERSION,
+                ) < 0;
             return {
-                status: newFeatures.length > 0 ? 'stale' : 'current',
+                status:
+                    newFeatures.length > 0 || isBelowSdkFixFloor
+                        ? 'stale'
+                        : 'current',
                 newFeatures,
                 candidateFeatures: newFeatures,
                 reportedSdkVersion: manifest.sdkVersion,

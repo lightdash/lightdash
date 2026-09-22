@@ -33,6 +33,8 @@ const AppUpgradeModal: FC<Props> = ({
     const { mutate, isLoading } = useUpgradeApp();
     const isChartType = resource === 'chartType';
     const noun = isChartType ? 'chart type' : 'app';
+    const isFixesOnly =
+        offer.status === 'stale' && offer.newFeatures.length === 0;
 
     const handleUpgrade = useCallback(() => {
         mutate(
@@ -69,9 +71,13 @@ const AppUpgradeModal: FC<Props> = ({
         );
     }, [appUuid, mutate, offer, onClose, onStarted, projectUuid]);
 
-    const followUpCopy = isChartType
-        ? 'When it is ready, Version History will show what is now active and what you can ask the builder to add. Ask for them in the prompt bar; nothing that changes your chart is added automatically.'
-        : 'When it is ready, chat will show what is now active and what you can ask the builder to add. Ask for them in chat; nothing that changes your app is added automatically.';
+    const followUpCopy = isFixesOnly
+        ? isChartType
+            ? 'When it is ready, Version History will show the completed SDK upgrade.'
+            : 'When it is ready, chat will show the completed SDK upgrade.'
+        : isChartType
+          ? 'When it is ready, Version History will show what is now active and what you can ask the builder to add. Ask for them in the prompt bar; nothing that changes your chart is added automatically.'
+          : 'When it is ready, chat will show what is now active and what you can ask the builder to add. Ask for them in chat; nothing that changes your app is added automatically.';
 
     return (
         <MantineModal
@@ -84,7 +90,7 @@ const AppUpgradeModal: FC<Props> = ({
             onConfirm={handleUpgrade}
         >
             <Stack gap="sm">
-                {offer.status === 'stale' ? (
+                {offer.status === 'stale' && offer.newFeatures.length > 0 ? (
                     <>
                         <Text size="sm">
                             This creates a new version of the {noun} using the
@@ -103,6 +109,11 @@ const AppUpgradeModal: FC<Props> = ({
                             ))}
                         </List>
                     </>
+                ) : offer.status === 'stale' ? (
+                    <Text size="sm">
+                        This {noun} uses an older SDK. Upgrading includes SDK
+                        fixes and compatibility updates.
+                    </Text>
                 ) : offer.status === 'current' ? (
                     <Text size="sm">
                         This {noun} is already on the latest SDK. Upgrading

@@ -53,7 +53,7 @@ describe('useSdkUpgradeStatus', () => {
 
         act(() => {
             result.current.onSdkManifest({
-                sdkVersion: '1.0.0',
+                sdkVersion: '1.6.0',
                 features: MISSING_FIRST,
             });
         });
@@ -90,7 +90,7 @@ describe('useSdkUpgradeStatus', () => {
 
         act(() => {
             result.current.onSdkManifest({
-                sdkVersion: '1.0.0',
+                sdkVersion: '1.6.0',
                 features: ALL_FEATURES.filter(
                     (key) => !APP_ONLY_KEYS.includes(key),
                 ),
@@ -108,7 +108,7 @@ describe('useSdkUpgradeStatus', () => {
 
         act(() => {
             result.current.onSdkManifest({
-                sdkVersion: '1.0.0',
+                sdkVersion: '1.6.0',
                 features: ALL_FEATURES.filter(
                     (key) => !CHART_TYPE_ONLY_KEYS.includes(key),
                 ),
@@ -117,6 +117,70 @@ describe('useSdkUpgradeStatus', () => {
 
         expect(result.current.offer.status).toBe('current');
         expect(result.current.offer.newFeatures).toEqual([]);
+    });
+
+    it('offers an upgrade for a bundle below the SDK fix floor even when it reports every feature', () => {
+        const { result } = renderStatus('data_app');
+
+        act(() => {
+            result.current.onSdkManifest({
+                sdkVersion: '1.0.0',
+                features: ALL_FEATURES,
+            });
+        });
+
+        expect(result.current.offer.status).toBe('stale');
+        expect(result.current.offer.newFeatures).toEqual([]);
+        expect(result.current.offer.candidateFeatures).toEqual([]);
+    });
+
+    it.each([
+        [
+            'the first released SDK containing the manifest delivery fix',
+            '1.6.0',
+        ],
+        ['a later SDK release', '2.0.0'],
+    ])(
+        'keeps a bundle on %s current when it reports every feature',
+        (_label, sdkVersion) => {
+            const { result } = renderStatus('data_app');
+
+            act(() => {
+                result.current.onSdkManifest({
+                    sdkVersion,
+                    features: ALL_FEATURES,
+                });
+            });
+
+            expect(result.current.offer.status).toBe('current');
+        },
+    );
+
+    it('falls back to feature keys for a non-strict SDK prerelease', () => {
+        const { result } = renderStatus('data_app');
+
+        act(() => {
+            result.current.onSdkManifest({
+                sdkVersion: '1.6.0-rc.1',
+                features: ALL_FEATURES,
+            });
+        });
+
+        expect(result.current.offer.status).toBe('current');
+    });
+
+    it('falls back to feature keys for an unparseable SDK version', () => {
+        const { result } = renderStatus('data_app');
+
+        act(() => {
+            result.current.onSdkManifest({
+                sdkVersion: 'latest',
+                features: ALL_FEATURES,
+            });
+        });
+
+        expect(result.current.offer.status).toBe('current');
+        expect(result.current.offer.candidateFeatures).toEqual([]);
     });
 
     it('offers a chart type only the missing features it can use', () => {

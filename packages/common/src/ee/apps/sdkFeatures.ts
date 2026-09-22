@@ -23,6 +23,9 @@ export const SDK_FEATURE_TARGETS: SdkFeatureTarget[] = [
     'chart_type',
 ];
 
+/** Explicit SDK fix floor; bump when a newer SDK fix requires an upgrade. */
+export const MINIMUM_SDK_VERSION = '1.6.0';
+
 export type SdkFeature = {
     key: string;
     label: string;
