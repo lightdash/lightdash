@@ -6505,6 +6505,215 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('executeAsyncSavedChartQuery for embedded AI agent tokens', () => {
+        const writeSpaceUuid = 'write-space-uuid';
+        const writeActorUuid = 'write-actor-uuid';
+
+        const chart = {
+            uuid: 'savedChartUuid',
+            name: 'Chart in the embed write space',
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid,
+            spaceUuid: writeSpaceUuid,
+            tableName: validExplore.name,
+            metricQuery: metricQueryMock,
+            parameters: undefined,
+            pivotConfig: undefined,
+            chartConfig: { type: ChartType.CARTESIAN },
+        };
+
+        const buildWriteActor = (canViewCharts: boolean) => ({
+            ...sessionAccount.user,
+            userUuid: writeActorUuid,
+            ability: new Ability<PossibleAbilities>(
+                canViewCharts
+                    ? [
+                          { subject: 'Project', action: ['view'] },
+                          { subject: 'SavedChart', action: ['view'] },
+                      ]
+                    : [{ subject: 'Project', action: ['view'] }],
+            ),
+        });
+
+        const buildAiAgentAccount = ({
+            spaceUuid = writeSpaceUuid,
+            embedWriteUser = buildWriteActor(true),
+            canUseAiAgent = true,
+        }: {
+            spaceUuid?: string;
+            embedWriteUser?: ReturnType<typeof buildWriteActor> | null;
+            canUseAiAgent?: boolean;
+        } = {}) =>
+            ({
+                ...buildAccount({ accountType: 'jwt', userType: 'anonymous' }),
+                access: {
+                    content: {
+                        type: 'aiAgent',
+                        agentUuid: 'agent-uuid',
+                        chartUuids: [],
+                        explores: [],
+                    },
+                },
+                authentication: {
+                    type: 'jwt',
+                    data: {
+                        content: { type: 'aiAgent', agentUuid: 'agent-uuid' },
+                        writeActions: { userUuid: writeActorUuid, spaceUuid },
+                    },
+                },
+                embedWriteUser: embedWriteUser ?? undefined,
+                embedWriteContext: { canUseAiAgent },
+            }) as unknown as Account;
+
+        const buildService = () => {
+            const resolveAccess = vi.fn(async () => ({
+                organizationUuid: projectSummary.organizationUuid,
+                projectUuid,
+                inheritsFromOrgOrProject: true,
+                access: [],
+                admins: [],
+                directOnly: false,
+            }));
+            const checkEmbedPermissions = vi.fn(async () => {
+                throw new ForbiddenError('Chart is not embedded');
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    get: vi.fn(async () => chart),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+                spacePermissionService: {
+                    resolveAccess,
+                } as unknown as SpacePermissionService,
+                permissionsService: {
+                    checkEmbedPermissions,
+                } as unknown as PermissionsService,
+            } as never);
+
+            service.getExploreWithUserAccessControls = vi
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
+            (service as AnyType).getWarehouseCredentials = vi
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = vi.fn().mockResolvedValue(undefined);
+            (service as AnyType).getMetricQueryFields = vi
+                .fn()
+                .mockResolvedValue({ fields: {} });
+            const prepareSpy = vi.fn().mockResolvedValue(
+                createQueryComposerMock({
+                    sql: 'SELECT 1',
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                }),
+            );
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
+            service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: { cacheHit: false },
+            });
+
+            return {
+                service,
+                prepareSpy,
+                resolveAccess,
+                checkEmbedPermissions,
+            };
+        };
+
+        const run = (
+            service: AsyncQueryService,
+            account: Account,
+        ): Promise<unknown> =>
+            service.executeAsyncSavedChartQuery({
+                account,
+                projectUuid,
+                chartUuid: chart.uuid,
+                versionUuid: undefined,
+                context: QueryExecutionContext.CHART,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+            });
+
+        test('runs a chart from the write space as the write actor, keeping the JWT account for the query', async () => {
+            const {
+                service,
+                prepareSpy,
+                resolveAccess,
+                checkEmbedPermissions,
+            } = buildService();
+            const account = buildAiAgentAccount();
+
+            await run(service, account);
+
+            expect(checkEmbedPermissions).not.toHaveBeenCalled();
+            expect(resolveAccess).toHaveBeenCalledWith(
+                writeActorUuid,
+                expect.objectContaining({
+                    type: 'chart',
+                    chartUuid: chart.uuid,
+                }),
+            );
+            expect(prepareSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ account }),
+            );
+        });
+
+        test('rejects a chart outside the write space', async () => {
+            const { service, prepareSpy } = buildService();
+
+            await expect(
+                run(service, buildAiAgentAccount({ spaceUuid: 'other-space' })),
+            ).rejects.toThrow(ForbiddenError);
+            expect(prepareSpy).not.toHaveBeenCalled();
+        });
+
+        test('rejects a token without a write actor', async () => {
+            const { service, prepareSpy } = buildService();
+
+            await expect(
+                run(service, buildAiAgentAccount({ embedWriteUser: null })),
+            ).rejects.toThrow(ForbiddenError);
+            expect(prepareSpy).not.toHaveBeenCalled();
+        });
+
+        test('rejects when the write actor may not use the AI agent', async () => {
+            const { service, prepareSpy } = buildService();
+
+            await expect(
+                run(service, buildAiAgentAccount({ canUseAiAgent: false })),
+            ).rejects.toThrow(ForbiddenError);
+            expect(prepareSpy).not.toHaveBeenCalled();
+        });
+
+        test('rejects when the write actor cannot view charts', async () => {
+            const { service, prepareSpy } = buildService();
+
+            await expect(
+                run(
+                    service,
+                    buildAiAgentAccount({
+                        embedWriteUser: buildWriteActor(false),
+                    }),
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(prepareSpy).not.toHaveBeenCalled();
+        });
+    });
+
     describe('executeAsyncSavedChartQuery filterOverrides wiring', () => {
         const authorizedAccount = {
             ...sessionAccount,

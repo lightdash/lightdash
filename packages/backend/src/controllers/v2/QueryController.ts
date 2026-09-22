@@ -439,9 +439,12 @@ export class QueryController extends BaseController {
 
         const context = body.context ?? getContextFromHeader(req);
 
+        // Embedded AI agents preview saved charts from their write space; the
+        // service checks that space and the write actor's access.
         if (
             isJwtUser(req.account!) &&
-            req.account!.access.content.type !== 'chart'
+            req.account!.access.content.type !== 'chart' &&
+            req.account!.access.content.type !== 'aiAgent'
         ) {
             throw new ForbiddenError('Feature not available for this JWT');
         }

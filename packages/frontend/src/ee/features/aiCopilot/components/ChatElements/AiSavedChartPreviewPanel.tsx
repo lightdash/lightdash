@@ -21,6 +21,9 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import { useSavedQuery } from '../../../../../hooks/useSavedQuery';
+import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
+import useEmbed from '../../../../providers/Embed/useEmbed';
+import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import {
     clearPreview,
     type SavedChartPreviewData,
@@ -54,6 +57,9 @@ const VerifiedBadge: FC<{ verification: ContentVerificationInfo }> = ({
 export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
     const authoringEnabled = useContentAuthoringEnabled();
     const dispatch = useAiAgentStoreDispatch();
+    const ability = useAbilityContext();
+    const { content, onExplore } = useEmbed();
+    const isEmbed = isEmbedAiAgentRoute();
 
     const {
         data: savedChart,
@@ -65,6 +71,14 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
     });
 
     const chartUrl = `/projects/${savedChartPreview.projectUuid}/saved/${savedChartPreview.savedChartUuid}/view`;
+    // Inside an embed the full app is unreachable, so Explore stays in the
+    // iframe and only when the token grants it, like AiChartQuickOptions.
+    const canExploreFromEmbed =
+        content?.type === 'aiAgent' &&
+        (content.canExplore === true || ability.can('view', 'EmbedExplore'));
+    const hasExploreAction = isEmbed
+        ? canExploreFromEmbed && !!onExplore
+        : authoringEnabled;
 
     const closeButton = (
         <ActionIcon
@@ -129,37 +143,54 @@ export const AiSavedChartPreviewPanel: FC<Props> = ({ savedChartPreview }) => {
                                 verification={savedChart.verification}
                             />
                         )}
-                        <Menu position="bottom-end">
-                            <Menu.Target>
-                                <Tooltip label="More options">
-                                    <ActionIcon
-                                        size="sm"
-                                        aria-label="More options"
-                                    >
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                <Menu.Item
-                                    display={
-                                        authoringEnabled ? undefined : 'none'
-                                    }
-                                    component="a"
-                                    href={chartUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconExternalLink}
+                        {hasExploreAction && (
+                            <Menu position="bottom-end">
+                                <Menu.Target>
+                                    <Tooltip label="More options">
+                                        <ActionIcon
                                             size="sm"
-                                        />
-                                    }
-                                >
-                                    Explore from here
-                                </Menu.Item>
-                            </Menu.Dropdown>
-                        </Menu>
+                                            aria-label="More options"
+                                        >
+                                            <MantineIcon icon={IconDots} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                    {isEmbed ? (
+                                        <Menu.Item
+                                            onClick={() =>
+                                                onExplore?.({
+                                                    chart: savedChart,
+                                                })
+                                            }
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconExternalLink}
+                                                    size="sm"
+                                                />
+                                            }
+                                        >
+                                            Explore from here
+                                        </Menu.Item>
+                                    ) : (
+                                        <Menu.Item
+                                            component="a"
+                                            href={chartUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconExternalLink}
+                                                    size="sm"
+                                                />
+                                            }
+                                        >
+                                            Explore from here
+                                        </Menu.Item>
+                                    )}
+                                </Menu.Dropdown>
+                            </Menu>
+                        )}
                         {closeButton}
                     </Group>
                 </div>
