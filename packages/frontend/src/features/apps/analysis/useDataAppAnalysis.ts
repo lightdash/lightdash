@@ -34,8 +34,16 @@ const errorMessage = (e: unknown): string =>
     (e as ApiError)?.error?.message ??
     (e instanceof Error ? e.message : 'Something went wrong');
 
-const isRateLimited = (e: unknown): boolean =>
-    (e as ApiError)?.error?.statusCode === 429;
+// Limits an auto-run should absorb silently: the viewer's minute bucket or
+// the org's daily cap. A manual run still shows the message.
+const isLimited = (e: unknown): boolean => {
+    const error = (e as ApiError)?.error;
+    return (
+        error?.statusCode === 429 ||
+        (error?.data as { code?: string } | undefined)?.code ===
+            'budget_exhausted'
+    );
+};
 
 const LOOKUP_QUIET_MS = 400;
 
@@ -148,9 +156,9 @@ export const useDataAppAnalysis = ({
                 }));
             } catch (e) {
                 if (run !== runRef.current) return;
-                // Auto-run hit the per-viewer rate limit: nothing to show,
-                // the next view change tries again.
-                if (auto && isRateLimited(e)) {
+                // Auto-run hit a limit: nothing to show, the next view
+                // change tries again.
+                if (auto && isLimited(e)) {
                     patch(scope, (prev) => ({
                         ...prev,
                         state: { status: 'idle' },

@@ -25,6 +25,7 @@ import {
 import { generateText } from 'ai';
 import NodeCache from 'node-cache';
 import { createHash } from 'node:crypto';
+import { type AiKeyManagement } from '../../../analytics/aiUsage';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -190,6 +191,23 @@ export class AiService extends BaseService {
         this.featureFlagService = dependencies.featureFlagService;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
+    }
+
+    /**
+     * Who pays for ambient AI calls in this org: the same key selection as
+     * getAmbientAiModel, without building the model.
+     */
+    async getAmbientKeyManagement(
+        organizationUuid: string,
+    ): Promise<AiKeyManagement> {
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
+            );
+        const provider = copilotConfig.providers.anthropic?.apiKey
+            ? 'anthropic'
+            : copilotConfig.defaultProvider;
+        return resolveKeyManagement(copilotConfig, provider);
     }
 
     /**

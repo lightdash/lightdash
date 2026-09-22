@@ -1,6 +1,7 @@
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AiOrganizationSettings,
+    DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     ParameterError,
 } from '@lightdash/common';
 import type { ModelPreset, ModelPresetProvider } from './ai/models/presets';
@@ -10,6 +11,7 @@ import {
     findUnconfiguredProviderKeyWrites,
     isModelConfigAvailable,
     pickReplacementDefaultModelConfig,
+    validateDataAppAnalysisLimits,
     validateDeepResearchLimits,
 } from './AiOrganizationSettingsService';
 
@@ -70,6 +72,46 @@ describe('validateDeepResearchLimits', () => {
                 [key]: value,
             }),
         ).toThrow(ParameterError);
+    });
+});
+
+describe('validateDataAppAnalysisLimits', () => {
+    it('accepts the defaults and uncapped days', () => {
+        expect(() =>
+            validateDataAppAnalysisLimits(DATA_APP_ANALYSIS_DEFAULT_LIMITS),
+        ).not.toThrow();
+        expect(() =>
+            validateDataAppAnalysisLimits({
+                ...DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+                dailyDetectCap: null,
+                dailyInvestigateCap: null,
+            }),
+        ).not.toThrow();
+    });
+
+    it.each([
+        ['investigateMaxSteps', null],
+        ['investigateMaxSteps', 0],
+        ['investigateMaxWarehouseQueries', 2.5],
+        ['investigateMaxWarehouseQueries', 201],
+        ['dailyDetectCap', 0],
+        ['dailyInvestigateCap', -1],
+    ] as const)('rejects %s = %s', (key, value) => {
+        expect(() =>
+            validateDataAppAnalysisLimits({
+                ...DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+                [key]: value,
+            }),
+        ).toThrow(ParameterError);
+    });
+
+    it('rejects unknown limit keys', () => {
+        expect(() =>
+            validateDataAppAnalysisLimits({
+                ...DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+                extra: 1,
+            } as never),
+        ).toThrow('Unknown limit extra');
     });
 });
 

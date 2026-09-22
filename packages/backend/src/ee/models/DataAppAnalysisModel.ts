@@ -7,6 +7,7 @@ import type {
 import { Knex } from 'knex';
 import {
     DataAppAnalysesTableName,
+    DataAppAnalysisDailyCountersTableName,
     DataAppAnalysisRateCountersTableName,
     type DataAppAnalysisOperation,
     type DataAppSourceHash,
@@ -204,6 +205,35 @@ export class DataAppAnalysisModel {
             })
             .returning('request_count');
         return row.request_count;
+    }
+
+    /** Bumps the org's counter for one operation on one UTC day. */
+    async incrementDailyCounter(args: {
+        organizationUuid: string;
+        operation: DataAppAnalysisOperation;
+        day: string;
+    }): Promise<number> {
+        const [row] = await this.database(DataAppAnalysisDailyCountersTableName)
+            .insert({
+                organization_uuid: args.organizationUuid,
+                operation: args.operation,
+                day: args.day,
+                request_count: 1,
+            })
+            .onConflict(['organization_uuid', 'operation', 'day'])
+            .merge({
+                request_count: this.database.raw(
+                    `${DataAppAnalysisDailyCountersTableName}.request_count + 1`,
+                ) as unknown as number,
+            })
+            .returning('request_count');
+        return row.request_count;
+    }
+
+    async deleteDailyCountersBefore(day: string): Promise<number> {
+        return this.database(DataAppAnalysisDailyCountersTableName)
+            .where('day', '<', day)
+            .delete();
     }
 
     async deleteRateCountersBefore(cutoff: Date): Promise<number> {

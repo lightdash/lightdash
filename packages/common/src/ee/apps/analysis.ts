@@ -22,6 +22,26 @@ export const normalizeDataAppAutoAnalysis = (
 ): DataAppAutoAnalysis => (isDataAppAutoAnalysis(value) ? value : 'inherit');
 
 /** One query the host captured for the viewer's current view of a data app. */
+/**
+ * Org-configurable ceilings for AI analysis in data apps. Per-run limits
+ * bound one investigation; daily caps bound model runs per organization per
+ * UTC day (null = no cap). On a Lightdash-managed key the daily caps cannot
+ * exceed the defaults.
+ */
+export type DataAppAnalysisLimits = {
+    investigateMaxSteps: number;
+    investigateMaxWarehouseQueries: number;
+    dailyDetectCap: number | null;
+    dailyInvestigateCap: number | null;
+};
+
+export const DATA_APP_ANALYSIS_DEFAULT_LIMITS: DataAppAnalysisLimits = {
+    investigateMaxSteps: 12,
+    investigateMaxWarehouseQueries: 15,
+    dailyDetectCap: 300,
+    dailyInvestigateCap: 100,
+};
+
 export type DataAppAnalysisSource = {
     queryUuid: UUID;
     label: string | null;
