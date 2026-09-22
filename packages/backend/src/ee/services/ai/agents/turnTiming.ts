@@ -320,15 +320,13 @@ export class TurnTimingTracker {
 export const withNonStreamingProviderTiming = (
     model: Exclude<LanguageModel, string>,
     timing: TurnTimingTracker,
-) => {
-    // Older adapters retain tool-boundary timing without changing their protocol.
-    if (model.specificationVersion !== 'v3') return model;
-    return wrapLanguageModel({
+) =>
+    // Wrapping is protocol-agnostic: it only times doGenerate, and
+    // wrapLanguageModel does not gate on the middleware's declared version.
+    wrapLanguageModel({
         model,
         middleware: {
-            specificationVersion: 'v3',
             wrapGenerate: ({ doGenerate }) =>
                 timing.measureProviderCall(doGenerate),
         },
     });
-};

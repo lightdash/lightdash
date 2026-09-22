@@ -1,5 +1,5 @@
 import { generateText, stepCountIs, tool } from 'ai';
-import { MockLanguageModelV3 } from 'ai/test';
+import { MockLanguageModelV4 } from 'ai/test';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
@@ -23,7 +23,7 @@ describe('TurnTimingTracker', () => {
         const c = clock(0);
         const tracker = new TurnTimingTracker(0, c.now);
         let calls = 0;
-        const model = new MockLanguageModelV3({
+        const model = new MockLanguageModelV4({
             doGenerate: async () => {
                 calls += 1;
                 c.advance(100);
@@ -359,5 +359,18 @@ describe('TurnTimingTracker', () => {
             queryMs: 60,
             renderMs: 5,
         });
+    });
+
+    it('wraps the provider model so provider-call timing is measured', () => {
+        const tracker = new TurnTimingTracker(0, clock(0).now);
+        const model = new MockLanguageModelV4({
+            doGenerate: async () => {
+                throw new Error('not called');
+            },
+        });
+
+        // Returning the model unwrapped silently drops measureProviderCall and
+        // leaves inferenceMs on its wall-clock fallback.
+        expect(withNonStreamingProviderTiming(model, tracker)).not.toBe(model);
     });
 });
