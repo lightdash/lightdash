@@ -36,6 +36,12 @@
 .thumbnailButton {
     flex-shrink: 0;
     border-radius: var(--mantine-radius-sm);
+    cursor: pointer;
+}
+
+.thumbnailButton:hover > * {
+    background: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
 }
 
 .thumbnailButton:focus-visible {
