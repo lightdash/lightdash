@@ -132,6 +132,9 @@ export type MergeTableCalculation = {
     formula?: string;
 };
 
+/** Bounds parser work for formulas accepted from URLs and API requests. */
+export const MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH = 10_000;
+
 /** `${sourceId.fieldId}` inside a merge table calculation. */
 export const mergeCalculationReferencePattern = /\$\{([a-zA-Z0-9_.-]+)\}/g;
 
@@ -276,6 +279,8 @@ export enum MergeQueryErrorKind {
     DUPLICATE_CALCULATION_NAME = 'duplicate_calculation_name',
     /** A merge calculation references something the merged result has no column for. */
     UNRESOLVED_CALCULATION_REFERENCE = 'unresolved_calculation_reference',
+    /** A merge calculation formula is too large to parse safely. */
+    CALCULATION_FORMULA_TOO_LONG = 'calculation_formula_too_long',
     /**
      * A merged column's value type cannot be resolved from the field it came
      * from. Guessing "string" here poisons everything built on the merged
@@ -651,6 +656,21 @@ export const validateMergeQuery = (
                 sourceId: null,
                 fieldIds: [name],
                 message: `More than one calculation is called "${name}".`,
+            });
+        });
+
+    mergeQuery.tableCalculations
+        .filter(
+            ({ formula }) =>
+                formula !== undefined &&
+                formula.length > MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
+        )
+        .forEach((calculation) => {
+            errors.push({
+                kind: MergeQueryErrorKind.CALCULATION_FORMULA_TOO_LONG,
+                sourceId: null,
+                fieldIds: [calculation.name],
+                message: `Calculation "${calculation.name}" exceeds the ${MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH.toLocaleString()} character formula limit.`,
             });
         });
 

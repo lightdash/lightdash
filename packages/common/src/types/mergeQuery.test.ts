@@ -7,6 +7,7 @@ import {
     getMergeCompiledSqlText,
     getUnaccountedDimensions,
     getWarehouseDefaultNullsFirst,
+    MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
     MergeJoinType,
     MergeQueryErrorKind,
     normalizeSavedMergeDefinition,
@@ -383,6 +384,30 @@ describe('validateMergeQuery', () => {
                     kind: MergeQueryErrorKind.DUPLICATE_CALCULATION_NAME,
                     sourceId: null,
                     fieldIds: ['net'],
+                }),
+            ]);
+        });
+
+        it('rejects a formula that exceeds the parser limit', () => {
+            const errors = validateMergeQuery(
+                mergeQuery({
+                    tableCalculations: [
+                        {
+                            name: 'too_large',
+                            displayName: 'Too large',
+                            sql: '',
+                            formula: `=${'1+'.repeat(
+                                MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
+                            )}1`,
+                        },
+                    ],
+                }),
+            );
+
+            expect(errors).toEqual([
+                expect.objectContaining({
+                    kind: MergeQueryErrorKind.CALCULATION_FORMULA_TOO_LONG,
+                    fieldIds: ['too_large'],
                 }),
             ]);
         });

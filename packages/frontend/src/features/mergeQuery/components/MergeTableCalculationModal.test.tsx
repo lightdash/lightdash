@@ -1,4 +1,5 @@
-import { screen } from '@testing-library/react';
+import { MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH } from '@lightdash/common';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../testing/testUtils';
 import {
@@ -90,6 +91,32 @@ describe('MergeTableCalculationModal', () => {
             formula: '=1 + 1',
         });
         expect(onClose).toHaveBeenCalledOnce();
+    });
+
+    it('refuses an oversized formula before parsing it', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <MergeTableCalculationModal opened onClose={vi.fn()} />,
+        );
+
+        await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Rate');
+        fireEvent.change(screen.getByRole('textbox', { name: 'Formula' }), {
+            target: {
+                value: `=${'1'.repeat(
+                    MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
+                )}`,
+            },
+        });
+        await user.click(
+            screen.getByRole('button', { name: 'Create formula' }),
+        );
+
+        expect(state.addTableCalculation).not.toHaveBeenCalled();
+        expect(
+            screen.getByText(
+                `Formula must be ${MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH.toLocaleString()} characters or fewer`,
+            ),
+        ).toBeInTheDocument();
     });
 
     it('renames its active sort when edited', async () => {

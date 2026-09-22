@@ -1,5 +1,6 @@
 import {
     getItemId,
+    MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
     MERGE_TABLE_NAME,
     snakeCaseName,
     type MergeTableCalculation,
@@ -62,6 +63,11 @@ export const MergeTableCalculationModal: FC<{
 
     const validateFormula = () => {
         const normalized = withFormulaPrefix(formula.trim());
+        if (normalized.length > MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH) {
+            const message = `Formula must be ${MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH.toLocaleString()} characters or fewer`;
+            setError(message);
+            return message;
+        }
         try {
             const references = extractColumnRefs(parse(normalized));
             const available = new Set(

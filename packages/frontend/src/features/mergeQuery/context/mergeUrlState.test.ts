@@ -1,4 +1,7 @@
-import { MergeJoinType } from '@lightdash/common';
+import {
+    MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
+    MergeJoinType,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     parseMergeState,
@@ -59,6 +62,68 @@ describe('merge url state', () => {
         expect(parseMergeState(serializeMergeState(withCalculation))).toEqual(
             withCalculation,
         );
+    });
+
+    it('rejects malformed or oversized calculations from the URL', () => {
+        const serialized = JSON.parse(serializeMergeState(state));
+        const calculation = {
+            name: 'rate',
+            displayName: 'Rate',
+            sql: '',
+            formula: '=1',
+        };
+
+        expect(
+            parseMergeState(
+                JSON.stringify({
+                    ...serialized,
+                    t: [{ ...calculation, formula: 1 }],
+                }),
+            ),
+        ).toBeNull();
+        expect(
+            parseMergeState(
+                JSON.stringify({
+                    ...serialized,
+                    t: [
+                        {
+                            ...calculation,
+                            formula: 'x'.repeat(
+                                MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH + 1,
+                            ),
+                        },
+                    ],
+                }),
+            ),
+        ).toBeNull();
+    });
+
+    it('keeps only known calculation fields from the URL', () => {
+        const serialized = JSON.parse(serializeMergeState(state));
+
+        expect(
+            parseMergeState(
+                JSON.stringify({
+                    ...serialized,
+                    t: [
+                        {
+                            name: 'rate',
+                            displayName: 'Rate',
+                            sql: '',
+                            formula: '=1',
+                            arbitrary: { payload: true },
+                        },
+                    ],
+                }),
+            )?.tableCalculations,
+        ).toEqual([
+            {
+                name: 'rate',
+                displayName: 'Rate',
+                sql: '',
+                formula: '=1',
+            },
+        ]);
     });
 
     it('round-trips which sources repeat their values and drops unknown ones', () => {

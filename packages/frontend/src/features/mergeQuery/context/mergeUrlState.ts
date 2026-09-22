@@ -1,4 +1,5 @@
 import {
+    MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
     MergeJoinType,
     type Filters,
     type MergeTableCalculation,
@@ -164,6 +165,44 @@ const parseJoinParts = (
     });
 };
 
+const parseTableCalculations = (
+    value: unknown,
+): MergeTableCalculation[] | null => {
+    if (value === undefined) return [];
+    if (!Array.isArray(value)) return null;
+
+    const calculations = value.flatMap((entry) => {
+        if (entry === null || typeof entry !== 'object') return [];
+        const calculation = entry as Record<string, unknown>;
+        if (
+            typeof calculation.name !== 'string' ||
+            calculation.name.length === 0 ||
+            typeof calculation.displayName !== 'string' ||
+            calculation.displayName.length === 0 ||
+            typeof calculation.sql !== 'string' ||
+            (calculation.formula !== undefined &&
+                (typeof calculation.formula !== 'string' ||
+                    calculation.formula.length >
+                        MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH))
+        ) {
+            return [];
+        }
+
+        return [
+            {
+                name: calculation.name,
+                displayName: calculation.displayName,
+                sql: calculation.sql,
+                ...(typeof calculation.formula === 'string'
+                    ? { formula: calculation.formula }
+                    : {}),
+            },
+        ];
+    });
+
+    return calculations.length === value.length ? calculations : null;
+};
+
 const parseCurrent = (value: Record<string, unknown>): MergeUrlState | null => {
     if (!Array.isArray(value.s)) return null;
     const additionalSources = value.s.flatMap((entry) => {
@@ -182,6 +221,8 @@ const parseCurrent = (value: Record<string, unknown>): MergeUrlState | null => {
     }
     const sourceIds = [PRIMARY_SOURCE_ID, ...additionalSourceIds];
     const joinParts = parseJoinParts(value.k, sourceIds, value.kn);
+    const tableCalculations = parseTableCalculations(value.t);
+    if (tableCalculations === null) return null;
     return {
         focus: focusFor(value.f),
         primarySourceName:
@@ -201,9 +242,7 @@ const parseCurrent = (value: Record<string, unknown>): MergeUrlState | null => {
         repeatValuesSourceIds: asStringArray(value.r).filter((id) =>
             sourceIds.includes(id),
         ),
-        tableCalculations: Array.isArray(value.t)
-            ? (value.t as MergeTableCalculation[])
-            : [],
+        tableCalculations,
     };
 };
 
