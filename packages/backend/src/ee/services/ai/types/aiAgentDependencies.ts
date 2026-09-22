@@ -545,6 +545,18 @@ export type StoreToolCallFn = (data: {
     parentToolCallId: string | null;
 }) => Promise<void>;
 
+// Records a finished call to a connected external MCP server for the admin
+// MCP activity log. Observability only: never throws into the turn.
+export type RecordMcpToolCallFn = (data: {
+    toolCallId: string;
+    toolName: string;
+    toolArgs: object;
+    mcpServerUuid: string;
+    status: 'success' | 'error';
+    errorMessage: string | null;
+    durationMs: number;
+}) => Promise<void>;
+
 // Persists tool-call attempts the AI SDK rejected before execution
 // (schema-invalid args, unparsable JSON) — debugging aid, not shown in UI.
 export type StoreToolCallErrorFn = (data: {

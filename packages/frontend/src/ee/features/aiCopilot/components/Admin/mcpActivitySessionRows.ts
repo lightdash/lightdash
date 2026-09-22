@@ -4,8 +4,10 @@ export type McpSessionHeaderRow = {
     type: 'session';
     groupKey: string;
     sessionId: string | null;
+    direction: McpActivityItem['direction'];
     clientName: string | null;
     clientVersion: string | null;
+    mcpServerName: string | null;
     callCount: number;
     errorCount: number;
     latestCallAt: string;
@@ -68,8 +70,10 @@ export const buildSessionRows = (
             type: 'session',
             groupKey: group.key,
             sessionId,
+            direction: latestCall.direction,
             clientName: latestCall.clientName,
             clientVersion: latestCall.clientVersion,
+            mcpServerName: latestCall.mcpServer?.name ?? null,
             callCount,
             errorCount:
                 sessionGroup?.errorCount ??

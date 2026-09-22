@@ -75,6 +75,7 @@ import {
     LoadAgentSkillFn,
     ReadContentFn,
     ReadPinnedThreadFn,
+    RecordMcpToolCallFn,
     RecordSqlApprovalFn,
     ResolveCustomChartTypeFn,
     ResolveUrlFn,
@@ -361,6 +362,7 @@ export type AiAgentDependencies = {
     storeToolCall: StoreToolCallFn;
     storeToolCallError: StoreToolCallErrorFn;
     storeToolResults: StoreToolResultsFn;
+    recordMcpToolCall: RecordMcpToolCallFn;
     storeReasoning: StoreReasoningFn;
     isPromptInterrupted: IsPromptInterruptedFn;
     consumePromptSteers: ConsumePromptSteersFn;

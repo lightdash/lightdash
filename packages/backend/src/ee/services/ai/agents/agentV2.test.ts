@@ -12,6 +12,7 @@ import {
     type AiUsageEvent,
 } from '../../../../analytics/aiUsage';
 import { validExplore } from '../../../../services/ProjectService/ProjectService.mock';
+import { MCP_UNTRUSTED_OUTPUT_NOTICE } from '../AiAgentMcpRuntimeClient';
 import { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
 import type {
@@ -2712,4 +2713,147 @@ describe('scopeAgentConversation', () => {
             memoryBlock: 'Agent memory',
         });
     });
+});
+
+describe('external MCP tool call activity', () => {
+    it.each(['generate', 'stream'] as const)(
+        'records a finished external MCP tool call from the %s path',
+        async (mode) => {
+            const args = buildAgentArgs();
+            const dependencies = buildAgentDependencies(
+                vi.fn().mockResolvedValue(undefined),
+            );
+            const recordMcpToolCall = vi.fn().mockResolvedValue(undefined);
+            Object.assign(dependencies, {
+                consumePromptSteers: async () => [],
+                recordMcpToolCall,
+            });
+            const setup = {
+                ...mcpToolSetup(),
+                tools: {
+                    mcp_issues_search: {
+                        description: 'Search issues',
+                        execute: vi.fn(),
+                    },
+                } as unknown as ToolSet,
+                mcpToolNameToServerUuid: { mcp_issues_search: 'server-1' },
+            };
+            let options: AnyType;
+            if (mode === 'generate') {
+                vi.mocked(generateText).mockImplementationOnce((async (
+                    captured: AnyType,
+                ) => {
+                    options = captured;
+                    return {
+                        text: 'Answer',
+                        steps: [{}],
+                        usage: { totalTokens: 1 },
+                        finishReason: 'stop',
+                    };
+                }) as AnyType);
+                await generateAgentResponse({
+                    args,
+                    dependencies,
+                    mcpToolSetup: setup,
+                });
+            } else {
+                vi.mocked(streamText).mockImplementationOnce(((
+                    captured: AnyType,
+                ) => {
+                    options = captured;
+                    return {};
+                }) as AnyType);
+                await streamAgentResponse({
+                    args,
+                    dependencies,
+                    mcpToolSetup: setup,
+                });
+            }
+
+            const finish = (event: Record<string, unknown>) =>
+                options.experimental_onToolCallFinish?.({
+                    stepNumber: 0,
+                    messages: [],
+                    ...event,
+                });
+            await finish({
+                toolCall: {
+                    toolCallId: 'call-1',
+                    toolName: 'mcp_issues_search',
+                    input: { query: 'bug' },
+                },
+                success: true,
+                output: { content: [] },
+                durationMs: 42,
+            });
+            await finish({
+                toolCall: {
+                    toolCallId: 'call-2',
+                    toolName: 'mcp_issues_search',
+                    input: { query: 'boom' },
+                },
+                success: false,
+                error: new Error('upstream exploded'),
+                durationMs: 7,
+            });
+            // A tool-level MCP error comes back as a successful execute with
+            // isError set, behind the untrusted-output notice
+            await finish({
+                toolCall: {
+                    toolCallId: 'call-3',
+                    toolName: 'mcp_issues_search',
+                    input: { query: 'rate limited' },
+                },
+                success: true,
+                output: {
+                    isError: true,
+                    content: [
+                        { type: 'text', text: MCP_UNTRUSTED_OUTPUT_NOTICE },
+                        { type: 'text', text: 'Rate limit exceeded' },
+                    ],
+                },
+                durationMs: 1.6,
+            });
+            // Built-in tools are not MCP activity
+            await finish({
+                toolCall: {
+                    toolCallId: 'call-4',
+                    toolName: 'findContent',
+                    input: {},
+                },
+                success: true,
+                output: {},
+                durationMs: 1,
+            });
+
+            expect(recordMcpToolCall).toHaveBeenCalledTimes(3);
+            expect(recordMcpToolCall).toHaveBeenNthCalledWith(1, {
+                toolCallId: 'call-1',
+                toolName: 'mcp_issues_search',
+                toolArgs: { query: 'bug' },
+                mcpServerUuid: 'server-1',
+                status: 'success',
+                errorMessage: null,
+                durationMs: 42,
+            });
+            expect(recordMcpToolCall).toHaveBeenNthCalledWith(2, {
+                toolCallId: 'call-2',
+                toolName: 'mcp_issues_search',
+                toolArgs: { query: 'boom' },
+                mcpServerUuid: 'server-1',
+                status: 'error',
+                errorMessage: 'upstream exploded',
+                durationMs: 7,
+            });
+            expect(recordMcpToolCall).toHaveBeenNthCalledWith(3, {
+                toolCallId: 'call-3',
+                toolName: 'mcp_issues_search',
+                toolArgs: { query: 'rate limited' },
+                mcpServerUuid: 'server-1',
+                status: 'error',
+                errorMessage: 'Rate limit exceeded',
+                durationMs: 2,
+            });
+        },
+    );
 });

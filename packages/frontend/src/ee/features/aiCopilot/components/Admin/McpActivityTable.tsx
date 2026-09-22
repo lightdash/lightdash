@@ -85,11 +85,35 @@ const SessionHeaderLabel: FC<{
     </Group>
 );
 
+// Outbound calls have no MCP client: the agent is the caller, so the
+// external server it reached is the useful peer to show
+const OutboundServerLabel: FC<{
+    serverName: string | null;
+    dimmed?: boolean;
+}> = ({ serverName, dimmed }) => (
+    <Group gap="xs" wrap="nowrap">
+        <MantineIcon icon={IconPlugConnected} color="dimmed" />
+        <Text
+            fz="sm"
+            fw={dimmed ? 500 : 400}
+            c={dimmed ? 'ldGray.7' : undefined}
+            truncate
+        >
+            {serverName ?? 'Deleted MCP server'}
+        </Text>
+    </Group>
+);
+
 // Extracted so the useIsTruncated hook isn't called conditionally from a
 // Cell that also renders session-header rows
 const ClientCellContent: FC<{ call: McpActivityItem }> = ({ call }) => {
     const isTruncated = useIsTruncated<HTMLDivElement>();
     const { clientName, clientVersion, userAgent } = call;
+    if (call.direction === 'outbound') {
+        return (
+            <OutboundServerLabel serverName={call.mcpServer?.name ?? null} />
+        );
+    }
     const label = clientName
         ? `${clientName}${clientVersion ? ` ${clientVersion}` : ''}`
         : (userAgent ?? 'Unknown');
@@ -370,6 +394,14 @@ const McpActivityTable = ({
                 if (row.original.type === 'session') {
                     const { clientName, clientVersion, sessionId } =
                         row.original;
+                    if (row.original.direction === 'outbound') {
+                        return (
+                            <OutboundServerLabel
+                                serverName={row.original.mcpServerName}
+                                dimmed
+                            />
+                        );
+                    }
                     const label = clientName
                         ? `${clientName}${
                               clientVersion ? ` ${clientVersion}` : ''

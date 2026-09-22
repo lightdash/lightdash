@@ -4997,6 +4997,8 @@ export class McpService extends BaseService {
             auth_type: authType,
             protocol_version: protocolVersion ?? null,
             mcp_session_id: sessionId ?? null,
+            direction: 'inbound',
+            ai_mcp_server_uuid: null,
         });
     }
 

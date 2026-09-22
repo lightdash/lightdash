@@ -20,6 +20,8 @@ export type DbMcpToolCall = {
     auth_type: string;
     protocol_version: string | null;
     mcp_session_id: string | null;
+    direction: 'inbound' | 'outbound';
+    ai_mcp_server_uuid: string | null;
     created_at: Date;
 };
 

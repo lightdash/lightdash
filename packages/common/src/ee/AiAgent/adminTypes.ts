@@ -261,6 +261,13 @@ export type ApiAiAgentAdminPromptActivityResponse = ApiSuccess<
 
 export type McpActivityStatus = 'success' | 'error';
 
+/**
+ * `inbound`: an external MCP client (Claude, Cursor, ...) called a tool on
+ * Lightdash's MCP server. `outbound`: a Lightdash agent called a tool on a
+ * connected external MCP server during a conversation.
+ */
+export type McpActivityDirection = 'inbound' | 'outbound';
+
 export type McpActivityFilters = {
     projectUuids?: string[];
     userUuids?: string[];
@@ -323,6 +330,13 @@ export type McpActivityItem = {
     protocolVersion: string | null;
     sessionId: string | null;
     sessionGroup: McpActivitySessionGroup | null;
+    direction: McpActivityDirection;
+    // The connected external server an outbound call went to; null for
+    // inbound calls or when the server has since been deleted
+    mcpServer: {
+        uuid: string;
+        name: string;
+    } | null;
 };
 
 export type McpActivitySummary = {

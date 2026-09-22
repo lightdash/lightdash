@@ -296,6 +296,7 @@ import {
 } from '../../models/AiDeepResearchRunModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { ExternalSourceModel } from '../../models/ExternalSourceModel';
+import { McpToolCallModel } from '../../models/McpToolCallModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import {
     aiAgentMemoryDistillEventRunAt,
@@ -390,6 +391,7 @@ import {
     GetPromptFn,
     GetPullRequestDiffFn,
     ListWorkstreamsFn,
+    RecordMcpToolCallFn,
     SendFileFn,
     SendSlackBlocksFn,
     StoreReasoningFn,
@@ -640,6 +642,7 @@ type AiAgentServiceDependencies = {
     >;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
+    mcpToolCallModel: Pick<McpToolCallModel, 'createToolCall'>;
     externalSourceModel: Pick<ExternalSourceModel, 'getSource'>;
     aiDeepResearchRunModel: Pick<
         AiDeepResearchRunModel,
@@ -950,6 +953,8 @@ export class AiAgentService extends BaseService {
     private readonly aiAgentMemoryModel: AiAgentMemoryModel;
 
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
+
+    private readonly mcpToolCallModel: Pick<McpToolCallModel, 'createToolCall'>;
 
     private readonly externalSourceModel: Pick<
         ExternalSourceModel,
@@ -1429,6 +1434,7 @@ export class AiAgentService extends BaseService {
         this.appGenerateService = dependencies.appGenerateService;
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
+        this.mcpToolCallModel = dependencies.mcpToolCallModel;
         this.externalSourceModel = dependencies.externalSourceModel;
         this.aiDeepResearchRunModel = dependencies.aiDeepResearchRunModel;
         this.projectContextModel = dependencies.projectContextModel;
@@ -12640,7 +12646,35 @@ Use your existing tools to inspect them when relevant to the user's question (re
             });
         }
 
+        const recordMcpToolCall: RecordMcpToolCallFn = async (data) => {
+            const mcpServer = mcpServers.find(
+                (server) => server.uuid === data.mcpServerUuid,
+            );
+            await this.mcpToolCallModel.createToolCall({
+                organization_uuid: prompt.organizationUuid,
+                user_uuid: user.userUuid,
+                project_uuid: prompt.projectUuid,
+                agent_uuid: agentSettings.uuid,
+                tool_name: data.toolName,
+                tool_args: data.toolArgs,
+                status: data.status,
+                error_message: data.errorMessage,
+                duration_ms: data.durationMs,
+                result_metadata: null,
+                client_name: null,
+                client_version: null,
+                user_agent: null,
+                auth_type: mcpServer?.authType ?? 'unknown',
+                protocol_version: null,
+                // A conversation groups its outbound calls like an MCP session
+                mcp_session_id: prompt.threadUuid,
+                direction: 'outbound',
+                ai_mcp_server_uuid: data.mcpServerUuid,
+            });
+        };
+
         const dependencies: AiAgentDependencies = {
+            recordMcpToolCall,
             listExplores,
             getExplore,
             getProjectParameterDefinitions,
