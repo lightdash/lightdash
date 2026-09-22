@@ -111,6 +111,14 @@ export type FieldCandidate = {
     table: string;
     description: string | null;
     isDate: boolean;
+    /** Verified charts using this field; a tie-breaker, never a relevance signal. */
+    verifiedUsage: number;
+    chartUsage: number;
+};
+
+export type FieldUsage = {
+    verified: Map<string, number>;
+    charts: Map<string, number>;
 };
 
 export type ChartIntentContext = {
@@ -133,6 +141,7 @@ export const CHART_INTENT_THRESHOLDS = {
     clarifyPair: 0.75,
     clarifyRunnerUp: 0.2,
     clarifyBelow: 0.8,
+    verifiedTieMargin: 0.15,
 } as const;
 
 const INTENTS = {
@@ -225,8 +234,12 @@ export const extractNumberCandidates = (prompt: string): number[] => {
 const toCandidate = (
     field: ReturnType<typeof getFields>[number],
     explore: Explore,
+    usage: FieldUsage,
 ): FieldCandidate => ({
     id: getItemId(field),
+    verifiedUsage:
+        usage.verified.get(`${getItemId(field)}::${field.fieldType}`) ?? 0,
+    chartUsage: usage.charts.get(getItemId(field)) ?? 0,
     label: getItemLabelWithoutTableName(field),
     table: explore.tables[field.table]?.label ?? field.table,
     description: field.description?.slice(0, 100) ?? null,
@@ -257,7 +270,13 @@ const prefilterFields = (
         ).length;
     return fields
         .map((field, index) => ({ field, index, score: score(field) }))
-        .sort((a, b) => b.score - a.score || a.index - b.index)
+        .sort(
+            (a, b) =>
+                b.score - a.score ||
+                b.field.verifiedUsage - a.field.verifiedUsage ||
+                b.field.chartUsage - a.field.chartUsage ||
+                a.index - b.index,
+        )
         .slice(0, MAX_FIELD_OPTIONS)
         .map(({ field }) => field);
 };
@@ -266,11 +285,13 @@ export const buildChartIntentContext = ({
     prompt,
     artifact,
     explore,
+    usage,
     extraAddableFields = [],
 }: {
     prompt: string;
     artifact: AiSemanticChartArtifactConfig;
     explore: Explore;
+    usage: FieldUsage;
     extraAddableFields?: FieldCandidate[];
 }): ChartIntentContext => {
     const query = artifact.config.queryConfig;
@@ -279,13 +300,13 @@ export const buildChartIntentContext = ({
     const currentFields = [...query.dimensions, ...query.metrics].flatMap(
         (id) => {
             const field = exploreFields.find((item) => getItemId(item) === id);
-            return field ? [toCandidate(field, explore)] : [];
+            return field ? [toCandidate(field, explore, usage)] : [];
         },
     );
     const sameExplore = exploreFields
         .filter(isDimension)
         .filter((field) => !field.hidden && !selected.has(getItemId(field)))
-        .map((field) => toCandidate(field, explore));
+        .map((field) => toCandidate(field, explore, usage));
     const known = new Set(sameExplore.map(({ id }) => id));
     const addableFields = prefilterFields(prompt, [
         ...sameExplore,
@@ -527,37 +548,55 @@ export type ChartIntentThresholds = {
     [Key in keyof typeof CHART_INTENT_THRESHOLDS]: number;
 };
 
-/** The two leading options when JEV splits between them instead of picking one. */
-const ambiguousPair = (
+type FieldChoice =
+    | { type: 'pick'; fieldId: string }
+    | { type: 'clarify'; labels: [string, string] }
+    | { type: 'none' };
+
+const byUsage = (left: FieldCandidate, right: FieldCandidate) =>
+    right.verifiedUsage - left.verifiedUsage ||
+    right.chartUsage - left.chartUsage;
+
+/** Resolves a JEV split between two fields: a verified near-tie wins, otherwise ask. */
+const resolveFieldSplit = (
     answer: DecisionAnswers[string] | undefined,
+    fields: FieldCandidate[],
     thresholds: ChartIntentThresholds,
-): [string, string] | null => {
-    if (answer?.type !== 'choice') return null;
+): FieldChoice => {
+    if (answer?.type !== 'choice') return { type: 'none' };
     const [first, second] = Object.entries(answer.probabilities)
         .filter(([key]) => key !== 'none')
         .sort(([, left], [, right]) => right - left);
-    if (!first || !second) return null;
-    return first[1] < thresholds.clarifyBelow &&
-        first[1] + second[1] >= thresholds.clarifyPair &&
-        second[1] >= thresholds.clarifyRunnerUp
-        ? [first[0], second[0]]
-        : null;
-};
-
-const clarifyLabels = (
-    fields: FieldCandidate[],
-    ids: [string, string],
-): [string, string] | null => {
-    const [first, second] = ids.map((id) =>
+    if (
+        !first ||
+        !second ||
+        first[1] >= thresholds.clarifyBelow ||
+        first[1] + second[1] < thresholds.clarifyPair ||
+        second[1] < thresholds.clarifyRunnerUp
+    )
+        return { type: 'none' };
+    const candidates = [first[0], second[0]].map((id) =>
         fields.find((field) => field.id === id),
     );
-    if (!first || !second) return null;
-    return first.label === second.label
-        ? [
-              `${first.label} (${first.table})`,
-              `${second.label} (${second.table})`,
-          ]
-        : [first.label, second.label];
+    const [a, b] = candidates;
+    if (!a || !b) return { type: 'none' };
+    const verifiedOnly = [a, b].filter((field) => field.verifiedUsage > 0);
+    if (
+        first[1] - second[1] <= thresholds.verifiedTieMargin &&
+        verifiedOnly.length === 1
+    )
+        return { type: 'pick', fieldId: verifiedOnly[0].id };
+    const [top, next] = [a, b].sort(byUsage);
+    return {
+        type: 'clarify',
+        labels:
+            top.label === next.label
+                ? [
+                      `${top.label} (${top.table})`,
+                      `${next.label} (${next.table})`,
+                  ]
+                : [top.label, next.label],
+    };
 };
 
 const CHART_TYPE_NAMES: Record<ChartTypeOption, string> = {
@@ -579,30 +618,35 @@ const resolveSort = (
     const { option, field } = thresholds;
     const direction = confident(answers.sortDirection, option);
     const named = (decisionProbability(answers.sortFieldNamed) ?? 0) >= 0.5;
-    const sortField = named ? confident(answers.sortField, field) : null;
+    const split = named
+        ? resolveFieldSplit(
+              answers.sortField,
+              context.currentFields,
+              thresholds,
+          )
+        : ({ type: 'none' } as const);
+    let sortField: string | null = null;
+    if (split.type === 'pick') sortField = split.fieldId;
+    else if (named) sortField = confident(answers.sortField, field);
     const stated = confident(answers.number, option);
     const limit =
         stated && stated !== 'none' && numbers.includes(Number(stated))
             ? Number(stated)
             : null;
-    if (direction && named) {
-        const pair = ambiguousPair(answers.sortField, thresholds);
-        const labels = pair && clarifyLabels(context.currentFields, pair);
-        if (labels) {
-            const order =
-                direction === 'descending' ? 'highest first' : 'lowest first';
-            const rows = limit
-                ? `, ${direction === 'descending' ? 'top' : 'bottom'} ${limit}`
-                : '';
-            return {
-                type: 'clarify',
-                question: 'Which field should I sort by?',
-                options: labels.map((label) => ({
-                    label,
-                    prompt: `Sort by ${label}, ${order}${rows}`,
-                })),
-            };
-        }
+    if (direction && split.type === 'clarify') {
+        const order =
+            direction === 'descending' ? 'highest first' : 'lowest first';
+        const rows = limit
+            ? `, ${direction === 'descending' ? 'top' : 'bottom'} ${limit}`
+            : '';
+        return {
+            type: 'clarify',
+            question: 'Which field should I sort by?',
+            options: split.labels.map((label) => ({
+                label,
+                prompt: `Sort by ${label}, ${order}${rows}`,
+            })),
+        };
     }
     if (!direction || (named && (!sortField || sortField === 'none')))
         return { type: 'unresolved', reason: 'sort' };
@@ -682,22 +726,28 @@ const resolveAddField = (
     thresholds: ChartIntentThresholds,
     chartType: ChartTypeOption | null,
 ): ChartIntentResolution => {
-    const pair = ambiguousPair(answers.addField, thresholds);
-    const labels = pair && clarifyLabels(context.addableFields, pair);
-    if (labels) {
+    const split = resolveFieldSplit(
+        answers.addField,
+        context.addableFields,
+        thresholds,
+    );
+    if (split.type === 'clarify') {
         const presentation = chartType
             ? ` as ${CHART_TYPE_NAMES[chartType]}`
             : '';
         return {
             type: 'clarify',
             question: 'Which field should I add?',
-            options: labels.map((label) => ({
+            options: split.labels.map((label) => ({
                 label,
                 prompt: `Add ${label} to the chart${presentation}`,
             })),
         };
     }
-    const fieldId = confident(answers.addField, thresholds.field);
+    const fieldId =
+        split.type === 'pick'
+            ? split.fieldId
+            : confident(answers.addField, thresholds.field);
     if (!fieldId || fieldId === 'none')
         return { type: 'unresolved', reason: 'add-field' };
     return {

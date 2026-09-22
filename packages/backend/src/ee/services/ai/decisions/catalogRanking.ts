@@ -20,6 +20,10 @@ const EXPLORE_CORROBORATED_THRESHOLD = 0.6;
 const EXPLORE_MARGIN_THRESHOLD = 0.3;
 const FIELD_CORROBORATION_THRESHOLD = 0.9;
 
+// JEV scores within one band count as equally relevant; verified usage then decides.
+const RELEVANCE_BAND = 0.05;
+const relevanceBand = (score: number) => Math.floor(score / RELEVANCE_BAND);
+
 const fieldId = (field: FieldEntry): string =>
     `${field.path.split('/')[1]}:${field.kind}`;
 
@@ -285,8 +289,10 @@ export const rankCatalog = async ({
         fields: rankFields
             ? [...fields].sort(
                   (a, b) =>
-                      (fieldScores.get(keyForField(b)) ?? -1) -
-                      (fieldScores.get(keyForField(a)) ?? -1),
+                      relevanceBand(fieldScores.get(keyForField(b)) ?? -1) -
+                          relevanceBand(
+                              fieldScores.get(keyForField(a)) ?? -1,
+                          ) || b.verifiedUsage - a.verifiedUsage,
               )
             : fields,
         explores: rankExplores

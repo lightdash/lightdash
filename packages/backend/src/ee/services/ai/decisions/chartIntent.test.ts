@@ -90,6 +90,7 @@ const choice = (value: string, probability = 0.95) => ({
     probabilities: { [value]: probability, other: 1 - probability },
 });
 const noul = (value: number) => ({ type: 'noul' as const, noul: value });
+const noUsage = { verified: new Map<string, number>(), charts: new Map() };
 
 const interpret = (prompt: string, answers: Partial<DecisionAnswers>) =>
     interpretChartIntent({
@@ -99,7 +100,12 @@ const interpret = (prompt: string, answers: Partial<DecisionAnswers>) =>
             ...answers,
         } as DecisionAnswers,
         prompt,
-        context: buildChartIntentContext({ prompt, artifact, explore }),
+        context: buildChartIntentContext({
+            prompt,
+            artifact,
+            explore,
+            usage: noUsage,
+        }),
     });
 
 describe('interpretChartIntent', () => {
@@ -347,6 +353,83 @@ describe('interpretChartIntent', () => {
         });
     });
 
+    it('prefers the verified field when JEV scores two fields nearly the same', () => {
+        const splitAnswer = {
+            type: 'choice' as const,
+            choice: 'orders_region',
+            confidence: 0.4,
+            probabilities: {
+                orders_region: 0.48,
+                orders_city: 0.42,
+                none: 0.1,
+            },
+        };
+        const context = buildChartIntentContext({
+            prompt: 'segment by place',
+            artifact,
+            explore,
+            usage: {
+                verified: new Map([['orders_city::dimension', 3]]),
+                charts: new Map(),
+            },
+        });
+        expect(
+            interpretChartIntent({
+                answers: {
+                    intent: choice('add_field'),
+                    multiple: noul(0.05),
+                    nonEdit: noul(0.05),
+                    addField: splitAnswer,
+                } as DecisionAnswers,
+                prompt: 'segment by place',
+                context,
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'add_field',
+                fieldId: 'orders_city',
+                chartType: null,
+            },
+        });
+    });
+
+    it('orders clarification chips by verified then chart usage', () => {
+        const context = buildChartIntentContext({
+            prompt: 'segment by place',
+            artifact,
+            explore,
+            usage: {
+                verified: new Map(),
+                charts: new Map([['orders_city', 40]]),
+            },
+        });
+        expect(
+            interpretChartIntent({
+                answers: {
+                    intent: choice('add_field'),
+                    multiple: noul(0.05),
+                    nonEdit: noul(0.05),
+                    addField: {
+                        type: 'choice',
+                        choice: 'orders_region',
+                        confidence: 0.4,
+                        probabilities: {
+                            orders_region: 0.55,
+                            orders_city: 0.35,
+                            none: 0.1,
+                        },
+                    },
+                } as DecisionAnswers,
+                prompt: 'segment by place',
+                context,
+            }),
+        ).toMatchObject({
+            type: 'clarify',
+            options: [{ label: 'City' }, { label: 'Region' }],
+        });
+    });
+
     it('applies a confident field even when others share some probability', () => {
         expect(
             interpret('segment by region', {
@@ -397,6 +480,7 @@ describe('buildChartIntentContext', () => {
             prompt: 'segment by region',
             artifact,
             explore,
+            usage: noUsage,
         });
         expect(context.addableFields.map(({ id }) => id)).toEqual([
             'orders_region',
@@ -416,11 +500,14 @@ describe('buildChartIntentContext', () => {
             table: 'Other',
             description: null,
             isDate: false,
+            verifiedUsage: 0,
+            chartUsage: 0,
         }));
         const context = buildChartIntentContext({
             prompt: 'segment by warehouse zone',
             artifact,
             explore,
+            usage: noUsage,
             extraAddableFields: [
                 ...extra,
                 {
@@ -429,6 +516,8 @@ describe('buildChartIntentContext', () => {
                     table: 'Other',
                     description: null,
                     isDate: false,
+                    verifiedUsage: 0,
+                    chartUsage: 0,
                 },
             ],
         });
@@ -481,6 +570,7 @@ describe('decideTurn', () => {
                 prompt: 'as a line',
                 artifact,
                 explore,
+                usage: noUsage,
             }),
         });
         expect(evaluate).toHaveBeenCalledTimes(1);
@@ -513,6 +603,7 @@ describe('decideTurn', () => {
                 prompt: 'as a line',
                 artifact,
                 explore,
+                usage: noUsage,
             }),
         });
         expect(decision).toEqual({

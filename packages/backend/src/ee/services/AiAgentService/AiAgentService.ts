@@ -11790,6 +11790,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                               isDate:
                                   item.basicType === 'date' ||
                                   item.basicType === 'timestamp',
+                              verifiedUsage: item.verifiedChartUsage ?? 0,
+                              chartUsage: item.chartUsage ?? 0,
                           },
                       },
                   ]
@@ -11824,7 +11826,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         ).catch(() => null);
         const chartConfig = artifact?.chartConfig;
         if (!artifact || chartConfig?.source !== 'semantic') return null;
-        const [explore, catalogFields] = await Promise.all([
+        const [explore, catalogFields, verifiedUsage] = await Promise.all([
             this.getExplore(
                 user,
                 prompt.projectUuid,
@@ -11836,8 +11838,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 projectUuid: prompt.projectUuid,
                 prompt: prompt.prompt,
             }).catch(() => []),
+            this.contentVerificationModel
+                .getVerifiedFieldUsage(prompt.projectUuid)
+                .catch(() => new Map<string, number>()),
         ]);
         if (!explore) return null;
+        const chartUsage = await this.catalogModel
+            .getFieldChartUsage(prompt.projectUuid, Object.keys(explore.tables))
+            .catch(() => new Map<string, number>());
         return {
             latest,
             artifact,
@@ -11848,6 +11856,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 prompt: prompt.prompt,
                 artifact: chartConfig,
                 explore,
+                usage: { verified: verifiedUsage, charts: chartUsage },
                 extraAddableFields: catalogFields.map(
                     ({ candidate }) => candidate,
                 ),

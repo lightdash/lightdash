@@ -1422,6 +1422,35 @@ export class CatalogModel {
     }
 
     /** Chart usage per table, summed across the table's fields. */
+    /** Chart usage keyed by field id (`table_field`) for the given tables. */
+    async getFieldChartUsage(
+        projectUuid: string,
+        tableNames: string[],
+    ): Promise<Map<string, number>> {
+        if (tableNames.length === 0) return new Map();
+        const rows = await this.database(CatalogTableName)
+            .where(`${CatalogTableName}.project_uuid`, projectUuid)
+            .where(`${CatalogTableName}.type`, CatalogType.Field)
+            .whereIn(`${CatalogTableName}.table_name`, tableNames)
+            .select<
+                {
+                    table_name: string;
+                    name: string;
+                    chart_usage: number | null;
+                }[]
+            >(
+                `${CatalogTableName}.table_name`,
+                `${CatalogTableName}.name`,
+                `${CatalogTableName}.chart_usage`,
+            );
+        return new Map(
+            rows.map((row) => [
+                `${row.table_name}_${row.name.replaceAll('.', '__')}`,
+                row.chart_usage ?? 0,
+            ]),
+        );
+    }
+
     async getChartUsageByTable(
         projectUuid: string,
     ): Promise<Map<string, number>> {

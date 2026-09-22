@@ -75,6 +75,33 @@ const noFts: FindExploresFn = vi
     .mockResolvedValue({ topMatchingFields: [] });
 
 describe('catalog discovery ranking', () => {
+    it('breaks near-equal relevance with verified usage, never a clear winner', async () => {
+        const [first, second] = buildFieldIndex([validExplore]);
+        const key = (field: typeof first) =>
+            `${field.path.split('/')[1]}::${field.kind}`;
+        const verifiedSecond = buildFieldIndex(
+            [validExplore],
+            new Map([[key(second), 4]]),
+        ).slice(0, 2);
+        const nearTie = createDecisions({ field_0: 0.93, field_1: 0.91 });
+        const tied = await rankCatalog({
+            decisions: nearTie.decisions,
+            query: 'dimension one',
+            fields: verifiedSecond,
+            explores: [validExplore],
+        });
+        expect(tied.fields[0].path).toBe(second.path);
+
+        const clear = createDecisions({ field_0: 0.97, field_1: 0.86 });
+        const clearResult = await rankCatalog({
+            decisions: clear.decisions,
+            query: 'dimension one',
+            fields: verifiedSecond,
+            explores: [validExplore],
+        });
+        expect(clearResult.fields[0].path).toBe(first.path);
+    });
+
     it('distinguishes attribution paths for the same metric without changing the candidate pool', async () => {
         const { decisions, evaluate } = createDecisions({ field_1: 0.99 });
         const sources = ['sold_to', 'billed_to'].map((name) => ({
