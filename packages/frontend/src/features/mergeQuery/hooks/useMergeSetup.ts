@@ -62,6 +62,7 @@ export const useMergeSetup = () => {
         joinParts,
         joinType,
         repeatValuesSourceIds,
+        tableCalculations,
         setRepeatValues,
     } = mergeContext ?? EMPTY_MERGE;
     const { run, isRunning, runErrors, mergeResults } = mergeContext ?? {};
@@ -561,7 +562,7 @@ export const useMergeSetup = () => {
             ],
             joinKey,
             joinType,
-            tableCalculations: [],
+            tableCalculations,
             // The Explorer's sort state lives on the primary query; the merge
             // sorts its own result by the merged field it maps to
             sorts: toMergedSorts({
@@ -582,6 +583,7 @@ export const useMergeSetup = () => {
         additionalMetricQuery,
         joinType,
         repeatValuesSourceIds,
+        tableCalculations,
     ]);
 
     // The same rules the server refuses on, run here as the merge is built.

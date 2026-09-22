@@ -1,6 +1,8 @@
 import {
     assertUnreachable,
     DimensionType,
+    getItemId,
+    MERGE_TABLE_NAME,
     mergeCalculationReferencePattern,
     MergeJoinType,
     type MergeFieldMeta,
@@ -11,6 +13,7 @@ import {
     type MergeTerminalWrapper,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
+import { compile as compileFormula } from '@lightdash/formula';
 import { applyLimitToSqlQuery } from './utils';
 
 /**
@@ -539,19 +542,48 @@ export class MergeQueryBuilder {
             ),
         };
 
+        const formulaColumnByReference: Record<string, string> = {
+            ...Object.fromEntries(
+                columns.joinKeyColumns.map((column) => [
+                    getItemId({ table: MERGE_TABLE_NAME, name: column }),
+                    column,
+                ]),
+            ),
+            ...Object.fromEntries(
+                Object.entries(columns.valueColumnBySourceColumn).flatMap(
+                    ([sourceId, bySourceColumn]) =>
+                        Object.entries(bySourceColumn).map(
+                            ([sourceColumn, mergedColumn]) => [
+                                getItemId({
+                                    table: sourceId,
+                                    name: sourceColumn,
+                                }),
+                                mergedColumn,
+                            ],
+                        ),
+                ),
+            ),
+        };
+
         const selects = this.tableCalculations.map((calculation) => {
-            const compiled = calculation.sql.replace(
-                mergeCalculationReferencePattern,
-                (whole, reference: string) => {
-                    const column = columnByReference[reference];
-                    if (column === undefined) {
-                        throw new Error(
-                            `Calculation "${calculation.name}" references ${reference}, which the merged result has no column for.`,
-                        );
-                    }
-                    return `merged_result.${this.quote(column)}`;
-                },
-            );
+            const compiled = calculation.formula
+                ? compileFormula(calculation.formula, {
+                      dialect: 'duckdb',
+                      columns: formulaColumnByReference,
+                      renderAggregate: (inner) => `${inner} OVER ()`,
+                  })
+                : calculation.sql.replace(
+                      mergeCalculationReferencePattern,
+                      (whole, reference: string) => {
+                          const column = columnByReference[reference];
+                          if (column === undefined) {
+                              throw new Error(
+                                  `Calculation "${calculation.name}" references ${reference}, which the merged result has no column for.`,
+                              );
+                          }
+                          return `merged_result.${this.quote(column)}`;
+                      },
+                  );
             return `${compiled} AS ${this.quote(calculation.name)}`;
         });
 

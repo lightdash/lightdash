@@ -7,6 +7,7 @@ import {
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
     type MergeQuery,
+    type MergeTableCalculation,
     type Filters,
     type MergeQueryError,
     type ParametersValuesMap,
@@ -97,6 +98,9 @@ export const MergeProvider: FC<
     const [repeatValuesSourceIds, setRepeatValuesSourceIds] = useState<
         string[]
     >(restored?.repeatValuesSourceIds ?? []);
+    const [tableCalculations, setTableCalculations] = useState<
+        MergeTableCalculation[]
+    >(restored?.tableCalculations ?? []);
     const isMerging = additionalSources.length > 0;
     const activeRun = useRef(0);
     const lastRun = useRef<{
@@ -177,6 +181,7 @@ export const MergeProvider: FC<
         // Repeating was a relationship between two sources; with one gone the
         // other's flag has nothing to repeat across.
         setRepeatValuesSourceIds([]);
+        setTableCalculations([]);
         setRunState({
             isRunning: false,
             errors: [],
@@ -329,6 +334,30 @@ export const MergeProvider: FC<
         [],
     );
 
+    const addTableCalculation = useCallback(
+        (calculation: MergeTableCalculation) => {
+            setTableCalculations((current) => [...current, calculation]);
+        },
+        [],
+    );
+
+    const updateTableCalculation = useCallback(
+        (oldName: string, calculation: MergeTableCalculation) => {
+            setTableCalculations((current) =>
+                current.map((candidate) =>
+                    candidate.name === oldName ? calculation : candidate,
+                ),
+            );
+        },
+        [],
+    );
+
+    const removeTableCalculation = useCallback((name: string) => {
+        setTableCalculations((current) =>
+            current.filter((calculation) => calculation.name !== name),
+        );
+    }, []);
+
     // Mirror the relationship into the URL. Replace rather than push, so
     // building a merge does not fill the back button with every keystroke.
     useEffect(() => {
@@ -349,6 +378,7 @@ export const MergeProvider: FC<
                             joinParts,
                             joinType,
                             repeatValuesSourceIds,
+                            tableCalculations,
                         }),
                     );
                 } else {
@@ -367,6 +397,7 @@ export const MergeProvider: FC<
         joinParts,
         joinType,
         repeatValuesSourceIds,
+        tableCalculations,
         setSearchParams,
     ]);
 
@@ -595,6 +626,7 @@ export const MergeProvider: FC<
             joinParts,
             joinType,
             repeatValuesSourceIds,
+            tableCalculations,
             addSource,
             removeSource,
             setFocus,
@@ -607,6 +639,9 @@ export const MergeProvider: FC<
             setRepeatValues,
             setSourceFilters,
             addSourceAdditionalMetric,
+            addTableCalculation,
+            updateTableCalculation,
+            removeTableCalculation,
         }),
         [
             isMerging,
@@ -631,6 +666,7 @@ export const MergeProvider: FC<
             joinParts,
             joinType,
             repeatValuesSourceIds,
+            tableCalculations,
             addSource,
             removeSource,
             setSourceExplore,
@@ -641,6 +677,9 @@ export const MergeProvider: FC<
             setRepeatValues,
             setSourceFilters,
             addSourceAdditionalMetric,
+            addTableCalculation,
+            updateTableCalculation,
+            removeTableCalculation,
         ],
     );
 

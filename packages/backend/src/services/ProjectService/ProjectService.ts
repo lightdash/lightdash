@@ -272,6 +272,7 @@ import {
     type WarehouseLocation,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
+import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
 import {
     BigqueryWarehouseClient,
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
@@ -6612,10 +6613,14 @@ export class ProjectService extends BaseService {
             };
         }
 
-        // Merge calculations are user SQL, so they pass the custom SQL gate;
-        // each source's own calculations are gated by that source's compile
+        // Merge SQL calculations pass the custom SQL gate; formulas compile
+        // against the known merged columns and need no custom-SQL permission.
+        // Each source's own calculations are gated by that source's compile.
+        const mergeSqlTableCalculations = mergeQuery.tableCalculations.filter(
+            (calculation) => !calculation.formula,
+        );
         if (
-            mergeQuery.tableCalculations.length > 0 &&
+            mergeSqlTableCalculations.length > 0 &&
             !args.documentQueryContext
         ) {
             const { organizationUuid } =
@@ -6626,7 +6631,7 @@ export class ProjectService extends BaseService {
                 organizationUuid,
                 exploreName: resolvedSources[0].metricQuery.exploreName,
                 metricQuery: {
-                    tableCalculations: mergeQuery.tableCalculations,
+                    tableCalculations: mergeSqlTableCalculations,
                     customDimensions: [],
                     additionalMetrics: [],
                 },
@@ -6791,17 +6796,46 @@ export class ProjectService extends BaseService {
                     ),
             ),
         ];
+        const availableFormulaReferences = [
+            ...columns.joinKeyColumns.map((column) =>
+                getItemId({ table: MERGE_TABLE_NAME, name: column }),
+            ),
+            ...Object.entries(columns.valueColumnBySourceColumn).flatMap(
+                ([sourceId, bySourceColumn]) =>
+                    Object.keys(bySourceColumn).map((sourceColumn) =>
+                        getItemId({ table: sourceId, name: sourceColumn }),
+                    ),
+            ),
+        ];
         const referenceErrors = mergeQuery.tableCalculations.flatMap(
             (calculation) => {
-                const unresolved = [
-                    ...calculation.sql.matchAll(
-                        mergeCalculationReferencePattern,
-                    ),
-                ]
-                    .map((match) => match[1])
-                    .filter(
-                        (reference) => !availableReferences.includes(reference),
-                    );
+                let references: string[];
+                try {
+                    references = calculation.formula
+                        ? extractColumnRefs(parseFormula(calculation.formula))
+                        : [
+                              ...calculation.sql.matchAll(
+                                  mergeCalculationReferencePattern,
+                              ),
+                          ].map((match) => match[1]);
+                } catch (error) {
+                    return [
+                        {
+                            kind: MergeQueryErrorKind.UNRESOLVED_CALCULATION_REFERENCE,
+                            sourceId: null,
+                            fieldIds: [],
+                            message: `Calculation "${calculation.name}" has an invalid formula: ${getErrorMessage(
+                                error,
+                            )}`,
+                        },
+                    ];
+                }
+                const available = calculation.formula
+                    ? availableFormulaReferences
+                    : availableReferences;
+                const unresolved = references.filter(
+                    (reference) => !available.includes(reference),
+                );
                 return unresolved.length === 0
                     ? []
                     : [
@@ -6811,7 +6845,7 @@ export class ProjectService extends BaseService {
                               fieldIds: unresolved,
                               message: `Calculation "${calculation.name}" references ${unresolved.join(
                                   ', ',
-                              )}. The merged result has: ${availableReferences.join(
+                              )}. The merged result has: ${available.join(
                                   ', ',
                               )}.`,
                           },

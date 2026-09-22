@@ -17,6 +17,7 @@ import {
     isTimeBasedDimension,
     type SortField,
     type TableCalculation,
+    type MergeTableCalculation,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Menu, Text } from '@mantine/core';
 import {
@@ -39,6 +40,11 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import {
+    DeleteMergeTableCalculationModal,
+    MergeTableCalculationModal,
+} from '../../../features/mergeQuery/components/MergeTableCalculationModal';
+import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
+import {
     DeleteTableCalculationModal,
     UpdateTableCalculationModal,
 } from '../../../features/tableCalculation';
@@ -60,6 +66,7 @@ interface ContextMenuProps extends HeaderProps {
     onToggleCalculationEditModal: (value: boolean) => void;
     onToggleCalculationDeleteModal: (value: boolean) => void;
     onQuickCalculationCreated: (tableCalculation: TableCalculation) => void;
+    mergeTableCalculation?: MergeTableCalculation;
 }
 
 const ContextMenu: FC<ContextMenuProps> = ({
@@ -67,6 +74,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
     onToggleCalculationEditModal,
     onToggleCalculationDeleteModal,
     onQuickCalculationCreated,
+    mergeTableCalculation,
 }) => {
     const { addFilter } = useFilters();
     const { track } = useTracking();
@@ -124,6 +132,33 @@ const ContextMenu: FC<ContextMenuProps> = ({
         };
         dispatch(explorerActions.setSortFields([newSort]));
     };
+
+    if (item && mergeTableCalculation) {
+        return (
+            <>
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconPencil} />}
+                    onClick={() => onToggleCalculationEditModal(true)}
+                >
+                    Edit calculation
+                </Menu.Item>
+                <Menu.Divider />
+                <ColumnHeaderSortMenuOptions
+                    item={item}
+                    selectedDirection={sortSelectedDirection}
+                    onSelect={onSortSelect}
+                />
+                <Menu.Divider />
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconTrash} />}
+                    color="red"
+                    onClick={() => onToggleCalculationDeleteModal(true)}
+                >
+                    Remove
+                </Menu.Item>
+            </>
+        );
+    }
 
     if (item && isField(item)) {
         const itemFieldId = getItemId(item);
@@ -462,6 +497,15 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
 
     const meta = header.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
+    const merge = useMergeSafe();
+    const mergeTableCalculation = useMemo(() => {
+        if (!item || !merge?.mergeResults) return undefined;
+        const origin = merge.mergeResults.fieldOrigins[getItemId(item)];
+        if (origin?.kind !== 'tableCalculation') return undefined;
+        return merge.tableCalculations.find(
+            (calculation) => calculation.name === item.name,
+        );
+    }, [item, merge]);
 
     if (meta && (meta.item || meta.isInvalidItem === true)) {
         return (
@@ -489,25 +533,39 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                                 onToggleCalculationEditModal={setShowUpdate}
                                 onToggleCalculationDeleteModal={setShowDelete}
                                 onQuickCalculationCreated={setQuickCalcToEdit}
+                                mergeTableCalculation={mergeTableCalculation}
                             />
                         </Menu.Dropdown>
                     </Menu>
                 </Group>
 
-                {showUpdate && (
-                    <UpdateTableCalculationModal
-                        opened
-                        tableCalculation={item as TableCalculation}
-                        onClose={() => setShowUpdate(false)}
-                    />
-                )}
+                {showUpdate &&
+                    (mergeTableCalculation ? (
+                        <MergeTableCalculationModal
+                            opened
+                            tableCalculation={mergeTableCalculation}
+                            onClose={() => setShowUpdate(false)}
+                        />
+                    ) : (
+                        <UpdateTableCalculationModal
+                            opened
+                            tableCalculation={item as TableCalculation}
+                            onClose={() => setShowUpdate(false)}
+                        />
+                    ))}
 
-                {showDelete && (
-                    <DeleteTableCalculationModal
-                        tableCalculation={item as TableCalculation}
-                        onClose={() => setShowDelete(false)}
-                    />
-                )}
+                {showDelete &&
+                    (mergeTableCalculation ? (
+                        <DeleteMergeTableCalculationModal
+                            tableCalculation={mergeTableCalculation}
+                            onClose={() => setShowDelete(false)}
+                        />
+                    ) : (
+                        <DeleteTableCalculationModal
+                            tableCalculation={item as TableCalculation}
+                            onClose={() => setShowDelete(false)}
+                        />
+                    ))}
 
                 {quickCalcToEdit && (
                     <UpdateTableCalculationModal

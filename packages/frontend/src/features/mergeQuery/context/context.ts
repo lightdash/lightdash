@@ -7,6 +7,7 @@ import {
     type MergeFieldOrigins,
     type MergeQuery,
     type MergeQueryError,
+    type MergeTableCalculation,
     type MetricQuery,
     type ParametersValuesMap,
     type SavedChartDAO,
@@ -117,6 +118,8 @@ export type MergeContextValue = {
     joinType: MergeJoinType;
     /** Sources that repeat their values across the others' extra dimensions. */
     repeatValuesSourceIds: string[];
+    /** Calculations evaluated over the merged result. */
+    tableCalculations: MergeTableCalculation[];
     addSource: (sourceId: string, initialFocus?: MergeFocus) => void;
     removeSource: (sourceId: string) => void;
     setFocus: (focus: MergeFocus) => void;
@@ -140,6 +143,12 @@ export type MergeContextValue = {
         sourceId: string,
         metric: AdditionalMetric,
     ) => void;
+    addTableCalculation: (calculation: MergeTableCalculation) => void;
+    updateTableCalculation: (
+        oldName: string,
+        calculation: MergeTableCalculation,
+    ) => void;
+    removeTableCalculation: (name: string) => void;
 };
 
 export const MergeContext = createContext<MergeContextValue | undefined>(

@@ -36,8 +36,18 @@ describe('toSavedMergeDefinition', () => {
                 },
             ],
             joinType: MergeJoinType.INNER,
-            tableCalculations: [],
-            sorts: [{ fieldId: 'payments_payments_total', descending: true }],
+            tableCalculations: [
+                {
+                    name: 'payment_rate',
+                    displayName: 'Payment rate',
+                    sql: '',
+                    formula: '=payments_payments_total / orders_orders_total',
+                },
+            ],
+            sorts: [
+                { fieldId: 'payments_payments_total', descending: true },
+                { fieldId: 'merge_payment_rate', descending: false },
+            ],
             limit: 500,
         };
 
@@ -54,8 +64,19 @@ describe('toSavedMergeDefinition', () => {
                 orders_suggested_date: ['payments.payments_suggested_date'],
                 orders_status: ['payments.payments_status'],
             },
-            sort: [{ by: 'payments.payments_total', direction: 'desc' }],
+            sort: [
+                { by: 'payments.payments_total', direction: 'desc' },
+                { by: 'payment_rate', direction: 'asc' },
+            ],
             limit: 500,
+            tableCalculations: [
+                {
+                    name: 'payment_rate',
+                    displayName: 'Payment rate',
+                    sql: '',
+                    formula: '=payments_payments_total / orders_orders_total',
+                },
+            ],
         });
     });
 

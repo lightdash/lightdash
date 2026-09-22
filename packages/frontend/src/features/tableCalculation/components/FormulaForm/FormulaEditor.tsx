@@ -148,6 +148,8 @@ const buildGhostPlugin = (state: GhostState) =>
 type Props = {
     explore: Explore | undefined;
     metricQuery: MetricQuery;
+    /** Exact result fields to offer instead of deriving one explore's fields. */
+    fieldSuggestionsOverride?: FieldSuggestionItem[];
     initialContent?: string;
     onTextChange?: (text: string) => void;
     onBlur?: () => void;
@@ -178,6 +180,7 @@ const PLACEHOLDER_DUAL =
 export const FormulaEditor: FC<Props> = ({
     explore,
     metricQuery,
+    fieldSuggestionsOverride,
     initialContent,
     onTextChange,
     onBlur,
@@ -210,7 +213,7 @@ export const FormulaEditor: FC<Props> = ({
     const showTabHintRef = useRef(false);
     const showRetryHintRef = useRef(false);
 
-    const fieldSuggestions: FieldSuggestionItem[] = useMemo(() => {
+    const derivedFieldSuggestions: FieldSuggestionItem[] = useMemo(() => {
         if (!explore) return [];
 
         const itemsMap = getItemMap(
@@ -240,6 +243,8 @@ export const FormulaEditor: FC<Props> = ({
                 })),
         );
     }, [explore, metricQuery]);
+    const fieldSuggestions =
+        fieldSuggestionsOverride ?? derivedFieldSuggestions;
 
     const functionSuggestions: FunctionSuggestionItem[] = useMemo(
         () =>

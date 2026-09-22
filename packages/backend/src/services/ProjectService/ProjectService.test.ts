@@ -28,6 +28,7 @@ import {
     JobStepStatusType,
     JobStepType,
     JobType,
+    MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
     MergeJoinType,
     MergeQueryErrorKind,
     MetricType,
@@ -7342,6 +7343,80 @@ describe('ProjectService', () => {
                 expect.objectContaining({
                     kind: MergeQueryErrorKind.UNRESOLVED_CALCULATION_REFERENCE,
                     fieldIds: ['b.ghost_metric'],
+                }),
+            );
+        });
+
+        test('compiles a formula over fields from both sources after the join', async () => {
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    tableCalculations: [
+                        {
+                            name: 'cross_source_ratio',
+                            displayName: 'Cross-source ratio',
+                            sql: '',
+                            formula: '=a_a_met1 / b_a_met1',
+                        },
+                    ],
+                }),
+            });
+
+            expect(result.errors).toEqual([]);
+            expect(result.coreSql).toContain(
+                '("c0_0" / NULLIF("c1_0", 0)) AS "cross_source_ratio"',
+            );
+        });
+
+        test('refuses an oversized merge formula before parsing it', async () => {
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    tableCalculations: [
+                        {
+                            name: 'too_large',
+                            displayName: 'Too large',
+                            sql: '',
+                            formula: `=${'1'.repeat(
+                                MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
+                            )}`,
+                        },
+                    ],
+                }),
+            });
+
+            expect(result.sql).toBeNull();
+            expect(result.errors).toContainEqual(
+                expect.objectContaining({
+                    kind: MergeQueryErrorKind.CALCULATION_FORMULA_TOO_LONG,
+                    fieldIds: ['too_large'],
+                }),
+            );
+        });
+
+        test('refuses a merge formula referencing a field outside the merged result', async () => {
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    tableCalculations: [
+                        {
+                            name: 'ghost',
+                            displayName: 'Ghost',
+                            sql: '',
+                            formula: '=a_a_met1 / b_ghost_metric',
+                        },
+                    ],
+                }),
+            });
+
+            expect(result.sql).toBeNull();
+            expect(result.errors).toContainEqual(
+                expect.objectContaining({
+                    kind: MergeQueryErrorKind.UNRESOLVED_CALCULATION_REFERENCE,
+                    fieldIds: ['b_ghost_metric'],
                 }),
             );
         });

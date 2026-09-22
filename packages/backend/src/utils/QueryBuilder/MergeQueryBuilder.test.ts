@@ -422,6 +422,27 @@ describe('MergeQueryBuilder', () => {
             expect(sql).toContain('FROM ( WITH merge_0_a AS');
         });
 
+        it('compiles formulas against fields from both sources', () => {
+            const sql = collapse(
+                new MergeQueryBuilder({
+                    sources: [sourceA, sourceB],
+                    joinKeyNames: ['date_day'],
+                    joinType: MergeJoinType.FULL,
+                    warehouseSqlBuilder: mockWarehouseSqlBuilder,
+                    tableCalculations: [
+                        {
+                            name: 'ratio',
+                            displayName: 'Ratio',
+                            sql: '',
+                            formula: '=a_new_organic / b_total_followers',
+                        },
+                    ],
+                }).toSql(),
+            );
+
+            expect(sql).toContain('("c0_0" / NULLIF("c1_0", 0)) AS "ratio"');
+        });
+
         it('resolves a join key reference', () => {
             expect(collapse(withCalc('${date_day}').toSql())).toContain(
                 'merged_result."date_day" AS "ratio"',

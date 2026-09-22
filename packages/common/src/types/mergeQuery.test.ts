@@ -7,6 +7,7 @@ import {
     getMergeCompiledSqlText,
     getUnaccountedDimensions,
     getWarehouseDefaultNullsFirst,
+    MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
     MergeJoinType,
     MergeQueryErrorKind,
     normalizeSavedMergeDefinition,
@@ -386,6 +387,30 @@ describe('validateMergeQuery', () => {
                 }),
             ]);
         });
+
+        it('rejects a formula that exceeds the parser limit', () => {
+            const errors = validateMergeQuery(
+                mergeQuery({
+                    tableCalculations: [
+                        {
+                            name: 'too_large',
+                            displayName: 'Too large',
+                            sql: '',
+                            formula: `=${'1+'.repeat(
+                                MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
+                            )}1`,
+                        },
+                    ],
+                }),
+            );
+
+            expect(errors).toEqual([
+                expect.objectContaining({
+                    kind: MergeQueryErrorKind.CALCULATION_FORMULA_TOO_LONG,
+                    fieldIds: ['too_large'],
+                }),
+            ]);
+        });
     });
 });
 
@@ -640,7 +665,7 @@ describe('saved merge schemas', () => {
                 { fieldId: 'payments_payments_unique', descending: true },
                 { fieldId: 'merge_orders_order_date_month', descending: false },
                 { fieldId: 'orders_orders_total', descending: false },
-                { fieldId: 'ratio', descending: true },
+                { fieldId: 'merge_ratio', descending: true },
             ],
             limit: 250,
         };

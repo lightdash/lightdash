@@ -115,16 +115,25 @@ export type MergeJoinKeyPart = {
 };
 
 /**
- * A calculation over the *merged* result, which is the only place a row-wise
- * calculation across two queries can correctly live. References name a source
- * and one of its fields, `${sourceId.fieldId}`, because the merged statement
- * renames columns to keep two sources from colliding.
+ * A calculation over the *merged* result, where a row-wise calculation across
+ * source queries can correctly live. Formula references use merged field ids;
+ * legacy SQL references use `${sourceId.fieldId}`.
  */
 export type MergeTableCalculation = {
     name: string;
     displayName: string;
+    /**
+     * Legacy SQL expression. Kept required for API/storage compatibility;
+     * formula calculations store an empty string here and compile `formula`
+     * on the compose engine instead.
+     */
     sql: string;
+    /** Spreadsheet-like formula over merged field ids. */
+    formula?: string;
 };
+
+/** Bounds parser work for formulas accepted from URLs and API requests. */
+export const MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH = 10_000;
 
 /** `${sourceId.fieldId}` inside a merge table calculation. */
 export const mergeCalculationReferencePattern = /\$\{([a-zA-Z0-9_.-]+)\}/g;
@@ -270,6 +279,8 @@ export enum MergeQueryErrorKind {
     DUPLICATE_CALCULATION_NAME = 'duplicate_calculation_name',
     /** A merge calculation references something the merged result has no column for. */
     UNRESOLVED_CALCULATION_REFERENCE = 'unresolved_calculation_reference',
+    /** A merge calculation formula is too large to parse safely. */
+    CALCULATION_FORMULA_TOO_LONG = 'calculation_formula_too_long',
     /**
      * A merged column's value type cannot be resolved from the field it came
      * from. Guessing "string" here poisons everything built on the merged
@@ -645,6 +656,21 @@ export const validateMergeQuery = (
                 sourceId: null,
                 fieldIds: [name],
                 message: `More than one calculation is called "${name}".`,
+            });
+        });
+
+    mergeQuery.tableCalculations
+        .filter(
+            ({ formula }) =>
+                formula !== undefined &&
+                formula.length > MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
+        )
+        .forEach((calculation) => {
+            errors.push({
+                kind: MergeQueryErrorKind.CALCULATION_FORMULA_TOO_LONG,
+                sourceId: null,
+                fieldIds: [calculation.name],
+                message: `Calculation "${calculation.name}" exceeds the ${MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH.toLocaleString()} character formula limit.`,
             });
         });
 
@@ -1083,7 +1109,9 @@ const resolveMergeDefinitionSortField = (
     >,
     chartName: string,
 ): FieldId => {
-    if (merge.tableCalculations?.some(({ name }) => name === by)) return by;
+    if (merge.tableCalculations?.some(({ name }) => name === by)) {
+        return getItemId({ table: MERGE_TABLE_NAME, name: by });
+    }
     if (by in merge.keys) {
         return getItemId({
             table: MERGE_TABLE_NAME,
@@ -1109,7 +1137,12 @@ const toMergeDefinitionSortReference = (
         calculationNames: string[];
     },
 ): string | null => {
-    if (calculationNames.includes(mergedFieldId)) return mergedFieldId;
+    const calculationName = calculationNames.find(
+        (name) =>
+            mergedFieldId === name ||
+            mergedFieldId === getItemId({ table: MERGE_TABLE_NAME, name }),
+    );
+    if (calculationName) return calculationName;
     const keyPart = joinKey.find(
         (part) =>
             getItemId({ table: MERGE_TABLE_NAME, name: part.name }) ===

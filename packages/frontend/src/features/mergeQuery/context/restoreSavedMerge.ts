@@ -66,5 +66,6 @@ export const restoreSavedMerge = (value: unknown): MergeUrlState | null => {
             ...(merge.chartRepeats ? [PRIMARY_SOURCE_ID] : []),
             ...(query.repeat ? [handle] : []),
         ],
+        tableCalculations: merge.tableCalculations ?? [],
     };
 };

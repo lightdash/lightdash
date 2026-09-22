@@ -2290,15 +2290,20 @@
             "type": "string"
         },
         "MergeTableCalculation": {
-            "description": "A calculation over the *merged* result, which is the only place a row-wise\ncalculation across two queries can correctly live. References name a source\nand one of its fields, `${sourceId.fieldId}`, because the merged statement\nrenames columns to keep two sources from colliding.",
+            "description": "A calculation over the *merged* result, where a row-wise calculation across\nsource queries can correctly live. Formula references use merged field ids;\nlegacy SQL references use `${sourceId.fieldId}`.",
             "properties": {
                 "displayName": {
+                    "type": "string"
+                },
+                "formula": {
+                    "description": "Spreadsheet-like formula over merged field ids.",
                     "type": "string"
                 },
                 "name": {
                     "type": "string"
                 },
                 "sql": {
+                    "description": "Legacy SQL expression. Kept required for API/storage compatibility;\nformula calculations store an empty string here and compile `formula`\non the compose engine instead.",
                     "type": "string"
                 }
             },
