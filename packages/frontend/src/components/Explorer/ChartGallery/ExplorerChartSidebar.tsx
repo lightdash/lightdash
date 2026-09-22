@@ -6,6 +6,8 @@ import {
 import {
     ActionIcon,
     Anchor,
+    Badge,
+    Box,
     Group,
     Stack,
     Text,
@@ -19,6 +21,7 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useRef, type FC } from 'react';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
+import OfficialChartTypeBadge from '../../../features/chartTypes/components/OfficialChartTypeBadge';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import {
     explorerActions,
@@ -38,6 +41,7 @@ import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
+import AddChartTypeMenu from './AddChartTypeMenu';
 import ExplorerChartTypeGallery, {
     ChartTypeThumbnail,
 } from './ChartTypeGallery';
@@ -185,7 +189,10 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                         Choose chart type
                                     </Text>
                                 </Group>
-                                {closeButton}
+                                <Group gap="xs" wrap="nowrap">
+                                    <AddChartTypeMenu />
+                                    {closeButton}
+                                </Group>
                             </Group>
                             <ExplorerChartTypeGallery
                                 onConfigure={showConfigure}
@@ -221,20 +228,38 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                     </UnstyledButton>
                                 )}
                                 <Stack gap={2} flex={1} miw={0}>
-                                    <Text
-                                        id={
-                                            !isAuthoring
-                                                ? CHART_GALLERY_SIDEBAR_TITLE_ID
-                                                : undefined
-                                        }
-                                        fw={600}
-                                        fz="sm"
-                                        truncate
-                                        title={selectedLabel}
-                                        tabIndex={-1}
-                                    >
-                                        {selectedLabel}
-                                    </Text>
+                                    <Group gap="xs" wrap="nowrap">
+                                        <Text
+                                            id={
+                                                !isAuthoring
+                                                    ? CHART_GALLERY_SIDEBAR_TITLE_ID
+                                                    : undefined
+                                            }
+                                            fw={600}
+                                            fz="sm"
+                                            truncate
+                                            title={selectedLabel}
+                                            tabIndex={-1}
+                                            miw={0}
+                                        >
+                                            {selectedLabel}
+                                        </Text>
+                                        {selectedProjectType !== undefined &&
+                                            (isOfficialChartType(
+                                                selectedProjectType,
+                                            ) ? (
+                                                <Box flex="0 0 auto">
+                                                    <OfficialChartTypeBadge />
+                                                </Box>
+                                            ) : (
+                                                <Badge
+                                                    size="xs"
+                                                    flex="0 0 auto"
+                                                >
+                                                    Custom
+                                                </Badge>
+                                            ))}
+                                    </Group>
                                     {!isAuthoring && (
                                         <Group gap={6} wrap="nowrap">
                                             <Anchor

@@ -1,26 +1,20 @@
-import { Ability } from '@casl/ability';
 import {
     ChartType,
     FeatureFlags,
     type DataAppViz,
     type ItemsMap,
-    type PossibleAbilities,
-    type RegistryChartTypeListItem,
 } from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
-import { MemoryRouter } from 'react-router';
-import type * as ReactRouter from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useState, type ComponentProps } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
-import { AbilityContext } from '../../../providers/Ability/context';
 import { renderWithProviders } from '../../../testing/testUtils';
+import { EventName } from '../../../types/Events';
 import ExplorerChartTypeGallery, {
     ChartTypeGallery,
     type ChartTypeGalleryItem,
-    type ChartTypeGallerySection,
 } from './ChartTypeGallery';
 
 const { mocks, visualizationConfig } = vi.hoisted(() => ({
@@ -31,11 +25,10 @@ const { mocks, visualizationConfig } = vi.hoisted(() => ({
         selectProjectChartType: vi.fn(),
         refetch: vi.fn(),
         fetchNextPage: vi.fn(),
-        navigate: vi.fn(),
         dispatch: vi.fn(),
-        canCreateDataApp: vi.fn(() => true),
         canEditChartType: vi.fn(() => true),
-        installChartType: vi.fn(),
+        canFork: vi.fn(() => true),
+        track: vi.fn(),
     },
     visualizationConfig: {
         current: {
@@ -68,24 +61,22 @@ const installedChartType = {
     registrySlug: 'official-pulse',
 } satisfies DataAppViz;
 
-// Just the fields the library card and detail modal read.
-const registryChart = {
-    slug: 'official-pulse',
-    name: 'Official pulse',
-    description: 'Ranked bars from the library',
-    version: '1.0.0',
-    channel: 'stable',
-    releaseStage: 'stable',
-    state: 'not_installed',
-    publishedAt: new Date('2026-09-01T00:00:00Z'),
-    thumbnail: null,
-    thumbnailDark: null,
-    screenshots: [],
-    vizSchema: { fields: [], configOptions: [] },
-    installedAppUuid: null,
-    installedRegistryVersion: null,
-    installedCreatedByUserUuid: null,
-} as unknown as RegistryChartTypeListItem;
+const BUILT_IN_LABELS = [
+    'Table',
+    'Bar chart',
+    'Horizontal bar chart',
+    'Line chart',
+    'Area chart',
+    'Scatter chart',
+    'Pie chart',
+    'Funnel chart',
+    'Treemap',
+    'Gauge',
+    'Sankey',
+    'Map',
+    'Big value',
+    'Vega (JSON editor)',
+];
 
 const itemsMap = { orders_status: { name: 'status' } } as unknown as ItemsMap;
 
@@ -116,41 +107,19 @@ vi.mock(
         useSelectProjectChartType: () => mocks.selectProjectChartType,
     }),
 );
-vi.mock('../../../features/apps/hooks/useCanCreateDataApp', () => ({
-    useCanCreateDataApp: () => mocks.canCreateDataApp(),
-}));
 // The real hook resolves slugs via the projects query; the param here is
 // already the identity every mocked hook expects.
 vi.mock('../../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
 }));
-// The library modal's section fetches the registry; an enabled registry
-// keeps the modal renderable without network. Tests that need entries set
-// registryState.current.
-const { registryState } = vi.hoisted(() => ({
-    registryState: {
-        current: { registryEnabled: true, charts: [] as unknown[] },
-    },
-}));
-vi.mock('../../../features/chartTypes/hooks/useRegistryChartTypes', () => ({
-    useRegistryChartTypes: () => ({
-        data: registryState.current,
-        error: null,
-        isInitialLoading: false,
-        refetch: vi.fn(),
-    }),
-}));
-vi.mock(
-    '../../../features/chartTypes/hooks/useInstallRegistryChartType',
-    () => ({
-        useInstallRegistryChartType: () => ({
-            isLoading: false,
-            mutate: mocks.installChartType,
-        }),
-    }),
-);
 vi.mock('../../../features/apps/hooks/useCanEditDataApp', () => ({
     useCanEditDataAppChecker: () => mocks.canEditChartType,
+}));
+vi.mock('../../../features/apps/hooks/useCanCreateDataApp', () => ({
+    useCanCreateDataApp: () => mocks.canFork(),
+}));
+vi.mock('../../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: mocks.track }),
 }));
 vi.mock('../../../features/explorer/store', () => ({
     useExplorerDispatch: () => mocks.dispatch,
@@ -161,13 +130,41 @@ vi.mock('../../../features/explorer/store', () => ({
         }),
     },
 }));
-vi.mock('react-router', async (importOriginal) => ({
-    ...(await importOriginal<typeof ReactRouter>()),
-    useParams: () => ({ projectUuid: 'project-uuid' }),
-    useLocation: () => ({ search: '?tableName=orders' }),
-    useNavigate: () => mocks.navigate,
+vi.mock('../../../features/chartTypes/components/ChartTypeDeleteModal', () => ({
+    default: ({
+        dataAppViz,
+        onDeleted,
+        onClose,
+    }: {
+        dataAppViz: { name: string };
+        onDeleted: () => void;
+        onClose: () => void;
+    }) => (
+        <div role="dialog">
+            <span>Uninstall {dataAppViz.name}</span>
+            <button onClick={onDeleted}>Confirm uninstall</button>
+            <button onClick={onClose}>Cancel uninstall</button>
+        </div>
+    ),
 }));
-
+vi.mock('../../../features/chartTypes/components/ChartTypeForkModal', () => ({
+    default: ({
+        appUuid,
+        defaultName,
+        onClose,
+    }: {
+        appUuid: string;
+        defaultName: string;
+        onClose: () => void;
+    }) => (
+        <div role="dialog">
+            <span>
+                Fork {appUuid} as {defaultName}
+            </span>
+            <button onClick={onClose}>Cancel fork</button>
+        </div>
+    ),
+}));
 const galleryItem = (
     label: string,
     description: string | null = null,
@@ -179,26 +176,28 @@ const galleryItem = (
     rotatedIcon: false,
     selected: false,
     disabled: false,
-    installed: false,
+    provenance: null,
     select: vi.fn(),
     onEdit: null,
+    onFork: null,
+    onUninstall: null,
     onConfigure: null,
 });
 
-const gallerySection = (
-    overrides: Partial<ChartTypeGallerySection> = {},
-): ChartTypeGallerySection => ({
-    label: 'Built in',
+type GalleryProps = ComponentProps<typeof ChartTypeGallery>;
+
+const galleryProps = (overrides: Partial<GalleryProps> = {}): GalleryProps => ({
+    search: '',
+    onSearchChange: vi.fn(),
     items: [],
-    emptyMessage: 'Nothing here',
+    emptyMessage: null,
     loading: false,
     errorMessage: null,
     onRetry: null,
     onLoadMore: null,
     moreCount: 0,
     loadingMore: false,
-    onCreateNew: null,
-    onFindNew: null,
+    disabledReason: null,
     ...overrides,
 });
 
@@ -217,14 +216,9 @@ const KeyboardSelectionHarness = ({
 
     return (
         <ChartTypeGallery
-            search=""
-            onSearchChange={vi.fn()}
-            disabledReason={null}
-            sections={[
-                gallerySection({
-                    items: [item('Bar chart'), item('Line chart')],
-                }),
-            ]}
+            {...galleryProps({
+                items: [item('Bar chart'), item('Line chart')],
+            })}
         />
     );
 };
@@ -296,28 +290,16 @@ describe('ChartTypeGallery', () => {
             screen.queryByRole('button', { name: 'Configure Bar chart' }),
         ).not.toBeInTheDocument();
     });
+
     it('keeps chart tiles dedicated to selection without configuration actions', () => {
         renderWithProviders(
             <ChartTypeGallery
-                search=""
-                onSearchChange={vi.fn()}
-                disabledReason={null}
-                sections={[
-                    gallerySection({
-                        items: [galleryItem('Bar chart')],
-                    }),
-                    gallerySection({
-                        label: 'Custom',
-                        items: [
-                            {
-                                ...galleryItem(
-                                    'Event pulse',
-                                    'Reusable ranked bars',
-                                ),
-                            },
-                        ],
-                    }),
-                ]}
+                {...galleryProps({
+                    items: [
+                        galleryItem('Bar chart'),
+                        galleryItem('Event pulse', 'Reusable ranked bars'),
+                    ],
+                })}
             />,
         );
 
@@ -342,21 +324,17 @@ describe('ChartTypeGallery', () => {
         const onConfigure = vi.fn();
         renderWithProviders(
             <ChartTypeGallery
-                search=""
-                onSearchChange={vi.fn()}
-                disabledReason="Run your query to pick a chart type"
-                sections={[
-                    gallerySection({
-                        items: [
-                            {
-                                ...galleryItem('Bar chart'),
-                                selected: true,
-                                disabled: true,
-                                onConfigure,
-                            },
-                        ],
-                    }),
-                ]}
+                {...galleryProps({
+                    disabledReason: 'Run your query to pick a chart type',
+                    items: [
+                        {
+                            ...galleryItem('Bar chart'),
+                            selected: true,
+                            disabled: true,
+                            onConfigure,
+                        },
+                    ],
+                })}
             />,
         );
         const configure = screen.getByRole('button', {
@@ -374,21 +352,16 @@ describe('ChartTypeGallery', () => {
         const onEdit = vi.fn();
         renderWithProviders(
             <ChartTypeGallery
-                search=""
-                onSearchChange={vi.fn()}
-                disabledReason={null}
-                sections={[
-                    gallerySection({
-                        items: [
-                            { ...galleryItem('Bar chart'), selected: true },
-                            {
-                                ...galleryItem('Line chart'),
-                                disabled: true,
-                                onEdit,
-                            },
-                        ],
-                    }),
-                ]}
+                {...galleryProps({
+                    items: [
+                        { ...galleryItem('Bar chart'), selected: true },
+                        {
+                            ...galleryItem('Line chart'),
+                            disabled: true,
+                            onEdit,
+                        },
+                    ],
+                })}
             />,
         );
 
@@ -415,19 +388,9 @@ describe('ChartTypeGallery', () => {
         const select = vi.fn();
         renderWithProviders(
             <ChartTypeGallery
-                search=""
-                onSearchChange={vi.fn()}
-                disabledReason={null}
-                sections={[
-                    gallerySection({
-                        items: [
-                            {
-                                ...galleryItem('Pie chart'),
-                                select,
-                            },
-                        ],
-                    }),
-                ]}
+                {...galleryProps({
+                    items: [{ ...galleryItem('Pie chart'), select }],
+                })}
             />,
         );
 
@@ -444,22 +407,17 @@ describe('ChartTypeGallery', () => {
         const onConfigure = vi.fn();
         renderWithProviders(
             <ChartTypeGallery
-                search=""
-                onSearchChange={vi.fn()}
-                disabledReason={null}
-                sections={[
-                    gallerySection({
-                        items: [
-                            {
-                                ...galleryItem('Event pulse'),
-                                selected: true,
-                                select,
-                                onEdit,
-                                onConfigure,
-                            },
-                        ],
-                    }),
-                ]}
+                {...galleryProps({
+                    items: [
+                        {
+                            ...galleryItem('Event pulse'),
+                            selected: true,
+                            select,
+                            onEdit,
+                            onConfigure,
+                        },
+                    ],
+                })}
             />,
         );
 
@@ -509,29 +467,81 @@ describe('ChartTypeGallery', () => {
         ).toHaveAttribute('aria-pressed', 'false');
     });
 
-    it('offers the create tile even when the section is empty', () => {
-        const onCreateNew = vi.fn();
+    it.each([
+        ['official', 'Built by Lightdash'],
+        ['custom', 'Custom chart type, built by your team'],
+    ] as const)(
+        'names the %s mark in its own tooltip',
+        async (provenance, description) => {
+            renderWithProviders(
+                <ChartTypeGallery
+                    {...galleryProps({
+                        items: [
+                            {
+                                ...galleryItem('Pulse', 'Ranked bars'),
+                                provenance,
+                            },
+                        ],
+                    })}
+                />,
+            );
+
+            await userEvent.hover(
+                screen.getByRole('img', { name: description }),
+            );
+
+            expect(await screen.findByRole('tooltip')).toHaveTextContent(
+                description,
+            );
+        },
+    );
+
+    it('keeps the provenance out of the card tooltip', async () => {
         renderWithProviders(
             <ChartTypeGallery
-                search=""
-                onSearchChange={vi.fn()}
-                disabledReason={null}
-                sections={[
-                    gallerySection({
-                        label: 'Custom',
-                        emptyMessage: 'No custom chart types yet',
-                        onCreateNew,
-                    }),
-                ]}
+                {...galleryProps({
+                    items: [
+                        {
+                            ...galleryItem(
+                                'Official pulse',
+                                'Ranked bars from the library',
+                            ),
+                            provenance: 'official',
+                        },
+                    ],
+                })}
             />,
         );
 
+        await userEvent.hover(
+            screen.getByRole('button', { name: 'Official pulse' }),
+        );
+
+        const tooltip = await screen.findByRole('tooltip');
+        expect(tooltip).toHaveTextContent('Ranked bars from the library');
+        expect(tooltip).not.toHaveTextContent('Built by Lightdash');
+    });
+
+    it('leaves a built-in card unmarked and untold', async () => {
+        renderWithProviders(
+            <ChartTypeGallery
+                {...galleryProps({ items: [galleryItem('Bar chart')] })}
+            />,
+        );
+
+        await userEvent.hover(
+            screen.getByRole('button', { name: 'Bar chart' }),
+        );
+
+        await waitFor(() =>
+            expect(screen.queryByRole('tooltip')).not.toBeInTheDocument(),
+        );
         expect(
-            screen.getByText('No custom chart types yet'),
-        ).toBeInTheDocument();
+            screen.queryByText('Built by Lightdash'),
+        ).not.toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Create new chart type' }),
-        ).toBeInTheDocument();
+            screen.queryByText('Custom chart type, built by your team'),
+        ).not.toBeInTheDocument();
     });
 
     it('carries a name the card had to clamp into the tooltip', async () => {
@@ -545,19 +555,14 @@ describe('ChartTypeGallery', () => {
 
         renderWithProviders(
             <ChartTypeGallery
-                search=""
-                onSearchChange={vi.fn()}
-                disabledReason={null}
-                sections={[
-                    gallerySection({
-                        items: [
-                            galleryItem(
-                                'Revenue changes over time',
-                                'Reusable ranked bars',
-                            ),
-                        ],
-                    }),
-                ]}
+                {...galleryProps({
+                    items: [
+                        galleryItem(
+                            'Revenue changes over time',
+                            'Reusable ranked bars',
+                        ),
+                    ],
+                })}
             />,
         );
 
@@ -579,14 +584,9 @@ describe('ChartTypeGallery', () => {
     it('leaves a name the card shows in full out of the tooltip', async () => {
         renderWithProviders(
             <ChartTypeGallery
-                search=""
-                onSearchChange={vi.fn()}
-                disabledReason={null}
-                sections={[
-                    gallerySection({
-                        items: [galleryItem('Bar', 'Reusable ranked bars')],
-                    }),
-                ]}
+                {...galleryProps({
+                    items: [galleryItem('Bar', 'Reusable ranked bars')],
+                })}
             />,
         );
 
@@ -596,50 +596,15 @@ describe('ChartTypeGallery', () => {
         ).toBeInTheDocument();
     });
 
-    it('groups each shelf under its own label', () => {
-        renderWithProviders(
-            <ChartTypeGallery
-                search=""
-                onSearchChange={vi.fn()}
-                disabledReason={null}
-                sections={[
-                    gallerySection({ items: [galleryItem('Bar chart')] }),
-                    gallerySection({
-                        label: 'Custom',
-                        items: [galleryItem('Event pulse')],
-                    }),
-                ]}
-            />,
-        );
-
-        expect(
-            within(screen.getByRole('group', { name: 'Built in' })).getByRole(
-                'button',
-                { name: 'Bar chart' },
-            ),
-        ).toBeInTheDocument();
-        expect(
-            within(screen.getByRole('group', { name: 'Custom' })).getByRole(
-                'button',
-                { name: 'Event pulse' },
-            ),
-        ).toBeInTheDocument();
-    });
-
     it('marks the picked card as pressed, like the other card pickers', () => {
         renderWithProviders(
             <ChartTypeGallery
-                search=""
-                onSearchChange={vi.fn()}
-                disabledReason={null}
-                sections={[
-                    gallerySection({
-                        items: [
-                            { ...galleryItem('Bar chart'), selected: true },
-                            galleryItem('Line chart'),
-                        ],
-                    }),
-                ]}
+                {...galleryProps({
+                    items: [
+                        { ...galleryItem('Bar chart'), selected: true },
+                        galleryItem('Line chart'),
+                    ],
+                })}
             />,
         );
 
@@ -651,43 +616,101 @@ describe('ChartTypeGallery', () => {
         ).toBeInTheDocument();
     });
 
-    it('flags a section that failed to load', () => {
+    it('keeps the cards on screen while the remote list loads', () => {
         renderWithProviders(
             <ChartTypeGallery
-                search=""
-                onSearchChange={vi.fn()}
-                disabledReason={null}
-                sections={[
-                    gallerySection({
-                        errorMessage: 'Failed to load custom chart types',
-                    }),
-                ]}
+                {...galleryProps({
+                    items: [galleryItem('Bar chart')],
+                    loading: true,
+                })}
             />,
         );
 
-        expect(screen.getByRole('alert')).toHaveTextContent(
-            'Failed to load custom chart types',
-        );
+        const notice = screen.getByRole('status');
+        expect(notice).toHaveTextContent('Loading chart types…');
+        const grid = screen.getByRole('group', { name: 'Chart types' });
+        expect(
+            grid.compareDocumentPosition(notice) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(
+            within(grid).getByRole('button', { name: 'Bar chart' }),
+        ).toBeInTheDocument();
     });
 
-    it('shows the empty message when a section has no items', () => {
+    it('offers a retry after the grid when the remote list fails', async () => {
+        const onRetry = vi.fn();
         renderWithProviders(
             <ChartTypeGallery
-                search="zzz"
-                onSearchChange={vi.fn()}
-                disabledReason={null}
-                sections={[
-                    gallerySection({
-                        emptyMessage:
-                            'No built-in chart types match your search',
-                    }),
-                ]}
+                {...galleryProps({
+                    items: [galleryItem('Bar chart')],
+                    errorMessage: 'Failed to load chart types',
+                    onRetry,
+                })}
+            />,
+        );
+
+        const alert = screen.getByRole('alert');
+        expect(alert).toHaveTextContent('Failed to load chart types');
+        const grid = screen.getByRole('group', { name: 'Chart types' });
+        expect(
+            grid.compareDocumentPosition(alert) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(
+            screen.getByRole('button', { name: 'Bar chart' }),
+        ).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(onRetry).toHaveBeenCalledOnce();
+    });
+
+    it('shows the empty message when nothing matches', () => {
+        renderWithProviders(
+            <ChartTypeGallery
+                {...galleryProps({
+                    search: 'zzz',
+                    emptyMessage: 'No chart types match your search',
+                })}
             />,
         );
 
         expect(
-            screen.getByText('No built-in chart types match your search'),
+            screen.getByText('No chart types match your search'),
         ).toBeInTheDocument();
+    });
+
+    describe('selection scroll', () => {
+        const scrollIntoView = vi.fn();
+        beforeEach(() => {
+            scrollIntoView.mockClear();
+            (
+                Element.prototype as unknown as { scrollIntoView: unknown }
+            ).scrollIntoView = scrollIntoView;
+        });
+        afterEach(() => {
+            delete (
+                Element.prototype as unknown as { scrollIntoView?: unknown }
+            ).scrollIntoView;
+        });
+
+        it('brings the selected card into view when the picker opens', () => {
+            renderWithProviders(
+                <ChartTypeGallery
+                    {...galleryProps({
+                        items: [
+                            galleryItem('Bar chart'),
+                            { ...galleryItem('Line chart'), selected: true },
+                        ],
+                    })}
+                />,
+            );
+
+            expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+            expect(scrollIntoView.mock.instances[0]).toBe(
+                screen.getByRole('button', { name: 'Line chart' }),
+            );
+        });
     });
 });
 
@@ -745,22 +768,16 @@ const setProjectItems = (items: DataAppViz[]) => {
     } as unknown as ReturnType<typeof useDataAppVisualizations>);
 };
 
-// The library modal renders router Links, so the gallery needs a router.
-// Can-gated actions (the library's Install) see an empty ability unless a
-// test passes one — the mocked provider tree carries no AbilityProvider.
-const renderGallery = (
-    onConfigure = vi.fn(),
-    ability: Ability<PossibleAbilities> = new Ability<PossibleAbilities>(),
-) => {
-    renderWithProviders(
-        <AbilityContext.Provider value={ability}>
-            <MemoryRouter>
-                <ExplorerChartTypeGallery onConfigure={onConfigure} />
-            </MemoryRouter>
-        </AbilityContext.Provider>,
-    );
+const renderGallery = (onConfigure = vi.fn()) => {
+    renderWithProviders(<ExplorerChartTypeGallery onConfigure={onConfigure} />);
     return onConfigure;
 };
+
+const pickableLabels = () =>
+    within(screen.getByRole('group', { name: 'Chart types' }))
+        .getAllByRole('button')
+        .filter((button) => button.hasAttribute('aria-pressed'))
+        .map((button) => button.textContent);
 
 describe('ExplorerChartTypeGallery', () => {
     beforeEach(() => {
@@ -773,12 +790,11 @@ describe('ExplorerChartTypeGallery', () => {
             chartType: ChartType.TABLE,
             chartConfig: {},
         };
-        mocks.canCreateDataApp.mockReturnValue(true);
         // False by default (mirrors the real ability hook with no grants),
         // so existing selection/search tests keep a single "Event pulse"
         // match; edit-affordance tests opt in explicitly.
         mocks.canEditChartType.mockReturnValue(false);
-        registryState.current = { registryEnabled: true, charts: [] };
+        mocks.canFork.mockReturnValue(false);
         setProjectQuery();
     });
 
@@ -786,31 +802,10 @@ describe('ExplorerChartTypeGallery', () => {
         visualizationConfig.current.chartType = ChartType.PIE;
         renderGallery();
 
-        const builtIn = screen.getByRole('group', { name: 'Built in' });
-        expect(
-            within(builtIn)
-                .getAllByRole('button')
-                .filter((button) => button.hasAttribute('aria-pressed'))
-                .map((button) => button.textContent),
-        ).toEqual([
-            'Table',
-            'Bar chart',
-            'Horizontal bar chart',
-            'Line chart',
-            'Area chart',
-            'Scatter chart',
-            'Pie chart',
-            'Funnel chart',
-            'Treemap',
-            'Gauge',
-            'Sankey',
-            'Map',
-            'Big value',
-            'Vega (JSON editor)',
-        ]);
+        expect(pickableLabels()).toEqual([...BUILT_IN_LABELS, 'Event pulse']);
 
         await userEvent.click(
-            within(builtIn).getByRole('button', {
+            screen.getByRole('button', {
                 name: 'Table',
                 pressed: false,
             }),
@@ -819,6 +814,45 @@ describe('ExplorerChartTypeGallery', () => {
         expect(mocks.setStacking).toHaveBeenCalledWith(undefined);
         expect(mocks.setCartesianType).toHaveBeenCalledWith(undefined);
         expect(mocks.setChartType).toHaveBeenCalledWith(ChartType.TABLE);
+    });
+
+    it('runs one grid: built-ins in order, then project types A–Z', () => {
+        setProjectItems([
+            installedChartType,
+            { ...projectChartType, name: 'Zebra pulse' },
+            projectChartType,
+        ]);
+        renderGallery();
+
+        expect(pickableLabels()).toEqual([
+            ...BUILT_IN_LABELS,
+            'Event pulse',
+            'Official pulse',
+            'Zebra pulse',
+        ]);
+    });
+
+    it('marks project types by where they came from', async () => {
+        setProjectItems([installedChartType, projectChartType]);
+        renderGallery();
+
+        expect(
+            screen.getByRole('img', { name: 'Built by Lightdash' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('img', {
+                name: 'Custom chart type, built by your team',
+            }),
+        ).toBeInTheDocument();
+        await userEvent.hover(
+            screen.getByRole('img', { name: 'Built by Lightdash' }),
+        );
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'Built by Lightdash',
+        );
+        expect(
+            screen.queryByRole('img', { name: /Bar chart/ }),
+        ).not.toBeInTheDocument();
     });
 
     it('uses the shared built-in selection command without closing the chooser', async () => {
@@ -851,7 +885,8 @@ describe('ExplorerChartTypeGallery', () => {
         ).toBeInTheDocument();
     });
 
-    it('reads clearly when no built-in chart types match the search', async () => {
+    it('reads clearly when no chart type matches the search', async () => {
+        setProjectItems([]);
         renderGallery();
 
         await userEvent.type(
@@ -963,7 +998,7 @@ describe('ExplorerChartTypeGallery', () => {
         expect(mocks.selectProjectChartType).not.toHaveBeenCalled();
     });
 
-    it('keeps official chart types read-only even with edit permission', () => {
+    it('keeps official chart types uneditable even with edit permission', async () => {
         mocks.canEditChartType.mockReturnValue(true);
         visualizationConfig.current = {
             chartType: ChartType.DATA_APP_VIZ,
@@ -986,97 +1021,315 @@ describe('ExplorerChartTypeGallery', () => {
         } as unknown as ReturnType<typeof useDataAppVisualizations>);
         renderGallery();
 
-        expect(
-            screen.queryByRole('button', {
+        await userEvent.click(
+            screen.getByRole('button', {
                 name: 'More actions for Event pulse',
             }),
+        );
+        expect(
+            screen.queryByRole('menuitem', { name: 'Edit chart type' }),
         ).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Configure Event pulse' }),
         ).toBeInTheDocument();
     });
 
-    it('starts authoring a new chart type in place from the project section', async () => {
-        renderGallery();
-
-        await userEvent.click(
-            screen.getByRole('button', { name: /Create new chart type/ }),
-        );
-
-        expect(mocks.dispatch).toHaveBeenCalledWith({
-            type: 'startChartTypeAuthoring',
-            payload: { dataAppVizUuid: null },
+    describe('uninstall', () => {
+        beforeEach(() => {
+            mocks.canEditChartType.mockReturnValue(true);
+            setProjectItems([installedChartType, projectChartType]);
         });
-        expect(mocks.navigate).not.toHaveBeenCalled();
+
+        it('offers Uninstall, not Edit, on an official card with edit permission', async () => {
+            renderGallery();
+
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'More actions for Official pulse',
+                }),
+            );
+
+            expect(
+                await screen.findByRole('menuitem', { name: 'Uninstall' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('menuitem', { name: 'Edit chart type' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('offers Edit, not Uninstall, on a custom card', async () => {
+            renderGallery();
+
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'More actions for Event pulse',
+                }),
+            );
+
+            expect(
+                await screen.findByRole('menuitem', {
+                    name: 'Edit chart type',
+                }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('menuitem', { name: 'Uninstall' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('hides the overflow menu on an official card without edit permission', () => {
+            mocks.canEditChartType.mockReturnValue(false);
+            renderGallery();
+
+            expect(
+                screen.queryByRole('button', {
+                    name: 'More actions for Official pulse',
+                }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('opens the uninstall confirmation naming the type and closes it on cancel', async () => {
+            renderGallery();
+
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'More actions for Official pulse',
+                }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', { name: 'Uninstall' }),
+            );
+
+            expect(
+                screen.getByText('Uninstall Official pulse'),
+            ).toBeInTheDocument();
+
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Cancel uninstall' }),
+            );
+
+            expect(
+                screen.queryByText('Uninstall Official pulse'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('falls back to Table when the uninstalled type was selected', async () => {
+            visualizationConfig.current = {
+                chartType: ChartType.DATA_APP_VIZ,
+                chartConfig: {
+                    dataAppVizUuid: installedChartType.dataAppVizUuid,
+                },
+            };
+            renderGallery();
+
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'More actions for Official pulse',
+                }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', { name: 'Uninstall' }),
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Confirm uninstall' }),
+            );
+
+            expect(mocks.setChartType).toHaveBeenCalledWith(ChartType.TABLE);
+        });
+
+        it('leaves the chart type alone when a different type was selected', async () => {
+            renderGallery();
+
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'More actions for Official pulse',
+                }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', { name: 'Uninstall' }),
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Confirm uninstall' }),
+            );
+
+            expect(mocks.setChartType).not.toHaveBeenCalled();
+        });
     });
 
-    it('hides the create action without permission to author chart types', () => {
-        mocks.canCreateDataApp.mockReturnValue(false);
+    describe('fork', () => {
+        beforeEach(() => {
+            mocks.canEditChartType.mockReturnValue(true);
+            mocks.canFork.mockReturnValue(true);
+            setProjectItems([installedChartType, projectChartType]);
+        });
+
+        it('shows Fork to customize before Uninstall on an official card', async () => {
+            renderGallery();
+
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'More actions for Official pulse',
+                }),
+            );
+
+            const menuItems = await screen.findAllByRole('menuitem');
+            expect(menuItems.map((item) => item.textContent)).toEqual([
+                'Fork to customize',
+                'Uninstall',
+            ]);
+        });
+
+        it('never offers Fork to customize on a custom card', async () => {
+            renderGallery();
+
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'More actions for Event pulse',
+                }),
+            );
+
+            expect(
+                await screen.findByRole('menuitem', {
+                    name: 'Edit chart type',
+                }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('menuitem', {
+                    name: 'Fork to customize',
+                }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('shows Uninstall only without create permission', async () => {
+            mocks.canFork.mockReturnValue(false);
+            renderGallery();
+
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'More actions for Official pulse',
+                }),
+            );
+
+            expect(
+                await screen.findByRole('menuitem', { name: 'Uninstall' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('menuitem', {
+                    name: 'Fork to customize',
+                }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('shows Uninstall only when data apps are disabled', async () => {
+            featureFlags.current = {
+                [FeatureFlags.EnableDataApps]: false,
+                [FeatureFlags.ChartTypeRegistry]: true,
+            };
+            renderGallery();
+
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'More actions for Official pulse',
+                }),
+            );
+
+            expect(
+                await screen.findByRole('menuitem', { name: 'Uninstall' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('menuitem', {
+                    name: 'Fork to customize',
+                }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('opens and dismisses the fork modal for the clicked card', async () => {
+            renderGallery();
+
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'More actions for Official pulse',
+                }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Fork to customize',
+                }),
+            );
+
+            expect(
+                screen.getByText(
+                    `Fork ${installedChartType.dataAppVizUuid} as Official pulse (custom)`,
+                ),
+            ).toBeInTheDocument();
+
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Cancel fork' }),
+            );
+
+            expect(
+                screen.queryByText(
+                    `Fork ${installedChartType.dataAppVizUuid} as Official pulse (custom)`,
+                ),
+            ).not.toBeInTheDocument();
+        });
+
+        it('tracks the fork modal opening with the project and registry slug', async () => {
+            renderGallery();
+
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'More actions for Official pulse',
+                }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Fork to customize',
+                }),
+            );
+
+            expect(mocks.track).toHaveBeenCalledWith({
+                name: EventName.CHART_TYPE_FORK_MODAL_OPENED,
+                properties: {
+                    projectUuid: 'project-uuid',
+                    registrySlug: installedChartType.registrySlug,
+                },
+            });
+        });
+    });
+
+    it('shows only built-ins when chart types are off', () => {
+        featureFlags.current = {};
         renderGallery();
 
         expect(
-            screen.queryByRole('button', { name: /Create new chart type/ }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'Event pulse' }),
+            screen.getByRole('button', { name: 'Bar chart' }),
         ).toBeInTheDocument();
+        // No project types means no reason to ask the server for one.
+        expect(mockedUseDataAppVisualizations).toHaveBeenCalledWith(
+            undefined,
+            '',
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Event pulse' }),
+        ).not.toBeInTheDocument();
     });
 
-    it('caps the initial project list and reveals the rest via the "+N more" tile', async () => {
-        const many = Array.from({ length: 8 }, (_, i) => ({
-            ...projectChartType,
-            dataAppVizUuid: `project-chart-type-${i}`,
-            name: `Event pulse ${i}`,
-        }));
-        mockedUseDataAppVisualizations.mockReturnValue({
-            data: {
-                pages: [
-                    {
-                        data: many,
-                        pagination: {
-                            page: 1,
-                            pageSize: 25,
-                            totalPageCount: 1,
-                            totalResults: 8,
-                        },
-                    },
-                ],
-                pageParams: [1],
-            },
-            isInitialLoading: false,
-            error: null,
-            refetch: mocks.refetch,
-            hasNextPage: false,
-            fetchNextPage: mocks.fetchNextPage,
-            isFetchingNextPage: false,
-        } as unknown as ReturnType<typeof useDataAppVisualizations>);
-        renderGallery();
-
-        expect(
-            screen.getByRole('button', { name: 'Event pulse 4' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Event pulse 5' }),
-        ).not.toBeInTheDocument();
-
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Show 3 more chart types' }),
+    it('says why nothing can be picked before a query has run', () => {
+        renderWithProviders(
+            <ChartTypeGallery
+                {...galleryProps({
+                    disabledReason: 'Run your query to pick a chart type.',
+                    items: [{ ...galleryItem('Bar'), disabled: true }],
+                })}
+            />,
         );
 
         expect(
-            screen.getByRole('button', { name: 'Event pulse 7' }),
+            screen.getByText('Run your query to pick a chart type.'),
         ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: /more chart types/ }),
-        ).not.toBeInTheDocument();
-        // Focus lands on the first revealed card once the tile unmounts.
-        expect(
-            screen.getByRole('button', { name: 'Event pulse 5' }),
-        ).toHaveFocus();
-        expect(mocks.fetchNextPage).not.toHaveBeenCalled();
     });
 
-    it('fetches the next page from the "+N more" tile once every loaded item shows', async () => {
+    it('fetches the next page from the "+N more" tile', async () => {
         const loaded = Array.from({ length: 6 }, (_, i) => ({
             ...projectChartType,
             dataAppVizUuid: `project-chart-type-${i}`,
@@ -1106,6 +1359,7 @@ describe('ExplorerChartTypeGallery', () => {
         } as unknown as ReturnType<typeof useDataAppVisualizations>);
         renderGallery();
 
+        // Everything loaded shows; only the unfetched pages hide.
         expect(
             screen.getByRole('button', { name: 'Event pulse 5' }),
         ).toBeInTheDocument();
@@ -1116,245 +1370,21 @@ describe('ExplorerChartTypeGallery', () => {
         expect(mocks.fetchNextPage).toHaveBeenCalled();
     });
 
-    it('says why nothing can be picked before a query has run', () => {
-        renderWithProviders(
-            <ChartTypeGallery
-                search=""
-                onSearchChange={vi.fn()}
-                disabledReason="Run your query to pick a chart type."
-                sections={[
-                    gallerySection({
-                        items: [{ ...galleryItem('Bar'), disabled: true }],
-                    }),
-                ]}
-            />,
-        );
-
-        expect(
-            screen.getByText('Run your query to pick a chart type.'),
-        ).toBeInTheDocument();
-    });
-
-    it('leaves the project shelves out entirely while chart types are off', () => {
-        featureFlags.current = {};
-        renderGallery();
-
-        expect(screen.queryByText('Custom')).not.toBeInTheDocument();
-        expect(screen.getByText('Built in')).toBeInTheDocument();
-        // No project shelf means no reason to ask the server for one.
-        expect(mockedUseDataAppVisualizations).toHaveBeenCalledWith(
-            undefined,
-            '',
-        );
-        expect(
-            screen.queryByRole('button', { name: 'Create new chart type' }),
-        ).not.toBeInTheDocument();
-    });
-
-    it('appends installed chart types to the built-in shelf with a provenance badge', () => {
-        setProjectItems([projectChartType, installedChartType]);
-        renderGallery();
-
-        const custom = screen.getByRole('group', { name: 'Custom' });
-        const builtIn = screen.getByRole('group', { name: 'Built in' });
-        expect(
-            screen.queryByRole('group', { name: 'Installed' }),
-        ).not.toBeInTheDocument();
-        // The install sits after the last built-in, marked and badged.
-        const vega = within(builtIn).getByRole('button', {
-            name: 'Vega (JSON editor)',
-        });
-        const install = within(builtIn).getByRole('button', {
-            name: 'Official pulse',
-        });
-        expect(
-            vega.compareDocumentPosition(install) &
-                Node.DOCUMENT_POSITION_FOLLOWING,
-        ).toBeTruthy();
-        expect(
-            within(builtIn).getByRole('img', {
-                name: 'Installed from the chart type library',
-            }),
-        ).toBeInTheDocument();
-        // Local types keep their own shelf, unmarked.
-        expect(
-            within(custom).getByRole('button', { name: 'Event pulse' }),
-        ).toBeInTheDocument();
-        expect(
-            within(custom).queryByRole('img', {
-                name: 'Installed from the chart type library',
-            }),
-        ).not.toBeInTheDocument();
-        // New types are always local, so the create tile stays with Custom.
-        expect(
-            within(custom).getByRole('button', {
-                name: 'Create new chart type',
-            }),
-        ).toBeInTheDocument();
-    });
-
-    it('leaves built-ins unbadged while the project has no installs', () => {
-        renderGallery();
-
-        expect(
-            screen.queryByRole('img', {
-                name: 'Installed from the chart type library',
-            }),
-        ).not.toBeInTheDocument();
-    });
-
-    it('ends the built-in shelf with a tile that opens the library in a modal', async () => {
-        renderGallery();
-
-        const builtIn = screen.getByRole('group', { name: 'Built in' });
-        const findNew = within(builtIn).getByRole('button', {
-            name: 'Find new chart types',
-        });
-        // Discovery closes the shelf, so it sits after every chart type.
-        const vega = within(builtIn).getByRole('button', {
-            name: 'Vega (JSON editor)',
-        });
-        expect(
-            vega.compareDocumentPosition(findNew) &
-                Node.DOCUMENT_POSITION_FOLLOWING,
-        ).toBeTruthy();
-
-        await userEvent.click(findNew);
-        // The library opens in place; the explore context is never left.
-        const dialog = await screen.findByRole('dialog');
-        expect(
-            within(dialog).getByText('Find new chart types'),
-        ).toBeInTheDocument();
-        expect(
-            within(dialog).getByRole('link', {
-                name: 'Open the full library page',
-            }),
-        ).toHaveAttribute(
-            'href',
-            '/projects/project-uuid/chart-types?tab=chart-library',
-        );
-        expect(mocks.navigate).not.toHaveBeenCalled();
-    });
-
-    it('hides the discover tile without the chart type library flag', () => {
-        featureFlags.current = { [FeatureFlags.EnableDataApps]: true };
-        renderGallery();
-
-        expect(
-            screen.queryByRole('button', { name: 'Find new chart types' }),
-        ).not.toBeInTheDocument();
-    });
-
-    it('selects a chart type installed from the library modal', async () => {
-        registryState.current = {
-            registryEnabled: true,
-            charts: [registryChart],
-        };
-        setProjectItems([installedChartType]);
-        mocks.installChartType.mockImplementation(
-            (
-                _variables: unknown,
-                options?: { onSuccess?: (result: unknown) => void },
-            ) =>
-                options?.onSuccess?.({
-                    appUuid: installedChartType.dataAppVizUuid,
-                    slug: installedChartType.slug,
-                    version: 1,
-                    action: 'installed',
-                    upgradedChartCount: 0,
-                }),
-        );
-        renderGallery(
-            vi.fn(),
-            new Ability<PossibleAbilities>([
-                { action: 'create', subject: 'DataApp' },
-            ]),
-        );
-
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Find new chart types' }),
-        );
-        const libraryDialog = await screen.findByRole('dialog');
-        await userEvent.click(
-            within(libraryDialog).getByText('Ranked bars from the library'),
-        );
-        await userEvent.click(
-            await screen.findByRole('button', { name: 'Install' }),
-        );
-
-        // The install lands selected and both modals get out of its way.
-        await waitFor(() =>
-            expect(mocks.selectProjectChartType).toHaveBeenCalledWith(
-                installedChartType,
-                itemsMap,
-            ),
-        );
-        await waitFor(() =>
-            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
-        );
-    });
-
-    it('hides the empty custom shelf for library-only customers', () => {
-        featureFlags.current = { [FeatureFlags.ChartTypeRegistry]: true };
-        setProjectItems([installedChartType]);
-        renderGallery();
-
-        expect(
-            screen.queryByRole('group', { name: 'Custom' }),
-        ).not.toBeInTheDocument();
-        expect(
-            within(screen.getByRole('group', { name: 'Built in' })).getByRole(
-                'button',
-                { name: 'Official pulse' },
-            ),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Create new chart type' }),
-        ).not.toBeInTheDocument();
-    });
-
-    it('reports a load failure to library-only customers without hiding built-ins', () => {
-        featureFlags.current = { [FeatureFlags.ChartTypeRegistry]: true };
-        setProjectQuery(new Error('unavailable'));
-        renderGallery();
-
-        expect(
-            screen.getByText('Failed to load installed chart types'),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'Bar chart' }),
-        ).toBeInTheDocument();
-        expect(screen.queryByText('Custom')).not.toBeInTheDocument();
-    });
-
-    it('caps only the custom shelf, never the installed tail', () => {
-        const locals = Array.from({ length: 8 }, (_, i) => ({
+    it('leaves the "+N more" tile out while every page is loaded', () => {
+        const many = Array.from({ length: 8 }, (_, i) => ({
             ...projectChartType,
             dataAppVizUuid: `project-chart-type-${i}`,
             name: `Event pulse ${i}`,
         }));
-        const installs = Array.from({ length: 3 }, (_, i) => ({
-            ...installedChartType,
-            dataAppVizUuid: `installed-chart-type-${i}`,
-            name: `Official pulse ${i}`,
-            registrySlug: `official-pulse-${i}`,
-        }));
-        setProjectItems([...locals, ...installs]);
+        setProjectItems(many);
         renderGallery();
 
         expect(
-            screen.getByRole('button', { name: 'Event pulse 4' }),
+            screen.getByRole('button', { name: 'Event pulse 7' }),
         ).toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: 'Event pulse 5' }),
+            screen.queryByRole('button', { name: /more chart types/ }),
         ).not.toBeInTheDocument();
-        // The "+N more" count spans hidden customs only; installs all show.
-        expect(
-            screen.getByRole('button', { name: 'Show 3 more chart types' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'Official pulse 2' }),
-        ).toBeInTheDocument();
     });
 
     it('keeps built-in choices usable when project types fail to load', async () => {
@@ -1362,12 +1392,14 @@ describe('ExplorerChartTypeGallery', () => {
         renderGallery();
 
         expect(
-            screen.getByText('Failed to load custom chart types'),
+            screen.getByText('Failed to load chart types'),
         ).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(mocks.refetch).toHaveBeenCalled();
+
         await userEvent.click(
             screen.getByRole('button', { name: 'Vega (JSON editor)' }),
         );
-
         expect(mocks.setChartType).toHaveBeenCalledWith(ChartType.CUSTOM);
     });
 });

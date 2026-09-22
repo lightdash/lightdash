@@ -35,6 +35,9 @@ vi.mock('./ChartTypeGallery', () => ({
     ),
     ChartTypeThumbnail: () => <span>Table thumbnail</span>,
 }));
+vi.mock('./AddChartTypeMenu', () => ({
+    default: () => <button>Add chart type</button>,
+}));
 const { dataAppsFlagEnabled } = vi.hoisted(() => ({
     dataAppsFlagEnabled: { current: true },
 }));
@@ -259,6 +262,68 @@ describe('ExplorerChartSidebar', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('shows the official chart type badge in the header for a registry-installed type', () => {
+        vizConfig.current = {
+            chartType: ChartType.DATA_APP_VIZ,
+            chartConfig: { dataAppVizUuid: 'viz-1' },
+        };
+        selectedProjectType.current = {
+            dataAppVizUuid: 'viz-1',
+            name: 'Sankey',
+            spaceUuid: null,
+            createdByUserUuid: 'user-1',
+            registrySlug: 'sankey',
+        };
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.DATA_APP_VIZ}
+                onClose={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByText('Built by Lightdash')).toBeInTheDocument();
+        expect(screen.queryByText('Custom')).not.toBeInTheDocument();
+    });
+
+    it('shows a Custom badge in the header for a project-authored type', () => {
+        vizConfig.current = {
+            chartType: ChartType.DATA_APP_VIZ,
+            chartConfig: { dataAppVizUuid: 'viz-1' },
+        };
+        selectedProjectType.current = {
+            dataAppVizUuid: 'viz-1',
+            name: 'Event pulse',
+            spaceUuid: null,
+            createdByUserUuid: 'user-1',
+            registrySlug: null,
+        };
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.DATA_APP_VIZ}
+                onClose={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByText('Custom')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Built by Lightdash'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows no type badge in the header for a built-in chart type', () => {
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.TABLE}
+                onClose={vi.fn()}
+            />,
+        );
+
+        expect(screen.queryByText('Custom')).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Built by Lightdash'),
+        ).not.toBeInTheDocument();
+    });
+
     it('retitles itself while a chart type is authored', () => {
         const store = createExplorerStore();
         store.dispatch(explorerActions.setIsEditMode(true));
@@ -297,6 +362,32 @@ describe('ExplorerChartSidebar', () => {
                 name: 'Close visualization config',
             }),
         ).toBeInTheDocument();
+    });
+
+    it('offers adding a chart type next to the close control in Choose', async () => {
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.TABLE}
+                onClose={vi.fn()}
+            />,
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Add chart type' }),
+        ).not.toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        );
+
+        const add = screen.getByRole('button', { name: 'Add chart type' });
+        const close = screen.getByRole('button', {
+            name: 'Close visualization config',
+        });
+        expect(add.parentElement).toBe(close.parentElement);
+        expect(
+            add.compareDocumentPosition(close) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
     });
 
     it('outlines the close control so it reads as a button', () => {

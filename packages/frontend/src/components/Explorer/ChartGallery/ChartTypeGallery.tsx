@@ -1,4 +1,5 @@
 import {
+    ChartKind,
     FeatureFlags,
     isOfficialChartType,
     type DataAppViz,
@@ -22,15 +23,19 @@ import {
     IconArrowRight,
     IconDots,
     IconFilePencil,
-    IconPlus,
-    IconPuzzle,
+    IconGitFork,
+    IconHammer,
+    IconPackage,
     IconSearch,
+    IconTrash,
+    type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import clsx from 'clsx';
-import { useEffect, useId, useMemo, useRef, useState, type FC } from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
-import ChartTypeLibraryModal from '../../../features/chartTypes/components/ChartTypeLibraryModal';
+import ChartTypeDeleteModal from '../../../features/chartTypes/components/ChartTypeDeleteModal';
+import ChartTypeForkModal from '../../../features/chartTypes/components/ChartTypeForkModal';
 import { useChartTypesEnabled } from '../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
 import {
@@ -39,6 +44,8 @@ import {
 } from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import { CHART_GALLERY_SEARCH_ID } from '../../common/ChartGallery/ChartGalleryContext';
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
@@ -51,22 +58,52 @@ import {
     type ChartTypeOption,
 } from './useChartTypeOptions';
 
-/** Grid slots the custom section may fill before collapsing; when it does,
-    the last slot becomes the "+N more" tile, so the collapse never trades a
-    single hidden card for a tile. */
-const MAX_UNCOLLAPSED_PROJECT_TYPES = 6;
-const COLLAPSED_PROJECT_TYPES_SHOWN = MAX_UNCOLLAPSED_PROJECT_TYPES - 1;
+/** Where a project chart type came from; built-ins carry none. */
+export type ChartTypeProvenance = 'official' | 'custom';
+
+const PROVENANCE: Record<
+    ChartTypeProvenance,
+    { icon: TablerIcon; description: string }
+> = {
+    official: { icon: IconPackage, description: 'Built by Lightdash' },
+    custom: {
+        icon: IconHammer,
+        description: 'Custom chart type, built by your team',
+    },
+};
+
+/** The provenance icon in its colour, shared by the tile mark and the Add menu. */
+export const ProvenanceGlyph: FC<{
+    provenance: ChartTypeProvenance;
+    size: number;
+}> = ({ provenance, size }) => (
+    <Box
+        component="span"
+        className={classes.provenanceGlyph}
+        data-provenance={provenance}
+    >
+        <MantineIcon
+            icon={PROVENANCE[provenance].icon}
+            size={size}
+            stroke={1.5}
+        />
+    </Box>
+);
 
 export type ChartTypeGalleryItem = Omit<ChartTypeOption, 'id'> & {
     key: string;
     disabled: boolean;
     /** Shown as the card's tooltip; null shows none. */
     description: string | null;
-    /** Installed from the chart type library; shows the provenance badge. */
-    installed: boolean;
+    /** Marks the card's origin; null leaves it unmarked. */
+    provenance: ChartTypeProvenance | null;
     onConfigure: (() => void) | null;
     /** Opens the builder directly; null hides the action. */
     onEdit: (() => void) | null;
+    /** Forks an official chart type into an editable copy; null hides the action. */
+    onFork: (() => void) | null;
+    /** Uninstalls an official chart type; null hides the action. */
+    onUninstall: (() => void) | null;
 };
 
 type ChartTypeIconProps = Pick<ChartTypeOption, 'icon' | 'rotatedIcon'> & {
@@ -96,24 +133,6 @@ export const ChartTypeThumbnail: FC<ChartTypeIconProps> = ({
     </Box>
 );
 
-export type ChartTypeGallerySection = {
-    label: string;
-    items: ChartTypeGalleryItem[];
-    emptyMessage: string;
-    /* Remote-list states; a static section passes them inert. */
-    loading: boolean;
-    errorMessage: string | null;
-    onRetry: (() => void) | null;
-    onLoadMore: (() => void) | null;
-    /** Hidden items behind the "+N more" tile; 0 when onLoadMore is null. */
-    moreCount: number;
-    loadingMore: boolean;
-    /** Opens the chart type builder; null hides the create tile. */
-    onCreateNew: (() => void) | null;
-    /** Opens the chart type library; null hides the discover tile. */
-    onFindNew: (() => void) | null;
-};
-
 const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
     // Keep the full name available when the card label is clamped.
     const labelRef = useRef<HTMLParagraphElement>(null);
@@ -135,6 +154,10 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
 
     const tooltipLabel = isLabelClamped ? item.label : null;
     const showsConfigure = item.selected && item.onConfigure !== null;
+    const provenance =
+        item.provenance !== null
+            ? { ...PROVENANCE[item.provenance], kind: item.provenance }
+            : null;
 
     return (
         <Box className={classes.cardWrapper} data-menu-open={isMenuOpened}>
@@ -191,20 +214,23 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                     </Box>
                 </UnstyledButton>
             </Tooltip>
-            {/* Official types are read-only, so the edit menu's corner is
-                always free for the provenance badge. */}
-            {item.installed ? (
+            {/* A sibling of the card button with its own tooltip, so the
+                provenance stays out of the card's name and description. */}
+            {provenance !== null ? (
                 <Tooltip
-                    label="Installed from the chart type library"
+                    label={provenance.description}
                     position="top"
                     openDelay={500}
                 >
                     <Box
-                        className={classes.installedBadge}
+                        className={classes.provenanceMark}
                         role="img"
-                        aria-label="Installed from the chart type library"
+                        aria-label={provenance.description}
                     >
-                        <MantineIcon icon={IconPuzzle} size={12} stroke={1.5} />
+                        <ProvenanceGlyph
+                            provenance={provenance.kind}
+                            size={12}
+                        />
                     </Box>
                 </Tooltip>
             ) : null}
@@ -223,7 +249,9 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                     Configure
                 </Button>
             ) : null}
-            {item.onEdit !== null ? (
+            {item.onEdit !== null ||
+            item.onFork !== null ||
+            item.onUninstall !== null ? (
                 <Menu
                     opened={isMenuOpened}
                     onChange={setIsMenuOpened}
@@ -250,14 +278,44 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                         </Tooltip>
                     </Menu.Target>
                     <Menu.Dropdown>
-                        <Menu.Item
-                            leftSection={
-                                <MantineIcon icon={IconFilePencil} size={16} />
-                            }
-                            onClick={item.onEdit}
-                        >
-                            Edit chart type
-                        </Menu.Item>
+                        {item.onEdit !== null ? (
+                            <Menu.Item
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconFilePencil}
+                                        size={16}
+                                    />
+                                }
+                                onClick={item.onEdit}
+                            >
+                                Edit chart type
+                            </Menu.Item>
+                        ) : null}
+                        {item.onFork !== null ? (
+                            <Menu.Item
+                                leftSection={
+                                    <MantineIcon icon={IconGitFork} size={16} />
+                                }
+                                onClick={item.onFork}
+                            >
+                                Fork to customize
+                            </Menu.Item>
+                        ) : null}
+                        {(item.onEdit !== null || item.onFork !== null) &&
+                        item.onUninstall !== null ? (
+                            <Menu.Divider />
+                        ) : null}
+                        {item.onUninstall !== null ? (
+                            <Menu.Item
+                                color="red"
+                                leftSection={
+                                    <MantineIcon icon={IconTrash} size={16} />
+                                }
+                                onClick={item.onUninstall}
+                            >
+                                Uninstall
+                            </Menu.Item>
+                        ) : null}
                     </Menu.Dropdown>
                 </Menu>
             ) : null}
@@ -265,16 +323,42 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
     );
 };
 
-const SectionEmpty: FC<{ message: string }> = ({ message }) => (
-    <Text fz="xs" c="dimmed">
-        {message}
-    </Text>
-);
+type GalleryProps = {
+    search: string;
+    onSearchChange: (search: string) => void;
+    items: ChartTypeGalleryItem[];
+    /** Shown in place of the cards when nothing matches; null shows none. */
+    emptyMessage: string | null;
+    /** Remote-list states; the cards on screen survive both. */
+    loading: boolean;
+    errorMessage: string | null;
+    onRetry: (() => void) | null;
+    /** Fetches the next server page; null when every page is loaded. */
+    onLoadMore: (() => void) | null;
+    /** Chart types waiting behind the "+N more" tile. */
+    moreCount: number;
+    loadingMore: boolean;
+    /** Why nothing here can be picked; null while the gallery is usable. */
+    disabledReason: string | null;
+};
 
-const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
+export const ChartTypeGallery: FC<GalleryProps> = ({
+    search,
+    onSearchChange,
+    items,
+    emptyMessage,
+    loading,
+    errorMessage,
+    onRetry,
+    onLoadMore,
+    moreCount,
+    loadingMore,
+    disabledReason,
+}) => {
     const gridRef = useRef<HTMLDivElement | null>(null);
     const pendingFocusIndex = useRef<number | null>(null);
-    const itemCount = section.items.length;
+    const hasScrolledToSelection = useRef(false);
+    const itemCount = items.length;
 
     // The "+N more" tile can unmount on reveal; move focus to the first new
     // card so keyboard users are not dropped back to the body. The pending
@@ -291,217 +375,133 @@ const SectionBody: FC<{ section: ChartTypeGallerySection }> = ({ section }) => {
             [Math.min(index, itemCount - 1)]?.focus();
     }, [itemCount]);
 
-    // Remote state must never hide types already on screen: the built-in
-    // shelf keeps its cards while installed types load or fail, so the
-    // loader replaces nothing and the failure renders after the grid.
-    if (section.loading && section.items.length === 0) {
-        return (
-            <Group gap="xs" role="status">
-                <Loader size="xs" />
-                <Text fz="xs" c="dimmed">
-                    Loading chart types…
-                </Text>
-            </Group>
+    // The picker opens on whatever is already selected, which can sit below
+    // the fold once project types arrive.
+    useEffect(() => {
+        if (hasScrolledToSelection.current) return;
+        const selected = gridRef.current?.querySelector<HTMLElement>(
+            `.${classes.card}[data-selected='true']`,
         );
-    }
-    const errorNotice =
-        section.errorMessage !== null ? (
-            <Group justify="space-between" wrap="nowrap" role="alert">
-                <Text fz="xs" c="red">
-                    {section.errorMessage}
+        if (!selected) return;
+        hasScrolledToSelection.current = true;
+        selected.scrollIntoView?.({ block: 'nearest' });
+    }, [items]);
+
+    return (
+        <Stack className={classes.root} gap="md">
+            <TextInput
+                id={CHART_GALLERY_SEARCH_ID}
+                size="xs"
+                value={search}
+                onChange={(event) => onSearchChange(event.currentTarget.value)}
+                placeholder="Search the gallery"
+                leftSection={<MantineIcon icon={IconSearch} />}
+                aria-label="Search chart types"
+            />
+
+            {/* Disabled cards drop out of the tab order, so the reason has to
+                live outside the grid. */}
+            {disabledReason !== null ? (
+                <Text fz="xs" c="dimmed" role="status">
+                    {disabledReason}
                 </Text>
-                {section.onRetry !== null ? (
-                    <Button
-                        variant="subtle"
-                        size="compact-xs"
-                        onClick={section.onRetry}
-                    >
-                        Retry
-                    </Button>
-                ) : null}
-            </Group>
-        ) : null;
-    if (section.items.length === 0 && errorNotice !== null) {
-        return errorNotice;
-    }
-    if (
-        section.items.length === 0 &&
-        section.onCreateNew === null &&
-        section.onFindNew === null
-    ) {
-        return <SectionEmpty message={section.emptyMessage} />;
-    }
-    return (
-        <>
-            {section.items.length === 0 ? (
-                <SectionEmpty message={section.emptyMessage} />
             ) : null}
-            <Box ref={gridRef} className={classes.grid}>
-                {section.items.map((item) => (
-                    <GalleryCard key={item.key} item={item} />
-                ))}
-                {/* Stands in for the hidden cards, so it keeps the card
-                    material; the count is the informative part. Covers both
-                    revealing capped items and fetching the next page. */}
-                {section.onLoadMore !== null ? (
-                    <UnstyledButton
-                        className={clsx(classes.card, classes.moreCard)}
-                        aria-label={`Show ${section.moreCount} more chart types`}
-                        disabled={section.loadingMore}
-                        onClick={() => {
-                            pendingFocusIndex.current = section.items.length;
-                            section.onLoadMore?.();
-                        }}
-                    >
-                        <Box className={classes.cardIcon}>
-                            {section.loadingMore ? (
-                                <Loader size="sm" color="ldGray.6" />
-                            ) : (
-                                <MantineIcon
-                                    className={classes.icon}
-                                    icon={IconDots}
-                                    size="xl"
-                                    stroke={1.5}
-                                    color="dimmed"
-                                />
-                            )}
-                        </Box>
-                        <Text
-                            className={classes.cardLabel}
-                            fz="xs"
-                            fw={500}
-                            lh={1.2}
-                        >
-                            +{section.moreCount} more
-                        </Text>
-                    </UnstyledButton>
-                ) : null}
-                {/* An action, not a chart type; a tile so it lives where the
-                    eye already is. */}
-                {section.onCreateNew !== null ? (
-                    <UnstyledButton
-                        className={clsx(classes.card, classes.createCard)}
-                        aria-label="Create new chart type"
-                        onClick={section.onCreateNew}
-                    >
-                        <Box className={classes.cardIcon}>
-                            <MantineIcon
-                                className={classes.icon}
-                                icon={IconPlus}
-                                size="xl"
-                                stroke={1.5}
-                                color="dimmed"
-                            />
-                        </Box>
-                        <Text
-                            className={classes.cardLabel}
-                            fz="xs"
-                            fw={500}
-                            lh={1.2}
-                        >
-                            New chart type
-                        </Text>
-                    </UnstyledButton>
-                ) : null}
-                {/* Leads out of the picker to the library, so it takes the
-                    action-tile material rather than a chart type's. */}
-                {section.onFindNew !== null ? (
-                    <UnstyledButton
-                        className={clsx(classes.card, classes.createCard)}
-                        aria-label="Find new chart types"
-                        onClick={section.onFindNew}
-                    >
-                        <Box className={classes.cardIcon}>
-                            <MantineIcon
-                                className={classes.icon}
-                                icon={IconPlus}
-                                size="xl"
-                                stroke={1.5}
-                                color="dimmed"
-                            />
-                        </Box>
-                        <Text
-                            className={classes.cardLabel}
-                            fz="xs"
-                            fw={500}
-                            lh={1.2}
-                        >
-                            Find new chart types
-                        </Text>
-                    </UnstyledButton>
-                ) : null}
-            </Box>
-            {errorNotice}
-        </>
-    );
-};
 
-/* Grouped and named after its own heading, like the builder's question
-   sheet, so the shelves stay distinct rather than one flat run of cards. */
-const GallerySection: FC<{ section: ChartTypeGallerySection }> = ({
-    section,
-}) => {
-    const labelId = useId();
-    return (
-        <Stack gap="xs" role="group" aria-labelledby={labelId}>
-            <Text id={labelId} fz="xs" fw={600} c="dimmed">
-                {section.label}
-            </Text>
+            <ScrollArea
+                className={classes.scrollArea}
+                offsetScrollbars
+                scrollbars="y"
+                type="hover"
+                scrollbarSize={8}
+                classNames={{ content: classes.scrollContent }}
+            >
+                <Stack gap="xs" pb="xs">
+                    {items.length === 0 && emptyMessage !== null ? (
+                        <Text fz="xs" c="dimmed">
+                            {emptyMessage}
+                        </Text>
+                    ) : null}
 
-            <SectionBody section={section} />
+                    <Box
+                        ref={gridRef}
+                        className={classes.grid}
+                        role="group"
+                        aria-label="Chart types"
+                    >
+                        {items.map((item) => (
+                            <GalleryCard key={item.key} item={item} />
+                        ))}
+                        {/* Stands in for the pages not fetched yet, so it keeps
+                            the card material; the count is the informative
+                            part. */}
+                        {onLoadMore !== null ? (
+                            <UnstyledButton
+                                className={clsx(classes.card, classes.moreCard)}
+                                aria-label={`Show ${moreCount} more chart types`}
+                                disabled={loadingMore}
+                                onClick={() => {
+                                    pendingFocusIndex.current = items.length;
+                                    onLoadMore();
+                                }}
+                            >
+                                <Box className={classes.cardIcon}>
+                                    {loadingMore ? (
+                                        <Loader size="sm" color="ldGray.6" />
+                                    ) : (
+                                        <MantineIcon
+                                            className={classes.icon}
+                                            icon={IconDots}
+                                            size="xl"
+                                            stroke={1.5}
+                                            color="dimmed"
+                                        />
+                                    )}
+                                </Box>
+                                <Text
+                                    className={classes.cardLabel}
+                                    fz="xs"
+                                    fw={500}
+                                    lh={1.2}
+                                >
+                                    +{moreCount} more
+                                </Text>
+                            </UnstyledButton>
+                        ) : null}
+                    </Box>
+
+                    {loading ? (
+                        <Group gap="xs" role="status">
+                            <Loader size="xs" />
+                            <Text fz="xs" c="dimmed">
+                                Loading chart types…
+                            </Text>
+                        </Group>
+                    ) : null}
+                    {errorMessage !== null ? (
+                        <Group
+                            justify="space-between"
+                            wrap="nowrap"
+                            role="alert"
+                        >
+                            <Text fz="xs" c="red">
+                                {errorMessage}
+                            </Text>
+                            {onRetry !== null ? (
+                                <Button
+                                    variant="subtle"
+                                    size="compact-xs"
+                                    onClick={onRetry}
+                                >
+                                    Retry
+                                </Button>
+                            ) : null}
+                        </Group>
+                    ) : null}
+                </Stack>
+            </ScrollArea>
         </Stack>
     );
 };
-
-type GalleryProps = {
-    search: string;
-    onSearchChange: (search: string) => void;
-    sections: ChartTypeGallerySection[];
-    /** Why nothing here can be picked; null while the gallery is usable. */
-    disabledReason: string | null;
-};
-
-export const ChartTypeGallery: FC<GalleryProps> = ({
-    search,
-    onSearchChange,
-    sections,
-    disabledReason,
-}) => (
-    <Stack className={classes.root} gap="md">
-        <TextInput
-            id={CHART_GALLERY_SEARCH_ID}
-            size="xs"
-            value={search}
-            onChange={(event) => onSearchChange(event.currentTarget.value)}
-            placeholder="Search the gallery"
-            leftSection={<MantineIcon icon={IconSearch} />}
-            aria-label="Search chart types"
-        />
-
-        {/* Disabled cards drop out of the tab order, so the reason has to
-            live outside the grid. */}
-        {disabledReason !== null ? (
-            <Text fz="xs" c="dimmed" role="status">
-                {disabledReason}
-            </Text>
-        ) : null}
-
-        <ScrollArea
-            className={classes.scrollArea}
-            offsetScrollbars
-            scrollbars="y"
-            type="hover"
-            scrollbarSize={8}
-            classNames={{ content: classes.scrollContent }}
-        >
-            <Stack gap="lg" pb="xs">
-                {sections.map((section) => (
-                    <GallerySection key={section.label} section={section} />
-                ))}
-            </Stack>
-        </ScrollArea>
-    </Stack>
-);
 
 type ExplorerChartTypeGalleryProps = {
     onConfigure: () => void;
@@ -514,16 +514,8 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const dispatch = useExplorerDispatch();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
-    const [showAllProjectTypes, setShowAllProjectTypes] = useState(false);
-    const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-    const [pendingInstalledUuid, setPendingInstalledUuid] = useState<
-        string | null
-    >(null);
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
-        true;
-    const libraryEnabled =
-        useServerFeatureFlag(FeatureFlags.ChartTypeRegistry).data?.enabled ===
         true;
     const { enabled: chartTypesEnabled } = useChartTypesEnabled();
     const {
@@ -538,27 +530,21 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
         chartTypesEnabled ? projectUuid : undefined,
         debouncedSearch,
     );
-    const canCreateChartType = useCanCreateDataApp(projectUuid);
     const canEditChartType = useCanEditDataAppChecker(projectUuid);
+    const canFork = useCanCreateDataApp(projectUuid);
+    const { track } = useTracking();
     const { visualizationConfig, itemsMap } = useVisualizationContext();
     const selectProjectChartType = useSelectProjectChartType();
     const { disabled, options, vegaOption } = useChartTypeOptions();
+    const [uninstallTarget, setUninstallTarget] = useState<DataAppViz | null>(
+        null,
+    );
+    const [forkTarget, setForkTarget] = useState<DataAppViz | null>(null);
 
     const projectTypes = useMemo(
         () => data?.pages.flatMap((page) => page.data) ?? [],
         [data?.pages],
     );
-    // A library install should land selected: the install invalidates the
-    // list, and this picks the new type up from the refetch exactly once.
-    useEffect(() => {
-        if (pendingInstalledUuid === null) return;
-        const installed = projectTypes.find(
-            (viz) => viz.dataAppVizUuid === pendingInstalledUuid,
-        );
-        if (installed === undefined) return;
-        setPendingInstalledUuid(null);
-        selectProjectChartType(installed, itemsMap ?? {});
-    }, [pendingInstalledUuid, projectTypes, selectProjectChartType, itemsMap]);
     const selectedProjectUuid = isDataAppVizVisualizationConfig(
         visualizationConfig,
     )
@@ -574,13 +560,16 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             key: id,
             disabled,
             description: null,
-            installed: false,
+            provenance: null,
             onEdit: null,
+            onFork: null,
+            onUninstall: null,
             select: option.select,
             onConfigure: option.selected ? onConfigure : null,
         }));
     const toProjectItem = (dataAppViz: DataAppViz): ChartTypeGalleryItem => {
         const { label, icon, rotatedIcon } = projectChartTypeItem(dataAppViz);
+        const isOfficial = isOfficialChartType(dataAppViz);
         const select = () => {
             // Re-selecting the active type must not overwrite the
             // chart's local bindings with a fresh automap.
@@ -594,7 +583,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             description:
                 dataAppViz.description ||
                 `${dataAppViz.schema?.fields.length ?? 0} fields`,
-            installed: isOfficialChartType(dataAppViz),
+            provenance: isOfficial ? 'official' : 'custom',
             icon,
             rotatedIcon,
             selected: selectedProjectUuid === dataAppViz.dataAppVizUuid,
@@ -605,9 +594,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                     ? onConfigure
                     : null,
             onEdit:
-                dataAppsEnabled &&
-                canEditChartType(dataAppViz) &&
-                !isOfficialChartType(dataAppViz)
+                dataAppsEnabled && canEditChartType(dataAppViz) && !isOfficial
                     ? () =>
                           dispatch(
                               explorerActions.startChartTypeAuthoring({
@@ -615,139 +602,98 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                               }),
                           )
                     : null,
+            // Forking is authoring, so it needs data apps on, like editing.
+            onFork:
+                dataAppsEnabled &&
+                isOfficial &&
+                canFork &&
+                projectUuid !== undefined
+                    ? () => {
+                          track({
+                              name: EventName.CHART_TYPE_FORK_MODAL_OPENED,
+                              properties: {
+                                  projectUuid,
+                                  registrySlug: dataAppViz.registrySlug,
+                              },
+                          });
+                          setForkTarget(dataAppViz);
+                      }
+                    : null,
+            // Uninstalling is a library-only action: it works whether or not
+            // data apps are enabled for this org.
+            onUninstall:
+                isOfficial && canEditChartType(dataAppViz)
+                    ? () => setUninstallTarget(dataAppViz)
+                    : null,
         };
     };
-    const customItems = projectTypes
-        .filter((viz) => !isOfficialChartType(viz))
-        .map(toProjectItem);
-    const installedItems = projectTypes
-        .filter(isOfficialChartType)
-        .map(toProjectItem);
+    // One grid: the built-ins in their familiar order, then everything the
+    // project has, by name, wherever it came from.
+    const projectItems = chartTypesEnabled
+        ? projectTypes
+              .map(toProjectItem)
+              .sort((a, b) => a.label.localeCompare(b.label))
+        : [];
+    const items = [...builtInItems, ...projectItems];
 
-    // Cap the initial custom grid so built-ins stay in view; searching shows
-    // every match, and a selection deeper in the list is never hidden.
-    // Installed types sit at the tail of the built-in shelf, so they never
-    // collapse.
-    const selectedCustomIdx = customItems.findIndex((item) => item.selected);
-    const collapseCustomTypes =
-        !showAllProjectTypes &&
-        debouncedSearch === '' &&
-        customItems.length > MAX_UNCOLLAPSED_PROJECT_TYPES &&
-        selectedCustomIdx < COLLAPSED_PROJECT_TYPES_SHOWN;
-    const visibleCustomItems = collapseCustomTypes
-        ? customItems.slice(0, COLLAPSED_PROJECT_TYPES_SHOWN)
-        : customItems;
     // Server total for the current search, so the tile counts pages that are
-    // not fetched yet. The total spans both kinds, so the fetch tile lives on
-    // the last project section on screen rather than once per section.
+    // not fetched yet.
     const totalProjectTypes =
         data?.pages.at(-1)?.pagination?.totalResults ?? projectTypes.length;
     const unfetchedCount = hasNextPage
         ? Math.max(totalProjectTypes - projectTypes.length, 1)
         : 0;
 
-    const onCreateNew =
-        dataAppsEnabled && canCreateChartType
-            ? () =>
-                  dispatch(
-                      explorerActions.startChartTypeAuthoring({
-                          dataAppVizUuid: null,
-                      }),
-                  )
-            : null;
-    // Discovery needs the library, so the tile follows its flag alone; the
-    // library section itself handles a registry that turns out unreachable.
-    // Browsing happens in a modal so the explore context survives the detour.
-    const onFindNew =
-        libraryEnabled && projectUuid !== undefined
-            ? () => setIsLibraryOpen(true)
-            : null;
-    // One query feeds the Custom shelf and the built-in shelf's installed
-    // tail, so its loading/error notice renders once, on the shelf this
-    // customer's types live in: Custom for data-apps customers, Built in for
-    // library-only ones. An empty Custom shelf with nothing to offer stays
-    // hidden.
-    const remoteStateOnCustom = dataAppsEnabled;
-    const hasRemoteState = isInitialLoading || Boolean(error);
-    const showCustomSection =
-        customItems.length > 0 ||
-        onCreateNew !== null ||
-        (remoteStateOnCustom && hasRemoteState);
-    // Installed types render after the built-ins, so unfetched pages hang off
-    // the built-in shelf whenever that tail is on screen.
-    const showInstalledTail =
-        installedItems.length > 0 || (!remoteStateOnCustom && hasRemoteState);
-    const fetchMoreOnBuiltIn = showInstalledTail && hasNextPage === true;
-
-    const customSection: ChartTypeGallerySection = {
-        label: 'Custom',
-        items: visibleCustomItems,
-        loading: isInitialLoading && remoteStateOnCustom,
-        errorMessage:
-            error && remoteStateOnCustom
-                ? 'Failed to load custom chart types'
-                : null,
-        emptyMessage: debouncedSearch
-            ? 'No custom chart types match your search'
-            : 'No custom chart types yet',
-        onRetry: error && remoteStateOnCustom ? () => void refetch() : null,
-        onLoadMore: collapseCustomTypes
-            ? () => setShowAllProjectTypes(true)
-            : hasNextPage && !fetchMoreOnBuiltIn
-              ? () => void fetchNextPage()
-              : null,
-        moreCount: collapseCustomTypes
-            ? customItems.length -
-              visibleCustomItems.length +
-              (fetchMoreOnBuiltIn ? 0 : unfetchedCount)
-            : fetchMoreOnBuiltIn
-              ? 0
-              : unfetchedCount,
-        loadingMore: isFetchingNextPage && !fetchMoreOnBuiltIn,
-        onCreateNew,
-        onFindNew: null,
-    };
-
-    const sections: ChartTypeGallerySection[] = [
-        ...(chartTypesEnabled && showCustomSection ? [customSection] : []),
-        {
-            label: 'Built in',
-            items: [...builtInItems, ...installedItems],
-            emptyMessage: 'No chart types match your search',
-            loading: isInitialLoading && !remoteStateOnCustom,
-            errorMessage:
-                error && !remoteStateOnCustom
-                    ? 'Failed to load installed chart types'
-                    : null,
-            onRetry:
-                error && !remoteStateOnCustom ? () => void refetch() : null,
-            onLoadMore: fetchMoreOnBuiltIn ? () => void fetchNextPage() : null,
-            moreCount: fetchMoreOnBuiltIn ? unfetchedCount : 0,
-            loadingMore: isFetchingNextPage && fetchMoreOnBuiltIn,
-            onCreateNew: null,
-            onFindNew,
-        },
-    ];
-
     return (
         <>
             <ChartTypeGallery
                 search={search}
                 onSearchChange={setSearch}
-                sections={sections}
+                items={items}
+                emptyMessage={
+                    items.length === 0 && debouncedSearch !== ''
+                        ? 'No chart types match your search'
+                        : null
+                }
+                loading={isInitialLoading}
+                errorMessage={error ? 'Failed to load chart types' : null}
+                onRetry={error ? () => void refetch() : null}
+                onLoadMore={
+                    hasNextPage === true ? () => void fetchNextPage() : null
+                }
+                moreCount={unfetchedCount}
+                loadingMore={isFetchingNextPage}
                 disabledReason={
                     disabled ? 'Run your query to pick a chart type.' : null
                 }
             />
-            {isLibraryOpen && projectUuid !== undefined ? (
-                <ChartTypeLibraryModal
+            {uninstallTarget !== null && projectUuid !== undefined ? (
+                <ChartTypeDeleteModal
                     projectUuid={projectUuid}
-                    onClose={() => setIsLibraryOpen(false)}
-                    // Close on install so the selection is visible at once.
-                    onInstalled={(appUuid) => {
-                        setPendingInstalledUuid(appUuid);
-                        setIsLibraryOpen(false);
+                    dataAppViz={uninstallTarget}
+                    onClose={() => setUninstallTarget(null)}
+                    onDeleted={() => {
+                        setUninstallTarget(null);
+                        // The uninstalled type can't stay selected; fall back
+                        // to Table so the chart never points at nothing.
+                        if (
+                            selectedProjectUuid ===
+                            uninstallTarget.dataAppVizUuid
+                        ) {
+                            options
+                                .find((option) => option.id === ChartKind.TABLE)
+                                ?.select();
+                        }
                     }}
+                />
+            ) : null}
+            {forkTarget !== null && projectUuid !== undefined ? (
+                <ChartTypeForkModal
+                    opened
+                    onClose={() => setForkTarget(null)}
+                    projectUuid={projectUuid}
+                    appUuid={forkTarget.dataAppVizUuid}
+                    defaultName={`${forkTarget.name} (custom)`}
                 />
             ) : null}
         </>
