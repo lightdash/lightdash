@@ -1,3 +1,10 @@
+## [2.292.1](https://github.com/lightdash/lightdash/compare/2.292.0...2.292.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **data-apps:** harden AI analysis isolation and fail closed on late opt-out ([#29727](https://github.com/lightdash/lightdash/issues/29727)) ([5902f5f](https://github.com/lightdash/lightdash/commit/5902f5f3554d2bd297ec599ca1bd5d1e7dbfdc8e))
+
 # [2.292.0](https://github.com/lightdash/lightdash/compare/2.291.1...2.292.0) (2026-09-22)
 
 

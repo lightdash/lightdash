@@ -18792,7 +18792,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                queryUuid: { dataType: 'string', required: true },
+                queryUuid: { ref: 'UUID', required: true },
             },
             validators: {},
         },
@@ -75922,7 +75922,7 @@ export function RegisterRoutes(app: Router) {
             in: 'path',
             name: 'analysisId',
             required: true,
-            dataType: 'string',
+            ref: 'UUID',
         },
         body: {
             in: 'body',
@@ -76001,7 +76001,7 @@ export function RegisterRoutes(app: Router) {
             in: 'path',
             name: 'analysisId',
             required: true,
-            dataType: 'string',
+            ref: 'UUID',
         },
     };
     app.get(
