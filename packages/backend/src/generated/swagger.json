@@ -2907,8 +2907,13 @@
             },
             "MergeTableCalculation": {
                 "properties": {
+                    "formula": {
+                        "type": "string",
+                        "description": "Spreadsheet-like formula over merged field ids."
+                    },
                     "sql": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Legacy SQL expression. Kept required for API/storage compatibility;\nformula calculations store an empty string here and compile `formula`\non the compose engine instead."
                     },
                     "displayName": {
                         "type": "string"
@@ -2919,7 +2924,7 @@
                 },
                 "required": ["sql", "displayName", "name"],
                 "type": "object",
-                "description": "A calculation over the *merged* result, which is the only place a row-wise\ncalculation across two queries can correctly live. References name a source\nand one of its fields, `${sourceId.fieldId}`, because the merged statement\nrenames columns to keep two sources from colliding."
+                "description": "A calculation over the *merged* result, where a row-wise calculation across\nsource queries can correctly live. Formula references use merged field ids;\nlegacy SQL references use `${sourceId.fieldId}`."
             },
             "SavedMergeDefinition": {
                 "properties": {
@@ -49622,6 +49627,7 @@
                     "unsupported_table_calculation",
                     "duplicate_calculation_name",
                     "unresolved_calculation_reference",
+                    "calculation_formula_too_long",
                     "unresolved_column_type",
                     "missing_parameters",
                     "result_source_unavailable"
@@ -64348,7 +64354,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.292.2",
+        "version": "2.293.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

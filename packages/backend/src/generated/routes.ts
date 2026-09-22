@@ -3051,6 +3051,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                formula: { dataType: 'string' },
                 sql: { dataType: 'string', required: true },
                 displayName: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
@@ -49354,6 +49355,7 @@ const models: TsoaRoute.Models = {
             'unsupported_table_calculation',
             'duplicate_calculation_name',
             'unresolved_calculation_reference',
+            'calculation_formula_too_long',
             'unresolved_column_type',
             'missing_parameters',
             'result_source_unavailable',

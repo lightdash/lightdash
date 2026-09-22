@@ -1,3 +1,10 @@
+# [2.293.0](https://github.com/lightdash/lightdash/compare/2.292.2...2.293.0) (2026-09-22)
+
+
+### Features
+
+* **merge-query:** support cross-source table calculations ([#29720](https://github.com/lightdash/lightdash/issues/29720)) ([214c86f](https://github.com/lightdash/lightdash/commit/214c86f4b8aab7c4aeb2b3552d58e9a757c73288))
+
 ## [2.292.2](https://github.com/lightdash/lightdash/compare/2.292.1...2.292.2) (2026-09-22)
 
 
