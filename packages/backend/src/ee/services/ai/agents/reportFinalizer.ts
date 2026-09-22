@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import {
     generateText,
-    NoOutputGeneratedError,
+    NoObjectGeneratedError,
     Output,
     type ModelMessage,
 } from 'ai';
@@ -120,12 +120,14 @@ export const generateDeepResearchReport = async (
         return result.output;
     };
 
-    // This string is fed back to the model as the retry correction. v7's
-    // NoOutputGeneratedError drops the `text` field the object API exposed, so
-    // the cause is the only remaining detail about what failed to parse.
+    // This string is fed back to the model as the retry correction, so it has
+    // to carry what actually failed to parse. Output.object still throws
+    // NoObjectGeneratedError for schema and parse failures, with `text` intact;
+    // NoOutputGeneratedError is a different, narrower class that only fires on
+    // empty output, and catching it here would lose every recoverable case.
     const describe = (error: unknown): string =>
-        NoOutputGeneratedError.isInstance(error)
-            ? `${error.message} | ${getErrorMessage(error.cause).slice(0, 2_000)}`
+        NoObjectGeneratedError.isInstance(error)
+            ? `${getErrorMessage(error.cause)} | text: ${(error.text ?? '').slice(0, 2_000)}`
             : getErrorMessage(error);
 
     // Output.object enforces the shape; the full schema additionally lints the

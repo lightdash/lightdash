@@ -5,7 +5,6 @@ import type { AiAgentModel } from '../../models/AiAgentModel';
 import { getModel } from '../ai/models';
 import {
     classifyPromptInputRequest,
-    promptInputRequestClassifierOutputSchema,
     responseMatchesPromptInputRequestGate,
     runPromptInputRequestClassification,
     shouldClassifyPromptInputRequestForUpdate,
@@ -145,6 +144,8 @@ describe('prompt input request classifier', () => {
         expect(generateTextMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 model: model.model,
+                // Output.object hides the schema, so the call can only be
+                // asserted to request structured output, not which shape.
                 output: expect.anything(),
                 abortSignal: expect.any(AbortSignal),
                 messages: [

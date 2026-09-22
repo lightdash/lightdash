@@ -30,7 +30,7 @@ import {
     type SessionUser,
     type UUID,
 } from '@lightdash/common';
-import { APICallError, generateText, NoOutputGeneratedError, Output } from 'ai';
+import { APICallError, generateText, NoObjectGeneratedError, Output } from 'ai';
 import { createHash, randomBytes } from 'crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -1741,7 +1741,7 @@ export class AiAgentMemoryService extends BaseService {
                 APICallError.isInstance(error) && error.isRetryable;
             if (
                 !retryableApiError &&
-                !NoOutputGeneratedError.isInstance(error)
+                !NoObjectGeneratedError.isInstance(error)
             ) {
                 throw error;
             }

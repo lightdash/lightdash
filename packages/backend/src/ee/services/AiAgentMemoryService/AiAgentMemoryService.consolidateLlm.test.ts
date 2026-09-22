@@ -2,7 +2,7 @@ import {
     AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT,
     type AnyType,
 } from '@lightdash/common';
-import { APICallError, generateText, NoOutputGeneratedError } from 'ai';
+import { APICallError, generateText, NoObjectGeneratedError } from 'ai';
 import { vi } from 'vitest';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { getModel } from '../ai/models';
@@ -33,12 +33,23 @@ vi.mocked(getModel).mockReturnValue({
     providerOptions: {},
 } as AnyType);
 
-// v7's NoOutputGeneratedError carries only message and cause; the object API's
-// response/usage/finishReason fields are gone.
+// The class Output.object actually throws for a schema failure. Asserting
+// against NoOutputGeneratedError here would pass while production retried
+// nothing: that class only fires on empty output.
 const schemaFailure = () =>
-    new NoOutputGeneratedError({
+    new NoObjectGeneratedError({
         message: 'response did not match schema',
         cause: new Error('schema validation failed'),
+        text: '{"unexpected":true}',
+        response: { id: 'resp-1', timestamp: new Date(), modelId: 'model-1' },
+        usage: {
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            inputTokenDetails: {},
+            outputTokenDetails: {},
+        } as AnyType,
+        finishReason: 'stop',
     });
 
 const retryableApiFailure = () =>
