@@ -488,10 +488,6 @@ models:
                 mainBranch: 'main',
                 type: DbtProjectType.GITHUB,
             });
-            expect(PROJECT_MODEL.getExploreFromCache).toHaveBeenCalledWith(
-                'projectUuid',
-                'table_a',
-            );
             expect(updateFile).toHaveBeenCalledTimes(1);
             const schema = writtenSchema();
             expect(columnOf(schema, 'dim_a').meta?.metrics).toHaveProperty(
@@ -535,31 +531,95 @@ models:
             );
         });
 
-        it('hosts a SQL dimension referencing an unnested leaf on that leaf column', async () => {
-            await service.updateFile({
-                owner: 'owner',
-                repo: 'repo',
-                path: 'path',
-                projectUuid: 'projectUuid',
-                fieldType: 'customDimensions',
-                fields: [
+        it.each([
+            {
+                reason: 'it references that leaf',
+                sql: 'LEFT(${table_a__items.sku}, 2)',
+            },
+            {
+                reason: 'it only references the parent table',
+                sql: 'CONCAT(${table_a.dim_a}, "-")',
+            },
+            {
+                reason: 'it references the element position first',
+                sql: 'CONCAT(${table_a__items.offset}, ${table_a__items.sku})',
+            },
+        ])(
+            'keeps a SQL dimension on its unnested table when $reason',
+            async ({ sql }) => {
+                await service.updateFile({
+                    owner: 'owner',
+                    repo: 'repo',
+                    path: 'path',
+                    projectUuid: 'projectUuid',
+                    fieldType: 'customDimensions',
+                    fields: [
+                        {
+                            ...CUSTOM_DIMENSION,
+                            id: 'sku_prefix',
+                            table: 'table_a__items',
+                            sql,
+                        },
+                    ],
+                    branch: 'branch',
+                    token: 'token',
+                    quoteChar: `'`,
+                    mainBranch: 'main',
+                    type: DbtProjectType.GITHUB,
+                });
+                const sku = columnOf(writtenSchema(), 'items.sku');
+                expect(sku.meta?.additional_dimensions).toHaveProperty(
+                    'sku_prefix',
+                );
+            },
+        );
+
+        it('refuses a SQL dimension on the elements of an array of scalars', async () => {
+            await expect(
+                service.updateFile({
+                    owner: 'owner',
+                    repo: 'repo',
+                    path: 'path',
+                    projectUuid: 'projectUuid',
+                    fieldType: 'customDimensions',
+                    fields: [
+                        {
+                            ...CUSTOM_DIMENSION,
+                            id: 'tag_upper',
+                            table: 'table_a__tags',
+                            sql: 'UPPER(${table_a__tags.value})',
+                        },
+                    ],
+                    branch: 'branch',
+                    token: 'token',
+                    quoteChar: `'`,
+                    mainBranch: 'main',
+                    type: DbtProjectType.GITHUB,
+                }),
+            ).rejects.toThrow('array of scalars');
+            expect(updateFile).not.toHaveBeenCalled();
+        });
+
+        it('refuses a field on the element position before creating a branch', async () => {
+            await expect(
+                service.createPullRequest(
+                    { ...user, organizationUuid: 'organizationUuid' },
+                    'projectUuid',
+                    "'",
                     {
-                        ...CUSTOM_DIMENSION,
-                        id: 'sku_prefix',
-                        table: 'table_a__items',
-                        sql: 'LEFT(${table_a__items.sku}, 2)',
+                        type: 'customMetrics',
+                        fields: [
+                            {
+                                ...CUSTOM_METRIC,
+                                table: 'table_a__items',
+                                baseDimensionName: 'offset',
+                            },
+                        ],
                     },
-                ],
-                branch: 'branch',
-                token: 'token',
-                quoteChar: `'`,
-                mainBranch: 'main',
-                type: DbtProjectType.GITHUB,
-            });
-            const sku = columnOf(writtenSchema(), 'items.sku');
-            expect(sku.meta?.additional_dimensions).toHaveProperty(
-                'sku_prefix',
-            );
+                ),
+            ).rejects.toThrow('not a column of model "table_a"');
+            expect(createBranch).not.toHaveBeenCalled();
+            expect(updateFile).not.toHaveBeenCalled();
         });
 
         it.each([
@@ -579,7 +639,7 @@ models:
                     table: 'table_a__items',
                     baseDimensionName: undefined,
                 },
-                error: 'Only metrics based on a',
+                error: 'Only metrics based on a dimension are supported',
             },
         ])(
             'refuses to write a custom metric when $reason',

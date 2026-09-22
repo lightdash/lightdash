@@ -237,17 +237,15 @@ export default class DbtSchemaEditor {
         { dimension, column }: CustomDimensionWriteback,
         warehouseSqlBuilder: WarehouseSqlBuilder,
     ): DbtColumnLightdashAdditionalDimension {
-        if (isCustomSqlDimension(dimension)) {
-            return convertCustomSqlDimensionToDbt(dimension);
-        }
-        // Additional dimensions declared on an array of scalars stay on the
-        // model, where the element does not exist.
         if (column.isScalarArrayElement) {
             throw new ParameterError(
                 `Custom dimension ${dimension.name} is built on the elements of ${column.column}, an array of scalars, and dbt YAML has no column for the element to hold it`,
             );
         }
-        this.getWritebackColumn(column);
+        this.assertWritebackColumnExists(column);
+        if (isCustomSqlDimension(dimension)) {
+            return convertCustomSqlDimensionToDbt(dimension);
+        }
         return convertCustomBinDimensionToDbt({
             customDimension: dimension,
             baseDimensionSql: column.sql,
@@ -255,10 +253,16 @@ export default class DbtSchemaEditor {
         });
     }
 
+    private assertWritebackColumnExists(column: WritebackColumn) {
+        void this.getWritebackColumn(column);
+    }
+
     private getWritebackColumn({ model, column }: WritebackColumn) {
         const node = this.findColumnByName(model, column);
         if (!node) {
-            throw new Error(`Column ${column} not found in model ${model}`);
+            throw new ParameterError(
+                `Column ${column} not found in model ${model}. Refresh the project before writing back.`,
+            );
         }
         return node;
     }

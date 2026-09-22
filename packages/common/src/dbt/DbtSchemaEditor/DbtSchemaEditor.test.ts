@@ -13,6 +13,7 @@ import {
     CUSTOM_DIMENSION_WRITEBACKS,
     CUSTOM_METRIC,
     CUSTOM_METRIC_WRITEBACK,
+    CUSTOM_SQL_DIMENSION,
     dimensionColumn,
     EXPECTED_SCHEMA_JSON_WITH_NEW_MODEL,
     EXPECTED_SCHEMA_YML_WITH_NEW_METRICS_AND_DIMENSIONS,
@@ -147,31 +148,47 @@ models:
         expect(tags.meta?.metrics).toHaveProperty('tag_count');
     });
 
-    it('refuses a custom dimension on the elements of an array of scalars', () => {
-        const editor = new DbtSchemaEditor(`version: 2
+    it.each([
+        {
+            kind: 'bin',
+            dimension: {
+                ...FIXED_WIDTH_BIN_DIMENSION,
+                table: 'orders__tags',
+                dimensionId: 'orders__tags_value',
+            },
+        },
+        {
+            kind: 'SQL',
+            dimension: {
+                ...CUSTOM_SQL_DIMENSION,
+                table: 'orders__tags',
+                sql: 'UPPER(${orders__tags.value})',
+            },
+        },
+    ])(
+        'refuses a $kind dimension on the elements of an array of scalars',
+        ({ dimension }) => {
+            const editor = new DbtSchemaEditor(`version: 2
 models:
   - name: orders
     columns:
       - name: tags`);
-        expect(() =>
-            editor.getCustomDimensionDefinition(
-                {
-                    dimension: {
-                        ...FIXED_WIDTH_BIN_DIMENSION,
-                        table: 'orders__tags',
-                        dimensionId: 'orders__tags_value',
+            expect(() =>
+                editor.getCustomDimensionDefinition(
+                    {
+                        dimension,
+                        column: {
+                            model: 'orders',
+                            column: 'tags',
+                            sql: '${TABLE}',
+                            isScalarArrayElement: true,
+                        },
                     },
-                    column: {
-                        model: 'orders',
-                        column: 'tags',
-                        sql: '${TABLE}',
-                        isScalarArrayElement: true,
-                    },
-                },
-                warehouseClientMock,
-            ),
-        ).toThrow('array of scalars');
-    });
+                    warehouseClientMock,
+                ),
+            ).toThrow('array of scalars');
+        },
+    );
 
     it('should create a new file', () => {
         const editor = new DbtSchemaEditor('');

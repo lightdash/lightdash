@@ -145,7 +145,7 @@ export const SingleItemModalContent = ({
     const previewError =
         writeBackError ??
         (previewQuery.error
-            ? getErrorMessage(previewQuery.error.error)
+            ? previewQuery.error.error.message
             : metricPreview.error);
     const previewCode = isCustomDimension(item)
         ? (previewQuery.data?.yaml ?? '')
@@ -323,7 +323,7 @@ const MultipleItemsModalContent = ({
         }
     }, [selectedCustomDimensions.length, selectedItems, type, isNative]);
     const previewError = previewQuery.error
-        ? getErrorMessage(previewQuery.error.error)
+        ? previewQuery.error.error.message
         : metricPreview.error;
     const previewCode =
         selectedCustomDimensions.length > 0

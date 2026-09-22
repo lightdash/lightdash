@@ -1,6 +1,7 @@
 import {
     AdditionalMetric,
     CompiledDimension,
+    CompiledTable,
     CustomDimensionType,
     CustomSqlDimension,
     DimensionType,
@@ -34,8 +35,8 @@ const dimension = (
 const table = (
     name: string,
     dimensions: CompiledDimension[],
-    extra: Partial<Explore['tables'][string]> = {},
-): Explore['tables'][string] => ({
+    extra: Partial<CompiledTable> = {},
+): CompiledTable => ({
     name,
     label: name,
     database: 'db',

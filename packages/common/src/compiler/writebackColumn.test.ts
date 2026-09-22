@@ -1,6 +1,11 @@
 import { SupportedDbtAdapter } from '../types/dbt';
 import { isExploreError } from '../types/explore';
-import { DimensionType } from '../types/field';
+import {
+    BinType,
+    CustomDimensionType,
+    DimensionType,
+    type CustomDimension,
+} from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import {
     setCatalogNestedColumnShape,
@@ -10,7 +15,10 @@ import { getBigqueryUnnestSql } from '../utils/warehouse';
 import { warehouseClientMock } from './exploreCompiler.mock';
 import { attachTypesToModels, convertExplores } from './translator';
 import { model } from './translator.mock';
-import { resolveWritebackColumn } from './writebackColumn';
+import {
+    resolveCustomDimensionWritebackColumn,
+    resolveWritebackColumn,
+} from './writebackColumn';
 
 const bigqueryClientMock = {
     ...warehouseClientMock,
@@ -152,6 +160,27 @@ describe('resolveWritebackColumn', () => {
         ).toThrow('not a column of model "sessions"');
     });
 
+    it('refuses the element position on explores cached before the provenance carried SQL', async () => {
+        const explore = await compile('sessions');
+        const hits = explore.tables.sessions__hits;
+        const legacy = {
+            ...explore,
+            tables: {
+                ...explore.tables,
+                sessions__hits: {
+                    ...hits,
+                    nestedFrom: {
+                        parentTable: hits.nestedFrom!.parentTable,
+                        columnPath: hits.nestedFrom!.columnPath,
+                    },
+                },
+            },
+        } as unknown as typeof explore;
+        expect(() =>
+            resolveWritebackColumn(legacy, 'sessions__hits', 'offset'),
+        ).toThrow('not a column of model "sessions"');
+    });
+
     it('resolves an unnested table under a join alias to the joined model', async () => {
         const explore = await compile('visits');
         expect(
@@ -167,5 +196,82 @@ describe('resolveWritebackColumn', () => {
         expect(() =>
             resolveWritebackColumn(explore, 'sessions', 'missing'),
         ).toThrow('not found in table');
+    });
+});
+
+describe('resolveCustomDimensionWritebackColumn', () => {
+    const sqlDimension = (table: string, sql: string): CustomDimension => ({
+        id: 'custom',
+        name: 'Custom',
+        table,
+        type: CustomDimensionType.SQL,
+        dimensionType: DimensionType.STRING,
+        sql,
+    });
+
+    it('anchors a bin on the column of its base dimension', async () => {
+        const explore = await compile('sessions');
+        expect(
+            resolveCustomDimensionWritebackColumn(explore, {
+                id: 'sku_bins',
+                name: 'SKU bins',
+                table: 'sessions__hits__product',
+                type: CustomDimensionType.BIN,
+                dimensionId: 'sessions__hits__product_sku',
+                binType: BinType.FIXED_WIDTH,
+                binWidth: 10,
+            }),
+        ).toMatchObject({
+            model: 'sessions',
+            column: 'hits.product.sku',
+            sql: '${TABLE}.sku',
+        });
+    });
+
+    it('keeps a SQL dimension on its own table whatever its SQL references', async () => {
+        const explore = await compile('sessions');
+        const own = resolveCustomDimensionWritebackColumn(
+            explore,
+            sqlDimension(
+                'sessions__hits',
+                'LEFT(${sessions__hits.page.path}, 1)',
+            ),
+        );
+        expect(own).toMatchObject({
+            model: 'sessions',
+            column: 'hits.page.path',
+        });
+        const other = resolveCustomDimensionWritebackColumn(
+            explore,
+            sqlDimension(
+                'sessions__hits',
+                'CAST(${sessions.visit_id} AS STRING)',
+            ),
+        );
+        expect(other).toMatchObject({
+            model: 'sessions',
+            column: 'hits.page.path',
+        });
+        const offsetFirst = resolveCustomDimensionWritebackColumn(
+            explore,
+            sqlDimension(
+                'sessions__hits',
+                'CONCAT(${sessions__hits.offset}, ${sessions__hits.page.path})',
+            ),
+        );
+        expect(offsetFirst).toMatchObject({ column: 'hits.page.path' });
+    });
+
+    it('resolves a SQL dimension on an array of scalars to the array column', async () => {
+        const explore = await compile('sessions');
+        expect(
+            resolveCustomDimensionWritebackColumn(
+                explore,
+                sqlDimension(
+                    'sessions__tags',
+                    'UPPER(${sessions__tags.value})',
+                ),
+            ),
+        ).toMatchObject({ column: 'tags', isScalarArrayElement: true });
     });
 });

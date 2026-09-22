@@ -18,7 +18,6 @@ import {
     friendlyName,
     getCustomDimensionWriteBackError,
     getErrorMessage,
-    getItemId,
     getLatestSupportDbtVersion,
     GitBranch,
     GitFileOrDirectory,
@@ -29,7 +28,6 @@ import {
     LightdashModelEditor,
     NotFoundError,
     ParameterError,
-    parseAllReferences,
     ParseError,
     ProjectType,
     PullRequestCreated,
@@ -37,7 +35,8 @@ import {
     PullRequestSource,
     QueryExecutionContext,
     RegisteredAccount,
-    resolveWritebackColumn,
+    resolveCustomDimensionWritebackColumn,
+    resolveCustomMetricWritebackColumn,
     SavedChart,
     SessionUser,
     snakeCaseName,
@@ -100,19 +99,29 @@ type DbtWritebackGitProps =
     | GitProps
     | (Omit<GitProps, 'type'> & { type: DbtProjectType.BITBUCKET });
 
-type WriteBackFileArgs = DbtWritebackGitProps &
-    (
-        | {
-              fieldType: 'customDimensions';
-              fields: CustomDimension[];
-          }
-        | {
-              fieldType: 'customMetrics';
-              fields: AdditionalMetric[];
-          }
-    ) & {
-        projectUuid: string;
-    };
+type WritebackFields =
+    | {
+          fieldType: 'customDimensions';
+          fields: CustomDimension[];
+      }
+    | {
+          fieldType: 'customMetrics';
+          fields: AdditionalMetric[];
+      };
+
+type ResolvedWritebacks =
+    | {
+          fieldType: 'customDimensions';
+          items: CustomDimensionWriteback[];
+      }
+    | {
+          fieldType: 'customMetrics';
+          items: CustomMetricWriteback[];
+      };
+
+type WriteBackGitArgs = DbtWritebackGitProps & { projectUuid: string };
+
+type WriteBackFileArgs = WriteBackGitArgs & WritebackFields;
 
 // Keep backward compatibility
 type GithubProps = GitProps;
@@ -448,7 +457,10 @@ Affected charts:
         return { yamlSchema, fileName, fileContent, fileSha };
     }
 
-    private async *iterateFileUpdates(args: WriteBackFileArgs) {
+    private async *iterateFileUpdates(
+        args: WriteBackGitArgs,
+        writebacks: ResolvedWritebacks,
+    ) {
         const {
             owner,
             repo,
@@ -458,33 +470,13 @@ Affected charts:
             token,
             branch,
             quoteChar,
-            fieldType,
             type: gitType,
             hostDomain,
         } = args;
         const fieldsType =
-            fieldType === 'customDimensions'
+            writebacks.fieldType === 'customDimensions'
                 ? 'custom dimension'
                 : 'custom metric';
-
-        if (args.fields === undefined || args.fields.length === 0)
-            throw new ParameterError(`No custom ${fieldsType}s found`);
-        const writebacks =
-            args.fieldType === 'customDimensions'
-                ? {
-                      fieldType: args.fieldType,
-                      items: await this.resolveCustomDimensionWritebacks(
-                          projectUuid,
-                          args.fields,
-                      ),
-                  }
-                : {
-                      fieldType: args.fieldType,
-                      items: await this.resolveCustomMetricWritebacks(
-                          projectUuid,
-                          args.fields,
-                      ),
-                  };
         const models = [
             ...new Set(writebacks.items.map((item) => item.column.model)),
         ];
@@ -503,6 +495,9 @@ Affected charts:
                     type: gitType,
                     hostDomain,
                 });
+            const forModel = <T extends { column: WritebackColumn }>(
+                items: T[],
+            ) => items.filter((item) => item.column.model === model);
 
             let updatedYml: string;
             let fieldCount: number;
@@ -515,23 +510,17 @@ Affected charts:
                     this.projectModel.getWarehouseClientFromCredentials(
                         warehouseCredentials,
                     );
-                const items = writebacks.items.filter(
-                    (item) => item.column.model === model,
-                );
+                const items = forModel(writebacks.items);
                 fieldCount = items.length;
                 updatedYml = yamlSchema
                     .addCustomDimensions(items, warehouseClient)
-                    .toString({
-                        quoteChar,
-                    });
+                    .toString({ quoteChar });
             } else {
-                const items = writebacks.items.filter(
-                    (item) => item.column.model === model,
-                );
+                const items = forModel(writebacks.items);
                 fieldCount = items.length;
-                updatedYml = yamlSchema.addCustomMetrics(items).toString({
-                    quoteChar,
-                });
+                updatedYml = yamlSchema
+                    .addCustomMetrics(items)
+                    .toString({ quoteChar });
             }
 
             const message = `Updated file ${fileName} with ${fieldCount} custom ${fieldsType} from model ${model}`;
@@ -585,22 +574,13 @@ Affected charts:
     ): Promise<CustomMetricWriteback[]> {
         const getExplore = this.exploreLookup(projectUuid);
         return Promise.all(
-            metrics.map(async (metric) => {
-                if (metric.baseDimensionName === undefined) {
-                    throw new ParameterError(
-                        `Metric ${metric.name} cannot be written back. Only metrics based on a dimension are supported; metrics without a base dimension are not.`,
-                    );
-                }
-                const explore = await getExplore(metric.table);
-                return {
+            metrics.map(async (metric) => ({
+                metric,
+                column: resolveCustomMetricWritebackColumn(
+                    await getExplore(metric.table),
                     metric,
-                    column: resolveWritebackColumn(
-                        explore,
-                        metric.table,
-                        metric.baseDimensionName,
-                    ),
-                };
-            }),
+                ),
+            })),
         );
     }
 
@@ -612,7 +592,7 @@ Affected charts:
         return Promise.all(
             dimensions.map(async (dimension) => ({
                 dimension,
-                column: GitIntegrationService.resolveCustomDimensionColumn(
+                column: resolveCustomDimensionWritebackColumn(
                     await getExplore(dimension.table),
                     dimension,
                 ),
@@ -620,58 +600,38 @@ Affected charts:
         );
     }
 
-    // A bin lands on its base column. A SQL dimension lands on the first
-    // column of its own model that its SQL references, or on the model's
-    // first column when it only references other tables.
-    private static resolveCustomDimensionColumn(
-        explore: Explore,
-        dimension: CustomDimension,
-    ): WritebackColumn {
-        const table = explore.tables[dimension.table];
-        if (!table) {
+    private async resolveWritebacks(
+        projectUuid: string,
+        fields: WritebackFields,
+    ): Promise<ResolvedWritebacks> {
+        if (fields.fields.length === 0) {
             throw new ParameterError(
-                `Table "${dimension.table}" is not part of explore "${explore.name}"`,
+                `No custom ${fields.fieldType === 'customDimensions' ? 'dimension' : 'metric'}s found`,
             );
         }
-        if (isCustomBinDimension(dimension)) {
-            const base = Object.values(table.dimensions).find(
-                (candidate) => getItemId(candidate) === dimension.dimensionId,
-            );
-            if (!base) {
-                throw new ParameterError(
-                    `Dimension ${dimension.dimensionId} not found in table ${dimension.table}`,
-                );
-            }
-            return resolveWritebackColumn(explore, dimension.table, base.name);
-        }
-        const firstDimension = Object.values(table.dimensions)
-            .filter((candidate) => !candidate.isAdditionalDimension)
-            .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))[0];
-        if (!firstDimension) {
-            throw new ParameterError(
-                `No columns found in table ${dimension.table}`,
-            );
-        }
-        const fallback = resolveWritebackColumn(
-            explore,
-            dimension.table,
-            firstDimension.name,
-        );
-        const referenced = parseAllReferences(dimension.sql, dimension.table)
-            .filter(
-                ({ refTable, refName }) =>
-                    explore.tables[refTable]?.dimensions[refName] !== undefined,
-            )
-            .map(({ refTable, refName }) =>
-                resolveWritebackColumn(explore, refTable, refName),
-            )
-            .find((column) => column.model === fallback.model);
-        return referenced ?? fallback;
+        return fields.fieldType === 'customDimensions'
+            ? {
+                  fieldType: fields.fieldType,
+                  items: await this.resolveCustomDimensionWritebacks(
+                      projectUuid,
+                      fields.fields,
+                  ),
+              }
+            : {
+                  fieldType: fields.fieldType,
+                  items: await this.resolveCustomMetricWritebacks(
+                      projectUuid,
+                      fields.fields,
+                  ),
+              };
     }
 
-    private async prepareFileUpdates(args: WriteBackFileArgs) {
+    private async prepareFileUpdates(
+        args: WriteBackGitArgs,
+        writebacks: ResolvedWritebacks,
+    ) {
         const updates = [];
-        for await (const update of this.iterateFileUpdates(args)) {
+        for await (const update of this.iterateFileUpdates(args, writebacks)) {
             updates.push(update);
         }
         return updates;
@@ -718,8 +678,22 @@ Affected charts:
     }
 
     async updateFile(args: WriteBackFileArgs): Promise<void> {
+        const { fieldType, fields, ...gitArgs } = args;
+        const writebacks = await this.resolveWritebacks(
+            args.projectUuid,
+            fieldType === 'customDimensions'
+                ? { fieldType, fields }
+                : { fieldType, fields },
+        );
+        await this.writeResolvedFiles(gitArgs, writebacks);
+    }
+
+    private async writeResolvedFiles(
+        args: WriteBackGitArgs,
+        writebacks: ResolvedWritebacks,
+    ): Promise<void> {
         // dbt models can share a YAML file; read each model after the previous write.
-        for await (const update of this.iterateFileUpdates(args)) {
+        for await (const update of this.iterateFileUpdates(args, writebacks)) {
             await GitIntegrationService.updatePreparedFiles(
                 [update],
                 args.branch,
@@ -1120,23 +1094,21 @@ Affected charts:
             quoteChar,
         );
 
-        // Validate every native source document before creating a branch or writing files.
+        // Resolve and, for native models, render every file before creating a
+        // branch, so a refused field leaves nothing behind on Git.
+        const writebacks = await this.resolveWritebacks(
+            projectUuid,
+            args.type === 'customMetrics'
+                ? { fieldType: 'customMetrics', fields: args.fields }
+                : { fieldType: 'customDimensions', fields: args.fields },
+        );
+        const gitArgs = { ...gitProps, projectUuid };
         const nativeUpdates =
             gitProps.semanticLayer === 'lightdash'
-                ? await this.prepareFileUpdates({
-                      ...gitProps,
-                      branch: gitProps.mainBranch,
-                      projectUuid,
-                      ...(args.type === 'customMetrics'
-                          ? {
-                                fieldType: 'customMetrics' as const,
-                                fields: args.fields,
-                            }
-                          : {
-                                fieldType: 'customDimensions' as const,
-                                fields: args.fields,
-                            }),
-                  })
+                ? await this.prepareFileUpdates(
+                      { ...gitArgs, branch: gitProps.mainBranch },
+                      writebacks,
+                  )
                 : undefined;
         await GitIntegrationService.createBranch(gitProps);
         if (nativeUpdates) {
@@ -1144,20 +1116,8 @@ Affected charts:
                 nativeUpdates,
                 gitProps.branch,
             );
-        } else if (args.type === 'customMetrics') {
-            await this.updateFile({
-                ...gitProps,
-                fieldType: 'customMetrics',
-                fields: args.fields,
-                projectUuid,
-            });
         } else {
-            await this.updateFile({
-                ...gitProps,
-                fieldType: 'customDimensions',
-                fields: args.fields,
-                projectUuid,
-            });
+            await this.writeResolvedFiles(gitArgs, writebacks);
         }
 
         const fieldsInfo =
