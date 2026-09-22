@@ -51,6 +51,7 @@ export { getDashboardDeleteAccess } from './authorization/getDashboardDeleteAcce
 export { getDocumentDeleteAccess } from './authorization/getDocumentDeleteAccess';
 export {
     defineUserAbility,
+    EMBED_DASHBOARD_HEADER_NAME,
     getUserAbilityBuilder,
     JWT_HEADER_NAME,
     type ProjectAbilityProfile,

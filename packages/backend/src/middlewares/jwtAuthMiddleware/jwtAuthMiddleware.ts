@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 // This rule is failing in CI but passes locally
-import { JWT_HEADER_NAME, NotFoundError } from '@lightdash/common';
+import {
+    EMBED_DASHBOARD_HEADER_NAME,
+    JWT_HEADER_NAME,
+    NotFoundError,
+} from '@lightdash/common';
 import { NextFunction, Request, Response } from 'express';
 import { fromJwt } from '../../auth/account';
 import { requestContextFromExpress } from '../../auth/account/requestContext';
@@ -109,10 +113,15 @@ export async function jwtAuthMiddleware(
             return;
         }
 
+        const requestedDashboardUuid = req.headers[EMBED_DASHBOARD_HEADER_NAME];
+
         // Get embed configuration from database
         req.account = await embedService.getAccountFromJwt(
             projectUuid,
             embedToken,
+            typeof requestedDashboardUuid === 'string'
+                ? { dashboardUuid: requestedDashboardUuid }
+                : undefined,
         );
         req.account.requestContext = requestContextFromExpress(req);
         if (req.account.embedWriteUser) {

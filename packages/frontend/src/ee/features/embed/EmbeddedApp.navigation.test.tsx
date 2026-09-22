@@ -124,6 +124,18 @@ describe('embedded Explore back navigation', () => {
         },
     );
 
+    it('returns to a saved dashboard opened from the conversation', async () => {
+        const dashboard = `${base}/ai-agents/agent/dashboards/dashboard`;
+        const router = renderEmbed(
+            { type: 'aiAgent', agentUuid: 'agent' },
+            `?${new URLSearchParams({ embedBackUrl: dashboard })}`,
+        );
+        fireEvent.click(screen.getByText('Back'));
+        await waitFor(() =>
+            expect(router.state.location.pathname).toBe(dashboard),
+        );
+    });
+
     it('keeps the original return state for existing Explore links', async () => {
         const router = renderEmbed(
             { type: 'aiAgent', agentUuid: 'agent' },

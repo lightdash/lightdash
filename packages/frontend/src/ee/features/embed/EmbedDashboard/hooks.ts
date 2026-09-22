@@ -6,9 +6,12 @@ export const useEmbedDashboard = (
     projectUuid: string | undefined,
     paletteUuid?: string,
     enabled: boolean = true,
+    // The token names the dashboard for dashboard embeds; an AI-agent embed
+    // names it per request, so it must key the cache.
+    dashboardUuid?: string,
 ) => {
     return useQuery<EmbedDashboard, ApiError>({
-        queryKey: ['embed-dashboard', projectUuid, paletteUuid],
+        queryKey: ['embed-dashboard', projectUuid, paletteUuid, dashboardUuid],
         queryFn: () => postEmbedDashboard(projectUuid!, { paletteUuid }),
         enabled: !!projectUuid && enabled,
         // Inherits the app-wide retry policy: transient NetworkErrors retry

@@ -1,3 +1,4 @@
+import { assertRegisteredAccount } from '@lightdash/common';
 import express, { type Router } from 'express';
 import {
     allowApiKeyAuthentication,
@@ -13,6 +14,9 @@ dashboardRouter.get(
     isAuthenticated,
     async (req, res, next) => {
         try {
+            // Embed JWTs authenticate but carry no session user; their
+            // dashboards are served by the embed routes.
+            assertRegisteredAccount(req.account);
             res.json({
                 status: 'ok',
                 results: await req.services

@@ -51,10 +51,14 @@ export const getEmbedBackUrl = ({
             return fallback;
         }
 
+        // An AI-agent embed returns to its conversation or to a saved
+        // dashboard it opened from one.
         const isContentRoute =
             url.pathname === fallback ||
             (content?.type === 'aiAgent' &&
-                url.pathname.startsWith(`${fallback}/`)) ||
+                url.pathname.startsWith(
+                    `/embed/${projectUuid}/ai-agents/${content.agentUuid}/`,
+                )) ||
             (content?.type === 'dashboard' &&
                 url.pathname.startsWith(`${fallback}/tabs/`));
 

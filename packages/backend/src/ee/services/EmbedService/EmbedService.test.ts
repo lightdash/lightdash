@@ -87,6 +87,11 @@ describe('EmbedService', () => {
                                 { projectUuid: mockProjectUuid },
                             );
                         const account = {
+                            embed: {
+                                dashboardUuids: [],
+                                allowAllDashboards: true,
+                                user: null,
+                            },
                             ...mockAccountWithPermission,
                             authentication: {
                                 type: 'jwt',
@@ -1000,6 +1005,11 @@ describe('EmbedService', () => {
         const buildChartEmbedAccount = (authorizedExplores: string[]) =>
             ({
                 authentication: { type: 'jwt', source: 'embed-token' },
+                embed: {
+                    dashboardUuids: [],
+                    allowAllDashboards: false,
+                    user: { userUuid: mockUserUuid },
+                },
                 access: {
                     content: {
                         type: 'chart',
@@ -1353,6 +1363,11 @@ describe('EmbedService', () => {
                 embedModel,
             } as unknown as ConstructorParameters<typeof EmbedService>[0]);
             const account = {
+                embed: {
+                    dashboardUuids: [dashboardUuid],
+                    allowAllDashboards: false,
+                    user: { userUuid: mockUserUuid },
+                },
                 authentication: {
                     type: 'jwt',
                     source: 'embed-token',
@@ -1481,6 +1496,11 @@ describe('EmbedService', () => {
                     _runEmbedQuery: runEmbedQuery,
                 });
                 const account = {
+                    embed: {
+                        dashboardUuids: [dashboardUuid],
+                        allowAllDashboards: false,
+                        user: { userUuid: mockUserUuid },
+                    },
                     access: {
                         content: { dashboardUuid },
                         parameters: { enabled: isInteractivityEnabled },

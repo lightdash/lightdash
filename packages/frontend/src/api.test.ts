@@ -1,4 +1,7 @@
-import { JWT_HEADER_NAME } from '@lightdash/common';
+import {
+    EMBED_DASHBOARD_HEADER_NAME,
+    JWT_HEADER_NAME,
+} from '@lightdash/common';
 import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -94,6 +97,30 @@ describe('api', () => {
         expect(scope.isDone()).toBe(true);
         expect(result).toEqual('token headers');
 
+        clearInMemoryStorage();
+    });
+
+    it('sends the dashboard an AI-agent embed is viewing alongside its token', async () => {
+        setToInMemoryStorage(EMBED_KEY, {
+            token: 'system token',
+            projectUuid: 'project-uuid',
+            dashboardUuid: 'dashboard-uuid',
+        });
+        const scope = nock(BASE_API_URL)
+            .matchHeader(JWT_HEADER_NAME, 'system token')
+            .matchHeader(EMBED_DASHBOARD_HEADER_NAME, 'dashboard-uuid')
+            .post('/api/v1/embed/project-uuid/dashboard')
+            .query({ projectUuid: 'project-uuid' })
+            .reply(200, { status: 'ok', results: 'dashboard' });
+
+        const result = await lightdashApi({
+            method: 'POST',
+            url: '/embed/project-uuid/dashboard',
+            body: '{}',
+        });
+
+        scope.done();
+        expect(result).toEqual('dashboard');
         clearInMemoryStorage();
     });
 
