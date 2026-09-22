@@ -280,7 +280,9 @@ describe('Embed Dashboard JWT API', () => {
         });
 
         describe('GET dashboard details', () => {
-            it('should get dashboard using JWT token (authorized)', async () => {
+            // Embed JWTs carry no session user; the app route rejects them
+            // and the embed routes serve their dashboard instead.
+            it('should reject the app dashboard route for a JWT token', async () => {
                 const client = embedClient();
                 const resp = await client.get(
                     `/api/v1/dashboards/${testDashboardUuid}?projectUuid=${SEED_PROJECT.project_uuid}`,
@@ -289,7 +291,7 @@ describe('Embed Dashboard JWT API', () => {
                         failOnStatusCode: false,
                     },
                 );
-                expect(resp.status).toBe(500);
+                expect(resp.status).toBe(403);
             });
         });
 
