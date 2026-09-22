@@ -609,6 +609,7 @@ describe('decideTurn', () => {
             nonEdit: noul(0.05),
             chartType: choice('line'),
             simple: noul(0.95),
+            covers: noul(0.95),
         });
         const { decision } = await decideTurn({
             decisions: { evaluate },
@@ -622,7 +623,11 @@ describe('decideTurn', () => {
                 usage: noUsage,
             }),
         });
-        expect(evaluate).toHaveBeenCalledTimes(1);
+        // One batched decision, then one coverage check before acting.
+        expect(evaluate).toHaveBeenCalledTimes(2);
+        expect(evaluate.mock.calls[1][0].state.plannedChange).toBe(
+            'Show the same data as a line chart',
+        );
         expect(Object.keys(evaluate.mock.calls[0][0].questions)).toEqual(
             expect.arrayContaining([
                 'intent',
@@ -640,6 +645,36 @@ describe('decideTurn', () => {
                 intent: { kind: 'chart_type', chartType: 'line' },
             },
         });
+    });
+
+    it('hands a partial plan to the agent', async () => {
+        const evaluate = vi
+            .fn()
+            .mockResolvedValueOnce({
+                intent: choice('chart_type'),
+                multiple: noul(0.05),
+                nonEdit: noul(0.05),
+                chartType: choice('bar'),
+                simple: noul(0.1),
+            })
+            .mockResolvedValueOnce({ covers: noul(0.2) });
+        const { decision } = await decideTurn({
+            decisions: { evaluate },
+            prompt: 'stacked 100% bars',
+            instructions: null,
+            conversation: [],
+            context: buildChartIntentContext({
+                prompt: 'stacked 100% bars',
+                artifact,
+                explore,
+                usage: noUsage,
+            }),
+        });
+        expect(decision.chart).toEqual({
+            type: 'unresolved',
+            reason: 'not-covered',
+        });
+        expect(isChartEditAttempt(decision.chart!)).toBe(false);
     });
 
     it('falls back to the agent when JEV is unavailable', async () => {

@@ -482,12 +482,15 @@ const applyAddField = (
         chart.xAxisDimension && query.dimensions.includes(chart.xAxisDimension)
             ? chart.xAxisDimension
             : null;
-    // A table has no meaningful axis yet, so the new field becomes it and prior dimensions group the series.
+    // The new field becomes the axis when there is none yet, when charting a table, or
+    // when it is a date on a non-date axis ("per month"); prior dimensions then group the series.
     const promote =
         currentAxis === null ||
         (chart.defaultVizType === 'table' &&
             intent.chartType !== null &&
-            intent.chartType !== 'table');
+            intent.chartType !== 'table') ||
+        (isDateField(explore, intent.fieldId) &&
+            !isDateField(explore, currentAxis));
     const xAxisDimension = promote ? intent.fieldId : currentAxis;
     const groupBy = [...query.dimensions, intent.fieldId].filter(
         (id, index, ids) => id !== xAxisDimension && ids.indexOf(id) === index,

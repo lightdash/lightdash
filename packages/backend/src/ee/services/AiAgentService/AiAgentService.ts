@@ -348,6 +348,7 @@ import {
     decideTurn,
     isChartEditAttempt,
     selectFilterValues,
+    verifyChartPlan,
     type ChartIntentContext,
     type ChartIntentResolution,
     type CompoundStep,
@@ -12001,6 +12002,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         step,
         artifact,
         explore,
+        verifyValues,
     }: {
         user: SessionUser;
         prompt: AiWebAppPrompt;
@@ -12010,6 +12012,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         step: CompoundStep;
         artifact: AiSemanticChartArtifactConfig;
         explore: Explore;
+        /** A lone value filter is only verified once its concrete values are known. */
+        verifyValues: boolean;
     }): Promise<
         | { type: 'edit'; edit: ChartEdit; explore: Explore }
         | { type: 'fallback'; reason: string }
@@ -12036,8 +12040,24 @@ Use your existing tools to inspect them when relevant to the user's question (re
             });
             if (!values)
                 return { type: 'fallback', reason: 'values-not-found' };
+            const valueIntent = {
+                kind: 'filter_values' as const,
+                fieldId,
+                exclude,
+                values,
+            };
+            if (verifyValues) {
+                const verified = await verifyChartPlan({
+                    decisions,
+                    prompt: prompt.prompt,
+                    context: chart.intentContext,
+                    resolution: { type: 'intent', intent: valueIntent },
+                });
+                if (verified.type !== 'intent')
+                    return { type: 'fallback', reason: 'not-covered' };
+            }
             const edit = applyChartIntent({
-                intent: { kind: 'filter_values', fieldId, exclude, values },
+                intent: valueIntent,
                 artifact,
                 explore,
             });
@@ -12139,6 +12159,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 step,
                 artifact,
                 explore,
+                verifyValues: resolution.type === 'needs_values',
             });
             if (applied.type === 'fallback') return applied;
             artifact = applied.edit.config;

@@ -324,6 +324,30 @@ describe('applyChartIntent', () => {
             expect(edit?.response).toBe('Added **Method** from **Payments**.');
         });
 
+        it('puts an added date on the axis of a categorical chart', () => {
+            const edit = applyChartIntent({
+                intent: {
+                    kind: 'add_field',
+                    fieldId: 'orders_date',
+                    chartType: null,
+                },
+                artifact: withQuery(
+                    { dimensions: ['orders_region'] },
+                    {
+                        xAxisDimension: 'orders_region',
+                        groupBy: null,
+                        xAxisType: 'category',
+                    },
+                ),
+                explore,
+            });
+            expect(chartOf(edit)).toMatchObject({
+                xAxisDimension: 'orders_date',
+                groupBy: ['orders_region'],
+                xAxisType: 'time',
+            });
+        });
+
         it('rejects fields that are not dimensions of the explore', () => {
             expect(
                 applyChartIntent({

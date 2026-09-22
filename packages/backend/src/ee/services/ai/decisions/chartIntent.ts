@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     FilterType,
     getFields,
     getFilterTypeFromItemType,
@@ -95,6 +96,7 @@ export type ChartIntentResolution =
 
 const NON_EDIT_REASONS = new Set([
     'non-edit',
+    'not-covered',
     'intent',
     'multiple',
     'decision-unavailable',
@@ -153,6 +155,7 @@ export const CHART_INTENT_THRESHOLDS = {
     clarifyRunnerUp: 0.2,
     clarifyBelow: 0.8,
     verifiedTieMargin: 0.15,
+    covers: 0.6,
 } as const;
 
 const INTENTS = {
@@ -1031,6 +1034,121 @@ export const interpretChartIntent = ({
     }
 };
 
+const labelFor = (context: ChartIntentContext, fieldId: string) =>
+    [
+        ...context.currentFields,
+        ...context.addableFields,
+        ...context.filterableFields,
+    ].find(({ id }) => id === fieldId)?.label ?? fieldId;
+
+const describePeriod = (period: ChartPeriod): string => {
+    switch (period.type) {
+        case 'last':
+            return `the last ${period.count} ${period.unit}`;
+        case 'previous':
+            return `the previous complete ${period.unit.replace(/s$/, '')}`;
+        case 'current':
+            return `the current ${period.unit.replace(/s$/, '')}`;
+        case 'calendar':
+            if (period.quarter !== null)
+                return `Q${period.quarter} ${period.year}`;
+            if (period.month !== null)
+                return `${MONTHS[period.month - 1]} ${period.year}`;
+            return `the year ${period.year}`;
+        default:
+            return assertUnreachable(period, 'Unknown chart period');
+    }
+};
+
+const describeStep = (
+    step: CompoundStep,
+    context: ChartIntentContext,
+): string => {
+    if (step.type === 'needs_values')
+        return `${step.filter.exclude ? 'Exclude' : 'Keep only'} the ${labelFor(context, step.filter.fieldId)} values the user names`;
+    const { intent } = step;
+    switch (intent.kind) {
+        case 'chart_type':
+            return `Show the same data as ${CHART_TYPE_NAMES[intent.chartType]}`;
+        case 'series':
+            return {
+                stack: 'Stack the existing bar series',
+                unstack: 'Unstack the existing bar series',
+                swap: 'Swap the bar chart between vertical and horizontal',
+                split: 'Show one series per dimension already in the chart',
+            }[intent.op];
+        case 'add_field':
+            return `Break the chart down by ${labelFor(context, intent.fieldId)}, with one series per ${labelFor(context, intent.fieldId)} value${intent.chartType ? `, shown as ${CHART_TYPE_NAMES[intent.chartType]}` : ''}`;
+        case 'filter_values':
+            return `${intent.exclude ? 'Exclude' : 'Keep only'} ${labelFor(context, intent.fieldId)} values ${intent.values.join(', ')}`;
+        case 'filter_period':
+            return `Filter ${labelFor(context, intent.fieldId)} to ${describePeriod(intent.period)}`;
+        case 'clear_filters':
+            return 'Remove all chart filters';
+        case 'sort':
+            return `Sort by ${intent.fieldId ? labelFor(context, intent.fieldId) : 'the chart metric'}, ${intent.descending ? 'highest' : 'lowest'} first${intent.limit ? `, keeping ${intent.limit} rows` : ''}`;
+        case 'clear_sort':
+            return 'Remove the chart sort';
+        default:
+            return assertUnreachable(intent, 'Unknown chart intent');
+    }
+};
+
+const plannedSteps = (resolution: ChartIntentResolution): CompoundStep[] => {
+    if (resolution.type === 'compound') return resolution.steps;
+    if (resolution.type === 'needs_values') return [resolution];
+    if (resolution.type === 'intent' && resolution.intent.kind !== 'undo')
+        return [{ type: 'intent', intent: resolution.intent }];
+    return [];
+};
+
+const SELF_CONTAINED = new Set(['clear_filters', 'clear_sort', 'undo']);
+
+/** Second request, only when about to act: does the planned change cover the whole request? */
+export const verifyChartPlan = async ({
+    decisions,
+    prompt,
+    context,
+    resolution,
+    thresholds = CHART_INTENT_THRESHOLDS,
+}: {
+    decisions: Pick<AiDecisionClient, 'evaluate'>;
+    prompt: string;
+    context: ChartIntentContext;
+    resolution: ChartIntentResolution;
+    thresholds?: ChartIntentThresholds;
+}): Promise<ChartIntentResolution> => {
+    if (
+        resolution.type === 'intent' &&
+        SELF_CONTAINED.has(resolution.intent.kind)
+    )
+        return resolution;
+    const steps = plannedSteps(resolution);
+    // Value filters are checked by the warehouse value lookup instead.
+    if (steps.every((step) => step.type === 'needs_values')) return resolution;
+    const answers = await decisions.evaluate({
+        operation: 'chart-intent-verify',
+        state: {
+            request: prompt,
+            chart: describeChart(context),
+            plannedChange: steps
+                .map((step) => describeStep(step, context))
+                .join('; then '),
+        },
+        questions: {
+            covers: {
+                type: 'noul',
+                instructions:
+                    'Would applying `plannedChange` to the current chart do everything the user asks in `request`, with nothing requested left out? Requested details the plan omits make this false: stacking, percentages, combined chart types, cohort layouts, axis settings, new calculations, a different metric, or any named customer, account, person or value to restrict to (that is a filter the plan must include). Statements, feedback, links and questions that do not ask for this change are false.',
+            },
+        },
+    });
+    if (!answers) return { type: 'unresolved', reason: 'decision-unavailable' };
+    return (decisionProbability(answers.covers) ?? 0) >= thresholds.covers
+        ? resolution
+        : { type: 'unresolved', reason: 'not-covered' };
+};
+
 /** One batched request per turn: model routing plus, on chart threads, the chart intent. */
 export const decideTurn = async ({
     decisions,
@@ -1071,9 +1189,18 @@ export const decideTurn = async ({
             },
             answers: null,
         };
-    const chart = context
+    const interpreted = context
         ? interpretChartIntent({ answers, prompt, context })
         : null;
+    const chart =
+        context && interpreted && isChartEditAttempt(interpreted)
+            ? await verifyChartPlan({
+                  decisions,
+                  prompt,
+                  context,
+                  resolution: interpreted,
+              })
+            : interpreted;
     return {
         decision: {
             simpleDataAnswer:
