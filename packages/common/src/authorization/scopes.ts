@@ -1545,10 +1545,6 @@ const scopes: Scope[] = [
                 name: 'view:Space',
                 description: 'Discover apps shared in spaces',
             },
-            {
-                name: 'manage:Explore',
-                description: 'Run apps that query data on the fly',
-            },
         ],
         getConditions: (context) => [
             addUuidCondition(context, { inheritsFromOrgOrProject: true }),

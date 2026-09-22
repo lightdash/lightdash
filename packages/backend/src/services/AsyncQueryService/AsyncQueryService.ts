@@ -1353,6 +1353,15 @@ export class AsyncQueryService extends ProjectService {
             return;
         }
         checkedQueries.add(queryHistory.queryUuid);
+        if (queryHistory.requestParameters?.dataAppSource) {
+            const appService = this.getAppGenerateService?.();
+            if (!appService) throw new ForbiddenError();
+            await appService.assertCanViewQuerySource({
+                account,
+                projectUuid,
+                appUuid: queryHistory.requestParameters.dataAppSource.appUuid,
+            });
+        }
         if (queryHistory.requestParameters?.documentSource) {
             assertRegisteredAccount(account);
             await this.getDocumentService().get(
@@ -5328,8 +5337,28 @@ export class AsyncQueryService extends ProjectService {
                 },
             }),
         );
+        let dataAppSource: ExecuteAsyncQueryRequestParams['dataAppSource'];
         if (isForbidden) {
-            throw new ForbiddenError();
+            const appService = this.getAppGenerateService?.();
+            // Materialization skips model-required filters. An app token must
+            // never authorize that internal execution mode for a consumer.
+            if (
+                !appService ||
+                !args.dataAppPreviewToken ||
+                context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+            )
+                throw new ForbiddenError();
+            dataAppSource = await appService.authorizeConsumerQuery({
+                account,
+                projectUuid,
+                organizationUuid,
+                previewToken: args.dataAppPreviewToken,
+                metricQuery: inputMetricQuery,
+                parameters: args.parameters,
+                dashboardFilters: args.dashboardFilters,
+                dateZoom: args.dateZoom,
+                pivotConfiguration: args.pivotConfiguration,
+            });
         }
 
         await this.assertCustomSqlAuthorizedForQuery({
@@ -5345,6 +5374,8 @@ export class AsyncQueryService extends ProjectService {
         return this.runAsyncMetricQueryWithoutPermissionCheck(
             args,
             organizationUuid,
+            undefined,
+            dataAppSource,
         );
     }
 
@@ -5368,6 +5399,7 @@ export class AsyncQueryService extends ProjectService {
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
         sourceQueryHistory?: QueryHistory,
+        dataAppSource?: ExecuteAsyncQueryRequestParams['dataAppSource'],
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -5518,10 +5550,12 @@ export class AsyncQueryService extends ProjectService {
         const references =
             sourceQueryHistory &&
             (sourceParameters.chartUuid ||
-                sourceQueryHistory.requestParameters?.documentSource)
+                sourceQueryHistory.requestParameters?.documentSource ||
+                sourceQueryHistory.requestParameters?.dataAppSource)
                 ? { source: sourceQueryHistory.queryUuid }
                 : sourceParameters.references;
         const requestParameters: ExecuteAsyncQueryRequestParams = {
+            ...(dataAppSource ? { dataAppSource } : {}),
             ...(documentQueryContext
                 ? { documentSource: documentQueryContext.reference }
                 : {}),

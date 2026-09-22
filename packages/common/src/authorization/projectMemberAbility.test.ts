@@ -27,6 +27,47 @@ const defineAbilityForProjectMember = (
 };
 
 describe('Project member permissions', () => {
+    it('lets viewers consume accessible apps without Explore or app editing access', () => {
+        const ability = defineAbilityForProjectMember(PROJECT_VIEWER);
+        const app = {
+            projectUuid: PROJECT_VIEWER.projectUuid,
+            inheritsFromOrgOrProject: true,
+        };
+        expect(ability.can('view', subject('DataApp', app))).toBe(true);
+        expect(ability.can('manage', subject('DataApp', app))).toBe(false);
+        expect(
+            ability.can(
+                'view',
+                subject('Explore', { projectUuid: PROJECT_VIEWER.projectUuid }),
+            ),
+        ).toBe(false);
+        expect(
+            ability.can(
+                'view',
+                subject('DataApp', {
+                    ...app,
+                    inheritsFromOrgOrProject: false,
+                    access: [],
+                }),
+            ),
+        ).toBe(false);
+        expect(
+            ability.can(
+                'view',
+                subject('DataApp', {
+                    ...app,
+                    inheritsFromOrgOrProject: false,
+                    access: [
+                        {
+                            userUuid: PROJECT_VIEWER.userUuid,
+                            role: SpaceMemberRole.VIEWER,
+                        },
+                    ],
+                }),
+            ),
+        ).toBe(true);
+    });
+
     describe('Member permissions', () => {
         let ability = defineAbilityForProjectMember(PROJECT_ADMIN);
         describe('when user is an project admin', () => {

@@ -2627,6 +2627,128 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncMetricQuery', () => {
+        test.each([true, false])(
+            'uses app authorization only without Explore permission (has Explore: %s)',
+            async (canExplore) => {
+                const authorizeConsumerQuery = vi
+                    .fn()
+                    .mockResolvedValue({ appUuid: 'app-uuid', version: 2 });
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        getAppGenerateService: () =>
+                            ({ authorizeConsumerQuery }) as never,
+                    },
+                );
+                vi.spyOn(
+                    service as AnyType,
+                    'createAuditedAbility',
+                ).mockReturnValue({ cannot: () => !canExplore });
+                const customSqlCheck = vi
+                    .spyOn(
+                        service as AnyType,
+                        'assertCustomSqlAuthorizedForQuery',
+                    )
+                    .mockResolvedValue(undefined);
+                const execute = vi
+                    .spyOn(
+                        service as AnyType,
+                        'runAsyncMetricQueryWithoutPermissionCheck',
+                    )
+                    .mockResolvedValue({ queryUuid: 'query-uuid' });
+                const args = {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    dataAppPreviewToken: 'signed-preview-token',
+                };
+                await service.executeAsyncMetricQuery(args);
+                expect(authorizeConsumerQuery).toHaveBeenCalledTimes(
+                    canExplore ? 0 : 1,
+                );
+                expect(customSqlCheck).toHaveBeenCalledOnce();
+                expect(execute).toHaveBeenCalledWith(
+                    args,
+                    projectSummary.organizationUuid,
+                    undefined,
+                    canExplore
+                        ? undefined
+                        : { appUuid: 'app-uuid', version: 2 },
+                );
+            },
+        );
+
+        test.each([
+            'missing token',
+            'denied reference',
+            'materialization context',
+        ])('does not execute a consumer query with %s', async (reason) => {
+            const authorizeConsumerQuery = vi
+                .fn()
+                .mockResolvedValue({ appUuid: 'app-uuid', version: 2 });
+            if (reason === 'denied reference')
+                authorizeConsumerQuery.mockRejectedValue(new ForbiddenError());
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                getAppGenerateService: () =>
+                    ({ authorizeConsumerQuery }) as never,
+            });
+            vi.spyOn(
+                service as AnyType,
+                'createAuditedAbility',
+            ).mockReturnValue({ cannot: () => true });
+            const execute = vi.spyOn(
+                service as AnyType,
+                'runAsyncMetricQueryWithoutPermissionCheck',
+            );
+            await expect(
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context:
+                        reason === 'materialization context'
+                            ? QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+                            : QueryExecutionContext.EXPLORE,
+                    dataAppPreviewToken:
+                        reason === 'missing token'
+                            ? undefined
+                            : 'signed-preview-token',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(execute).not.toHaveBeenCalled();
+            expect(authorizeConsumerQuery).toHaveBeenCalledTimes(
+                reason === 'denied reference' ? 1 : 0,
+            );
+        });
+
+        test('rechecks source app access before allowing query history access', async () => {
+            const assertCanViewQuerySource = vi
+                .fn()
+                .mockRejectedValue(new ForbiddenError());
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                getAppGenerateService: () =>
+                    ({ assertCanViewQuerySource }) as never,
+            });
+            await expect(
+                (service as AnyType).assertSavedChartQuerySourceAccess(
+                    sessionAccount,
+                    projectUuid,
+                    {
+                        queryUuid: 'query-uuid',
+                        requestParameters: {
+                            dataAppSource: { appUuid: 'app-uuid', version: 2 },
+                        },
+                    },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(assertCanViewQuerySource).toHaveBeenCalledWith({
+                account: sessionAccount,
+                projectUuid,
+                appUuid: 'app-uuid',
+            });
+        });
+
         test('forwards trusted provenance inputs to custom SQL authorization', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             const assertCustomSqlAuthorizedForQuery = vi
@@ -2653,66 +2775,114 @@ describe('AsyncQueryService', () => {
             );
         });
 
-        test('tags warehouse queries with the originating data app from the request context', async () => {
-            const service = getMockedAsyncQueryService(lightdashConfigMock);
-            service.getExploreWithUserAccessControls = vi
-                .fn()
-                .mockResolvedValue({
-                    explore: validExplore,
-                    userAccessControls: {
-                        userAttributes: {},
-                        intrinsicUserAttributes: {},
+        test.each([true, false])(
+            'preserves viewer execution context and data app provenance (has Explore: %s)',
+            async (canExplore) => {
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        getAppGenerateService: () =>
+                            ({
+                                authorizeConsumerQuery: vi
+                                    .fn()
+                                    .mockResolvedValue({
+                                        appUuid: 'app-uuid',
+                                        version: 2,
+                                    }),
+                            }) as never,
                     },
+                );
+                vi.spyOn(
+                    service as AnyType,
+                    'createAuditedAbility',
+                ).mockReturnValue({
+                    cannot: () => !canExplore,
+                    can: () => true,
                 });
-            (service as AnyType).getWarehouseCredentials = vi
-                .fn()
-                .mockResolvedValue(warehouseClientMock.credentials);
-            service.combineParameters = vi.fn().mockResolvedValue(undefined);
-            (service as AnyType).prepareMetricQueryAsyncQueryArgs = vi
-                .fn()
-                .mockResolvedValue(
-                    createQueryComposerMock({
+                service.getExploreWithUserAccessControls = vi
+                    .fn()
+                    .mockResolvedValue({
+                        explore: validExplore,
                         userAccessControls: {
                             userAttributes: {},
                             intrinsicUserAttributes: {},
                         },
-                        availableParameterDefinitions: {},
-                    }),
+                    });
+                (service as AnyType).getWarehouseCredentials = vi
+                    .fn()
+                    .mockResolvedValue(warehouseClientMock.credentials);
+                service.combineParameters = vi
+                    .fn()
+                    .mockResolvedValue(undefined);
+                (service as AnyType).prepareMetricQueryAsyncQueryArgs = vi
+                    .fn()
+                    .mockResolvedValue(
+                        createQueryComposerMock({
+                            userAccessControls: {
+                                userAttributes: {},
+                                intrinsicUserAttributes: {},
+                            },
+                            availableParameterDefinitions: {},
+                        }),
+                    );
+                service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                    queryUuid: 'queryUuid',
+                    cacheMetadata: {
+                        cacheHit: false,
+                    },
+                });
+
+                // app_uuid rides in on the request-scoped ExecutionContext (stamped
+                // by requestExecutionContextMiddleware from the app header), not a
+                // query arg — so exercise the real context the same way.
+                await ExecutionContext.run(
+                    () =>
+                        service.executeAsyncMetricQuery({
+                            account: sessionAccount,
+                            dataAppPreviewToken: 'signed-preview-token',
+                            projectUuid,
+                            metricQuery: metricQueryMock,
+                            context: QueryExecutionContext.EXPLORE,
+                            invalidateCache: false,
+                            dateZoom: undefined,
+                            parameters: undefined,
+                            pivotConfiguration: undefined,
+                        }),
+                    { app_uuid: 'app-uuid' },
                 );
-            service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
-                queryUuid: 'queryUuid',
-                cacheMetadata: {
-                    cacheHit: false,
-                },
-            });
 
-            // app_uuid rides in on the request-scoped ExecutionContext (stamped
-            // by requestExecutionContextMiddleware from the app header), not a
-            // query arg — so exercise the real context the same way.
-            await ExecutionContext.run(
-                () =>
-                    service.executeAsyncMetricQuery({
-                        account: sessionAccount,
-                        projectUuid,
-                        metricQuery: metricQueryMock,
-                        context: QueryExecutionContext.EXPLORE,
-                        invalidateCache: false,
-                        dateZoom: undefined,
-                        parameters: undefined,
-                        pivotConfiguration: undefined,
+                expect(service['executeAsyncQuery']).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        queryTags: expect.objectContaining({
+                            app_uuid: 'app-uuid',
+                        }),
                     }),
-                { app_uuid: 'app-uuid' },
-            );
-
-            expect(service['executeAsyncQuery']).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    queryTags: expect.objectContaining({
-                        app_uuid: 'app-uuid',
-                    }),
-                }),
-                expect.any(Object),
-            );
-        });
+                    expect.objectContaining(
+                        canExplore
+                            ? {}
+                            : {
+                                  dataAppSource: {
+                                      appUuid: 'app-uuid',
+                                      version: 2,
+                                  },
+                              },
+                    ),
+                );
+                expect(
+                    service.getExploreWithUserAccessControls,
+                ).toHaveBeenCalledWith(
+                    sessionAccount,
+                    projectUuid,
+                    metricQueryMock.exploreName,
+                    projectSummary.organizationUuid,
+                );
+                expect(
+                    (service as AnyType).getWarehouseCredentials,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({ userId: sessionAccount.user.id }),
+                );
+            },
+        );
 
         test('attaches required pre-aggregate routing metadata for direct pre-aggregate explores', async () => {
             const mockStrategy: PreAggregateStrategy = {

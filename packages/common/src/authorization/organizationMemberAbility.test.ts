@@ -50,6 +50,49 @@ const defineAbilityForOrganizationMember = (
 };
 
 describe('Organization member permissions', () => {
+    it('lets viewers consume accessible apps without Explore or app editing access', () => {
+        const ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
+        const app = {
+            organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+            inheritsFromOrgOrProject: true,
+        };
+        expect(ability.can('view', subject('DataApp', app))).toBe(true);
+        expect(ability.can('manage', subject('DataApp', app))).toBe(false);
+        expect(
+            ability.can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+                }),
+            ),
+        ).toBe(false);
+        expect(
+            ability.can(
+                'view',
+                subject('DataApp', {
+                    ...app,
+                    inheritsFromOrgOrProject: false,
+                    access: [],
+                }),
+            ),
+        ).toBe(false);
+        expect(
+            ability.can(
+                'view',
+                subject('DataApp', {
+                    ...app,
+                    inheritsFromOrgOrProject: false,
+                    access: [
+                        {
+                            userUuid: ORGANIZATION_VIEWER.userUuid,
+                            role: SpaceMemberRole.VIEWER,
+                        },
+                    ],
+                }),
+            ),
+        ).toBe(true);
+    });
+
     it.each(Object.values(OrganizationMemberRole))(
         'derives the %s delegation footprint from its static ability',
         (role) => {

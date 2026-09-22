@@ -18,6 +18,7 @@ const BASE_ROLE_SCOPES = {
         // Basic viewing permissions
         'view:Dashboard',
         'view:Document',
+        'view:DataApp', // Consume apps using their saved data references
         'view:JobStatus@self', // For viewing job status created by user
         'view:SavedChart',
         'view:Space',
@@ -80,7 +81,6 @@ const BASE_ROLE_SCOPES = {
         'view:OrganizationAiAgent',
         'view:AiAgentDocument',
         'create:AiAgentThread',
-        'view:DataApp', // Project-wide + space-access view (parity with manage:Explore)
         'view:DataApp@self', // Own personal apps (created before demotion / under older rules)
         'manage:DataApp@self', // Own personal apps (created before demotion / under older rules)
         'view:ExternalConnection', // Link admin-enabled connections when editing space apps
