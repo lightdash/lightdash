@@ -797,12 +797,18 @@ describe('ProjectModel', () => {
             await model.upsertMergedManifest(projectUuid, manifest);
 
             expect(tracker.history.insert).toHaveLength(2);
-            expect(tracker.history.insert[1].bindings).toEqual(
+            expect(tracker.history.insert[0].sql).toContain(
+                'project_connection_manifests',
+            );
+            expect(tracker.history.insert[0].bindings).toEqual(
                 expect.arrayContaining([
                     projectUuid,
                     'connection-uuid',
                     manifest,
                 ]),
+            );
+            expect(tracker.history.insert[1].sql).toContain(
+                ProjectMergedManifestsTableName,
             );
             expect(tracker.history.select[0].sql).toContain(
                 '"warehouse_credentials"."superseded_at" is null',
@@ -849,7 +855,7 @@ describe('ProjectModel', () => {
             await expect(
                 model.upsertMergedManifest(projectUuid, manifest),
             ).rejects.toThrow('more than one active connection');
-            expect(tracker.history.insert).toHaveLength(1);
+            expect(tracker.history.insert).toHaveLength(0);
         });
 
         test('deletes the manifest from both stores when scoped storage exists', async () => {
@@ -869,8 +875,8 @@ describe('ProjectModel', () => {
 
             expect(tracker.history.delete).toHaveLength(2);
             expect(tracker.history.delete.map(({ sql }) => sql)).toEqual([
-                expect.stringContaining(ProjectMergedManifestsTableName),
                 expect.stringContaining('project_connection_manifests'),
+                expect.stringContaining(ProjectMergedManifestsTableName),
             ]);
         });
 
@@ -936,13 +942,17 @@ describe('ProjectModel', () => {
         await model.saveWarehouseToCache(projectUuid, {});
 
         expect(tracker.history.insert).toHaveLength(2);
-        expect(tracker.history.insert[1].bindings).toEqual(
+        expect(tracker.history.insert[0].sql).toContain(
+            'project_connection_catalog_cache',
+        );
+        expect(tracker.history.insert[0].bindings).toEqual(
             expect.arrayContaining([
                 projectUuid,
                 'connection-uuid',
                 JSON.stringify({}),
             ]),
         );
+        expect(tracker.history.insert[1].sql).toContain('"cached_warehouse"');
     });
 
     test('writes only the legacy catalog cache before scoped storage exists', async () => {
@@ -1004,7 +1014,7 @@ describe('ProjectModel', () => {
         await expect(
             model.saveWarehouseToCache(projectUuid, {}),
         ).rejects.toThrow('more than one active connection');
-        expect(tracker.history.insert).toHaveLength(1);
+        expect(tracker.history.insert).toHaveLength(0);
     });
 
     test('invalidates the previous MotherDuck connection after a credential update', async () => {
@@ -1192,6 +1202,127 @@ describe('ProjectModel', () => {
         ).rejects.toThrow(
             `Project ${projectUuid} has more than one active warehouse connection`,
         );
+    });
+
+    describe('warehouse credentials cache', () => {
+        const fullRowFor = (connectionUuid: string, project: string) => ({
+            warehouse_credentials_uuid: connectionUuid,
+            encrypted_credentials: Buffer.from(
+                JSON.stringify({
+                    type: WarehouseTypes.BIGQUERY,
+                    project,
+                }),
+            ),
+            organization_warehouse_credentials_uuid: null,
+            organization_uuid: 'organization-uuid',
+        });
+        let activeConnections: { warehouse_credentials_uuid: string }[];
+
+        beforeEach(() => {
+            process.env.EXPERIMENTAL_CACHE = 'true';
+            schemaColumns.add('warehouse_credentials.superseded_at');
+            activeConnections = [{ warehouse_credentials_uuid: 'conn-1' }];
+            tracker.on
+                .select(
+                    ({ sql }) =>
+                        sql.includes('"warehouse_credentials"') &&
+                        !sql.includes('organizations'),
+                )
+                .response(() => activeConnections);
+        });
+
+        afterEach(() => {
+            delete process.env.EXPERIMENTAL_CACHE;
+        });
+
+        test('serves cached credentials while the cached connection remains the sole active one', async () => {
+            const cachedProjectUuid = 'cached-sole-project-uuid';
+            tracker.on
+                .select(({ sql }) => sql.includes('organizations'))
+                .responseOnce([fullRowFor('conn-1', 'first-project')]);
+
+            const first =
+                await model.getWarehouseCredentialsForProject(
+                    cachedProjectUuid,
+                );
+            const second =
+                await model.getWarehouseCredentialsForProject(
+                    cachedProjectUuid,
+                );
+
+            expect(first).toMatchObject({
+                type: WarehouseTypes.BIGQUERY,
+                project: 'first-project',
+            });
+            expect(second).toEqual(first);
+            expect(
+                tracker.history.select.filter(({ sql }) =>
+                    sql.includes('organizations'),
+                ),
+            ).toHaveLength(1);
+        });
+
+        test('refuses to serve cached credentials once a second active connection appears', async () => {
+            const cachedProjectUuid = 'cached-ambiguous-project-uuid';
+            tracker.on
+                .select(({ sql }) => sql.includes('organizations'))
+                .responseOnce([fullRowFor('conn-1', 'first-project')]);
+
+            await expect(
+                model.getWarehouseCredentialsForProject(cachedProjectUuid),
+            ).resolves.toMatchObject({ project: 'first-project' });
+
+            activeConnections = [
+                { warehouse_credentials_uuid: 'conn-1' },
+                { warehouse_credentials_uuid: 'conn-2' },
+            ];
+
+            await expect(
+                model.getWarehouseCredentialsForProject(cachedProjectUuid),
+            ).rejects.toThrow(
+                `Project ${cachedProjectUuid} has more than one active warehouse connection`,
+            );
+            expect(
+                tracker.history.select.filter(({ sql }) =>
+                    sql.includes('organizations'),
+                ),
+            ).toHaveLength(1);
+        });
+
+        test('refreshes cached credentials when the sole active connection changes', async () => {
+            const cachedProjectUuid = 'cached-swapped-project-uuid';
+            tracker.on
+                .select(({ sql }) => sql.includes('organizations'))
+                .responseOnce([fullRowFor('conn-1', 'first-project')]);
+
+            const first =
+                await model.getWarehouseCredentialsForProject(
+                    cachedProjectUuid,
+                );
+
+            activeConnections = [{ warehouse_credentials_uuid: 'conn-2' }];
+            tracker.on
+                .select(({ sql }) => sql.includes('organizations'))
+                .responseOnce([fullRowFor('conn-2', 'second-project')]);
+
+            const second =
+                await model.getWarehouseCredentialsForProject(
+                    cachedProjectUuid,
+                );
+            const third =
+                await model.getWarehouseCredentialsForProject(
+                    cachedProjectUuid,
+                );
+
+            expect(first).toMatchObject({ project: 'first-project' });
+            expect(second).toMatchObject({ project: 'second-project' });
+            expect(third).toEqual(second);
+            expect(
+                tracker.history.select.filter(({ sql }) =>
+                    sql.includes('organizations'),
+                ),
+            ).toHaveLength(2);
+        });
     });
 
     test('rotates the refresh token on the single active connection row only', async () => {

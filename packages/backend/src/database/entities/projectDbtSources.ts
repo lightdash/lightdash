@@ -27,7 +27,11 @@ type CreateDbProjectDbtSource = Pick<
     | 'dbt_connection'
     | 'warehouse_database'
     | 'warehouse_schema'
->;
+> & {
+    project_dbt_source_uuid?: string;
+    connection_uuid?: string;
+    namespace_prefix?: string;
+};
 
 type UpdateDbProjectDbtSource = Partial<
     Pick<

@@ -473,6 +473,7 @@ const getMockedProjectService = (
             overrides.projectDbtSourcesModel ??
             ({
                 copySources: vi.fn(async () => undefined),
+                createPrimarySource: vi.fn(async () => undefined),
             } as unknown as ProjectDbtSourcesModel),
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
@@ -2047,11 +2048,13 @@ describe('ProjectService', () => {
                 installation_id: 'primary-installation-id',
             } as const;
             const copySources = vi.fn(async () => undefined);
+            const createPrimarySource = vi.fn(async () => undefined);
             const previewService = getMockedProjectService(
                 lightdashConfigMock,
                 {
                     projectDbtSourcesModel: {
                         copySources,
+                        createPrimarySource,
                     } as unknown as ProjectDbtSourcesModel,
                 },
             );
@@ -2115,6 +2118,17 @@ describe('ProjectService', () => {
                     upstreamProjectUuid,
                     previewProjectUuid,
                 );
+                expect(createPrimarySource).toHaveBeenCalledWith(
+                    previewProjectUuid,
+                    {
+                        projectDbtSourceUuid: 'primary-source-uuid',
+                        name: 'dbt_project',
+                        dbtConnection: primaryDbtConnection,
+                    },
+                );
+                expect(
+                    createPrimarySource.mock.invocationCallOrder[0],
+                ).toBeLessThan(copySources.mock.invocationCallOrder[0]);
                 expect(
                     projectModel.createWithOptionalCredentials,
                 ).toHaveBeenCalledWith(
@@ -2133,6 +2147,81 @@ describe('ProjectService', () => {
             }
         },
     );
+
+    test('materialises the primary dbt source when creating a non-preview project', async () => {
+        const createdProjectUuid = 'created-default-project-uuid';
+        const primaryDbtConnection = {
+            type: DbtProjectType.GITHUB,
+            authorization_method: 'installation_id',
+            repository: 'lightdash/primary-models',
+            branch: 'main',
+            project_sub_path: '/primary',
+            installation_id: 'primary-installation-id',
+        } as const;
+        const copySources = vi.fn(async () => undefined);
+        const createPrimarySource = vi.fn(async () => undefined);
+        const defaultService = getMockedProjectService(lightdashConfigMock, {
+            projectDbtSourcesModel: {
+                copySources,
+                createPrimarySource,
+            } as unknown as ProjectDbtSourcesModel,
+        });
+        const createUser: SessionUser = {
+            ...user,
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Test organization',
+            organizationCreatedAt: new Date(),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'create' },
+            ]),
+        };
+        const validateSpy = vi
+            .spyOn(
+                defaultService as unknown as {
+                    validateProjectCreationPermissions: () => Promise<true>;
+                },
+                'validateProjectCreationPermissions',
+            )
+            .mockResolvedValue(true);
+        const expirationSpy = vi
+            .spyOn(defaultService, 'getPreviewExpiresAt')
+            .mockResolvedValue(null);
+        projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+            createdProjectUuid,
+        );
+        projectModel.get.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            projectUuid: createdProjectUuid,
+            dbtConnection: primaryDbtConnection,
+        });
+
+        try {
+            await defaultService.createWithoutCompile(
+                createUser,
+                {
+                    name: 'Default project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection: primaryDbtConnection,
+                    copyContent: false,
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                },
+                RequestMethod.WEB_APP,
+            );
+
+            expect(createPrimarySource).toHaveBeenCalledWith(
+                createdProjectUuid,
+                {
+                    projectDbtSourceUuid: 'primary-source-uuid',
+                    name: 'dbt_project',
+                    dbtConnection: primaryDbtConnection,
+                },
+            );
+            expect(copySources).not.toHaveBeenCalled();
+        } finally {
+            validateSpy.mockRestore();
+            expirationSpy.mockRestore();
+        }
+    });
 
     test('attempts content copying when preview access copying fails', async () => {
         const upstreamProjectUuid = 'upstream-project-uuid';

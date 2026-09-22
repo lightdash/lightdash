@@ -2999,6 +2999,20 @@ export class ProjectService extends BaseService {
         };
     }
 
+    private async materialisePrimaryDbtSource(
+        projectUuid: string,
+        project: CreateProjectOptionalCredentials,
+    ): Promise<void> {
+        if (!project.dbtConnection) return;
+        const { dbtSourceUuid, dbtSourceName } =
+            await this.projectModel.getDbtSourceIdentity(projectUuid);
+        await this.projectDbtSourcesModel.createPrimarySource(projectUuid, {
+            projectDbtSourceUuid: dbtSourceUuid,
+            name: dbtSourceName,
+            dbtConnection: project.dbtConnection,
+        });
+    }
+
     async createWithoutCompile(
         user: SessionUser,
         data: CreateProjectOptionalCredentials,
@@ -3108,6 +3122,8 @@ export class ProjectService extends BaseService {
                       ),
                 internalProvisioning?.source,
             );
+
+        await this.materialisePrimaryDbtSource(projectUuid, createProject);
 
         if (
             createProject.type === ProjectType.PREVIEW &&
@@ -3589,6 +3605,11 @@ export class ProjectService extends BaseService {
                             createProject.upstreamProjectUuid,
                             createProject.expiresInHours,
                         ),
+                    );
+
+                    await this.materialisePrimaryDbtSource(
+                        newProjectUuid,
+                        createProject,
                     );
                     // Give admin user permissions to user who created this project even if he is an admin
                     if (user.email) {

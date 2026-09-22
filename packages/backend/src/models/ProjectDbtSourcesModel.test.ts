@@ -1,4 +1,4 @@
-import { DbtProjectType } from '@lightdash/common';
+import { DbtProjectConfig, DbtProjectType } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import {
@@ -62,10 +62,21 @@ describe('ProjectDbtSourcesModel', () => {
     beforeEach(() => {
         schemaColumns.clear();
         tracker.on
-            .any(({ sql }) => sql.includes('information_schema.columns'))
-            .response(({ bindings }) =>
-                schemaColumns.has(`${bindings[0]}.${bindings[1]}`),
-            );
+            .any(({ sql }) => sql.toUpperCase().startsWith('LOCK TABLE'))
+            .response([]);
+        tracker.on
+            .any(({ sql }) => sql.includes('information_schema'))
+            .response(({ bindings }) => {
+                if (bindings.length === 3) {
+                    const [tableName, ...columns] = bindings;
+                    return columns
+                        .filter((column) =>
+                            schemaColumns.has(`${tableName}.${column}`),
+                        )
+                        .map((column_name) => ({ column_name }));
+                }
+                return schemaColumns.has(`${bindings[0]}.${bindings[1]}`);
+            });
     });
 
     afterEach(() => {
@@ -171,7 +182,10 @@ describe('ProjectDbtSourcesModel', () => {
                     'finance_models',
                 ]),
             );
-            expect(tracker.history.select[0].sql).toContain(
+            const credentialsQuery = tracker.history.select.find(({ sql }) =>
+                sql.includes('warehouse_credentials'),
+            );
+            expect(credentialsQuery?.sql).toContain(
                 '"warehouse_credentials"."superseded_at" is null',
             );
         });
@@ -194,7 +208,11 @@ describe('ProjectDbtSourcesModel', () => {
             expect(tracker.history.insert[0].sql).not.toContain(
                 'namespace_prefix',
             );
-            expect(tracker.history.select).toHaveLength(0);
+            expect(
+                tracker.history.select.some(({ sql }) =>
+                    sql.includes('warehouse_credentials'),
+                ),
+            ).toBe(false);
         });
 
         it('refuses to create a source when the project has two active connections', async () => {
@@ -254,9 +272,10 @@ describe('ProjectDbtSourcesModel', () => {
 
             await model.copySources(upstreamProjectUuid, previewProjectUuid);
 
-            expect(tracker.history.select[0].bindings).toEqual([
-                upstreamProjectUuid,
-            ]);
+            const sourcesQuery = tracker.history.select.find(({ sql }) =>
+                sql.includes('"project_dbt_sources"'),
+            );
+            expect(sourcesQuery?.bindings).toEqual([upstreamProjectUuid]);
             expect(tracker.history.insert[0].bindings).toEqual([
                 githubCiphertext,
                 DbtProjectType.GITHUB,
@@ -298,6 +317,207 @@ describe('ProjectDbtSourcesModel', () => {
             await expect(
                 model.copySources(upstreamProjectUuid, previewProjectUuid),
             ).rejects.toThrow('exactly one active connection');
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+
+        it('copies only additional sources when the upstream project has a materialised primary', async () => {
+            schemaColumns.add('project_dbt_sources.connection_uuid');
+            schemaColumns.add('project_dbt_sources.namespace_prefix');
+            schemaColumns.add('warehouse_credentials.superseded_at');
+            const materialisedPrimary = {
+                project_dbt_source_uuid: '55555555-5555-4555-8555-555555555555',
+                project_uuid: upstreamProjectUuid,
+                name: 'dbt_project',
+                is_primary: true,
+                precedence: 0,
+                dbt_connection_type: DbtProjectType.GITHUB,
+                dbt_connection: Buffer.from('primary-ciphertext'),
+                warehouse_database: null,
+                warehouse_schema: null,
+                namespace_prefix: '',
+                created_at: createdAt,
+                updated_at: updatedAt,
+            };
+            tracker.on
+                .select(({ sql }) => sql.includes('"project_dbt_sources"'))
+                .responseOnce([
+                    materialisedPrimary,
+                    ...sources.map((source) => ({
+                        ...source,
+                        namespace_prefix: source.name,
+                    })),
+                ]);
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .responseOnce([{ warehouse_credentials_uuid: 'conn-target' }]);
+            tracker.on.insert(ProjectDbtSourcesTableName).responseOnce([]);
+
+            await model.copySources(upstreamProjectUuid, previewProjectUuid);
+
+            expect(tracker.history.insert).toHaveLength(1);
+            const insert = tracker.history.insert[0];
+            expect(insert.bindings).toHaveLength(20);
+            expect(insert.bindings).toEqual(
+                expect.arrayContaining([
+                    previewProjectUuid,
+                    'finance_models',
+                    'marketing_models',
+                ]),
+            );
+            expect(
+                insert.bindings.filter((binding) => binding === 'conn-target'),
+            ).toHaveLength(2);
+            expect(insert.bindings).not.toContain('dbt_project');
+            expect(insert.bindings).not.toContainEqual(
+                Buffer.from('primary-ciphertext'),
+            );
+            expect(insert.bindings).toContainEqual(githubCiphertext);
+            expect(insert.bindings).toContainEqual(gitlabCiphertext);
+        });
+
+        it('locks the source and connection tables before probing the binding columns', async () => {
+            schemaColumns.add('project_dbt_sources.connection_uuid');
+            schemaColumns.add('project_dbt_sources.namespace_prefix');
+            schemaColumns.add('warehouse_credentials.superseded_at');
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .responseOnce([{ warehouse_credentials_uuid: 'conn-1' }]);
+            tracker.on
+                .insert(ProjectDbtSourcesTableName)
+                .responseOnce([createdRow]);
+
+            await model.createSource(upstreamProjectUuid, createData);
+
+            const lockIndex = tracker.history.all.findIndex(({ sql }) =>
+                sql.startsWith('LOCK TABLE "project_dbt_sources"'),
+            );
+            const probeIndex = tracker.history.all.findIndex(({ sql }) =>
+                sql.includes('information_schema'),
+            );
+            const insertIndex = tracker.history.all.findIndex(
+                ({ method }) => method === 'insert',
+            );
+            expect(lockIndex).toBeGreaterThanOrEqual(0);
+            expect(probeIndex).toBeGreaterThan(lockIndex);
+            expect(insertIndex).toBeGreaterThan(probeIndex);
+            expect(tracker.history.transactions).toHaveLength(1);
+        });
+    });
+
+    describe('primary source materialisation', () => {
+        const primaryIdentity = {
+            projectDbtSourceUuid: '77777777-7777-4777-8777-777777777777',
+            name: 'dbt_project',
+            dbtConnection: null,
+        };
+
+        it('materialises the primary source bound to the sole active connection', async () => {
+            schemaColumns.add('project_dbt_sources.connection_uuid');
+            schemaColumns.add('project_dbt_sources.namespace_prefix');
+            schemaColumns.add('warehouse_credentials.superseded_at');
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .responseOnce([{ warehouse_credentials_uuid: 'conn-1' }]);
+            tracker.on.insert(ProjectDbtSourcesTableName).responseOnce([]);
+
+            await model.createPrimarySource(
+                upstreamProjectUuid,
+                primaryIdentity,
+            );
+
+            expect(tracker.history.insert).toHaveLength(1);
+            const insert = tracker.history.insert[0];
+            expect(insert.sql).toContain(
+                'on conflict ("project_dbt_source_uuid") do nothing',
+            );
+            expect(insert.bindings).toEqual([
+                'conn-1',
+                null,
+                null,
+                true,
+                'dbt_project',
+                '',
+                0,
+                primaryIdentity.projectDbtSourceUuid,
+                upstreamProjectUuid,
+                null,
+                null,
+            ]);
+        });
+
+        it('encrypts the primary dbt connection into the materialised row', async () => {
+            schemaColumns.add('project_dbt_sources.connection_uuid');
+            schemaColumns.add('project_dbt_sources.namespace_prefix');
+            schemaColumns.add('warehouse_credentials.superseded_at');
+            vi.mocked(encryptionUtil.encrypt).mockReturnValueOnce(
+                Buffer.from('encrypted-primary'),
+            );
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .responseOnce([{ warehouse_credentials_uuid: 'conn-1' }]);
+            tracker.on.insert(ProjectDbtSourcesTableName).responseOnce([]);
+
+            await model.createPrimarySource(upstreamProjectUuid, {
+                ...primaryIdentity,
+                dbtConnection: {
+                    type: DbtProjectType.GITHUB,
+                } as unknown as DbtProjectConfig,
+            });
+
+            expect(encryptionUtil.encrypt).toHaveBeenCalledOnce();
+            const insert = tracker.history.insert[0];
+            expect(insert.bindings).toContain(DbtProjectType.GITHUB);
+            expect(insert.bindings).toContainEqual(
+                Buffer.from('encrypted-primary'),
+            );
+        });
+
+        it('does not materialise a primary source before the binding migration', async () => {
+            await model.createPrimarySource(
+                upstreamProjectUuid,
+                primaryIdentity,
+            );
+
+            expect(tracker.history.insert).toHaveLength(0);
+            expect(
+                tracker.history.select.some(({ sql }) =>
+                    sql.includes('warehouse_credentials'),
+                ),
+            ).toBe(false);
+        });
+
+        it('does not materialise a primary source when the project has no active connection', async () => {
+            schemaColumns.add('project_dbt_sources.connection_uuid');
+            schemaColumns.add('project_dbt_sources.namespace_prefix');
+            schemaColumns.add('warehouse_credentials.superseded_at');
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .responseOnce([]);
+
+            await model.createPrimarySource(
+                upstreamProjectUuid,
+                primaryIdentity,
+            );
+
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+
+        it('does not materialise a primary source when the project has two active connections', async () => {
+            schemaColumns.add('project_dbt_sources.connection_uuid');
+            schemaColumns.add('project_dbt_sources.namespace_prefix');
+            schemaColumns.add('warehouse_credentials.superseded_at');
+            tracker.on
+                .select(({ sql }) => sql.includes('warehouse_credentials'))
+                .responseOnce([
+                    { warehouse_credentials_uuid: 'conn-1' },
+                    { warehouse_credentials_uuid: 'conn-2' },
+                ]);
+
+            await model.createPrimarySource(
+                upstreamProjectUuid,
+                primaryIdentity,
+            );
+
             expect(tracker.history.insert).toHaveLength(0);
         });
     });
