@@ -210,7 +210,7 @@ describe('GitIntegrationService', () => {
                           }),
                 });
 
-                expect(writes).toBe(2);
+                expect(writes).toBe(1);
                 expect(content).toContain(
                     fieldType === 'customMetrics'
                         ? 'new_metric:'
@@ -334,7 +334,7 @@ dimensions:
                     );
                     if (invalid) {
                         await expect(request).rejects.toThrow(
-                            'Only metrics based on a',
+                            'Only metrics based on a dimension are supported',
                         );
                         expect(createBranch).not.toHaveBeenCalled();
                         expect(updateFile).not.toHaveBeenCalled();

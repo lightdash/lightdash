@@ -12,29 +12,21 @@ import { parseAllReferences } from './exploreCompiler';
 /** The dbt YAML column that holds a field's definition once written back. */
 export type WritebackColumn = {
     model: string;
-    /** Dotted path of the column in the model's YAML. */
     column: string;
     /** `${TABLE}`-relative SQL of the base dimension, as the explore compiled it. */
     sql: string;
-    /** The column is an array of scalars and the field is its element. */
     isScalarArrayElement: boolean;
 };
 
-export type CustomMetricWriteback = {
-    metric: AdditionalMetric;
-    column: WritebackColumn;
-};
+export type Writeback<T> = { field: T; column: WritebackColumn };
+export type CustomMetricWriteback = Writeback<AdditionalMetric>;
+export type CustomDimensionWriteback = Writeback<CustomDimension>;
 
-/** For a SQL dimension the column is the one that hosts the definition. */
-export type CustomDimensionWriteback = {
-    dimension: CustomDimension;
-    column: WritebackColumn;
-};
-
+const SCALAR_ELEMENT_NAME = 'value';
 const SCALAR_ELEMENT_SQL = '${TABLE}';
 const ELEMENT_POSITION_NAME = 'offset';
 
-export const getWritebackTable = (
+const getWritebackTable = (
     explore: Explore,
     tableName: string,
 ): CompiledTable => {
@@ -54,6 +46,16 @@ const isElementPosition = (
     dimension: CompiledDimension,
 ) => table.nestedFrom !== undefined && dimension.name === ELEMENT_POSITION_NAME;
 
+// Routed leaves never carry custom SQL, so `${TABLE}` alone marks the element
+// of an array of scalars.
+const isScalarArrayElement = (
+    table: CompiledTable,
+    dimension: CompiledDimension,
+) =>
+    table.nestedFrom !== undefined &&
+    dimension.name === SCALAR_ELEMENT_NAME &&
+    dimension.sql === SCALAR_ELEMENT_SQL;
+
 const getRootTable = (
     explore: Explore,
     table: CompiledTable,
@@ -69,10 +71,8 @@ const getRootTable = (
     return getRootTable(explore, parent);
 };
 
-/**
- * Unnested tables are not dbt models: their leaves are dotted columns of the
- * model they were exploded from, so that is where a custom field is written.
- */
+// Unnested tables are not dbt models: their leaves are dotted columns of the
+// model they were exploded from, so that is where a custom field is written.
 export const resolveWritebackColumn = (
     explore: Explore,
     tableName: string,
@@ -101,7 +101,7 @@ export const resolveWritebackColumn = (
             `"${dimension.name}" is the position of an element in "${columnPath}", not a column of model "${model}", so custom fields on it cannot be written back to dbt`,
         );
     }
-    if (dimension.sql === SCALAR_ELEMENT_SQL) {
+    if (isScalarArrayElement(table, dimension)) {
         return {
             model,
             column: columnPath,
@@ -133,11 +133,8 @@ export const resolveCustomMetricWritebackColumn = (
     );
 };
 
-/**
- * A bin is written on its base column. A SQL dimension stays on its own table:
- * it is written on the first column of that table its SQL references, or on
- * the table's first column when it only references other tables.
- */
+// A bin lands on its base column. A SQL dimension stays on its own table, on
+// the first referenced column of that table or else on the table's first column.
 export const resolveCustomDimensionWritebackColumn = (
     explore: Explore,
     dimension: CustomDimension,
@@ -154,21 +151,26 @@ export const resolveCustomDimensionWritebackColumn = (
         }
         return resolveWritebackColumn(explore, dimension.table, base.name);
     }
-    const isHostCandidate = (candidate: CompiledDimension) =>
+    // Time-interval dimensions are generated from a base column; only that
+    // column exists in YAML.
+    const toColumnDimension = (candidate: CompiledDimension | undefined) =>
+        candidate?.timeIntervalBaseDimensionName === undefined
+            ? candidate
+            : table.dimensions[candidate.timeIntervalBaseDimensionName];
+    const canHost = (candidate: CompiledDimension | undefined) =>
+        candidate !== undefined &&
         !candidate.isAdditionalDimension &&
         !isElementPosition(table, candidate);
     const referenced = parseAllReferences(dimension.sql, dimension.table)
         .filter(({ refTable }) => refTable === dimension.table)
-        .map(({ refName }) => table.dimensions[refName])
-        .find(
-            (candidate) =>
-                candidate !== undefined && isHostCandidate(candidate),
-        );
+        .map(({ refName }) => toColumnDimension(table.dimensions[refName]))
+        .find(canHost);
     const host =
         referenced ??
         Object.values(table.dimensions)
-            .filter(isHostCandidate)
-            .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))[0];
+            .map(toColumnDimension)
+            .filter(canHost)
+            .sort((a, b) => (a?.index ?? 0) - (b?.index ?? 0))[0];
     if (!host) {
         throw new ParameterError(
             `No columns found in table "${dimension.table}" to hold custom dimension ${dimension.name}`,

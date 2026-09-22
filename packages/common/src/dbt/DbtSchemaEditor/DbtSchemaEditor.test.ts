@@ -64,7 +64,7 @@ models:
 
         const definition = editor.getCustomDimensionDefinition(
             {
-                dimension: FIXED_WIDTH_BIN_DIMENSION,
+                field: FIXED_WIDTH_BIN_DIMENSION,
                 column: dimensionColumn(
                     'table_a',
                     'dim_a',
@@ -251,7 +251,7 @@ describe('dbt v1.10+ compatibility', () => {
         );
         editor.addCustomMetrics([
             {
-                metric: {
+                field: {
                     name: 'test_metric',
                     description: 'Test metric',
                     sql: 'COUNT(*)',
@@ -278,7 +278,7 @@ describe('dbt v1.10+ compatibility', () => {
         );
         editor.addCustomMetrics([
             {
-                metric: {
+                field: {
                     name: 'test_metric',
                     description: 'Test metric',
                     sql: 'COUNT(*)',
@@ -306,7 +306,7 @@ describe('dbt v1.10+ compatibility', () => {
         editor.addCustomDimensions(
             [
                 {
-                    dimension: {
+                    field: {
                         id: 'custom_dim',
                         name: 'Custom Dimension',
                         table: 'test_table',
@@ -336,7 +336,7 @@ describe('dbt v1.10+ compatibility', () => {
         editor.addCustomDimensions(
             [
                 {
-                    dimension: {
+                    field: {
                         id: 'custom_dim',
                         name: 'Custom Dimension',
                         table: 'test_table',

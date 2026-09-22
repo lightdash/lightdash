@@ -205,11 +205,11 @@ export default class DbtSchemaEditor {
     }
 
     addCustomMetrics(metrics: CustomMetricWriteback[]): DbtSchemaEditor {
-        metrics.forEach(({ metric, column }) => {
+        metrics.forEach(({ field, column }) => {
             this.setColumnMeta(
                 this.getWritebackColumn(column),
-                ['metrics', metric.name],
-                convertCustomMetricToDbt(metric),
+                ['metrics', field.name],
+                convertCustomMetricToDbt(field),
             );
         });
         return this;
@@ -220,41 +220,33 @@ export default class DbtSchemaEditor {
         warehouseSqlBuilder: WarehouseSqlBuilder,
     ): DbtSchemaEditor {
         dimensions.forEach((item) => {
-            const definition = this.getCustomDimensionDefinition(
-                item,
-                warehouseSqlBuilder,
-            );
+            const node = this.getWritebackColumn(item.column);
             this.setColumnMeta(
-                this.getWritebackColumn(item.column),
-                ['additional_dimensions', item.dimension.id],
-                definition,
+                node,
+                ['additional_dimensions', item.field.id],
+                this.getCustomDimensionDefinition(item, warehouseSqlBuilder),
             );
         });
         return this;
     }
 
     getCustomDimensionDefinition(
-        { dimension, column }: CustomDimensionWriteback,
+        { field, column }: CustomDimensionWriteback,
         warehouseSqlBuilder: WarehouseSqlBuilder,
     ): DbtColumnLightdashAdditionalDimension {
         if (column.isScalarArrayElement) {
             throw new ParameterError(
-                `Custom dimension ${dimension.name} is built on the elements of ${column.column}, an array of scalars, and dbt YAML has no column for the element to hold it`,
+                `Custom dimension ${field.name} is built on the elements of ${column.column}, an array of scalars, and dbt YAML has no column for the element to hold it`,
             );
         }
-        this.assertWritebackColumnExists(column);
-        if (isCustomSqlDimension(dimension)) {
-            return convertCustomSqlDimensionToDbt(dimension);
+        if (isCustomSqlDimension(field)) {
+            return convertCustomSqlDimensionToDbt(field);
         }
         return convertCustomBinDimensionToDbt({
-            customDimension: dimension,
+            customDimension: field,
             baseDimensionSql: column.sql,
             warehouseSqlBuilder,
         });
-    }
-
-    private assertWritebackColumnExists(column: WritebackColumn) {
-        void this.getWritebackColumn(column);
     }
 
     private getWritebackColumn({ model, column }: WritebackColumn) {

@@ -35,7 +35,6 @@ const dimension = (
 const table = (
     name: string,
     dimensions: CompiledDimension[],
-    extra: Partial<CompiledTable> = {},
 ): CompiledTable => ({
     name,
     label: name,
@@ -45,7 +44,6 @@ const table = (
     dimensions: Object.fromEntries(dimensions.map((dim) => [dim.name, dim])),
     metrics: {},
     lineageGraph: {},
-    ...extra,
 });
 
 export const EXPLORE: Explore = {

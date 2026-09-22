@@ -207,7 +207,7 @@ describe('Bitbucket Explorer writeback', () => {
                       },
             );
 
-            expect(writes).toBe(2);
+            expect(writes).toBe(1);
             expect(content).toContain(
                 fieldType === 'customMetrics' ? 'new_metric:' : 'amount_size:',
             );

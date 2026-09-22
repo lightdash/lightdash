@@ -250,7 +250,7 @@ export const EXPECTED_SCHEMA_YML_WITH_NEW_MODEL = `models:
 `;
 
 export const CUSTOM_METRIC_WRITEBACK: CustomMetricWriteback = {
-    metric: CUSTOM_METRIC,
+    field: CUSTOM_METRIC,
     column: dimensionColumn('table_a', 'dim_a'),
 };
 
@@ -259,6 +259,6 @@ export const CUSTOM_DIMENSION_WRITEBACKS: CustomDimensionWriteback[] = [
     FIXED_WIDTH_BIN_DIMENSION,
     CUSTOM_RANGE_BIN_DIMENSION,
 ].map((dimension) => ({
-    dimension,
+    field: dimension,
     column: dimensionColumn('table_a', 'dim_a'),
 }));

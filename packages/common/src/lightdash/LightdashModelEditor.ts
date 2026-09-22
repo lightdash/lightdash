@@ -81,7 +81,7 @@ export class LightdashModelEditor {
     }
 
     addCustomMetrics(metrics: CustomMetricWriteback[]): this {
-        metrics.forEach(({ metric, column }) => {
+        metrics.forEach(({ field: metric, column }) => {
             this.assertModelName(column.model);
             this.assertFieldDoesNotExist(metric.name);
             const definition = convertCustomMetricToLightdash(metric);
@@ -105,7 +105,7 @@ export class LightdashModelEditor {
     }
 
     getCustomDimensionDefinition(
-        { dimension, column }: CustomDimensionWriteback,
+        { field: dimension, column }: CustomDimensionWriteback,
         warehouseSqlBuilder: WarehouseSqlBuilder,
     ): LightdashModelDimension {
         this.assertModelName(column.model);

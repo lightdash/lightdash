@@ -29,6 +29,7 @@ import {
     NotFoundError,
     ParameterError,
     ParseError,
+    Project,
     ProjectType,
     PullRequestCreated,
     PullRequestProvider,
@@ -44,6 +45,7 @@ import {
     UnexpectedServerError,
     UUID,
     VizColumn,
+    Writeback,
     WritebackColumn,
 } from '@lightdash/common';
 import * as yaml from 'js-yaml';
@@ -119,9 +121,17 @@ type ResolvedWritebacks =
           items: CustomMetricWriteback[];
       };
 
-type WriteBackGitArgs = DbtWritebackGitProps & { projectUuid: string };
+type WriteBackGitArgs = DbtWritebackGitProps & { projectUuid: UUID };
 
 type WriteBackFileArgs = WriteBackGitArgs & WritebackFields;
+
+type CreatePullRequestArgs =
+    | { type: 'customDimensions'; fields: CustomDimension[] }
+    | { type: 'customMetrics'; fields: AdditionalMetric[] };
+
+type YamlEditor = DbtSchemaEditor | LightdashModelEditor;
+
+type OpenYamlFile = { fileName: string; sha: string; editor: YamlEditor };
 
 // Keep backward compatibility
 type GithubProps = GitProps;
@@ -243,18 +253,21 @@ export class GitIntegrationService extends BaseService {
     }
 
     static async createBranch(gitProps: DbtWritebackGitProps) {
-        const {
-            owner,
-            repo,
-            mainBranch,
-            token,
-            branch,
-            type,
-            hostDomain,
-            installationId,
-        } = gitProps;
+        await GitIntegrationService.createBranchFrom(
+            gitProps,
+            await GitIntegrationService.getBaseCommitSha(gitProps),
+        );
+    }
 
-        let commitSha: string;
+    private static async getBaseCommitSha({
+        owner,
+        repo,
+        mainBranch,
+        token,
+        type,
+        hostDomain,
+        installationId,
+    }: DbtWritebackGitProps): Promise<string> {
         try {
             if (type === DbtProjectType.BITBUCKET) {
                 const baseBranch = await BitbucketClient.getBranch({
@@ -263,21 +276,21 @@ export class GitIntegrationService extends BaseService {
                     token,
                     branch: mainBranch,
                 });
-                commitSha = baseBranch.target.hash;
-            } else {
-                const getLastCommit =
-                    type === DbtProjectType.GITHUB
-                        ? GithubClient.getLastCommit
-                        : GitlabClient.getLastCommit;
-                ({ sha: commitSha } = await getLastCommit({
-                    owner,
-                    repo,
-                    branch: mainBranch,
-                    installationId,
-                    token,
-                    hostDomain,
-                }));
+                return baseBranch.target.hash;
             }
+            const getLastCommit =
+                type === DbtProjectType.GITHUB
+                    ? GithubClient.getLastCommit
+                    : GitlabClient.getLastCommit;
+            const { sha } = await getLastCommit({
+                owner,
+                repo,
+                branch: mainBranch,
+                installationId,
+                token,
+                hostDomain,
+            });
+            return sha;
         } catch (error) {
             // `mainBranch` is the branch from the project's dbt connection
             // settings. Both Git clients report a missing (or invisible)
@@ -290,7 +303,21 @@ export class GitIntegrationService extends BaseService {
             }
             throw error;
         }
+    }
 
+    private static async createBranchFrom(
+        {
+            owner,
+            repo,
+            mainBranch,
+            token,
+            branch,
+            type,
+            hostDomain,
+            installationId,
+        }: DbtWritebackGitProps,
+        commitSha: string,
+    ) {
         Logger.debug(
             `Creating branch ${branch} from ${mainBranch} (commit: ${commitSha}) in ${owner}/${repo}`,
         );
@@ -374,53 +401,52 @@ Affected charts:
         };
     }
 
-    private async getYamlForModel({
-        owner,
-        repo,
-        path,
-        projectUuid,
-        model,
-        installationId,
-        token,
-        branch,
-        type,
-        hostDomain,
-    }: {
-        owner: string;
-        repo: string;
-        path: string;
-        projectUuid: string;
-        model: string;
-        installationId?: string;
-        token: string;
-        branch: string;
-        type: DbtWritebackGitProps['type'];
-        hostDomain?: string;
-    }) {
-        const project = await this.projectModel.get(projectUuid);
-        const isNative =
+    private static isNativeProject(project: Project): boolean {
+        return (
             project.dbtConnection.type === DbtProjectType.GITHUB &&
-            project.dbtConnection.semanticLayer === 'lightdash';
-        const ymlPath = isNative
-            ? await this.getNativeModelPath(projectUuid, model)
-            : (await this.projectModel.getExploreFromCache(projectUuid, model))
-                  .ymlPath;
+            project.dbtConnection.semanticLayer === 'lightdash'
+        );
+    }
 
-        if (!ymlPath)
+    private async getModelFileName(
+        project: Project,
+        model: string,
+        path: string,
+    ): Promise<string> {
+        const ymlPath = GitIntegrationService.isNativeProject(project)
+            ? await this.getNativeModelPath(project.projectUuid, model)
+            : (
+                  await this.projectModel.getExploreFromCache(
+                      project.projectUuid,
+                      model,
+                  )
+              ).ymlPath;
+        if (!ymlPath) {
             throw new ParameterError(
                 'Your project needs to be compiled before writing back custom fields. Please refresh your project to fix this issue.',
             );
+        }
+        return GitIntegrationService.removeExtraSlashes(`${path}/${ymlPath}`);
+    }
 
-        const fileName = GitIntegrationService.removeExtraSlashes(
-            `${path}/${ymlPath}`,
-        );
-
+    private static readGitFile(
+        {
+            owner,
+            repo,
+            branch,
+            installationId,
+            token,
+            hostDomain,
+            type,
+        }: WriteBackGitArgs,
+        fileName: string,
+    ) {
         const getFileContent = {
             [DbtProjectType.GITHUB]: GithubClient.getFileContent,
             [DbtProjectType.GITLAB]: GitlabClient.getFileContent,
             [DbtProjectType.BITBUCKET]: BitbucketClient.getFileContent,
         }[type];
-        const { content: fileContent, sha: fileSha } = await getFileContent({
+        return getFileContent({
             fileName,
             owner,
             repo,
@@ -429,120 +455,137 @@ Affected charts:
             token,
             hostDomain,
         });
+    }
 
-        // The native document uses its own schema, with no dbt envelope.
-        if (isNative) {
-            return {
-                yamlSchema: new LightdashModelEditor(fileContent, fileName),
-                fileName,
-                fileContent,
-                fileSha,
-            };
+    private static createEditor(
+        project: Project,
+        content: string,
+        fileName: string,
+    ): YamlEditor {
+        if (GitIntegrationService.isNativeProject(project)) {
+            return new LightdashModelEditor(content, fileName);
         }
         const dbtVersion =
             project.dbtVersion === DbtVersionOptionLatest.LATEST
                 ? getLatestSupportDbtVersion()
                 : project.dbtVersion;
-
-        const yamlSchema = new DbtSchemaEditor(
-            fileContent,
-            fileName,
-            dbtVersion,
-        );
-
-        if (!yamlSchema.hasModels()) {
+        const editor = new DbtSchemaEditor(content, fileName, dbtVersion);
+        if (!editor.hasModels()) {
             throw new ParseError(`No models found in ${fileName}`);
         }
-
-        return { yamlSchema, fileName, fileContent, fileSha };
+        return editor;
     }
 
-    private async *iterateFileUpdates(
+    // Models sharing a YAML file get the same editor, so the file is read and
+    // written once.
+    private async openYamlFiles(
+        args: WriteBackGitArgs,
+        models: string[],
+    ): Promise<Map<string, OpenYamlFile>> {
+        const project = await this.projectModel.get(args.projectUuid);
+        const byFileName = new Map<string, OpenYamlFile>();
+        const byModel = new Map<string, OpenYamlFile>();
+        for (const model of models) {
+            const fileName = await this.getModelFileName(
+                project,
+                model,
+                args.path,
+            );
+            const open = byFileName.get(fileName);
+            if (open) {
+                byModel.set(model, open);
+            } else {
+                const { content, sha } =
+                    await GitIntegrationService.readGitFile(args, fileName);
+                const file = {
+                    fileName,
+                    sha,
+                    editor: GitIntegrationService.createEditor(
+                        project,
+                        content,
+                        fileName,
+                    ),
+                };
+                byFileName.set(fileName, file);
+                byModel.set(model, file);
+            }
+        }
+        return byModel;
+    }
+
+    private async getWarehouseSqlBuilder(projectUuid: UUID) {
+        return this.projectModel.getWarehouseClientFromCredentials(
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            ),
+        );
+    }
+
+    private async createWritebackApplier(
+        projectUuid: UUID,
+        writebacks: ResolvedWritebacks,
+    ): Promise<(editor: YamlEditor, model: string) => YamlEditor> {
+        const ofModel =
+            (model: string) =>
+            ({ column }: Writeback<unknown>) =>
+                column.model === model;
+        if (writebacks.fieldType === 'customMetrics') {
+            return (editor, model) =>
+                editor.addCustomMetrics(
+                    writebacks.items.filter(ofModel(model)),
+                );
+        }
+        const warehouseSqlBuilder =
+            await this.getWarehouseSqlBuilder(projectUuid);
+        return (editor, model) =>
+            editor.addCustomDimensions(
+                writebacks.items.filter(ofModel(model)),
+                warehouseSqlBuilder,
+            );
+    }
+
+    private async prepareFileUpdates(
         args: WriteBackGitArgs,
         writebacks: ResolvedWritebacks,
     ) {
-        const {
-            owner,
-            repo,
-            path,
-            projectUuid,
-            installationId,
-            token,
-            branch,
-            quoteChar,
-            type: gitType,
-            hostDomain,
-        } = args;
+        const models = [
+            ...new Set(writebacks.items.map((item) => item.column.model)),
+        ];
+        const files = await this.openYamlFiles(args, models);
+        const apply = await this.createWritebackApplier(
+            args.projectUuid,
+            writebacks,
+        );
+        files.forEach((file, model) => apply(file.editor, model));
         const fieldsType =
             writebacks.fieldType === 'customDimensions'
                 ? 'custom dimension'
                 : 'custom metric';
-        const models = [
-            ...new Set(writebacks.items.map((item) => item.column.model)),
-        ];
-
-        for (const model of models) {
-            const { yamlSchema, fileName, fileSha } =
-                await this.getYamlForModel({
-                    model,
-                    path,
-                    owner,
-                    repo,
-                    branch,
-                    installationId,
-                    token,
-                    projectUuid,
-                    type: gitType,
-                    hostDomain,
-                });
-            const forModel = <T extends { column: WritebackColumn }>(
-                items: T[],
-            ) => items.filter((item) => item.column.model === model);
-
-            let updatedYml: string;
-            let fieldCount: number;
-            if (writebacks.fieldType === 'customDimensions') {
-                const warehouseCredentials =
-                    await this.projectModel.getWarehouseCredentialsForProject(
-                        projectUuid,
-                    );
-                const warehouseClient =
-                    this.projectModel.getWarehouseClientFromCredentials(
-                        warehouseCredentials,
-                    );
-                const items = forModel(writebacks.items);
-                fieldCount = items.length;
-                updatedYml = yamlSchema
-                    .addCustomDimensions(items, warehouseClient)
-                    .toString({ quoteChar });
-            } else {
-                const items = forModel(writebacks.items);
-                fieldCount = items.length;
-                updatedYml = yamlSchema
-                    .addCustomMetrics(items)
-                    .toString({ quoteChar });
-            }
-
-            const message = `Updated file ${fileName} with ${fieldCount} custom ${fieldsType} from model ${model}`;
-
-            yield {
-                type: gitType,
-                owner,
-                repo,
-                fileName,
-                content: updatedYml,
-                fileSha,
-                branch,
-                installationId,
-                token,
-                hostDomain,
-                message,
+        return [...new Set(files.values())].map((file) => {
+            const fileModels = models.filter(
+                (model) => files.get(model) === file,
+            );
+            const fieldCount = writebacks.items.filter((item) =>
+                fileModels.includes(item.column.model),
+            ).length;
+            return {
+                type: args.type,
+                owner: args.owner,
+                repo: args.repo,
+                fileName: file.fileName,
+                content: file.editor.toString({ quoteChar: args.quoteChar }),
+                fileSha: file.sha,
+                branch: args.branch,
+                installationId: args.installationId,
+                token: args.token,
+                hostDomain: args.hostDomain,
+                message: `Updated file ${file.fileName} with ${fieldCount} custom ${fieldsType}s from ${fileModels.join(', ')}`,
             };
-        }
+        });
     }
 
     private async getExploreContainingTable(
-        projectUuid: string,
+        projectUuid: UUID,
         table: string,
     ): Promise<Explore> {
         const explore = await this.projectModel.findExploreContainingTable(
@@ -557,51 +600,29 @@ Affected charts:
         return explore;
     }
 
-    private exploreLookup(projectUuid: string) {
+    private createColumnResolver(projectUuid: UUID) {
         const explores = new Map<string, Promise<Explore>>();
-        return (table: string) => {
+        const getExplore = (table: string) => {
             const cached = explores.get(table);
             if (cached) return cached;
             const explore = this.getExploreContainingTable(projectUuid, table);
             explores.set(table, explore);
             return explore;
         };
-    }
-
-    private async resolveCustomMetricWritebacks(
-        projectUuid: string,
-        metrics: AdditionalMetric[],
-    ): Promise<CustomMetricWriteback[]> {
-        const getExplore = this.exploreLookup(projectUuid);
-        return Promise.all(
-            metrics.map(async (metric) => ({
-                metric,
-                column: resolveCustomMetricWritebackColumn(
-                    await getExplore(metric.table),
-                    metric,
-                ),
-            })),
-        );
-    }
-
-    private async resolveCustomDimensionWritebacks(
-        projectUuid: string,
-        dimensions: CustomDimension[],
-    ): Promise<CustomDimensionWriteback[]> {
-        const getExplore = this.exploreLookup(projectUuid);
-        return Promise.all(
-            dimensions.map(async (dimension) => ({
-                dimension,
-                column: resolveCustomDimensionWritebackColumn(
-                    await getExplore(dimension.table),
-                    dimension,
-                ),
-            })),
-        );
+        return <T extends { table: string }>(
+            fields: T[],
+            resolveColumn: (explore: Explore, field: T) => WritebackColumn,
+        ): Promise<Writeback<T>[]> =>
+            Promise.all(
+                fields.map(async (field) => ({
+                    field,
+                    column: resolveColumn(await getExplore(field.table), field),
+                })),
+            );
     }
 
     private async resolveWritebacks(
-        projectUuid: string,
+        projectUuid: UUID,
         fields: WritebackFields,
     ): Promise<ResolvedWritebacks> {
         if (fields.fields.length === 0) {
@@ -609,32 +630,30 @@ Affected charts:
                 `No custom ${fields.fieldType === 'customDimensions' ? 'dimension' : 'metric'}s found`,
             );
         }
+        const resolve = this.createColumnResolver(projectUuid);
         return fields.fieldType === 'customDimensions'
             ? {
-                  fieldType: fields.fieldType,
-                  items: await this.resolveCustomDimensionWritebacks(
-                      projectUuid,
+                  fieldType: 'customDimensions',
+                  items: await resolve(
                       fields.fields,
+                      resolveCustomDimensionWritebackColumn,
                   ),
               }
             : {
-                  fieldType: fields.fieldType,
-                  items: await this.resolveCustomMetricWritebacks(
-                      projectUuid,
+                  fieldType: 'customMetrics',
+                  items: await resolve(
                       fields.fields,
+                      resolveCustomMetricWritebackColumn,
                   ),
               };
     }
 
-    private async prepareFileUpdates(
-        args: WriteBackGitArgs,
-        writebacks: ResolvedWritebacks,
-    ) {
-        const updates = [];
-        for await (const update of this.iterateFileUpdates(args, writebacks)) {
-            updates.push(update);
-        }
-        return updates;
+    private static toWritebackFields(
+        args: CreatePullRequestArgs,
+    ): WritebackFields {
+        return args.type === 'customDimensions'
+            ? { fieldType: 'customDimensions', fields: args.fields }
+            : { fieldType: 'customMetrics', fields: args.fields };
     }
 
     private static async updatePreparedFiles(
@@ -678,27 +697,11 @@ Affected charts:
     }
 
     async updateFile(args: WriteBackFileArgs): Promise<void> {
-        const { fieldType, fields, ...gitArgs } = args;
-        const writebacks = await this.resolveWritebacks(
-            args.projectUuid,
-            fieldType === 'customDimensions'
-                ? { fieldType, fields }
-                : { fieldType, fields },
+        const writebacks = await this.resolveWritebacks(args.projectUuid, args);
+        await GitIntegrationService.updatePreparedFiles(
+            await this.prepareFileUpdates(args, writebacks),
+            args.branch,
         );
-        await this.writeResolvedFiles(gitArgs, writebacks);
-    }
-
-    private async writeResolvedFiles(
-        args: WriteBackGitArgs,
-        writebacks: ResolvedWritebacks,
-    ): Promise<void> {
-        // dbt models can share a YAML file; read each model after the previous write.
-        for await (const update of this.iterateFileUpdates(args, writebacks)) {
-            await GitIntegrationService.updatePreparedFiles(
-                [update],
-                args.branch,
-            );
-        }
     }
 
     private async getNativeModelPath(
@@ -998,39 +1001,28 @@ Affected charts:
             projectUuid,
             yamlQuoteChar,
         );
-        const warehouseCredentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
-                projectUuid,
-            );
-        const warehouseClient =
-            this.projectModel.getWarehouseClientFromCredentials(
-                warehouseCredentials,
-            );
-        const definitions: Record<string, unknown> = {};
-        const writebacks = await this.resolveCustomDimensionWritebacks(
-            projectUuid,
+        const warehouseSqlBuilder =
+            await this.getWarehouseSqlBuilder(projectUuid);
+        const writebacks = await this.createColumnResolver(projectUuid)(
             customDimensions,
+            resolveCustomDimensionWritebackColumn,
         );
-
-        for (const model of new Set(
-            writebacks.map((item) => item.column.model),
-        )) {
-            const { yamlSchema } = await this.getYamlForModel({
-                ...gitProps,
-                branch: gitProps.mainBranch,
-                projectUuid,
-                model,
-            });
+        const files = await this.openYamlFiles(
+            { ...gitProps, projectUuid, branch: gitProps.mainBranch },
+            [...new Set(writebacks.map((item) => item.column.model))],
+        );
+        const definitions: Record<string, unknown> = {};
+        files.forEach((file, model) => {
             writebacks
                 .filter((item) => item.column.model === model)
                 .forEach((item) => {
-                    definitions[item.dimension.id] =
-                        yamlSchema.getCustomDimensionDefinition(
+                    definitions[item.field.id] =
+                        file.editor.getCustomDimensionDefinition(
                             item,
-                            warehouseClient,
+                            warehouseSqlBuilder,
                         );
                 });
-        }
+        });
 
         return {
             yaml: yaml.dump(
@@ -1055,15 +1047,7 @@ Affected charts:
         user: SessionUser,
         projectUuid: string,
         quoteChar: `"` | `'`,
-        args:
-            | {
-                  type: 'customDimensions';
-                  fields: CustomDimension[];
-              }
-            | {
-                  type: 'customMetrics';
-                  fields: AdditionalMetric[];
-              },
+        args: CreatePullRequestArgs,
     ): Promise<PullRequestCreated> {
         const { type, fields } = args;
         const typeName =
@@ -1094,31 +1078,23 @@ Affected charts:
             quoteChar,
         );
 
-        // Resolve and, for native models, render every file before creating a
-        // branch, so a refused field leaves nothing behind on Git.
+        // Every file is rendered against the base branch before a branch
+        // exists, so a refused field leaves nothing behind on Git.
         const writebacks = await this.resolveWritebacks(
             projectUuid,
-            args.type === 'customMetrics'
-                ? { fieldType: 'customMetrics', fields: args.fields }
-                : { fieldType: 'customDimensions', fields: args.fields },
+            GitIntegrationService.toWritebackFields(args),
         );
-        const gitArgs = { ...gitProps, projectUuid };
-        const nativeUpdates =
-            gitProps.semanticLayer === 'lightdash'
-                ? await this.prepareFileUpdates(
-                      { ...gitArgs, branch: gitProps.mainBranch },
-                      writebacks,
-                  )
-                : undefined;
-        await GitIntegrationService.createBranch(gitProps);
-        if (nativeUpdates) {
-            await GitIntegrationService.updatePreparedFiles(
-                nativeUpdates,
-                gitProps.branch,
-            );
-        } else {
-            await this.writeResolvedFiles(gitArgs, writebacks);
-        }
+        const baseCommitSha =
+            await GitIntegrationService.getBaseCommitSha(gitProps);
+        const updates = await this.prepareFileUpdates(
+            { ...gitProps, projectUuid, branch: gitProps.mainBranch },
+            writebacks,
+        );
+        await GitIntegrationService.createBranchFrom(gitProps, baseCommitSha);
+        await GitIntegrationService.updatePreparedFiles(
+            updates,
+            gitProps.branch,
+        );
 
         const fieldsInfo =
             fields.length === 1

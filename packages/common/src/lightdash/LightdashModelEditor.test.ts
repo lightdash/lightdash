@@ -62,7 +62,7 @@ describe('native model write-back', () => {
             source,
             'models/nested/sales.yaml',
         )
-            .addCustomMetrics([{ metric, column: amount }])
+            .addCustomMetrics([{ field: metric, column: amount }])
             .toString();
         expect(output.split('dimensions:')[0]).toBe(
             source.split('dimensions:')[0],
@@ -136,7 +136,7 @@ describe('native model write-back', () => {
                 new LightdashModelEditor(
                     source,
                     'models/orders.yml',
-                ).addCustomMetrics([{ metric: field, column }]),
+                ).addCustomMetrics([{ field, column }]),
             ).toThrow();
         },
     );
@@ -194,7 +194,7 @@ describe('native model write-back', () => {
         async (dimension) => {
             const output = new LightdashModelEditor(source, 'models/orders.yml')
                 .addCustomDimensions(
-                    [{ dimension, column: amount }],
+                    [{ field: dimension, column: amount }],
                     warehouseClientMock,
                 )
                 .toString();
@@ -228,7 +228,7 @@ describe('native model write-back', () => {
             'models/orders.yml',
         )
             .addCustomDimensions(
-                [{ dimension: customDimensions[0], column: amount }],
+                [{ field: customDimensions[0], column: amount }],
                 warehouseClientMock,
             )
             .toString();
@@ -245,7 +245,7 @@ describe('native model write-back', () => {
             ).addCustomDimensions(
                 [
                     {
-                        dimension: {
+                        field: {
                             id: 'unsupported',
                             name: 'Unsupported',
                             table: 'orders',
@@ -269,7 +269,7 @@ describe('native model write-back', () => {
                 'models/orders.yml',
             ).addCustomMetrics([
                 {
-                    metric: {
+                    field: {
                         ...metric,
                         filters: [{ ...metric.filters![0], includeNull: true }],
                     },
@@ -285,9 +285,9 @@ describe('native model write-back', () => {
                 source,
                 'models/orders.yml',
             ).addCustomMetrics([
-                { metric, column: amount },
+                { field: metric, column: amount },
                 {
-                    metric: { ...metric, label: 'Different meaning' },
+                    field: { ...metric, label: 'Different meaning' },
                     column: amount,
                 },
             ]),
