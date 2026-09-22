@@ -1,3 +1,15 @@
+# [2.294.0](https://github.com/lightdash/lightdash/compare/2.293.2...2.294.0) (2026-09-22)
+
+
+### Bug Fixes
+
+* **ai-agents:** keep saved content links inside the embedded agent ([#29730](https://github.com/lightdash/lightdash/issues/29730)) ([5d00344](https://github.com/lightdash/lightdash/commit/5d00344dbb464c729bb3dc026b419cabe8cffb76)), closes [#29729](https://github.com/lightdash/lightdash/issues/29729) [#29725](https://github.com/lightdash/lightdash/issues/29725)
+
+
+### Features
+
+* **ai-agents:** open saved dashboards from the embedded agent read-only ([#29729](https://github.com/lightdash/lightdash/issues/29729)) ([332da00](https://github.com/lightdash/lightdash/commit/332da008ee4e4ee2b4a1ae219801e51b94b2b723)), closes [#29725](https://github.com/lightdash/lightdash/issues/29725)
+
 ## [2.293.2](https://github.com/lightdash/lightdash/compare/2.293.1...2.293.2) (2026-09-22)
 
 
