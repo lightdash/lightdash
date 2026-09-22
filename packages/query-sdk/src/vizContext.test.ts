@@ -7,6 +7,7 @@ import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { Transport } from './types';
 import {
     buildVizDrillDown,
+    buildVizPointMenu,
     buildVizUnderlyingData,
     getFieldLabel,
     getFormatted,
@@ -330,6 +331,7 @@ describe('toVizContextState', () => {
             underlyingDataEnabled: false,
             underlyingDataOpenEnabled: false,
             drillDownEnabled: false,
+            pointMenuEnabled: false,
         });
     });
 
@@ -415,6 +417,14 @@ describe('toVizContextState', () => {
 
     it('defaults missing pivot metadata to null', () => {
         expect(toVizContextState(message({})).pivotDetails).toBeNull();
+    });
+
+    it('maps pointMenu.enabled and defaults it off for older hosts', () => {
+        expect(
+            toVizContextState(message({ pointMenu: { enabled: true } }))
+                .pointMenuEnabled,
+        ).toBe(true);
+        expect(toVizContextState(message({})).pointMenuEnabled).toBe(false);
     });
 });
 
@@ -788,6 +798,42 @@ describe('buildVizDrillDown', () => {
         ).rejects.toThrow(
             'This SDK build predates drill-down. Rebuild the app on the current template.',
         );
+    });
+});
+
+describe('buildVizPointMenu', () => {
+    const transportWith = (impl?: Transport['openVizPointMenu']) =>
+        ({ openVizPointMenu: impl }) as unknown as Transport;
+
+    it('is disabled when the host does not enable it', () => {
+        const surface = buildVizPointMenu(false, transportWith(vi.fn()));
+        expect(surface.enabled).toBe(false);
+    });
+
+    it('is disabled when the transport predates the capability', () => {
+        const surface = buildVizPointMenu(true, {} as Transport);
+        expect(surface.enabled).toBe(false);
+    });
+
+    it('posts the intent through the transport and returns shown', async () => {
+        const open = vi.fn().mockResolvedValue({ shown: true });
+        const surface = buildVizPointMenu(true, transportWith(open));
+        await expect(
+            surface.open({ x: 12, y: 34, row: {}, metric: 'value' }),
+        ).resolves.toEqual({ shown: true });
+        expect(open).toHaveBeenCalledWith({
+            x: 12,
+            y: 34,
+            row: {},
+            metric: 'value',
+        });
+    });
+
+    it('throws the rebuild message on an old transport', async () => {
+        const surface = buildVizPointMenu(true, {} as Transport);
+        await expect(
+            surface.open({ x: 0, y: 0, row: {}, metric: 'value' }),
+        ).rejects.toThrow(/predates the data point menu/);
     });
 });
 

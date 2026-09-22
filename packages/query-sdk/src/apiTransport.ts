@@ -31,10 +31,13 @@ import type {
     UnderlyingDataOptions,
     UnderlyingDataResult,
     VizDrillDownIntent,
+    VizPointMenuIntent,
+    VizPointMenuResult,
     VizUnderlyingDataIntent,
 } from './types';
 import {
     VIZ_DRILL_DOWN_PATH,
+    VIZ_POINT_MENU_PATH,
     VIZ_UNDERLYING_DATA_OPEN_PATH,
     VIZ_UNDERLYING_DATA_PATH,
 } from './types';
@@ -1261,6 +1264,16 @@ export function createApiTransport(
             await fetchFn<Record<string, never>>(
                 'POST',
                 VIZ_DRILL_DOWN_PATH,
+                intent,
+            );
+        },
+
+        async openVizPointMenu(
+            intent: VizPointMenuIntent,
+        ): Promise<VizPointMenuResult> {
+            return fetchFn<VizPointMenuResult>(
+                'POST',
+                VIZ_POINT_MENU_PATH,
                 intent,
             );
         },

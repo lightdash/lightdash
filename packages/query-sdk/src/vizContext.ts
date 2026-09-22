@@ -30,6 +30,7 @@ import type {
     DownloadResultsResult,
     Transport,
     UnderlyingDataResult,
+    VizPointMenuResult,
 } from './types';
 
 /** A single cell of a Lightdash result row: `{ value: { raw, formatted } }`. */
@@ -151,6 +152,8 @@ export type DataAppVizContextMessage = {
     underlyingData?: { enabled?: boolean; openEnabled?: boolean };
     /** Absent when the installed host predates drill-down delivery. */
     drillDown?: { enabled?: boolean };
+    /** Absent when the installed host predates the data-point menu. */
+    pointMenu?: { enabled?: boolean };
     /** Transport-only identity for matching a paint acknowledgement to this push. */
     renderId?: string;
 };
@@ -299,6 +302,8 @@ export type VizContext = {
     underlyingData: VizUnderlyingData;
     /** Fire a drill-down on a clicked data point; the host opens its drill dialog. */
     drillDown: VizDrillDown;
+    /** Host-rendered data-point action menu for a clicked mark. */
+    pointMenu: VizPointMenu;
 };
 
 type VizContextValue = {
@@ -313,6 +318,7 @@ type VizContextValue = {
     underlyingDataEnabled: boolean;
     underlyingDataOpenEnabled: boolean;
     drillDownEnabled: boolean;
+    pointMenuEnabled: boolean;
     renderId?: string;
 };
 
@@ -453,6 +459,7 @@ export function toVizContextState(
         underlyingDataEnabled: message.underlyingData?.enabled === true,
         underlyingDataOpenEnabled: message.underlyingData?.openEnabled === true,
         drillDownEnabled: message.drillDown?.enabled === true,
+        pointMenuEnabled: message.pointMenu?.enabled === true,
         renderId:
             typeof message.renderId === 'string' ? message.renderId : undefined,
     };
@@ -562,6 +569,54 @@ export function buildVizDrillDown(
                 );
             }
             return transport.openVizDrillDown({
+                row,
+                metric,
+                ...(fieldId === undefined ? {} : { fieldId }),
+            });
+        },
+    };
+}
+
+/**
+ * Host-rendered data-point action menu. When `enabled`, forward the click:
+ * `open({ x, y, row, metric })` with the click's iframe-client coordinates —
+ * the HOST renders its native context menu (copy, underlying data, drill,
+ * dashboard cross-filtering) over the viz; render no menu of your own.
+ * `shown: false` means the host had no applicable action for that point.
+ */
+export type VizPointMenu = {
+    enabled: boolean;
+    open: (opts: {
+        x: number;
+        y: number;
+        row: VizContextRow;
+        metric: string;
+        fieldId?: string;
+    }) => Promise<VizPointMenuResult>;
+};
+
+/** Builds the `pointMenu` surface. Exported for tests. */
+export function buildVizPointMenu(
+    hostEnabled: boolean,
+    transport: Transport | null,
+): VizPointMenu {
+    const supported = typeof transport?.openVizPointMenu === 'function';
+    return {
+        enabled: hostEnabled && supported,
+        open: async ({ x, y, row, metric, fieldId }) => {
+            if (!hostEnabled) {
+                throw new Error(
+                    'The data point menu is not enabled for this visualization.',
+                );
+            }
+            if (!transport?.openVizPointMenu) {
+                throw new Error(
+                    'This SDK build predates the data point menu. Rebuild the app on the current template.',
+                );
+            }
+            return transport.openVizPointMenu({
+                x,
+                y,
                 row,
                 metric,
                 ...(fieldId === undefined ? {} : { fieldId }),
@@ -746,6 +801,12 @@ export function useVizContext(): VizContext {
         [drillHostEnabled, transport],
     );
 
+    const pointMenuHostEnabled = context?.pointMenuEnabled === true;
+    const pointMenu = useMemo<VizPointMenu>(
+        () => buildVizPointMenu(pointMenuHostEnabled, transport),
+        [pointMenuHostEnabled, transport],
+    );
+
     return {
         fieldMapping: context?.fieldMapping ?? {},
         fields: context?.fields ?? {},
@@ -758,5 +819,6 @@ export function useVizContext(): VizContext {
         ready: context !== null,
         underlyingData,
         drillDown,
+        pointMenu,
     };
 }

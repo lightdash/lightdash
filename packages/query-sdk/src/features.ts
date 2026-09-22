@@ -185,6 +185,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: 'Replace any underlying-data dialog, table, fetch, and download UI in the viz with underlyingData.open({ row: datum.sourceRow, metric: "<field name>" }). Keep only the data-point action menu in the viz, gated on underlyingData.enabled; Lightdash owns the dialog.',
     },
     {
+        key: 'point-action-menu',
+        appliesTo: ['chart_type'],
+        label: 'Data point actions',
+        description:
+            'Native Lightdash context menu on data-point clicks — copy value, view underlying data, drill, and dashboard cross-filtering — rendered by the host. Want it whenever a chart has clickable data points.',
+        wiring: "On a data-point click, when useVizContext().pointMenu.enabled, call pointMenu.open({ x: event.clientX, y: event.clientY, row: datum.sourceRow, metric: '<field name>' }) and render no menu of your own; keep a minimal local menu only as the enabled-false fallback for older hosts.",
+    },
+    {
         key: 'ai-insights',
         appliesTo: ['data_app'],
         label: 'AI analysis',
