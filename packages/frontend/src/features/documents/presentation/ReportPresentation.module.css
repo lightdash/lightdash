@@ -441,6 +441,8 @@
         h1 {
             font-size: var(--mantine-h2-font-size);
             line-height: var(--mantine-h2-line-height);
+            padding-top: var(--mantine-spacing-xl);
+            border-top: 1px solid var(--mantine-color-default-border);
         }
 
         h2 {
