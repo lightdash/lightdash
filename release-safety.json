@@ -1,37 +1,24 @@
 {
   "schemaVersion": "2",
-  "version": "2.298.0",
-  "previousVersion": "2.297.0",
-  "releaseDate": "2026-09-22T16:36:18.916Z",
+  "version": "2.299.0",
+  "previousVersion": "2.298.0",
+  "releaseDate": "2026-09-22T16:43:30.478Z",
   "migrations": {
     "present": true,
-    "count": 2,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 2,
+    "eeCount": 1,
     "files": [
       {
-        "name": "20260922130223_add_data_app_analysis_limits_to_ai_org_settings.ts",
+        "name": "20260922131409_add_token_columns_to_data_app_analyses.ts",
         "edition": "ee",
         "tables": [
-          "ai_organization_settings"
+          "data_app_analyses"
         ],
         "heaviness": {
           "locksTable": true,
           "rewritesTable": false,
           "scansTable": false
-        }
-      },
-      {
-        "name": "20260922130226_create_data_app_analysis_daily_counters.ts",
-        "edition": "ee",
-        "tables": [
-          "data_app_analysis_daily_counters",
-          "organizations"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
         }
       }
     ]

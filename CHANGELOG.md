@@ -1,3 +1,10 @@
+# [2.299.0](https://github.com/lightdash/lightdash/compare/2.298.0...2.299.0) (2026-09-22)
+
+
+### Features
+
+* **data-apps:** attribute AI analysis usage per app and operation ([#29737](https://github.com/lightdash/lightdash/issues/29737)) ([02467ec](https://github.com/lightdash/lightdash/commit/02467ecc34557db6e48dcc0410603830010cf6a4)), closes [#29736](https://github.com/lightdash/lightdash/issues/29736)
+
 # [2.298.0](https://github.com/lightdash/lightdash/compare/2.297.0...2.298.0) (2026-09-22)
 
 
