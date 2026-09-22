@@ -1,18 +1,7 @@
-import {
-    Alert,
-    Box,
-    Center,
-    Divider,
-    Flex,
-    Loader,
-    Stack,
-    Text,
-} from '@mantine/core';
-import { IconAlertTriangle } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { Box, Center, Divider, Flex, Loader, Stack } from '@mantine/core';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { compareBattleQueries } from '../../features/aiCopilot/components/Battle/battleQueryComparison';
 import { BattleThreadPane } from '../../features/aiCopilot/components/Battle/BattleThreadPane';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
@@ -28,6 +17,10 @@ const getThreadModelConfig = (
 ) =>
     thread?.messages.find((message) => message.role === 'assistant')
         ?.modelConfig ?? undefined;
+
+type BattleMessageInput = Parameters<
+    ReturnType<typeof useCreateAgentThreadMessageMutation>['mutateAsync']
+>[0];
 
 const AiAgentBattlePage: FC = () => {
     const { agentUuid, threadUuidA, threadUuidB } = useParams();
@@ -61,6 +54,25 @@ const AiAgentBattlePage: FC = () => {
 
     const threadA = threadAQuery.data;
     const threadB = threadBQuery.data;
+    const [queuedA, setQueuedA] = useState<BattleMessageInput | null>(null);
+    const [queuedB, setQueuedB] = useState<BattleMessageInput | null>(null);
+
+    const busyA =
+        messageA.isLoading || pendingA.isStreaming || pendingA.isThreadPending;
+    const busyB =
+        messageB.isLoading || pendingB.isStreaming || pendingB.isThreadPending;
+
+    useEffect(() => {
+        if (busyA || !queuedA) return;
+        setQueuedA(null);
+        void messageA.mutateAsync(queuedA);
+    }, [busyA, messageA, queuedA]);
+
+    useEffect(() => {
+        if (busyB || !queuedB) return;
+        setQueuedB(null);
+        void messageB.mutateAsync(queuedB);
+    }, [busyB, messageB, queuedB]);
 
     const handleSubmit = useCallback(
         ({
@@ -82,33 +94,23 @@ const AiAgentBattlePage: FC = () => {
                 context,
                 optimisticContext,
             };
-            void messageA.mutateAsync({
+            const inputA = {
                 ...shared,
                 modelConfig: getThreadModelConfig(threadA),
-            });
-            void messageB.mutateAsync({
+            };
+            const inputB = {
                 ...shared,
                 modelConfig: getThreadModelConfig(threadB),
-            });
+            };
+            if (busyA) setQueuedA(inputA);
+            else void messageA.mutateAsync(inputA);
+            if (busyB) setQueuedB(inputB);
+            else void messageB.mutateAsync(inputB);
         },
-        [messageA, messageB, threadA, threadB],
+        [busyA, busyB, messageA, messageB, threadA, threadB],
     );
 
-    const isBusy =
-        messageA.isLoading ||
-        messageB.isLoading ||
-        pendingA.isStreaming ||
-        pendingA.isThreadPending ||
-        pendingB.isStreaming ||
-        pendingB.isThreadPending;
-
-    const queryComparison = useMemo(
-        () =>
-            threadA && threadB
-                ? compareBattleQueries(threadA.messages, threadB.messages)
-                : null,
-        [threadA, threadB],
-    );
+    const queueFull = queuedA !== null || queuedB !== null;
 
     if (!projectUuid || !agentUuid || !threadA || !threadB) {
         return (
@@ -120,21 +122,6 @@ const AiAgentBattlePage: FC = () => {
 
     return (
         <Stack h="100%" gap={0}>
-            {!isBusy && queryComparison && !queryComparison.same && (
-                <Alert
-                    color="yellow"
-                    variant="light"
-                    icon={<IconAlertTriangle size={16} />}
-                    title="Different query semantics — timing is not comparable"
-                    radius={0}
-                    py="xs"
-                >
-                    <Text size="xs">
-                        JEV + flags: {queryComparison.left.summary} · Baseline:{' '}
-                        {queryComparison.right.summary}
-                    </Text>
-                </Alert>
-            )}
             <Flex flex={1} mih={0} wrap="nowrap" align="stretch">
                 <Box flex={1} miw={0} h="100%">
                     <BattleThreadPane
@@ -147,6 +134,7 @@ const AiAgentBattlePage: FC = () => {
                         agentUuid={agentUuid}
                         agentName={agent.name}
                         thread={threadA}
+                        queued={queuedA !== null}
                     />
                 </Box>
                 <Divider orientation="vertical" />
@@ -161,14 +149,19 @@ const AiAgentBattlePage: FC = () => {
                         agentUuid={agentUuid}
                         agentName={agent.name}
                         thread={threadB}
+                        queued={queuedB !== null}
                     />
                 </Box>
             </Flex>
             <Box {...ChatElementsUtils.centeredElementProps} h="unset" py="sm">
                 <AgentChatInput
                     onSubmit={handleSubmit}
-                    loading={isBusy}
-                    placeholder="Ask both sides a follow-up..."
+                    loading={queueFull}
+                    placeholder={
+                        queueFull
+                            ? 'One follow-up is queued...'
+                            : 'Ask both sides a follow-up...'
+                    }
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     messageCount={threadA.messages.length}

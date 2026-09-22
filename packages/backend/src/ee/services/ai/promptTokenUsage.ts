@@ -7,9 +7,13 @@ import {
 // approximates the context resident in the last request.
 export const initialPromptTokenUsage = (
     initialTotalTokens: number,
+    decisionInputTokens?: number,
+    decisionOutputTokens?: number,
 ): AiPromptTokenUsageUpdate => ({
     totalTokens: initialTotalTokens,
     finalStepTotalTokens: 0,
+    ...(decisionInputTokens === undefined ? {} : { decisionInputTokens }),
+    ...(decisionOutputTokens === undefined ? {} : { decisionOutputTokens }),
 });
 
 export const accumulatePromptTokenUsage = (
@@ -22,6 +26,12 @@ export const accumulatePromptTokenUsage = (
     return {
         totalTokens: previous.totalTokens + stepTokens,
         finalStepTotalTokens: stepTokens,
+        ...(previous.decisionInputTokens === undefined
+            ? {}
+            : { decisionInputTokens: previous.decisionInputTokens }),
+        ...(previous.decisionOutputTokens === undefined
+            ? {}
+            : { decisionOutputTokens: previous.decisionOutputTokens }),
     };
 };
 
@@ -29,6 +39,8 @@ export const accumulatePromptTokenUsage = (
 export const completedPromptTokenUsage = (
     totalTokens: number | null | undefined,
     finalStepTotalTokens: number | null | undefined = totalTokens,
+    decisionInputTokens?: number,
+    decisionOutputTokens?: number,
 ): AiPromptTokenUsageUpdate => {
     const finalTokens = Number.isFinite(finalStepTotalTokens)
         ? Number(finalStepTotalTokens)
@@ -39,6 +51,8 @@ export const completedPromptTokenUsage = (
             ? Number(totalTokens)
             : finalTokens,
         finalStepTotalTokens: finalTokens,
+        ...(decisionInputTokens === undefined ? {} : { decisionInputTokens }),
+        ...(decisionOutputTokens === undefined ? {} : { decisionOutputTokens }),
     };
 };
 

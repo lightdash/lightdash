@@ -18,6 +18,7 @@ interface Props {
     agentUuid: string;
     agentName: string;
     thread: AiAgentThread;
+    queued: boolean;
 }
 
 const useTicking = (active: boolean) => {
@@ -42,6 +43,7 @@ export const BattleThreadPane: FC<Props> = ({
     agentUuid,
     agentName,
     thread,
+    queued,
 }) => {
     const stream = useAiAgentThreadStreamQuery(thread.uuid);
     const isStreaming = stream?.connection.status === 'streaming';
@@ -137,6 +139,7 @@ export const BattleThreadPane: FC<Props> = ({
                     </Text>
                     <Text size="xs" c="dimmed">
                         {status}
+                        {queued ? ' · queued' : ''}
                     </Text>
                 </Group>
                 <Group gap="sm" wrap="nowrap">
@@ -166,7 +169,22 @@ export const BattleThreadPane: FC<Props> = ({
                     {lastAssistantMessage?.tokenUsage && (
                         <Text size="xs" c="dimmed" ff="monospace">
                             {lastAssistantMessage.tokenUsage.totalTokens.toLocaleString()}{' '}
-                            tokens
+                            agent
+                            {(lastAssistantMessage.tokenUsage
+                                .decisionInputTokens !== undefined ||
+                                lastAssistantMessage.tokenUsage
+                                    .decisionOutputTokens !== undefined) && (
+                                <>
+                                    {' · '}
+                                    {(
+                                        (lastAssistantMessage.tokenUsage
+                                            .decisionInputTokens ?? 0) +
+                                        (lastAssistantMessage.tokenUsage
+                                            .decisionOutputTokens ?? 0)
+                                    ).toLocaleString()}{' '}
+                                    JEV
+                                </>
+                            )}
                         </Text>
                     )}
                     <Anchor

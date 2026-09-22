@@ -25,7 +25,10 @@ import {
     type AiUsageTokens,
 } from '../../../../analytics/aiUsage';
 import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
-import type { AiDecisionClient } from '../decisions/AiDecisionClient';
+import type {
+    AiDecisionClient,
+    AiDecisionUsage,
+} from '../decisions/AiDecisionClient';
 import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
 import type {
@@ -204,6 +207,7 @@ export type AiAgentDeepResearchRunContext = {
 
 export type AiAgentArgs = AnyAiModel & {
     decisions?: AiDecisionClient;
+    decisionUsage?: AiDecisionUsage;
     /** Finish a high-confidence simple data answer from validated query rows. */
     enableDataAnswerFastResponse: boolean;
     /** Optional, provider-aware fast model used only for schema-constrained steps. */

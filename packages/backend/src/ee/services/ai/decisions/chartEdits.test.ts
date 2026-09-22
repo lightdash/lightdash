@@ -328,6 +328,24 @@ describe('chart edits', () => {
         });
     });
 
+    it('resolves a bare chart type without a provider request', async () => {
+        const request = vi.fn<typeof fetch>();
+        const result = await resolveChartEdit({
+            decisions: new AiDecisionClient(
+                { apiKey: 'test', model: 'test', timeoutMs: 100 },
+                request,
+            ),
+            prompt: 'line',
+            artifact,
+        });
+
+        expect(result?.config.config.chartConfig).toMatchObject({
+            defaultVizType: 'line',
+            lineType: 'line',
+        });
+        expect(request).not.toHaveBeenCalled();
+    });
+
     it('accepts a high-confidence natural chart refinement', async () => {
         const result = await resolveChartEdit({
             decisions: client('area', 0.95),

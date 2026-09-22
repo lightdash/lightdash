@@ -26,9 +26,14 @@ const answerSchema = z.discriminatedUnion('type', [
         confidence: probability,
     }),
 ]);
+const usageSchema = z.object({
+    input_tokens: z.number().finite().nonnegative(),
+    output_tokens: z.number().finite().nonnegative(),
+});
 const responseSchema = z.object({
     model: z.string(),
     answers: z.record(z.string(), answerSchema),
+    usage: usageSchema.optional(),
 });
 const MAX_DECISION_PAYLOAD_BYTES = 100_000;
 const LOGGED_OPERATIONS = new Set([
@@ -94,17 +99,32 @@ const readBoundedJson = async (response: Response): Promise<unknown> => {
 };
 
 export type DecisionAnswers = z.infer<typeof responseSchema>['answers'];
+export type AiDecisionUsage = {
+    inputTokens: number;
+    outputTokens: number;
+};
 type DecisionConfig = LightdashConfig['ai']['decisions'];
+type DecisionHealth = { consecutiveFailures: number; retryAfter: number };
 
 export class AiDecisionClient {
-    private consecutiveFailures = 0;
-
-    private retryAfter = 0;
-
     constructor(
         private readonly config: DecisionConfig,
         private readonly request: typeof fetch = fetch,
+        private readonly usage?: AiDecisionUsage,
+        private readonly health: DecisionHealth = {
+            consecutiveFailures: 0,
+            retryAfter: 0,
+        },
     ) {}
+
+    withUsage(usage: AiDecisionUsage): AiDecisionClient {
+        return new AiDecisionClient(
+            this.config,
+            this.request,
+            usage,
+            this.health,
+        );
+    }
 
     get modelName(): string {
         return this.config.model;
@@ -124,7 +144,7 @@ export class AiDecisionClient {
         if (
             !this.config.apiKey ||
             signal?.aborted ||
-            Date.now() < this.retryAfter ||
+            Date.now() < this.health.retryAfter ||
             Object.keys(questions).length === 0 ||
             Object.keys(questions).length > 64 ||
             Object.values(questions).some(
@@ -175,9 +195,21 @@ export class AiDecisionClient {
             }
             outcome = 'invalid-response';
             retryableFailure = false;
-            const { answers } = responseSchema.parse(
-                await readBoundedJson(response),
-            );
+            const rawResponse = await readBoundedJson(response);
+            const providerUsage = z
+                .object({ usage: usageSchema.optional() })
+                .safeParse(rawResponse);
+            if (
+                providerUsage.success &&
+                providerUsage.data.usage &&
+                this.usage
+            ) {
+                this.usage.inputTokens += providerUsage.data.usage.input_tokens;
+                this.usage.outputTokens +=
+                    providerUsage.data.usage.output_tokens;
+            }
+            const parsed = responseSchema.parse(rawResponse);
+            const { answers } = parsed;
             for (const [key, question] of Object.entries(questions)) {
                 const answer = answers[key];
                 if (!answer || answer.type !== question.type) {
@@ -231,8 +263,8 @@ export class AiDecisionClient {
                     throw new Error('Invalid decision score');
                 }
             }
-            this.consecutiveFailures = 0;
-            this.retryAfter = 0;
+            this.health.consecutiveFailures = 0;
+            this.health.retryAfter = 0;
             outcome = 'success';
             return answers;
         } catch (error) {
@@ -243,9 +275,9 @@ export class AiDecisionClient {
             )
                 outcome = 'timeout';
             if (!signal?.aborted && retryableFailure) {
-                this.consecutiveFailures += 1;
-                if (this.consecutiveFailures >= 3) {
-                    this.retryAfter = Date.now() + 30_000;
+                this.health.consecutiveFailures += 1;
+                if (this.health.consecutiveFailures >= 3) {
+                    this.health.retryAfter = Date.now() + 30_000;
                 }
             }
             return null;

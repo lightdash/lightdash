@@ -11711,6 +11711,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         messageHistory,
         responseStartedAt,
         allowQueryRefinements,
+        decisionUsage,
     }: {
         user: SessionUser;
         prompt: AiWebAppPrompt;
@@ -11719,6 +11720,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         messageHistory: ModelMessage[];
         responseStartedAt: number;
         allowQueryRefinements: boolean;
+        decisionUsage: () => { inputTokens: number; outputTokens: number };
     }): Promise<AgentResponseStream | null> {
         const [[latest], promptContext] = await Promise.all([
             this.aiAgentModel.findArtifactsByThreadUuid(
@@ -11805,7 +11807,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
             {
                 promptUuid: prompt.promptUuid,
                 response: edit.response,
-                tokenUsage: initialPromptTokenUsage(0),
+                tokenUsage: initialPromptTokenUsage(
+                    0,
+                    decisionUsage().inputTokens,
+                    decisionUsage().outputTokens,
+                ),
                 responseTiming: {
                     startedAt: new Date(responseStartedAt).toISOString(),
                     firstTokenAt: new Date().toISOString(),
@@ -11990,10 +11996,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const battleProfile = isSlackPrompt(prompt)
             ? null
             : prompt.battleProfile;
-        const decisions = await this.getDecisionClient(
+        const decisionClient = await this.getDecisionClient(
             user,
             battleProfile === null ? undefined : battleProfile === 'fast',
         );
+        const decisionUsage = decisionClient
+            ? { inputTokens: 0, outputTokens: 0 }
+            : undefined;
+        const decisions = decisionUsage
+            ? decisionClient?.withUsage(decisionUsage)
+            : undefined;
         let adaptiveModelsEnabled: boolean | undefined;
         const getAdaptiveModelsEnabled = async () => {
             if (adaptiveModelsEnabled !== undefined)
@@ -12049,6 +12061,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 messageHistory,
                 responseStartedAt,
                 allowQueryRefinements,
+                decisionUsage: () => ({
+                    inputTokens: decisionUsage?.inputTokens ?? 0,
+                    outputTokens: decisionUsage?.outputTokens ?? 0,
+                }),
             });
             if (editResponse) return editResponse;
         }
@@ -12634,6 +12650,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         });
         const args: AiAgentArgs = {
             decisions,
+            decisionUsage,
             toolCallModel,
             enableDataAnswerFastResponse,
             userQuestion: prompt.prompt,

@@ -2881,6 +2881,8 @@ export const generateAgentResponse = async ({
                 tokenUsage: completedPromptTokenUsage(
                     result.totalUsage?.totalTokens,
                     result.usage.totalTokens,
+                    args.decisionUsage?.inputTokens,
+                    args.decisionUsage?.outputTokens,
                 ),
                 responseTiming: {
                     startedAt: new Date(startTime).toISOString(),
@@ -3416,6 +3418,8 @@ export const streamAgentResponse = async ({
                         tokenUsage: completedPromptTokenUsage(
                             totalUsage.totalTokens,
                             usage.totalTokens,
+                            args.decisionUsage?.inputTokens,
+                            args.decisionUsage?.outputTokens,
                         ),
                         responseTiming,
                     });
@@ -3426,6 +3430,8 @@ export const streamAgentResponse = async ({
                         tokenUsage: completedPromptTokenUsage(
                             totalUsage.totalTokens,
                             usage.totalTokens,
+                            args.decisionUsage?.inputTokens,
+                            args.decisionUsage?.outputTokens,
                         ),
                         responseTiming,
                     });
