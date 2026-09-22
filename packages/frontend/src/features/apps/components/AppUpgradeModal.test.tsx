@@ -1,3 +1,4 @@
+import { type SdkFix } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -15,11 +16,11 @@ const metricFilters = {
     description: 'Filter grouped results by metric values.',
     wiring: 'Pass metric filters to the query builder.',
 };
-const transportFix = {
+const transportFix: SdkFix = {
     key: 'data-app-transport-retry',
     label: 'Reliable data-app transport',
     description: 'Retries transient host transport failures after rebuilding.',
-    appliesTo: ['data_app'] as const,
+    appliesTo: ['data_app'],
 };
 
 const staleOffer: SdkUpgradeOffer = {
