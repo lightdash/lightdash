@@ -4,11 +4,7 @@ import {
     type Filters,
     type MergeTableCalculation,
 } from '@lightdash/common';
-import {
-    DEFAULT_ADDITIONAL_SOURCE_ID,
-    MAX_MERGE_SOURCES,
-    PRIMARY_SOURCE_ID,
-} from '../constants';
+import { DEFAULT_ADDITIONAL_SOURCE_ID, PRIMARY_SOURCE_ID } from '../constants';
 import {
     type MergeEditorSource,
     type MergeFocus,
@@ -225,7 +221,6 @@ const parseCurrent = (value: Record<string, unknown>): MergeUrlState | null => {
     const additionalSourceIds = additionalSources.map((source) => source.id);
     if (
         additionalSources.length === 0 ||
-        additionalSources.length + 1 > MAX_MERGE_SOURCES ||
         additionalSourceIds.includes(PRIMARY_SOURCE_ID) ||
         new Set(additionalSourceIds).size !== additionalSourceIds.length
     ) {

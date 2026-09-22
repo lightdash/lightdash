@@ -331,6 +331,16 @@ describe('MergeProvider', () => {
             result.current.setJoinField(0, 'd', 'payments_week');
             result.current.setRepeatValues('b', true);
             result.current.setRepeatValues('d', true);
+            result.current.addTableCalculation({
+                name: 'keep_ratio',
+                displayName: 'Keep ratio',
+                sql: '${payments.payments_total} / ${payments_3.payments_total}',
+            });
+            result.current.addTableCalculation({
+                name: 'remove_ratio',
+                displayName: 'Remove ratio',
+                sql: '${payments_2.payments_total} / ${payments.payments_total}',
+            });
         });
         act(() =>
             result.current.removeSource('c', {
@@ -355,6 +365,9 @@ describe('MergeProvider', () => {
             d: 'payments_week',
         });
         expect(result.current.repeatValuesSourceIds).toEqual(['b', 'd']);
+        expect(
+            result.current.tableCalculations.map(({ name }) => name),
+        ).toEqual(['keep_ratio']);
         act(() => result.current.addSource('d'));
         expect(result.current.additionalSources).toHaveLength(2);
     });

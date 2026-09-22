@@ -35,28 +35,22 @@ import { useMergeSourceFilter } from '../hooks/useMergeSourceFilter';
 import styles from './MergeQuerySidebar.module.css';
 import { MergeSourceTree } from './MergeSourceTree';
 
-type SourceRole = 'primary' | 'additional';
-
 const DatasetHeader: FC<{
-    sourceRole: SourceRole;
     label: string;
-    count: number;
+    description: string;
+    needsAttention?: boolean;
     open: boolean;
     onClick: () => void;
     onRemove?: () => void;
-}> = ({ sourceRole, label, count, open, onClick, onRemove }) => (
+}> = ({ label, description, needsAttention, open, onClick, onRemove }) => (
     <Box className={styles.header} data-open={open}>
         <UnstyledButton className={styles.headerButton} onClick={onClick}>
             <Box className={styles.headerCopy}>
                 <Text size="sm" fw={600} truncate title={label}>
                     {label}
                 </Text>
-                <Text size="xs" c="dimmed">
-                    {count === 0
-                        ? sourceRole === 'additional'
-                            ? 'Select data and fields'
-                            : 'Choose fields'
-                        : `${count} selected`}
+                <Text size="xs" c={needsAttention ? 'orange.8' : 'dimmed'}>
+                    {description}
                 </Text>
             </Box>
             <MantineIcon
@@ -121,6 +115,9 @@ export const MergeQuerySidebar: FC<{
     };
     const primaryCount =
         metricQuery.dimensions.length + metricQuery.metrics.length;
+    const unfinishedSource = merge.additionalSources.find(
+        (source) => !source.exploreName,
+    );
     const filteredFieldIds = useMemo<Record<string, Set<string>>>(
         () =>
             Object.fromEntries(
@@ -260,31 +257,53 @@ export const MergeQuerySidebar: FC<{
             />
 
             <Box className={styles.datasets}>
-                <Text className={styles.sourcesLabel}>Data sources</Text>
+                <Text className={styles.sourcesLabel}>
+                    Data sources · {merge.additionalSources.length + 1}
+                </Text>
                 <Box className={styles.sourceList}>
                     <DatasetHeader
-                        sourceRole="primary"
                         label={
                             mergeSetup.primaryExploreLabel ??
                             primaryExplore.label
                         }
-                        count={primaryCount}
+                        description={`${primaryCount} selected · first source`}
                         open={openSourceId === PRIMARY_SOURCE_ID}
                         onClick={() => toggle(PRIMARY_SOURCE_ID)}
                     />
                     {mergeSetup.sourceSetups.map((sourceSetup) => {
                         const source = sourceSetup.additionalSource;
+                        const sourceLabel =
+                            sourceSetup.additionalExploreLabel ??
+                            'Choose data to combine';
+                        const duplicateLabel =
+                            mergeSetup.sourceLabels.filter(
+                                (label) => label === sourceLabel,
+                            ).length > 1;
+                        const missingJoin = mergeSetup.effectiveParts.some(
+                            (part) => !part.fieldIdBySourceId[source.id],
+                        );
+                        const selectedCount =
+                            source.dimensions.length + source.metrics.length;
+                        const description = !source.exploreName
+                            ? 'Choose an explore'
+                            : source.metrics.length === 0
+                              ? 'Select at least one metric'
+                              : missingJoin
+                                ? 'Choose its matching field'
+                                : `${selectedCount} selected · ready`;
                         return (
                             <DatasetHeader
                                 key={source.id}
-                                sourceRole="additional"
                                 label={
-                                    sourceSetup.additionalExploreLabel ??
-                                    'Choose data to combine'
+                                    duplicateLabel
+                                        ? `${sourceLabel} · ${mergeSetup.sourceNames.nameByHandle[source.id]}`
+                                        : sourceLabel
                                 }
-                                count={
-                                    source.dimensions.length +
-                                    source.metrics.length
+                                description={description}
+                                needsAttention={
+                                    !source.exploreName ||
+                                    source.metrics.length === 0 ||
+                                    missingJoin
                                 }
                                 open={openSourceId === source.id}
                                 onClick={() => toggle(source.id)}
@@ -302,6 +321,14 @@ export const MergeQuerySidebar: FC<{
                         variant="subtle"
                         size="xs"
                         onClick={() => {
+                            if (unfinishedSource) {
+                                merge.setFocus({
+                                    kind: 'source',
+                                    sourceId: unfinishedSource.id,
+                                });
+                                setOpenSourceId(unfinishedSource.id);
+                                return;
+                            }
                             const id = getNextMergeSourceId(
                                 merge.additionalSources,
                             );
@@ -310,7 +337,9 @@ export const MergeQuerySidebar: FC<{
                             setIsChoosingAdditionalExplore(false);
                         }}
                     >
-                        Add data source
+                        {unfinishedSource
+                            ? 'Finish current source'
+                            : 'Add data source'}
                     </Button>
                 </Box>
 

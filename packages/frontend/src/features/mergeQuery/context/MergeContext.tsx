@@ -1,6 +1,7 @@
 import {
     derivePivotConfigurationFromChart,
     getItemId,
+    mergeCalculationReferencePattern,
     MergeJoinType,
     type AdditionalMetric,
     type ApiCompiledMergeQueryResults,
@@ -189,6 +190,21 @@ export const MergeProvider: FC<
                 additionalSources.length <= 1
                     ? []
                     : current.filter((id) => id !== sourceId),
+            );
+            const removedSourceName = namesByHandle?.[sourceId];
+            setTableCalculations((current) =>
+                additionalSources.length <= 1 || !removedSourceName
+                    ? []
+                    : current.filter(
+                          (calculation) =>
+                              !Array.from(
+                                  calculation.sql.matchAll(
+                                      mergeCalculationReferencePattern,
+                                  ),
+                              ).some(([, reference]) =>
+                                  reference.startsWith(`${removedSourceName}.`),
+                              ),
+                      ),
             );
             setRunState({
                 isRunning: false,
