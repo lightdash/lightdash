@@ -33,6 +33,18 @@ export type SdkFeature = {
     wiring?: string;
 };
 
+/**
+ * A stable identifier for an SDK behavior fix. Unlike features, fixes take
+ * effect when an app is rebuilt and never require app-code wiring.
+ */
+export type SdkFix = {
+    key: string;
+    label: string;
+    description: string;
+    /** Non-empty; fixes used by both kinds list both targets. */
+    appliesTo: SdkFeatureTarget[];
+};
+
 export const SDK_FEATURES: SdkFeature[] = [
     {
         key: 'query',
@@ -228,6 +240,15 @@ export const SDK_FEATURES: SdkFeature[] = [
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);
 
+/**
+ * SDK fixes begin being tracked with this manifest protocol. Add future
+ * stable fix identifiers here; do not use SDK version floors or backfill
+ * historical fixes.
+ */
+export const SDK_FIXES: SdkFix[] = [];
+
+export const SDK_FIX_KEYS: string[] = SDK_FIXES.map((fix) => fix.key);
+
 export const SDK_MANIFEST_MESSAGE_TYPE = 'lightdash:sdk:manifest';
 
 /**
@@ -239,4 +260,5 @@ export type SdkManifestMessage = {
     type: typeof SDK_MANIFEST_MESSAGE_TYPE;
     sdkVersion: string;
     features: string[];
+    fixes: string[];
 };

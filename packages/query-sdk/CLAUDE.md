@@ -2,7 +2,7 @@
 `@lightdash/query-sdk` is the SDK bundled into generated data apps. It runs in the
 browser (usually a sandboxed iframe), queries the Lightdash semantic layer, and
 talks to the host page over postMessage. It also self-reports a **capability
-manifest** — the list of features baked into a bundle — which the host uses to
+manifest** — the features and fixes baked into a bundle — which the host uses to
 detect apps built on an older SDK and offer an upgrade.
 </summary>
 
@@ -47,6 +47,11 @@ upgrade detection and the "What's new" UI, so old apps will never be offered it.
    ships unmapped — capabilities without such a message rely on this checklist.
 </howToUse>
 
+When adding an SDK behavior fix that takes effect after a rebuild, register it
+in `SDK_FIXES` in both registries. Follow the stable-key and applicability
+instructions in [README.md](README.md#sdk-feature-and-fix-manifests). Fix tracking
+starts with this protocol; keep historical fixes out of the registry.
+
 <codeExample>
 
 ```typescript
@@ -72,7 +77,7 @@ const AVAILABLE_MESSAGE_TO_FEATURE: Record<string, string> = {
 
 <importantToKnow>
 - **Manifest protocol**: the app sends `lightdash:sdk:manifest`
-  `{ sdkVersion, features }` when `createPostMessageTransport` runs and again
+  `{ sdkVersion, features, fixes }` when `createPostMessageTransport` runs and again
   whenever the host posts `lightdash:sdk:ready`. Note the direction gotcha:
   `sdk:ready` is HOST → iframe (transports wait for it); app → host
   announcements are the manifest and the `*:available` messages.

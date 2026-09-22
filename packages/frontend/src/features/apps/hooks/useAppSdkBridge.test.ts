@@ -153,6 +153,58 @@ describe('useAppSdkBridge', () => {
         vi.clearAllMocks();
     });
 
+    it('preserves valid fixes and normalizes missing or malformed fix reports', () => {
+        const onSdkManifest = vi.fn();
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                onSdkManifest,
+            }),
+        );
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:manifest',
+            sdkVersion: '2.0.0',
+            features: ['query'],
+        });
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:manifest',
+            sdkVersion: '2.0.0',
+            features: ['query'],
+            fixes: ['valid-fix', 1],
+        });
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:manifest',
+            sdkVersion: '2.0.0',
+            features: ['query'],
+            fixes: ['valid-fix'],
+        });
+
+        expect(onSdkManifest).toHaveBeenNthCalledWith(1, {
+            sdkVersion: '2.0.0',
+            features: ['query'],
+            fixes: [],
+        });
+        expect(onSdkManifest).toHaveBeenNthCalledWith(2, {
+            sdkVersion: '2.0.0',
+            features: ['query'],
+            fixes: [],
+        });
+        expect(onSdkManifest).toHaveBeenNthCalledWith(3, {
+            sdkVersion: '2.0.0',
+            features: ['query'],
+            fixes: ['valid-fix'],
+        });
+    });
+
     it('accepts render acknowledgements only from this iframe and an allowed origin', () => {
         const onVizRendered = vi.fn();
         renderHook(() =>

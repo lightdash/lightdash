@@ -35,6 +35,15 @@ export type SdkFeature = {
     wiring?: string;
 };
 
+/** Mirrors the SdkFix shape from @lightdash/query-sdk/features. */
+export type SdkFix = {
+    key: string;
+    label: string;
+    description: string;
+    /** Non-empty; fixes used by both kinds list both targets. */
+    appliesTo: SdkFeatureTarget[];
+};
+
 export const SDK_FEATURES: SdkFeature[] = [
     {
         key: 'query',
@@ -230,6 +239,15 @@ export const SDK_FEATURES: SdkFeature[] = [
 
 export const SDK_FEATURE_KEYS: string[] = SDK_FEATURES.map((f) => f.key);
 
+/**
+ * SDK fixes begin being tracked with the manifest's `fixes` field. Add only
+ * future stable identifiers; historical SDK behavior is intentionally not
+ * backfilled or inferred from versions.
+ */
+export const SDK_FIXES: SdkFix[] = [];
+
+export const SDK_FIX_KEYS: string[] = SDK_FIXES.map((fix) => fix.key);
+
 export const sdkFeatureAppliesTo = (
     feature: Pick<SdkFeature, 'appliesTo'>,
     target: SdkFeatureTarget,
@@ -239,6 +257,10 @@ export const sdkFeatureAppliesTo = (
 export const getSdkFeaturesForTarget = (
     target: SdkFeatureTarget,
 ): SdkFeature[] => SDK_FEATURES.filter((f) => sdkFeatureAppliesTo(f, target));
+
+/** The SDK fixes an upgrade may offer to a bundle of this kind. */
+export const getSdkFixesForTarget = (target: SdkFeatureTarget): SdkFix[] =>
+    SDK_FIXES.filter((fix) => sdkFeatureAppliesTo(fix, target));
 
 /** Custom chart types are the `data_app_viz` template; every other template
  *  (including pre-template `null`) is a data app. */

@@ -90,6 +90,7 @@ vi.mock('../features/apps/components/AppPreview', () => ({
         onSdkManifest?: (manifest: {
             sdkVersion: string;
             features: string[];
+            fixes: string[];
         }) => void;
     }) => (
         <div data-testid="app-preview">
@@ -100,6 +101,7 @@ vi.mock('../features/apps/components/AppPreview', () => ({
                     onSdkManifest?.({
                         sdkVersion: '1.68.0',
                         features: ['query'],
+                        fixes: [],
                     })
                 }
             >
@@ -272,6 +274,7 @@ const underlyingDataFeature: SdkFeature = {
 const staleUpgradeOffer: SdkUpgradeOffer = {
     status: 'stale',
     newFeatures: [underlyingDataFeature],
+    newFixes: [],
     candidateFeatures: [underlyingDataFeature],
     reportedSdkVersion: '1.68.0',
     reportedFeatures: ['viz-context'],
@@ -825,6 +828,7 @@ describe('ChartTypeBuilder', () => {
         expect(onSdkManifest).toHaveBeenCalledWith({
             sdkVersion: '1.68.0',
             features: ['query'],
+            fixes: [],
         });
 
         fireEvent.click(

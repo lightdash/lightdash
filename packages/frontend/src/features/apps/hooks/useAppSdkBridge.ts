@@ -196,6 +196,7 @@ const isQueryResultGet = (method: string, path: string): boolean =>
 export type SdkManifest = {
     sdkVersion: string;
     features: string[];
+    fixes: string[];
 };
 
 export type ElementSelectedEvent = {
@@ -486,6 +487,10 @@ export function useAppSdkBridge({
                 // drop anything malformed rather than partially trusting it.
                 const sdkVersion: unknown = data.sdkVersion;
                 const features: unknown = data.features;
+                // Fix reporting was added after feature reporting. An older
+                // otherwise-valid manifest omits it, which means no fixes are
+                // known rather than that its feature report is unusable.
+                const fixes: unknown = data.fixes;
                 if (
                     typeof sdkVersion !== 'string' ||
                     sdkVersion.length === 0 ||
@@ -501,7 +506,19 @@ export function useAppSdkBridge({
                 ) {
                     return;
                 }
-                onSdkManifest({ sdkVersion, features });
+                const validFixes =
+                    fixes === undefined ||
+                    !Array.isArray(fixes) ||
+                    fixes.length > 200 ||
+                    !fixes.every(
+                        (fix: unknown): fix is string =>
+                            typeof fix === 'string' &&
+                            fix.length > 0 &&
+                            fix.length <= 100,
+                    )
+                        ? []
+                        : fixes;
+                onSdkManifest({ sdkVersion, features, fixes: validFixes });
                 return;
             }
 

@@ -89,6 +89,7 @@ describe('ExplorerChartTypeAuthoringHeader', () => {
         const stale = {
             status: 'stale' as const,
             newFeatures: [],
+            newFixes: [],
             candidateFeatures: [],
             reportedSdkVersion: '1.0.0',
             reportedFeatures: [],

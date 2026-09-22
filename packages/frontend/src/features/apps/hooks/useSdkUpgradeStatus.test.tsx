@@ -1,11 +1,22 @@
 import {
     getSdkFeaturesForTarget,
+    getSdkFixesForTarget,
     SDK_FEATURES,
+    type SdkFix,
     type SdkFeatureTarget,
 } from '@lightdash/common';
+import type * as Common from '@lightdash/common';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useSdkUpgradeStatus } from './useSdkUpgradeStatus';
+
+vi.mock('@lightdash/common', async (importOriginal) => {
+    const actual = await importOriginal<typeof Common>();
+    return {
+        ...actual,
+        getSdkFixesForTarget: vi.fn(actual.getSdkFixesForTarget),
+    };
+});
 
 const ALL_FEATURES = SDK_FEATURES.map(({ key }) => key);
 const MISSING_FIRST = SDK_FEATURES.slice(1).map(({ key }) => key);
@@ -18,6 +29,18 @@ const APP_ONLY_KEYS = APP_FEATURES.filter(
 const CHART_TYPE_ONLY_KEYS = CHART_TYPE_FEATURES.filter(
     (f) => !f.appliesTo.includes('data_app'),
 ).map(({ key }) => key);
+const DATA_APP_FIX: SdkFix = {
+    key: 'data-app-transport-retry',
+    label: 'Reliable data-app transport',
+    description: 'Retries transient host transport failures after rebuilding.',
+    appliesTo: ['data_app'],
+};
+const CHART_TYPE_FIX: SdkFix = {
+    key: 'chart-type-render-order',
+    label: 'Reliable chart rendering',
+    description: 'Waits for chart render context after rebuilding.',
+    appliesTo: ['chart_type'],
+};
 
 const renderStatus = (
     target: SdkFeatureTarget,
@@ -35,6 +58,8 @@ const renderStatus = (
 describe('useSdkUpgradeStatus', () => {
     afterEach(() => {
         vi.useRealTimers();
+        vi.restoreAllMocks();
+        vi.mocked(getSdkFixesForTarget).mockReset();
     });
 
     it('classifies manifests and resets when the classified bundle changes', () => {
@@ -53,8 +78,9 @@ describe('useSdkUpgradeStatus', () => {
 
         act(() => {
             result.current.onSdkManifest({
-                sdkVersion: '1.0.0',
+                sdkVersion: '1.6.0',
                 features: MISSING_FIRST,
+                fixes: [],
             });
         });
         expect(result.current.offer.status).toBe('stale');
@@ -64,6 +90,7 @@ describe('useSdkUpgradeStatus', () => {
             result.current.onSdkManifest({
                 sdkVersion: '2.0.0',
                 features: ALL_FEATURES,
+                fixes: [],
             });
         });
         expect(result.current.offer.status).toBe('current');
@@ -90,10 +117,11 @@ describe('useSdkUpgradeStatus', () => {
 
         act(() => {
             result.current.onSdkManifest({
-                sdkVersion: '1.0.0',
+                sdkVersion: '1.6.0',
                 features: ALL_FEATURES.filter(
                     (key) => !APP_ONLY_KEYS.includes(key),
                 ),
+                fixes: [],
             });
         });
 
@@ -108,15 +136,72 @@ describe('useSdkUpgradeStatus', () => {
 
         act(() => {
             result.current.onSdkManifest({
-                sdkVersion: '1.0.0',
+                sdkVersion: '1.6.0',
                 features: ALL_FEATURES.filter(
                     (key) => !CHART_TYPE_ONLY_KEYS.includes(key),
                 ),
+                fixes: [],
             });
         });
 
         expect(result.current.offer.status).toBe('current');
         expect(result.current.offer.newFeatures).toEqual([]);
+    });
+
+    it('offers an upgrade when a bundle is missing an applicable reported fix', () => {
+        vi.mocked(getSdkFixesForTarget).mockImplementation((target) =>
+            target === 'data_app' ? [DATA_APP_FIX] : [],
+        );
+        const { result } = renderStatus('data_app');
+
+        act(() => {
+            result.current.onSdkManifest({
+                sdkVersion: '1.0.0',
+                features: ALL_FEATURES,
+                fixes: [],
+            });
+        });
+
+        expect(result.current.offer.status).toBe('stale');
+        expect(result.current.offer.newFeatures).toEqual([]);
+        expect(result.current.offer.newFixes).toEqual([DATA_APP_FIX]);
+        expect(result.current.offer.candidateFeatures).toEqual([]);
+    });
+
+    it('keeps a bundle current when it reports every applicable fix', () => {
+        vi.mocked(getSdkFixesForTarget).mockImplementation((target) =>
+            target === 'data_app' ? [DATA_APP_FIX] : [],
+        );
+        const { result } = renderStatus('data_app');
+
+        act(() => {
+            result.current.onSdkManifest({
+                sdkVersion: 'latest',
+                features: ALL_FEATURES,
+                fixes: [DATA_APP_FIX.key],
+            });
+        });
+
+        expect(result.current.offer.status).toBe('current');
+    });
+
+    it('ignores fixes that do not apply to the classified bundle', () => {
+        vi.mocked(getSdkFixesForTarget).mockImplementation((target) =>
+            target === 'chart_type' ? [CHART_TYPE_FIX] : [],
+        );
+        const { result } = renderStatus('data_app');
+
+        act(() => {
+            result.current.onSdkManifest({
+                sdkVersion: '1.0.0',
+                features: ALL_FEATURES,
+                fixes: [],
+            });
+        });
+
+        expect(result.current.offer.status).toBe('current');
+        expect(result.current.offer.newFixes).toEqual([]);
+        expect(result.current.offer.candidateFeatures).toEqual([]);
     });
 
     it('offers a chart type only the missing features it can use', () => {
@@ -131,6 +216,7 @@ describe('useSdkUpgradeStatus', () => {
                         !CHART_TYPE_ONLY_KEYS.includes(key) &&
                         key !== 'gsheet-export',
                 ),
+                fixes: [],
             });
         });
 
@@ -161,6 +247,7 @@ describe('useSdkUpgradeStatus', () => {
             result.current.onSdkManifest({
                 sdkVersion: '2.0.0',
                 features: ALL_FEATURES,
+                fixes: [],
             });
         });
         expect(result.current.offer.status).toBe('current');
@@ -172,6 +259,7 @@ describe('useSdkUpgradeStatus', () => {
             result.current.onSdkManifest({
                 sdkVersion: '1.0.0',
                 features: MISSING_FIRST,
+                fixes: [],
             });
         });
 
@@ -198,6 +286,7 @@ describe('useSdkUpgradeStatus', () => {
             result.current.onSdkManifest({
                 sdkVersion: '2.0.0',
                 features: ALL_FEATURES,
+                fixes: [],
             });
         });
         expect(result.current.renderedManifest?.sdkVersion).toBe('2.0.0');
