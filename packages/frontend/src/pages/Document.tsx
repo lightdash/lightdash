@@ -3,7 +3,7 @@ import {
     type Document,
     type UuidOrSlug,
 } from '@lightdash/common';
-import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Tooltip } from '@mantine/core';
 import { IconPencil } from '@tabler/icons-react';
 import { lazy, Suspense, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
@@ -44,10 +44,15 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
             <DocumentRenderer
                 document={document}
                 actions={
-                    <Group gap="xs" wrap="nowrap">
+                    <ActionIcon.Group
+                        role="group"
+                        aria-label="Document controls"
+                    >
                         {canEdit && (
                             <Tooltip label="Edit document">
                                 <ActionIcon
+                                    variant="default"
+                                    size="lg"
                                     aria-label="Edit document"
                                     onClick={() => setEditingDocument(document)}
                                 >
@@ -56,7 +61,7 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
                             </Tooltip>
                         )}
                         <DocumentActions document={document} />
-                    </Group>
+                    </ActionIcon.Group>
                 }
             />
         </DocumentPageLayout>

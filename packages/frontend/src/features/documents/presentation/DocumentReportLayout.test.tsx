@@ -18,6 +18,7 @@ describe('Shared report presentation', () => {
                     variant="document"
                     headings={[]}
                     actions={<button aria-label="Share">Share</button>}
+                    metadata={<p>Last edited yesterday</p>}
                 >
                     <p>Report narrative</p>
                 </DocumentReportLayout>
@@ -27,6 +28,9 @@ describe('Shared report presentation', () => {
         const share = screen.getByRole('button', { name: 'Share' });
         expect(title.closest('header')).toContainElement(share);
         expect(screen.getByRole('article')).toContainElement(share);
+        expect(title.closest('header')).toContainElement(
+            screen.getByText('Last edited yesterday'),
+        );
     });
 
     it('preserves declarative heading identities when an earlier cell failed to render', async () => {

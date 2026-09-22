@@ -213,6 +213,7 @@ describe('Document page', () => {
         expect(
             screen.queryByText('Revenue and next steps'),
         ).not.toBeInTheDocument();
+        expect(screen.getByText(/^Last edited/)).toBeInTheDocument();
         expect(
             screen.queryByText('Document', { exact: true }),
         ).not.toBeInTheDocument();

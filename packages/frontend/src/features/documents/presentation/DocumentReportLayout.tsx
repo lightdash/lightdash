@@ -26,6 +26,7 @@ type Props = {
     headingSelector?: string;
     variant?: 'structured' | 'markdown' | 'document';
     actions?: ReactNode;
+    metadata?: ReactNode;
 };
 
 const DocumentReportLayout = ({
@@ -39,6 +40,7 @@ const DocumentReportLayout = ({
     headingSelector,
     variant = 'structured',
     actions,
+    metadata,
 }: Props) => {
     const contents = useReportContents(headings, headingSelector);
     const entries = [
@@ -119,7 +121,7 @@ const DocumentReportLayout = ({
                             : styles.reportFallback,
                     ].join(' ')}
                 >
-                    <Stack gap="xl">
+                    <Stack gap="xl" className={styles.reportContent}>
                         <Box
                             component="header"
                             ref={contents.headerRef}
@@ -142,6 +144,7 @@ const DocumentReportLayout = ({
                                     </Box>
                                 )}
                             </Box>
+                            {metadata}
                             {description && (
                                 <Box className={styles.reportProse}>
                                     {description}

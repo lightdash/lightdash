@@ -6,7 +6,7 @@ import {
     getDocumentUrl,
     type Document,
 } from '@lightdash/common';
-import { ActionIcon, Group, Menu, Tooltip } from '@mantine/core';
+import { ActionIcon, Menu, Tooltip } from '@mantine/core';
 import {
     IconCode,
     IconCopy,
@@ -75,8 +75,10 @@ const DocumentActions = ({ document }: { document: Document }) => {
     });
     const url = `${window.location.origin}${getDocumentUrl(projectUrlIdentifier, document.documentUuid, document.slug)}`;
     return (
-        <Group gap="xs" wrap="nowrap">
+        <>
             <FavoriteActionIcon
+                variant="default"
+                size="lg"
                 name={document.name}
                 isFavorite={isFavorite}
                 disabled={
@@ -91,11 +93,18 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     })
                 }
             />
-            <CopyActionIcon value={url} copyLabel="Copy document link" />
+            <CopyActionIcon
+                variant="default"
+                size="lg"
+                value={url}
+                copyLabel="Copy document link"
+            />
             {isAvailable && canManage && (
                 <>
                     <Tooltip label="Share">
                         <ActionIcon
+                            variant="default"
+                            size="lg"
                             aria-label="Share"
                             onClick={() => setShareOpen(true)}
                         >
@@ -119,7 +128,11 @@ const DocumentActions = ({ document }: { document: Document }) => {
             <Menu>
                 <Menu.Target>
                     <Tooltip label="Document actions">
-                        <ActionIcon aria-label="Document actions">
+                        <ActionIcon
+                            variant="default"
+                            size="lg"
+                            aria-label="Document actions"
+                        >
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>
                     </Tooltip>
@@ -200,7 +213,7 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     onClose={() => setDuplicateOpen(false)}
                 />
             )}
-        </Group>
+        </>
     );
 };
 

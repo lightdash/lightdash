@@ -1,6 +1,7 @@
 import { type Document } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
 import { useMemo, type ReactNode } from 'react';
+import { UpdatedInfo } from '../../components/common/PageHeader/UpdatedInfo';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import DocumentChart from './DocumentChart';
 import { getDocumentHeadingId, getDocumentHeadings } from './documentHeadings';
@@ -25,6 +26,13 @@ const DocumentRenderer = ({
             headings={headings}
             variant="document"
             actions={actions}
+            metadata={
+                <UpdatedInfo
+                    updatedAt={document.updatedAt}
+                    user={null}
+                    partiallyBold={false}
+                />
+            }
         >
             <Stack
                 className={`${styles.structuredReport} ${styles.documentCells}`}
