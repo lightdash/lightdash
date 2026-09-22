@@ -129,6 +129,27 @@ describe('ExplorerChartSidebar', () => {
         ).toHaveLength(1);
     });
 
+    it('makes the selected chart thumbnail and name change the chart type', async () => {
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.TABLE}
+                onClose={vi.fn()}
+            />,
+        );
+
+        const changeButton = screen.getByRole('button', {
+            name: 'Change chart type',
+        });
+        expect(changeButton).toContainElement(
+            screen.getByText('Table thumbnail'),
+        );
+        expect(changeButton).toContainElement(screen.getByText('Table'));
+
+        await userEvent.click(screen.getByText('Table'));
+
+        expect(screen.getByText('Choose chart type')).toBeInTheDocument();
+    });
+
     it('configures the selected chart without changing its state and restores focus', async () => {
         const store = createExplorerStore();
         const onClose = vi.fn();
