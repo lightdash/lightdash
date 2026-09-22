@@ -11,8 +11,10 @@ import { describe, expect, it } from 'vitest';
 import {
     doesFilterApplyToTile,
     getFilterTileRelation,
+    getSavedFilterFieldStatus,
     getValidSqlColumnReferences,
     getTabsForFilterRule,
+    type SavedFilterFieldsByTileUuid,
 } from './index';
 
 // Helper to create a mock filter rule
@@ -484,5 +486,393 @@ describe('getTabsForFilterRule', () => {
         );
 
         expect(result).toEqual([]);
+    });
+});
+
+describe('hidden model fields kept executable', () => {
+    const tile1 = createMockTile('tile-1', 'tab-1');
+    const tile2 = createMockTile('tile-2', 'tab-2');
+    const hiddenStatus: SavedFilterFieldsByTileUuid = {
+        'tile-1': [
+            {
+                fieldId: 'orders_status',
+                fallbackType: DimensionType.STRING,
+            },
+        ],
+    };
+
+    describe('getSavedFilterFieldStatus', () => {
+        it('resolves a saved rule whose dimension the pickers omit', () => {
+            expect(
+                getSavedFilterFieldStatus(createMockFilterRule(), hiddenStatus),
+            ).toEqual({
+                fieldId: 'orders_status',
+                fallbackType: DimensionType.STRING,
+                hasConflictingTypes: false,
+            });
+        });
+
+        it('does not resolve a field that no tile can execute', () => {
+            expect(
+                getSavedFilterFieldStatus(
+                    createMockFilterRule({
+                        target: {
+                            fieldId: 'orders_deleted_column',
+                            tableName: 'orders',
+                        },
+                    }),
+                    hiddenStatus,
+                ),
+            ).toBeUndefined();
+        });
+
+        it('never claims a SQL column rule as a hidden model field', () => {
+            const sqlRule = createMockFilterRule({
+                target: {
+                    fieldId: 'orders_status',
+                    tableName: 'sql_chart',
+                    isSqlColumn: true,
+                    fallbackType: DimensionType.STRING,
+                },
+            });
+
+            expect(
+                getSavedFilterFieldStatus(sqlRule, hiddenStatus),
+            ).toBeUndefined();
+        });
+
+        it('ignores a SQL column tile override when resolving a model rule', () => {
+            const filterRule = createMockFilterRule({
+                target: {
+                    fieldId: 'orders_deleted_column',
+                    tableName: 'orders',
+                },
+                tileTargets: {
+                    'tile-1': {
+                        fieldId: 'orders_status',
+                        tableName: 'sql_chart',
+                        isSqlColumn: true,
+                    },
+                },
+            });
+
+            expect(
+                getSavedFilterFieldStatus(filterRule, hiddenStatus),
+            ).toBeUndefined();
+        });
+
+        it('resolves nothing when the server did not send the status map', () => {
+            expect(
+                getSavedFilterFieldStatus(createMockFilterRule(), undefined),
+            ).toBeUndefined();
+        });
+
+        it("reads a tile's own override rather than the rule's main target", () => {
+            const filterRule = createMockFilterRule({
+                target: {
+                    fieldId: 'orders_deleted_column',
+                    tableName: 'orders',
+                },
+                tileTargets: {
+                    'tile-1': {
+                        fieldId: 'orders_status',
+                        tableName: 'orders',
+                    },
+                },
+            });
+
+            expect(getSavedFilterFieldStatus(filterRule, hiddenStatus)).toEqual(
+                {
+                    fieldId: 'orders_status',
+                    fallbackType: DimensionType.STRING,
+                    hasConflictingTypes: false,
+                },
+            );
+        });
+
+        it('resolves a hidden date dimension to its own type, not a string default', () => {
+            expect(
+                getSavedFilterFieldStatus(createMockFilterRule(), {
+                    'tile-1': [
+                        {
+                            fieldId: 'orders_status',
+                            fallbackType: DimensionType.DATE,
+                        },
+                    ],
+                })?.fallbackType,
+            ).toBe(DimensionType.DATE);
+        });
+
+        it('resolves a hidden metric the same way as a hidden dimension', () => {
+            const metricRule = createMockFilterRule({
+                target: {
+                    fieldId: 'orders_total_revenue',
+                    tableName: 'orders',
+                },
+                operator: FilterOperator.GREATER_THAN,
+                values: [0],
+            });
+
+            expect(
+                getSavedFilterFieldStatus(metricRule, {
+                    'tile-1': [
+                        {
+                            fieldId: 'orders_total_revenue',
+                            fallbackType: DimensionType.NUMBER,
+                        },
+                    ],
+                })?.fallbackType,
+            ).toBe(DimensionType.NUMBER);
+        });
+
+        it('reports conflicting types between merge sources on one tile', () => {
+            expect(
+                getSavedFilterFieldStatus(createMockFilterRule(), {
+                    'tile-1': [
+                        {
+                            fieldId: 'orders_status',
+                            fallbackType: DimensionType.DATE,
+                        },
+                        {
+                            fieldId: 'orders_status',
+                            fallbackType: DimensionType.STRING,
+                        },
+                    ],
+                }),
+            ).toEqual({
+                fieldId: 'orders_status',
+                fallbackType: DimensionType.DATE,
+                hasConflictingTypes: true,
+            });
+        });
+
+        it('picks the same type whatever order one tile lists its sources in', () => {
+            const resolved = [
+                [DimensionType.DATE, DimensionType.STRING],
+                [DimensionType.STRING, DimensionType.DATE],
+            ].map((types) =>
+                getSavedFilterFieldStatus(createMockFilterRule(), {
+                    'tile-1': types.map((fallbackType) => ({
+                        fieldId: 'orders_status',
+                        fallbackType,
+                    })),
+                }),
+            );
+
+            expect(resolved[0]).toEqual(resolved[1]);
+        });
+
+        it('stays unconflicted when one tile repeats the same id and type', () => {
+            expect(
+                getSavedFilterFieldStatus(createMockFilterRule(), {
+                    'tile-1': [
+                        {
+                            fieldId: 'orders_status',
+                            fallbackType: DimensionType.NUMBER,
+                        },
+                        {
+                            fieldId: 'orders_status',
+                            fallbackType: DimensionType.NUMBER,
+                        },
+                    ],
+                }),
+            ).toEqual({
+                fieldId: 'orders_status',
+                fallbackType: DimensionType.NUMBER,
+                hasConflictingTypes: false,
+            });
+        });
+
+        it('reports conflicting types and picks the same one whatever the tile order', () => {
+            const conflicting = [
+                {
+                    'tile-b': [
+                        {
+                            fieldId: 'orders_status',
+                            fallbackType: DimensionType.DATE,
+                        },
+                    ],
+                    'tile-a': [
+                        {
+                            fieldId: 'orders_status',
+                            fallbackType: DimensionType.STRING,
+                        },
+                    ],
+                },
+                {
+                    'tile-a': [
+                        {
+                            fieldId: 'orders_status',
+                            fallbackType: DimensionType.STRING,
+                        },
+                    ],
+                    'tile-b': [
+                        {
+                            fieldId: 'orders_status',
+                            fallbackType: DimensionType.DATE,
+                        },
+                    ],
+                },
+            ] satisfies SavedFilterFieldsByTileUuid[];
+
+            const resolved = conflicting.map((status) =>
+                getSavedFilterFieldStatus(createMockFilterRule(), status),
+            );
+
+            expect(resolved[0]).toEqual(resolved[1]);
+            expect(resolved[0]).toEqual({
+                fieldId: 'orders_status',
+                fallbackType: DimensionType.DATE,
+                hasConflictingTypes: true,
+            });
+        });
+    });
+
+    describe('doesFilterApplyToTile', () => {
+        it('applies to a tile that can only execute the field, not offer it', () => {
+            expect(
+                doesFilterApplyToTile(
+                    createMockFilterRule(),
+                    tile1,
+                    {},
+                    hiddenStatus,
+                ),
+            ).toBe(true);
+        });
+
+        it('still excludes a tile the rule turned off', () => {
+            expect(
+                doesFilterApplyToTile(
+                    createMockFilterRule({
+                        tileTargets: { 'tile-1': false },
+                    }),
+                    tile1,
+                    {},
+                    hiddenStatus,
+                ),
+            ).toBe(false);
+        });
+
+        it('does not apply to a tile whose explore lacks the field', () => {
+            expect(
+                doesFilterApplyToTile(
+                    createMockFilterRule(),
+                    tile2,
+                    {},
+                    hiddenStatus,
+                ),
+            ).toBe(false);
+        });
+
+        it('drops a mapped target that no longer exists once the status map is available', () => {
+            const filterRule = createMockFilterRule({
+                tileTargets: {
+                    'tile-1': {
+                        fieldId: 'orders_deleted_column',
+                        tableName: 'orders',
+                    },
+                },
+            });
+
+            expect(doesFilterApplyToTile(filterRule, tile1, {})).toBe(true);
+            expect(
+                doesFilterApplyToTile(filterRule, tile1, {}, hiddenStatus),
+            ).toBe(false);
+        });
+
+        it('keeps a mapped target that the pickers still offer', () => {
+            const filterRule = createMockFilterRule({
+                tileTargets: {
+                    'tile-1': {
+                        fieldId: 'orders_status',
+                        tableName: 'orders',
+                    },
+                },
+            });
+
+            expect(
+                doesFilterApplyToTile(
+                    filterRule,
+                    tile1,
+                    {
+                        'tile-1': [
+                            createMockFilterableField(
+                                'orders_status',
+                                'orders',
+                            ),
+                        ],
+                    },
+                    {},
+                ),
+            ).toBe(true);
+        });
+
+        it('never validates a mapped SQL column against the field maps', () => {
+            const filterRule = createMockFilterRule({
+                tileTargets: {
+                    'tile-1': {
+                        fieldId: 'status',
+                        tableName: 'sql_chart',
+                        isSqlColumn: true,
+                    },
+                },
+            });
+
+            expect(
+                doesFilterApplyToTile(filterRule, tile1, {}, hiddenStatus),
+            ).toBe(true);
+        });
+
+        it('never validates a mapped Data App tile against the field maps', () => {
+            const dataAppTile = createMockDataAppTile('tile-1', 'tab-1');
+            const filterRule = createMockFilterRule({
+                tileTargets: {
+                    'tile-1': {
+                        fieldId: 'orders_deleted_column',
+                        tableName: 'orders',
+                    },
+                },
+            });
+
+            expect(
+                doesFilterApplyToTile(
+                    filterRule,
+                    dataAppTile,
+                    {},
+                    hiddenStatus,
+                ),
+            ).toBe(true);
+        });
+    });
+
+    describe('getTabsForFilterRule', () => {
+        it('reports the tab of a tile that can only execute the field', () => {
+            expect(
+                getTabsForFilterRule(
+                    createMockFilterRule(),
+                    [tile1, tile2],
+                    ['tab-1', 'tab-2'],
+                    {},
+                    hiddenStatus,
+                ),
+            ).toEqual(['tab-1']);
+        });
+
+        it('reports no tabs for a field that was really deleted', () => {
+            expect(
+                getTabsForFilterRule(
+                    createMockFilterRule({
+                        target: {
+                            fieldId: 'orders_deleted_column',
+                            tableName: 'orders',
+                        },
+                    }),
+                    [tile1, tile2],
+                    ['tab-1', 'tab-2'],
+                    {},
+                    hiddenStatus,
+                ),
+            ).toEqual([]);
+        });
     });
 });

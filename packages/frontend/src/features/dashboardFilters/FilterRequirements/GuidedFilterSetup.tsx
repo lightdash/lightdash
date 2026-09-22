@@ -28,13 +28,20 @@ import {
     type FC,
 } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
-import { getConditionalRuleLabelFromItem } from '../../../components/common/Filters/FilterInputs/utils';
+import {
+    getConditionalRuleLabel,
+    getConditionalRuleLabelFromItem,
+} from '../../../components/common/Filters/FilterInputs/utils';
 import FiltersProvider from '../../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../../components/common/MantineIcon';
 import TruncatedText from '../../../components/common/TruncatedText';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import { hasFilterValueSet } from '../FilterConfiguration/utils';
+import {
+    getSavedFilterFieldStatus,
+    hasFilterValueSet,
+    type ResolvedSavedFilterField,
+} from '../FilterConfiguration/utils';
 import classes from './GuidedFilterSetup.module.css';
 import OperatorPicker from './OperatorPicker';
 import { AndSeparator, OrSeparator } from './RuleSeparators';
@@ -49,14 +56,21 @@ import {
     type FilterRequirementRule,
 } from './utils';
 
+type ModelHiddenFieldResolver = (
+    member: DashboardFilterRule,
+) => ResolvedSavedFilterField | undefined;
+
 const getMemberFilterType = (
     member: DashboardFilterRule,
     field: FilterableItem | undefined,
+    modelHiddenField: ResolvedSavedFilterField | undefined,
 ): FilterType =>
     field
         ? getFilterTypeFromItem(field)
         : getFilterTypeFromItemType(
-              member.target.fallbackType ?? DimensionType.STRING,
+              modelHiddenField?.fallbackType ??
+                  member.target.fallbackType ??
+                  DimensionType.STRING,
           );
 
 const RuleStatusIcon: FC<{ satisfied: boolean }> = ({ satisfied }) =>
@@ -71,6 +85,7 @@ const RuleStatusIcon: FC<{ satisfied: boolean }> = ({ satisfied }) =>
 type MemberInputProps = {
     member: DashboardFilterRule;
     field: FilterableItem | undefined;
+    modelHiddenField: ResolvedSavedFilterField | undefined;
     label: string;
     /** Multi-member rules label each row; single rules are labeled by the rule heading */
     showLabel: boolean;
@@ -85,12 +100,14 @@ type MemberInputProps = {
 const MemberInput: FC<MemberInputProps> = ({
     member,
     field,
+    modelHiddenField,
     label,
     showLabel,
     popoverProps,
     onChange,
 }) => {
-    const filterType = getMemberFilterType(member, field);
+    const filterType = getMemberFilterType(member, field, modelHiddenField);
+    const isNotEditable = !!modelHiddenField?.hasConflictingTypes;
 
     return (
         // Label sits on its own line above a full-width input so long field
@@ -101,15 +118,17 @@ const MemberInput: FC<MemberInputProps> = ({
                     <TruncatedText maxWidth="100%" fz="xs" fw={500}>
                         {label}
                     </TruncatedText>
-                    <OperatorPicker
-                        filterType={filterType}
-                        field={field}
-                        member={member}
-                        label={label}
-                        onChange={onChange}
-                        onOpen={popoverProps.onOpen}
-                        onClose={popoverProps.onClose}
-                    />
+                    {!isNotEditable && (
+                        <OperatorPicker
+                            filterType={filterType}
+                            field={field}
+                            member={member}
+                            label={label}
+                            onChange={onChange}
+                            onOpen={popoverProps.onOpen}
+                            onClose={popoverProps.onClose}
+                        />
+                    )}
                 </Group>
             )}
             {/* Keyed so a changed operator fades its new input shape in */}
@@ -117,7 +136,9 @@ const MemberInput: FC<MemberInputProps> = ({
                 <FilterInputComponent
                     filterType={filterType}
                     field={field}
+                    fallbackType={modelHiddenField?.fallbackType}
                     rule={member}
+                    disabled={isNotEditable}
                     popoverProps={popoverProps}
                     onChange={(newRule) =>
                         onChange(newRule as DashboardFilterRule)
@@ -131,10 +152,16 @@ const MemberInput: FC<MemberInputProps> = ({
 type RuleSummaryProps = {
     rule: FilterRequirementRule;
     getField: DashboardFilterFieldResolver;
+    getModelHiddenField: ModelHiddenFieldResolver;
     onChange: () => void;
 };
 
-const RuleSummary: FC<RuleSummaryProps> = ({ rule, getField, onChange }) => {
+const RuleSummary: FC<RuleSummaryProps> = ({
+    rule,
+    getField,
+    getModelHiddenField,
+    onChange,
+}) => {
     const getUiString = useUiStrings();
     // Same test as isRequirementRuleSatisfied, so the summary always shows
     // the member that actually satisfies the rule
@@ -144,9 +171,18 @@ const RuleSummary: FC<RuleSummaryProps> = ({ rule, getField, onChange }) => {
     if (!setMember) return null;
 
     const field = getField(setMember);
-    const ruleLabels = field
-        ? getConditionalRuleLabelFromItem(setMember, field)
-        : undefined;
+    const modelHiddenField = getModelHiddenField(setMember);
+    let ruleLabels;
+    if (field) {
+        ruleLabels = getConditionalRuleLabelFromItem(setMember, field);
+    } else if (modelHiddenField) {
+        ruleLabels = getConditionalRuleLabel(
+            setMember,
+            getFilterTypeFromItemType(modelHiddenField.fallbackType),
+            getDashboardFilterRuleLabel(setMember, getField),
+            getUiString,
+        );
+    }
     const valueLabel = ruleLabels
         ? [ruleLabels.operator, ruleLabels.value].filter(Boolean).join(' ')
         : undefined;
@@ -200,6 +236,9 @@ const GuidedFilterSetup: FC<Props> = ({
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
+    const savedFilterFieldsByTileUuid = useDashboardContext(
+        (c) => c.savedFilterFieldsByTileUuid,
+    );
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
@@ -213,6 +252,16 @@ const GuidedFilterSetup: FC<Props> = ({
     const [expandedRuleIds, setExpandedRuleIds] = useState<string[]>([]);
 
     const getField = useDashboardFilterField();
+    const getModelHiddenField = useCallback(
+        (member: DashboardFilterRule) =>
+            getField(member)
+                ? undefined
+                : getSavedFilterFieldStatus(
+                      member,
+                      savedFilterFieldsByTileUuid,
+                  ),
+        [getField, savedFilterFieldsByTileUuid],
+    );
 
     // Keep the first unmet rule in view as the viewer works down the list;
     // scrollIntoView targets the modal body's scroll area
@@ -251,6 +300,7 @@ const GuidedFilterSetup: FC<Props> = ({
             dashboardFilters={allFilters}
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
+            savedFilterFieldsByTileUuid={savedFilterFieldsByTileUuid}
             activeTabUuid={activeTab?.uuid}
         >
             <Box data-testid="guided-filter-setup" ref={rootRef}>
@@ -271,6 +321,9 @@ const GuidedFilterSetup: FC<Props> = ({
                                         <RuleSummary
                                             rule={rule}
                                             getField={getField}
+                                            getModelHiddenField={
+                                                getModelHiddenField
+                                            }
                                             onChange={() =>
                                                 setExpandedRuleIds(
                                                     (previous) => [
@@ -305,31 +358,40 @@ const GuidedFilterSetup: FC<Props> = ({
                                                                   getField,
                                                               )}
                                                     </Text>
-                                                    {!isMultiMember && (
-                                                        <OperatorPicker
-                                                            filterType={getMemberFilterType(
-                                                                firstMember,
-                                                                firstMemberField,
-                                                            )}
-                                                            field={
-                                                                firstMemberField
-                                                            }
-                                                            member={firstMember}
-                                                            label={getDashboardFilterRuleLabel(
-                                                                firstMember,
-                                                                getField,
-                                                            )}
-                                                            onChange={
-                                                                handleChangeFilterRule
-                                                            }
-                                                            onOpen={
-                                                                onSubPopoverOpen
-                                                            }
-                                                            onClose={
-                                                                onSubPopoverClose
-                                                            }
-                                                        />
-                                                    )}
+                                                    {!isMultiMember &&
+                                                        !getModelHiddenField(
+                                                            firstMember,
+                                                        )
+                                                            ?.hasConflictingTypes && (
+                                                            <OperatorPicker
+                                                                filterType={getMemberFilterType(
+                                                                    firstMember,
+                                                                    firstMemberField,
+                                                                    getModelHiddenField(
+                                                                        firstMember,
+                                                                    ),
+                                                                )}
+                                                                field={
+                                                                    firstMemberField
+                                                                }
+                                                                member={
+                                                                    firstMember
+                                                                }
+                                                                label={getDashboardFilterRuleLabel(
+                                                                    firstMember,
+                                                                    getField,
+                                                                )}
+                                                                onChange={
+                                                                    handleChangeFilterRule
+                                                                }
+                                                                onOpen={
+                                                                    onSubPopoverOpen
+                                                                }
+                                                                onClose={
+                                                                    onSubPopoverClose
+                                                                }
+                                                            />
+                                                        )}
                                                 </Group>
                                             </Group>
                                             <Stack
@@ -348,6 +410,9 @@ const GuidedFilterSetup: FC<Props> = ({
                                                             <MemberInput
                                                                 member={member}
                                                                 field={getField(
+                                                                    member,
+                                                                )}
+                                                                modelHiddenField={getModelHiddenField(
                                                                     member,
                                                                 )}
                                                                 label={getDashboardFilterRuleLabel(

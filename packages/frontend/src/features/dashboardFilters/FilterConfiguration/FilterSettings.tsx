@@ -7,6 +7,7 @@ import {
     supportsSingleValue,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DimensionType,
     type FilterRule,
 } from '@lightdash/common';
 import {
@@ -38,6 +39,7 @@ interface FilterSettingsProps {
     isCreatingNew: boolean;
     filterType: FilterType;
     field?: DashboardFilterableField;
+    fallbackType?: DimensionType;
     filterRule: DashboardFilterRule;
     originalFilterRule?: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
@@ -49,6 +51,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     isEditMode,
     isCreatingNew,
     field,
+    fallbackType,
     filterType,
     filterRule,
     originalFilterRule,
@@ -268,6 +271,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                 popoverProps={popoverProps}
                                 filterType={filterType}
                                 field={field}
+                                fallbackType={fallbackType}
                                 rule={filterRule}
                                 onChange={(newFilterRule) =>
                                     onChangeFilterRule(

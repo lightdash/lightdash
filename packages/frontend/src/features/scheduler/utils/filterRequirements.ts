@@ -13,7 +13,10 @@ import {
     type Filters,
     type UnmetFilterRequirement,
 } from '@lightdash/common';
-import { doesFilterApplyToTile } from '../../dashboardFilters/FilterConfiguration/utils';
+import {
+    doesFilterApplyToTile,
+    type SavedFilterFieldsByTileUuid,
+} from '../../dashboardFilters/FilterConfiguration/utils';
 
 export type SchedulerFilterRequirements = {
     unmetRequirements: UnmetFilterRequirement[];
@@ -27,6 +30,7 @@ export type SchedulerFilterableTiles = {
     filterableFieldsByTileUuid:
         | Record<string, DashboardFilterableField[]>
         | undefined;
+    savedFilterFieldsByTileUuid: SavedFilterFieldsByTileUuid | undefined;
 };
 
 /**
@@ -50,8 +54,13 @@ const getAppliesToDelivery = (
         return () => true;
     }
 
-    const { tiles, tabUuids, selectedTabs, filterableFieldsByTileUuid } =
-        tabScope;
+    const {
+        tiles,
+        tabUuids,
+        selectedTabs,
+        filterableFieldsByTileUuid,
+        savedFilterFieldsByTileUuid,
+    } = tabScope;
     const includesEveryTab =
         selectedTabs === null ||
         (selectedTabs.length === tabUuids.length &&
@@ -64,7 +73,12 @@ const getAppliesToDelivery = (
         tiles.some(
             (tile) =>
                 isTileInSelectedTabs(tile, selectedTabs) &&
-                doesFilterApplyToTile(filter, tile, filterableFieldsByTileUuid),
+                doesFilterApplyToTile(
+                    filter,
+                    tile,
+                    filterableFieldsByTileUuid,
+                    savedFilterFieldsByTileUuid,
+                ),
         );
 };
 

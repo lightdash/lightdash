@@ -355,6 +355,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
+    const savedFilterFieldsByTileUuid = useDashboardContext(
+        (c) => c.savedFilterFieldsByTileUuid,
+    );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
     const getUiString = useUiStrings();
     const dateZoomGranularity = useDashboardContext(
@@ -508,6 +511,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                         filterRule,
                         tile,
                         filterableFieldsByTileUuid,
+                        savedFilterFieldsByTileUuid,
                     );
                 }) ?? false
             );
@@ -535,6 +539,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         dashboardTiles,
         activeTab?.uuid,
         filterableFieldsByTileUuid,
+        savedFilterFieldsByTileUuid,
     ]);
 
     // Guided setup card over the locked grid; dismissal lasts until reload

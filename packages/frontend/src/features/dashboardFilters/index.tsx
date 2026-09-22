@@ -47,6 +47,9 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
+    const savedFilterFieldsByTileUuid = useDashboardContext(
+        (c) => c.savedFilterFieldsByTileUuid,
+    );
 
     const handleSaveNew = useCallback(
         (
@@ -100,6 +103,7 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
             dashboardFilters={allFilters}
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
+            savedFilterFieldsByTileUuid={savedFilterFieldsByTileUuid}
             activeTabUuid={activeTabUuid}
             parameterValues={parameterValues}
         >

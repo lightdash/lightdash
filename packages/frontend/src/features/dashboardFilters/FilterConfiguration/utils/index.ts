@@ -4,6 +4,7 @@ import {
     getItemId,
     isDashboardDataAppTileType,
     isDashboardFieldTarget,
+    type DashboardAvailableFilters,
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -21,6 +22,83 @@ import isEqual from 'lodash/isEqual';
  * - 'mapped': Tile is explicitly mapped with a specific field configuration
  */
 export type FilterTileRelation = 'auto' | 'disabled' | 'mapped';
+
+export type SavedFilterFieldsByTileUuid = NonNullable<
+    DashboardAvailableFilters['savedFilterFieldsByTile']
+>;
+
+export type SavedFilterFieldStatus =
+    SavedFilterFieldsByTileUuid[string][number];
+
+export type ResolvedSavedFilterField = SavedFilterFieldStatus & {
+    hasConflictingTypes: boolean;
+};
+
+const getEffectiveFieldIdForTile = (
+    filterRule: DashboardFilterRule,
+    tileUuid: string,
+): string | undefined => {
+    const tileTarget = filterRule.tileTargets?.[tileUuid];
+    if (tileTarget && isDashboardFieldTarget(tileTarget)) {
+        return tileTarget.isSqlColumn ? undefined : tileTarget.fieldId;
+    }
+    return filterRule.target.fieldId;
+};
+
+export const getSavedFilterFieldStatus = (
+    filterRule: DashboardFilterRule,
+    savedFilterFieldsByTileUuid: SavedFilterFieldsByTileUuid | undefined,
+): ResolvedSavedFilterField | undefined => {
+    if (!savedFilterFieldsByTileUuid || filterRule.target.isSqlColumn) {
+        return undefined;
+    }
+
+    const matches = Object.keys(savedFilterFieldsByTileUuid)
+        .sort()
+        .flatMap((tileUuid) => {
+            const fieldId = getEffectiveFieldIdForTile(filterRule, tileUuid);
+            return fieldId
+                ? savedFilterFieldsByTileUuid[tileUuid].filter(
+                      (candidate) => candidate.fieldId === fieldId,
+                  )
+                : [];
+        });
+
+    const [first] = matches;
+    if (!first) return undefined;
+
+    const fallbackTypes = [
+        ...new Set(matches.map(({ fallbackType }) => fallbackType)),
+    ].sort();
+
+    return {
+        fieldId: first.fieldId,
+        fallbackType: fallbackTypes[0],
+        hasConflictingTypes: fallbackTypes.length > 1,
+    };
+};
+
+const isMappedTargetResolvable = (
+    tile: DashboardTile,
+    tileConfig: DashboardFieldTarget,
+    filterableFieldsByTileUuid:
+        | Record<string, DashboardFilterableField[]>
+        | undefined,
+    savedFilterFieldsByTileUuid: SavedFilterFieldsByTileUuid,
+): boolean => {
+    if (tileConfig.isSqlColumn || isDashboardDataAppTileType(tile)) return true;
+
+    return (
+        (filterableFieldsByTileUuid?.[tile.uuid]?.some(
+            (field) => getItemId(field) === tileConfig.fieldId,
+        ) ??
+            false) ||
+        (savedFilterFieldsByTileUuid[tile.uuid]?.some(
+            ({ fieldId }) => fieldId === tileConfig.fieldId,
+        ) ??
+            false)
+    );
+};
 
 export const getValidSqlColumnReferences = (
     columns: ReadonlyArray<{ reference?: unknown }>,
@@ -70,12 +148,20 @@ const tileHasFilterField = (
     filterableFieldsByTileUuid:
         | Record<string, DashboardFilterableField[]>
         | undefined,
+    savedFilterFieldsByTileUuid?: SavedFilterFieldsByTileUuid,
 ): boolean => {
-    if (!filterableFieldsByTileUuid) return false;
-    const tileFields = filterableFieldsByTileUuid[tile.uuid];
-    return (
+    const tileFields = filterableFieldsByTileUuid?.[tile.uuid];
+    if (
         tileFields?.some(
             (field) => getItemId(field) === filterRule.target.fieldId,
+        )
+    ) {
+        return true;
+    }
+
+    return (
+        savedFilterFieldsByTileUuid?.[tile.uuid]?.some(
+            ({ fieldId }) => fieldId === filterRule.target.fieldId,
         ) ?? false
     );
 };
@@ -96,8 +182,12 @@ export const doesFilterApplyToTile = (
     filterableFieldsByTileUuid:
         | Record<string, DashboardFilterableField[]>
         | undefined,
+    savedFilterFieldsByTileUuid?: SavedFilterFieldsByTileUuid,
 ): boolean => {
-    const { relation } = getFilterTileRelation(filterRule, tile.uuid);
+    const { relation, tileConfig } = getFilterTileRelation(
+        filterRule,
+        tile.uuid,
+    );
 
     switch (relation) {
         case 'auto':
@@ -108,11 +198,24 @@ export const doesFilterApplyToTile = (
                 filterRule,
                 tile,
                 filterableFieldsByTileUuid,
+                savedFilterFieldsByTileUuid,
             );
         case 'disabled':
             return false;
         case 'mapped':
-            return true;
+            if (
+                !savedFilterFieldsByTileUuid ||
+                !tileConfig ||
+                !isDashboardFieldTarget(tileConfig)
+            ) {
+                return true;
+            }
+            return isMappedTargetResolvable(
+                tile,
+                tileConfig,
+                filterableFieldsByTileUuid,
+                savedFilterFieldsByTileUuid,
+            );
         default:
             return assertUnreachable(
                 relation,
@@ -135,10 +238,16 @@ export const doesFilterApplyToAnyTile = (
     filterableFieldsByTileUuid:
         | Record<string, DashboardFilterableField[]>
         | undefined,
+    savedFilterFieldsByTileUuid?: SavedFilterFieldsByTileUuid,
 ): boolean => {
     return (
         dashboardTiles?.some((tile) =>
-            doesFilterApplyToTile(filterRule, tile, filterableFieldsByTileUuid),
+            doesFilterApplyToTile(
+                filterRule,
+                tile,
+                filterableFieldsByTileUuid,
+                savedFilterFieldsByTileUuid,
+            ),
         ) ?? false
     );
 };
@@ -163,6 +272,7 @@ export const getTabsForFilterRule = (
     filterableFieldsByTileUuid:
         | Record<string, DashboardFilterableField[]>
         | undefined,
+    savedFilterFieldsByTileUuid?: SavedFilterFieldsByTileUuid,
 ): string[] => {
     // Find which tabs have tiles targeted by this filter
     const tabsWithTargetedTiles = new Set<string>();
@@ -170,7 +280,12 @@ export const getTabsForFilterRule = (
         if (!tile.tabUuid) return;
 
         if (
-            doesFilterApplyToTile(filterRule, tile, filterableFieldsByTileUuid)
+            doesFilterApplyToTile(
+                filterRule,
+                tile,
+                filterableFieldsByTileUuid,
+                savedFilterFieldsByTileUuid,
+            )
         ) {
             tabsWithTargetedTiles.add(tile.tabUuid);
         }

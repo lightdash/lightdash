@@ -24,6 +24,7 @@ import {
     type useDashboardCommentsCheck,
     type useGetComments,
 } from '../../features/comments';
+import { type SavedFilterFieldsByTileUuid } from '../../features/dashboardFilters/FilterConfiguration/utils';
 
 export type SqlChartTileMetadata = {
     columns: ResultColumn[];
@@ -108,6 +109,7 @@ export type DashboardContextType = {
     filterableFieldsByTileUuid:
         | Record<string, DashboardFilterableField[]>
         | undefined;
+    savedFilterFieldsByTileUuid: SavedFilterFieldsByTileUuid | undefined;
     chartZoomableFieldsByTileUuid: Record<string, ChartZoomableField[]>;
     setChartZoomableFields: (
         tileUuid: string,

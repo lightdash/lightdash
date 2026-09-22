@@ -180,6 +180,7 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
         tabUuids: ['tab-1', 'tab-2'],
         selectedTabs,
         filterableFieldsByTileUuid,
+        savedFilterFieldsByTileUuid: undefined,
     });
 
     // One required filter per tab, each targeting only its own tab's tile
@@ -317,6 +318,7 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
                 'tile-1': [field('automatic')],
                 'data-app-1': [],
             },
+            savedFilterFieldsByTileUuid: undefined,
         };
         const automaticFilter = rule({
             id: 'automatic',
@@ -353,6 +355,7 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
                 tabUuids: ['tab-1', 'tab-2'],
                 selectedTabs: ['tab-2'],
                 filterableFieldsByTileUuid: undefined,
+                savedFilterFieldsByTileUuid: undefined,
             }).filtersWithUnmetRequirements.map((f) => f.id),
         ).toEqual(['tab1', 'tab2']);
     });
@@ -410,5 +413,86 @@ describe('getSchedulerFilterRequirements tab scoping', () => {
                 tabScope(['tab-2']),
             ).filtersWithUnmetRequirements.map((filter) => filter.id),
         ).toEqual(['b']);
+    });
+});
+
+describe('getSchedulerFilterRequirements with hidden model fields', () => {
+    const tile = (uuid: string, tabUuid: string | undefined): DashboardTile =>
+        ({ uuid, tabUuid }) as DashboardTile;
+
+    const tiles = [tile('tile-1', 'tab-1'), tile('tile-2', 'tab-2')];
+
+    const hiddenOnTile1: SchedulerTabScope['savedFilterFieldsByTileUuid'] = {
+        'tile-1': [
+            {
+                fieldId: 'orders_hidden',
+                fallbackType: DimensionType.STRING,
+            },
+        ],
+    };
+
+    const tabScope = (
+        selectedTabs: string[] | null,
+        savedFilterFieldsByTileUuid: SchedulerTabScope['savedFilterFieldsByTileUuid'],
+    ): SchedulerTabScope => ({
+        tiles,
+        tabUuids: ['tab-1', 'tab-2'],
+        selectedTabs,
+        filterableFieldsByTileUuid: { 'tile-1': [], 'tile-2': [] },
+        savedFilterFieldsByTileUuid,
+    });
+
+    const hiddenRequiredFilter = rule({
+        id: 'hidden',
+        required: true,
+        target: { fieldId: 'orders_hidden', tableName: 'orders' },
+        tileTargets: undefined,
+    });
+    const filters = dashboardFilters([hiddenRequiredFilter]);
+
+    it('blocks a delivery that includes the tab the hidden filter still runs on', () => {
+        expect(
+            getSchedulerFilterRequirements(
+                filters,
+                [],
+                tabScope(['tab-1'], hiddenOnTile1),
+            ).filtersWithUnmetRequirements.map((f) => f.id),
+        ).toEqual(['hidden']);
+    });
+
+    it('leaves a delivery of other tabs alone', () => {
+        expect(
+            getSchedulerFilterRequirements(
+                filters,
+                [],
+                tabScope(['tab-2'], hiddenOnTile1),
+            ).filtersWithUnmetRequirements,
+        ).toEqual([]);
+    });
+
+    it('does not block a delivery when the field was really deleted', () => {
+        expect(
+            getSchedulerFilterRequirements(filters, [], tabScope(['tab-1'], {}))
+                .filtersWithUnmetRequirements,
+        ).toEqual([]);
+    });
+
+    it('is satisfied once the hidden required filter has a value', () => {
+        const override = rule({
+            id: 'hidden',
+            required: true,
+            target: { fieldId: 'orders_hidden', tableName: 'orders' },
+            values: ['eu'],
+            disabled: false,
+            tileTargets: undefined,
+        });
+
+        expect(
+            getSchedulerFilterRequirements(
+                filters,
+                [override],
+                tabScope(['tab-1'], hiddenOnTile1),
+            ).filtersWithUnmetRequirements,
+        ).toEqual([]);
     });
 });

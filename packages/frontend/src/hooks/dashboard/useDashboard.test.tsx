@@ -1,4 +1,8 @@
-import { SchedulerFormat, type Dashboard } from '@lightdash/common';
+import {
+    DimensionType,
+    SchedulerFormat,
+    type Dashboard,
+} from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
@@ -46,6 +50,7 @@ vi.mock('react-router', () => ({
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import {
+    useDashboardsAvailableFilters,
     useExportDashboardContentPreview,
     useUpdateDashboard,
 } from './useDashboard';
@@ -180,6 +185,151 @@ describe('useUpdateDashboard', () => {
         );
         expect(showToastSuccess.mock.calls[0][0]).not.toHaveProperty(
             'subtitle',
+        );
+    });
+});
+
+describe('useDashboardsAvailableFilters', () => {
+    const savedChartUuidsAndTileUuids = [
+        { tileUuid: 'tile-1', savedChartUuid: 'chart-1' },
+    ];
+
+    const emptyResponse = {
+        savedQueryFilters: {},
+        allFilterableFields: [],
+        allFilterableMetrics: [],
+        savedQueryMetricFilters: {},
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockApi.mockResolvedValue(emptyResponse);
+    });
+
+    it('asks the standard endpoint for the status of one dashboard', async () => {
+        const { result } = renderHook(
+            () =>
+                useDashboardsAvailableFilters(
+                    savedChartUuidsAndTileUuids,
+                    'project-uuid',
+                    undefined,
+                    'dashboard-uuid',
+                ),
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+        expect(mockApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/dashboards/availableFilters?dashboardUuid=dashboard-uuid',
+                method: 'POST',
+                body: JSON.stringify(savedChartUuidsAndTileUuids),
+            }),
+        );
+    });
+
+    it('omits the parameter entirely when no dashboard is known', async () => {
+        const { result } = renderHook(
+            () =>
+                useDashboardsAvailableFilters(
+                    savedChartUuidsAndTileUuids,
+                    'project-uuid',
+                ),
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+        expect(mockApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/dashboards/availableFilters',
+            }),
+        );
+    });
+
+    it("keeps each dashboard's own status when two share a tile and chart", async () => {
+        const statusFor = (fieldId: string) => ({
+            ...emptyResponse,
+            savedFilterFieldsByTile: {
+                'tile-1': [{ fieldId, fallbackType: DimensionType.STRING }],
+            },
+        });
+        mockApi.mockImplementation(({ url }: { url: string }) =>
+            Promise.resolve(
+                statusFor(
+                    url.endsWith('dashboard-a')
+                        ? 'orders_hidden_a'
+                        : 'orders_hidden_b',
+                ),
+            ),
+        );
+
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: { retry: false, staleTime: Infinity },
+            },
+        });
+        const wrapper = ({ children }: PropsWithChildren) => (
+            <QueryClientProvider client={queryClient}>
+                {children}
+            </QueryClientProvider>
+        );
+
+        const first = renderHook(
+            () =>
+                useDashboardsAvailableFilters(
+                    savedChartUuidsAndTileUuids,
+                    'project-uuid',
+                    undefined,
+                    'dashboard-a',
+                ),
+            { wrapper },
+        );
+        await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
+
+        const second = renderHook(
+            () =>
+                useDashboardsAvailableFilters(
+                    savedChartUuidsAndTileUuids,
+                    'project-uuid',
+                    undefined,
+                    'dashboard-b',
+                ),
+            { wrapper },
+        );
+        await waitFor(() => expect(second.result.current.isSuccess).toBe(true));
+
+        expect(
+            first.result.current.data?.savedFilterFieldsByTile?.['tile-1'],
+        ).toEqual([
+            { fieldId: 'orders_hidden_a', fallbackType: DimensionType.STRING },
+        ]);
+        expect(
+            second.result.current.data?.savedFilterFieldsByTile?.['tile-1'],
+        ).toEqual([
+            { fieldId: 'orders_hidden_b', fallbackType: DimensionType.STRING },
+        ]);
+    });
+
+    it('leaves the embed endpoint untouched', async () => {
+        const { result } = renderHook(
+            () =>
+                useDashboardsAvailableFilters(
+                    savedChartUuidsAndTileUuids,
+                    'project-uuid',
+                    'embed-token',
+                    'dashboard-uuid',
+                ),
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+        expect(mockApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/embed/project-uuid/dashboard/availableFilters',
+            }),
         );
     });
 });

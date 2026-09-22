@@ -21,6 +21,7 @@ import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
     doesFilterApplyToAnyTile,
+    getSavedFilterFieldStatus,
     getTabsForFilterRule,
 } from '../FilterConfiguration/utils';
 import InvalidFilter from '../InvalidFilter';
@@ -115,6 +116,9 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
+    const savedFilterFieldsByTileUuid = useDashboardContext(
+        (c) => c.savedFilterFieldsByTileUuid,
+    );
     const isLoadingDashboardFilters = useDashboardContext(
         (c) => c.isLoadingDashboardFilters,
     );
@@ -169,8 +173,20 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 dashboardTiles,
                 sortedTabUuids,
                 filterableFieldsByTileUuid,
+                savedFilterFieldsByTileUuid,
             ),
-        [dashboardTiles, sortedTabUuids, filterableFieldsByTileUuid],
+        [
+            dashboardTiles,
+            sortedTabUuids,
+            filterableFieldsByTileUuid,
+            savedFilterFieldsByTileUuid,
+        ],
+    );
+
+    const getModelHiddenField = useCallback(
+        (filterRule: DashboardFilterRule) =>
+            getSavedFilterFieldStatus(filterRule, savedFilterFieldsByTileUuid),
+        [savedFilterFieldsByTileUuid],
     );
 
     // Compute orphaned state for a filter
@@ -192,13 +208,20 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 filterRule,
                 dashboardTiles,
                 filterableFieldsByTileUuid,
+                savedFilterFieldsByTileUuid,
             );
             return {
                 isOrphaned: !appliesToAnyTile,
                 orphanedTooltip: getUiString('filters.notAppliedToAnyTiles'),
             };
         },
-        [tabsEnabled, dashboardTiles, filterableFieldsByTileUuid, getUiString],
+        [
+            tabsEnabled,
+            dashboardTiles,
+            filterableFieldsByTileUuid,
+            savedFilterFieldsByTileUuid,
+            getUiString,
+        ],
     );
 
     if (isLoadingDashboardFilters || isFetchingDashboardFilters) {
@@ -272,6 +295,9 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         item,
                         filterableFieldsByTileUuid,
                     );
+                    const modelHiddenField = field
+                        ? undefined
+                        : getModelHiddenField(item);
                     const appliesToTabs = getTabsUsingFilter(item);
 
                     const isOrphanedFilter = appliesToTabs.length === 0;
@@ -291,7 +317,9 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                 id={item.id}
                                 disabled={!isEditMode || !!openPopoverId}
                             >
-                                {field || item.target.isSqlColumn ? (
+                                {field ||
+                                item.target.isSqlColumn ||
+                                modelHiddenField ? (
                                     <Filter
                                         key={item.id}
                                         isEditMode={isEditMode}
@@ -300,6 +328,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                             appliesToTabs,
                                         )}
                                         field={field}
+                                        modelHiddenField={modelHiddenField}
                                         filterRule={item}
                                         triggerClassName={triggerClassName}
                                         dropdownClassName={dropdownClassName}
@@ -352,6 +381,9 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         item,
                         filterableFieldsByTileUuid,
                     );
+                    const modelHiddenField = metricField
+                        ? undefined
+                        : getModelHiddenField(item);
                     const appliesToTabs = getTabsUsingFilter(item);
 
                     const isOrphanedFilter = appliesToTabs.length === 0;
@@ -364,7 +396,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         return null;
                     }
 
-                    return metricField ? (
+                    return metricField || modelHiddenField ? (
                         <DroppableArea key={item.id} id={item.id}>
                             <DraggableItem
                                 id={item.id}
@@ -374,6 +406,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                     isEditMode={isEditMode}
                                     {...getOrphanedState(item, appliesToTabs)}
                                     field={metricField}
+                                    modelHiddenField={modelHiddenField}
                                     filterRule={item}
                                     triggerClassName={triggerClassName}
                                     dropdownClassName={dropdownClassName}
@@ -417,6 +450,9 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                     item,
                     filterableFieldsByTileUuid,
                 );
+                const modelHiddenField = metricField
+                    ? undefined
+                    : getModelHiddenField(item);
                 const appliesToTabs = getTabsUsingFilter(item);
 
                 const isOrphanedFilter = appliesToTabs.length === 0;
@@ -429,13 +465,14 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                     return null;
                 }
 
-                return metricField ? (
+                return metricField || modelHiddenField ? (
                     <Filter
                         key={item.id}
                         isTemporary
                         isEditMode={isEditMode}
                         {...getOrphanedState(item, appliesToTabs)}
                         field={metricField}
+                        modelHiddenField={modelHiddenField}
                         filterRule={item}
                         triggerClassName={triggerClassName}
                         dropdownClassName={dropdownClassName}
@@ -472,6 +509,9 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                     item,
                     filterableFieldsByTileUuid,
                 );
+                const modelHiddenField = field
+                    ? undefined
+                    : getModelHiddenField(item);
                 const appliesToTabs = getTabsUsingFilter(item);
 
                 const isOrphanedFilter = appliesToTabs.length === 0;
@@ -484,13 +524,14 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                     return null;
                 }
 
-                return field || item.target.isSqlColumn ? (
+                return field || item.target.isSqlColumn || modelHiddenField ? (
                     <Filter
                         key={item.id}
                         {...getOrphanedState(item, appliesToTabs)}
                         isTemporary
                         isEditMode={isEditMode}
                         field={field}
+                        modelHiddenField={modelHiddenField}
                         filterRule={item}
                         triggerClassName={triggerClassName}
                         dropdownClassName={dropdownClassName}

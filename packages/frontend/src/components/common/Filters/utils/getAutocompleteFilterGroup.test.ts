@@ -120,6 +120,7 @@ describe('getAutocompleteFilterGroup', () => {
             dashboardFilters,
             dashboardTiles: allTiles,
             filterableFieldsByTileUuid,
+            savedFilterFieldsByTileUuid: undefined,
             activeTabUuid: TAB_A_UUID,
         });
 
@@ -150,6 +151,7 @@ describe('getAutocompleteFilterGroup', () => {
             dashboardFilters: filters,
             dashboardTiles: allTiles,
             filterableFieldsByTileUuid,
+            savedFilterFieldsByTileUuid: undefined,
             activeTabUuid: TAB_A_UUID,
         });
 
@@ -164,6 +166,7 @@ describe('getAutocompleteFilterGroup', () => {
             dashboardFilters,
             dashboardTiles: allTiles,
             filterableFieldsByTileUuid,
+            savedFilterFieldsByTileUuid: undefined,
             activeTabUuid: TAB_A_UUID,
         });
 
@@ -181,6 +184,7 @@ describe('getAutocompleteFilterGroup', () => {
             dashboardFilters,
             dashboardTiles: allTiles,
             filterableFieldsByTileUuid,
+            savedFilterFieldsByTileUuid: undefined,
             activeTabUuid: TAB_A_UUID,
         });
 
@@ -213,6 +217,7 @@ describe('getAutocompleteFilterGroup', () => {
             dashboardFilters: filters,
             dashboardTiles: allTiles,
             filterableFieldsByTileUuid,
+            savedFilterFieldsByTileUuid: undefined,
             activeTabUuid: TAB_B_UUID,
         });
 
@@ -265,6 +270,7 @@ describe('getAutocompleteFilterGroup', () => {
             },
             dashboardTiles: [tileA1, tileA2, dataAppTile],
             filterableFieldsByTileUuid,
+            savedFilterFieldsByTileUuid: undefined,
             activeTabUuid: TAB_A_UUID,
         });
 
@@ -283,6 +289,7 @@ describe('getAutocompleteFilterGroup', () => {
             dashboardFilters,
             dashboardTiles: allTiles,
             filterableFieldsByTileUuid,
+            savedFilterFieldsByTileUuid: undefined,
             activeTabUuid: undefined,
         });
 

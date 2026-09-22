@@ -40,6 +40,7 @@ import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashb
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import FilterConfiguration from '../FilterConfiguration';
+import { type ResolvedSavedFilterField } from '../FilterConfiguration/utils';
 import { useFilterBarPopovers } from '../FilterRequirements/useFilterBarPopovers';
 import { useFilterChipRequirementState } from '../FilterRequirements/useFilterChipRequirementState';
 import classes from './Filter.module.css';
@@ -51,6 +52,7 @@ type Props = {
     orphanedTooltip?: string;
     isTemporary?: boolean;
     field: DashboardFilterableField | undefined;
+    modelHiddenField?: ResolvedSavedFilterField;
     filterRule: DashboardFilterRule;
     triggerClassName?: string;
     dropdownClassName?: string;
@@ -67,6 +69,7 @@ const Filter: FC<Props> = ({
     orphanedTooltip,
     isTemporary,
     field,
+    modelHiddenField,
     filterRule,
     triggerClassName,
     dropdownClassName,
@@ -130,10 +133,12 @@ const Filter: FC<Props> = ({
     const sqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.sqlChartTilesMetadata,
     );
+    const isNotConfigurable = !!modelHiddenField?.hasConflictingTypes;
     const disabled = useMemo(() => {
+        if (isNotConfigurable) return true;
         // Wait for fields to be loaded unless is SQL column
         return !allFilterableFields && !filterRule.target.isSqlColumn;
-    }, [allFilterableFields, filterRule]);
+    }, [allFilterableFields, filterRule, isNotConfigurable]);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -175,6 +180,13 @@ const Filter: FC<Props> = ({
                 field,
                 getUiString,
             );
+        } else if (modelHiddenField) {
+            return getConditionalRuleLabel(
+                filterRule,
+                getFilterTypeFromItemType(modelHiddenField.fallbackType),
+                filterRule.target.fieldId,
+                getUiString,
+            );
         } else {
             const column = Object.values(sqlChartTilesMetadata)
                 .flatMap((tileMetadata) => tileMetadata.columns)
@@ -198,7 +210,13 @@ const Filter: FC<Props> = ({
                 getUiString,
             );
         }
-    }, [filterRule, field, sqlChartTilesMetadata, getUiString]);
+    }, [
+        filterRule,
+        field,
+        modelHiddenField,
+        sqlChartTilesMetadata,
+        getUiString,
+    ]);
 
     const filterRuleTables = useMemo(() => {
         if (!field || !allFilterableFields) return;
@@ -216,6 +234,7 @@ const Filter: FC<Props> = ({
     const showsComposedValue = useMemo(() => {
         const type =
             field?.type ??
+            modelHiddenField?.fallbackType ??
             filterRule.target.fallbackType ??
             DimensionType.STRING;
         return (
@@ -223,7 +242,11 @@ const Filter: FC<Props> = ({
             type === DimensionType.TIMESTAMP ||
             type === DimensionType.BOOLEAN
         );
-    }, [field?.type, filterRule.target.fallbackType]);
+    }, [
+        field?.type,
+        modelHiddenField?.fallbackType,
+        filterRule.target.fallbackType,
+    ]);
 
     // Truncated values display - show max 2 values with "+N" badge
     const truncatedValuesDisplay = useMemo(
@@ -422,7 +445,8 @@ const Filter: FC<Props> = ({
                                 </Group>
                             }
                             onClick={() => {
-                                if (isReadOnlyLocked) return;
+                                if (isReadOnlyLocked || isNotConfigurable)
+                                    return;
                                 if (isPopoverOpen) {
                                     handleClose();
                                 } else {
@@ -558,6 +582,7 @@ const Filter: FC<Props> = ({
                             isEditMode={isEditMode}
                             isTemporary={isTemporary}
                             field={field}
+                            modelHiddenField={modelHiddenField}
                             fields={allFilterableFields || []}
                             tiles={dashboardTiles}
                             tabs={dashboardTabs}

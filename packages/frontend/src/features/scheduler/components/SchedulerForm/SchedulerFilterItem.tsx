@@ -2,6 +2,7 @@ import {
     type FilterOperator,
     FilterType,
     getFilterTypeFromItem,
+    getFilterTypeFromItemType,
     isFilterableItem,
     isWithValueFilter,
 } from '@lightdash/common';
@@ -18,6 +19,7 @@ import {
 import {
     IconAlertTriangle,
     IconCheck,
+    IconEyeOff,
     IconFilterPlus,
     IconPencil,
     IconRotate2,
@@ -28,6 +30,7 @@ import FieldIcon from '../../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../../components/common/Filters/FieldLabel';
 import FilterInputComponent from '../../../../components/common/Filters/FilterInputs';
 import {
+    getConditionalRuleLabel,
     getConditionalRuleLabelFromItem,
     getFilterOperatorOptions,
 } from '../../../../components/common/Filters/FilterInputs/utils';
@@ -35,6 +38,7 @@ import FilterOperatorOption from '../../../../components/common/Filters/FilterOp
 import useFiltersContext from '../../../../components/common/Filters/useFiltersContext';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
+import { type ResolvedSavedFilterField } from '../../../dashboardFilters/FilterConfiguration/utils';
 import {
     isValidFilterOperator,
     type SchedulerOverridableRule,
@@ -66,9 +70,26 @@ const FilterSummaryLabel: FC<
     );
 };
 
+const HiddenFieldLabel: FC<{ label: string; hint: string }> = ({
+    label,
+    hint,
+}) => (
+    <Group gap={6} wrap="nowrap" miw={0}>
+        <Tooltip label={hint} fz="xs" multiline maw={300}>
+            <Group gap={6} wrap="nowrap" miw={0}>
+                <MantineIcon icon={IconEyeOff} color="dimmed" />
+                <Text span fw={500} fz="sm" truncate>
+                    {label}
+                </Text>
+            </Group>
+        </Tooltip>
+    </Group>
+);
+
 type SchedulerFilterItemProps<R extends SchedulerOverridableRule> = {
     savedFilter: R;
     schedulerFilter?: R;
+    modelHiddenField?: ResolvedSavedFilterField;
     isMissingRequiredValue: boolean;
     onChange: (schedulerFilter: R) => void;
     onRevert: () => void;
@@ -83,6 +104,7 @@ type SchedulerFilterItemProps<R extends SchedulerOverridableRule> = {
 export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
     savedFilter,
     schedulerFilter,
+    modelHiddenField,
     isMissingRequiredValue,
     onChange,
     onRevert,
@@ -96,11 +118,18 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
     const getUiString = useUiStrings();
     const item = getField(savedFilter);
     const field = item && isFilterableItem(item) ? item : undefined;
+    const hiddenField = field ? undefined : modelHiddenField;
+    const isNotEditable = !!hiddenField?.hasConflictingTypes;
+    const hiddenLabel = savedFilter.label ?? savedFilter.target.fieldId;
     const [isEditing, setIsEditing] = useState(false);
+    const showEditor = isEditing && !isNotEditable;
 
     const filterType = useMemo(() => {
-        return field ? getFilterTypeFromItem(field) : FilterType.STRING;
-    }, [field]);
+        if (field) return getFilterTypeFromItem(field);
+        return hiddenField
+            ? getFilterTypeFromItemType(hiddenField.fallbackType)
+            : FilterType.STRING;
+    }, [field, hiddenField]);
 
     const isDisabled = useMemo(
         () => Boolean((schedulerFilter ?? savedFilter).disabled),
@@ -111,7 +140,7 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
         return getFilterOperatorOptions(filterType, field, getUiString);
     }, [filterType, field, getUiString]);
 
-    if (!field) {
+    if (!field && !hiddenField) {
         return (
             <Group gap="xs" wrap="nowrap" justify="flex-start">
                 <Paper key={savedFilter.id} p="xs" radius="md">
@@ -150,25 +179,43 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
         <Stack key={savedFilter.id} gap="xs">
             <Group gap="xs" wrap="nowrap" align="flex-start">
                 <Group gap="xs" flex={1} miw={0}>
-                    <FieldIcon item={field} />
-                    <FieldLabel
-                        item={
-                            savedFilter.label
-                                ? { ...field, label: savedFilter.label }
-                                : field
-                        }
-                        hideTableName
-                    />
-                    {isEditing ? null : (
+                    {field ? (
+                        <>
+                            <FieldIcon item={field} />
+                            <FieldLabel
+                                item={
+                                    savedFilter.label
+                                        ? { ...field, label: savedFilter.label }
+                                        : field
+                                }
+                                hideTableName
+                            />
+                        </>
+                    ) : (
+                        <HiddenFieldLabel
+                            label={hiddenLabel}
+                            hint={getUiString('filters.fieldHiddenInModel')}
+                        />
+                    )}
+                    {showEditor ? null : (
                         <FilterSummaryLabel
-                            filterSummary={getConditionalRuleLabelFromItem(
-                                schedulerFilter ?? savedFilter,
-                                field,
-                            )}
+                            filterSummary={
+                                field
+                                    ? getConditionalRuleLabelFromItem(
+                                          schedulerFilter ?? savedFilter,
+                                          field,
+                                      )
+                                    : getConditionalRuleLabel(
+                                          schedulerFilter ?? savedFilter,
+                                          filterType,
+                                          hiddenLabel,
+                                          getUiString,
+                                      )
+                            }
                             isDisabled={isDisabled}
                         />
                     )}
-                    {isMissingRequiredValue && !isEditing && (
+                    {isMissingRequiredValue && !showEditor && (
                         <Text fz="sm" c="red">
                             *
                         </Text>
@@ -203,19 +250,21 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
                                 </ActionIcon>
                             </Tooltip>
                         )}
-                        <ActionIcon
-                            size="xs"
-                            aria-label={
-                                isEditing ? 'Done editing' : 'Edit filter'
-                            }
-                            onClick={() => {
-                                setIsEditing(!isEditing);
-                            }}
-                        >
-                            <MantineIcon
-                                icon={isEditing ? IconCheck : IconPencil}
-                            />
-                        </ActionIcon>
+                        {!isNotEditable && (
+                            <ActionIcon
+                                size="xs"
+                                aria-label={
+                                    isEditing ? 'Done editing' : 'Edit filter'
+                                }
+                                onClick={() => {
+                                    setIsEditing(!isEditing);
+                                }}
+                            >
+                                <MantineIcon
+                                    icon={isEditing ? IconCheck : IconPencil}
+                                />
+                            </ActionIcon>
+                        )}
                         {onRemove && (
                             <Tooltip label={removeTooltip} fz="xs">
                                 <ActionIcon
@@ -230,13 +279,13 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
                     </Group>
                 )}
             </Group>
-            {!isEditing && hasChanged && (
+            {!showEditor && hasChanged && (
                 <Text fz="xs" c="dimmed">
                     Unsaved changes
                 </Text>
             )}
 
-            {isEditing && (
+            {showEditor && (
                 <Flex gap="xs" wrap="wrap">
                     <Select
                         flex="0 0 180px"
@@ -267,6 +316,7 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
                     <FilterInputComponent
                         filterType={filterType}
                         field={field}
+                        fallbackType={hiddenField?.fallbackType}
                         rule={schedulerFilter ?? savedFilter}
                         onChange={(newFilter) => {
                             onChange(newFilter);
@@ -281,32 +331,45 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
 
 type RemovedSchedulerFilterItemProps<R extends SchedulerOverridableRule> = {
     savedFilter: R;
+    modelHiddenField?: ResolvedSavedFilterField;
     defaultLabel: string;
     onRestore: () => void;
 };
 
 export const RemovedSchedulerFilterItem = <R extends SchedulerOverridableRule>({
     savedFilter,
+    modelHiddenField,
     defaultLabel,
     onRestore,
 }: RemovedSchedulerFilterItemProps<R>) => {
     const { getField } = useFiltersContext();
+    const getUiString = useUiStrings();
     const field = getField(savedFilter);
+    const hiddenField = field ? undefined : modelHiddenField;
 
-    if (!field) return null;
+    if (!field && !hiddenField) return null;
 
     return (
         <Group gap="xs" wrap="nowrap" align="flex-start">
             <Group gap="xs" opacity={0.5} flex={1} miw={0}>
-                <FieldIcon item={field} />
-                <FieldLabel
-                    item={
-                        savedFilter.label
-                            ? { ...field, label: savedFilter.label }
-                            : field
-                    }
-                    hideTableName
-                />
+                {field ? (
+                    <>
+                        <FieldIcon item={field} />
+                        <FieldLabel
+                            item={
+                                savedFilter.label
+                                    ? { ...field, label: savedFilter.label }
+                                    : field
+                            }
+                            hideTableName
+                        />
+                    </>
+                ) : (
+                    <HiddenFieldLabel
+                        label={savedFilter.label ?? savedFilter.target.fieldId}
+                        hint={getUiString('filters.fieldHiddenInModel')}
+                    />
+                )}
                 <Text fz="xs" c="dimmed" span>
                     {defaultLabel}
                 </Text>

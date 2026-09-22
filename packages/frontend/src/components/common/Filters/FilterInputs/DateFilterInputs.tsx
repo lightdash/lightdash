@@ -44,14 +44,22 @@ import FilterYearPicker from './FilterYearPicker';
 const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
     props: FilterInputsProps<T>,
 ) => {
-    const { field, rule, onChange, popoverProps, disabled, filterType } = props;
+    const {
+        field,
+        fallbackType,
+        rule,
+        onChange,
+        popoverProps,
+        disabled,
+        filterType,
+    } = props;
     const { startOfWeek } = useFiltersContext();
     const getUiString = useUiStrings();
 
-    const isTimestamp =
-        !field ||
-        (isCustomSqlDimension(field) ? field.dimensionType : field.type) ===
-            DimensionType.TIMESTAMP;
+    const isTimestamp = field
+        ? (isCustomSqlDimension(field) ? field.dimensionType : field.type) ===
+          DimensionType.TIMESTAMP
+        : (fallbackType ?? DimensionType.TIMESTAMP) === DimensionType.TIMESTAMP;
 
     if (!isFilterRule(rule)) {
         throw new Error('DateFilterInputs expects a FilterRule');
