@@ -100,10 +100,16 @@ const ATTRIBUTION_KEYS: (keyof AiCallAttribution)[] = [
  *
  * This is narrower than v6, which put every `telemetry.metadata` key on the
  * span. `runUuid`, `deepResearchRunUuid` and `deepResearchPhase` no longer
- * reach spans, though `emitAiUsage` still reports them on `ai.usage`; the
- * caller-controlled `extra` keys reach neither. Widening this list sends the
- * key to whichever telemetry provider the deployment configures, so add one
- * only when it is safe to export.
+ * reach spans, though `emitAiUsage` still reports them on `ai.usage`.
+ *
+ * Membership is by key name, not by how the key arrived: `extra` merges into
+ * the runtime context before this list is applied, so an `extra` key named
+ * here reaches both sinks and one not named here reaches neither.
+ * `generateAgentSuggestions` depends on that — its org/project/agent
+ * attribution arrives only through `extra`.
+ *
+ * Widening this list sends the key to whichever telemetry provider the
+ * deployment configures, so add one only when it is safe to export.
  */
 const TELEMETRY_REPORTED_KEYS: AiCallRuntimeContextKey[] = [
     'feature',
@@ -159,8 +165,13 @@ export const getAiCallTelemetry = ({
     // would silently reach the provider. Adding a span dimension is a deliberate
     // edit here. `emitAiUsage` is not bound by this list — it reads
     // `runtimeContext` directly, so our own `ai.usage` analytics also gets the
-    // dimensions kept off spans (`runUuid`, `deepResearch*`). It reads only the
-    // keys it names, so `extra` reaches neither sink.
+    // dimensions kept off spans (`runUuid`, `deepResearch*`).
+    //
+    // The filter is by key name, so an `extra` key that collides with a
+    // reported name is exported like any other: that is how
+    // `generateAgentSuggestions` attributes its org/project/agent. It also
+    // means `extra` can shadow a typed dimension, `feature` included, which
+    // `emitAiUsage` rejects when it is not a known value.
     const includeRuntimeContext = Object.fromEntries(
         TELEMETRY_REPORTED_KEYS.filter((key) => key in metadata).map((key) => [
             key,
