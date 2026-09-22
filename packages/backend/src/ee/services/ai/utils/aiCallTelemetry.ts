@@ -95,6 +95,12 @@ const ATTRIBUTION_KEYS: (keyof AiCallAttribution)[] = [
 ];
 
 /**
+ * Attribution dimensions that may be sent to telemetry providers. Everything
+ * else stays local to Lightdash's own `ai.usage` analytics.
+ */
+const TELEMETRY_REPORTED_KEYS: string[] = ['feature', ...ATTRIBUTION_KEYS];
+
+/**
  * Builds the telemetry options for any Vercel AI SDK call (generateText /
  * streamText / embed). Spread the result into the call, since attribution is a
  * call-level option rather than part of the telemetry block:
@@ -135,10 +141,19 @@ export const getAiCallTelemetry = ({
         });
     }
 
-    // Every attribution key is an internal identifier, never user content, and
-    // all of them were already reported before AI SDK 7 removed `metadata`.
+    // Allow-list, not a mirror of the data: AI SDK 7 forwards nothing to
+    // telemetry providers unless it is named here. Deriving this from
+    // `Object.keys(metadata)` would defeat the mechanism, because `extra` is
+    // caller-controlled (see `generateArtifactQuestion`, which passes a
+    // `Record<string, string>` straight through) and anything a caller ever adds
+    // would silently reach the provider. Adding a span dimension is a deliberate
+    // edit here. `emitAiUsage` reads `runtimeContext` directly, so our own
+    // `ai.usage` analytics keeps every dimension regardless.
     const includeRuntimeContext = Object.fromEntries(
-        Object.keys(metadata).map((key) => [key, true]),
+        TELEMETRY_REPORTED_KEYS.filter((key) => key in metadata).map((key) => [
+            key,
+            true,
+        ]),
     );
 
     return {
