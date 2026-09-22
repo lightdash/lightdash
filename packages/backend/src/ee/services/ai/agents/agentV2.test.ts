@@ -42,6 +42,7 @@ import {
     getDataAnswerFastResponse,
     getDataAppBuildFastResponse,
     getDeepResearchBudgetInstruction,
+    getFastDataAnswerPreparedContext,
     getPromptMcpServers,
     getRecentQueryFieldIds,
     getStepBudgetOverride,
@@ -2554,6 +2555,25 @@ describe('buildAgentMessages', () => {
                 ),
             ]),
         ).toBeNull();
+    });
+
+    it('reuses the high-confidence first-turn data answer decision', () => {
+        const args = buildAgentArgs();
+        args.enableDataAnswerFastResponse = true;
+
+        expect(getFastDataAnswerPreparedContext(args)).toEqual({
+            content: null,
+            mcpToolNames: [],
+            projectContextEntryIds: [],
+            turnIntent: 'data_answer',
+        });
+
+        args.messageHistory = [
+            { role: 'user', content: 'How many orders?' },
+            { role: 'assistant', content: '151' },
+            { role: 'user', content: 'What about last year?' },
+        ];
+        expect(getFastDataAnswerPreparedContext(args)).toBeNull();
     });
 
     it.each(['success', 'error', 'pending', null])(

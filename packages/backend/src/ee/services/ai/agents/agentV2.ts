@@ -56,6 +56,7 @@ import {
 } from '../decisions/catalogRanking';
 import {
     prepareRelevantContext,
+    type PreparedContext,
     type TurnIntent,
 } from '../decisions/prepareContext';
 import { queryErrorOverride } from '../decisions/queryErrors';
@@ -2349,6 +2350,25 @@ const getMemoryBlock = async (
     );
 };
 
+export const getFastDataAnswerPreparedContext = (
+    args: AiAgentArgs,
+): PreparedContext | null => {
+    if (
+        !args.enableDataAnswerFastResponse ||
+        args.execution.mode !== 'standard' ||
+        args.messageHistory.filter((message) => message.role === 'user')
+            .length !== 1
+    )
+        return null;
+
+    return {
+        content: null,
+        mcpToolNames: [],
+        projectContextEntryIds: [],
+        turnIntent: 'data_answer',
+    };
+};
+
 /**
  * Builds the shared runtime for generate and stream turns. Keep context loading,
  * Jev preparation, tool gating, and prompt construction on one code path so the
@@ -2414,19 +2434,29 @@ const prepareAgentTurn = async ({
         agentContext.answerEvidence,
     );
     await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
+    // model-routing already classified this first turn as a simple data answer
+    // with >=99% confidence. Reuse that decision instead of serially asking
+    // JEV for the same intent plus catalog ranking before a fast model can
+    // start. Deterministic pre-grep still seeds fields, and query-intent checks
+    // validate the actual tool args in parallel with warehouse execution.
+    const fastDataAnswerContext = getFastDataAnswerPreparedContext(args);
     const [preparedSeed, preparedContext] = await Promise.all([
-        prepareCandidateSeed(
-            args,
-            availableExplores,
-            verifiedFieldUsage,
-            projectParameterDefinitions,
-        ),
-        prepareRelevantContext(
-            args,
-            dependencies,
-            tools,
-            Object.keys(mcpToolSetup.tools),
-        ),
+        fastDataAnswerContext
+            ? Promise.resolve(undefined)
+            : prepareCandidateSeed(
+                  args,
+                  availableExplores,
+                  verifiedFieldUsage,
+                  projectParameterDefinitions,
+              ),
+        fastDataAnswerContext
+            ? Promise.resolve(fastDataAnswerContext)
+            : prepareRelevantContext(
+                  args,
+                  dependencies,
+                  tools,
+                  Object.keys(mcpToolSetup.tools),
+              ),
     ]);
     if (
         preparedContext?.turnIntent === 'chart_from_previous' &&
