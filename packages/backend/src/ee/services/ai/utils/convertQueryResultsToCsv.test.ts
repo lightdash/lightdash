@@ -1,6 +1,9 @@
 import { DimensionType, FieldType, type ItemsMap } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { convertQueryResultsToCsv } from './convertQueryResultsToCsv';
+import {
+    convertQueryResultsToCsv,
+    convertQueryResultsToMarkdown,
+} from './convertQueryResultsToCsv';
 
 const fields = {
     orders_month: {
@@ -52,5 +55,26 @@ describe('convertQueryResultsToCsv', () => {
         expect(
             countCsvRows(convertQueryResultsToCsv(queryResults(0), 50)),
         ).toBe(0);
+    });
+});
+
+describe('convertQueryResultsToMarkdown', () => {
+    it('renders a single value as a compact answer', () => {
+        expect(convertQueryResultsToMarkdown(queryResults(1))).toBe(
+            '**Month:** 2026-01',
+        );
+    });
+
+    it('renders multiple rows as a bounded table', () => {
+        const markdown = convertQueryResultsToMarkdown(queryResults(12));
+
+        expect(markdown).toContain('| Month |');
+        expect(markdown).toContain('| 2026-08 |');
+        expect(markdown).not.toContain('2026-09');
+        expect(markdown).toContain('Showing 8 of 12 rows and 1 columns.');
+    });
+
+    it('returns null for an empty result so the agent can recover', () => {
+        expect(convertQueryResultsToMarkdown(queryResults(0))).toBeNull();
     });
 });

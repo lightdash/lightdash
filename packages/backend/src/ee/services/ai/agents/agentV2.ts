@@ -1027,10 +1027,38 @@ export const getDataAppBuildFastResponse = (
     return 'Started the data app build. It will take a few minutes.';
 };
 
+export const getDataAnswerFastResponse = (
+    steps: ReadonlyArray<FastChartStep>,
+): string | null => {
+    const results = steps.flatMap((step) => step.toolResults);
+    if (results.some((result) => isErrorToolResult(result.output))) return null;
+
+    const queryResults = results.filter(
+        (result) => result.toolName === 'runQuery',
+    );
+    if (queryResults.length !== 1) return null;
+    const [{ output }] = queryResults;
+    if (!output || typeof output !== 'object' || !('metadata' in output))
+        return null;
+    const { metadata } = output;
+    if (!metadata || typeof metadata !== 'object') return null;
+    if (
+        !('status' in metadata) ||
+        metadata.status !== 'success' ||
+        !('fastResponse' in metadata) ||
+        typeof metadata.fastResponse !== 'string'
+    )
+        return null;
+    return metadata.fastResponse.trim() || null;
+};
+
 const getTurnFastResponse = (
+    enableDataAnswerFastResponse: boolean,
     turnIntent: TurnIntent | null | undefined,
     steps: ReadonlyArray<FastChartStep>,
 ) => {
+    if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
+        return getDataAnswerFastResponse(steps);
     if (turnIntent === 'chart_from_previous')
         return getChartFollowupFastResponse(steps);
     if (turnIntent === 'chart_export') return getChartExportFastResponse(steps);
@@ -2559,8 +2587,11 @@ export const generateAgentResponse = async ({
                 stepCountIs(args.execution.maxSteps),
                 stopWhenPromptInterrupted,
                 ({ steps }) =>
-                    getTurnFastResponse(preparedContext?.turnIntent, steps) !==
-                    null,
+                    getTurnFastResponse(
+                        args.enableDataAnswerFastResponse,
+                        preparedContext?.turnIntent,
+                        steps,
+                    ) !== null,
             ],
             abortSignal,
             providerOptions: args.providerOptions,
@@ -2802,8 +2833,11 @@ export const generateAgentResponse = async ({
         });
         const responseText = result.text.trim()
             ? result.text
-            : (getTurnFastResponse(preparedContext?.turnIntent, result.steps) ??
-              result.text);
+            : (getTurnFastResponse(
+                  args.enableDataAnswerFastResponse,
+                  preparedContext?.turnIntent,
+                  result.steps,
+              ) ?? result.text);
 
         logger(
             'Generate Agent Response',
@@ -2970,6 +3004,7 @@ export const streamAgentResponse = async ({
             string,
             FastChartStep['toolCalls'][number]
         >();
+        const fastToolResults: FastChartStep['toolResults'][number][] = [];
         let fastStreamResponse: string | null = null;
         timing.recordPreparationFinished();
         const result = streamText({
@@ -2980,8 +3015,11 @@ export const streamAgentResponse = async ({
                 stepCountIs(args.execution.maxSteps),
                 stopWhenPromptInterrupted,
                 ({ steps }) =>
-                    getTurnFastResponse(preparedContext?.turnIntent, steps) !==
-                    null,
+                    getTurnFastResponse(
+                        args.enableDataAnswerFastResponse,
+                        preparedContext?.turnIntent,
+                        steps,
+                    ) !== null,
             ],
             providerOptions: args.providerOptions,
             experimental_repairToolCall: args.decisions
@@ -3132,19 +3170,20 @@ export const streamAgentResponse = async ({
                             event.chunk.toolCallId,
                         );
                         if (fastToolCall) {
+                            fastToolResults.push({
+                                toolCallId: event.chunk.toolCallId,
+                                toolName: event.chunk.toolName,
+                                output: event.chunk.output,
+                            });
                             fastStreamResponse = getTurnFastResponse(
+                                args.enableDataAnswerFastResponse,
                                 preparedContext?.turnIntent,
                                 [
                                     {
-                                        toolCalls: [fastToolCall],
-                                        toolResults: [
-                                            {
-                                                toolCallId:
-                                                    event.chunk.toolCallId,
-                                                toolName: event.chunk.toolName,
-                                                output: event.chunk.output,
-                                            },
-                                        ],
+                                        toolCalls: Array.from(
+                                            fastToolCalls.values(),
+                                        ),
+                                        toolResults: fastToolResults,
                                     },
                                 ],
                             );
@@ -3316,6 +3355,7 @@ export const streamAgentResponse = async ({
                 const responseText = modelResponse.trim()
                     ? modelResponse
                     : (getTurnFastResponse(
+                          args.enableDataAnswerFastResponse,
                           preparedContext?.turnIntent,
                           steps,
                       ) ?? modelResponse);

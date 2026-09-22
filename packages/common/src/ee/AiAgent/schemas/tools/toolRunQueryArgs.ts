@@ -618,6 +618,7 @@ export const toolRunQueryOutputSchema = z.object({
         chartImageUrl: z.string().nullish(),
         queryCacheHit: z.boolean().optional(),
         queryReuseHit: z.boolean().optional(),
+        fastResponse: z.string().optional(),
     }),
 });
 

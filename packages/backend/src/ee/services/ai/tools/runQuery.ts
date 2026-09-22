@@ -83,7 +83,10 @@ import {
     type ChartExportSource,
     type PreparedChartAsCode,
 } from '../utils/chartAsCode';
-import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
+import {
+    convertQueryResultsToCsv,
+    convertQueryResultsToMarkdown,
+} from '../utils/convertQueryResultsToCsv';
 import {
     formatFilterExpressionError,
     resolveFilterExpressionArgs,
@@ -496,6 +499,7 @@ const getSuccessMetadata = ({
     chartImageUrl,
     artifact,
     deferredSlack,
+    fastResponse,
 }: {
     queryUuid: string;
     queryCacheHit: boolean;
@@ -503,6 +507,7 @@ const getSuccessMetadata = ({
     chartImageUrl?: string;
     artifact?: AiArtifact;
     deferredSlack: boolean;
+    fastResponse?: string;
 }) => ({
     status: 'success' as const,
     chartImageUrl,
@@ -512,6 +517,7 @@ const getSuccessMetadata = ({
     queryUuid,
     queryCacheHit,
     queryReuseHit,
+    fastResponse,
 });
 
 const registerChartExport = ({
@@ -978,6 +984,12 @@ export const getRunQuery = ({
                             chartImageUrl,
                             artifact,
                             deferredSlack: !!deferSlackVisualization,
+                            fastResponse:
+                                purpose === 'answer' && enableDataAccess
+                                    ? (convertQueryResultsToMarkdown(
+                                          queryResults,
+                                      ) ?? undefined)
+                                    : undefined,
                         }),
                     };
                 }
@@ -1381,6 +1393,12 @@ export const getRunQuery = ({
                         chartImageUrl,
                         artifact,
                         deferredSlack: !!deferSlackVisualization,
+                        fastResponse:
+                            purpose === 'answer'
+                                ? (convertQueryResultsToMarkdown(
+                                      queryResults,
+                                  ) ?? undefined)
+                                : undefined,
                     }),
                 };
             } catch (e) {

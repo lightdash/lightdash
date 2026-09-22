@@ -39,6 +39,7 @@ import {
     getCandidateSearchTerms,
     getChartExportFastResponse,
     getChartFollowupFastResponse,
+    getDataAnswerFastResponse,
     getDataAppBuildFastResponse,
     getDeepResearchBudgetInstruction,
     getPromptMcpServers,
@@ -99,6 +100,7 @@ const buildAgentArgs = (
         enableCodingAgent: false,
         enableContentTools: false,
         enableDataAccess: false,
+        enableDataAnswerFastResponse: false,
         enableEditProjectContext: false,
         enablePreviewDeploySetup: false,
         enableRepoDiscovery: false,
@@ -2489,6 +2491,68 @@ describe('buildAgentMessages', () => {
             getDataAppBuildFastResponse(
                 step({ result: 'failed', metadata: { status: 'error' } }),
             ),
+        ).toBeNull();
+    });
+
+    it('finishes a successful simple data answer from validated query output', () => {
+        const result = (
+            output: unknown,
+            toolCallId = 'query-1',
+            toolName = 'runQuery',
+        ) => ({
+            toolCalls: [{ toolCallId, toolName, input: {} }],
+            toolResults: [{ toolCallId, toolName, output }],
+        });
+
+        expect(
+            getDataAnswerFastResponse([
+                result({
+                    result: 'csv',
+                    metadata: {
+                        status: 'success',
+                        fastResponse: '**Orders:** 64,357',
+                    },
+                }),
+            ]),
+        ).toBe('**Orders:** 64,357');
+        expect(
+            getDataAnswerFastResponse([
+                result({
+                    result: 'invalid date',
+                    metadata: { status: 'error' },
+                }),
+                result(
+                    {
+                        result: 'csv',
+                        metadata: {
+                            status: 'success',
+                            fastResponse: '**Orders:** 64,357',
+                        },
+                    },
+                    'query-2',
+                ),
+            ]),
+        ).toBeNull();
+        expect(
+            getDataAnswerFastResponse([
+                result({
+                    result: 'csv',
+                    metadata: {
+                        status: 'success',
+                        fastResponse: '**Orders:** 64,357',
+                    },
+                }),
+                result(
+                    {
+                        result: 'csv',
+                        metadata: {
+                            status: 'success',
+                            fastResponse: '**Orders:** 12,345',
+                        },
+                    },
+                    'query-2',
+                ),
+            ]),
         ).toBeNull();
     });
 

@@ -204,6 +204,8 @@ export type AiAgentDeepResearchRunContext = {
 
 export type AiAgentArgs = AnyAiModel & {
     decisions?: AiDecisionClient;
+    /** Finish a high-confidence simple data answer from validated query rows. */
+    enableDataAnswerFastResponse: boolean;
     /** Optional, provider-aware fast model used only for schema-constrained steps. */
     toolCallModel?: {
         model: AnyAiModel['model'];

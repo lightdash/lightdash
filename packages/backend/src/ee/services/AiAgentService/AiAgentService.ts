@@ -12419,6 +12419,20 @@ Use your existing tools to inspect them when relevant to the user's question (re
             }
         }
 
+        const simpleDataAnswer =
+            canUseFastToolModel &&
+            !enableSqlMode &&
+            !compactionSummary &&
+            mcpServers.length === 0 &&
+            adaptiveModels?.enabled
+                ? await canUseFastModel({
+                      decisions,
+                      prompt: prompt.prompt,
+                      instructions: agentSettings.instruction,
+                  })
+                : false;
+        const enableDataAnswerFastResponse = simpleDataAnswer;
+
         if (
             canUseFastToolModel &&
             !enableSqlMode &&
@@ -12428,14 +12442,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             messageHistory.filter((message) => message.role === 'user')
                 .length === 1
         ) {
-            if (
-                adaptiveModels?.enabled &&
-                (await canUseFastModel({
-                    decisions,
-                    prompt: prompt.prompt,
-                    instructions: agentSettings.instruction,
-                }))
-            ) {
+            if (adaptiveModels?.enabled && simpleDataAnswer) {
                 modelProperties = getModel(copilotConfig, {
                     useFastModel: true,
                     enableReasoning: false,
@@ -12537,12 +12544,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
             adaptiveModelsEnabled: adaptiveModels?.enabled ?? false,
             adaptiveModelSelected:
                 modelProperties.model.modelId !== initialModelId,
+            dataAnswerFastResponseEnabled: enableDataAnswerFastResponse,
             mainModel: modelProperties.model.modelId,
             toolCallModel: toolCallModel?.model.modelId ?? null,
         });
         const args: AiAgentArgs = {
             decisions,
             toolCallModel,
+            enableDataAnswerFastResponse,
             userQuestion: prompt.prompt,
             organizationId: user.organizationUuid,
             userId: user.userUuid,
