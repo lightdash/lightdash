@@ -1,3 +1,17 @@
+# [2.291.0](https://github.com/lightdash/lightdash/compare/2.290.0...2.291.0) (2026-09-22)
+
+
+### Bug Fixes
+
+* **explorer:** persist source metric of cloned custom metrics ([#29728](https://github.com/lightdash/lightdash/issues/29728)) ([c4a91db](https://github.com/lightdash/lightdash/commit/c4a91db00b564bdff87cfd4fc597f5994a3016a6))
+
+
+### Features
+
+* **frontend:** host-rendered data-point menu for custom chart types ([#29686](https://github.com/lightdash/lightdash/issues/29686)) ([9203121](https://github.com/lightdash/lightdash/commit/92031212eb18ddb846d7d6c41864ab03e0db73b5))
+* **merge-query:** support secondary-source custom metrics ([#29724](https://github.com/lightdash/lightdash/issues/29724)) ([2f3d45c](https://github.com/lightdash/lightdash/commit/2f3d45c9df4cc21296bc5b25089e3cec72e0689b))
+* simplify the Chart Studio sidebar ([#29667](https://github.com/lightdash/lightdash/issues/29667)) ([c58eb30](https://github.com/lightdash/lightdash/commit/c58eb30eff48b1b9586361785b4c71ca555f5bc5))
+
 # [2.290.0](https://github.com/lightdash/lightdash/compare/2.289.0...2.290.0) (2026-09-22)
 
 
