@@ -1,13 +1,14 @@
 .panel {
-    width: 264px;
+    width: 300px;
+    max-width: 100%;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     min-height: 0;
     background: var(--mantine-color-background-0);
-    border-right: 1px solid var(--mantine-color-ldGray-2);
-    /* Follows the card's left corners it sits in. */
-    border-radius: var(--mantine-radius-md) 0 0 var(--mantine-radius-md);
+    border-left: 1px solid var(--mantine-color-ldGray-2);
+    /* Follows the card's right corners it sits in. */
+    border-radius: 0 var(--mantine-radius-md) var(--mantine-radius-md) 0;
 }
 
 /* Mid version switch these options still describe the version being left, so
@@ -16,12 +17,9 @@
     opacity: 0.5;
 }
 
-/* A soft chip is the whole treatment: the options below it came from the
-   generated declaration, not from Lightdash chart config. It rides the card's
-   top border, half in and half out. */
 .generatedChip {
     align-self: flex-start;
-    margin: -9px var(--mantine-spacing-sm) 10px;
+    margin: 10px var(--mantine-spacing-sm) 10px;
     padding: 2px 10px;
     border-radius: var(--mantine-radius-xl);
     background: var(--mantine-color-ldGray-0);

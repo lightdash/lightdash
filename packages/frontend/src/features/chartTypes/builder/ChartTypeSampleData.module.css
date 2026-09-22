@@ -1,0 +1,12 @@
+.launcher {
+    align-self: flex-start;
+    padding-inline: 0;
+}
+
+.tablePaper :global(table) {
+    font-variant-numeric: tabular-nums;
+}
+
+.tableContainer {
+    max-height: min(60vh, 640px);
+}

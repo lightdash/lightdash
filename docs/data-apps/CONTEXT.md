@@ -156,6 +156,8 @@ _Avoid_: attachment, chart link, live chart (say "linked chart")
 **Sample data**:
 The first rows of an attached chart's query, opted into per chart or
 dashboard so the coding agent can judge formatting, content, and copy.
+In Chart Studio's standalone preview the same label marks made-up rows
+fabricated from the declared inputs; no query runs for them.
 _Avoid_: sample rows, preview rows, example data
 
 **Blueprint**:

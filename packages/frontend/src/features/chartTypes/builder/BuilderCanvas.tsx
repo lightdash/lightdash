@@ -112,28 +112,30 @@ const BuilderCanvas: FC<Props> = ({
                     data-dimmed={isBuilding}
                     inert={isBuilding}
                 >
+                    <Box className={classes.preview}>
+                        <Box className={classes.previewFrame}>
+                            <AppPreview
+                                ref={previewRef}
+                                projectUuid={projectUuid}
+                                appUuid={appUuid}
+                                version={previewVersion}
+                                refreshKey={0}
+                                dataAppVizContext={previewContext ?? undefined}
+                                dataAppVizMode
+                                {...elementPickerProps}
+                                onScreenshotAvailabilityChange={
+                                    onScreenshotAvailabilityChange
+                                }
+                                onSdkManifest={onSdkManifest}
+                                urlStateSync={syncPreviewUrlState}
+                            />
+                        </Box>
+                    </Box>
                     {configurePanel && (
                         <Box className={classes.configurePanel}>
                             {configurePanel}
                         </Box>
                     )}
-                    <Box className={classes.preview}>
-                        <AppPreview
-                            ref={previewRef}
-                            projectUuid={projectUuid}
-                            appUuid={appUuid}
-                            version={previewVersion}
-                            refreshKey={0}
-                            dataAppVizContext={previewContext ?? undefined}
-                            dataAppVizMode
-                            {...elementPickerProps}
-                            onScreenshotAvailabilityChange={
-                                onScreenshotAvailabilityChange
-                            }
-                            onSdkManifest={onSdkManifest}
-                            urlStateSync={syncPreviewUrlState}
-                        />
-                    </Box>
                 </Box>
             ) : isFirstBuild ? (
                 <Stack gap="xl" align="center">
