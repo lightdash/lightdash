@@ -3,15 +3,18 @@ import {
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
     type DataAppVizSchema,
+    type DataAppVizContext,
 } from '@lightdash/common';
 import { Box, Stack, Tabs, Text } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
 import OverflowTabsList from '../../../components/common/OverflowTabsList/OverflowTabsList';
 import { PalettePicker } from '../../../components/common/PalettePicker/PalettePicker';
+import DataAppVizInputGuidance from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizInputGuidance';
 import DataAppVizOptionControl from '../../../components/VisualizationConfigs/DataAppVizConfig/DataAppVizOptionControl';
 import { groupDataAppVizOptions } from '../../../components/VisualizationConfigs/DataAppVizConfig/dataAppVizOptionGroups';
 import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
 import ChartInputsList from './ChartInputsList';
+import { ChartTypeSampleData } from './ChartTypeSampleData';
 import classes from './ConfigurePanel.module.css';
 
 type Props = {
@@ -24,6 +27,8 @@ type Props = {
     onPaletteChange: (colorPaletteUuid: string | null) => void;
     /** The same light/dark-aware palette rendered by the preview chart. */
     resolvedColorPalette: string[];
+    /** The exact generated context rendered in the canvas preview. */
+    previewContext: DataAppVizContext | null;
     /** The schema on screen belongs to a version being navigated away from;
      *  held legible but inert until the one being previewed arrives. */
     isStale: boolean;
@@ -42,6 +47,7 @@ const ConfigurePanel: FC<Props> = ({
     colorPaletteUuid,
     onPaletteChange,
     resolvedColorPalette,
+    previewContext,
     isStale,
 }) => {
     const { data: palettes = [] } = useColorPalettes();
@@ -87,6 +93,10 @@ const ConfigurePanel: FC<Props> = ({
                 <Tabs.Panel value="general" className={classes.tabPanel}>
                     <Stack gap="sm" p="sm">
                         <ChartInputsList fields={schema.fields} />
+                        <ChartTypeSampleData context={previewContext} />
+                        <DataAppVizInputGuidance
+                            guidance={schema.inputGuidance}
+                        />
                         {optionGroups.length === 0 && (
                             <Text fz="xs" c="dimmed">
                                 This chart type declares no display options.
@@ -127,9 +137,6 @@ const ConfigurePanel: FC<Props> = ({
                     </Tabs.Panel>
                 ))}
             </Tabs>
-            <Text size="xs" c="dimmed" className={classes.previewData}>
-                Preview uses sample data.
-            </Text>
         </Box>
     );
 };

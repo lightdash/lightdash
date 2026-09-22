@@ -206,7 +206,7 @@ const buildPivotedSample = ({
     return {
         rows,
         pivotDetails: {
-            totalColumnCount: valuesColumns.length,
+            totalColumnCount: seriesValueTuples.length,
             // Sample dimensions are always dates.
             indexColumn: dimensions.map((field) => ({
                 reference: sampleColumnId(field),

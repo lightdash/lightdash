@@ -1,0 +1,14 @@
+.disclosure {
+    align-self: flex-start;
+    padding-inline: 0;
+    color: var(--mantine-color-dimmed);
+}
+
+.tableScroll {
+    max-width: 100%;
+}
+
+.table {
+    min-width: max-content;
+    font-variant-numeric: tabular-nums;
+}

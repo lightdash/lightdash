@@ -191,6 +191,20 @@ describe.each(['metric', 'column'] as const)('%s sample values', (type) => {
     });
 
     describe('with a series field', () => {
+        it('counts pivot groups independently of the number of metrics', () => {
+            const context = buildSampleVizContext({
+                ...schema,
+                fields: schema.fields.map((field) =>
+                    field.name === 'value'
+                        ? { ...field, multiple: true }
+                        : field,
+                ),
+            });
+
+            expect(context.pivotDetails?.valuesColumns).toHaveLength(9);
+            expect(context.pivotDetails?.totalColumnCount).toBe(3);
+        });
+
         it('pivots the metric into one column per series value', () => {
             const context = buildSampleVizContext(schema);
 

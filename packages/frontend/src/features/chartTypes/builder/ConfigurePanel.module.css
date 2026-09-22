@@ -17,11 +17,6 @@
     opacity: 0.5;
 }
 
-.previewData {
-    flex-shrink: 0;
-    padding: var(--mantine-spacing-sm);
-}
-
 .generatedChip {
     align-self: flex-start;
     margin: 10px var(--mantine-spacing-sm) 10px;
