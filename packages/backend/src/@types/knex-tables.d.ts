@@ -464,6 +464,8 @@ import {
     AiAgentToolResultTableName,
     AiPromptContextTable,
     AiPromptContextTableName,
+    AiPromptDecisionTable,
+    AiPromptDecisionTableName,
     AiPromptInterruptTable,
     AiPromptInterruptTableName,
     AiPromptSteerTable,
@@ -787,6 +789,7 @@ declare module 'knex/types/tables' {
         [AiPromptInterruptTableName]: AiPromptInterruptTable;
         [AiPromptSteerTableName]: AiPromptSteerTable;
         [AiPromptContextTableName]: AiPromptContextTable;
+        [AiPromptDecisionTableName]: AiPromptDecisionTable;
         [AiThreadCompactionTableName]: AiThreadCompactionTable;
         [AiArtifactsTableName]: AiArtifactsTable;
         [AiArtifactVersionsTableName]: AiArtifactVersionsTable;

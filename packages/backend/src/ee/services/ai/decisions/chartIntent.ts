@@ -71,13 +71,19 @@ export type ChartIntent =
 /** A filter whose values still need warehouse candidates before it can be applied. */
 export type PendingValueFilter = { fieldId: string; exclude: boolean };
 
+export type CompoundStep =
+    | { type: 'intent'; intent: Exclude<ChartIntent, { kind: 'undo' }> }
+    | { type: 'needs_values'; filter: PendingValueFilter };
+
 export type ChartIntentResolution =
     | { type: 'intent'; intent: ChartIntent }
     | { type: 'needs_values'; filter: PendingValueFilter }
+    | { type: 'compound'; steps: CompoundStep[] }
     | { type: 'not_an_edit' }
     | { type: 'unresolved'; reason: string };
 
 const NON_EDIT_REASONS = new Set([
+    'non-edit',
     'intent',
     'multiple',
     'decision-unavailable',
@@ -87,6 +93,7 @@ const NON_EDIT_REASONS = new Set([
 export const isChartEditAttempt = (resolution: ChartIntentResolution) =>
     resolution.type === 'intent' ||
     resolution.type === 'needs_values' ||
+    resolution.type === 'compound' ||
     (resolution.type === 'unresolved' &&
         !NON_EDIT_REASONS.has(resolution.reason));
 
@@ -114,6 +121,8 @@ export type ChartIntentContext = {
 export const CHART_INTENT_THRESHOLDS = {
     intent: 0.45,
     multiple: 0.7,
+    wants: 0.6,
+    nonEdit: 0.5,
     field: 0.5,
     option: 0.5,
     value: 0.6,
@@ -214,7 +223,7 @@ const toCandidate = (
     id: getItemId(field),
     label: getItemLabelWithoutTableName(field),
     table: explore.tables[field.table]?.label ?? field.table,
-    description: field.description?.slice(0, 160) ?? null,
+    description: field.description?.slice(0, 100) ?? null,
     isDate:
         isDimension(field) &&
         getFilterTypeFromItemType(field.type) === FilterType.DATE,
@@ -318,11 +327,16 @@ const describeChart = (context: ChartIntentContext) => {
     };
 };
 
-const fieldCriteria = (fields: FieldCandidate[]) =>
+const fieldCriteria = (
+    fields: FieldCandidate[],
+    { withDescriptions }: { withDescriptions: boolean },
+) =>
     Object.fromEntries(
         fields.map((field) => [
             field.id,
-            `${field.label} (${field.table})${field.description ? `: ${field.description}` : ''}`,
+            withDescriptions && field.description
+                ? `${field.label} (${field.table}): ${field.description}`
+                : `${field.label} (${field.table})`,
         ]),
     );
 
@@ -350,6 +364,31 @@ export const buildChartIntentQuestions = ({
             ),
         },
         multiple: { type: 'noul', instructions: MULTIPLE_INSTRUCTIONS },
+        nonEdit: {
+            type: 'noul',
+            instructions:
+                'Does the request ask for anything besides changing the current chart, such as a different metric, an explanation, a new or separate chart, saving, sharing or scheduling?',
+        },
+        wantsChartType: {
+            type: 'noul',
+            instructions:
+                'Does the request ask to change the chart type, such as to a line, bar, pie or table?',
+        },
+        wantsAddField: {
+            type: 'noul',
+            instructions:
+                'Does the request ask to add a new breakdown, segment or grouping field to the chart?',
+        },
+        wantsFilter: {
+            type: 'noul',
+            instructions:
+                'Does the request ask to restrict the chart to, or exclude, certain values or a time window?',
+        },
+        wantsSort: {
+            type: 'noul',
+            instructions:
+                'Does the request ask to reorder the chart or keep only the top or bottom N rows?',
+        },
         sortFieldNamed: {
             type: 'noul',
             instructions:
@@ -414,7 +453,9 @@ export const buildChartIntentQuestions = ({
             instructions:
                 'If the user wants to add a new breakdown field to the chart, which field do they mean? Choose none when the wanted field is not listed or the reference is ambiguous.',
             criteria: {
-                ...fieldCriteria(context.addableFields),
+                ...fieldCriteria(context.addableFields, {
+                    withDescriptions: true,
+                }),
                 none: 'The wanted field is not listed, or it is ambiguous',
             },
         };
@@ -425,7 +466,9 @@ export const buildChartIntentQuestions = ({
             instructions:
                 'If the user wants the chart sorted or limited, which field does the order use?',
             criteria: {
-                ...fieldCriteria(context.currentFields),
+                ...fieldCriteria(context.currentFields, {
+                    withDescriptions: false,
+                }),
                 none: 'The named field is not in this list',
             },
         };
@@ -436,7 +479,9 @@ export const buildChartIntentQuestions = ({
             instructions:
                 'If the user wants to filter the chart, which field do the filtered values or time window belong to? For values like a status, region or name, pick the field those values come from. Prefer fields already in `chart.dimensions` when they fit.',
             criteria: {
-                ...fieldCriteria(context.filterableFields),
+                ...fieldCriteria(context.filterableFields, {
+                    withDescriptions: false,
+                }),
                 none: 'The filter is on a field not in this list',
             },
         };
@@ -562,6 +607,104 @@ const resolveFilter = (
     };
 };
 
+const resolveAddField = (
+    answers: DecisionAnswers,
+    thresholds: ChartIntentThresholds,
+    chartType: ChartTypeOption | null,
+): ChartIntentResolution => {
+    const fieldId = confident(answers.addField, thresholds.field);
+    if (!fieldId || fieldId === 'none')
+        return { type: 'unresolved', reason: 'add-field' };
+    return {
+        type: 'intent',
+        intent: { kind: 'add_field', fieldId, chartType },
+    };
+};
+
+const toStep = (resolution: ChartIntentResolution): CompoundStep | null => {
+    if (resolution.type === 'needs_values') return resolution;
+    if (resolution.type === 'intent' && resolution.intent.kind !== 'undo')
+        return { type: 'intent', intent: resolution.intent };
+    return null;
+};
+
+const COMPOSABLE = {
+    chart_type: 'wantsChartType',
+    add_field: 'wantsAddField',
+    filter: 'wantsFilter',
+    sort: 'wantsSort',
+} as const;
+type ComposableIntent = keyof typeof COMPOSABLE;
+
+const isComposable = (intent: IntentKey): intent is ComposableIntent =>
+    intent in COMPOSABLE;
+
+/** Edit kinds requested beyond the primary intent; any extra makes the turn compound. */
+const extraEdits = (
+    answers: DecisionAnswers,
+    primary: IntentKey,
+    thresholds: ChartIntentThresholds,
+): ComposableIntent[] =>
+    (Object.keys(COMPOSABLE) as ComposableIntent[]).filter(
+        (kind) =>
+            kind !== primary &&
+            (decisionProbability(answers[COMPOSABLE[kind]]) ?? 0) >=
+                thresholds.wants,
+    );
+
+/** Several chart edits in one request, applied in order only when every one resolves. */
+const resolveCompound = (
+    answers: DecisionAnswers,
+    context: ChartIntentContext,
+    numbers: number[],
+    thresholds: ChartIntentThresholds,
+    kinds: Set<ComposableIntent>,
+    requireSeveral: boolean,
+): ChartIntentResolution => {
+    const chartTypeAnswer = confident(answers.chartType, thresholds.option);
+    const chartType = isChartType(chartTypeAnswer) ? chartTypeAnswer : null;
+    const addField = kinds.has('add_field');
+    const resolutions: ChartIntentResolution[] = [
+        ...(addField
+            ? [
+                  resolveAddField(
+                      answers,
+                      thresholds,
+                      kinds.has('chart_type') ? chartType : null,
+                  ),
+              ]
+            : []),
+        ...(kinds.has('filter')
+            ? [resolveFilter(answers, context, numbers, thresholds)]
+            : []),
+        ...(kinds.has('sort')
+            ? [resolveSort(answers, numbers, thresholds)]
+            : []),
+        ...(!addField && kinds.has('chart_type')
+            ? [
+                  chartType
+                      ? ({
+                            type: 'intent',
+                            intent: { kind: 'chart_type', chartType },
+                        } as const)
+                      : ({ type: 'unresolved', reason: 'chart-type' } as const),
+              ]
+            : []),
+    ];
+    const steps = resolutions.map(toStep);
+    if (
+        resolutions.length === 0 ||
+        (requireSeveral && resolutions.length < 2) ||
+        steps.some((step) => step === null)
+    )
+        return { type: 'unresolved', reason: 'multiple' };
+    if (resolutions.length === 1) return resolutions[0];
+    return {
+        type: 'compound',
+        steps: steps.filter((step): step is CompoundStep => step !== null),
+    };
+};
+
 export const interpretChartIntent = ({
     answers,
     prompt,
@@ -580,10 +723,25 @@ export const interpretChartIntent = ({
     if (intent === 'new_question') return { type: 'not_an_edit' };
     if (!intent || intent === 'unclear')
         return { type: 'unresolved', reason: 'intent' };
-    if ((decisionProbability(answers.multiple) ?? 1) >= thresholds.multiple)
-        return { type: 'unresolved', reason: 'multiple' };
-
+    if ((decisionProbability(answers.nonEdit) ?? 1) >= thresholds.nonEdit)
+        return { type: 'unresolved', reason: 'non-edit' };
     const numbers = extractNumberCandidates(prompt);
+    const extras = extraEdits(answers, intent, thresholds);
+    const multiple =
+        (decisionProbability(answers.multiple) ?? 1) >= thresholds.multiple;
+    if (extras.length > 0 || multiple) {
+        if (!isComposable(intent))
+            return { type: 'unresolved', reason: 'multiple' };
+        return resolveCompound(
+            answers,
+            context,
+            numbers,
+            thresholds,
+            new Set([intent, ...extras]),
+            multiple,
+        );
+    }
+
     const chartType = confident(answers.chartType, thresholds.option);
     switch (intent) {
         case 'chart_type':
@@ -609,19 +767,12 @@ export const interpretChartIntent = ({
                 : { type: 'intent', intent: { kind: 'series', op: 'swap' } };
         case 'split_series':
             return { type: 'intent', intent: { kind: 'series', op: 'split' } };
-        case 'add_field': {
-            const fieldId = confident(answers.addField, thresholds.field);
-            if (!fieldId || fieldId === 'none')
-                return { type: 'unresolved', reason: 'add-field' };
-            return {
-                type: 'intent',
-                intent: {
-                    kind: 'add_field',
-                    fieldId,
-                    chartType: isChartType(chartType) ? chartType : null,
-                },
-            };
-        }
+        case 'add_field':
+            return resolveAddField(
+                answers,
+                thresholds,
+                isChartType(chartType) ? chartType : null,
+            );
         case 'filter':
             return resolveFilter(answers, context, numbers, thresholds);
         case 'clear_filters':
@@ -681,8 +832,7 @@ export const decideTurn = async ({
     return {
         decision: {
             simpleDataAnswer:
-                chart?.type !== 'intent' &&
-                chart?.type !== 'needs_values' &&
+                (!chart || !isChartEditAttempt(chart)) &&
                 (decisionProbability(answers.simple) ?? 0) >=
                     CHART_INTENT_THRESHOLDS.simpleDataAnswer,
             chart,

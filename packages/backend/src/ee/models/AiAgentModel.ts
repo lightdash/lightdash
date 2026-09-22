@@ -150,6 +150,7 @@ import {
     AiPromptDataAppElementSnapshot,
     AiPromptDataAppRestoreSnapshot,
     AiPromptDataAppSnapshot,
+    AiPromptDecisionTableName,
     AiPromptInterruptTableName,
     AiPromptSteerTableName,
     AiPromptTableName,
@@ -166,6 +167,7 @@ import {
     DbAiAgentToolResult,
     DbAiPrompt,
     DbAiPromptContext,
+    DbAiPromptDecision,
     DbAiPromptInterrupt,
     DbAiPromptSteer,
     DbAiSlackPrompt,
@@ -5673,6 +5675,15 @@ export class AiAgentModel {
             );
 
         return rows.length > 0;
+    }
+
+    async createPromptDecision(
+        decision: Omit<
+            DbAiPromptDecision,
+            'ai_prompt_decision_uuid' | 'created_at'
+        >,
+    ): Promise<void> {
+        await this.database(AiPromptDecisionTableName).insert(decision);
     }
 
     async updatePromptNeedsUserInput({

@@ -210,6 +210,39 @@ export type AiWritebackRunTable = Knex.CompositeTableType<
 
 export const AiPromptTableName = 'ai_prompt';
 
+export const AiPromptDecisionTableName = 'ai_prompt_decision';
+
+export type DbAiPromptDecision = {
+    ai_prompt_decision_uuid: string;
+    ai_prompt_uuid: string;
+    created_at: Date;
+    operation: 'chart-intent' | 'model-routing';
+    outcome:
+        | 'intent'
+        | 'compound'
+        | 'needs_values'
+        | 'clarify'
+        | 'not_an_edit'
+        | 'unresolved'
+        | 'unavailable'
+        | 'routed';
+    reason: string | null;
+    intent: object | null;
+    applied: boolean;
+    fallback_reason: string | null;
+    simple_data_answer: boolean;
+    answers: object | null;
+    thresholds: object;
+    latency_ms: number;
+    jev_model: string;
+};
+
+export type AiPromptDecisionTable = Knex.CompositeTableType<
+    DbAiPromptDecision,
+    Omit<DbAiPromptDecision, 'ai_prompt_decision_uuid' | 'created_at'>,
+    never
+>;
+
 export type AiPromptClassifierNeedsUserInputMetadata = {
     gate: 'match' | 'no_match';
     model: string | null;

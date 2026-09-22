@@ -279,6 +279,7 @@ import {
 } from '../../../services/UnfurlService/UnfurlService';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
+import { type DbAiPromptDecision } from '../../database/entities/ai';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import {
@@ -342,11 +343,13 @@ import {
 } from '../ai/decisions/chartEdits';
 import {
     buildChartIntentContext,
+    CHART_INTENT_THRESHOLDS,
     decideTurn,
     isChartEditAttempt,
     selectFilterValues,
     type ChartIntentContext,
     type ChartIntentResolution,
+    type CompoundStep,
     type FieldCandidate,
 } from '../ai/decisions/chartIntent';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
@@ -532,6 +535,10 @@ type ChartTurnContext = {
     catalogFields: Array<{ candidate: FieldCandidate; tableName: string }>;
     intentContext: ChartIntentContext;
 };
+
+type ChartIntentApplication =
+    | { type: 'edit'; edit: ChartEdit; undoneTo: AiArtifact | null }
+    | { type: 'fallback'; reason: string };
 
 type AgentResponseStream = {
     pipeUIMessageStreamToResponse: (
@@ -11974,23 +11981,30 @@ Use your existing tools to inspect them when relevant to the user's question (re
         return compatible.length === 1 ? compatible[0] : null;
     }
 
-    private async resolveChartIntent({
+    private async applyChartStep({
         user,
         prompt,
         agent,
         decisions,
         chart,
-        resolution,
+        step,
+        artifact,
+        explore,
     }: {
         user: SessionUser;
         prompt: AiWebAppPrompt;
         agent: AiAgent;
         decisions: AiDecisionClient;
         chart: ChartTurnContext;
-        resolution: ChartIntentResolution;
-    }): Promise<{ edit: ChartEdit; undoneTo: AiArtifact | null } | null> {
-        if (resolution.type === 'needs_values') {
-            const { fieldId, exclude } = resolution.filter;
+        step: CompoundStep;
+        artifact: AiSemanticChartArtifactConfig;
+        explore: Explore;
+    }): Promise<
+        | { type: 'edit'; edit: ChartEdit; explore: Explore }
+        | { type: 'fallback'; reason: string }
+    > {
+        if (step.type === 'needs_values') {
+            const { fieldId, exclude } = step.filter;
             const fieldLabel =
                 chart.intentContext.filterableFields.find(
                     ({ id }) => id === fieldId,
@@ -11998,48 +12012,30 @@ Use your existing tools to inspect them when relevant to the user's question (re
             const candidates = await this.searchFilterValueCandidates({
                 user,
                 projectUuid: prompt.projectUuid,
-                exploreName: chart.explore.name,
+                exploreName: explore.name,
                 fieldId,
                 prompt: prompt.prompt,
             });
             const values = await selectFilterValues({
                 decisions,
                 prompt: prompt.prompt,
-                filter: resolution.filter,
+                filter: step.filter,
                 fieldLabel,
                 candidates,
             });
-            if (!values) return null;
+            if (!values)
+                return { type: 'fallback', reason: 'values-not-found' };
             const edit = applyChartIntent({
                 intent: { kind: 'filter_values', fieldId, exclude, values },
-                artifact: chart.chartConfig,
-                explore: chart.explore,
+                artifact,
+                explore,
             });
-            return edit ? { edit, undoneTo: null } : null;
+            return edit
+                ? { type: 'edit', edit, explore }
+                : { type: 'fallback', reason: 'reducer-rejected' };
         }
-        if (resolution.type !== 'intent') return null;
-        const { intent } = resolution;
-        if (intent.kind === 'undo') {
-            const previous = await this.aiAgentModel.getPreviousArtifactVersion(
-                chart.latest.artifactUuid,
-                chart.latest.versionNumber,
-            );
-            const undoConfig =
-                previous?.chartConfig?.source === 'semantic'
-                    ? previous.chartConfig
-                    : null;
-            return {
-                edit: {
-                    config: undoConfig ?? chart.chartConfig,
-                    response: undoConfig
-                        ? 'Undid the last chart change.'
-                        : 'There is no earlier chart change to undo.',
-                    changed: undoConfig !== null,
-                },
-                undoneTo: undoConfig ? previous : null,
-            };
-        }
-        let { explore } = chart;
+        const { intent } = step;
+        let targetExplore = explore;
         if (
             intent.kind === 'add_field' &&
             !getFields(explore).some(
@@ -12054,20 +12050,97 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       user,
                       projectUuid: prompt.projectUuid,
                       availableTags: agent.tags,
-                      artifact: chart.chartConfig,
-                      currentExplore: chart.explore,
+                      artifact,
+                      currentExplore: explore,
                       tableName,
                   }).catch(() => null)
                 : null;
-            if (!otherExplore) return null;
-            explore = otherExplore;
+            if (!otherExplore)
+                return { type: 'fallback', reason: 'no-compatible-explore' };
+            targetExplore = otherExplore;
         }
         const edit = applyChartIntent({
             intent,
-            artifact: chart.chartConfig,
-            explore,
+            artifact,
+            explore: targetExplore,
         });
-        return edit ? { edit, undoneTo: null } : null;
+        return edit
+            ? { type: 'edit', edit, explore: targetExplore }
+            : { type: 'fallback', reason: 'reducer-rejected' };
+    }
+
+    private async resolveChartIntent({
+        user,
+        prompt,
+        agent,
+        decisions,
+        chart,
+        resolution,
+    }: {
+        user: SessionUser;
+        prompt: AiWebAppPrompt;
+        agent: AiAgent;
+        decisions: AiDecisionClient;
+        chart: ChartTurnContext;
+        resolution: ChartIntentResolution;
+    }): Promise<ChartIntentApplication> {
+        const single = resolution.type === 'intent' ? resolution.intent : null;
+        if (single?.kind === 'undo') {
+            const previous = await this.aiAgentModel.getPreviousArtifactVersion(
+                chart.latest.artifactUuid,
+                chart.latest.versionNumber,
+            );
+            const undoConfig =
+                previous?.chartConfig?.source === 'semantic'
+                    ? previous.chartConfig
+                    : null;
+            return {
+                type: 'edit',
+                edit: {
+                    config: undoConfig ?? chart.chartConfig,
+                    response: undoConfig
+                        ? 'Undid the last chart change.'
+                        : 'There is no earlier chart change to undo.',
+                    changed: undoConfig !== null,
+                },
+                undoneTo: undoConfig ? previous : null,
+            };
+        }
+        let steps: CompoundStep[] = [];
+        if (resolution.type === 'compound') steps = resolution.steps;
+        else if (resolution.type === 'needs_values') steps = [resolution];
+        else if (single) steps = [{ type: 'intent', intent: single }];
+        else return { type: 'fallback', reason: resolution.type };
+
+        let artifact = chart.chartConfig;
+        let { explore } = chart;
+        const responses: string[] = [];
+        let changed = false;
+        // Each step builds on the previous one, so they must run in order.
+        /* oxlint-disable no-await-in-loop */
+        for (const step of steps) {
+            const applied = await this.applyChartStep({
+                user,
+                prompt,
+                agent,
+                decisions,
+                chart,
+                step,
+                artifact,
+                explore,
+            });
+            if (applied.type === 'fallback') return applied;
+            artifact = applied.edit.config;
+            explore = applied.explore;
+            changed = changed || applied.edit.changed;
+            responses.push(applied.edit.response);
+        }
+        /* oxlint-enable no-await-in-loop */
+        return {
+            type: 'edit',
+            edit: { config: artifact, response: responses.join(' '), changed },
+            undoneTo: null,
+        };
     }
 
     private async tryApplyChartEdit({
@@ -12088,7 +12161,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
         resolution: ChartIntentResolution;
         responseStartedAt: number;
         decisionUsage: () => { inputTokens: number; outputTokens: number };
-    }): Promise<AgentResponseStream | null> {
+    }): Promise<
+        | { type: 'applied'; stream: AgentResponseStream }
+        | { type: 'fallback'; reason: string }
+    > {
         const resolved = await this.resolveChartIntent({
             user,
             prompt,
@@ -12097,15 +12173,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
             chart,
             resolution,
         });
-        if (!resolved) return null;
+        if (resolved.type === 'fallback') return resolved;
         const { edit, undoneTo } = resolved;
 
         const [current, interrupted] = await Promise.all([
             this.aiAgentModel.getArtifact(chart.latest.artifactUuid),
             this.aiAgentModel.hasAiPromptInterrupt(prompt.promptUuid),
         ]);
-        if (current?.versionUuid !== chart.latest.versionUuid || interrupted)
-            return null;
+        if (current?.versionUuid !== chart.latest.versionUuid)
+            return { type: 'fallback', reason: 'stale-artifact' };
+        if (interrupted) return { type: 'fallback', reason: 'interrupted' };
 
         if (edit.changed)
             await this.aiAgentModel.createOrUpdateArtifact({
@@ -12165,10 +12242,66 @@ Use your existing tools to inspect them when relevant to the user's question (re
             },
         });
         return {
-            pipeUIMessageStreamToResponse: (response) =>
-                pipeUIMessageStreamToResponse({ response, stream }),
-            consumeStream: async () => {},
+            type: 'applied',
+            stream: {
+                pipeUIMessageStreamToResponse: (response) =>
+                    pipeUIMessageStreamToResponse({ response, stream }),
+                consumeStream: async () => {},
+            },
         };
+    }
+
+    private async recordTurnDecision({
+        promptUuid,
+        decisions,
+        turn,
+        latencyMs,
+        applied,
+        fallbackReason,
+    }: {
+        promptUuid: string;
+        decisions: AiDecisionClient;
+        turn: Awaited<ReturnType<typeof decideTurn>>;
+        latencyMs: number;
+        applied: boolean;
+        fallbackReason: string | null;
+    }): Promise<void> {
+        const { chart } = turn.decision;
+        let outcome: DbAiPromptDecision['outcome'] = 'routed';
+        let reason: string | null = null;
+        let intent: object | null = null;
+        if (turn.answers === null) outcome = 'unavailable';
+        else if (chart?.type === 'unresolved') {
+            outcome = 'unresolved';
+            reason = chart.reason;
+        } else if (chart?.type === 'intent') {
+            outcome = 'intent';
+            intent = chart.intent;
+        } else if (chart?.type === 'needs_values') {
+            outcome = 'needs_values';
+            intent = chart.filter;
+        } else if (chart?.type === 'compound') {
+            outcome = 'compound';
+            intent = chart.steps;
+        } else if (chart) outcome = chart.type;
+        try {
+            await this.aiAgentModel.createPromptDecision({
+                ai_prompt_uuid: promptUuid,
+                operation: chart ? 'chart-intent' : 'model-routing',
+                outcome,
+                reason,
+                intent,
+                applied,
+                fallback_reason: fallbackReason,
+                simple_data_answer: turn.decision.simpleDataAnswer,
+                answers: turn.answers,
+                thresholds: CHART_INTENT_THRESHOLDS,
+                latency_ms: Math.round(latencyMs),
+                jev_model: decisions.modelName,
+            });
+        } catch (error) {
+            Logger.debug(`Unable to record AI turn decision: ${String(error)}`);
+        }
     }
 
     async generateOrStreamAgentResponse(
@@ -12348,18 +12481,20 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       agent: agentSettings,
                   }).catch(() => null)
                 : null;
-        const turnDecision = decisions
-            ? (
-                  await decideTurn({
-                      decisions,
-                      prompt: prompt.prompt,
-                      instructions: agentSettings.instruction,
-                      conversation: messageHistory.slice(-3),
-                      context: chartTurn?.intentContext ?? null,
-                  })
-              ).decision
+        const decisionStartedAt = performance.now();
+        const turn = decisions
+            ? await decideTurn({
+                  decisions,
+                  prompt: prompt.prompt,
+                  instructions: agentSettings.instruction,
+                  conversation: messageHistory.slice(-3),
+                  context: chartTurn?.intentContext ?? null,
+              })
             : null;
+        const decisionLatencyMs = performance.now() - decisionStartedAt;
+        const turnDecision = turn?.decision ?? null;
         const chartResolution = turnDecision?.chart ?? null;
+        let chartEditFallbackReason: string | null = null;
         if (
             decisions &&
             chartTurn &&
@@ -12368,9 +12503,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
         ) {
             if (
                 chartResolution.type === 'intent' ||
-                chartResolution.type === 'needs_values'
+                chartResolution.type === 'needs_values' ||
+                chartResolution.type === 'compound'
             ) {
-                const editResponse = await this.tryApplyChartEdit({
+                const editResult = await this.tryApplyChartEdit({
                     user,
                     prompt,
                     agent: agentSettings,
@@ -12386,9 +12522,21 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     Logger.warn(
                         `Fast chart edit failed; falling back to the agent: ${String(error)}`,
                     );
-                    return null;
+                    return { type: 'fallback' as const, reason: 'error' };
                 });
-                if (editResponse) return editResponse;
+                if (editResult.type === 'applied') {
+                    if (turn)
+                        await this.recordTurnDecision({
+                            promptUuid: prompt.promptUuid,
+                            decisions,
+                            turn,
+                            latencyMs: decisionLatencyMs,
+                            applied: true,
+                            fallbackReason: null,
+                        });
+                    return editResult.stream;
+                }
+                chartEditFallbackReason = editResult.reason;
             }
             // JEV identified a chart edit the reducer could not apply, so the agent mutates the active chart.
             if (isChartEditAttempt(chartResolution)) {
@@ -12396,6 +12544,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 chartMutationContext = chartTurn.chartConfig;
             }
         }
+        if (decisions && turn)
+            await this.recordTurnDecision({
+                promptUuid: prompt.promptUuid,
+                decisions,
+                turn,
+                latencyMs: decisionLatencyMs,
+                applied: false,
+                fallbackReason: chartEditFallbackReason,
+            });
         const enableSqlMode =
             options.enableSqlMode ?? agentSettings.enableSqlMode;
 

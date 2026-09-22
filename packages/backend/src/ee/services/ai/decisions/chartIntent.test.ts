@@ -14,6 +14,7 @@ import {
     interpretChartIntent,
     isChartEditAttempt,
     selectFilterValues,
+    type ChartIntentResolution,
 } from './chartIntent';
 
 const dimension = (name: string, type: DimensionType, label: string) => ({
@@ -91,7 +92,11 @@ const noul = (value: number) => ({ type: 'noul' as const, noul: value });
 
 const interpret = (prompt: string, answers: Partial<DecisionAnswers>) =>
     interpretChartIntent({
-        answers: { multiple: noul(0.05), ...answers } as DecisionAnswers,
+        answers: {
+            multiple: noul(0.05),
+            nonEdit: noul(0.05),
+            ...answers,
+        } as DecisionAnswers,
         prompt,
         context: buildChartIntentContext({ prompt, artifact, explore }),
     });
@@ -103,16 +108,6 @@ describe('interpretChartIntent', () => {
                 intent: choice('new_question'),
             }),
         ).toEqual({ type: 'not_an_edit' });
-    });
-
-    it('refuses to partially apply a request that asks for several things', () => {
-        expect(
-            interpret('make it a line and filter to last year', {
-                intent: choice('chart_type'),
-                multiple: noul(0.9),
-                chartType: choice('line'),
-            }),
-        ).toEqual({ type: 'unresolved', reason: 'multiple' });
     });
 
     it('resolves a chart type and prefers it over a swap', () => {
@@ -232,6 +227,93 @@ describe('interpretChartIntent', () => {
         });
     });
 
+    it('leaves requests that also ask for something else to the agent', () => {
+        const resolution = interpret('make it a line and save it', {
+            intent: choice('chart_type'),
+            nonEdit: noul(0.93),
+            chartType: choice('line'),
+        });
+        expect(resolution).toEqual({ type: 'unresolved', reason: 'non-edit' });
+        expect(isChartEditAttempt(resolution)).toBe(false);
+    });
+
+    it('applies every edit a request names, never just the primary one', () => {
+        expect(
+            interpret('top 3 as horizontal bars', {
+                intent: choice('chart_type'),
+                chartType: choice('horizontal'),
+                wantsSort: noul(0.95),
+                sortDirection: choice('descending'),
+                sortFieldNamed: noul(0.2),
+                number: choice('3'),
+            }),
+        ).toEqual({
+            type: 'compound',
+            steps: [
+                {
+                    type: 'intent',
+                    intent: {
+                        kind: 'sort',
+                        fieldId: null,
+                        descending: true,
+                        limit: 3,
+                    },
+                },
+                {
+                    type: 'intent',
+                    intent: { kind: 'chart_type', chartType: 'horizontal' },
+                },
+            ],
+        });
+    });
+
+    it('falls back when any part of a compound request is unresolved', () => {
+        expect(
+            interpret('segment by region and sort it', {
+                intent: choice('add_field'),
+                addField: choice('orders_region'),
+                wantsSort: noul(0.9),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'multiple' });
+    });
+
+    it('does not combine edits with a non-composable intent', () => {
+        expect(
+            interpret('stack it and only last 6 months', {
+                intent: choice('stack'),
+                wantsFilter: noul(0.9),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'multiple' });
+    });
+
+    it('never applies a single edit when JEV says several were asked for', () => {
+        expect(
+            interpret('make it a line and do the other thing', {
+                intent: choice('chart_type'),
+                multiple: noul(0.9),
+                chartType: choice('line'),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'multiple' });
+    });
+
+    it('treats adding a field in a named chart type as one edit', () => {
+        expect(
+            interpret('split by region as a line chart', {
+                intent: choice('add_field'),
+                addField: choice('orders_region'),
+                chartType: choice('line'),
+                wantsChartType: noul(0.95),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: {
+                kind: 'add_field',
+                fieldId: 'orders_region',
+                chartType: 'line',
+            },
+        });
+    });
+
     it('treats low-confidence intents as unresolved', () => {
         expect(interpret('hmm', { intent: choice('chart_type', 0.3) })).toEqual(
             { type: 'unresolved', reason: 'intent' },
@@ -240,7 +322,7 @@ describe('interpretChartIntent', () => {
 });
 
 describe('isChartEditAttempt', () => {
-    it.each([
+    it.each<[ChartIntentResolution, boolean]>([
         [{ type: 'intent', intent: { kind: 'undo' } }, true],
         [
             { type: 'needs_values', filter: { fieldId: 'a', exclude: false } },
@@ -249,9 +331,11 @@ describe('isChartEditAttempt', () => {
         [{ type: 'unresolved', reason: 'add-field' }, true],
         [{ type: 'unresolved', reason: 'intent' }, false],
         [{ type: 'unresolved', reason: 'multiple' }, false],
+        [{ type: 'unresolved', reason: 'non-edit' }, false],
+        [{ type: 'compound', steps: [] }, true],
         [{ type: 'unresolved', reason: 'decision-unavailable' }, false],
         [{ type: 'not_an_edit' }, false],
-    ] as const)('%j -> %s', (resolution, expected) => {
+    ])('%j -> %s', (resolution, expected) => {
         expect(isChartEditAttempt(resolution)).toBe(expected);
     });
 });
@@ -332,6 +416,7 @@ describe('decideTurn', () => {
         const evaluate = vi.fn().mockResolvedValue({
             intent: choice('chart_type'),
             multiple: noul(0.05),
+            nonEdit: noul(0.05),
             chartType: choice('line'),
             simple: noul(0.95),
         });
