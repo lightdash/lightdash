@@ -13,6 +13,7 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import { AiDecisionClient } from './AiDecisionClient';
 import {
+    getImplicitChartFilterCandidate,
     isChartPresentationRequest,
     isChartQueryRefinementRequest,
     isChartUndoRequest,
@@ -382,6 +383,10 @@ describe('chart edits', () => {
             prompt: 'only North',
             artifact,
             explore: refinementExplore,
+            validatedImplicitFilter: {
+                fieldId: 'orders_region',
+                value: 'North',
+            },
         });
 
         expect(result?.response).toBe('Filtered to **North**.');
@@ -397,6 +402,27 @@ describe('chart edits', () => {
                 ],
             },
         });
+    });
+
+    it('does not guess an implicit filter value belongs to the sole dimension', () => {
+        expect(
+            getImplicitChartFilterCandidate({
+                prompt: 'show only shipped orders',
+                artifact,
+                explore: refinementExplore,
+            }),
+        ).toEqual({
+            fieldId: 'orders_region',
+            requestedValue: 'shipped orders',
+            searchValue: 'shipped',
+        });
+        expect(
+            resolveExactChartQueryEdit({
+                prompt: 'show only shipped orders',
+                artifact,
+                explore: refinementExplore,
+            }),
+        ).toBeNull();
     });
 
     it('supports exact relative-date filters without model inference', () => {
@@ -447,6 +473,10 @@ describe('chart edits', () => {
             prompt: 'only North',
             artifact: filtered,
             explore: refinementExplore,
+            validatedImplicitFilter: {
+                fieldId: 'orders_region',
+                value: 'North',
+            },
         });
         const resultFilters = result?.config.config.queryConfig.filters;
         expect(
@@ -483,6 +513,10 @@ describe('chart edits', () => {
             prompt: 'only South',
             artifact,
             explore: refinementExplore,
+            validatedImplicitFilter: {
+                fieldId: 'orders_region',
+                value: 'South',
+            },
         });
         expect(first).not.toBeNull();
         const result = resolveExactChartQueryEdit({
@@ -516,6 +550,10 @@ describe('chart edits', () => {
                 artifact,
                 explore: refinementExplore,
                 allowQueryRefinements: true,
+                validatedImplicitFilter: {
+                    fieldId: 'orders_region',
+                    value: 'North',
+                },
             }),
         ).resolves.toMatchObject({ changed: true });
         expect(evaluate).not.toHaveBeenCalled();

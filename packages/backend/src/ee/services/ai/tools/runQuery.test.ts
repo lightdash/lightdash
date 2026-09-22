@@ -6,6 +6,7 @@ import {
     MergeJoinType,
     MetricType,
     TimeFrames,
+    type AiArtifact,
     type AiWebAppPrompt,
     type Explore,
     type SlackPrompt,
@@ -154,6 +155,7 @@ const executeTool = async (
     agentContext = new AgentContext([explore]),
     enableFastResponse = false,
     purpose: 'visualization' | 'answer' = 'visualization',
+    artifact?: Pick<AiArtifact, 'artifactUuid' | 'versionUuid'>,
 ) => {
     const queryTool = getRunQuery({
         purpose,
@@ -167,7 +169,7 @@ const executeTool = async (
         projectParameterDefinitions: {},
         getPrompt: vi.fn().mockResolvedValue(prompt),
         sendFile: vi.fn().mockResolvedValue(undefined),
-        createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
+        createOrUpdateArtifact: vi.fn().mockResolvedValue(artifact),
         maxLimit: 500,
         maxContextRows: Number.POSITIVE_INFINITY,
         exposeQueryUuid,
@@ -1057,6 +1059,41 @@ describe('getRunQuery', () => {
                 status: 'success',
                 queryUuid: '11111111-1111-4111-8111-111111111111',
                 queryCacheHit: false,
+            },
+        });
+    });
+
+    it('returns the artifact version in successful web visualization metadata', async () => {
+        const runAsyncQuery: RunAsyncQueryFn = vi.fn().mockResolvedValue({
+            queryUuid: '11111111-1111-4111-8111-111111111111',
+            rows: [{ a_dim1: 'one', a_met1: 1 }],
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+        });
+
+        await expect(
+            executeTool(
+                runAsyncQuery,
+                true,
+                makePrompt(),
+                false,
+                false,
+                undefined,
+                toolInput,
+                false,
+                validExplore,
+                new AgentContext([validExplore]),
+                false,
+                'visualization',
+                {
+                    artifactUuid: 'artifact-uuid',
+                    versionUuid: 'version-uuid',
+                },
+            ),
+        ).resolves.toMatchObject({
+            metadata: {
+                status: 'success',
+                artifactVersionUuid: 'version-uuid',
             },
         });
     });

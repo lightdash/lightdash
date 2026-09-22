@@ -651,6 +651,16 @@ export const getCandidateSearchTerms = (
         12,
     );
 
+const getChartMutationFieldIds = (args: AiAgentArgs): string[] => {
+    const config = args.chartMutationContext?.config;
+    if (!config) return [];
+    return [
+        ...config.queryConfig.dimensions,
+        ...config.queryConfig.metrics,
+        ...config.queryConfig.sorts.map(({ fieldId }) => fieldId),
+    ].filter((fieldId, index, fields) => fields.indexOf(fieldId) === index);
+};
+
 const prepareCandidateSeed = async (
     args: AiAgentArgs,
     explores: Explore[],
@@ -660,9 +670,12 @@ const prepareCandidateSeed = async (
     if (!args.decisions || args.execution.mode !== 'standard') return undefined;
     const query = getAgentQuestion(args);
     const recentQueryFields = getRecentQueryFieldIds(args.messageHistory);
+    const carriedFields = recentQueryFields.length
+        ? recentQueryFields
+        : getChartMutationFieldIds(args);
     const candidates = selectCandidateFields(
         getCachedFieldIndex(explores, verifiedFieldUsage),
-        getCandidateSearchTerms(query, recentQueryFields),
+        getCandidateSearchTerms(query, carriedFields),
     );
     const ranked = await rankCatalog({
         decisions: args.decisions,
@@ -685,10 +698,14 @@ const prepareCandidateSeed = async (
         ranked.fieldRanks,
         ranked.exploreRanks,
     );
+    let carriedFieldContext: string | null = null;
+    if (args.chartMutationContext) {
+        carriedFieldContext = `The active chart below is authoritative. Mutate its query and visualization, preserving everything the user did not ask to change. A response claiming a change is only valid after generateVisualization succeeds.\n${JSON.stringify(args.chartMutationContext.config)}`;
+    } else if (carriedFields.length > 0) {
+        carriedFieldContext = `The preceding successful query already established these field IDs: ${recentQueryFields.join(', ')}. For a follow-up, reuse its tool input and preserve its measure, filters and scope. Change only the requested grain or presentation; skip field discovery when the candidates below cover it.`;
+    }
     return [
-        recentQueryFields.length > 0
-            ? `The preceding successful query already established these field IDs: ${recentQueryFields.join(', ')}. For a follow-up, reuse its tool input and preserve its measure, filters and scope. Change only the requested grain or presentation; skip field discovery when the candidates below cover it.`
-            : null,
+        carriedFieldContext,
         ranked.exploresRanked
             ? `Relevant explores, ordered by entity and grain fit: ${ranked.explores
                   .slice(0, 5)
@@ -957,7 +974,15 @@ export const getChartFollowupFastResponse = (
                 .filter(
                     (result) =>
                         result.toolName === 'generateVisualization' &&
-                        !isErrorToolResult(result.output),
+                        !isErrorToolResult(result.output) &&
+                        result.output !== null &&
+                        typeof result.output === 'object' &&
+                        'metadata' in result.output &&
+                        result.output.metadata !== null &&
+                        typeof result.output.metadata === 'object' &&
+                        'artifactVersionUuid' in result.output.metadata &&
+                        typeof result.output.metadata.artifactVersionUuid ===
+                            'string',
                 )
                 .map((result) => result.toolCallId),
         ),
@@ -1249,7 +1274,8 @@ export const buildPrepareStep = ({
         const explicitlyForced = forcedFirstStep?.({ stepNumber }) ?? {};
         const intentForcedTool = getFastIntentTool(
             intentToolGate?.intent === 'chart_from_previous' &&
-                getRecentQueryFieldIds(args.messageHistory).length === 0
+                getRecentQueryFieldIds(args.messageHistory).length === 0 &&
+                !args.chartMutationContext
                 ? null
                 : intentToolGate?.intent,
             preloadedMcpToolNames,
@@ -2460,7 +2486,8 @@ const prepareAgentTurn = async ({
     ]);
     if (
         preparedContext?.turnIntent === 'chart_from_previous' &&
-        getRecentQueryFieldIds(args.messageHistory).length === 0
+        getRecentQueryFieldIds(args.messageHistory).length === 0 &&
+        !args.chartMutationContext
     ) {
         preparedContext.turnIntent = 'chart';
     }

@@ -2400,7 +2400,13 @@ describe('buildAgentMessages', () => {
         ];
         expect(
             getChartFollowupFastResponse(
-                step({ result: 'rows', metadata: { status: 'success' } }),
+                step({
+                    result: 'rows',
+                    metadata: {
+                        status: 'success',
+                        artifactVersionUuid: 'version-1',
+                    },
+                }),
             ),
         ).toBe(
             "Created **Orders by month** using the preceding query's measure, filters and scope.",
@@ -2408,6 +2414,14 @@ describe('buildAgentMessages', () => {
         expect(
             getChartFollowupFastResponse(
                 step({ result: 'failed', metadata: { status: 'error' } }),
+            ),
+        ).toBeNull();
+        expect(
+            getChartFollowupFastResponse(
+                step({
+                    result: 'The query returned no rows.',
+                    metadata: { status: 'success' },
+                }),
             ),
         ).toBeNull();
     });

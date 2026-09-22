@@ -209,10 +209,93 @@ type ExactFilter = {
     response: string;
 };
 
+export type ImplicitChartFilterCandidate = {
+    fieldId: string;
+    requestedValue: string;
+    searchValue: string;
+};
+
+export type ValidatedImplicitChartFilter = {
+    fieldId: string;
+    value: string;
+};
+
+const getImplicitValueMatch = (prompt: string) => {
+    const text = prompt.trim().replace(/[.!]$/, '').trim();
+    const match =
+        /^(?:please\s+)?(?:(show|keep)\s+)?(only|exclude|filter to)\s+(.+)$/i.exec(
+            text,
+        );
+    if (!match) return null;
+    const value = match[3].trim();
+    if (!value || value.length > 256 || /\s+(?:and|then)\s+/i.test(value))
+        return null;
+    return { value, exclude: match[2].toLowerCase() === 'exclude' };
+};
+
+const normalizeFilterValue = (value: string) =>
+    value.toLowerCase().replaceAll('_', ' ').replace(/\s+/g, ' ').trim();
+
+export const getImplicitChartFilterCandidate = ({
+    prompt,
+    artifact,
+    explore,
+}: {
+    prompt: string;
+    artifact: AiSemanticChartArtifactConfig;
+    explore: Explore;
+}): ImplicitChartFilterCandidate | null => {
+    const match = getImplicitValueMatch(prompt);
+    if (!match) return null;
+
+    const dimensions = new Set(artifact.config.queryConfig.dimensions);
+    const valueFields = getSelectedFields(artifact, explore).filter(
+        ({ id, filterType }) =>
+            dimensions.has(id) &&
+            filterType !== null &&
+            filterType !== FilterType.DATE,
+    );
+    if (valueFields.length !== 1) return null;
+
+    const exploreFields = new Map(
+        getFields(explore).map((field) => [getItemId(field), field]),
+    );
+    const entityLabels = artifact.config.queryConfig.metrics.flatMap(
+        (fieldId) => {
+            const field = exploreFields.get(fieldId);
+            if (!field) return [];
+            const tableLabel = explore.tables[field.table]?.label;
+            return [field.table.replaceAll('_', ' '), tableLabel]
+                .filter((label): label is string => Boolean(label))
+                .flatMap((label) => {
+                    const normalized = normalizeFilterValue(label);
+                    return normalized.endsWith('s')
+                        ? [normalized, normalized.slice(0, -1)]
+                        : [normalized];
+                });
+        },
+    );
+    const requestedValue = match.value;
+    const normalizedValue = normalizeFilterValue(requestedValue);
+    const suffix = entityLabels
+        .sort((left, right) => right.length - left.length)
+        .find((label) => normalizedValue.endsWith(` ${label}`));
+    const searchValue = suffix
+        ? normalizedValue.slice(0, -(suffix.length + 1)).trim()
+        : requestedValue;
+
+    return {
+        fieldId: valueFields[0].id,
+        requestedValue,
+        searchValue: searchValue || requestedValue,
+    };
+};
+
 const parseExactFilter = (
     prompt: string,
     artifact: AiSemanticChartArtifactConfig,
     explore: Explore,
+    validatedImplicitFilter?: ValidatedImplicitChartFilter,
 ): ExactFilter | null => {
     const text = prompt.trim().replace(/[.!]$/, '').trim();
     if (/^(?:please\s+)?(?:clear|remove) (?:the )?filters?$/i.test(text)) {
@@ -274,17 +357,18 @@ const parseExactFilter = (
         };
     }
 
-    const valueMatch =
-        /^(?:please\s+)?(?:(show|keep)\s+)?(only|exclude|filter to)\s+(.+)$/i.exec(
-            text,
-        );
+    const valueMatch = getImplicitValueMatch(text);
     if (!valueMatch || valueFields.length !== 1) return null;
-    const value = valueMatch[3].trim();
-    if (!value || value.length > 256 || /\s+(?:and|then)\s+/i.test(value))
+    const [valueField] = valueFields;
+    if (
+        !validatedImplicitFilter ||
+        validatedImplicitFilter.fieldId !== valueField.id
+    )
         return null;
-    const exclude = valueMatch[2].toLowerCase() === 'exclude';
+    const { value } = validatedImplicitFilter;
+    const { exclude } = valueMatch;
     return {
-        expression: `${formatFilterField(valueFields[0].id)} ${exclude ? FilterOperator.NOT_EQUALS : FilterOperator.EQUALS}=${JSON.stringify(value)}`,
+        expression: `${formatFilterField(valueField.id)} ${exclude ? FilterOperator.NOT_EQUALS : FilterOperator.EQUALS}=${JSON.stringify(value)}`,
         response: exclude
             ? `Excluded **${value}**.`
             : `Filtered to **${value}**.`,
@@ -646,14 +730,21 @@ export const resolveExactChartQueryEdit = ({
     prompt,
     artifact,
     explore,
+    validatedImplicitFilter,
 }: {
     prompt: string;
     artifact: AiSemanticChartArtifactConfig;
     explore: Explore;
+    validatedImplicitFilter?: ValidatedImplicitChartFilter;
 }): ChartEdit | null => {
     const segmentation = applyExactSegmentation(prompt, artifact, explore);
     if (segmentation) return segmentation;
-    const filter = parseExactFilter(prompt, artifact, explore);
+    const filter = parseExactFilter(
+        prompt,
+        artifact,
+        explore,
+        validatedImplicitFilter,
+    );
     if (filter) return applyExactFilter(filter, artifact, explore);
     return applyExactSort(prompt, artifact, explore);
 };
@@ -689,6 +780,7 @@ export const resolveChartEdit = async ({
     conversation = [],
     explore,
     allowQueryRefinements = false,
+    validatedImplicitFilter,
 }: {
     decisions: Pick<AiDecisionClient, 'evaluate'>;
     prompt: string;
@@ -697,13 +789,19 @@ export const resolveChartEdit = async ({
     conversation?: unknown[];
     explore?: Explore;
     allowQueryRefinements?: boolean;
+    validatedImplicitFilter?: ValidatedImplicitChartFilter;
 }): Promise<ChartEdit | null> => {
     if (
         allowQueryRefinements &&
         explore &&
         isChartQueryRefinementRequest(prompt)
     ) {
-        return resolveExactChartQueryEdit({ prompt, artifact, explore });
+        return resolveExactChartQueryEdit({
+            prompt,
+            artifact,
+            explore,
+            validatedImplicitFilter,
+        });
     }
     if (!isChartPresentationRequest(prompt)) return null;
     const additionRequested =

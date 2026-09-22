@@ -335,12 +335,15 @@ import {
 } from '../ai/decisions/AiDecisionClient';
 import {
     getChartSegmentationQuery,
+    getImplicitChartFilterCandidate,
     isChartArtifactEditRequest,
     isChartPresentationRequest,
     isChartQueryRefinementRequest,
     isChartUndoRequest,
     parseExactChartEdit,
     resolveChartEdit,
+    type ImplicitChartFilterCandidate,
+    type ValidatedImplicitChartFilter,
 } from '../ai/decisions/chartEdits';
 import { canUseFastModel } from '../ai/decisions/modelRouting';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
@@ -11711,6 +11714,53 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
     }
 
+    private async validateImplicitChartFilter({
+        user,
+        projectUuid,
+        exploreName,
+        candidate,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        exploreName: string;
+        candidate: ImplicitChartFilterCandidate;
+    }): Promise<ValidatedImplicitChartFilter | null> {
+        const normalize = (value: string) =>
+            value
+                .toLowerCase()
+                .replaceAll('_', ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        const requested = normalize(candidate.searchValue);
+        const search = requested.split(' ')[0];
+        if (!search) return null;
+
+        try {
+            const values = await this.projectService.searchFieldUniqueValues(
+                user,
+                projectUuid,
+                exploreName,
+                candidate.fieldId,
+                search,
+                25,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                QueryExecutionContext.AI,
+            );
+            const matches = values.results.filter(
+                (value: unknown): value is string =>
+                    typeof value === 'string' && normalize(value) === requested,
+            );
+            return matches.length === 1
+                ? { fieldId: candidate.fieldId, value: matches[0] }
+                : null;
+        } catch {
+            return null;
+        }
+    }
+
     private async tryApplyChartEdit({
         user,
         prompt,
@@ -11760,6 +11810,25 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       agent.tags,
                       chartConfig.config.queryConfig.exploreName,
                   ).catch(() => undefined);
+        const implicitFilterCandidate =
+            allowQueryRefinements && explore
+                ? getImplicitChartFilterCandidate({
+                      prompt: prompt.prompt,
+                      artifact: chartConfig,
+                      explore,
+                  })
+                : null;
+        let validatedImplicitFilter: ValidatedImplicitChartFilter | undefined;
+        if (implicitFilterCandidate && explore) {
+            const validated = await this.validateImplicitChartFilter({
+                user,
+                projectUuid: prompt.projectUuid,
+                exploreName: explore.name,
+                candidate: implicitFilterCandidate,
+            });
+            if (!validated) return null;
+            validatedImplicitFilter = validated;
+        }
         const previous =
             allowQueryRefinements && isChartUndoRequest(prompt.prompt)
                 ? await this.aiAgentModel.getPreviousArtifactVersion(
@@ -11787,6 +11856,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                   conversation: messageHistory.slice(-3),
                   explore,
                   allowQueryRefinements,
+                  validatedImplicitFilter,
               });
         if (
             !edit &&
@@ -12188,6 +12258,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             getChartSegmentationQuery(prompt.prompt) !== null;
         const allowQueryRefinements =
             queryRefinementRequest && fastExperienceEnabled;
+        let forceChartMutationRouting = false;
+        let chartMutationContext: AiSemanticChartArtifactConfig | undefined;
         if (
             decisions &&
             stream &&
@@ -12222,6 +12294,24 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 }),
             });
             if (editResponse) return editResponse;
+            const [latestChart] =
+                await this.aiAgentModel.findArtifactsByThreadUuid(
+                    prompt.threadUuid,
+                    'chart',
+                );
+            if (latestChart?.chartConfig?.source === 'semantic') {
+                const activeArtifact = await this.getArtifact(
+                    user,
+                    prompt.projectUuid,
+                    agentSettings.uuid,
+                    latestChart.artifactUuid,
+                    latestChart.versionUuid,
+                ).catch(() => null);
+                if (activeArtifact?.chartConfig?.source === 'semantic') {
+                    forceChartMutationRouting = true;
+                    chartMutationContext = activeArtifact.chartConfig;
+                }
+            }
         }
         const enableSqlMode =
             options.enableSqlMode ?? agentSettings.enableSqlMode;
@@ -12808,6 +12898,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             decisionUsage,
             toolCallModel,
             enableDataAnswerFastResponse,
+            forceChartMutationRouting,
+            chartMutationContext,
             userQuestion: prompt.prompt,
             organizationId: user.organizationUuid,
             userId: user.userUuid,

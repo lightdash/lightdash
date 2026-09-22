@@ -239,6 +239,91 @@ describe('context preloading', () => {
         expect(context?.turnIntent).toBe('chart_from_previous');
     });
 
+    it('defines filters as mutations of the preceding chart', async () => {
+        const { args, dependencies, request } = setup();
+        args.availableSkills = [];
+        args.knowledgeDocuments = [];
+        args.messageHistory = [
+            { role: 'user', content: 'Show orders by payment method.' },
+            { role: 'assistant', content: 'Created the chart.' },
+            { role: 'user', content: 'Show only shipped orders.' },
+        ];
+        request.mockImplementation(async (_url, init) => {
+            const body = JSON.parse(String(init?.body));
+            expect(
+                body.questions.turnIntent.criteria.chart_from_previous,
+            ).toContain('filters');
+            expect(body.questions.turnIntent.instructions).toContain(
+                'only shipped',
+            );
+            return Response.json({
+                model: 'test',
+                answers: { turnIntent: choice('chart_from_previous') },
+            });
+        });
+
+        const context = await prepareRelevantContext(args, dependencies, {
+            loadAgentTools: getLoadAgentTools(),
+        });
+        expect(context?.turnIntent).toBe('chart_from_previous');
+    });
+
+    it('defines a terse correction after a no-row mutation as the same chart route', async () => {
+        const { args, dependencies, request } = setup();
+        args.availableSkills = [];
+        args.knowledgeDocuments = [];
+        args.messageHistory = [
+            { role: 'user', content: 'Show only shipped orders.' },
+            {
+                role: 'assistant',
+                content:
+                    'No shipped orders matched. Would you like a different status?',
+            },
+            { role: 'user', content: 'Yea completed then.' },
+        ];
+        request.mockImplementation(async (_url, init) => {
+            const body = JSON.parse(String(init?.body));
+            expect(body.questions.turnIntent.instructions).toContain(
+                'yes, completed then',
+            );
+            expect(
+                body.questions.turnIntent.criteria.chart_from_previous,
+            ).toContain('no-row chart mutation');
+            return Response.json({
+                model: 'test',
+                answers: { turnIntent: choice('chart_from_previous') },
+            });
+        });
+
+        const context = await prepareRelevantContext(args, dependencies, {
+            loadAgentTools: getLoadAgentTools(),
+        });
+        expect(context?.turnIntent).toBe('chart_from_previous');
+    });
+
+    it('preserves the chart mutation route when the general classifier disagrees', async () => {
+        const { args, dependencies, request } = setup();
+        args.availableSkills = [];
+        args.knowledgeDocuments = [];
+        args.forceChartMutationRouting = true;
+        args.messageHistory = [
+            { role: 'user', content: 'Show orders by payment method.' },
+            { role: 'assistant', content: 'Created the chart.' },
+            { role: 'user', content: 'Show only shipped orders.' },
+        ];
+        request.mockResolvedValue(
+            Response.json({
+                model: 'test',
+                answers: { turnIntent: choice('data_answer') },
+            }),
+        );
+
+        const context = await prepareRelevantContext(args, dependencies, {
+            loadAgentTools: getLoadAgentTools(),
+        });
+        expect(context?.turnIntent).toBe('chart_from_previous');
+    });
+
     it('does not narrow tools when Jev confidence is low for a chart follow-up', async () => {
         const { args, dependencies, request } = setup();
         args.availableSkills = [];

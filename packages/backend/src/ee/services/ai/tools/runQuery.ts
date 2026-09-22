@@ -499,7 +499,7 @@ const getSuccessMetadata = ({
     queryReuseHit,
     chartImageUrl,
     artifact,
-    deferredSlack,
+    deferredSlack: _deferredSlack,
     fastResponse,
 }: {
     queryUuid: string;
@@ -512,9 +512,7 @@ const getSuccessMetadata = ({
 }) => ({
     status: 'success' as const,
     chartImageUrl,
-    ...(deferredSlack && artifact
-        ? { artifactVersionUuid: artifact.versionUuid }
-        : {}),
+    ...(artifact ? { artifactVersionUuid: artifact.versionUuid } : {}),
     queryUuid,
     queryCacheHit,
     queryReuseHit,
