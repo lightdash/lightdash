@@ -1,10 +1,11 @@
 import {
     MantineProvider as MantineProviderBase,
     mergeThemeOverrides,
+    type MantineColorSchemeManager,
     type MantineThemeOverride,
 } from '@mantine/core';
 import { useContext, useMemo, type FC } from 'react';
-import { getMantineThemeOverride } from '../theme';
+import { getMantineThemeOverride, type ColorScheme } from '../theme';
 import { cssVariablesResolver } from '../theme/cssVariablesResolver';
 import CodeHighlightProvider from './CodeHighlightProvider';
 import { ColorSchemeContext } from './ColorSchemeContext';
@@ -25,6 +26,20 @@ type Props = {
     withGlobalClasses?: boolean;
 };
 
+// On mount Mantine writes `manager.get(defaultColorScheme)` to the root
+// element in a layout effect and only applies `forceColorScheme` in a later
+// effect, so a freshly mounted provider paints one frame in the default
+// scheme. Answering with the resolved scheme makes both writes agree.
+const createFixedColorSchemeManager = (
+    colorScheme: ColorScheme,
+): MantineColorSchemeManager => ({
+    get: () => colorScheme,
+    set: () => {},
+    subscribe: () => {},
+    unsubscribe: () => {},
+    clear: () => {},
+});
+
 const MantineBaseProvider: FC<React.PropsWithChildren<Props>> = ({
     children,
     themeOverride,
@@ -39,6 +54,10 @@ const MantineBaseProvider: FC<React.PropsWithChildren<Props>> = ({
     // the ambient app scheme from context; standalone mounts default to light.
     const appColorScheme = useContext(ColorSchemeContext)?.colorScheme;
     const resolvedColorScheme = forceColorScheme || appColorScheme || 'light';
+    const colorSchemeManager = useMemo(
+        () => createFixedColorSchemeManager(resolvedColorScheme),
+        [resolvedColorScheme],
+    );
     const baseTheme = useMemo(
         () => getMantineThemeOverride(resolvedColorScheme),
         [resolvedColorScheme],
@@ -57,6 +76,8 @@ const MantineBaseProvider: FC<React.PropsWithChildren<Props>> = ({
         <MantineProviderBase
             theme={mergedTheme}
             forceColorScheme={resolvedColorScheme}
+            defaultColorScheme={resolvedColorScheme}
+            colorSchemeManager={colorSchemeManager}
             cssVariablesResolver={cssVariablesResolver}
             cssVariablesSelector={cssVariablesSelector}
             getRootElement={getRootElement}
