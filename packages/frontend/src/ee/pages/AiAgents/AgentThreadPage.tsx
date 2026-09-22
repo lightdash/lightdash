@@ -279,6 +279,10 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         [threadMentionItems, pinnedDashboardTileItems, pageContentMentionItems],
     );
 
+    const latestAssistantMessage = thread?.messages
+        ?.toReversed()
+        .find((message) => message.role === 'assistant');
+
     const handleSubmit = ({
         message,
         toolHints,
@@ -444,9 +448,10 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                         threadUuid={threadUuid}
                         contentMentionPriorityItems={contentMentionItems}
                         latestAssistantMessageUuid={
-                            [...(thread.messages ?? [])]
-                                .reverse()
-                                .find((m) => m.role === 'assistant')?.uuid
+                            latestAssistantMessage?.uuid
+                        }
+                        showSuggestions={
+                            !latestAssistantMessage?.quickReplies.length
                         }
                         sqlMode={sqlModeAvailable ? sqlMode : undefined}
                         onSqlModeChange={

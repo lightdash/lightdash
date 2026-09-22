@@ -353,6 +353,7 @@ import {
     type CompoundStep,
     type FieldCandidate,
 } from '../ai/decisions/chartIntent';
+import { selectQuickReplies } from '../ai/decisions/quickReplies';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
@@ -12294,6 +12295,33 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
     }
 
+    private async offerQuickReplies({
+        decisions,
+        promptUuid,
+        question,
+        response,
+    }: {
+        decisions: AiDecisionClient;
+        promptUuid: string;
+        question: string;
+        response: string;
+    }): Promise<void> {
+        try {
+            const quickReplies = await selectQuickReplies({
+                decisions,
+                question,
+                response,
+            });
+            if (quickReplies.length > 0)
+                await this.aiAgentModel.setPromptQuickReplies(
+                    promptUuid,
+                    quickReplies,
+                );
+        } catch (error) {
+            Logger.debug(`Unable to offer quick replies: ${String(error)}`);
+        }
+    }
+
     private async recordTurnDecision({
         promptUuid,
         decisions,
@@ -13572,7 +13600,24 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         });
                 }
 
-                return updateWithCitationTelemetryPromise.then(() => undefined);
+                const quickRepliesPromise =
+                    decisions &&
+                    !isSlackPrompt(prompt) &&
+                    update.response !== undefined &&
+                    update.tokenUsage !== undefined
+                        ? updatePromise.then(() =>
+                              this.offerQuickReplies({
+                                  decisions,
+                                  promptUuid: update.promptUuid,
+                                  question: prompt.prompt,
+                                  response: update.response ?? '',
+                              }),
+                          )
+                        : Promise.resolve();
+                return Promise.all([
+                    updateWithCitationTelemetryPromise,
+                    quickRepliesPromise,
+                ]).then(() => undefined);
             },
             trackEvent: (event) => this.analytics.track(event),
 

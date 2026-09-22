@@ -57,6 +57,7 @@ const LOGGED_OPERATIONS = new Set([
     'query-error',
     'query-intent',
     'query-plan-intent',
+    'quick-replies',
     'response-error',
     'response-signals',
     'review-evidence',
