@@ -1153,8 +1153,10 @@ export type AgentStreamTextResult = StreamTextResult<
     Output.Output
 >;
 
-// AI SDK 7 forwards every stream part to onChunk; keep the v6 subset so
-// first-chunk timing and persistence semantics are unchanged.
+// AI SDK 7 forwards every stream part to onChunk, including lifecycle parts
+// (`start`, `start-step`, `text-start`) that arrive before any content. Timing
+// is measured over the v6 subset only, so "time to first chunk" keeps meaning
+// time to first content rather than time to `start`.
 const CONTENT_STREAM_CHUNK_TYPES = new Set<TextStreamPart<ToolSet>['type']>([
     'text-delta',
     'reasoning-delta',
@@ -1165,23 +1167,6 @@ const CONTENT_STREAM_CHUNK_TYPES = new Set<TextStreamPart<ToolSet>['type']>([
     'tool-result',
     'raw',
 ]);
-type ContentStreamChunk = Extract<
-    TextStreamPart<ToolSet>,
-    {
-        type:
-            | 'text-delta'
-            | 'reasoning-delta'
-            | 'source'
-            | 'tool-call'
-            | 'tool-input-start'
-            | 'tool-input-delta'
-            | 'tool-result'
-            | 'raw';
-    }
->;
-const isContentStreamChunk = (
-    chunk: TextStreamPart<ToolSet>,
-): chunk is ContentStreamChunk => CONTENT_STREAM_CHUNK_TYPES.has(chunk.type);
 
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
@@ -3137,17 +3122,18 @@ export const streamAgentResponse = async ({
                 recordExternalMcpToolCall(dependencies, mcpToolSetup, event);
             },
             onChunk: (event) => {
-                if (!isContentStreamChunk(event.chunk)) return;
-                timing.recordChunk();
-                // Track time to first chunk (any type) - only once
-                if (firstChunkTime === null) {
-                    firstChunkTime = Date.now();
-                    const ttfc = firstChunkTime - startTime;
-                    logger(
-                        'First Chunk',
-                        `Time to first chunk (${event.chunk.type}): ${ttfc}ms`,
-                    );
-                    dependencies.perf.measureStreamFirstChunk(ttfc);
+                if (CONTENT_STREAM_CHUNK_TYPES.has(event.chunk.type)) {
+                    timing.recordChunk();
+                    // Track time to first content chunk - only once
+                    if (firstChunkTime === null) {
+                        firstChunkTime = Date.now();
+                        const ttfc = firstChunkTime - startTime;
+                        logger(
+                            'First Chunk',
+                            `Time to first chunk (${event.chunk.type}): ${ttfc}ms`,
+                        );
+                        dependencies.perf.measureStreamFirstChunk(ttfc);
+                    }
                 }
 
                 switch (event.chunk.type) {
@@ -3403,6 +3389,28 @@ export const streamAgentResponse = async ({
                     case 'tool-input-start':
                         // not implemented
                         break;
+                    // Carries no streamable content. Listed explicitly rather
+                    // than filtered, so a chunk type added by a future AI SDK
+                    // release fails to compile instead of being dropped.
+                    case 'text-start':
+                    case 'text-end':
+                    case 'reasoning-start':
+                    case 'reasoning-end':
+                    case 'reasoning-file':
+                    case 'tool-input-end':
+                    case 'tool-error':
+                    case 'tool-output-denied':
+                    case 'tool-approval-request':
+                    case 'tool-approval-response':
+                    case 'file':
+                    case 'custom':
+                    case 'start':
+                    case 'finish':
+                    case 'start-step':
+                    case 'finish-step':
+                    case 'abort':
+                    case 'error':
+                        break;
                     default:
                         assertUnreachable(event.chunk, 'Unknown chunk type');
                 }
@@ -3445,8 +3453,8 @@ export const streamAgentResponse = async ({
                 usage,
                 totalUsage,
                 steps,
-                reasoning,
                 finishReason,
+                finalStep,
             }) => {
                 logger(
                     'On Finish',
@@ -3581,7 +3589,7 @@ export const streamAgentResponse = async ({
                     'On Finish',
                     `Usage: ${JSON.stringify(usage)}, step length: ${
                         steps.length
-                    }, reasoning length: ${reasoning.length}`,
+                    }, reasoning length: ${finalStep.reasoning.length}`,
                 );
 
                 dependencies.perf.measureStreamResponseTime(

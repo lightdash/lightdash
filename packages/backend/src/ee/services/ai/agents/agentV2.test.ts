@@ -653,7 +653,7 @@ describe('empty finishes and interrupts', () => {
             usage: { totalTokens: 10 },
             totalUsage: { totalTokens: 100 },
             steps: [{ text: '' }],
-            reasoning: [],
+            finalStep: { reasoning: [] },
             finishReason: 'tool-calls',
         });
         expect(updatePrompt).toHaveBeenCalledWith(
