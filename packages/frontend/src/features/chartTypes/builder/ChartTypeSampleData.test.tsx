@@ -1,5 +1,5 @@
 import { type DataAppVizSchema } from '@lightdash/common';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -26,36 +26,62 @@ const flatSchema: DataAppVizSchema = {
 };
 
 describe('ChartTypeSampleData', () => {
-    it('keeps flat sample values collapsed until requested', async () => {
+    it('opens flat sample values in a modal and restores focus after Escape', async () => {
         const context = buildSampleVizContext(flatSchema);
         renderWithProviders(<ChartTypeSampleData context={context} />);
 
-        expect(screen.getByText('View sample data · 6 rows')).toBeVisible();
+        const launcher = screen.getByRole('button', {
+            name: 'View sample data · 6 rows',
+        });
+        expect(launcher).toBeVisible();
         expect(screen.queryByRole('table')).not.toBeInTheDocument();
 
         const user = userEvent.setup();
         await user.tab();
         await user.keyboard('{Enter}');
 
+        const dialog = await screen.findByRole('dialog', {
+            name: 'Sample data',
+        });
+        expect(
+            within(dialog).getByText(
+                'Generated example values used in this preview.',
+            ),
+        ).toBeVisible();
+        expect(
+            within(dialog).getByRole('region', {
+                name: 'Generated sample data rows',
+            }),
+        ).toHaveAttribute('tabindex', '0');
+        expect(
+            within(dialog).getByRole('table', {
+                name: 'Generated sample data',
+            }),
+        ).toBeVisible();
+        expect(
+            within(dialog).getByRole('columnheader', { name: 'Month' }),
+        ).toBeVisible();
+        expect(
+            within(dialog).getByRole('columnheader', { name: 'Revenue' }),
+        ).toBeVisible();
+        expect(
+            within(dialog).getByText(
+                context.rows[0].sample_month.value.formatted,
+            ),
+        ).toBeVisible();
+        expect(
+            within(dialog).getByText(
+                context.rows[0].sample_revenue.value.formatted,
+            ),
+        ).toBeVisible();
+
+        await user.keyboard('{Escape}');
         await waitFor(() =>
             expect(
-                screen.getByText(
-                    'Generated example values used in this preview.',
-                ),
-            ).toBeVisible(),
+                screen.queryByRole('dialog', { name: 'Sample data' }),
+            ).not.toBeInTheDocument(),
         );
-        expect(
-            screen.getByRole('columnheader', { name: 'Month' }),
-        ).toBeVisible();
-        expect(
-            screen.getByRole('columnheader', { name: 'Revenue' }),
-        ).toBeVisible();
-        expect(
-            screen.getByText(context.rows[0].sample_month.value.formatted),
-        ).toBeVisible();
-        expect(
-            screen.getByText(context.rows[0].sample_revenue.value.formatted),
-        ).toBeVisible();
+        await waitFor(() => expect(launcher).toHaveFocus());
     });
 
     it('uses pivot metadata for every expanded metric and series column', async () => {
@@ -73,24 +99,30 @@ describe('ChartTypeSampleData', () => {
             ],
         });
         renderWithProviders(<ChartTypeSampleData context={context} />);
-        fireEvent.click(
+        const user = userEvent.setup();
+        await user.click(
             screen.getByRole('button', { name: /view sample data/i }),
         );
 
         const pivotColumns = context.pivotDetails?.valuesColumns;
         if (!pivotColumns) throw new Error('Expected pivoted sample data');
+        const dialog = await screen.findByRole('dialog', {
+            name: 'Sample data',
+        });
         await waitFor(() =>
             expect(
-                screen.getByRole('columnheader', { name: 'Month' }),
+                within(dialog).getByRole('columnheader', { name: 'Month' }),
             ).toBeVisible(),
         );
         for (const column of pivotColumns) {
             const expectedHeader = `${context.fields[column.referenceField].label} · ${column.pivotValues.map((value) => value.formatted).join(' · ')}`;
             expect(
-                screen.getByRole('columnheader', { name: expectedHeader }),
+                within(dialog).getByRole('columnheader', {
+                    name: expectedHeader,
+                }),
             ).toBeVisible();
             expect(
-                screen.getAllByText(
+                within(dialog).getAllByText(
                     context.rows[0][column.pivotColumnName].value.formatted,
                 ),
             ).not.toHaveLength(0);
@@ -129,15 +161,21 @@ describe('ChartTypeSampleData', () => {
             renderWithProviders(
                 <ChartTypeSampleData context={normalizedContext} />,
             );
-            fireEvent.click(
+            const user = userEvent.setup();
+            await user.click(
                 screen.getByRole('button', { name: /view sample data/i }),
             );
 
-            await waitFor(() =>
-                expect(screen.getByRole('table')).toBeVisible(),
-            );
+            const dialog = await screen.findByRole('dialog', {
+                name: 'Sample data',
+            });
             expect(
-                screen.getByRole('columnheader', {
+                within(dialog).getByRole('table', {
+                    name: 'Generated sample data',
+                }),
+            ).toBeVisible();
+            expect(
+                within(dialog).getByRole('columnheader', {
                     name: 'Revenue · Series A',
                 }),
             ).toBeVisible();

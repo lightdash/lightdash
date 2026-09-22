@@ -2,22 +2,20 @@ import {
     normalizeIndexColumns,
     type DataAppVizContext,
 } from '@lightdash/common';
+import { Button } from '@mantine/core';
+import { IconTable } from '@tabler/icons-react';
+import { useMemo, useState, type FC } from 'react';
 import {
-    Box,
-    Collapse,
-    Group,
-    ScrollArea,
-    Stack,
-    Table,
-    Text,
-    UnstyledButton,
-} from '@mantine/core';
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { useId, useState, type FC } from 'react';
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+} from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal from '../../../components/common/MantineModal';
 import classes from './ChartTypeSampleData.module.css';
 
 type Column = { reference: string; label: string };
+type SampleRow = DataAppVizContext['rows'][number];
 
 const getColumns = (context: DataAppVizContext): Column[] => {
     if (!context.pivotDetails) {
@@ -50,82 +48,73 @@ const getColumns = (context: DataAppVizContext): Column[] => {
     return [...indexColumns, ...valueColumns];
 };
 
-const cellValue = (value: DataAppVizContext['rows'][number][string]) =>
-    value?.value.formatted ?? '';
+const cellValue = (value: SampleRow[string]) => value?.value.formatted ?? '';
 
 type Props = { context: DataAppVizContext | null };
 
 export const ChartTypeSampleData: FC<Props> = ({ context }) => {
     const [opened, setOpened] = useState(false);
-    const titleId = useId();
-    const contentId = useId();
-    if (!context) return null;
-
-    const columns = getColumns(context);
-    if (columns.length === 0) return null;
+    const availableColumns = useMemo(
+        () => (context ? getColumns(context) : []),
+        [context],
+    );
+    const columns = useMemo<ContentTableColumnDef<SampleRow>[]>(
+        () =>
+            availableColumns.map((column) => ({
+                id: column.reference,
+                header: column.label,
+                accessorFn: (row) => cellValue(row[column.reference]),
+                enableSorting: false,
+            })),
+        [availableColumns],
+    );
+    const table = useContentTable({
+        columns,
+        data: context?.rows ?? [],
+        enableBottomToolbar: false,
+        enableColumnResizing: false,
+        enableEditing: false,
+        enablePagination: false,
+        enableRowActions: false,
+        enableRowSelection: false,
+        enableSorting: false,
+        enableTopToolbar: false,
+        mantineTableContainerProps: {
+            className: classes.tableContainer,
+            role: 'region',
+            tabIndex: 0,
+            'aria-label': 'Generated sample data rows',
+        },
+        mantineTableProps: {
+            'aria-label': 'Generated sample data',
+            highlightOnHover: true,
+        },
+    });
+    if (!context || availableColumns.length === 0) return null;
 
     const rowLabel = context.rows.length === 1 ? 'row' : 'rows';
-    const disclosureLabel = `View sample data · ${context.rows.length} ${rowLabel}`;
+    const launcherLabel = `View sample data · ${context.rows.length} ${rowLabel}`;
 
     return (
-        <Box role="region" aria-labelledby={titleId}>
-            <UnstyledButton
-                id={titleId}
-                className={classes.disclosure}
-                aria-expanded={opened}
-                aria-controls={contentId}
-                onClick={() => setOpened((value) => !value)}
+        <>
+            <Button
+                variant="subtle"
+                size="compact-xs"
+                className={classes.launcher}
+                leftSection={<MantineIcon icon={IconTable} size={14} />}
+                onClick={() => setOpened(true)}
             >
-                <Group gap="xxs">
-                    <Text size="xs" fw={500}>
-                        {disclosureLabel}
-                    </Text>
-                    <MantineIcon
-                        icon={opened ? IconChevronDown : IconChevronRight}
-                        size={14}
-                    />
-                </Group>
-            </UnstyledButton>
-            <Collapse id={contentId} expanded={opened}>
-                <Stack gap="xs">
-                    <Text size="xs" c="dimmed">
-                        Generated example values used in this preview.
-                    </Text>
-                    <ScrollArea className={classes.tableScroll} type="auto">
-                        <Table
-                            className={classes.table}
-                            aria-label="Generated sample data"
-                            fz="xs"
-                            horizontalSpacing="xs"
-                            verticalSpacing="xxs"
-                            withTableBorder
-                        >
-                            <Table.Thead>
-                                <Table.Tr>
-                                    {columns.map((column) => (
-                                        <Table.Th key={column.reference}>
-                                            {column.label}
-                                        </Table.Th>
-                                    ))}
-                                </Table.Tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                                {context.rows.map((row, index) => (
-                                    <Table.Tr key={index}>
-                                        {columns.map((column) => (
-                                            <Table.Td key={column.reference}>
-                                                {cellValue(
-                                                    row[column.reference],
-                                                )}
-                                            </Table.Td>
-                                        ))}
-                                    </Table.Tr>
-                                ))}
-                            </Table.Tbody>
-                        </Table>
-                    </ScrollArea>
-                </Stack>
-            </Collapse>
-        </Box>
+                {launcherLabel}
+            </Button>
+            <MantineModal
+                opened={opened}
+                onClose={() => setOpened(false)}
+                title="Sample data"
+                subtitle="Generated example values used in this preview."
+                size="min(1200px, 90vw)"
+            >
+                <ContentTable table={table} />
+            </MantineModal>
+        </>
     );
 };

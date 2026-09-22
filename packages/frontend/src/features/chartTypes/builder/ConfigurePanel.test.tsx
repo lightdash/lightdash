@@ -160,6 +160,12 @@ describe('ConfigurePanel', () => {
         const disclosure = screen.getByRole('button', {
             name: 'How to use this chart type',
         });
+        const sampleDataLauncher = screen.getByRole('button', {
+            name: 'View sample data · 6 rows',
+        });
+        expect(disclosure.compareDocumentPosition(sampleDataLauncher)).toBe(
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        );
         expect(disclosure).toHaveAttribute('aria-expanded', 'false');
         expect(screen.getByText(guidance)).not.toBeVisible();
 
