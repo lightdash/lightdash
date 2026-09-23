@@ -871,6 +871,66 @@ describe('ProjectService', () => {
                 },
             );
         });
+
+        test('populates a project credential cache miss for a warehouse without database listing support', async () => {
+            const snowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                database: 'ANALYTICS',
+            } as CreateWarehouseCredentials;
+            const harness = createHarness({
+                credentials: snowflakeCredentials,
+            });
+            harness.getTablesForDatabase.mockRejectedValue(
+                new WarehouseDatabaseListingNotSupportedError(
+                    WarehouseTypes.SNOWFLAKE,
+                ),
+            );
+
+            await expect(
+                harness.testService.getWarehouseTables(
+                    user,
+                    projectUuid,
+                    'analytics',
+                ),
+            ).resolves.toEqual(fetchedCatalog);
+            expect(harness.getTablesForDatabase).not.toHaveBeenCalled();
+            expect(harness.getAllTables).toHaveBeenCalledOnce();
+        });
+
+        test('falls back safely for a Databricks connection with no catalog', async () => {
+            const databricksCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                database: 'default',
+                serverHostName: 'host',
+                httpPath: '/path',
+            } as CreateWarehouseCredentials;
+            const harness = createHarness({
+                credentials: databricksCredentials,
+            });
+
+            await expect(
+                harness.testService.getWarehouseDatabases(user, projectUuid),
+            ).resolves.toEqual({
+                databases: [
+                    {
+                        name: 'DEFAULT',
+                        database: 'DEFAULT',
+                        schema: null,
+                        isDefault: true,
+                    },
+                ],
+                truncated: false,
+                limit: 100,
+            });
+            await expect(
+                harness.testService.getWarehouseTables(
+                    user,
+                    projectUuid,
+                    'DEFAULT',
+                ),
+            ).resolves.toEqual(fetchedCatalog);
+            expect(harness.getAllTables).toHaveBeenCalledOnce();
+        });
     });
 
     describe('Document counts in legacy Space listing', () => {
