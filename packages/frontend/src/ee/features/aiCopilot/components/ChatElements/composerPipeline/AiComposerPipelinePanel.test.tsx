@@ -26,9 +26,23 @@ const queries: SourceQuery[] = [
     },
 ];
 
+const duckdb = (
+    nodeId: string,
+    title: string,
+    references: string[],
+): SourceQuery => ({
+    sourceType: QuerySourceType.DUCKDB,
+    nodeId,
+    title,
+    sql: 'select 1',
+    references,
+});
+
 const renderPanel = (props: {
     defaultExpanded?: boolean;
     defaultMode?: 'list' | 'graph';
+    queries?: SourceQuery[];
+    terminalNodeId?: string;
 }) =>
     renderWithProviders(
         <AiComposerPipelinePanel
@@ -74,5 +88,48 @@ describe('AiComposerPipelinePanel graph mode', () => {
         expect(
             document.getElementById('composer-pipeline-node-orders'),
         ).toHaveAttribute('data-selected', 'false');
+    });
+
+    it('puts the terminal in the last column of a multi-sink pipeline', () => {
+        renderPanel({
+            defaultExpanded: true,
+            defaultMode: 'graph',
+            queries: [
+                queries[0],
+                duckdb('x', 'X', ['orders']),
+                duckdb('y', 'Y', ['x']),
+            ],
+            terminalNodeId: 'x',
+        });
+        const columnOf = (name: string) =>
+            Number(
+                screen
+                    .getByRole('button', { name: `Go to ${name}` })
+                    .getAttribute('transform')
+                    ?.match(/translate\((\d+)/)?.[1],
+            );
+        expect(columnOf('Orders by status')).toBeLessThan(columnOf('Y'));
+        expect(columnOf('Y')).toBeLessThan(columnOf('X'));
+    });
+
+    it('renders an empty pipeline without NaN geometry', () => {
+        const { container } = renderPanel({
+            defaultExpanded: true,
+            defaultMode: 'graph',
+            queries: [],
+            terminalNodeId: 'none',
+        });
+        expect(container.innerHTML).not.toContain('NaN');
+        expect(screen.queryByRole('button', { name: /^Go to / })).toBeNull();
+    });
+
+    it('scopes clip path ids per panel instance', () => {
+        renderPanel({ defaultExpanded: true, defaultMode: 'graph' });
+        renderPanel({ defaultExpanded: true, defaultMode: 'graph' });
+        const ids = [...document.querySelectorAll('clipPath')].map(
+            (element) => element.id,
+        );
+        expect(ids).toHaveLength(6);
+        expect(new Set(ids).size).toBe(6);
     });
 });

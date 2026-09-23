@@ -26,6 +26,7 @@ import {
 import { clsx } from 'clsx';
 import {
     useEffect,
+    useId,
     useMemo,
     useRef,
     useState,
@@ -240,17 +241,36 @@ const PipelineList: FC<{
     );
 };
 
-const layoutGraph = (layers: PipelineLayer[]) => {
-    const tallest = Math.max(...layers.map((layer) => layer.nodes.length));
+/**
+ * Columns by depth, with the terminal alone in the last column wherever it
+ * sits; columns left empty by a multi-sink pipeline are compacted away.
+ */
+const layoutGraph = (nodes: PipelineNode[]) => {
+    const others = nodes.filter((node) => !node.isTerminal);
+    const lastColumn =
+        others.length === 0
+            ? 0
+            : Math.max(...others.map((node) => node.depth)) + 1;
+    const columns = new Map<number, PipelineNode[]>();
+    nodes.forEach((node) => {
+        const column = node.isTerminal ? lastColumn : node.depth;
+        columns.set(column, [...(columns.get(column) ?? []), node]);
+    });
+    const ordered = [...columns.keys()]
+        .sort((a, b) => a - b)
+        .map((column) => columns.get(column)!);
+    const tallest = Math.max(0, ...ordered.map((column) => column.length));
     const height = tallest * NODE_H + (tallest - 1) * ROW_GAP + GRAPH_PAD * 2;
     const width =
-        layers.length * NODE_W + (layers.length - 1) * COL_GAP + GRAPH_PAD * 2;
+        ordered.length * NODE_W +
+        (ordered.length - 1) * COL_GAP +
+        GRAPH_PAD * 2;
     const positions = new Map<string, { x: number; y: number }>();
-    layers.forEach((layer, column) => {
-        const layerHeight =
-            layer.nodes.length * NODE_H + (layer.nodes.length - 1) * ROW_GAP;
-        const offset = (height - GRAPH_PAD * 2 - layerHeight) / 2;
-        layer.nodes.forEach((node, row) => {
+    ordered.forEach((columnNodes, column) => {
+        const columnHeight =
+            columnNodes.length * NODE_H + (columnNodes.length - 1) * ROW_GAP;
+        const offset = (height - GRAPH_PAD * 2 - columnHeight) / 2;
+        columnNodes.forEach((node, row) => {
             positions.set(node.nodeId, {
                 x: GRAPH_PAD + column * (NODE_W + COL_GAP),
                 y: GRAPH_PAD + offset + row * (NODE_H + ROW_GAP),
@@ -264,10 +284,11 @@ const GraphNode: FC<{
     node: PipelineNode;
     x: number;
     y: number;
+    idPrefix: string;
     onSelect: (nodeId: string) => void;
-}> = ({ node, x, y, onSelect }) => {
+}> = ({ node, x, y, idPrefix, onSelect }) => {
     const source = sourceLabel(node.query);
-    const clipId = `composer-pipeline-clip-${node.nodeId}`;
+    const clipId = `${idPrefix}-clip-${node.nodeId}`;
     const onKeyDown = (event: KeyboardEvent<SVGGElement>) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
@@ -323,11 +344,17 @@ const PipelineGraph: FC<{
     layers: PipelineLayer[];
     onSelect: (nodeId: string) => void;
 }> = ({ layers, onSelect }) => {
-    const { width, height, positions } = useMemo(
-        () => layoutGraph(layers),
+    // useId separators are not valid in url(#...) references
+    const idPrefix = `composer-pipeline-${useId().replace(/\W/g, '')}`;
+    const nodes = useMemo(
+        () => layers.flatMap((layer) => layer.nodes),
         [layers],
     );
-    const nodes = layers.flatMap((layer) => layer.nodes);
+    const { width, height, positions } = useMemo(
+        () => layoutGraph(nodes),
+        [nodes],
+    );
+    if (nodes.length === 0) return null;
     return (
         <Box className={styles.graphScroll}>
             <svg
@@ -364,6 +391,7 @@ const PipelineGraph: FC<{
                             node={node}
                             x={x}
                             y={y}
+                            idPrefix={idPrefix}
                             onSelect={onSelect}
                         />
                     );
