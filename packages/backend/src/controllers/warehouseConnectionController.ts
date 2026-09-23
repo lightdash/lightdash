@@ -1,5 +1,6 @@
 import {
     assertRegisteredAccount,
+    type ApiBindDbtSourceToWarehouseConnectionRequest,
     type ApiCreateWarehouseConnectionRequest,
     type ApiErrorPayload,
     type ApiRenameWarehouseConnectionRequest,
@@ -21,6 +22,7 @@ import {
     Patch,
     Path,
     Post,
+    Put,
     Request,
     Response,
     Route,
@@ -222,6 +224,29 @@ export class WarehouseConnectionController extends BaseController {
                 projectUuid,
                 warehouseConnectionUuid,
                 userWarehouseCredentialsUuid,
+            );
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Put('/dbt-sources/{projectDbtSourceUuid}')
+    @OperationId('bindDbtSourceToWarehouseConnection')
+    async bindDbtSourceToWarehouseConnection(
+        @Path() projectUuid: UUID,
+        @Path() projectDbtSourceUuid: UUID,
+        @Body() body: ApiBindDbtSourceToWarehouseConnectionRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getWarehouseConnectionService()
+            .bindDbtSource(
+                req.account,
+                projectUuid,
+                projectDbtSourceUuid,
+                body.warehouseConnectionUuid,
             );
         this.setStatus(200);
         return { status: 'ok', results: undefined };

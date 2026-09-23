@@ -829,6 +829,32 @@ export class WarehouseConnectionService extends BaseService {
             });
     }
 
+    async bindDbtSource(
+        account: Account,
+        projectUuid: string,
+        projectDbtSourceUuid: string,
+        warehouseConnectionUuid: string | null,
+    ): Promise<void> {
+        const { summary } = await this.getMultiProject(account, projectUuid);
+        this.assertCanWrite(account, summary, null, null);
+        await this.warehouseConnectionModel.transaction(async (model) => {
+            await model.lockProject(projectUuid);
+            const lockedProject = await model.getProject(projectUuid);
+            WarehouseConnectionService.assertMultiMode(lockedProject);
+            const connection =
+                warehouseConnectionUuid === null
+                    ? null
+                    : await model.get(lockedProject, warehouseConnectionUuid);
+            await model.bindDbtSource(
+                lockedProject,
+                projectDbtSourceUuid,
+                connection === null || connection.isOriginal
+                    ? null
+                    : connection.warehouseConnectionUuid,
+            );
+        });
+    }
+
     async assertBindingsBelongToProject(
         projectUuid: string,
         warehouseConnectionUuids: (string | null)[],
