@@ -1,5 +1,5 @@
 import { GenerateTooltipRequest, TooltipFieldContext } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -45,12 +45,13 @@ export async function generateTooltip(
         'generateTooltip',
         'tooltip',
     );
-    const result = await generateObject({
+    const result = await generateText({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        experimental_telemetry: telemetry,
-        schema: TooltipSchema,
+        ...telemetry,
+        output: Output.object({ schema: TooltipSchema }),
+        allowSystemInMessages: true,
         messages: [
             {
                 role: 'system',
@@ -115,5 +116,5 @@ ${
 
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
-    return result.object;
+    return result.output;
 }

@@ -32,6 +32,7 @@ const executeRunSql = (
         {
             messages: [],
             toolCallId,
+            context: {},
         },
     ) as Promise<RunSqlOutput>;
 
@@ -223,6 +224,7 @@ describe('getRunSql', () => {
             {
                 messages: [],
                 toolCallId: 'tool-call-1',
+                context: {},
             },
         );
 
@@ -286,6 +288,7 @@ describe('getRunSql', () => {
             {
                 messages: [],
                 toolCallId: 'tool-call-1',
+                context: {},
             },
         )) as RunSqlOutput;
 
@@ -309,7 +312,7 @@ describe('getRunSql', () => {
                 dependencies,
                 output: tool.execute!(
                     { sql, limit: 500 },
-                    { messages: [], toolCallId },
+                    { messages: [], toolCallId, context: {} },
                 ) as Promise<RunSqlOutput>,
             };
         };

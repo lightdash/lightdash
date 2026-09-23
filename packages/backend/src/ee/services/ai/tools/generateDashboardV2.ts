@@ -20,6 +20,7 @@ type Dependencies = {
     userQuestion?: string;
     getPrompt: GetPromptFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
+    agentContext: AgentContext;
 };
 
 const toolDefinition = generateDashboardToolDefinition.for('agent');
@@ -29,12 +30,12 @@ export const getGenerateDashboardV2 = ({
     userQuestion,
     getPrompt,
     createOrUpdateArtifact,
+    agentContext: ctx,
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (toolArgs, { experimental_context: context }) => {
+        execute: async (toolArgs) => {
             try {
-                const ctx = AgentContext.from(context);
                 const transformedToolArgs =
                     toolDashboardV2ArgsSchemaTransformed.parse(toolArgs);
 

@@ -150,7 +150,7 @@ import {
     type UpgradeAppRequestBody,
     type UpgradeCandidateFeature,
 } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
 import { createHash } from 'node:crypto';
@@ -367,6 +367,30 @@ import {
     TEMPLATE_SCRIPTS,
 } from './templateDependencies';
 import { getTemplateInstructions } from './templates';
+
+/**
+ * Structured output the metadata call asks the model for. Only a chart type is
+ * asked for an icon. At module scope so a test can assert the shape directly:
+ * once wrapped in `Output.object` the schema is no longer readable off the call.
+ */
+export const buildAppMetadataSchema = (isChartType: boolean) =>
+    z.object({
+        name: z
+            .string()
+            .describe(
+                'Short display name for the app: 3-6 words, title case, no quotes',
+            ),
+        description: z
+            .string()
+            .describe('One-sentence description of what the app shows'),
+        ...(isChartType
+            ? {
+                  icon: chartTypeIconSchema.describe(
+                      'Icon from the list that best represents how the chart looks',
+                  ),
+              }
+            : {}),
+    });
 
 /**
  * Pure helper: builds a ChartReference from a resolved chart object.
@@ -4616,23 +4640,7 @@ export class AppGenerateService extends BaseService {
             return { name: null, description: '', icon: null };
         }
 
-        const metadataSchema = z.object({
-            name: z
-                .string()
-                .describe(
-                    'Short display name for the app: 3-6 words, title case, no quotes',
-                ),
-            description: z
-                .string()
-                .describe('One-sentence description of what the app shows'),
-            ...(isChartType
-                ? {
-                      icon: chartTypeIconSchema.describe(
-                          'Icon from the list that best represents how the chart looks',
-                      ),
-                  }
-                : {}),
-        });
+        const metadataSchema = buildAppMetadataSchema(isChartType);
 
         const METADATA_TIMEOUT_MS = 15_000;
         const telemetry = getAiCallTelemetry({
@@ -4644,13 +4652,14 @@ export class AppGenerateService extends BaseService {
             ...getLanguageModelAttribution(modelOptions.model),
             keyManagement: modelOptions.keyManagement,
         });
-        const result = await generateObject({
+        const result = await generateText({
             model: modelOptions.model,
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
-            experimental_telemetry: telemetry,
-            schema: metadataSchema,
+            ...telemetry,
+            output: Output.object({ schema: metadataSchema }),
             abortSignal: AbortSignal.timeout(METADATA_TIMEOUT_MS),
+            allowSystemInMessages: true,
             messages: [
                 {
                     role: 'system',
@@ -4665,10 +4674,10 @@ export class AppGenerateService extends BaseService {
         });
 
         const stripHtml = (s: string) => s.replace(/<[^>]*>/g, '').trim();
-        const name = stripHtml(result.object.name).slice(0, 255);
-        const description = stripHtml(result.object.description).slice(0, 1024);
-        const icon = isChartTypeIcon(result.object.icon)
-            ? result.object.icon
+        const name = stripHtml(result.output.name).slice(0, 255);
+        const description = stripHtml(result.output.description).slice(0, 1024);
+        const icon = isChartTypeIcon(result.output.icon)
+            ? result.output.icon
             : null;
         if (!name) {
             this.logger.warn(
@@ -6891,14 +6900,19 @@ export class AppGenerateService extends BaseService {
             extra: { template: template ?? 'custom' },
         });
         let result;
+        // v7 resolves the call and throws from the `output` getter instead, so
+        // the getter has to be read inside this try or an empty model response
+        // escapes the catch below and 500s the clarify step.
+        let output;
         try {
-            result = await generateObject({
+            result = await generateText({
                 model: modelOptions.model,
                 ...modelOptions.callOptions,
                 providerOptions: modelOptions.providerOptions,
-                experimental_telemetry: telemetry,
-                schema: clarifySchema,
+                ...telemetry,
+                output: Output.object({ schema: clarifySchema }),
                 abortSignal: AbortSignal.timeout(CLARIFY_TIMEOUT_MS),
+                allowSystemInMessages: true,
                 messages: [
                     {
                         role: 'system',
@@ -6933,6 +6947,7 @@ export class AppGenerateService extends BaseService {
                     },
                 ],
             });
+            output = result.output;
         } catch (err) {
             this.logger.warn(
                 `App clarify failed after ${AppGenerateService.elapsed(start)}ms (project=${projectUuid}, template=${template ?? 'custom'}, llm=${llmProvider}): ${getErrorMessage(err)}`,
@@ -6942,7 +6957,7 @@ export class AppGenerateService extends BaseService {
         emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
         const elapsedMs = AppGenerateService.elapsed(start);
 
-        const questions = result.object.questions
+        const questions = output.questions
             .map((q) => q.trim())
             .filter((q) => q.length > 0)
             .slice(0, 4);

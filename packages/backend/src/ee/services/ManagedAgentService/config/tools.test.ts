@@ -5,7 +5,7 @@ import {
     buildAutopilotTools,
 } from './tools';
 
-const toolCallOptions = { toolCallId: 'call-1', messages: [] };
+const toolCallOptions = { toolCallId: 'call-1', messages: [], context: {} };
 
 const executeTool = (tools: ToolSet, name: string, input: unknown) => {
     const { execute } = tools[name];

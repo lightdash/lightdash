@@ -33,7 +33,7 @@ import {
     type Explore,
     type QueryHistoryStatus,
 } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { createHash } from 'crypto';
 import pLimit from 'p-limit';
 import {
@@ -1618,16 +1618,19 @@ export class AiAgentReviewClassifierService extends BaseService {
             keyManagement: model.keyManagement,
             ...getLanguageModelAttribution(model.model),
         });
-        const result = await generateObject({
+        const result = await generateText({
             model: model.model,
             ...defaultAgentOptions,
             ...model.callOptions,
             providerOptions: model.providerOptions,
-            experimental_telemetry: telemetry,
+            ...telemetry,
             // This schema is near the provider's strict-output grammar-size limit;
             // growing it breaks EVERY judge call silently ("compiled grammar is too
             // large"). Put new fields in a follow-up call like emitProjectContextEntry.
-            schema: aiAgentReviewClassifierJudgeCallOutputSchema,
+            output: Output.object({
+                schema: aiAgentReviewClassifierJudgeCallOutputSchema,
+            }),
+            allowSystemInMessages: true,
             messages: [
                 {
                     role: 'system',
@@ -1733,18 +1736,18 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
         emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
         const projectContextEntry =
-            result.object.promotedToFinding &&
-            result.object.primaryRootCause === 'project_context'
+            result.output.promotedToFinding &&
+            result.output.primaryRootCause === 'project_context'
                 ? await this.emitProjectContextEntry({
                       candidate,
                       evidencePacket,
                       model,
-                      judgeOutput: result.object,
+                      judgeOutput: result.output,
                   })
                 : null;
 
         return {
-            ...result.object,
+            ...result.output,
             projectContextEntry,
         } as AiAgentReviewClassifierJudgeOutput;
     }

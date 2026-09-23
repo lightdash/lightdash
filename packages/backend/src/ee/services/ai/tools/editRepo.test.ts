@@ -19,6 +19,7 @@ const executeEditRepo = (tool: EditRepoTool) =>
         {
             messages: [],
             toolCallId: 'tool-call-1',
+            context: {},
         },
     ) as Promise<EditRepoOutput>;
 

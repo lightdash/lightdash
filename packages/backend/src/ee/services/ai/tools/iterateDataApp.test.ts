@@ -39,7 +39,7 @@ const executeIterateDataApp = (tool: IterateDataAppTool) =>
             chartSlugs: ['orders-by-status'],
             themeSlug: null,
         },
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     ) as Promise<IterateDataAppOutput>;
 
 describe('getIterateDataApp', () => {

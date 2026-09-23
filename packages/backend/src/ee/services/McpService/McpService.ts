@@ -2094,6 +2094,7 @@ export class McpService extends BaseService {
                     >[0],
                     {
                         toolCallId: '',
+                        context: {},
                         messages: [],
                     },
                 );
@@ -2167,6 +2168,7 @@ export class McpService extends BaseService {
                     { ...argsWithProject, type: args.type, patch: args.patch },
                     {
                         toolCallId: '',
+                        context: {},
                         messages: [],
                     },
                 );
@@ -2212,6 +2214,7 @@ export class McpService extends BaseService {
                     args,
                     {
                         toolCallId: '',
+                        context: {},
                         messages: [],
                     },
                 );
@@ -2316,6 +2319,7 @@ export class McpService extends BaseService {
                             {},
                             {
                                 toolCallId: '',
+                                context: {},
                                 messages: [],
                             },
                         );
@@ -2512,6 +2516,7 @@ export class McpService extends BaseService {
                 });
                 const result = await findContentTool.execute!(argsWithProject, {
                     toolCallId: '',
+                    context: {},
                     messages: [],
                 });
 
@@ -2553,6 +2558,7 @@ export class McpService extends BaseService {
                 });
                 const result = await listContentTool.execute!(argsWithProject, {
                     toolCallId: '',
+                    context: {},
                     messages: [],
                 });
 
@@ -2630,6 +2636,7 @@ export class McpService extends BaseService {
                     { ...argsWithProject, type: args.type, slug: args.slug },
                     {
                         toolCallId: '',
+                        context: {},
                         messages: [],
                     },
                 );
@@ -2670,6 +2677,7 @@ export class McpService extends BaseService {
                 });
                 const result = await resolveUrlTool.execute!(args, {
                     toolCallId: '',
+                    context: {},
                     messages: [],
                 });
 
@@ -3594,6 +3602,7 @@ export class McpService extends BaseService {
                         searchFieldValuesArgs,
                         {
                             toolCallId: '',
+                            context: {},
                             messages: [],
                         },
                     );

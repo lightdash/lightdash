@@ -2,24 +2,31 @@ import {
     type AiAgentReviewClassifierJudgeOutput,
     type AiAgentReviewClassifierTurnCandidate,
 } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import { getModel } from './ai/models';
 import {
     AiAgentReviewClassifierService,
     type AiAgentReviewJudgeReplayInput,
 } from './AiAgentReviewClassifierService';
 
-vi.mock('ai', () => ({ generateObject: vi.fn() }));
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: vi.fn(),
+}));
 vi.mock('./ai/models', () => ({ getModel: vi.fn() }));
 vi.mock('./ai/agents/agentV2', () => ({ defaultAgentOptions: {} }));
 vi.mock('./ai/utils/aiCallTelemetry', () => ({
-    // Valid shape so the real emitAiUsage doesn't throw internally when the
-    // classifier emits usage (it reads telemetry.metadata).
-    getAiCallTelemetry: () => ({ functionId: 'test', metadata: {} }),
+    // Must mirror the real return shape, or the usage path this exercises
+    // silently no-ops: emitAiUsage reads telemetry.runtimeContext and needs a
+    // real feature.
+    getAiCallTelemetry: () => ({
+        runtimeContext: { feature: 'review-classifier' },
+        telemetry: { functionId: 'test' },
+    }),
     getLanguageModelAttribution: () => ({}),
 }));
 
-const generateObjectMock = vi.mocked(generateObject);
+const generateTextMock = vi.mocked(generateText);
 const getModelMock = vi.mocked(getModel);
 
 const JUDGE_MODEL = {
@@ -170,16 +177,16 @@ describe('single-tier judge', () => {
             signal: 'acceptance_or_continuation',
             implicitSignalSources: [],
         });
-        generateObjectMock.mockResolvedValueOnce({ object: output } as never);
+        generateTextMock.mockResolvedValueOnce({ output } as never);
 
         const result = await makeService().replayJudge(replayInput);
 
-        expect(generateObjectMock).toHaveBeenCalledTimes(1);
+        expect(generateTextMock).toHaveBeenCalledTimes(1);
         expect(getModelMock).toHaveBeenCalledWith(
             expect.anything(),
             expect.objectContaining({ useFastModel: true }),
         );
-        expect(generateObjectMock).toHaveBeenCalledWith(
+        expect(generateTextMock).toHaveBeenCalledWith(
             expect.objectContaining({ model: JUDGE_MODEL.model }),
         );
         expect(result.judgeOutput).toEqual(output);
@@ -187,11 +194,11 @@ describe('single-tier judge', () => {
 
     it('judges promoted turns with the same single fast-model call', async () => {
         const output = judgeOutput();
-        generateObjectMock.mockResolvedValueOnce({ object: output } as never);
+        generateTextMock.mockResolvedValueOnce({ output } as never);
 
         const result = await makeService().replayJudge(replayInput);
 
-        expect(generateObjectMock).toHaveBeenCalledTimes(1);
+        expect(generateTextMock).toHaveBeenCalledTimes(1);
         expect(result.judgeOutput).toEqual(output);
     });
 
@@ -205,16 +212,16 @@ describe('single-tier judge', () => {
             terms: ['transaction'],
             objects: [{ type: 'explore' as const, name: 'payments' }],
         };
-        generateObjectMock
-            .mockResolvedValueOnce({ object: output } as never)
+        generateTextMock
+            .mockResolvedValueOnce({ output } as never)
             .mockResolvedValueOnce({
-                object: { projectContextEntry },
+                output: { projectContextEntry },
             } as never);
 
         const result = await makeService().replayJudge(replayInput);
 
-        expect(generateObjectMock).toHaveBeenCalledTimes(2);
-        expect(generateObjectMock).toHaveBeenLastCalledWith(
+        expect(generateTextMock).toHaveBeenCalledTimes(2);
+        expect(generateTextMock).toHaveBeenLastCalledWith(
             expect.objectContaining({ model: JUDGE_MODEL.model }),
         );
         expect(result.judgeOutput?.projectContextEntry).toEqual(

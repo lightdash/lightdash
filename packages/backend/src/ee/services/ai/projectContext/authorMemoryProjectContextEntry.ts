@@ -2,7 +2,7 @@ import {
     projectContextEntryKinds,
     type ProjectContextEntry,
 } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -61,17 +61,20 @@ const callAuthoringLlm: MemoryProjectContextAuthoringLlmCall = async ({
     telemetry,
     messages,
 }) => {
-    const result = await generateObject({
+    const result = await generateText({
         model: model.model,
         ...defaultAgentOptions,
         ...model.callOptions,
         providerOptions: model.providerOptions,
-        experimental_telemetry: telemetry,
-        schema: memoryProjectContextAuthoringResultSchema,
+        ...telemetry,
+        output: Output.object({
+            schema: memoryProjectContextAuthoringResultSchema,
+        }),
+        allowSystemInMessages: true,
         messages,
     });
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
-    return result.object;
+    return result.output;
 };
 
 const systemPrompt = `Turn a personal Lightdash memory into one proposed project-context entry. The nominator has intentionally requested human review, so always return a proposal. The reviewer decides whether it should become shared project context.

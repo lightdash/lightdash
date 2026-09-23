@@ -1,3 +1,4 @@
+import { UnexpectedServerError } from '@lightdash/common';
 import type { ToolSet } from 'ai';
 import { extractKeywords } from '../tools/grepFieldsIndex';
 import { renderProjectContextEntries } from '../tools/loadProjectContext';
@@ -31,6 +32,18 @@ export type TurnIntent =
     | 'data_app_read'
     | 'repository_change'
     | 'other';
+
+// AI SDK 7 allows a tool description to be a function of its call context.
+// Candidates are budgeted by serialized size, so only a literal string can be
+// measured and truncated; a dynamic description would silently become blank.
+const mcpToolDescription = (name: string, tool: ToolSet[string]): string => {
+    if (typeof tool.description === 'function') {
+        throw new UnexpectedServerError(
+            `MCP tool "${name}" has a dynamic description, which cannot be budgeted for context selection.`,
+        );
+    }
+    return tool.description ?? '';
+};
 
 // Keep complete rules, not excerpts that could omit exceptions. Lexical recall
 // moves late matching entries into the bounded semantic pool; ties retain order.
@@ -97,7 +110,10 @@ export const prepareRelevantContext = async (
     const mcpDefinitions = boundCandidates(
         availableMcpTools.map((name) => ({
             name,
-            description: (runtimeTools[name].description ?? '').slice(0, 800),
+            description: mcpToolDescription(name, runtimeTools[name]).slice(
+                0,
+                800,
+            ),
         })),
         [],
         34_000,

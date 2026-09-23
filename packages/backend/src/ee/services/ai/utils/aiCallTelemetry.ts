@@ -1,6 +1,7 @@
 import type { LanguageModel } from 'ai';
 import type {
     AiCallFeature,
+    AiCallRuntimeContextKey,
     AiKeyManagement,
 } from '../../../../analytics/aiUsage';
 
@@ -95,14 +96,42 @@ const ATTRIBUTION_KEYS: (keyof AiCallAttribution)[] = [
 ];
 
 /**
- * Builds an `experimental_telemetry` config for any Vercel AI SDK call
- * (generateText / streamText / generateObject / embed).
+ * Attribution dimensions that may be sent to telemetry providers.
  *
- * Spans always emit (`isEnabled: true`) so token usage is never silently lost;
- * only input/output content capture is gated (`recordIO`). The metadata pins
- * each call to a `feature` + org/project (+ agent/thread/prompt where available)
- * so token usage and cost can be attributed in tracing. Nullish dimensions are
- * dropped so the AI SDK doesn't reject the metadata.
+ * This is narrower than v6, which put every `telemetry.metadata` key on the
+ * span. `runUuid`, `deepResearchRunUuid` and `deepResearchPhase` no longer
+ * reach spans, though `emitAiUsage` still reports them on `ai.usage`.
+ *
+ * Membership is by key name, not by how the key arrived: `extra` merges into
+ * the runtime context before this list is applied, so an `extra` key named
+ * here reaches both sinks and one not named here reaches neither.
+ * `generateAgentSuggestions` depends on that — its org/project/agent
+ * attribution arrives only through `extra`.
+ *
+ * Widening this list sends the key to whichever telemetry provider the
+ * deployment configures, so add one only when it is safe to export.
+ */
+const TELEMETRY_REPORTED_KEYS: AiCallRuntimeContextKey[] = [
+    'feature',
+    ...ATTRIBUTION_KEYS,
+];
+
+/**
+ * Builds the telemetry options for any Vercel AI SDK call (generateText /
+ * streamText / embed). Spread the result into the call, since attribution is a
+ * call-level option rather than part of the telemetry block:
+ *
+ *     const telemetry = getAiCallTelemetry({ ... });
+ *     streamText({ ...telemetry, model, messages });
+ *
+ * Telemetry is opt-out in AI SDK 7 — spans emit whenever an integration is
+ * registered — so only input/output content capture is gated (`recordIO`).
+ *
+ * Attribution pins each call to a `feature` + org/project (+ agent/thread/prompt
+ * where available) so token usage and cost can be attributed in tracing. AI SDK 7
+ * dropped `telemetry.metadata`; the equivalent is a call-level `runtimeContext`
+ * plus `telemetry.includeRuntimeContext`, which must name every key explicitly
+ * because nothing is forwarded by default. Nullish dimensions are dropped.
  */
 export const getAiCallTelemetry = ({
     functionId,
@@ -128,12 +157,36 @@ export const getAiCallTelemetry = ({
         });
     }
 
+    // Allow-list, not a mirror of the data: AI SDK 7 forwards nothing to
+    // telemetry providers unless it is named here. Deriving this from
+    // `Object.keys(metadata)` would defeat the mechanism, because `extra` is
+    // caller-controlled (see `generateArtifactQuestion`, which passes a
+    // `Record<string, string>` straight through) and anything a caller ever adds
+    // would silently reach the provider. Adding a span dimension is a deliberate
+    // edit here. `emitAiUsage` is not bound by this list — it reads
+    // `runtimeContext` directly, so our own `ai.usage` analytics also gets the
+    // dimensions kept off spans (`runUuid`, `deepResearch*`).
+    //
+    // The filter is by key name, so an `extra` key that collides with a
+    // reported name is exported like any other: that is how
+    // `generateAgentSuggestions` attributes its org/project/agent. It also
+    // means `extra` can shadow a typed dimension, `feature` included, which
+    // `emitAiUsage` rejects when it is not a known value.
+    const includeRuntimeContext = Object.fromEntries(
+        TELEMETRY_REPORTED_KEYS.filter((key) => key in metadata).map((key) => [
+            key,
+            true,
+        ]),
+    );
+
     return {
-        functionId,
-        isEnabled: true,
-        recordInputs: recordIO,
-        recordOutputs: recordIO,
-        metadata,
+        runtimeContext: metadata,
+        telemetry: {
+            functionId,
+            recordInputs: recordIO,
+            recordOutputs: recordIO,
+            includeRuntimeContext,
+        },
     } as const;
 };
 

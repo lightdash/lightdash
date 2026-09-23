@@ -359,12 +359,12 @@ describe('deterministic chart-as-code', () => {
 
     it('exports only a registered execution without warehouse or persistence access', async () => {
         const ctx = new AgentContext([]);
-        const tool = getExportChartAsCode();
+        const tool = getExportChartAsCode(ctx);
         const input = { queryUuid, slug: 'revenue', spaceSlug: 'sales' };
         const options = {
             toolCallId: 'export',
             messages: [],
-            experimental_context: ctx,
+            context: {},
         };
         expect(await tool.execute!(input, options)).toMatchObject({
             metadata: { status: 'error' },
@@ -408,12 +408,12 @@ describe('deterministic chart-as-code', () => {
                 .mockResolvedValue([{ ...reference, title: 'Revenue' }]),
             prepare: vi.fn().mockResolvedValue(prepare()),
         };
-        const tool = getExportChartAsCode(artifacts);
         const ctx = new AgentContext([]);
+        const tool = getExportChartAsCode(ctx, artifacts);
         const options = {
             toolCallId: 'export',
             messages: [],
-            experimental_context: ctx,
+            context: {},
         };
         const destination = { slug: 'revenue', spaceSlug: 'sales' };
         const listing = await tool.execute!(
@@ -451,12 +451,13 @@ describe('deterministic chart-as-code', () => {
     });
 
     it('rejects ambiguous or incomplete source references before calling artifact dependencies', async () => {
+        const ctx = new AgentContext([]);
         const artifacts = { list: vi.fn(), prepare: vi.fn() };
-        const tool = getExportChartAsCode(artifacts);
+        const tool = getExportChartAsCode(ctx, artifacts);
         const options = {
             toolCallId: 'export',
             messages: [],
-            experimental_context: new AgentContext([]),
+            context: {},
         };
         const results = await Promise.all(
             [
@@ -479,7 +480,7 @@ describe('deterministic chart-as-code', () => {
 
     it('returns artifact permission failures without an export block', async () => {
         const ctx = new AgentContext([]);
-        const tool = getExportChartAsCode({
+        const tool = getExportChartAsCode(ctx, {
             list: vi.fn(),
             prepare: vi.fn().mockRejectedValue(new Error('Access denied')),
         });
@@ -490,7 +491,7 @@ describe('deterministic chart-as-code', () => {
                 slug: 'chart',
                 spaceSlug: 'sales',
             },
-            { toolCallId: 'export', messages: [], experimental_context: ctx },
+            { toolCallId: 'export', messages: [], context: {} },
         );
         expect(output).toMatchObject({ metadata: { status: 'error' } });
         expect(output).not.toHaveProperty('metadata.deliveryToken');
