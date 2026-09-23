@@ -1,6 +1,7 @@
 import {
     ChartType,
     FeatureFlags,
+    type ApiError,
     type DataAppViz,
     type ItemsMap,
 } from '@lightdash/common';
@@ -29,6 +30,7 @@ const { mocks, visualizationConfig } = vi.hoisted(() => ({
         canEditChartType: vi.fn(() => true),
         canFork: vi.fn(() => true),
         track: vi.fn(),
+        configure: vi.fn(),
     },
     visualizationConfig: {
         current: {
@@ -759,8 +761,19 @@ const setProjectItems = (items: DataAppViz[]) => {
     } as unknown as ReturnType<typeof useDataAppVisualizations>);
 };
 
+const selectedTypeProps = {
+    selectedProjectType: projectChartType as DataAppViz | null,
+    selectedProjectTypeError: null as ApiError | null,
+    onRetrySelectedProjectType: vi.fn(),
+};
+
 const renderGallery = (onConfigure = vi.fn()) => {
-    renderWithProviders(<ExplorerChartTypeGallery onConfigure={onConfigure} />);
+    renderWithProviders(
+        <ExplorerChartTypeGallery
+            {...selectedTypeProps}
+            onConfigure={onConfigure}
+        />,
+    );
     return onConfigure;
 };
 
@@ -773,6 +786,7 @@ const pickableLabels = () =>
 describe('ExplorerChartTypeGallery', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        selectedTypeProps.selectedProjectType = projectChartType;
         featureFlags.current = {
             [FeatureFlags.EnableDataApps]: true,
             [FeatureFlags.ChartTypeRegistry]: true,
@@ -992,6 +1006,10 @@ describe('ExplorerChartTypeGallery', () => {
     });
 
     it('keeps official chart types uneditable even with edit permission', () => {
+        selectedTypeProps.selectedProjectType = {
+            ...projectChartType,
+            registrySlug: 'official-pulse',
+        };
         mocks.canEditChartType.mockReturnValue(true);
         visualizationConfig.current = {
             chartType: ChartType.DATA_APP_VIZ,
@@ -1210,134 +1228,28 @@ describe('ExplorerChartTypeGallery', () => {
         ).toBeInTheDocument();
     });
 
-    it('loads and reveals a selected chart type from a later page', async () => {
-        const selectedChartType = {
+    describe('selected type outside the paginated list', () => {
+        const selected = {
             ...projectChartType,
             dataAppVizUuid: 'later-chart-type',
             name: 'Zebra pulse',
         };
-        const scrollIntoView = vi.fn();
-        const originalScrollIntoView = Element.prototype.scrollIntoView;
-        (
-            Element.prototype as unknown as { scrollIntoView: unknown }
-        ).scrollIntoView = scrollIntoView;
-        try {
+        const renderSelected = (
+            overrides: Partial<typeof selectedTypeProps> = {},
+        ) => (
+            <ExplorerChartTypeGallery
+                {...selectedTypeProps}
+                selectedProjectType={selected}
+                {...overrides}
+                onConfigure={mocks.configure}
+            />
+        );
+
+        beforeEach(() => {
             visualizationConfig.current = {
                 chartType: ChartType.DATA_APP_VIZ,
-                chartConfig: {
-                    dataAppVizUuid: selectedChartType.dataAppVizUuid,
-                },
+                chartConfig: { dataAppVizUuid: selected.dataAppVizUuid },
             };
-            const firstPage = Array.from({ length: 25 }, (_, index) => ({
-                ...projectChartType,
-                dataAppVizUuid: `project-chart-type-${index}`,
-                name: `Chart type ${index}`,
-            }));
-            const PaginatedGallery = () => {
-                const [loadedPageCount, setLoadedPageCount] = useState(1);
-                const pages = [
-                    {
-                        data: firstPage,
-                        pagination: {
-                            page: 1,
-                            pageSize: 25,
-                            totalPageCount: 2,
-                            totalResults: 26,
-                        },
-                    },
-                    {
-                        data: [selectedChartType],
-                        pagination: {
-                            page: 2,
-                            pageSize: 25,
-                            totalPageCount: 2,
-                            totalResults: 26,
-                        },
-                    },
-                ];
-
-                mockedUseDataAppVisualizations.mockReturnValue({
-                    data: {
-                        pages: pages.slice(0, loadedPageCount),
-                        pageParams: [],
-                    },
-                    isInitialLoading: false,
-                    error: null,
-                    refetch: mocks.refetch,
-                    hasNextPage: loadedPageCount < pages.length,
-                    fetchNextPage: () =>
-                        setLoadedPageCount((count) => count + 1),
-                    isFetching: false,
-                    isFetchingNextPage: false,
-                } as unknown as ReturnType<typeof useDataAppVisualizations>);
-
-                return <ExplorerChartTypeGallery onConfigure={vi.fn()} />;
-            };
-
-            renderWithProviders(<PaginatedGallery />);
-
-            const selectedCard = await screen.findByRole('button', {
-                name: 'Zebra pulse',
-                pressed: true,
-            });
-            expect(selectedCard).toBeVisible();
-            expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
-            expect(scrollIntoView.mock.instances.at(-1)).toBe(selectedCard);
-        } finally {
-            if (originalScrollIntoView === undefined) {
-                delete (
-                    Element.prototype as unknown as {
-                        scrollIntoView?: unknown;
-                    }
-                ).scrollIntoView;
-            } else {
-                Element.prototype.scrollIntoView = originalScrollIntoView;
-            }
-        }
-    });
-
-    it.each([
-        ['the list has reached its final page', null, false],
-        ['the chart-type query has failed', new Error('unavailable'), true],
-    ])('does not load again when %s', (_reason, error, hasNextPage) => {
-        visualizationConfig.current = {
-            chartType: ChartType.DATA_APP_VIZ,
-            chartConfig: { dataAppVizUuid: 'missing-chart-type' },
-        };
-        mockedUseDataAppVisualizations.mockReturnValue({
-            data: {
-                pages: [
-                    {
-                        data: [projectChartType],
-                        pagination: {
-                            page: 1,
-                            pageSize: 25,
-                            totalPageCount: hasNextPage ? 2 : 1,
-                            totalResults: hasNextPage ? 26 : 1,
-                        },
-                    },
-                ],
-                pageParams: [1],
-            },
-            isInitialLoading: false,
-            isFetching: false,
-            error,
-            refetch: mocks.refetch,
-            hasNextPage,
-            fetchNextPage: mocks.fetchNextPage,
-            isFetchingNextPage: false,
-        } as unknown as ReturnType<typeof useDataAppVisualizations>);
-
-        renderGallery();
-
-        expect(mocks.fetchNextPage).not.toHaveBeenCalled();
-    });
-
-    it('does not load a selected chart type while the user is searching', async () => {
-        let finishRefetch: () => void = () => undefined;
-        const SearchGallery = () => {
-            const [isFetching, setIsFetching] = useState(true);
-            finishRefetch = () => setIsFetching(false);
             mockedUseDataAppVisualizations.mockReturnValue({
                 data: {
                     pages: [
@@ -1346,42 +1258,209 @@ describe('ExplorerChartTypeGallery', () => {
                             pagination: {
                                 page: 1,
                                 pageSize: 25,
-                                totalPageCount: 2,
-                                totalResults: 26,
+                                totalPageCount: 40,
+                                totalResults: 1000,
                             },
                         },
                     ],
                     pageParams: [1],
                 },
-                isInitialLoading: false,
-                isFetching,
                 error: null,
+                isInitialLoading: false,
                 refetch: mocks.refetch,
-                hasNextPage: true,
                 fetchNextPage: mocks.fetchNextPage,
                 isFetchingNextPage: false,
+                hasNextPage: true,
+                isFetching: false,
+                isPreviousData: false,
             } as unknown as ReturnType<typeof useDataAppVisualizations>);
+        });
 
-            return <ExplorerChartTypeGallery onConfigure={vi.fn()} />;
-        };
-        visualizationConfig.current = {
-            chartType: ChartType.DATA_APP_VIZ,
-            chartConfig: { dataAppVizUuid: 'missing-chart-type' },
-        };
-        renderWithProviders(<SearchGallery />);
-
-        await userEvent.type(
-            screen.getByRole('textbox', { name: 'Search chart types' }),
-            'zebra',
-        );
-        finishRefetch();
-
-        await waitFor(() =>
+        it('shows and configures the selection without fetching later pages', async () => {
+            renderWithProviders(renderSelected());
+            expect(mocks.fetchNextPage).not.toHaveBeenCalled();
+            const selectedGroup = screen.getByRole('group', {
+                name: 'Selected chart type',
+            });
             expect(
-                screen.queryByRole('button', { name: 'Bar chart' }),
-            ).not.toBeInTheDocument(),
+                within(selectedGroup).getByRole('button', {
+                    name: 'Zebra pulse',
+                    pressed: true,
+                }),
+            ).toBeVisible();
+            await userEvent.click(
+                within(selectedGroup).getByRole('button', {
+                    name: 'Configure Zebra pulse',
+                }),
+            );
+            expect(mocks.configure).toHaveBeenCalledOnce();
+            expect(mocks.selectProjectChartType).not.toHaveBeenCalled();
+        });
+
+        it('keeps the selection visible during search and after clearing search', async () => {
+            renderWithProviders(renderSelected());
+            const input = screen.getByRole('textbox', {
+                name: 'Search chart types',
+            });
+            await userEvent.type(input, 'table');
+            await waitFor(() =>
+                expect(
+                    screen.queryByRole('button', { name: 'Bar chart' }),
+                ).not.toBeInTheDocument(),
+            );
+            expect(
+                screen.getByRole('button', {
+                    name: 'Zebra pulse',
+                    pressed: true,
+                }),
+            ).toBeVisible();
+            await userEvent.clear(input);
+            await screen.findByRole('button', { name: 'Bar chart' });
+            expect(mocks.fetchNextPage).not.toHaveBeenCalled();
+        });
+
+        it('distinguishes the pinned match from an empty search for alternatives', async () => {
+            setProjectItems([selected]);
+            renderWithProviders(renderSelected());
+            await userEvent.type(
+                screen.getByRole('textbox', { name: 'Search chart types' }),
+                'Zebra pulse',
+            );
+            expect(
+                await screen.findByText(
+                    'No other chart types match your search',
+                ),
+            ).toBeVisible();
+            expect(
+                screen.getByRole('button', {
+                    name: 'Zebra pulse',
+                    pressed: true,
+                }),
+            ).toBeVisible();
+        });
+
+        it('does not duplicate the selection when its page is loaded manually', async () => {
+            const { rerender } = renderWithProviders(renderSelected());
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: /(?:Show .* more|Load more) chart types/,
+                }),
+            );
+            expect(mocks.fetchNextPage).toHaveBeenCalledOnce();
+            setProjectItems([projectChartType, selected]);
+            rerender(renderSelected());
+            expect(
+                screen.getAllByRole('button', {
+                    name: 'Zebra pulse',
+                    pressed: true,
+                }),
+            ).toHaveLength(1);
+            expect(
+                within(
+                    screen.getByRole('group', { name: 'Chart types' }),
+                ).queryByRole('button', { name: 'Zebra pulse' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('restores focus when the last page contains only the pinned selection', async () => {
+            const { rerender } = renderWithProviders(renderSelected());
+            const more = screen.getByRole('button', {
+                name: /(?:Show .* more|Load more) chart types/,
+            });
+            more.focus();
+            await userEvent.keyboard('{Enter}');
+            setProjectItems([projectChartType, selected]);
+            rerender(renderSelected());
+            expect(
+                screen.getByRole('button', { name: 'Event pulse' }),
+            ).toHaveFocus();
+        });
+
+        it('moves keyboard focus to the pinned card after choosing a custom type', async () => {
+            visualizationConfig.current = {
+                chartType: ChartType.TABLE,
+                chartConfig: {},
+            };
+            const { rerender } = renderWithProviders(renderSelected());
+            const card = screen.getByRole('button', { name: 'Event pulse' });
+            card.focus();
+            await userEvent.keyboard('{Enter}');
+            visualizationConfig.current = {
+                chartType: ChartType.DATA_APP_VIZ,
+                chartConfig: {
+                    dataAppVizUuid: projectChartType.dataAppVizUuid,
+                },
+            };
+            rerender(renderSelected({ selectedProjectType: projectChartType }));
+            expect(
+                within(
+                    screen.getByRole('group', { name: 'Selected chart type' }),
+                ).getByRole('button', { name: 'Event pulse' }),
+            ).toHaveFocus();
+        });
+
+        it('does not display the previous selection while the new one loads', () => {
+            const { rerender } = renderWithProviders(renderSelected());
+            visualizationConfig.current.chartConfig = {
+                dataAppVizUuid: 'new-selection',
+            };
+            rerender(renderSelected());
+            expect(
+                screen.queryByRole('button', { name: 'Zebra pulse' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByText('Loading selected chart type…'),
+            ).toBeVisible();
+            rerender(
+                renderSelected({
+                    selectedProjectType: {
+                        ...selected,
+                        dataAppVizUuid: 'new-selection',
+                        name: 'New selection',
+                    },
+                }),
+            );
+            expect(
+                screen.getByRole('button', {
+                    name: 'New selection',
+                    pressed: true,
+                }),
+            ).toBeVisible();
+            expect(mocks.fetchNextPage).not.toHaveBeenCalled();
+        });
+
+        it.each([403, 404, 500])(
+            'shows an unavailable selection on %s without exhausting the list',
+            async (statusCode) => {
+                renderWithProviders(
+                    renderSelected({
+                        selectedProjectType: null,
+                        selectedProjectTypeError: {
+                            status: 'error',
+                            error: {
+                                statusCode,
+                                name: 'Error',
+                                message: 'Unavailable',
+                                data: {},
+                            },
+                        },
+                    }),
+                );
+                expect(screen.getByRole('alert')).toHaveTextContent(
+                    'Selected chart type is unavailable',
+                );
+                expect(
+                    screen.getByRole('button', { name: 'Table' }),
+                ).toBeVisible();
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Retry' }),
+                );
+                expect(
+                    selectedTypeProps.onRetrySelectedProjectType,
+                ).toHaveBeenCalledOnce();
+                expect(mocks.fetchNextPage).not.toHaveBeenCalled();
+            },
         );
-        expect(mocks.fetchNextPage).not.toHaveBeenCalled();
     });
 
     it('fetches the next page from the "+N more" tile', async () => {
