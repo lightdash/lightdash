@@ -8,7 +8,6 @@ import {
     type DuckdbSourceQuery,
     type ExternalSourceQuery,
     type SemanticLayerSourceQuery,
-    type SourceQueryNodeMeta,
     type SqlSourceQuery,
 } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
@@ -210,7 +209,7 @@ export type ToolComposerQueryNode = z.infer<
 
 const toSourceQueryNodeMeta = (
     node: ToolComposerQueryNode,
-): SourceQueryNodeMeta => ({
+): Pick<SqlSourceQuery, 'title' | 'description'> => ({
     title: node.title,
     description: node.description ?? undefined,
 });
