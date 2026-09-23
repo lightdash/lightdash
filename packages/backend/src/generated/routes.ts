@@ -60680,6 +60680,7 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         dashboardFilters: { ref: 'DashboardFilters' },
                         filters: { ref: 'Filters' },
+                        pivotConfiguration: { ref: 'PivotConfiguration' },
                         pivotResults: { dataType: 'boolean' },
                         limit: {
                             dataType: 'union',

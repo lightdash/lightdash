@@ -60905,6 +60905,10 @@
                             "filters": {
                                 "$ref": "#/components/schemas/Filters"
                             },
+                            "pivotConfiguration": {
+                                "$ref": "#/components/schemas/PivotConfiguration",
+                                "description": "Overrides the saved chart's native pivot with a caller-derived layout."
+                            },
                             "pivotResults": {
                                 "type": "boolean"
                             },
@@ -64506,7 +64510,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.313.0",
+        "version": "2.314.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

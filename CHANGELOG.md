@@ -1,3 +1,15 @@
+# [2.314.0](https://github.com/lightdash/lightdash/compare/2.313.0...2.314.0) (2026-09-23)
+
+
+### Bug Fixes
+
+* **chart-studio:** pivot live previews through the backend ([#29817](https://github.com/lightdash/lightdash/issues/29817)) ([5bc0d13](https://github.com/lightdash/lightdash/commit/5bc0d13ceb8216b7c497f32f47ee1a73dd96066e))
+
+
+### Features
+
+* **chart-studio:** carry preview config into explorer ([#29819](https://github.com/lightdash/lightdash/issues/29819)) ([7f93f4b](https://github.com/lightdash/lightdash/commit/7f93f4bf489fbc2de50183542ceb058f4689ea49))
+
 # [2.313.0](https://github.com/lightdash/lightdash/compare/2.312.1...2.313.0) (2026-09-23)
 
 
