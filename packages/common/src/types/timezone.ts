@@ -16,6 +16,8 @@ export enum TimeZone {
     'Atlantic/Cape_Verde' = 'Atlantic/Cape_Verde',
     'Europe/Paris' = 'Europe/Paris',
     'Europe/Athens' = 'Europe/Athens',
+    'Europe/Vilnius' = 'Europe/Vilnius',
+    'Africa/Johannesburg' = 'Africa/Johannesburg',
     'Europe/Moscow' = 'Europe/Moscow',
     'Europe/London' = 'Europe/London',
     'Asia/Dubai' = 'Asia/Dubai',

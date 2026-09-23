@@ -1,3 +1,4 @@
+import { toTimezoneSetting } from '../types/timezone';
 import {
     getCronCadence,
     getHumanReadableCronExpression,
@@ -28,6 +29,30 @@ describe('Scheduler utils', () => {
     });
 
     describe('getHumanReadableCronExpression', () => {
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        test.each([
+            ['Africa/Johannesburg', '2026-01-15', '+02:00'],
+            ['Africa/Johannesburg', '2026-07-15', '+02:00'],
+            ['Europe/Vilnius', '2026-01-15', '+02:00'],
+            ['Europe/Vilnius', '2026-07-15', '+03:00'],
+        ])(
+            'preserves %s and describes its delivery offset on %s',
+            (timezone, date, offset) => {
+                vi.useFakeTimers();
+                vi.setSystemTime(new Date(`${date}T12:00:00Z`));
+
+                const setting = toTimezoneSetting(timezone);
+
+                expect(setting).toBe(timezone);
+                expect(
+                    getHumanReadableCronExpression('0 9 * * *', setting),
+                ).toBe(`at 09:00 AM (UTC ${offset}), every day`);
+            },
+        );
+
         test('Should convert human readable cron expression with UTC', async () => {
             expect(getHumanReadableCronExpression('* * * * *', 'UTC')).toEqual(
                 'every minute, every hour, every day',
