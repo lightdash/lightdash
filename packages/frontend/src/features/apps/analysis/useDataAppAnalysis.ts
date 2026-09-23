@@ -124,15 +124,17 @@ export const useDataAppAnalysis = ({
     const [stored, setStored] = useState<ScopedState>(() => freshState(scope));
     const current = stored.scope === scope ? stored : freshState(scope);
     const runRef = useRef(0);
-    // Set while a reload is in flight for expired sources: the next view is
-    // analysed without being asked, as a retry that never reloads again.
-    const retryAfterReloadRef = useRef(false);
+    // The app scope whose reload for expired sources is in flight: its next
+    // view is analysed without being asked, as a retry that never reloads
+    // again. Consumed by whatever that view resolves to, or an app switch.
+    const retryAfterReloadRef = useRef<string | null>(null);
     const onSourcesExpiredRef = useRef(onSourcesExpired);
     onSourcesExpiredRef.current = onSourcesExpired;
 
     useEffect(() => {
         if (stored.scope === scope) return;
         runRef.current += 1;
+        retryAfterReloadRef.current = null;
         setStored(freshState(scope));
     }, [scope, stored.scope]);
 
@@ -176,7 +178,7 @@ export const useDataAppAnalysis = ({
                 if (isSourcesExpired(e)) {
                     const reload = onSourcesExpiredRef.current;
                     if (reload && !isRetry) {
-                        retryAfterReloadRef.current = true;
+                        retryAfterReloadRef.current = scope;
                         patch(scope, (prev) => ({
                             ...prev,
                             state: { status: 'idle' },
@@ -246,9 +248,10 @@ export const useDataAppAnalysis = ({
                     ) {
                         return;
                     }
+                    const retrying = retryAfterReloadRef.current === scope;
+                    retryAfterReloadRef.current = null;
                     if (!found) {
-                        if (retryAfterReloadRef.current) {
-                            retryAfterReloadRef.current = false;
+                        if (retrying) {
                             void analyse(sources, false, true, true);
                         } else if (autoAnalyseRef.current) {
                             void analyse(sources, false, true);
@@ -268,8 +271,29 @@ export const useDataAppAnalysis = ({
                         ),
                     }));
                 })
-                .catch(() => {
-                    // A failed lookup is not an error state; Analyse works.
+                .catch((e: unknown) => {
+                    if (
+                        run !== runRef.current ||
+                        signature !== signatureRef.current
+                    ) {
+                        return;
+                    }
+                    // The reloaded view expired as well: the same dead end
+                    // detect would reach, reported instead of swallowed.
+                    if (
+                        retryAfterReloadRef.current === scope &&
+                        isSourcesExpired(e)
+                    ) {
+                        retryAfterReloadRef.current = null;
+                        patch(scope, (prev) => ({
+                            ...prev,
+                            state: {
+                                status: 'error',
+                                message: EXPIRED_TWICE_MESSAGE,
+                            },
+                        }));
+                    }
+                    // Any other failed lookup is not an error state; Analyse works.
                 });
         }, LOOKUP_QUIET_MS);
         return () => clearTimeout(timer);

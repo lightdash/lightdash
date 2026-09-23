@@ -435,6 +435,97 @@ describe('useDataAppAnalysis', () => {
             });
         });
 
+        it('consumes the retry when the fresh view has a stored analysis', async () => {
+            vi.mocked(detectDataAppAnomalies).mockRejectedValueOnce(expired);
+            const { result, rerender } = renderHook(
+                ({ queries }: { queries: QueryEvent[] }) =>
+                    useDataAppAnalysis({
+                        projectUuid: 'proj-1',
+                        appUuid: 'app-a',
+                        queries,
+                        mountedQueryUuids: null,
+                        onSourcesExpired: vi.fn(),
+                    }),
+                { initialProps: { queries: [readyQuery] } },
+            );
+            await settle();
+            await act(async () => {
+                await result.current.analyse();
+            });
+            vi.mocked(lookupDataAppAnalysis).mockResolvedValueOnce({
+                analysis: analysis('app-a'),
+                investigations: [],
+            });
+            rerender({ queries: reloadedQueries });
+            await settle();
+            expect(result.current.state.status).toBe('ready');
+            expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+
+            // A later filter change that misses must not analyse on its own.
+            rerender({
+                queries: [{ ...readyQuery, id: 'req-3', queryUuid: 'q-3' }],
+            });
+            await settle();
+            expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+        });
+
+        it('forgets the retry when the app changes', async () => {
+            vi.mocked(detectDataAppAnomalies).mockRejectedValueOnce(expired);
+            const { result, rerender } = renderHook(
+                ({ appUuid }: { appUuid: string }) =>
+                    useDataAppAnalysis({
+                        projectUuid: 'proj-1',
+                        appUuid,
+                        queries: [readyQuery],
+                        mountedQueryUuids: null,
+                        onSourcesExpired: vi.fn(),
+                    }),
+                { initialProps: { appUuid: 'app-a' } },
+            );
+            await settle();
+            await act(async () => {
+                await result.current.analyse();
+            });
+            rerender({ appUuid: 'app-b' });
+            await settle();
+            expect(result.current.state.status).toBe('idle');
+            expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+        });
+
+        it('reports the second expiry when the reloaded lookup expires', async () => {
+            vi.mocked(detectDataAppAnomalies).mockRejectedValueOnce(expired);
+            const { result, rerender } = renderHook(
+                ({ queries }: { queries: QueryEvent[] }) =>
+                    useDataAppAnalysis({
+                        projectUuid: 'proj-1',
+                        appUuid: 'app-a',
+                        queries,
+                        mountedQueryUuids: null,
+                        onSourcesExpired: vi.fn(),
+                    }),
+                { initialProps: { queries: [readyQuery] } },
+            );
+            await settle();
+            await act(async () => {
+                await result.current.analyse();
+            });
+            vi.mocked(lookupDataAppAnalysis).mockRejectedValueOnce(expired);
+            rerender({ queries: reloadedQueries });
+            await settle();
+            expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+            expect(result.current.state).toMatchObject({
+                status: 'error',
+                message: expect.stringMatching(/expired/),
+            });
+        });
+
+        it('still swallows an expired lookup outside a retry', async () => {
+            vi.mocked(lookupDataAppAnalysis).mockRejectedValueOnce(expired);
+            const { result } = render();
+            await settle();
+            expect(result.current.state.status).toBe('idle');
+        });
+
         it('is a plain error where the host cannot reload the app', async () => {
             vi.mocked(detectDataAppAnomalies).mockRejectedValue(expired);
             const { result } = render();
