@@ -1,3 +1,10 @@
+## [2.314.2](https://github.com/lightdash/lightdash/compare/2.314.1...2.314.2) (2026-09-23)
+
+
+### Bug Fixes
+
+* **ai:** replace discriminated unions in structured output schemas ([#29826](https://github.com/lightdash/lightdash/issues/29826)) ([2b897a4](https://github.com/lightdash/lightdash/commit/2b897a4fe49466d3295f788cc8800b2536cd4356))
+
 ## [2.314.1](https://github.com/lightdash/lightdash/compare/2.314.0...2.314.1) (2026-09-23)
 
 
