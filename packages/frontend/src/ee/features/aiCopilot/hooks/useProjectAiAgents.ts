@@ -1051,7 +1051,6 @@ const createOptimisticMessages = (
             modelConfig,
             tokenUsage: null,
             responseTiming: null,
-            quickReplies: [],
         },
     ];
 };
