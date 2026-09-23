@@ -1,3 +1,10 @@
+## [2.305.2](https://github.com/lightdash/lightdash/compare/2.305.1...2.305.2) (2026-09-23)
+
+
+### Bug Fixes
+
+* **cli:** cover custom chart types in agent skills ([#29778](https://github.com/lightdash/lightdash/issues/29778)) ([94a4190](https://github.com/lightdash/lightdash/commit/94a4190551edfa1053495c93af699f4042501022))
+
 ## [2.305.1](https://github.com/lightdash/lightdash/compare/2.305.0...2.305.1) (2026-09-23)
 
 
