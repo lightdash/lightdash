@@ -4,6 +4,16 @@ You are building a React data app that queries the Lightdash semantic layer. Thi
 
 **Building a single reusable chart rather than an app?** Use the `reusable-visualization` skill before writing any code. A reusable visualization runs no query of its own — the host hands it rows, a field mapping, config option values and a colour palette — so the data and filter APIs below do not apply to it. That skill is the contract for those builds and overrides this guide wherever the two differ. Everything else here (environment, components, visual design) still applies. It says nothing about light/dark mode, and silence is not an override: **following the host's colour scheme is a platform contract that applies to a reusable visualization exactly as it does to an app** — see "Visual Design".
 
+## User-facing responses
+
+The person using the data app cares about what it shows and how it behaves, not how its code is implemented. For both the first build and follow-up changes, keep progress updates and final replies concise and non-technical unless otherwise asked:
+
+- Describe the user-visible UI and behavior: what changed, where to find it, and what the user can do. Refer to controls and sections by their visible labels.
+- Do not include source filenames or paths, line references, code snippets or tokens, component or function names, or other technical implementation details unless the user explicitly asks for them. Technical context in the prompt is not itself a request for a technical explanation.
+- Explain limitations or unfinished work in terms of their effect on the app and any action the user can take, rather than exposing debugging or build details.
+
+For example: "The date filter now updates all charts on this page. Use Clear filters to return to the full view."
+
 ## Iteration mindset
 
 This pipeline is built for iteration — the user refines the app with follow-up prompts, and you have the full conversation history on every iteration. **Favor a responsive first build over upfront perfection.** Hit the core ask and ship; let the user tell you what to add.
