@@ -1,5 +1,7 @@
 import { SCHEDULER_TASKS } from '@lightdash/common';
+import prometheus from 'prom-client';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import {
     SchedulerWorker,
     type SchedulerWorkerArguments,
@@ -58,6 +60,106 @@ const makeWorker = (withMetrics = true) => {
 };
 
 describe('daily job generation monitoring', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    const makeWorkerWithFailingMetrics = () => {
+        const fixture = makeWorker();
+        const metrics = new PrometheusMetrics(lightdashConfigMock.prometheus);
+        metrics.schedulerDailyJobGenerationLastCompletedTimestamp =
+            new prometheus.Gauge({
+                name: 'test_daily_generation_completion',
+                help: 'Test completion metric',
+                registers: [],
+            });
+        metrics.schedulerDailyJobGenerationErrors = new prometheus.Counter({
+            name: 'test_daily_generation_errors',
+            help: 'Test error metric',
+            labelNames: ['phase'],
+            registers: [],
+        });
+        vi.spyOn(
+            metrics.schedulerDailyJobGenerationLastCompletedTimestamp,
+            'set',
+        ).mockImplementation(() => {
+            throw new Error('gauge update failed');
+        });
+        vi.spyOn(
+            metrics.schedulerDailyJobGenerationErrors,
+            'inc',
+        ).mockImplementation(() => {
+            throw new Error('counter update failed');
+        });
+        fixture.prometheusMetrics.recordSchedulerDailyJobGenerationCompleted.mockImplementation(
+            () => metrics.recordSchedulerDailyJobGenerationCompleted(),
+        );
+        fixture.prometheusMetrics.recordSchedulerDailyJobGenerationError.mockImplementation(
+            (phase) => metrics.recordSchedulerDailyJobGenerationError(phase),
+        );
+        return fixture;
+    };
+
+    it('completes generation even when the heartbeat metric throws', async () => {
+        const { worker, schedulerClient } = makeWorkerWithFailingMetrics();
+        await expect(worker.generateDailyJobs()).resolves.toBeUndefined();
+        expect(
+            schedulerClient.generateDailyJobsForScheduler,
+        ).toHaveBeenCalledTimes(2);
+        expect(worker.generatePreAggregates).toHaveBeenCalledOnce();
+    });
+
+    it('preserves the original scheduler-list error when its metric throws', async () => {
+        const { worker, schedulerService } = makeWorkerWithFailingMetrics();
+        const error = new Error('database unavailable');
+        schedulerService.getAllSchedulers.mockRejectedValue(error);
+        await expect(worker.generateDailyJobs()).rejects.toBe(error);
+    });
+
+    it.each([false, true])(
+        'preserves failure history and task outcome when metrics throw (all failed: %s)',
+        async (allFailed) => {
+            const { worker, schedulerService, schedulerClient } =
+                makeWorkerWithFailingMetrics();
+            const error = new Error('insert failed');
+            if (allFailed) {
+                schedulerClient.generateDailyJobsForScheduler.mockRejectedValue(
+                    error,
+                );
+            } else {
+                schedulerClient.generateDailyJobsForScheduler.mockRejectedValueOnce(
+                    error,
+                );
+            }
+            const run = worker.generateDailyJobs();
+            if (allFailed) {
+                await expect(run).rejects.toThrow(
+                    'Failed to generate daily jobs for all schedulers',
+                );
+            } else {
+                await expect(run).resolves.toBeUndefined();
+            }
+            expect(schedulerService.logSchedulerJob).toHaveBeenCalledTimes(
+                allFailed ? 2 : 1,
+            );
+            expect(worker.generatePreAggregates).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('preserves pre-aggregate failure handling when metrics throw', async () => {
+        const { worker, prometheusMetrics } = makeWorkerWithFailingMetrics();
+        worker.generatePreAggregates.mockRejectedValue(
+            new Error('pre-aggregate lookup failed'),
+        );
+        await expect(worker.generateDailyJobs()).resolves.toBeUndefined();
+        expect(
+            prometheusMetrics.recordSchedulerDailyJobGenerationError,
+        ).toHaveBeenCalledWith('pre_aggregate');
+        expect(
+            prometheusMetrics.recordSchedulerDailyJobGenerationCompleted,
+        ).toHaveBeenCalledOnce();
+    });
+
     it('records completion only after all schedulers and pre-aggregates finish', async () => {
         const { worker, schedulerClient, prometheusMetrics } = makeWorker();
         let finishScheduler!: () => void;

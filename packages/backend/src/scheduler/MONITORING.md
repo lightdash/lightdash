@@ -13,6 +13,8 @@ even a pass where all schedulers fail still update it after reaching the end;
 the separate error counter detects these failures. An early scheduler-list
 failure, a hung pass, or a process crash does not update it. An empty scheduler
 list still produces a heartbeat. Existing job success/retry behavior is unchanged.
+Metric update exceptions are caught and logged as warnings so they do not
+interrupt generation or replace its original errors.
 
 The counter counts failed scheduler generation after the built-in transient
 retries are exhausted (or immediately for a non-retryable error). Transient

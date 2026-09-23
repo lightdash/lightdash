@@ -1962,15 +1962,26 @@ export default class PrometheusMetrics {
     }
 
     public recordSchedulerDailyJobGenerationCompleted() {
-        this.schedulerDailyJobGenerationLastCompletedTimestamp?.set(
-            Date.now() / 1000,
-        );
+        try {
+            this.schedulerDailyJobGenerationLastCompletedTimestamp?.set(
+                Date.now() / 1000,
+            );
+        } catch (error) {
+            Logger.warn(
+                'Failed to record daily job generation completion',
+                error,
+            );
+        }
     }
 
     public recordSchedulerDailyJobGenerationError(
         phase: 'load_schedulers' | 'scheduler' | 'pre_aggregate',
     ) {
-        this.schedulerDailyJobGenerationErrors?.inc({ phase });
+        try {
+            this.schedulerDailyJobGenerationErrors?.inc({ phase });
+        } catch (error) {
+            Logger.warn('Failed to record daily job generation error', error);
+        }
     }
 
     public observeUsageEventsCompactionRunDuration(

@@ -2,6 +2,7 @@ import express from 'express';
 import http from 'node:http';
 import prometheus from 'prom-client';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import Logger from '../logging/logger';
 import PrometheusMetrics, { getHttpUriLabel } from './PrometheusMetrics';
 
 type PartialRequest = Partial<express.Request>;
@@ -62,6 +63,57 @@ describe('daily job generation metrics', () => {
         ]);
         await metrics.stop();
     });
+
+    it('contains completion metric failures and logs a warning', () => {
+        const metrics = new PrometheusMetrics({
+            ...lightdashConfigMock.prometheus,
+            enabled: true,
+        });
+        metrics.start();
+        const error = new Error('gauge update failed');
+        vi.spyOn(
+            metrics.schedulerDailyJobGenerationLastCompletedTimestamp!,
+            'set',
+        ).mockImplementation(() => {
+            throw error;
+        });
+        const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+
+        expect(() =>
+            metrics.recordSchedulerDailyJobGenerationCompleted(),
+        ).not.toThrow();
+        expect(warn).toHaveBeenCalledWith(
+            'Failed to record daily job generation completion',
+            error,
+        );
+    });
+
+    it.each(['load_schedulers', 'scheduler', 'pre_aggregate'] as const)(
+        'contains error metric failures for %s and logs a warning',
+        (phase) => {
+            const metrics = new PrometheusMetrics({
+                ...lightdashConfigMock.prometheus,
+                enabled: true,
+            });
+            metrics.start();
+            const error = new Error('counter update failed');
+            vi.spyOn(
+                metrics.schedulerDailyJobGenerationErrors!,
+                'inc',
+            ).mockImplementation(() => {
+                throw error;
+            });
+            const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+
+            expect(() =>
+                metrics.recordSchedulerDailyJobGenerationError(phase),
+            ).not.toThrow();
+            expect(warn).toHaveBeenCalledWith(
+                'Failed to record daily job generation error',
+                error,
+            );
+        },
+    );
 
     it('does nothing when Prometheus is disabled', () => {
         const metrics = new PrometheusMetrics(lightdashConfigMock.prometheus);
