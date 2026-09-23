@@ -335,6 +335,38 @@ describe('buildWarehouseTreeRows', () => {
             { type: 'table', depth: 1 },
         ]);
     });
+
+    it('matches a Snowflake catalog keyed in upper case against the lower-cased listed name', () => {
+        const snowflakeDatabases: WarehouseListedDatabase[] = [
+            {
+                name: 'analytics',
+                database: 'analytics',
+                schema: null,
+                isDefault: true,
+            },
+        ];
+        const snowflakeCatalog: WarehouseTablesCatalog = {
+            ANALYTICS: {
+                PUBLIC: { CUSTOMERS: {} },
+            },
+        };
+
+        const rows = build({
+            connections: [connection(snowflakeDatabases)],
+            units: { analytics: loaded(snowflakeCatalog) },
+            expanded: [
+                `database:${CONNECTION_ID}/analytics`,
+                `schema:${CONNECTION_ID}/analytics/PUBLIC`,
+            ],
+        });
+
+        expect(rows.map((row) => row.id)).toEqual([
+            `database:${CONNECTION_ID}/analytics`,
+            `schema:${CONNECTION_ID}/analytics/PUBLIC`,
+            `table:${CONNECTION_ID}/analytics/PUBLIC/CUSTOMERS`,
+        ]);
+        expect(rows[0]).toMatchObject({ childCount: 1 });
+    });
 });
 
 describe('collectEnabledUnits', () => {

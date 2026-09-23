@@ -191,6 +191,16 @@ export const collectEnabledUnits = (
     });
 };
 
+const findCatalogDatabase = (
+    catalog: WarehouseTablesCatalog,
+    database: string,
+): WarehouseTablesCatalog[string] | undefined => {
+    if (database in catalog) return catalog[database];
+    const needle = database.toLowerCase();
+    const key = Object.keys(catalog).find((k) => k.toLowerCase() === needle);
+    return key === undefined ? undefined : catalog[key];
+};
+
 const isView = (tableType: WarehouseTableType | undefined) =>
     tableType === WarehouseTableType.VIEW ||
     tableType === WarehouseTableType.MATERIALIZED_VIEW;
@@ -251,7 +261,9 @@ const schemaSourceFromUnit = (
         case 'loaded':
             return {
                 status: 'loaded',
-                tables: state.catalog[database]?.[schema] ?? {},
+                tables:
+                    findCatalogDatabase(state.catalog, database)?.[schema] ??
+                    {},
             };
         default:
             return assertUnreachable(state, 'Unknown table unit state');
@@ -445,24 +457,26 @@ export const buildWarehouseTreeRows = ({
                           };
                 return [...listedRows, pending];
             }
-            const derivedRows = Object.keys(
-                unitState.catalog[database] ?? {},
-            ).flatMap((schema) =>
-                listedSchemaNames.has(schema)
-                    ? []
-                    : buildSchemaRows({
-                          connectionId,
-                          database,
-                          schema,
-                          depth: schemaDepth,
-                          listedDatabase: null,
-                          source: {
-                              status: 'loaded',
-                              tables:
-                                  unitState.catalog[database]?.[schema] ?? {},
-                          },
-                          keepAllTables: nameMatches,
-                      }),
+            const derivedDatabase = findCatalogDatabase(
+                unitState.catalog,
+                database,
+            );
+            const derivedRows = Object.keys(derivedDatabase ?? {}).flatMap(
+                (schema) =>
+                    listedSchemaNames.has(schema)
+                        ? []
+                        : buildSchemaRows({
+                              connectionId,
+                              database,
+                              schema,
+                              depth: schemaDepth,
+                              listedDatabase: null,
+                              source: {
+                                  status: 'loaded',
+                                  tables: derivedDatabase?.[schema] ?? {},
+                              },
+                              keepAllTables: nameMatches,
+                          }),
             );
             return [...listedRows, ...derivedRows];
         };
