@@ -99,6 +99,7 @@ import { UnfurlService } from './UnfurlService/UnfurlService';
 import { UserAttributesService } from './UserAttributesService/UserAttributesService';
 import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
+import { WarehouseConnectionService } from './WarehouseConnectionService/WarehouseConnectionService';
 import { WarehouseConnectService } from './WarehouseConnectService/WarehouseConnectService';
 /**
  * Interface outlining all services available under the `ServiceRepository`. Add new services to
@@ -179,6 +180,7 @@ interface ServiceManifest {
     renameService: RenameService;
     projectParametersService: ProjectParametersService;
     projectDbtSourcesService: ProjectDbtSourcesService;
+    warehouseConnectionService: WarehouseConnectionService;
     projectCompileLogService: ProjectCompileLogService;
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
@@ -2037,6 +2039,21 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     projectDbtSourcesModel:
                         this.models.getProjectDbtSourcesModel(),
+                }),
+        );
+    }
+
+    public getWarehouseConnectionService(): WarehouseConnectionService {
+        return this.getService(
+            'warehouseConnectionService',
+            () =>
+                new WarehouseConnectionService({
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
+                    projectModel: this.models.getProjectModel(),
+                    featureFlagService: this.getFeatureFlagService(),
+                    licenseService: this.getLicenseService(),
+                    credentialPolicy: this.getProjectService(),
                 }),
         );
     }

@@ -1,0 +1,998 @@
+import { Ability } from '@casl/ability';
+import {
+    AthenaAuthenticationType,
+    ConflictError,
+    FeatureFlags,
+    ForbiddenError,
+    NotFoundError,
+    ParameterError,
+    SingleConnectionProjectError,
+    SnowflakeAuthenticationType,
+    WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
+    WarehouseTypes,
+    type CreateAthenaCredentials,
+    type CreatePostgresCredentials,
+    type CreateSnowflakeCredentials,
+    type CreateWarehouseCredentials,
+    type PossibleAbilities,
+    type SessionAccount,
+} from '@lightdash/common';
+import { type Knex } from 'knex';
+import { randomUUID } from 'node:crypto';
+import { fromSession } from '../../../auth/account/account';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { EnterpriseLicenseService } from '../../../ee/services/LicenseService/LicenseService';
+import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { LicenseService } from '../../../services/LicenseService/LicenseService';
+import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import {
+    ENTITLEMENT_REASON,
+    ROLLOUT_REASON,
+    WAREHOUSE_TYPE_REASON,
+    WarehouseConnectionService,
+} from '../../../services/WarehouseConnectionService/WarehouseConnectionService';
+import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
+import {
+    createMigratedTestDatabase,
+    type MigratedTestDatabase,
+} from './migratedTestDatabase';
+
+const SECRET = 'warehouse-connection-service-test-secret';
+
+const postgresCredentials: CreatePostgresCredentials = {
+    type: WarehouseTypes.POSTGRES,
+    host: 'warehouse.internal',
+    user: 'analyst',
+    password: 'analyst-password',
+    port: 5432,
+    dbname: 'analytics',
+    schema: 'public',
+};
+
+const athenaCredentials: CreateAthenaCredentials = {
+    type: WarehouseTypes.ATHENA,
+    region: 'eu-west-1',
+    database: 'AwsDataCatalog',
+    schema: 'analytics',
+    s3StagingDir: 's3://staging',
+    authenticationType: AthenaAuthenticationType.ACCESS_KEY,
+    accessKeyId: 'access-key',
+    secretAccessKey: 'secret-key',
+};
+
+const snowflakeCredentials: CreateSnowflakeCredentials = {
+    type: WarehouseTypes.SNOWFLAKE,
+    account: 'account',
+    user: 'user',
+    password: 'password',
+    database: 'analytics',
+    warehouse: 'compute',
+    schema: 'public',
+};
+
+type Fixture = {
+    organizationUuid: string;
+    projectUuid: string;
+    userUuid: string;
+    originalUuid: string | null;
+    admin: SessionAccount;
+    credentialsAdmin: SessionAccount;
+    viewer: SessionAccount;
+};
+
+describe('WarehouseConnectionService on the real schema', () => {
+    let migrated: MigratedTestDatabase;
+    let database: Knex;
+    let encryptionUtil: EncryptionUtil;
+    let model: WarehouseConnectionModel;
+    let projectService: ProjectService;
+    const flag = { enabled: true };
+    const testWarehouseConnectionCredentials = vi.fn();
+
+    const buildService = (licensed = true) =>
+        new WarehouseConnectionService({
+            warehouseConnectionModel: model,
+            projectModel: new ProjectModel({
+                database,
+                lightdashConfig: lightdashConfigMock,
+                encryptionUtil,
+            }),
+            featureFlagService: {
+                get: vi.fn(async () => ({
+                    id: FeatureFlags.MultiConnectionProjects,
+                    enabled: flag.enabled,
+                })),
+            },
+            licenseService: licensed
+                ? new EnterpriseLicenseService({ licenseKey: 'licence' })
+                : new LicenseService({ licenseKey: null }),
+            credentialPolicy: {
+                assertCanWriteWarehouseConnection: (account, project, data) =>
+                    projectService.assertCanWriteWarehouseConnection(
+                        account,
+                        project,
+                        data,
+                    ),
+                testWarehouseConnectionCredentials,
+            },
+        });
+
+    const account = (
+        userUuid: string,
+        organizationUuid: string,
+        rules: { subject: string; action: string }[],
+    ) =>
+        fromSession(
+            {
+                ...defaultSessionUser,
+                userUuid,
+                organizationUuid,
+                ability: new Ability<PossibleAbilities>(rules as never),
+            },
+            'session-cookie',
+        );
+
+    const createProject = async ({
+        mode,
+        warehouseType = WarehouseTypes.POSTGRES,
+        credentials = postgresCredentials,
+        provisioningSource = null,
+    }: {
+        mode: 'single' | 'multi';
+        warehouseType?: WarehouseTypes;
+        credentials?: CreateWarehouseCredentials;
+        provisioningSource?: string | null;
+    }): Promise<Fixture> => {
+        const [organization] = await database('organizations')
+            .insert({ organization_name: 'Connections test' })
+            .returning(['organization_id', 'organization_uuid']);
+        const [user] = await database('users')
+            .insert({ first_name: 'Test', last_name: 'Admin' } as never)
+            .returning('user_uuid');
+        const [project] = await database('projects')
+            .insert({
+                name: 'Connections project',
+                organization_id: organization.organization_id,
+                connection_mode: mode,
+                provisioning_source: provisioningSource,
+            } as never)
+            .returning(['project_id', 'project_uuid']);
+        await database('warehouse_credentials').insert({
+            project_id: project.project_id,
+            warehouse_type: warehouseType,
+            encrypted_credentials: encryptionUtil.encrypt(
+                JSON.stringify(credentials),
+            ),
+        } as never);
+        const original =
+            mode === 'multi'
+                ? (
+                      await database('warehouse_connections')
+                          .insert({
+                              project_uuid: project.project_uuid,
+                              is_original: true,
+                              name: 'Original',
+                          })
+                          .returning('warehouse_connection_uuid')
+                  )[0].warehouse_connection_uuid
+                : null;
+        return {
+            organizationUuid: organization.organization_uuid,
+            projectUuid: project.project_uuid,
+            userUuid: user.user_uuid,
+            originalUuid: original,
+            admin: account(user.user_uuid, organization.organization_uuid, [
+                { subject: 'Project', action: 'manage' },
+            ]),
+            credentialsAdmin: account(
+                user.user_uuid,
+                organization.organization_uuid,
+                [
+                    { subject: 'Project', action: 'manage' },
+                    {
+                        subject: 'OrganizationWarehouseCredentials',
+                        action: 'view',
+                    },
+                ],
+            ),
+            viewer: account(user.user_uuid, organization.organization_uuid, [
+                { subject: 'Project', action: 'view' },
+            ]),
+        };
+    };
+
+    const createOrganizationCredential = async (
+        organizationUuid: string,
+        credentials: CreateWarehouseCredentials = postgresCredentials,
+    ) =>
+        (
+            await database('organization_warehouse_credentials')
+                .insert({
+                    organization_uuid: organizationUuid,
+                    name: `Shared ${randomUUID()}`,
+                    warehouse_type: credentials.type,
+                    warehouse_connection: encryptionUtil.encrypt(
+                        JSON.stringify(credentials),
+                    ),
+                } as never)
+                .returning('organization_warehouse_credentials_uuid')
+        )[0].organization_warehouse_credentials_uuid as string;
+
+    const addExtra = (fixture: Fixture, name = 'Finance') =>
+        buildService().create(fixture.credentialsAdmin, fixture.projectUuid, {
+            name,
+            warehouseConnection: postgresCredentials,
+        });
+
+    const countConnections = async (projectUuid: string) =>
+        Number(
+            (
+                await database('warehouse_connections')
+                    .where('project_uuid', projectUuid)
+                    .count<{ count: string }[]>({ count: '*' })
+            )[0].count,
+        );
+
+    beforeAll(async () => {
+        migrated = await createMigratedTestDatabase(
+            'warehouse_connection_service',
+        );
+        database = migrated.database;
+        encryptionUtil = new EncryptionUtil({
+            lightdashConfig: {
+                lightdashSecret: SECRET,
+                lightdashSecrets: {
+                    active: SECRET,
+                    fallbacks: [],
+                    all: [SECRET],
+                },
+            },
+        } as never);
+        model = new WarehouseConnectionModel({
+            database,
+            encryptionUtil,
+            organizationWarehouseCredentialsModel:
+                new OrganizationWarehouseCredentialsModel({
+                    database,
+                    encryptionUtil,
+                }),
+        });
+        projectService = new ProjectService({} as never);
+    }, 600000);
+
+    afterAll(async () => {
+        await migrated?.destroy();
+    });
+
+    beforeEach(() => {
+        flag.enabled = true;
+        testWarehouseConnectionCredentials.mockReset();
+        testWarehouseConnectionCredentials.mockResolvedValue({
+            ok: true,
+            hops: [{ stage: 'database', status: 'ok', message: null }],
+        });
+    });
+
+    describe('single projects', () => {
+        test('every call is refused and nothing is written', async () => {
+            const fixture = await createProject({ mode: 'single' });
+            const service = buildService();
+            const someUuid = randomUUID();
+
+            await Promise.all(
+                [
+                    service.list(fixture.admin, fixture.projectUuid),
+                    service.get(fixture.admin, fixture.projectUuid, someUuid),
+                    service.create(fixture.admin, fixture.projectUuid, {
+                        name: 'Finance',
+                        warehouseConnection: postgresCredentials,
+                    }),
+                    service.update(
+                        fixture.admin,
+                        fixture.projectUuid,
+                        someUuid,
+                        {
+                            listAllDatabases: true,
+                        },
+                    ),
+                    service.rename(
+                        fixture.admin,
+                        fixture.projectUuid,
+                        someUuid,
+                        'Renamed',
+                    ),
+                    service.delete(
+                        fixture.admin,
+                        fixture.projectUuid,
+                        someUuid,
+                    ),
+                ].map((call) =>
+                    expect(call).rejects.toBeInstanceOf(
+                        SingleConnectionProjectError,
+                    ),
+                ),
+            );
+            expect(await countConnections(fixture.projectUuid)).toBe(0);
+            expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('permissions', () => {
+        test('requires project management for every call', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const service = buildService();
+
+            await expect(
+                service.list(fixture.viewer, fixture.projectUuid),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            await expect(
+                service.create(fixture.viewer, fixture.projectUuid, {
+                    name: 'Finance',
+                    warehouseConnection: postgresCredentials,
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(await countConnections(fixture.projectUuid)).toBe(1);
+        });
+    });
+
+    describe('adding an extra connection', () => {
+        test('creates it in a multi project and records the event', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+
+            const created = await addExtra(fixture);
+
+            expect(created).toMatchObject({
+                name: 'Finance',
+                isOriginal: false,
+                warehouseType: WarehouseTypes.POSTGRES,
+                organizationWarehouseCredentialsUuid: null,
+            });
+            expect(
+                await database('project_connection_mode_events')
+                    .where('project_uuid', fixture.projectUuid)
+                    .select('event', 'plan'),
+            ).toEqual([
+                {
+                    event: 'connection_added',
+                    plan: {
+                        warehouseConnectionUuid:
+                            created.warehouseConnectionUuid,
+                        name: 'Finance',
+                        warehouseType: WarehouseTypes.POSTGRES,
+                    },
+                },
+            ]);
+            const stored = await model.getCredentials(
+                await model.getProject(fixture.projectUuid),
+                created.warehouseConnectionUuid,
+            );
+            expect(stored).toMatchObject(postgresCredentials);
+        });
+
+        test('refuses an extra connection of another warehouse type', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+
+            await expect(
+                buildService().create(
+                    fixture.credentialsAdmin,
+                    fixture.projectUuid,
+                    { name: 'Lake', warehouseConnection: athenaCredentials },
+                ),
+            ).rejects.toThrow(
+                'An extra connection must use the same warehouse type as the original connection.',
+            );
+            expect(await countConnections(fixture.projectUuid)).toBe(1);
+        });
+
+        test('refuses a project whose warehouse type cannot hold several connections', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                warehouseType: WarehouseTypes.REDSHIFT,
+                credentials: {
+                    ...postgresCredentials,
+                    type: WarehouseTypes.REDSHIFT,
+                } as CreateWarehouseCredentials,
+            });
+
+            await expect(
+                buildService().create(
+                    fixture.credentialsAdmin,
+                    fixture.projectUuid,
+                    {
+                        name: 'Finance',
+                        warehouseConnection: {
+                            ...postgresCredentials,
+                            type: WarehouseTypes.REDSHIFT,
+                        } as CreateWarehouseCredentials,
+                    },
+                ),
+            ).rejects.toEqual(new ForbiddenError(WAREHOUSE_TYPE_REASON));
+        });
+
+        test('refuses without the licence and without the rollout flag', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+
+            await expect(
+                buildService(false).create(
+                    fixture.credentialsAdmin,
+                    fixture.projectUuid,
+                    {
+                        name: 'Finance',
+                        warehouseConnection: postgresCredentials,
+                    },
+                ),
+            ).rejects.toEqual(new ForbiddenError(ENTITLEMENT_REASON));
+            flag.enabled = false;
+            await expect(addExtra(fixture)).rejects.toEqual(
+                new ForbiddenError(ROLLOUT_REASON),
+            );
+            expect(await countConnections(fixture.projectUuid)).toBe(1);
+        });
+
+        test('reports why another connection cannot be added', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            flag.enabled = false;
+
+            await expect(
+                buildService().list(fixture.admin, fixture.projectUuid),
+            ).resolves.toMatchObject({
+                capabilities: {
+                    canAddConnection: false,
+                    reason: ROLLOUT_REASON,
+                },
+            });
+        });
+
+        test('refuses the connection when its test fails', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            testWarehouseConnectionCredentials.mockResolvedValue({
+                ok: false,
+                hops: [
+                    {
+                        stage: 'database',
+                        status: 'failed',
+                        message: 'password authentication failed',
+                    },
+                ],
+            });
+
+            await expect(addExtra(fixture)).rejects.toEqual(
+                new ParameterError(
+                    'Warehouse connection test failed: password authentication failed',
+                ),
+            );
+            expect(await countConnections(fixture.projectUuid)).toBe(1);
+        });
+    });
+
+    describe('B4 guards', () => {
+        test('refuses an organisation credential without permission to view it, before loading it', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const organizationWarehouseCredentialsUuid =
+                await createOrganizationCredential(fixture.organizationUuid);
+            const loadOrganizationCredentials = vi.spyOn(
+                model,
+                'loadOrganizationCredentials',
+            );
+
+            await expect(
+                buildService().create(fixture.admin, fixture.projectUuid, {
+                    name: 'Shared',
+                    organizationWarehouseCredentialsUuid,
+                }),
+            ).rejects.toEqual(
+                new ForbiddenError(
+                    'You do not have permission to use these organization warehouse credentials',
+                ),
+            );
+            expect(loadOrganizationCredentials).not.toHaveBeenCalled();
+            loadOrganizationCredentials.mockRestore();
+            expect(await countConnections(fixture.projectUuid)).toBe(1);
+        });
+
+        test('refuses to update a connection that keeps an organisation credential without permission to view it', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const organizationWarehouseCredentialsUuid =
+                await createOrganizationCredential(fixture.organizationUuid);
+            const created = await buildService().create(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                { name: 'Shared', organizationWarehouseCredentialsUuid },
+            );
+
+            await expect(
+                buildService().update(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    created.warehouseConnectionUuid,
+                    { listAllDatabases: true },
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+        });
+
+        test('uses an organisation credential with permission to view it', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const organizationWarehouseCredentialsUuid =
+                await createOrganizationCredential(fixture.organizationUuid);
+
+            await expect(
+                buildService().create(
+                    fixture.credentialsAdmin,
+                    fixture.projectUuid,
+                    { name: 'Shared', organizationWarehouseCredentialsUuid },
+                ),
+            ).resolves.toMatchObject({ organizationWarehouseCredentialsUuid });
+        });
+
+        test('refuses an organisation credential from another organisation', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const other = await createProject({ mode: 'single' });
+            const organizationWarehouseCredentialsUuid =
+                await createOrganizationCredential(other.organizationUuid);
+
+            await expect(
+                buildService().create(
+                    fixture.credentialsAdmin,
+                    fixture.projectUuid,
+                    { name: 'Shared', organizationWarehouseCredentialsUuid },
+                ),
+            ).rejects.toBeInstanceOf(NotFoundError);
+        });
+
+        test('refuses every write on the analytics project', async () => {
+            const fixture = await createProject({
+                mode: 'multi',
+                provisioningSource: 'analytics',
+            });
+            const service = buildService();
+            const expected = new ForbiddenError(
+                'Internal analytics configuration is managed by the backend',
+            );
+
+            await expect(
+                service.create(fixture.credentialsAdmin, fixture.projectUuid, {
+                    name: 'Finance',
+                    warehouseConnection: postgresCredentials,
+                }),
+            ).rejects.toEqual(expected);
+            await expect(
+                service.rename(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    fixture.originalUuid!,
+                    'Renamed',
+                ),
+            ).rejects.toEqual(expected);
+            await expect(
+                service.delete(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    fixture.originalUuid!,
+                ),
+            ).rejects.toEqual(expected);
+        });
+
+        test('refuses Snowflake interactive authentication', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+
+            await expect(
+                buildService().create(
+                    fixture.credentialsAdmin,
+                    fixture.projectUuid,
+                    {
+                        name: 'Browser',
+                        warehouseConnection: {
+                            ...snowflakeCredentials,
+                            authenticationType:
+                                SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+                        },
+                    },
+                ),
+            ).rejects.toEqual(
+                new ParameterError(
+                    'Snowflake OAuth authorization code authentication is only supported in the CLI and cannot be saved on a project',
+                ),
+            );
+            expect(testWarehouseConnectionCredentials).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            ['blank', '   '],
+            ['empty', ''],
+            ['over-long', 'a'.repeat(101)],
+        ])('refuses a %s name on create and rename', async (_label, name) => {
+            const fixture = await createProject({ mode: 'multi' });
+            const service = buildService();
+
+            await expect(
+                service.create(fixture.credentialsAdmin, fixture.projectUuid, {
+                    name,
+                    warehouseConnection: postgresCredentials,
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            await expect(
+                service.rename(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    fixture.originalUuid!,
+                    name,
+                ),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(
+                await database('warehouse_connections')
+                    .where('project_uuid', fixture.projectUuid)
+                    .pluck('name'),
+            ).toEqual(['Original']);
+        });
+
+        test('trims names and refuses a duplicate with the field message', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            await addExtra(fixture, '  Finance  ');
+
+            expect(
+                await database('warehouse_connections')
+                    .where('project_uuid', fixture.projectUuid)
+                    .orderBy('name')
+                    .pluck('name'),
+            ).toEqual(['Finance', 'Original']);
+            await expect(addExtra(fixture, 'Finance')).rejects.toEqual(
+                new ConflictError(WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE),
+            );
+            await expect(
+                buildService().rename(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    fixture.originalUuid!,
+                    'Finance',
+                ),
+            ).rejects.toEqual(
+                new ConflictError(WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE),
+            );
+        });
+    });
+
+    describe('the original connection', () => {
+        test('can be renamed and given listing settings, but its credentials are edited in the project settings', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const service = buildService();
+
+            await expect(
+                service.rename(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    fixture.originalUuid!,
+                    'Warehouse',
+                ),
+            ).resolves.toMatchObject({
+                name: 'Warehouse',
+                isOriginal: true,
+                warehouseType: WarehouseTypes.POSTGRES,
+            });
+            await expect(
+                service.update(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    fixture.originalUuid!,
+                    { additionalDatabases: ['finance'] },
+                ),
+            ).resolves.toMatchObject({ additionalDatabases: ['finance'] });
+            await expect(
+                service.update(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    fixture.originalUuid!,
+                    { warehouseConnection: postgresCredentials },
+                ),
+            ).rejects.toEqual(
+                new ParameterError(
+                    'Edit the original connection in the project settings.',
+                ),
+            );
+            await expect(
+                service.get(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    fixture.originalUuid!,
+                ),
+            ).resolves.toMatchObject({ warehouseConnection: null });
+        });
+
+        test('cannot be deleted', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            await addExtra(fixture);
+
+            await expect(
+                buildService().delete(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    fixture.originalUuid!,
+                ),
+            ).rejects.toEqual(
+                new ConflictError('The original connection cannot be removed.'),
+            );
+            expect(await countConnections(fixture.projectUuid)).toBe(2);
+        });
+    });
+
+    describe('updating an extra connection', () => {
+        test('keeps an omitted secret for the same destination and never returns it', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const created = await addExtra(fixture);
+            const service = buildService();
+
+            await service.update(
+                fixture.admin,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+                {
+                    warehouseConnection: {
+                        ...postgresCredentials,
+                        schema: 'finance',
+                        password: undefined,
+                    },
+                },
+            );
+
+            expect(
+                await model.getCredentials(
+                    await model.getProject(fixture.projectUuid),
+                    created.warehouseConnectionUuid,
+                ),
+            ).toMatchObject({
+                schema: 'finance',
+                password: 'analyst-password',
+            });
+            const fetched = await service.get(
+                fixture.admin,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+            );
+            expect(fetched.warehouseConnection).toMatchObject({
+                schema: 'finance',
+            });
+            expect(fetched.warehouseConnection).not.toHaveProperty('password');
+            expect(fetched.warehouseConnection).not.toHaveProperty('user');
+        });
+
+        test('does not send a saved secret to a new host', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const created = await addExtra(fixture);
+
+            await buildService().update(
+                fixture.admin,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+                {
+                    warehouseConnection: {
+                        ...postgresCredentials,
+                        host: 'elsewhere.internal',
+                        password: undefined,
+                    },
+                },
+            );
+
+            expect(
+                await model.getCredentials(
+                    await model.getProject(fixture.projectUuid),
+                    created.warehouseConnectionUuid,
+                ),
+            ).toMatchObject({ host: 'elsewhere.internal', password: '' });
+        });
+
+        test('refuses a change to another warehouse type', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const created = await addExtra(fixture);
+
+            await expect(
+                buildService().update(
+                    fixture.credentialsAdmin,
+                    fixture.projectUuid,
+                    created.warehouseConnectionUuid,
+                    { warehouseConnection: athenaCredentials },
+                ),
+            ).rejects.toThrow(
+                'An extra connection must use the same warehouse type as the original connection.',
+            );
+        });
+    });
+
+    describe('removing an extra connection', () => {
+        const bindAll = async (
+            fixture: Fixture,
+            warehouseConnectionUuid: string,
+        ) => {
+            await database('cached_explore').insert({
+                project_uuid: fixture.projectUuid,
+                name: 'orders',
+                table_names: [],
+                explore: {},
+                warehouse_connection_uuid: warehouseConnectionUuid,
+            } as never);
+            await database('project_dbt_sources').insert({
+                project_uuid: fixture.projectUuid,
+                name: 'finance_source',
+                warehouse_connection_uuid: warehouseConnectionUuid,
+            } as never);
+            const [savedSql] = await database('saved_sql')
+                .insert({
+                    project_uuid: fixture.projectUuid,
+                    name: 'Revenue',
+                    slug: `revenue-${randomUUID()}`,
+                } as never)
+                .returning('saved_sql_uuid');
+            await database('saved_sql_versions').insert({
+                saved_sql_uuid: savedSql.saved_sql_uuid,
+                sql: 'select 1',
+                warehouse_connection_uuid: warehouseConnectionUuid,
+            } as never);
+            await database('query_history').insert({
+                organization_uuid: fixture.organizationUuid,
+                project_uuid: fixture.projectUuid,
+                context: 'test',
+                compiled_sql: 'select 1',
+                metric_query: {},
+                fields: {},
+                request_parameters: {},
+                cache_key: randomUUID(),
+                status: 'executing',
+                warehouse_connection_uuid: warehouseConnectionUuid,
+            } as never);
+        };
+
+        test('is refused with a list of what is bound, and nothing changes', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const created = await addExtra(fixture);
+            await bindAll(fixture, created.warehouseConnectionUuid);
+
+            await expect(
+                buildService().delete(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    created.warehouseConnectionUuid,
+                ),
+            ).rejects.toEqual(
+                new ConflictError(
+                    "Connection 'Finance' cannot be removed while content uses it. explores: orders; dbt sources: finance_source; SQL charts: Revenue; in-flight queries: 1.",
+                ),
+            );
+            expect(await countConnections(fixture.projectUuid)).toBe(2);
+        });
+
+        test('counts only the latest version of a SQL chart, clears older versions and records the name', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const created = await addExtra(fixture);
+            const [savedSql] = await database('saved_sql')
+                .insert({
+                    project_uuid: fixture.projectUuid,
+                    name: 'Revenue',
+                    slug: `revenue-${randomUUID()}`,
+                } as never)
+                .returning('saved_sql_uuid');
+            const [olderVersion] = await database('saved_sql_versions')
+                .insert({
+                    saved_sql_uuid: savedSql.saved_sql_uuid,
+                    sql: 'select 1',
+                    created_at: new Date('2026-01-01T00:00:00Z'),
+                    warehouse_connection_uuid: created.warehouseConnectionUuid,
+                } as never)
+                .returning('saved_sql_version_uuid');
+            await database('saved_sql_versions').insert({
+                saved_sql_uuid: savedSql.saved_sql_uuid,
+                sql: 'select 2',
+                created_at: new Date('2026-02-01T00:00:00Z'),
+            } as never);
+
+            await buildService().delete(
+                fixture.admin,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+            );
+
+            expect(await countConnections(fixture.projectUuid)).toBe(1);
+            expect(
+                await database('saved_sql_versions')
+                    .where(
+                        'saved_sql_version_uuid',
+                        olderVersion.saved_sql_version_uuid,
+                    )
+                    .first('warehouse_connection_uuid'),
+            ).toEqual({ warehouse_connection_uuid: null });
+            expect(
+                await database('project_connection_mode_events')
+                    .where('project_uuid', fixture.projectUuid)
+                    .where('event', 'connection_removed')
+                    .first('plan'),
+            ).toEqual({
+                plan: {
+                    warehouseConnectionUuid: created.warehouseConnectionUuid,
+                    name: 'Finance',
+                    warehouseType: WarehouseTypes.POSTGRES,
+                },
+            });
+        });
+
+        test('keeps working with the rollout flag off', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const created = await addExtra(fixture);
+            flag.enabled = false;
+
+            await buildService().delete(
+                fixture.admin,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+            );
+
+            expect(await countConnections(fixture.projectUuid)).toBe(1);
+        });
+    });
+
+    describe('tenancy', () => {
+        test('assertBindingsBelongToProject refuses another project connection', async () => {
+            const owner = await createProject({ mode: 'multi' });
+            const other = await createProject({ mode: 'multi' });
+            const ownerConnection = await addExtra(owner);
+            const service = buildService();
+
+            await expect(
+                service.assertBindingsBelongToProject(other.projectUuid, [
+                    ownerConnection.warehouseConnectionUuid,
+                ]),
+            ).rejects.toBeInstanceOf(ParameterError);
+            await expect(
+                service.assertBindingsBelongToProject(owner.projectUuid, [
+                    ownerConnection.warehouseConnectionUuid,
+                    null,
+                ]),
+            ).resolves.toBeUndefined();
+        });
+
+        test('never reads another project connection', async () => {
+            const owner = await createProject({ mode: 'multi' });
+            const other = await createProject({ mode: 'multi' });
+            const ownerConnection = await addExtra(owner);
+
+            await expect(
+                buildService().get(
+                    other.admin,
+                    other.projectUuid,
+                    ownerConnection.warehouseConnectionUuid,
+                ),
+            ).rejects.toBeInstanceOf(NotFoundError);
+        });
+    });
+
+    describe('the project row lock', () => {
+        test('a write waits for another transaction that holds the project row', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const holder = await database.transaction();
+            await holder.raw(
+                'SELECT 1 FROM projects WHERE project_uuid = ? FOR UPDATE',
+                [fixture.projectUuid],
+            );
+            let settled = false;
+
+            const rename = buildService()
+                .rename(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    fixture.originalUuid!,
+                    'Locked',
+                )
+                .then(() => {
+                    settled = true;
+                });
+            await new Promise((resolve) => {
+                setTimeout(resolve, 750);
+            });
+            const settledWhileLocked = settled;
+            await holder.commit();
+            await rename;
+
+            expect(settledWhileLocked).toBe(false);
+            expect(settled).toBe(true);
+        });
+    });
+});

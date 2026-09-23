@@ -445,6 +445,11 @@ import {
     type ApiWarehouseConnectCodeClaimResponse,
     type ApiWarehouseConnectCodeResponse,
 } from './warehouseConnectCode';
+import {
+    type ApiWarehouseConnectionResponse,
+    type ApiWarehouseConnectionsResponse,
+    type ApiWarehouseConnectionWithCredentialsResponse,
+} from './warehouseConnections';
 
 export type ApiGetDashboardPreAggregateAuditResponse = {
     status: 'ok';
@@ -1284,6 +1289,9 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ApiWarehouseConnectionsResponse['results']
+    | ApiWarehouseConnectionResponse['results']
+    | ApiWarehouseConnectionWithCredentialsResponse['results']
     | Document
     | DocumentList
     | ContentReviewRequest

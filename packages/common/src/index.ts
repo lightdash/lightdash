@@ -377,6 +377,7 @@ export * from './types/learnProgress';
 export * from './types/userWarehouseCredentials';
 export * from './types/validation';
 export * from './types/warehouse';
+export * from './types/warehouseConnections';
 export * from './types/warehouseConnectCode';
 export * from './types/yamlSchema';
 export * from './utils/accessors';
