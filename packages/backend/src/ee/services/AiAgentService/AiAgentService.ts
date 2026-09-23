@@ -14172,13 +14172,29 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 ),
             isThreadSqlAutoApproved: (threadUuid) =>
                 this.aiAgentModel.isThreadSqlAutoApproved(threadUuid),
-            loadSkill: async (name) =>
-                (await this.aiAgentToolsService.loadAgentSkill(name)) ??
-                AiAgentService.toRuntimeSkill(
-                    customSkills.find(
-                        (skill) => skill.name === name.trim().toLowerCase(),
-                    ),
-                ),
+            loadSkill: async (name, loadOptions) => {
+                const custom = customSkills.find(
+                    (skill) => skill.name === name.trim().toLowerCase(),
+                );
+                const skill =
+                    (await this.aiAgentToolsService.loadAgentSkill(name)) ??
+                    AiAgentService.toRuntimeSkill(custom);
+                if (!skill) return undefined;
+                const argumentsText = loadOptions?.arguments?.trim() ?? '';
+                // A model-initiated load without arguments must not leave a
+                // bare placeholder the model then stops to ask about.
+                const body = argumentsText
+                    ? substituteAiAgentSkillArguments(
+                          skill.body,
+                          argumentsText,
+                          custom?.parsed.frontmatter.arguments ?? [],
+                      )
+                    : skill.body.replace(
+                          /\$ARGUMENTS/g,
+                          "the user's request as written above",
+                      );
+                return { ...skill, body };
+            },
 
             perf: {
                 measureGenerateResponseTime: (durationMs) => {

@@ -4823,13 +4823,20 @@ Parameters:
     },
   },
   {
-    "description": "Load a built-in skill by name, One of it's sub-resources. Always start by loading the skill itself and then load resources on demand",
+    "description": "Load a skill by name, or one of its resources. Always load the skill itself first, then resources on demand. When the skill takes arguments, pass what the user asked for in \`arguments\` so its placeholders are filled.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
+        "arguments": {
+          "description": "What the user asked for, in their words, e.g. the period or region. Fills the skill's $ARGUMENTS placeholder.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
         "name": {
-          "description": "Exact name of the built-in skill to load.",
+          "description": "Exact name of the skill to load.",
           "minLength": 1,
           "type": "string",
         },

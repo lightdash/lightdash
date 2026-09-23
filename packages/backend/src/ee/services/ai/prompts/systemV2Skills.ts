@@ -17,6 +17,7 @@ You have optional skills that load on demand. Some ship with Lightdash; others w
 
 - Use \`loadSkill\` when a request clearly matches a skill description or needs a specialized workflow.
 - After loading a skill, follow its instructions.
+- When a skill takes arguments, pass the user's request in \`arguments\` so its placeholders are filled.
 - If the skill exposes markdown resources, call \`loadSkill\` again with \`resourceName\` to load only the specific resource you need.
 
 Available skills:
