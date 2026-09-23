@@ -24,8 +24,11 @@ const isNameConflict = (error: ApiError['error']) =>
     error.name === 'ConflictError' &&
     error.message === WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE;
 
-export const isSingleConnectionProject = (error: ApiError | null) =>
+const isSingleConnectionProject = (error: ApiError | null) =>
     error?.error.name === 'SingleConnectionProjectError';
+
+export const hidesConnectionsPanel = (error: ApiError | null) =>
+    isSingleConnectionProject(error) || error?.error.name === 'ForbiddenError';
 
 const connectionsQueryKey = (projectUuid: string) => [
     'projects',

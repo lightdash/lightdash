@@ -110,7 +110,7 @@ export class WarehouseConnectionModel {
         const row = await this.database('projects')
             .select('project_uuid')
             .where('project_uuid', projectUuid)
-            .forUpdate()
+            .forNoKeyUpdate()
             .first();
         if (!row) {
             throw new NotFoundError(

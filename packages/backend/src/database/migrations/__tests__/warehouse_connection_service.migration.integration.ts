@@ -782,6 +782,56 @@ describe('WarehouseConnectionService on the real schema', () => {
             ).toMatchObject({ host: 'elsewhere.internal', password: '' });
         });
 
+        test('never copies an organisation credential secret into the connection when it moves to its own credentials', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const organizationCredential = await createOrganizationCredential(
+                fixture.organizationUuid,
+                {
+                    ...postgresCredentials,
+                    user: 'org-user',
+                    password: 'org-secret-password',
+                },
+            );
+            const service = buildService();
+            const created = await service.create(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                {
+                    name: 'Shared',
+                    organizationWarehouseCredentialsUuid:
+                        organizationCredential,
+                },
+            );
+            testWarehouseConnectionCredentials.mockClear();
+
+            await service.update(
+                fixture.credentialsAdmin,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+                {
+                    warehouseConnection: {
+                        ...postgresCredentials,
+                        user: undefined,
+                        password: undefined,
+                    },
+                },
+            );
+
+            const row = await database('warehouse_connections')
+                .where(
+                    'warehouse_connection_uuid',
+                    created.warehouseConnectionUuid,
+                )
+                .first();
+            const stored = encryptionUtil.decrypt(row.encrypted_credentials);
+            expect(stored).not.toContain('org-secret-password');
+            expect(stored).not.toContain('org-user');
+            expect(row.organization_warehouse_credentials_uuid).toBeNull();
+            expect(
+                testWarehouseConnectionCredentials.mock.calls[0][2].password,
+            ).toBe('');
+        });
+
         test('refuses a change to another warehouse type', async () => {
             const fixture = await createProject({ mode: 'multi' });
             const created = await addExtra(fixture);
@@ -914,6 +964,144 @@ describe('WarehouseConnectionService on the real schema', () => {
             });
         });
 
+        const newChart = async (fixture: Fixture, deleted = false) =>
+            (
+                await database('saved_sql')
+                    .insert({
+                        project_uuid: fixture.projectUuid,
+                        name: `Chart ${randomUUID().slice(0, 6)}`,
+                        slug: `chart-${randomUUID()}`,
+                        deleted_at: deleted ? new Date() : null,
+                    } as never)
+                    .returning(['saved_sql_uuid', 'name'])
+            )[0] as { saved_sql_uuid: string; name: string };
+
+        const newVersion = async (
+            savedSqlUuid: string,
+            createdAt: string,
+            warehouseConnectionUuid: string | null,
+        ) =>
+            (
+                await database('saved_sql_versions')
+                    .insert({
+                        saved_sql_uuid: savedSqlUuid,
+                        sql: 'select 1',
+                        created_at: new Date(createdAt),
+                        warehouse_connection_uuid: warehouseConnectionUuid,
+                    } as never)
+                    .returning('saved_sql_version_uuid')
+            )[0].saved_sql_version_uuid as string;
+
+        test('names a soft-deleted chart whose latest version is bound', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const created = await addExtra(fixture);
+            const chart = await newChart(fixture, true);
+            await newVersion(
+                chart.saved_sql_uuid,
+                '2026-01-01T00:00:00Z',
+                created.warehouseConnectionUuid,
+            );
+
+            await expect(
+                buildService().delete(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    created.warehouseConnectionUuid,
+                ),
+            ).rejects.toThrow(`SQL charts: ${chart.name} (deleted)`);
+        });
+
+        test('a completed query does not block removal, and older versions of another connection keep their binding', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const created = await addExtra(fixture);
+            const other = await addExtra(fixture, 'Marketing');
+            const chart = await newChart(fixture);
+            const olderOther = await newVersion(
+                chart.saved_sql_uuid,
+                '2026-01-01T00:00:00Z',
+                other.warehouseConnectionUuid,
+            );
+            const olderMine = await newVersion(
+                chart.saved_sql_uuid,
+                '2026-01-02T00:00:00Z',
+                created.warehouseConnectionUuid,
+            );
+            await newVersion(
+                chart.saved_sql_uuid,
+                '2026-01-03T00:00:00Z',
+                null,
+            );
+            await database('query_history').insert({
+                organization_uuid: fixture.organizationUuid,
+                project_uuid: fixture.projectUuid,
+                context: 'test',
+                compiled_sql: 'select 1',
+                metric_query: {},
+                fields: {},
+                request_parameters: {},
+                cache_key: randomUUID(),
+                status: 'ready',
+                warehouse_connection_uuid: created.warehouseConnectionUuid,
+            } as never);
+
+            await buildService().delete(
+                fixture.admin,
+                fixture.projectUuid,
+                created.warehouseConnectionUuid,
+            );
+
+            const bindings = Object.fromEntries(
+                (
+                    await database('saved_sql_versions')
+                        .whereIn('saved_sql_version_uuid', [
+                            olderOther,
+                            olderMine,
+                        ])
+                        .select(
+                            'saved_sql_version_uuid',
+                            'warehouse_connection_uuid',
+                        )
+                ).map((row) => [
+                    row.saved_sql_version_uuid,
+                    row.warehouse_connection_uuid,
+                ]),
+            );
+            expect(bindings).toEqual({
+                [olderOther]: other.warehouseConnectionUuid,
+                [olderMine]: null,
+            });
+        });
+
+        test('a binding committed during the removal gives the content conflict, and the connection stays', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const created = await addExtra(fixture);
+            const chart = await newChart(fixture);
+            vi.spyOn(
+                WarehouseConnectionModel.prototype,
+                'clearOlderSqlChartVersionBindings',
+            ).mockImplementationOnce(async () => {
+                await newVersion(
+                    chart.saved_sql_uuid,
+                    '2026-01-01T00:00:00Z',
+                    created.warehouseConnectionUuid,
+                );
+                return 0;
+            });
+
+            await expect(
+                buildService().delete(
+                    fixture.admin,
+                    fixture.projectUuid,
+                    created.warehouseConnectionUuid,
+                ),
+            ).rejects.toEqual(
+                new ConflictError(
+                    "Connection 'Finance' cannot be removed while content uses it.",
+                ),
+            );
+            expect(await countConnections(fixture.projectUuid)).toBe(2);
+        });
+
         test('keeps working with the rollout flag off', async () => {
             const fixture = await createProject({ mode: 'multi' });
             const created = await addExtra(fixture);
@@ -964,7 +1152,87 @@ describe('WarehouseConnectionService on the real schema', () => {
         });
     });
 
+    describe('the real connection test', () => {
+        const liveCredentials = (password: string) =>
+            ({
+                type: WarehouseTypes.POSTGRES,
+                host: process.env.PGHOST ?? '127.0.0.1',
+                port: Number(process.env.PGPORT ?? 5432),
+                user: process.env.PGUSER ?? 'postgres',
+                password,
+                dbname: 'postgres',
+                schema: 'public',
+                sslmode: 'disable',
+            }) as CreatePostgresCredentials;
+
+        test('passes with working credentials and fails with a wrong password', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const policy = new ProjectService({
+                lightdashConfig: lightdashConfigMock,
+                projectModel: new ProjectModel({
+                    database,
+                    lightdashConfig: lightdashConfigMock,
+                    encryptionUtil,
+                }),
+            } as never);
+
+            const working = await policy.testWarehouseConnectionCredentials(
+                fixture.admin as never,
+                fixture.organizationUuid,
+                liveCredentials(process.env.PGPASSWORD ?? ''),
+            );
+            const wrong = await policy.testWarehouseConnectionCredentials(
+                fixture.admin as never,
+                fixture.organizationUuid,
+                liveCredentials('not-the-password'),
+            );
+
+            expect(working).toEqual({
+                ok: true,
+                hops: [{ stage: 'database', status: 'ok', message: null }],
+            });
+            expect(wrong.ok).toBe(false);
+            expect(wrong.hops).toEqual([
+                expect.objectContaining({
+                    stage: 'database',
+                    status: 'failed',
+                    message: expect.stringContaining(
+                        'password authentication failed',
+                    ),
+                }),
+            ]);
+        });
+    });
+
     describe('the project row lock', () => {
+        test('does not block unrelated inserts that reference the project', async () => {
+            const fixture = await createProject({ mode: 'multi' });
+            const holder = await database.transaction();
+            await new WarehouseConnectionModel({
+                database: holder,
+                encryptionUtil,
+                organizationWarehouseCredentialsModel: {} as never,
+            }).lockProject(fixture.projectUuid);
+            const other = await database.transaction();
+            await other.raw(`SET LOCAL lock_timeout = '1s'`);
+
+            const outcome = await other('cached_explore')
+                .insert({
+                    project_uuid: fixture.projectUuid,
+                    name: 'unrelated',
+                    table_names: [],
+                    explore: {},
+                } as never)
+                .then(
+                    () => 'inserted',
+                    (error: { code?: string }) => `blocked: ${error.code}`,
+                );
+            await other.rollback();
+            await holder.rollback();
+
+            expect(outcome).toBe('inserted');
+        });
+
         test('a write waits for another transaction that holds the project row', async () => {
             const fixture = await createProject({ mode: 'multi' });
             const holder = await database.transaction();

@@ -53,11 +53,29 @@ const extra: WarehouseConnection = {
 
 const listUrl = '/projects/project-uuid/warehouse-connections';
 
-const renderPanel = (type: ProjectType = ProjectType.DEFAULT) => {
+const organizationUuid = 'organization-uuid';
+
+const projectRule = (action: 'manage' | 'update') => ({
+    action,
+    subject: 'Project' as const,
+    conditions: { organizationUuid, projectUuid: 'project-uuid' },
+});
+
+const renderPanel = (
+    type: ProjectType = ProjectType.DEFAULT,
+    abilityRules = [projectRule('manage')],
+) => {
     renderWithProviders(
         <ConnectionsPanel
-            savedProject={{ projectUuid: 'project-uuid', type } as Project}
+            savedProject={
+                {
+                    projectUuid: 'project-uuid',
+                    organizationUuid,
+                    type,
+                } as Project
+            }
         />,
+        { user: { abilityRules } },
     );
     return userEvent.setup();
 };
@@ -110,6 +128,38 @@ describe('ConnectionsPanel', () => {
                 expect.objectContaining({ url: listUrl, method: 'GET' }),
             ),
         );
+        await new Promise((resolve) => {
+            setTimeout(resolve, 50);
+        });
+        expect(screen.queryByText('Connections')).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Failed to load connections.'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('renders nothing and calls no API when the viewer can update but not manage the project', async () => {
+        renderPanel(ProjectType.DEFAULT, [projectRule('update')]);
+
+        await new Promise((resolve) => {
+            setTimeout(resolve, 50);
+        });
+        expect(screen.queryByText('Connections')).not.toBeInTheDocument();
+        expect(mockApi).not.toHaveBeenCalled();
+    });
+
+    it('renders nothing when the server refuses the viewer (403)', async () => {
+        mockApi.mockRejectedValue({
+            status: 'error',
+            error: {
+                name: 'ForbiddenError',
+                message: 'You do not have permission to manage this project',
+                statusCode: 403,
+                data: {},
+            },
+        });
+        renderPanel();
+
+        await waitFor(() => expect(mockApi).toHaveBeenCalled());
         await new Promise((resolve) => {
             setTimeout(resolve, 50);
         });

@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     DbtProjectType,
     DefaultSupportedDbtVersion,
@@ -35,7 +36,7 @@ import {
 } from '@tabler/icons-react';
 import { useRef, useState, type FC } from 'react';
 import {
-    isSingleConnectionProject,
+    hidesConnectionsPanel,
     useCreateWarehouseConnection,
     useDeleteWarehouseConnection,
     useRenameWarehouseConnection,
@@ -43,6 +44,7 @@ import {
     useWarehouseConnection,
     useWarehouseConnections,
 } from '../../hooks/useWarehouseConnections';
+import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import classes from './ConnectionsPanel.module.css';
@@ -417,7 +419,7 @@ const ConnectionsPanelContent: FC<{ projectUuid: string }> = ({
     const [action, setAction] = useState<ConnectionAction | null>(null);
     const [isAddOpen, setIsAddOpen] = useState(false);
 
-    if (!isEnabled || isSingleConnectionProject(error)) {
+    if (!isEnabled || hidesConnectionsPanel(error)) {
         return null;
     }
 
@@ -519,9 +521,22 @@ const ConnectionsPanelContent: FC<{ projectUuid: string }> = ({
 
 const ConnectionsPanel: FC<{ savedProject: Project | undefined }> = ({
     savedProject,
-}) =>
-    savedProject && savedProject.type !== ProjectType.PREVIEW ? (
+}) => {
+    const { user } = useApp();
+    const canManageProject =
+        savedProject !== undefined &&
+        user.data?.ability.can(
+            'manage',
+            subject('Project', {
+                organizationUuid: savedProject.organizationUuid,
+                projectUuid: savedProject.projectUuid,
+            }),
+        ) === true;
+    return savedProject &&
+        canManageProject &&
+        savedProject.type !== ProjectType.PREVIEW ? (
         <ConnectionsPanelContent projectUuid={savedProject.projectUuid} />
     ) : null;
+};
 
 export default ConnectionsPanel;

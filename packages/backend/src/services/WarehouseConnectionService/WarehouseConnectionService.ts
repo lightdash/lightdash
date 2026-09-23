@@ -65,6 +65,18 @@ type WarehouseConnectionServiceArguments = {
 
 const NAME_UNIQUE_CONSTRAINT = 'warehouse_connections_project_name_unique';
 
+const BINDING_FOREIGN_KEYS = [
+    'cached_explore_warehouse_connection_fkey',
+    'project_dbt_sources_warehouse_connection_fkey',
+    'saved_sql_versions_warehouse_connection_fkey',
+];
+
+const isBindingConflict = (error: unknown): boolean =>
+    error instanceof DatabaseError &&
+    error.code === '23503' &&
+    error.constraint !== undefined &&
+    BINDING_FOREIGN_KEYS.includes(error.constraint);
+
 export const WAREHOUSE_TYPE_REASON =
     'Multiple connections are supported for Postgres and Athena projects only.';
 export const ENTITLEMENT_REASON =
@@ -581,42 +593,53 @@ export class WarehouseConnectionService extends BaseService {
         assertRegisteredAccount(account);
         const { summary } = await this.getMultiProject(account, projectUuid);
         this.assertCanWrite(account, summary, null, null);
-        await this.warehouseConnectionModel.transaction(async (model) => {
-            await model.lockProject(projectUuid);
-            const lockedProject = await model.getProject(projectUuid);
-            WarehouseConnectionService.assertMultiMode(lockedProject);
-            const connection = await model.get(
-                lockedProject,
-                warehouseConnectionUuid,
-            );
-            if (connection.isOriginal) {
-                throw new ConflictError(
-                    'The original connection cannot be removed.',
-                );
-            }
-            const bound = describeBoundContent(
-                await model.getBoundContent(warehouseConnectionUuid),
-            );
-            if (bound.length > 0) {
-                throw new ConflictError(
-                    `Connection '${connection.name}' cannot be removed while content uses it. ${bound.join('; ')}.`,
-                );
-            }
-            await model.clearOlderSqlChartVersionBindings(
-                warehouseConnectionUuid,
-            );
-            await model.deleteExtra(lockedProject, warehouseConnectionUuid);
-            await model.insertEvent({
-                projectUuid,
-                actorUserUuid: account.user.userUuid,
-                event: 'connection_removed',
-                plan: {
+        let connectionName: string | null = null;
+        await this.warehouseConnectionModel
+            .transaction(async (model) => {
+                await model.lockProject(projectUuid);
+                const lockedProject = await model.getProject(projectUuid);
+                WarehouseConnectionService.assertMultiMode(lockedProject);
+                const connection = await model.get(
+                    lockedProject,
                     warehouseConnectionUuid,
-                    name: connection.name,
-                    warehouseType: connection.warehouseType,
-                },
+                );
+                connectionName = connection.name;
+                if (connection.isOriginal) {
+                    throw new ConflictError(
+                        'The original connection cannot be removed.',
+                    );
+                }
+                const bound = describeBoundContent(
+                    await model.getBoundContent(warehouseConnectionUuid),
+                );
+                if (bound.length > 0) {
+                    throw new ConflictError(
+                        `Connection '${connection.name}' cannot be removed while content uses it. ${bound.join('; ')}.`,
+                    );
+                }
+                await model.clearOlderSqlChartVersionBindings(
+                    warehouseConnectionUuid,
+                );
+                await model.deleteExtra(lockedProject, warehouseConnectionUuid);
+                await model.insertEvent({
+                    projectUuid,
+                    actorUserUuid: account.user.userUuid,
+                    event: 'connection_removed',
+                    plan: {
+                        warehouseConnectionUuid,
+                        name: connection.name,
+                        warehouseType: connection.warehouseType,
+                    },
+                });
+            })
+            .catch((error: unknown) => {
+                if (isBindingConflict(error)) {
+                    throw new ConflictError(
+                        `Connection '${connectionName}' cannot be removed while content uses it.`,
+                    );
+                }
+                throw error;
             });
-        });
     }
 
     async assertBindingsBelongToProject(
