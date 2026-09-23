@@ -2994,6 +2994,43 @@ export type AiAgentDocumentDeletedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentSkillCreatedEvent = BaseTrack & {
+    event: 'ai_agent_skill.created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        skillId: string;
+        source: 'ui' | 'as_code';
+        resourceCount: number;
+        agentCount: number;
+    };
+};
+
+export type AiAgentSkillUpdatedEvent = BaseTrack & {
+    event: 'ai_agent_skill.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        skillId: string;
+        source: 'ui' | 'as_code' | 'restore';
+        versionNumber: number;
+        contentChanged: boolean;
+    };
+};
+
+export type AiAgentSkillDeletedEvent = BaseTrack & {
+    event: 'ai_agent_skill.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        skillId: string;
+        unboundAgentCount: number;
+    };
+};
+
 export type AiAgentPromptCreatedEvent = BaseTrack & {
     event: 'ai_agent_prompt.created';
     userId: string;
@@ -4202,6 +4239,9 @@ type TypedEvent =
     | AiAgentDocumentCreatedEvent
     | AiAgentDocumentUpdatedEvent
     | AiAgentDocumentDeletedEvent
+    | AiAgentSkillCreatedEvent
+    | AiAgentSkillUpdatedEvent
+    | AiAgentSkillDeletedEvent
     | AiAgentPromptCreatedEvent
     | AiAgentPromptFeedbackEvent
     | AiAgentEvalCreatedEvent

@@ -40,6 +40,7 @@ import { AiAgentMemoryModel } from './models/AiAgentMemoryModel';
 import { AiAgentModel } from './models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from './models/AiAgentReviewNotificationModel';
+import { AiAgentSkillModel } from './models/AiAgentSkillModel';
 import { AiDeepResearchRunModel } from './models/AiDeepResearchRunModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { AiRouterModel } from './models/AiRouterModel';
@@ -79,6 +80,7 @@ import { AiAgentMemoryService } from './services/AiAgentMemoryService/AiAgentMem
 import { AiAgentReviewClassifierService } from './services/AiAgentReviewClassifierService';
 import { AiAgentReviewNotificationService } from './services/AiAgentReviewNotificationService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
+import { AiAgentSkillService } from './services/AiAgentSkillService';
 import { AiAgentToolsService } from './services/AiAgentToolsService/AiAgentToolsService';
 import { AiDeepResearchExecutor } from './services/AiDeepResearchService/AiDeepResearchExecutor';
 import { AiDeepResearchService } from './services/AiDeepResearchService/AiDeepResearchService';
@@ -844,6 +846,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiModelCatalog,
                     }),
                 }),
+            aiAgentSkillService: ({ models, repository, context }) =>
+                new AiAgentSkillService({
+                    analytics: context.lightdashAnalytics,
+                    aiAgentSkillModel:
+                        models.getAiAgentSkillModel<AiAgentSkillModel>(),
+                    aiAgentService:
+                        repository.getAiAgentService<AiAgentService>(),
+                    featureFlagService: repository.getFeatureFlagService(),
+                    builtInSkills: BuiltInSkills,
+                }),
             aiAgentReviewClassifierService: ({ models, repository, context }) =>
                 new AiAgentReviewClassifierService({
                     featureFlagModel: models.getFeatureFlagModel(),
@@ -1489,6 +1501,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentMemoryModel({ database }),
             aiAgentDocumentModel: ({ database }) =>
                 new AiAgentDocumentModel({ database }),
+            aiAgentSkillModel: ({ database }) =>
+                new AiAgentSkillModel({ database }),
             aiWritebackThreadModel: ({ database }) =>
                 new AiWritebackThreadModel({ database }),
             aiWritebackRunModel: ({ database }) =>

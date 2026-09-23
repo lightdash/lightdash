@@ -292,6 +292,11 @@ export class BuiltInSkills {
         };
     }
 
+    /** Every built-in skill name, whatever its availability; custom skills cannot reuse them. */
+    static async getAllNames(): Promise<string[]> {
+        return (await this.load()).map((skill) => skill.name);
+    }
+
     static async getAiAgentSkills(): Promise<AiAgentSkillReference[]> {
         return (await this.loadFor('agent')).map((skill) =>
             this.toSkillReference(this.toAiAgentSkill(skill)),

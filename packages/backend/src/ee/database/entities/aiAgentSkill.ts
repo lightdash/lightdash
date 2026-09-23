@@ -41,8 +41,9 @@ export type AiAgentSkillTable = Knex.CompositeTableType<
             | 'name'
             | 'created_at'
             | 'updated_at'
+            | 'deleted_at'
         >
-    > & { updated_at?: Knex.Raw }
+    > & { updated_at?: Knex.Raw; deleted_at?: Date | null | Knex.Raw }
 >;
 
 export const AiAgentSkillVersionTableName = 'ai_agent_skill_version';

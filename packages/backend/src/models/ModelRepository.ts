@@ -204,6 +204,7 @@ export type ModelManifest = {
     homepageRecommendedActionSkipsModel: unknown;
     projectHomepageModel: unknown;
     aiAgentDocumentModel: unknown;
+    aiAgentSkillModel: unknown;
     aiWritebackThreadModel: unknown;
     aiWritebackRunModel: unknown;
     aiDeepResearchRunModel: unknown;
@@ -1100,6 +1101,10 @@ export class ModelRepository
 
     public getAiAgentDocumentModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentDocumentModel');
+    }
+
+    public getAiAgentSkillModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiAgentSkillModel');
     }
 
     public getAiWritebackThreadModel<ModelImplT>(): ModelImplT {
