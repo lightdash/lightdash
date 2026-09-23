@@ -279,10 +279,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         [threadMentionItems, pinnedDashboardTileItems, pageContentMentionItems],
     );
 
-    const latestAssistantMessage = thread?.messages
-        ?.toReversed()
-        .find((message) => message.role === 'assistant');
-
     const handleSubmit = ({
         message,
         toolHints,
@@ -403,15 +399,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     agentUuid={agentUuid}
                     showAddToEvalsButton={canManage}
                     onDashboardLinkClick={handleDashboardLinkClick}
-                    onQuickReply={
-                        inputDisabled || isBusy
-                            ? undefined
-                            : (prompt) =>
-                                  handleSubmit({
-                                      message: prompt,
-                                      toolHints: [],
-                                  })
-                    }
                     canRetryDeepResearch={
                         canStartDeepResearch && !inputDisabled && !isBusy
                     }
@@ -448,10 +435,9 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                         threadUuid={threadUuid}
                         contentMentionPriorityItems={contentMentionItems}
                         latestAssistantMessageUuid={
-                            latestAssistantMessage?.uuid
-                        }
-                        showSuggestions={
-                            !latestAssistantMessage?.quickReplies.length
+                            [...(thread.messages ?? [])]
+                                .reverse()
+                                .find((m) => m.role === 'assistant')?.uuid
                         }
                         sqlMode={sqlModeAvailable ? sqlMode : undefined}
                         onSqlModeChange={

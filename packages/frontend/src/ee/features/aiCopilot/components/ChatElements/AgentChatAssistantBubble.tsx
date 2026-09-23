@@ -64,7 +64,6 @@ import {
 } from '../../streaming/useAiAgentThreadStreamQuery';
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
-import { AgentQuickReplies } from './AgentQuickReplies';
 import { AiArtifactInline } from './AiArtifactInline';
 import AiDocumentCards from './AiDocumentCards';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
@@ -1018,7 +1017,6 @@ type Props = {
     showAddToEvalsButton?: boolean;
     mcpServers?: AiMcpServer[];
     onDashboardLinkClick?: (url: string) => void;
-    onQuickReply?: (prompt: string) => void;
 };
 
 export const AssistantBubble: FC<Props> = memo(
@@ -1035,7 +1033,6 @@ export const AssistantBubble: FC<Props> = memo(
         showAddToEvalsButton = false,
         mcpServers,
         onDashboardLinkClick,
-        onQuickReply,
     }) => {
         const artifact = useAiAgentStoreSelector(selectArtifactPreview);
         const dispatch = useAiAgentStoreDispatch();
@@ -1162,15 +1159,6 @@ export const AssistantBubble: FC<Props> = memo(
                     mcpServers={mcpServers}
                     onDashboardLinkClick={onDashboardLinkClick}
                 />
-
-                {isLastMessage &&
-                    onQuickReply &&
-                    message.quickReplies.length > 0 && (
-                        <AgentQuickReplies
-                            replies={message.quickReplies}
-                            onSelect={onQuickReply}
-                        />
-                    )}
 
                 {isArtifactAvailable && projectUuid && agentUuid && (
                     <Stack gap="xs">

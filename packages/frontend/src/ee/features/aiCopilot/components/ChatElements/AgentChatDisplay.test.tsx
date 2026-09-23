@@ -90,7 +90,6 @@ const getAssistantMessage = (
     modelConfig: null,
     tokenUsage: null,
     responseTiming: null,
-    quickReplies: [],
 });
 
 const followUpUserMessage: AiAgentMessageUser = {

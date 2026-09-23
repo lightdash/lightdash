@@ -47,7 +47,6 @@ import {
     AiPromptExternalSourceSnapshot,
     AiPromptProposedChangePayload,
     AiPromptSteer,
-    AiQuickReply,
     AiResultType,
     AiThread,
     AiThreadCompaction,
@@ -4349,7 +4348,6 @@ export class AiAgentModel {
                     | 'model_config'
                     | 'token_usage'
                     | 'response_timing'
-                    | 'quick_replies'
                     | 'hidden'
                 > &
                     Pick<DbUser, 'user_uuid'> &
@@ -4375,7 +4373,6 @@ export class AiAgentModel {
                 `${AiPromptTableName}.model_config`,
                 `${AiPromptTableName}.token_usage`,
                 `${AiPromptTableName}.response_timing`,
-                `${AiPromptTableName}.quick_replies`,
                 `${AiPromptTableName}.hidden`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
@@ -4494,7 +4491,6 @@ export class AiAgentModel {
                 modelConfig: row.model_config,
                 tokenUsage: row.token_usage,
                 responseTiming: row.response_timing,
-                quickReplies: row.quick_replies ?? [],
                 toolCalls: toolCalls
                     .filter((tc) => isParseableToolName(tc.tool_name))
                     .map((tc) => this.parseToolCall(tc)),
@@ -5118,7 +5114,6 @@ export class AiAgentModel {
                     | 'model_config'
                     | 'token_usage'
                     | 'response_timing'
-                    | 'quick_replies'
                     | 'hidden'
                 > &
                     Pick<DbUser, 'user_uuid'> &
@@ -5144,7 +5139,6 @@ export class AiAgentModel {
                 `${AiPromptTableName}.model_config`,
                 `${AiPromptTableName}.token_usage`,
                 `${AiPromptTableName}.response_timing`,
-                `${AiPromptTableName}.quick_replies`,
                 `${AiPromptTableName}.hidden`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
@@ -5291,7 +5285,6 @@ export class AiAgentModel {
                     modelConfig: row.model_config,
                     tokenUsage: row.token_usage,
                     responseTiming: row.response_timing,
-                    quickReplies: row.quick_replies ?? [],
                     toolCalls: toolCalls
                         .filter((tc) => isParseableToolName(tc.tool_name))
                         .map((tc) => this.parseToolCall(tc)),
@@ -5682,15 +5675,6 @@ export class AiAgentModel {
             );
 
         return rows.length > 0;
-    }
-
-    async setPromptQuickReplies(
-        promptUuid: string,
-        quickReplies: AiQuickReply[],
-    ): Promise<void> {
-        await this.database(AiPromptTableName)
-            .update({ quick_replies: JSON.stringify(quickReplies) })
-            .where('ai_prompt_uuid', promptUuid);
     }
 
     async createPromptDecision(
