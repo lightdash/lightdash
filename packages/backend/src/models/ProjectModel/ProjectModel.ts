@@ -1769,6 +1769,26 @@ export class ProjectModel {
                               connections[0].connectionUuid,
                           )
                         : undefined;
+                const connectionCredentials = await Promise.all(
+                    connections
+                        .filter(
+                            (connection) =>
+                                project.require_user_credentials === null ||
+                                connection.organizationWarehouseCredentialsUuid !==
+                                    null,
+                        )
+                        .map(async (connection) => ({
+                            credentials:
+                                warehouseConnection ??
+                                (await this.connectionModel.getCredentials(
+                                    projectUuid,
+                                    connection.connectionUuid,
+                                )),
+                            usesOrganizationCredentials:
+                                connection.organizationWarehouseCredentialsUuid !==
+                                null,
+                        })),
+                );
 
                 const result: Omit<Project, 'warehouseConnection'> = {
                     organizationUuid: project.organization_uuid,
@@ -1801,9 +1821,10 @@ export class ProjectModel {
                     provisioningSource: project.provisioning_source ?? null,
                     agentSqlScope: project.agent_sql_scope ?? null,
                     requireUserCredentials:
-                        project.require_user_credentials ??
-                        warehouseConnection?.requireUserCredentials ??
-                        false,
+                        ProjectModel.resolveRequireUserCredentials(
+                            project.require_user_credentials,
+                            connectionCredentials,
+                        ),
                     connections,
                 };
 
@@ -1897,6 +1918,27 @@ export class ProjectModel {
     This method will load default values for backwards compatibility
     For example, when we introduce a new authentication type, we need to set the default value for the existing projects
     */
+    static resolveRequireUserCredentials(
+        projectSetting: boolean | null,
+        connectionCredentials: {
+            credentials: CreateWarehouseCredentials;
+            usesOrganizationCredentials: boolean;
+        }[],
+    ): boolean {
+        const organizationCredentialsRequire = connectionCredentials.some(
+            ({ credentials, usesOrganizationCredentials }) =>
+                usesOrganizationCredentials &&
+                credentials.requireUserCredentials === true,
+        );
+        const anyConnectionRequires = connectionCredentials.some(
+            ({ credentials }) => credentials.requireUserCredentials === true,
+        );
+        return (
+            organizationCredentialsRequire ||
+            (projectSetting ?? anyConnectionRequires)
+        );
+    }
+
     static getConnectionWithDefaults(
         sensitiveCredentials?: CreateWarehouseCredentials,
         nonSensitiveCredentials?: WarehouseCredentials,

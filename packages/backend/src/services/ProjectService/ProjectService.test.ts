@@ -232,15 +232,17 @@ const projectModel = {
     get: vi.fn(async () => projectWithSensitiveFields),
     getAllByOrganizationUuid: vi.fn<ProjectModel['getAllByOrganizationUuid']>(),
     getSummary: vi.fn(async () => projectSummary),
-    getConnectionForProject: vi.fn(async () => ({
-        connectionUuid: 'connection-uuid',
-        name: 'BigQuery',
-        warehouseType: WarehouseTypes.BIGQUERY,
-        organizationWarehouseCredentialsUuid: null,
-        listAllDatabases: false,
-        additionalDatabases: [],
-        createdAt: new Date('2026-09-17T12:00:00Z'),
-    })),
+    getConnectionForProject: vi.fn<ProjectModel['getConnectionForProject']>(
+        async () => ({
+            connectionUuid: 'connection-uuid',
+            name: 'BigQuery',
+            warehouseType: WarehouseTypes.BIGQUERY,
+            organizationWarehouseCredentialsUuid: null,
+            listAllDatabases: false,
+            additionalDatabases: [],
+            createdAt: new Date('2026-09-17T12:00:00Z'),
+        }),
+    ),
     getDbtSourceIdentity: vi.fn(async () => ({
         dbtSourceUuid: 'primary-source-uuid',
         dbtSourceName: 'dbt_project',
@@ -4474,6 +4476,74 @@ describe('ProjectService', () => {
                 sessionAccount.user.id,
                 WarehouseTypes.POSTGRES,
                 'connection-uuid',
+            );
+        });
+
+        test('keeps an organization credential requirement when the project setting is off', async () => {
+            const scopedService = getMockedProjectService(lightdashConfigMock);
+            const findForProjectWithSecrets = vi.fn(async () => undefined);
+            (
+                scopedService as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecrets;
+            vi.mocked(
+                projectModel.getProjectWarehouseConfig,
+            ).mockResolvedValueOnce({
+                organizationWarehouseCredentialsUuid: null,
+                queryTimezone: null,
+                requireUserCredentials: false,
+            });
+            vi.mocked(
+                projectModel.getConnectionForProject,
+            ).mockResolvedValueOnce({
+                connectionUuid: 'organization-connection',
+                name: 'Organization',
+                warehouseType: WarehouseTypes.POSTGRES,
+                organizationWarehouseCredentialsUuid:
+                    'organization-credentials-uuid',
+                listAllDatabases: false,
+                additionalDatabases: [],
+                createdAt: new Date(),
+            });
+            vi.mocked(
+                projectModel.getWarehouseCredentialsForProject,
+            ).mockResolvedValueOnce({
+                type: WarehouseTypes.POSTGRES,
+                host: 'organization.example.com',
+                port: 5432,
+                dbname: 'analytics',
+                schema: 'public',
+                user: 'shared',
+                password: 'shared-password',
+                requireUserCredentials: true,
+            });
+
+            await expect(
+                (
+                    scopedService as unknown as {
+                        getWarehouseCredentials: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                            connectionUuid: string;
+                        }) => Promise<CreateWarehouseCredentials>;
+                    }
+                ).getWarehouseCredentials({
+                    projectUuid,
+                    userId: sessionAccount.user.id,
+                    isRegisteredUser: true,
+                    connectionUuid: 'organization-connection',
+                }),
+            ).rejects.toThrow(MissingWarehouseCredentialsError);
+            expect(findForProjectWithSecrets).toHaveBeenCalledWith(
+                projectUuid,
+                sessionAccount.user.id,
+                WarehouseTypes.POSTGRES,
+                'organization-connection',
             );
         });
 

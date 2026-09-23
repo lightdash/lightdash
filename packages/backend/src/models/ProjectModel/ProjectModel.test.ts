@@ -205,7 +205,7 @@ describe('ProjectModel', () => {
         const getCredentials = vi.spyOn(connectionModel, 'getCredentials');
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
-            .response([projectMock]);
+            .response([{ ...projectMock, require_user_credentials: false }]);
 
         const project = await model.get(projectUuid);
 
@@ -215,6 +215,97 @@ describe('ProjectModel', () => {
         ]);
         expect(project.warehouseConnection).toBeUndefined();
         expect(getCredentials).not.toHaveBeenCalled();
+    });
+    describe('user credential requirement with several connections', () => {
+        const secondConnection = {
+            ...projectConnection,
+            connectionUuid: 'second-connection-uuid',
+            name: 'Second',
+        };
+        const projectCredentials = JSON.parse(
+            projectMock.encrypted_credentials.toString(),
+        ) as CreateWarehouseCredentials;
+        const mockConnections = (
+            connections: (typeof projectConnection)[],
+            requirements: Record<string, boolean>,
+        ) => {
+            const { connectionModel } = model as unknown as {
+                connectionModel: {
+                    listByProject: ReturnType<typeof vi.fn>;
+                    getCredentials: ReturnType<typeof vi.fn>;
+                };
+            };
+            vi.spyOn(connectionModel, 'listByProject').mockResolvedValue(
+                connections,
+            );
+            vi.spyOn(connectionModel, 'getCredentials').mockImplementation(
+                async (_projectUuid: string, connectionUuid: string) => ({
+                    ...projectCredentials,
+                    requireUserCredentials: requirements[connectionUuid],
+                }),
+            );
+        };
+
+        test('requires user credentials when any connection requires them and the project setting is null', async () => {
+            mockConnections([projectConnection, secondConnection], {
+                [projectConnection.connectionUuid]: false,
+                [secondConnection.connectionUuid]: true,
+            });
+            tracker.on
+                .select(queryMatcher(ProjectTableName, [projectUuid]))
+                .response([{ ...projectMock, require_user_credentials: null }]);
+
+            const project = await model.get(projectUuid);
+
+            expect(project.requireUserCredentials).toBe(true);
+        });
+
+        test('keeps the requirement through a settings form save', async () => {
+            mockConnections([projectConnection, secondConnection], {
+                [projectConnection.connectionUuid]: true,
+                [secondConnection.connectionUuid]: true,
+            });
+            tracker.on
+                .select(queryMatcher(ProjectTableName, [projectUuid]))
+                .response([{ ...projectMock, require_user_credentials: null }]);
+            tracker.on
+                .update(({ sql }) => sql.includes('projects'))
+                .response([{ project_id: 1 }]);
+
+            const project = await model.get(projectUuid);
+            await model.update(projectUuid, {
+                name: project.name,
+                dbtConnection: expectedProject.dbtConnection,
+                dbtVersion: project.dbtVersion,
+                requireUserCredentials: project.requireUserCredentials,
+            });
+
+            const [projectUpdate] = tracker.history.update;
+            expect(projectUpdate.sql).toContain('"require_user_credentials"');
+            expect(projectUpdate.bindings).toContain(true);
+            expect(projectUpdate.bindings).not.toContain(false);
+        });
+
+        test('keeps an organization credential requirement when the project setting is off', async () => {
+            const organizationConnection = {
+                ...secondConnection,
+                organizationWarehouseCredentialsUuid:
+                    'organization-credentials-uuid',
+            };
+            mockConnections([projectConnection, organizationConnection], {
+                [projectConnection.connectionUuid]: false,
+                [organizationConnection.connectionUuid]: true,
+            });
+            tracker.on
+                .select(queryMatcher(ProjectTableName, [projectUuid]))
+                .response([
+                    { ...projectMock, require_user_credentials: false },
+                ]);
+
+            const project = await model.get(projectUuid);
+
+            expect(project.requireUserCredentials).toBe(true);
+        });
     });
     test('should omit scrubbed warehouse credentials when several connections are returned', async () => {
         vi.spyOn(model, 'getWithSensitiveFields').mockResolvedValue({

@@ -2130,9 +2130,16 @@ export class ProjectService extends BaseService {
         const projectWarehouseConfig =
             await this.projectModel.getProjectWarehouseConfig(projectUuid);
         const requireUserCredentials =
-            projectWarehouseConfig.requireUserCredentials ??
-            credentials.requireUserCredentials ??
-            false;
+            ProjectModel.resolveRequireUserCredentials(
+                projectWarehouseConfig.requireUserCredentials,
+                [
+                    {
+                        credentials,
+                        usesOrganizationCredentials:
+                            !!organizationWarehouseCredentialsUuid,
+                    },
+                ],
+            );
         let userWarehouseCredentialsUuid: string | undefined;
 
         if (
