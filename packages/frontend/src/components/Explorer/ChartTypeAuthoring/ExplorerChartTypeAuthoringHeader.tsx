@@ -136,6 +136,7 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                     <Button
                         size="compact-sm"
                         variant="light"
+                        color="blue"
                         leftSection={<MantineIcon icon={IconSparkles} />}
                         disabled={upgrade.disabled}
                         onClick={() => setIsUpgradeModalOpen(true)}
