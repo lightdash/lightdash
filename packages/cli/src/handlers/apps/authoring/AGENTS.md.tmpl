@@ -1,8 +1,8 @@
 # Working on this Lightdash data app
 
-**Before editing anything in `src/`, read these two skills.** They hold the rules this app must follow. Each ships in `.claude/skills/` and `.agents/skills/`:
-- `.claude/skills/lightdash-data-app/SKILL.md` — the Lightdash SDK surface (querying data, filters, downloads).
-- `.claude/skills/developing-data-apps-locally/SKILL.md` — the local workflow: edit `src/`, `lightdash apps validate --build`, `lightdash apps preview`, `lightdash upload --apps <slug> --path ../..`; the SDK is the only data access; `.lightdash/context/` holds the project's semantic layer and theme.
+Two skills in `.claude/skills/` (mirrored in `.agents/skills/`) describe how to edit this app:
+- `lightdash-data-app` — the Lightdash SDK surface (querying data, filters, downloads).
+- `developing-data-apps-locally` — the local workflow: edit `src/`, `lightdash apps validate --build`, `lightdash apps preview`, `lightdash upload --apps <slug> --path ../..`; the SDK is the only data access; `.lightdash/context/` holds the project's semantic layer and theme.
 
 Run these commands from this folder under `apps/<slug>/`. The upload path `../..` selects the Lightdash content root.
 

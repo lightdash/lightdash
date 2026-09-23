@@ -2,9 +2,9 @@
 
 This folder is a **custom chart type** (a reusable visualization, the `data_app_viz` template) — ONE chart component that receives its data and settings from Lightdash, not a data app. It runs no query, owns no explore, and must not fetch anything itself.
 
-**Before editing anything in `src/`, read these two skills.** They hold the rules this chart type must follow. Each ships in `.claude/skills/` and `.agents/skills/`:
-- `.claude/skills/reusable-visualization/SKILL.md` — the contract: the `useVizContext()` hook, the field/option declaration, resolved series colours, pivoted results.
-- `.claude/skills/developing-chart-types-locally/SKILL.md` — the local workflow: the vizSchema lockstep rule, validate/upload/verify loop, and the path to the official registry.
+Two skills in `.claude/skills/` (mirrored in `.agents/skills/`) describe how to edit it:
+- `reusable-visualization` — the contract: the `useVizContext()` hook, the field/option declaration, resolved series colours, pivoted results.
+- `developing-chart-types-locally` — the local workflow: the vizSchema lockstep rule, validate/upload/verify loop, and the path to the official registry.
 
 Style all chrome with the **Lightdash Library theme** (`src/lightdash-library.css`,
 contract in `references/lightdash-library-theme.md`): `--ll-*` tokens for axes,
