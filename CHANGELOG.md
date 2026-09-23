@@ -1,3 +1,10 @@
+# [2.305.0](https://github.com/lightdash/lightdash/compare/2.304.0...2.305.0) (2026-09-23)
+
+
+### Features
+
+* **data-apps:** explain a disabled org next to the builder prompt ([#29770](https://github.com/lightdash/lightdash/issues/29770)) ([42e5a24](https://github.com/lightdash/lightdash/commit/42e5a24a8128ecaf4c64880107b58c0e41e6f76c)), closes [#29769](https://github.com/lightdash/lightdash/issues/29769)
+
 # [2.304.0](https://github.com/lightdash/lightdash/compare/2.303.0...2.304.0) (2026-09-23)
 
 
