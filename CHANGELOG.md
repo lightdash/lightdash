@@ -1,3 +1,10 @@
+## [2.301.2](https://github.com/lightdash/lightdash/compare/2.301.1...2.301.2) (2026-09-23)
+
+
+### Bug Fixes
+
+* **scheduler:** retry daily job generation and record failures in the run history ([#29404](https://github.com/lightdash/lightdash/issues/29404)) ([e9c0e5f](https://github.com/lightdash/lightdash/commit/e9c0e5f07a771736a89061a26c485876e63276b5)), closes [#29706](https://github.com/lightdash/lightdash/issues/29706) [#29383](https://github.com/lightdash/lightdash/issues/29383)
+
 ## [2.301.1](https://github.com/lightdash/lightdash/compare/2.301.0...2.301.1) (2026-09-23)
 
 
