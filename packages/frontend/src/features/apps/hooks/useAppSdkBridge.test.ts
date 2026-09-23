@@ -1,6 +1,7 @@
 import {
     APP_SDK_COLOR_SCHEME_MESSAGE,
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
+    APP_SDK_INSIGHTS_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_INSIGHTS_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
@@ -1734,6 +1735,38 @@ describe('color scheme push', () => {
                 { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
                 '*',
             ),
+        );
+    });
+
+    it('reports an app that subscribes to analysis, and answers plain requests quietly', async () => {
+        const onInsightsInUse = vi.fn();
+        renderHook(() =>
+            useAppSdkBridge({
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                colorScheme: 'light',
+                onInsightsInUse,
+            }),
+        );
+        const request = (data: unknown) =>
+            window.dispatchEvent(
+                new MessageEvent('message', {
+                    data,
+                    source: window,
+                    origin: window.location.origin,
+                }),
+            );
+        request({ type: APP_SDK_INSIGHTS_REQUEST_MESSAGE });
+        await new Promise((resolve) => {
+            setTimeout(resolve, 0);
+        });
+        expect(onInsightsInUse).not.toHaveBeenCalled();
+        request({ type: APP_SDK_INSIGHTS_REQUEST_MESSAGE, inUse: true });
+        await vi.waitFor(() =>
+            expect(onInsightsInUse).toHaveBeenCalledTimes(1),
         );
     });
 

@@ -76,7 +76,11 @@ export type InsightsMessage = {
     payload: InsightsPayload;
 };
 
-export type InsightsRequestMessage = { type: 'lightdash:sdk:insights-request' };
+export type InsightsRequestMessage = {
+    type: 'lightdash:sdk:insights-request';
+    /** Set once a hook subscribed: this app renders AI analysis. */
+    inUse?: boolean;
+};
 
 export type InsightAction =
     | { action: 'analyse' }
@@ -225,6 +229,23 @@ type InsightsStore = {
     subscribe: (listener: () => void) => () => void;
 };
 
+let hostWindow: Window | null = null;
+let activeCleanup: (() => void) | null = null;
+// Flipped by the first hook subscription and never cleared: the host learns
+// this app renders analysis, so a builder can explain a disabled org.
+let inUse = false;
+
+const requestMessage = (): InsightsRequestMessage =>
+    inUse
+        ? { type: INSIGHTS_REQUEST_MESSAGE, inUse: true }
+        : { type: INSIGHTS_REQUEST_MESSAGE };
+
+const markInUse = () => {
+    if (inUse) return;
+    inUse = true;
+    hostWindow?.postMessage(requestMessage(), '*');
+};
+
 const createStore = (): InsightsStore => {
     let payload = EMPTY_INSIGHTS;
     const listeners = new Set<() => void>();
@@ -236,6 +257,7 @@ const createStore = (): InsightsStore => {
         },
         subscribe: (listener) => {
             listeners.add(listener);
+            markInUse();
             return () => {
                 listeners.delete(listener);
             };
@@ -249,9 +271,6 @@ const getStore = (): InsightsStore => {
     return sharedStore;
 };
 
-let hostWindow: Window | null = null;
-let activeCleanup: (() => void) | null = null;
-
 /**
  * Listen for the host's analysis and ask for the current one now. Called by
  * `createClient()` on the postMessage transport. One listener per bundle.
@@ -262,8 +281,7 @@ export function mountInsights(targetWindow: Window): () => void {
     activeCleanup?.();
     hostWindow = targetWindow;
     const store = getStore();
-    const request: InsightsRequestMessage = { type: INSIGHTS_REQUEST_MESSAGE };
-    const post = () => targetWindow.postMessage(request, '*');
+    const post = () => targetWindow.postMessage(requestMessage(), '*');
 
     const handler = (event: MessageEvent) => {
         if (event.source !== targetWindow) return;
@@ -495,6 +513,11 @@ export function useMountedQuery(queryUuid: string | null): void {
     }, [queryUuid]);
 }
 
+/** Test-only: subscribe the way the hooks do. */
+export function subscribeInsights(listener: () => void): () => void {
+    return getStore().subscribe(listener);
+}
+
 /** Test-only: the payload currently held by the store. */
 export function peekInsights(): InsightsPayload {
     return getStore().get();
@@ -509,6 +532,7 @@ export function resetInsightsState(): void {
     activeCleanup?.();
     sharedStore = null;
     hostWindow = null;
+    inUse = false;
     mounted.clear();
     flushScheduled = false;
 }

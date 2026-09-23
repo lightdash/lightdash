@@ -76,6 +76,7 @@ import ResizableSplitter from '../components/common/ResizableSplitter';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { getAiAgentThreadPath } from '../ee/features/aiCopilot/hooks/aiAgentRouting';
+import AnalysisOffChip from '../features/apps/analysis/AnalysisOffChip';
 import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
 import { useDataAppAnalysisController } from '../features/apps/analysis/useDataAppAnalysisController';
 import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
@@ -1169,6 +1170,25 @@ const AppGenerate: FC = () => {
         analysisAvailability.status === 'available' ||
         (analysisAvailability.status === 'unavailable' &&
             analysisAvailability.reason !== 'not_rolled_out');
+    // The rendered bundle told us it subscribes to analysis. Scoped to the
+    // previewed version so a rebuild that drops it clears the note.
+    const previewScope = previewApp
+        ? `${previewApp.appUuid}:${previewApp.version}`
+        : null;
+    const [analysisInUseScope, setAnalysisInUseScope] = useState<string | null>(
+        null,
+    );
+    const handleInsightsInUse = useCallback(
+        () => setAnalysisInUseScope(previewScope),
+        [previewScope],
+    );
+    const analysisOffReason =
+        showAnalysisInPreview &&
+        analysisAvailability.status === 'unavailable' &&
+        analysisInUseScope !== null &&
+        analysisInUseScope === previewScope
+            ? analysisAvailability.reason
+            : null;
 
     // Upgrade offer for the header menu. Keyed to the latest ready bundle —
     // the one an upgrade would rebuild from — not to whatever version the
@@ -2594,7 +2614,8 @@ const AppGenerate: FC = () => {
                                 />
                                 {((!newAppLanding &&
                                     (displayTemplate || displayThemeName)) ||
-                                    availableConnectionAliases.length > 0) && (
+                                    availableConnectionAliases.length > 0 ||
+                                    analysisOffReason !== null) && (
                                     <Group gap="xs" pb="xs">
                                         {!newAppLanding && displayTemplate && (
                                             <TemplateChip
@@ -2620,6 +2641,11 @@ const AppGenerate: FC = () => {
                                                 aliases={
                                                     availableConnectionAliases
                                                 }
+                                            />
+                                        )}
+                                        {analysisOffReason !== null && (
+                                            <AnalysisOffChip
+                                                reason={analysisOffReason}
                                             />
                                         )}
                                     </Group>
@@ -3354,6 +3380,7 @@ const AppGenerate: FC = () => {
                                         onInsightAction={
                                             analysisController.handleAction
                                         }
+                                        onInsightsInUse={handleInsightsInUse}
                                         onMountedQueriesChange={
                                             analysisController.setMountedQueryUuids
                                         }
