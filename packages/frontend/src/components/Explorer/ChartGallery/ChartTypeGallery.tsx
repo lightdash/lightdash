@@ -1,5 +1,4 @@
 import {
-    ChartKind,
     FeatureFlags,
     isOfficialChartType,
     type DataAppViz,
@@ -27,14 +26,12 @@ import {
     IconHammer,
     IconPackage,
     IconSearch,
-    IconTrash,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataAppChecker } from '../../../features/apps/hooks/useCanEditDataApp';
-import ChartTypeDeleteModal from '../../../features/chartTypes/components/ChartTypeDeleteModal';
 import ChartTypeForkModal from '../../../features/chartTypes/components/ChartTypeForkModal';
 import { useChartTypesEnabled } from '../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
@@ -102,8 +99,6 @@ export type ChartTypeGalleryItem = Omit<ChartTypeOption, 'id'> & {
     onEdit: (() => void) | null;
     /** Forks an official chart type into an editable copy; null hides the action. */
     onFork: (() => void) | null;
-    /** Uninstalls an official chart type; null hides the action. */
-    onUninstall: (() => void) | null;
 };
 
 type ChartTypeIconProps = Pick<ChartTypeOption, 'icon' | 'rotatedIcon'> & {
@@ -249,9 +244,7 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                     Configure
                 </Button>
             ) : null}
-            {item.onEdit !== null ||
-            item.onFork !== null ||
-            item.onUninstall !== null ? (
+            {item.onEdit !== null || item.onFork !== null ? (
                 <Menu
                     opened={isMenuOpened}
                     onChange={setIsMenuOpened}
@@ -299,21 +292,6 @@ const GalleryCard: FC<{ item: ChartTypeGalleryItem }> = ({ item }) => {
                                 onClick={item.onFork}
                             >
                                 Fork to customize
-                            </Menu.Item>
-                        ) : null}
-                        {(item.onEdit !== null || item.onFork !== null) &&
-                        item.onUninstall !== null ? (
-                            <Menu.Divider />
-                        ) : null}
-                        {item.onUninstall !== null ? (
-                            <Menu.Item
-                                color="red"
-                                leftSection={
-                                    <MantineIcon icon={IconTrash} size={16} />
-                                }
-                                onClick={item.onUninstall}
-                            >
-                                Uninstall
                             </Menu.Item>
                         ) : null}
                     </Menu.Dropdown>
@@ -536,9 +514,6 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const { visualizationConfig, itemsMap } = useVisualizationContext();
     const selectProjectChartType = useSelectProjectChartType();
     const { disabled, options, vegaOption } = useChartTypeOptions();
-    const [uninstallTarget, setUninstallTarget] = useState<DataAppViz | null>(
-        null,
-    );
     const [forkTarget, setForkTarget] = useState<DataAppViz | null>(null);
 
     const projectTypes = useMemo(
@@ -563,7 +538,6 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
             provenance: null,
             onEdit: null,
             onFork: null,
-            onUninstall: null,
             select: option.select,
             onConfigure: option.selected ? onConfigure : null,
         }));
@@ -619,12 +593,6 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                           setForkTarget(dataAppViz);
                       }
                     : null,
-            // Uninstalling is a library-only action: it works whether or not
-            // data apps are enabled for this org.
-            onUninstall:
-                isOfficial && canEditChartType(dataAppViz)
-                    ? () => setUninstallTarget(dataAppViz)
-                    : null,
         };
     };
     // One grid: the built-ins in their familiar order, then everything the
@@ -667,26 +635,6 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                     disabled ? 'Run your query to pick a chart type.' : null
                 }
             />
-            {uninstallTarget !== null && projectUuid !== undefined ? (
-                <ChartTypeDeleteModal
-                    projectUuid={projectUuid}
-                    dataAppViz={uninstallTarget}
-                    onClose={() => setUninstallTarget(null)}
-                    onDeleted={() => {
-                        setUninstallTarget(null);
-                        // The uninstalled type can't stay selected; fall back
-                        // to Table so the chart never points at nothing.
-                        if (
-                            selectedProjectUuid ===
-                            uninstallTarget.dataAppVizUuid
-                        ) {
-                            options
-                                .find((option) => option.id === ChartKind.TABLE)
-                                ?.select();
-                        }
-                    }}
-                />
-            ) : null}
             {forkTarget !== null && projectUuid !== undefined ? (
                 <ChartTypeForkModal
                     opened
@@ -694,6 +642,14 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
                     projectUuid={projectUuid}
                     appUuid={forkTarget.dataAppVizUuid}
                     defaultName={`${forkTarget.name} (custom)`}
+                    onForked={(result) => {
+                        setForkTarget(null);
+                        dispatch(
+                            explorerActions.startChartTypeAuthoring({
+                                dataAppVizUuid: result.appUuid,
+                            }),
+                        );
+                    }}
                 />
             ) : null}
         </>

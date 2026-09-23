@@ -130,38 +130,30 @@ vi.mock('../../../features/explorer/store', () => ({
         }),
     },
 }));
-vi.mock('../../../features/chartTypes/components/ChartTypeDeleteModal', () => ({
-    default: ({
-        dataAppViz,
-        onDeleted,
-        onClose,
-    }: {
-        dataAppViz: { name: string };
-        onDeleted: () => void;
-        onClose: () => void;
-    }) => (
-        <div role="dialog">
-            <span>Uninstall {dataAppViz.name}</span>
-            <button onClick={onDeleted}>Confirm uninstall</button>
-            <button onClick={onClose}>Cancel uninstall</button>
-        </div>
-    ),
-}));
 vi.mock('../../../features/chartTypes/components/ChartTypeForkModal', () => ({
     default: ({
         appUuid,
         defaultName,
         onClose,
+        onForked,
     }: {
         appUuid: string;
         defaultName: string;
         onClose: () => void;
+        onForked: (result: { appUuid: string; slug: string }) => void;
     }) => (
         <div role="dialog">
             <span>
                 Fork {appUuid} as {defaultName}
             </span>
             <button onClick={onClose}>Cancel fork</button>
+            <button
+                onClick={() =>
+                    onForked({ appUuid: 'forked-uuid', slug: 'forked' })
+                }
+            >
+                Confirm fork
+            </button>
         </div>
     ),
 }));
@@ -180,7 +172,6 @@ const galleryItem = (
     select: vi.fn(),
     onEdit: null,
     onFork: null,
-    onUninstall: null,
     onConfigure: null,
 });
 
@@ -998,7 +989,7 @@ describe('ExplorerChartTypeGallery', () => {
         expect(mocks.selectProjectChartType).not.toHaveBeenCalled();
     });
 
-    it('keeps official chart types uneditable even with edit permission', async () => {
+    it('keeps official chart types uneditable even with edit permission', () => {
         mocks.canEditChartType.mockReturnValue(true);
         visualizationConfig.current = {
             chartType: ChartType.DATA_APP_VIZ,
@@ -1021,138 +1012,16 @@ describe('ExplorerChartTypeGallery', () => {
         } as unknown as ReturnType<typeof useDataAppVisualizations>);
         renderGallery();
 
-        await userEvent.click(
-            screen.getByRole('button', {
+        // No fork permission and no edit path for an official type leaves no
+        // overflow menu at all.
+        expect(
+            screen.queryByRole('button', {
                 name: 'More actions for Event pulse',
             }),
-        );
-        expect(
-            screen.queryByRole('menuitem', { name: 'Edit chart type' }),
         ).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Configure Event pulse' }),
         ).toBeInTheDocument();
-    });
-
-    describe('uninstall', () => {
-        beforeEach(() => {
-            mocks.canEditChartType.mockReturnValue(true);
-            setProjectItems([installedChartType, projectChartType]);
-        });
-
-        it('offers Uninstall, not Edit, on an official card with edit permission', async () => {
-            renderGallery();
-
-            await userEvent.click(
-                screen.getByRole('button', {
-                    name: 'More actions for Official pulse',
-                }),
-            );
-
-            expect(
-                await screen.findByRole('menuitem', { name: 'Uninstall' }),
-            ).toBeInTheDocument();
-            expect(
-                screen.queryByRole('menuitem', { name: 'Edit chart type' }),
-            ).not.toBeInTheDocument();
-        });
-
-        it('offers Edit, not Uninstall, on a custom card', async () => {
-            renderGallery();
-
-            await userEvent.click(
-                screen.getByRole('button', {
-                    name: 'More actions for Event pulse',
-                }),
-            );
-
-            expect(
-                await screen.findByRole('menuitem', {
-                    name: 'Edit chart type',
-                }),
-            ).toBeInTheDocument();
-            expect(
-                screen.queryByRole('menuitem', { name: 'Uninstall' }),
-            ).not.toBeInTheDocument();
-        });
-
-        it('hides the overflow menu on an official card without edit permission', () => {
-            mocks.canEditChartType.mockReturnValue(false);
-            renderGallery();
-
-            expect(
-                screen.queryByRole('button', {
-                    name: 'More actions for Official pulse',
-                }),
-            ).not.toBeInTheDocument();
-        });
-
-        it('opens the uninstall confirmation naming the type and closes it on cancel', async () => {
-            renderGallery();
-
-            await userEvent.click(
-                screen.getByRole('button', {
-                    name: 'More actions for Official pulse',
-                }),
-            );
-            await userEvent.click(
-                await screen.findByRole('menuitem', { name: 'Uninstall' }),
-            );
-
-            expect(
-                screen.getByText('Uninstall Official pulse'),
-            ).toBeInTheDocument();
-
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Cancel uninstall' }),
-            );
-
-            expect(
-                screen.queryByText('Uninstall Official pulse'),
-            ).not.toBeInTheDocument();
-        });
-
-        it('falls back to Table when the uninstalled type was selected', async () => {
-            visualizationConfig.current = {
-                chartType: ChartType.DATA_APP_VIZ,
-                chartConfig: {
-                    dataAppVizUuid: installedChartType.dataAppVizUuid,
-                },
-            };
-            renderGallery();
-
-            await userEvent.click(
-                screen.getByRole('button', {
-                    name: 'More actions for Official pulse',
-                }),
-            );
-            await userEvent.click(
-                await screen.findByRole('menuitem', { name: 'Uninstall' }),
-            );
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Confirm uninstall' }),
-            );
-
-            expect(mocks.setChartType).toHaveBeenCalledWith(ChartType.TABLE);
-        });
-
-        it('leaves the chart type alone when a different type was selected', async () => {
-            renderGallery();
-
-            await userEvent.click(
-                screen.getByRole('button', {
-                    name: 'More actions for Official pulse',
-                }),
-            );
-            await userEvent.click(
-                await screen.findByRole('menuitem', { name: 'Uninstall' }),
-            );
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Confirm uninstall' }),
-            );
-
-            expect(mocks.setChartType).not.toHaveBeenCalled();
-        });
     });
 
     describe('fork', () => {
@@ -1162,7 +1031,7 @@ describe('ExplorerChartTypeGallery', () => {
             setProjectItems([installedChartType, projectChartType]);
         });
 
-        it('shows Fork to customize before Uninstall on an official card', async () => {
+        it('shows only Fork to customize on an official card', async () => {
             renderGallery();
 
             await userEvent.click(
@@ -1174,7 +1043,6 @@ describe('ExplorerChartTypeGallery', () => {
             const menuItems = await screen.findAllByRole('menuitem');
             expect(menuItems.map((item) => item.textContent)).toEqual([
                 'Fork to customize',
-                'Uninstall',
             ]);
         });
 
@@ -1199,45 +1067,27 @@ describe('ExplorerChartTypeGallery', () => {
             ).not.toBeInTheDocument();
         });
 
-        it('shows Uninstall only without create permission', async () => {
+        it('hides the overflow menu on an official card without create permission', () => {
             mocks.canFork.mockReturnValue(false);
             renderGallery();
 
-            await userEvent.click(
-                screen.getByRole('button', {
+            expect(
+                screen.queryByRole('button', {
                     name: 'More actions for Official pulse',
-                }),
-            );
-
-            expect(
-                await screen.findByRole('menuitem', { name: 'Uninstall' }),
-            ).toBeInTheDocument();
-            expect(
-                screen.queryByRole('menuitem', {
-                    name: 'Fork to customize',
                 }),
             ).not.toBeInTheDocument();
         });
 
-        it('shows Uninstall only when data apps are disabled', async () => {
+        it('hides the overflow menu on an official card when data apps are disabled', () => {
             featureFlags.current = {
                 [FeatureFlags.EnableDataApps]: false,
                 [FeatureFlags.ChartTypeRegistry]: true,
             };
             renderGallery();
 
-            await userEvent.click(
-                screen.getByRole('button', {
+            expect(
+                screen.queryByRole('button', {
                     name: 'More actions for Official pulse',
-                }),
-            );
-
-            expect(
-                await screen.findByRole('menuitem', { name: 'Uninstall' }),
-            ).toBeInTheDocument();
-            expect(
-                screen.queryByRole('menuitem', {
-                    name: 'Fork to customize',
                 }),
             ).not.toBeInTheDocument();
         });
@@ -1266,6 +1116,34 @@ describe('ExplorerChartTypeGallery', () => {
                 screen.getByRole('button', { name: 'Cancel fork' }),
             );
 
+            expect(
+                screen.queryByText(
+                    `Fork ${installedChartType.dataAppVizUuid} as Official pulse (custom)`,
+                ),
+            ).not.toBeInTheDocument();
+        });
+
+        it('opens Chart Studio in the sidebar for the forked app once the fork completes', async () => {
+            renderGallery();
+
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'More actions for Official pulse',
+                }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Fork to customize',
+                }),
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Confirm fork' }),
+            );
+
+            expect(mocks.dispatch).toHaveBeenCalledWith({
+                type: 'startChartTypeAuthoring',
+                payload: { dataAppVizUuid: 'forked-uuid' },
+            });
             expect(
                 screen.queryByText(
                     `Fork ${installedChartType.dataAppVizUuid} as Official pulse (custom)`,

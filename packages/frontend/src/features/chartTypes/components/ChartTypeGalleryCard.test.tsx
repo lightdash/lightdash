@@ -1,12 +1,17 @@
 import { type DataAppViz } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
 import ChartTypeGalleryCard from './ChartTypeGalleryCard';
 
+vi.mock('react-router', async (importOriginal) => ({
+    ...(await importOriginal<typeof ReactRouter>()),
+    useNavigate: () => vi.fn(),
+}));
 vi.mock('../../apps/hooks/useCanEditDataApp', () => ({
     useCanEditDataApp: vi.fn(),
 }));

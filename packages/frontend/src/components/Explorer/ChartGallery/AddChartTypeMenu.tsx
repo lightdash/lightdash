@@ -76,7 +76,7 @@ const AddChartTypeMenu: FC = () => {
                 <Menu position="bottom-end" closeOnItemClick>
                     <Menu.Target>
                         <Button
-                            variant="light"
+                            variant="subtle"
                             size="xs"
                             leftSection={addIcon}
                             rightSection={
@@ -130,7 +130,7 @@ const AddChartTypeMenu: FC = () => {
         if (onFindNew !== null) {
             return (
                 <Button
-                    variant="light"
+                    variant="subtle"
                     size="xs"
                     leftSection={addIcon}
                     aria-label="Add chart type from the library"
@@ -143,7 +143,7 @@ const AddChartTypeMenu: FC = () => {
         if (onCreateNew !== null) {
             return (
                 <Button
-                    variant="light"
+                    variant="subtle"
                     size="xs"
                     leftSection={addIcon}
                     aria-label="Add chart type in Chart Studio"

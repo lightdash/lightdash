@@ -8,7 +8,7 @@ import {
 import { Box, Button, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconFilePencil, IconGitFork, IconTrash } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -51,6 +51,7 @@ const ChartTypeDetailModal: FC<Props> = ({
     onPreview,
     onDelete,
 }) => {
+    const navigate = useNavigate();
     const canEdit = useCanEditDataApp(projectUuid, dataAppViz);
     const canFork = useCanCreateDataApp(projectUuid);
     // Forking and editing are authoring: they need data apps, unlike
@@ -276,6 +277,14 @@ const ChartTypeDetailModal: FC<Props> = ({
                     projectUuid={projectUuid}
                     appUuid={dataAppViz.dataAppVizUuid}
                     defaultName={`${dataAppViz.name} (custom)`}
+                    onForked={(result) =>
+                        void navigate(
+                            chartTypeBuilderPath(
+                                projectUrlIdentifier,
+                                result.slug,
+                            ),
+                        )
+                    }
                 />
             )}
             {isUpgradeOpen && registryUpdate && (

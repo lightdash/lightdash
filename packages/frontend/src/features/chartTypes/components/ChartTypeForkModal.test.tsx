@@ -5,17 +5,12 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import { useDuplicateApp } from '../../apps/hooks/useDuplicateApp';
 import ChartTypeForkModal from './ChartTypeForkModal';
 
-const mockedNavigate = vi.fn();
-
-vi.mock('react-router', () => ({
-    useNavigate: () => mockedNavigate,
-}));
-
 vi.mock('../../apps/hooks/useDuplicateApp', () => ({
     useDuplicateApp: vi.fn(),
 }));
 
 const mockedDuplicate = vi.fn();
+const mockedOnForked = vi.fn();
 
 const renderModal = (
     props: Partial<Parameters<typeof ChartTypeForkModal>[0]> = {},
@@ -27,6 +22,7 @@ const renderModal = (
             projectUuid="project-1"
             appUuid="viz-1"
             defaultName="Radial gauge (custom)"
+            onForked={mockedOnForked}
             {...props}
         />,
     );
@@ -58,21 +54,20 @@ describe('ChartTypeForkModal', () => {
         );
     });
 
-    it('navigates to the builder using the forked app slug on success', () => {
+    it('calls onForked with the mutation result on success', () => {
+        const result = {
+            appUuid: 'viz-forked',
+            slug: 'radial-gauge-custom-2',
+            version: 1,
+        } satisfies ApiDuplicateAppResponse['results'];
         mockedDuplicate.mockImplementation((_params, options) =>
-            options?.onSuccess?.({
-                appUuid: 'viz-forked',
-                slug: 'radial-gauge-custom-2',
-                version: 1,
-            } satisfies ApiDuplicateAppResponse['results']),
+            options?.onSuccess?.(result),
         );
         renderModal();
 
         fireEvent.click(screen.getByRole('button', { name: 'Fork' }));
 
-        expect(mockedNavigate).toHaveBeenCalledWith(
-            '/projects/project-1/chart-types/radial-gauge-custom-2',
-        );
+        expect(mockedOnForked).toHaveBeenCalledWith(result);
     });
 
     it('disables submit when the name is cleared', () => {
