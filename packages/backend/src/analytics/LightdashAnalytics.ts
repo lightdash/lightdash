@@ -3,6 +3,7 @@ import {
     Account,
     AdminNotificationType,
     AI_WRITEBACK_STAGES,
+    AiAgentSkillVersionSource,
     AnyType,
     CacheMetadata,
     CartesianSeriesType,
@@ -2994,6 +2995,11 @@ export type AiAgentDocumentDeletedEvent = BaseTrack & {
     };
 };
 
+type AiAgentSkillAuthoringSource = Extract<
+    AiAgentSkillVersionSource,
+    'ui' | 'as_code'
+>;
+
 export type AiAgentSkillCreatedEvent = BaseTrack & {
     event: 'ai_agent_skill.created';
     userId: string;
@@ -3001,7 +3007,7 @@ export type AiAgentSkillCreatedEvent = BaseTrack & {
         organizationId: string;
         projectId: string | null;
         skillId: string;
-        source: 'ui' | 'as_code';
+        source: AiAgentSkillAuthoringSource;
         resourceCount: number;
         agentCount: number;
     };
@@ -3014,9 +3020,23 @@ export type AiAgentSkillUpdatedEvent = BaseTrack & {
         organizationId: string;
         projectId: string | null;
         skillId: string;
-        source: 'ui' | 'as_code' | 'restore';
+        source: AiAgentSkillAuthoringSource;
         versionNumber: number;
         contentChanged: boolean;
+    };
+};
+
+export type AiAgentSkillRestoredEvent = BaseTrack & {
+    event: 'ai_agent_skill.restored';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        skillId: string;
+        restoredFromVersion: number;
+        versionNumber: number;
+        contentChanged: boolean;
+        revived: boolean;
     };
 };
 
@@ -3028,6 +3048,19 @@ export type AiAgentSkillDeletedEvent = BaseTrack & {
         projectId: string | null;
         skillId: string;
         unboundAgentCount: number;
+    };
+};
+
+export type AiAgentSkillBindingsUpdatedEvent = BaseTrack & {
+    event: 'ai_agent_skill.bindings_updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        boundCount: number;
+        addedCount: number;
+        removedCount: number;
     };
 };
 
@@ -4241,7 +4274,9 @@ type TypedEvent =
     | AiAgentDocumentDeletedEvent
     | AiAgentSkillCreatedEvent
     | AiAgentSkillUpdatedEvent
+    | AiAgentSkillRestoredEvent
     | AiAgentSkillDeletedEvent
+    | AiAgentSkillBindingsUpdatedEvent
     | AiAgentPromptCreatedEvent
     | AiAgentPromptFeedbackEvent
     | AiAgentEvalCreatedEvent

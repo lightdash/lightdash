@@ -854,6 +854,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    projectModel: models.getProjectModel(),
                     builtInSkills: BuiltInSkills,
                 }),
             aiAgentReviewClassifierService: ({ models, repository, context }) =>

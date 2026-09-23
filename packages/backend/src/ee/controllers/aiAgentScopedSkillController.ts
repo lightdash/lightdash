@@ -18,7 +18,6 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -52,10 +51,10 @@ export class AiAgentScopedSkillController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getService().listAgentSkills(
-                toSessionUser(req.account),
-                { projectUuid, agentUuid },
-            ),
+            results: await this.getService().listAgentSkills(req.account, {
+                projectUuid,
+                agentUuid,
+            }),
         };
     }
 
@@ -81,10 +80,11 @@ export class AiAgentScopedSkillController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getService().setAgentSkills(
-                toSessionUser(req.account),
-                { projectUuid, agentUuid, skillUuids: body.skillUuids },
-            ),
+            results: await this.getService().setAgentSkills(req.account, {
+                projectUuid,
+                agentUuid,
+                skillUuids: body.skillUuids,
+            }),
         };
     }
 }

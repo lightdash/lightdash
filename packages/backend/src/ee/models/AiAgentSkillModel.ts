@@ -57,10 +57,7 @@ export const getAiAgentSkillContentHash = (
         .update(canonicalize(content))
         .digest('hex')}`;
 
-/**
- * Stored content is always valid at write time, so parsing it back cannot
- * fail; the guard exists for rows written by a future, stricter validator.
- */
+// Rows were valid when written; a failure here means the validator got stricter since.
 const parseStoredContent = (
     content: AiAgentSkillContent,
 ): AiAgentSkillParsed => {
@@ -75,18 +72,35 @@ const parseStoredContent = (
     return result.parsed;
 };
 
-const mapVersionSummary = (row: DbSkillRow): AiAgentSkillVersionSummary => ({
-    uuid: row.version_uuid,
+const toVersionSummary = (
+    row: DbAiAgentSkillVersion,
+): AiAgentSkillVersionSummary => ({
+    uuid: row.ai_agent_skill_version_uuid,
     versionNumber: row.version_number,
-    contentHash: row.version_hash,
-    source: row.version_source,
-    restoredFromVersion: row.version_restored_from,
-    createdAt: row.version_created_at,
-    createdByUserUuid: row.version_created_by,
+    contentHash: row.content_hash,
+    source: row.source,
+    restoredFromVersion: row.restored_from_version,
+    createdAt: row.created_at,
+    createdByUserUuid: row.created_by_user_uuid,
 });
 
-const mapSummary = (row: DbSkillRow): AiAgentSkillSummary => {
-    const { frontmatter } = parseStoredContent(row.version_content);
+const currentVersionOf = (row: DbSkillRow): DbAiAgentSkillVersion => ({
+    ai_agent_skill_version_uuid: row.version_uuid,
+    ai_agent_skill_uuid: row.ai_agent_skill_uuid,
+    version_number: row.version_number,
+    content: row.version_content,
+    content_hash: row.version_hash,
+    source: row.version_source,
+    restored_from_version: row.version_restored_from,
+    created_by_user_uuid: row.version_created_by,
+    created_at: row.version_created_at,
+});
+
+const toSummary = (
+    row: DbSkillRow,
+    parsed: AiAgentSkillParsed,
+): AiAgentSkillSummary => {
+    const { frontmatter } = parsed;
     return {
         uuid: row.ai_agent_skill_uuid,
         organizationUuid: row.organization_uuid,
@@ -98,7 +112,7 @@ const mapSummary = (row: DbSkillRow): AiAgentSkillSummary => {
         disableModelInvocation: frontmatter.disableModelInvocation,
         userInvocable: frontmatter.userInvocable,
         availability: frontmatter.availability,
-        currentVersion: mapVersionSummary(row),
+        currentVersion: toVersionSummary(currentVersionOf(row)),
         agentUuids: row.agent_uuids ?? [],
         createdByUserUuid: row.created_by_user_uuid,
         updatedByUserUuid: row.updated_by_user_uuid,
@@ -108,21 +122,21 @@ const mapSummary = (row: DbSkillRow): AiAgentSkillSummary => {
     };
 };
 
-const mapSkill = (row: DbSkillRow): AiAgentSkill => ({
-    ...mapSummary(row),
-    content: row.version_content,
-    parsed: parseStoredContent(row.version_content),
-});
+const mapSummary = (row: DbSkillRow): AiAgentSkillSummary =>
+    toSummary(row, parseStoredContent(row.version_content));
+
+const mapSkill = (row: DbSkillRow): AiAgentSkill => {
+    const parsed = parseStoredContent(row.version_content);
+    return {
+        ...toSummary(row, parsed),
+        content: row.version_content,
+        parsed,
+    };
+};
 
 const mapVersionRow = (row: DbAiAgentSkillVersion): AiAgentSkillVersion => ({
-    uuid: row.ai_agent_skill_version_uuid,
+    ...toVersionSummary(row),
     skillUuid: row.ai_agent_skill_uuid,
-    versionNumber: row.version_number,
-    contentHash: row.content_hash,
-    source: row.source,
-    restoredFromVersion: row.restored_from_version,
-    createdAt: row.created_at,
-    createdByUserUuid: row.created_by_user_uuid,
     content: row.content,
 });
 
@@ -162,15 +176,27 @@ export class AiAgentSkillModel {
             );
     }
 
+    /** Live skills only. */
     async find(uuid: string): Promise<AiAgentSkill | undefined> {
+        const row = await this.baseSelect()
+            .where(`${AiAgentSkillTableName}.ai_agent_skill_uuid`, uuid)
+            .whereNull(`${AiAgentSkillTableName}.deleted_at`)
+            .first();
+        return row ? mapSkill(row) : undefined;
+    }
+
+    /** Soft-deleted skills too: restore, version history and pinned turns need them. */
+    async findIncludingDeleted(
+        uuid: string,
+    ): Promise<AiAgentSkill | undefined> {
         const row = await this.baseSelect()
             .where(`${AiAgentSkillTableName}.ai_agent_skill_uuid`, uuid)
             .first();
         return row ? mapSkill(row) : undefined;
     }
 
-    async get(uuid: string): Promise<AiAgentSkill> {
-        const skill = await this.find(uuid);
+    async getIncludingDeleted(uuid: string): Promise<AiAgentSkill> {
+        const skill = await this.findIncludingDeleted(uuid);
         if (!skill) {
             throw new NotFoundError(`Skill ${uuid} not found`);
         }
@@ -194,8 +220,8 @@ export class AiAgentSkillModel {
 
     async findAllForOrganization(args: {
         organizationUuid: string;
-        projectUuid?: string | null;
-        includeDeleted?: boolean;
+        projectUuid: string | null;
+        includeDeleted: boolean;
     }): Promise<AiAgentSkillSummary[]> {
         const query = this.baseSelect().where(
             `${AiAgentSkillTableName}.organization_uuid`,
@@ -290,7 +316,7 @@ export class AiAgentSkillModel {
             }
             return skill.ai_agent_skill_uuid;
         });
-        return this.get(uuid);
+        return this.getIncludingDeleted(uuid);
     }
 
     private async insertVersion(
@@ -325,16 +351,14 @@ export class AiAgentSkillModel {
         return version.ai_agent_skill_version_uuid;
     }
 
-    /**
-     * Publishes a new version unless the content hash equals the current one.
-     * Returns whether a version was created.
-     */
+    /** Publishes a new version unless the content hash equals the current one; `revive` also clears a soft delete. */
     async publishVersion(args: {
         skillUuid: string;
         content: AiAgentSkillContent;
         parsed: AiAgentSkillParsed;
         source: AiAgentSkillVersionSource;
         restoredFromVersion: number | null;
+        revive: boolean;
         userUuid: string | null;
     }): Promise<{ skill: AiAgentSkill; created: boolean }> {
         const created = await this.database.transaction(async (trx) => {
@@ -378,10 +402,16 @@ export class AiAgentSkillModel {
                 .update({
                     title: args.parsed.frontmatter.title,
                     description: args.parsed.frontmatter.description,
+                    ...(args.revive
+                        ? { deleted_at: null, deleted_by_user_uuid: null }
+                        : {}),
                 });
             return true;
         });
-        return { skill: await this.get(args.skillUuid), created };
+        return {
+            skill: await this.getIncludingDeleted(args.skillUuid),
+            created,
+        };
     }
 
     async listVersions(
@@ -390,11 +420,7 @@ export class AiAgentSkillModel {
         const rows = await this.database(AiAgentSkillVersionTableName)
             .where('ai_agent_skill_uuid', skillUuid)
             .orderBy('version_number', 'desc');
-        return rows.map((row) => {
-            const { content, ...summary } = mapVersionRow(row);
-            const { skillUuid: _skillUuid, ...rest } = summary;
-            return rest;
-        });
+        return rows.map(toVersionSummary);
     }
 
     async findVersion(args: {
@@ -430,20 +456,6 @@ export class AiAgentSkillModel {
         });
     }
 
-    async restoreDeleted(args: {
-        skillUuid: string;
-        userUuid: string | null;
-    }): Promise<void> {
-        await this.database(AiAgentSkillTableName)
-            .where('ai_agent_skill_uuid', args.skillUuid)
-            .update({
-                deleted_at: null,
-                deleted_by_user_uuid: null,
-                updated_by_user_uuid: args.userUuid,
-                updated_at: this.database.fn.now(),
-            });
-    }
-
     /** Makes the given set the agent's bindings: binds missing, unbinds extra. */
     async setAgentSkills(args: {
         agentUuid: string;
@@ -466,22 +478,6 @@ export class AiAgentSkillModel {
                     .ignore();
             }
         });
-    }
-
-    async bindAgents(args: {
-        skillUuid: string;
-        agentUuids: string[];
-    }): Promise<void> {
-        if (args.agentUuids.length === 0) return;
-        await this.database(AiAgentSkillAccessTableName)
-            .insert(
-                args.agentUuids.map((agentUuid) => ({
-                    ai_agent_skill_uuid: args.skillUuid,
-                    ai_agent_uuid: agentUuid,
-                })),
-            )
-            .onConflict(['ai_agent_skill_uuid', 'ai_agent_uuid'])
-            .ignore();
     }
 
     async countBoundToAgent(agentUuid: string): Promise<number> {

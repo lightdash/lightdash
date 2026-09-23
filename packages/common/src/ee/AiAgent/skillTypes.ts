@@ -192,6 +192,11 @@ export type ApiAiAgentSkillResponse = {
     results: AiAgentSkill;
 };
 
+export type ApiAiAgentSkillDeleteResponse = {
+    status: 'ok';
+    results: { unboundAgentUuids: string[] };
+};
+
 export type ApiAiAgentSkillVersionListResponse = {
     status: 'ok';
     results: AiAgentSkillVersionSummary[];

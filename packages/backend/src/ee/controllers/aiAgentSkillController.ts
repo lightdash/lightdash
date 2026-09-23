@@ -1,4 +1,5 @@
 import {
+    ApiAiAgentSkillDeleteResponse,
     ApiAiAgentSkillResponse,
     ApiAiAgentSkillSummaryListResponse,
     ApiAiAgentSkillValidationResponse,
@@ -6,7 +7,6 @@ import {
     ApiAiAgentSkillVersionResponse,
     ApiCreateAiAgentSkill,
     ApiErrorPayload,
-    ApiSuccess,
     ApiUpdateAiAgentSkill,
     ApiValidateAiAgentSkill,
     assertRegisteredAccount,
@@ -28,7 +28,6 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -46,7 +45,8 @@ export class AiAgentSkillController extends BaseController {
 
     /**
      * List the organization's custom skills. With a project, returns the
-     * organization-wide skills plus the ones scoped to that project.
+     * organization-wide skills plus the ones scoped to that project. Deleted
+     * skills are included on request so one of their versions can be restored.
      * @summary List AI agent skills
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -56,15 +56,16 @@ export class AiAgentSkillController extends BaseController {
     async listSkills(
         @Request() req: express.Request,
         @Query() projectUuid?: string,
+        @Query() includeDeleted?: boolean,
     ): Promise<ApiAiAgentSkillSummaryListResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getService().listSkills(
-                toSessionUser(req.account),
-                { projectUuid: projectUuid ?? null },
-            ),
+            results: await this.getService().listSkills(req.account, {
+                projectUuid: projectUuid ?? null,
+                includeDeleted: includeDeleted ?? false,
+            }),
         };
     }
 
@@ -85,10 +86,7 @@ export class AiAgentSkillController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getService().validate(
-                toSessionUser(req.account),
-                body.files,
-            ),
+            results: await this.getService().validate(req.account, body.files),
         };
     }
 
@@ -112,19 +110,18 @@ export class AiAgentSkillController extends BaseController {
         this.setStatus(201);
         return {
             status: 'ok',
-            results: await this.getService().createSkill(
-                toSessionUser(req.account),
-                {
-                    files: body.files,
-                    projectUuid: body.projectUuid ?? null,
-                    agentUuids: body.agentUuids ?? [],
-                    source: 'ui',
-                },
-            ),
+            results: await this.getService().createSkill(req.account, {
+                files: body.files,
+                projectUuid: body.projectUuid,
+                agentUuids: body.agentUuids ?? [],
+                source: 'ui',
+            }),
         };
     }
 
     /**
+     * The skill with its current content and parsed frontmatter. Deleted
+     * skills are returned too, so their history stays reachable.
      * @summary Get an AI agent skill
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -139,10 +136,7 @@ export class AiAgentSkillController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getService().getSkill(
-                toSessionUser(req.account),
-                skillUuid,
-            ),
+            results: await this.getService().getSkill(req.account, skillUuid),
         };
     }
 
@@ -166,7 +160,7 @@ export class AiAgentSkillController extends BaseController {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         const { skill } = await this.getService().updateSkill(
-            toSessionUser(req.account),
+            req.account,
             skillUuid,
             { files: body.files, source: 'ui' },
         );
@@ -189,17 +183,18 @@ export class AiAgentSkillController extends BaseController {
     async deleteSkill(
         @Request() req: express.Request,
         @Path() skillUuid: UUID,
-    ): Promise<ApiSuccess<{ unboundAgentUuids: string[] }>> {
+    ): Promise<ApiAiAgentSkillDeleteResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         const unboundAgentUuids = await this.getService().deleteSkill(
-            toSessionUser(req.account),
+            req.account,
             skillUuid,
         );
         return { status: 'ok', results: { unboundAgentUuids } };
     }
 
     /**
+     * Every version of the skill, newest first, without content.
      * @summary List an AI agent skill's versions
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -215,13 +210,14 @@ export class AiAgentSkillController extends BaseController {
         return {
             status: 'ok',
             results: await this.getService().listVersions(
-                toSessionUser(req.account),
+                req.account,
                 skillUuid,
             ),
         };
     }
 
     /**
+     * One version of the skill with its full content.
      * @summary Get one version of an AI agent skill
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -238,7 +234,7 @@ export class AiAgentSkillController extends BaseController {
         return {
             status: 'ok',
             results: await this.getService().getVersion(
-                toSessionUser(req.account),
+                req.account,
                 skillUuid,
                 versionNumber,
             ),
@@ -268,7 +264,7 @@ export class AiAgentSkillController extends BaseController {
         return {
             status: 'ok',
             results: await this.getService().restoreVersion(
-                toSessionUser(req.account),
+                req.account,
                 skillUuid,
                 versionNumber,
             ),
