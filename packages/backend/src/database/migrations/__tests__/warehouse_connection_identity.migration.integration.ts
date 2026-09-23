@@ -368,7 +368,7 @@ describe('Multi runtime identity on the real schema', () => {
             const project = await createMultiProject();
             const other = await createMultiProject();
             const created = await createSqlChart(other, {
-                warehouseConnectionUuid: other.extraUuid,
+                warehouseConnectionUuid: null,
             });
 
             await expect(
@@ -376,7 +376,7 @@ describe('Multi runtime identity on the real schema', () => {
                     project.projectUuid,
                     created.savedSqlUuid,
                 ),
-            ).rejects.toThrow(NotFoundError);
+            ).rejects.toThrow(new NotFoundError('Saved sql not found'));
         });
     });
 
