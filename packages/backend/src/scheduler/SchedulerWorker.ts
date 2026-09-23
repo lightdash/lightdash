@@ -239,6 +239,9 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             }
 
+            this.prometheusMetrics?.recordSchedulerDailyJobGenerationError(
+                'scheduler',
+            );
             await this.logDailyJobGenerationFailure(
                 scheduler,
                 currentDateStartOfDay,
@@ -715,8 +718,14 @@ export class SchedulerWorker extends SchedulerTask {
                     .startOf('day')
                     .toDate();
 
-                const schedulers =
-                    await this.schedulerService.getAllSchedulers();
+                const schedulers = await this.schedulerService
+                    .getAllSchedulers()
+                    .catch((error: unknown) => {
+                        this.prometheusMetrics?.recordSchedulerDailyJobGenerationError(
+                            'load_schedulers',
+                        );
+                        throw error;
+                    });
 
                 const limit = pLimit(
                     this.lightdashConfig.scheduler
@@ -778,11 +787,18 @@ export class SchedulerWorker extends SchedulerTask {
                         currentDateStartOfDay,
                     );
                 } catch (error) {
+                    this.prometheusMetrics?.recordSchedulerDailyJobGenerationError(
+                        'pre_aggregate',
+                    );
                     Logger.error(
                         'Failed to generate pre-aggregate daily materialization jobs',
                         error,
                     );
                 }
+
+                // This heartbeat means the pass reached the end, not that every
+                // scheduler succeeded. Alert on the error counter separately.
+                this.prometheusMetrics?.recordSchedulerDailyJobGenerationCompleted();
 
                 // Only throw if all schedulers failed
                 if (failed.length > 0 && successful.length === 0) {
