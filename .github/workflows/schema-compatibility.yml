@@ -98,7 +98,7 @@ jobs:
   real-schema-tests:
     name: Real-schema integration tests
     needs: changes
-    if: needs.changes.outputs.backend == 'true'
+    if: needs.changes.outputs.backend == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: depot-ubuntu-24.04-4
     timeout-minutes: 30
     env:
@@ -165,7 +165,7 @@ jobs:
   previous-release:
     name: Previous release against this schema
     needs: changes
-    if: needs.changes.outputs.schema == 'true'
+    if: needs.changes.outputs.schema == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: depot-ubuntu-24.04-4
     timeout-minutes: 60
     env:
