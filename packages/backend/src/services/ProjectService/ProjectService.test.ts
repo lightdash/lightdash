@@ -50,6 +50,7 @@ import {
     type CopyPreviewContentPayload,
     type CreateBigqueryCredentials,
     type CreateProject,
+    type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
     type DbtManifest,
     type DownloadFile,
@@ -68,7 +69,10 @@ import {
     type UserWarehouseCredentialsWithSecrets,
     type WarehouseLocation,
 } from '@lightdash/common';
-import { warehouseClientFromCredentials } from '@lightdash/warehouses';
+import {
+    SshTunnel,
+    warehouseClientFromCredentials,
+} from '@lightdash/warehouses';
 import { Readable } from 'stream';
 import { gunzipSync } from 'zlib';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -9816,6 +9820,389 @@ describe('dashboard available filters', () => {
             'tile-0': [0],
             'tile-1': [1],
             'tile-2': [0],
+        });
+    });
+});
+
+describe('Snowflake credential pins (SPK-2336)', () => {
+    const pinsService = getMockedProjectService(lightdashConfigMock);
+    const { projectUuid: pinsProjectUuid } = defaultProject;
+
+    const baseSnowflakeCredentials: CreateSnowflakeCredentials = {
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'acct',
+        user: 'project-user',
+        database: 'db',
+        warehouse: 'wh',
+        schema: 'schema',
+    };
+
+    describe('clearSecretsFromCredentials', () => {
+        const callClearSecrets = (
+            credentials: CreateWarehouseCredentials,
+        ): CreateWarehouseCredentials =>
+            (
+                pinsService as unknown as {
+                    clearSecretsFromCredentials: (
+                        c: CreateWarehouseCredentials,
+                    ) => CreateWarehouseCredentials;
+                }
+            ).clearSecretsFromCredentials(credentials);
+
+        test.each([
+            SnowflakeAuthenticationType.PASSWORD,
+            SnowflakeAuthenticationType.PRIVATE_KEY,
+            SnowflakeAuthenticationType.SSO,
+        ])(
+            'strips every secret field and authenticationType for %s',
+            (authenticationType) => {
+                const credentials: CreateSnowflakeCredentials = {
+                    ...baseSnowflakeCredentials,
+                    authenticationType,
+                    password: 'secret-password',
+                    privateKey: 'secret-key',
+                    privateKeyPass: 'secret-passphrase',
+                    token: 'secret-token',
+                    refreshToken: 'secret-refresh',
+                };
+
+                const result = callClearSecrets(credentials);
+
+                expect(result).toEqual(baseSnowflakeCredentials);
+                expect(result).not.toHaveProperty('password');
+                expect(result).not.toHaveProperty('privateKey');
+                expect(result).not.toHaveProperty('privateKeyPass');
+                expect(result).not.toHaveProperty('token');
+                expect(result).not.toHaveProperty('refreshToken');
+                expect(result).not.toHaveProperty('authenticationType');
+            },
+        );
+
+        test('strips the key-pair passphrase together with the key', () => {
+            const credentials: CreateSnowflakeCredentials = {
+                ...baseSnowflakeCredentials,
+                authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+                privateKey: 'secret-key',
+                privateKeyPass: 'secret-passphrase',
+            };
+
+            const result = callClearSecrets(credentials);
+
+            expect(result).not.toHaveProperty('privateKey');
+            expect(result).not.toHaveProperty('privateKeyPass');
+        });
+    });
+
+    describe('refreshCredentialsAndPersistRotation for Snowflake SSO', () => {
+        const callRefreshAndPersist = (
+            credentials: CreateSnowflakeCredentials,
+            source: { kind: 'project'; projectUuid: string },
+        ): Promise<CreateSnowflakeCredentials> =>
+            (
+                pinsService as unknown as {
+                    refreshCredentialsAndPersistRotation: (
+                        args: CreateSnowflakeCredentials,
+                        userUuid: string,
+                        s: { kind: 'project'; projectUuid: string },
+                    ) => Promise<CreateSnowflakeCredentials>;
+                }
+            ).refreshCredentialsAndPersistRotation(
+                credentials,
+                'pin-user-uuid',
+                source,
+            );
+
+        test('returns a fresh access token and refresh token, and persists the rotation', async () => {
+            const generateSpy = vi
+                .spyOn(UserService, 'generateSnowflakeAccessToken')
+                .mockResolvedValueOnce({
+                    accessToken: 'fresh-access-token',
+                    refreshToken: 'fresh-refresh-token',
+                });
+            const rotateRefreshTokenMock = vi.fn(async () => true);
+            (
+                projectModel as unknown as {
+                    rotateRefreshToken: import('vitest').Mock;
+                }
+            ).rotateRefreshToken = rotateRefreshTokenMock;
+
+            const credentials: CreateSnowflakeCredentials = {
+                ...baseSnowflakeCredentials,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                refreshToken: 'stale-refresh-token',
+            };
+
+            const result = await callRefreshAndPersist(credentials, {
+                kind: 'project',
+                projectUuid: pinsProjectUuid,
+            });
+
+            expect(generateSpy).toHaveBeenCalledWith('stale-refresh-token');
+            expect(result).toEqual({
+                ...credentials,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                token: 'fresh-access-token',
+                refreshToken: 'fresh-refresh-token',
+            });
+            expect(rotateRefreshTokenMock).toHaveBeenCalledWith(
+                pinsProjectUuid,
+                'stale-refresh-token',
+                'fresh-refresh-token',
+            );
+
+            generateSpy.mockRestore();
+        });
+
+        test('does not persist a rotation when the refresh token is unchanged', async () => {
+            const generateSpy = vi
+                .spyOn(UserService, 'generateSnowflakeAccessToken')
+                .mockResolvedValueOnce({
+                    accessToken: 'fresh-access-token',
+                    refreshToken: 'same-refresh-token',
+                });
+            const rotateRefreshTokenMock = vi.fn(async () => true);
+            (
+                projectModel as unknown as {
+                    rotateRefreshToken: import('vitest').Mock;
+                }
+            ).rotateRefreshToken = rotateRefreshTokenMock;
+
+            const credentials: CreateSnowflakeCredentials = {
+                ...baseSnowflakeCredentials,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                refreshToken: 'same-refresh-token',
+            };
+
+            await callRefreshAndPersist(credentials, {
+                kind: 'project',
+                projectUuid: pinsProjectUuid,
+            });
+
+            expect(rotateRefreshTokenMock).not.toHaveBeenCalled();
+
+            generateSpy.mockRestore();
+        });
+    });
+
+    describe("buildAdapter's inline Snowflake SSO refresh", () => {
+        test('exchanges the refresh token and persists rotation before the sshTunnel step', async () => {
+            const projectSnowflakeCredentials: CreateSnowflakeCredentials = {
+                ...baseSnowflakeCredentials,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                refreshToken: 'old-refresh-token',
+            };
+            const snowflakeProject = {
+                ...projectWithSensitiveFields,
+                projectUuid: pinsProjectUuid,
+                dbtConnection: { type: DbtProjectType.NONE },
+                warehouseConnection: projectSnowflakeCredentials,
+            };
+            (
+                projectModel.getWithSensitiveFields as import('vitest').Mock
+            ).mockResolvedValueOnce(snowflakeProject);
+            (
+                projectModel.getWarehouseFromCache as import('vitest').Mock
+            ).mockResolvedValueOnce(undefined);
+
+            const generateSpy = vi
+                .spyOn(UserService, 'generateSnowflakeAccessToken')
+                .mockResolvedValueOnce({
+                    accessToken: 'new-access-token',
+                    refreshToken: 'new-refresh-token',
+                });
+            const rotateRefreshTokenMock = vi.fn(async () => true);
+            (
+                projectModel as unknown as {
+                    rotateRefreshToken: import('vitest').Mock;
+                }
+            ).rotateRefreshToken = rotateRefreshTokenMock;
+            (
+                SshTunnel as unknown as import('vitest').Mock
+            ).mockImplementationOnce(
+                // eslint-disable-next-line prefer-arrow-callback
+                function MockSshTunnelWithCredentials(
+                    credentials: CreateWarehouseCredentials,
+                ) {
+                    return {
+                        connect: vi.fn(async () => credentials),
+                        disconnect: vi.fn(),
+                        overrideCredentials: credentials,
+                    };
+                },
+            );
+
+            const result = await (
+                pinsService as unknown as {
+                    buildAdapter: (
+                        uuid: string,
+                        u: { userUuid: string; organizationUuid: string },
+                    ) => Promise<{
+                        warehouseCredentials: CreateWarehouseCredentials;
+                    }>;
+                }
+            ).buildAdapter(pinsProjectUuid, {
+                userUuid: 'pin-user-uuid',
+                organizationUuid: 'pin-org-uuid',
+            });
+
+            expect(generateSpy).toHaveBeenCalledWith('old-refresh-token');
+            expect(rotateRefreshTokenMock).toHaveBeenCalledWith(
+                pinsProjectUuid,
+                'old-refresh-token',
+                'new-refresh-token',
+            );
+            expect(result.warehouseCredentials).toMatchObject({
+                token: 'new-access-token',
+                refreshToken: 'new-refresh-token',
+            });
+
+            generateSpy.mockRestore();
+        });
+    });
+
+    describe('personal credential merge for Snowflake in getWarehouseCredentials', () => {
+        const callGetWarehouseCredentials = () =>
+            (
+                pinsService as unknown as {
+                    getWarehouseCredentials: (args: {
+                        projectUuid: string;
+                        userId: string;
+                        isRegisteredUser: boolean;
+                    }) => Promise<CreateWarehouseCredentials>;
+                }
+            ).getWarehouseCredentials({
+                projectUuid: pinsProjectUuid,
+                userId: 'pin-user-uuid',
+                isRegisteredUser: true,
+            });
+
+        test.each([
+            SnowflakeAuthenticationType.PASSWORD,
+            SnowflakeAuthenticationType.PRIVATE_KEY,
+        ])(
+            'a personal %s credential overrides the project credential, with no project secret leaking through',
+            async (personalAuthType) => {
+                const projectCredentials: CreateSnowflakeCredentials = {
+                    ...baseSnowflakeCredentials,
+                    authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                    password: 'project-secret-password',
+                    requireUserCredentials: true,
+                };
+                (
+                    projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
+                ).mockResolvedValueOnce(projectCredentials);
+                (
+                    projectModel.getProjectWarehouseConfig as import('vitest').Mock
+                ).mockResolvedValueOnce({
+                    organizationWarehouseCredentialsUuid: null,
+                    queryTimezone: null,
+                });
+
+                const personalCredentials = {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    authenticationType: personalAuthType,
+                    user: 'personal-user',
+                    ...(personalAuthType ===
+                    SnowflakeAuthenticationType.PASSWORD
+                        ? { password: 'personal-secret-password' }
+                        : { privateKey: 'personal-secret-key' }),
+                };
+                (
+                    pinsService as unknown as {
+                        userWarehouseCredentialsModel: {
+                            findForProjectWithSecrets: import('vitest').Mock;
+                        };
+                    }
+                ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                    vi.fn(async () => ({
+                        uuid: 'personal-creds-uuid',
+                        credentials: personalCredentials,
+                    }));
+
+                const result = await callGetWarehouseCredentials();
+
+                expect(result).toMatchObject({
+                    authenticationType: personalAuthType,
+                    user: 'personal-user',
+                });
+                expect(JSON.stringify(result)).not.toContain(
+                    'project-secret-password',
+                );
+            },
+        );
+
+        test('a personal SSO credential overrides the project credential and is itself refreshed', async () => {
+            const projectCredentials: CreateSnowflakeCredentials = {
+                ...baseSnowflakeCredentials,
+                authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                password: 'project-secret-password',
+                requireUserCredentials: true,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
+            ).mockResolvedValueOnce(projectCredentials);
+            (
+                projectModel.getProjectWarehouseConfig as import('vitest').Mock
+            ).mockResolvedValueOnce({
+                organizationWarehouseCredentialsUuid: null,
+                queryTimezone: null,
+            });
+
+            const personalCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                user: 'personal-user',
+                refreshToken: 'personal-stale-refresh-token',
+            };
+            (
+                pinsService as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets = vi.fn(
+                async () => ({
+                    uuid: 'personal-creds-uuid',
+                    credentials: personalCredentials,
+                }),
+            );
+            const rotateRefreshTokenMock = vi.fn(async () => true);
+            (
+                pinsService as unknown as {
+                    userWarehouseCredentialsModel: {
+                        rotateRefreshToken: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.rotateRefreshToken =
+                rotateRefreshTokenMock;
+            const generateSpy = vi
+                .spyOn(UserService, 'generateSnowflakeAccessToken')
+                .mockResolvedValueOnce({
+                    accessToken: 'personal-fresh-access-token',
+                    refreshToken: 'personal-fresh-refresh-token',
+                });
+
+            const result = await callGetWarehouseCredentials();
+
+            expect(generateSpy).toHaveBeenCalledWith(
+                'personal-stale-refresh-token',
+            );
+            expect(result).toMatchObject({
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                user: 'personal-user',
+                token: 'personal-fresh-access-token',
+                refreshToken: 'personal-fresh-refresh-token',
+            });
+            expect(rotateRefreshTokenMock).toHaveBeenCalledWith(
+                'personal-creds-uuid',
+                'personal-stale-refresh-token',
+                'personal-fresh-refresh-token',
+            );
+            expect(JSON.stringify(result)).not.toContain(
+                'project-secret-password',
+            );
+
+            generateSpy.mockRestore();
         });
     });
 });
