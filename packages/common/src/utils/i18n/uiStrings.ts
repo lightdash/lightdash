@@ -12,6 +12,15 @@
 // See packages/frontend/src/components/common/Filters/CLAUDE.md for the full
 // mandate on adding strings to embed-reachable surfaces.
 export const DEFAULT_UI_STRINGS = {
+    'skillMenu.groupCustom': 'Skills',
+    'skillMenu.groupBuiltIn': 'Built-in',
+    'skillMenu.builtIn': 'built-in',
+    'skillMenu.noneAvailable': 'No skills available for this agent',
+    'skillMenu.noMatch':
+        'No skill matches "{query}". Keep typing to send as text.',
+    'skillMenu.onePerMessage':
+        'One skill per message. Remove the current one to pick another.',
+    'skillChip.arguments': 'Arguments: {hint}',
     'page.closeSidebar': 'Close sidebar',
     'page.closeDetails': 'Close details',
     'filters.closeFacet': 'Close {filter} filter',

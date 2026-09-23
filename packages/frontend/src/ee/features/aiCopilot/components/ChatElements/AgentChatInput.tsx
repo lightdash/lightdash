@@ -54,6 +54,7 @@ import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeat
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { subscribeToDeepResearchComposerPrompt } from '../../deepResearch/deepResearchRegistry';
 import {
     canShowDeepResearchNudge,
@@ -418,8 +419,22 @@ export const AgentChatInput = ({
     clearOnSubmitRef.current = clearOnSubmit;
     const projectUuidRef = useRef(projectUuid);
     projectUuidRef.current = projectUuid;
-    // Skills come with the agent, so the / menu needs no skill scope.
-    const agentSkillsQuery = useAgentSkills(projectUuid, agentUuid);
+    // Skills come with the agent, so the / menu needs no skill scope; the
+    // whole menu, built-ins included, exists only while the flag is on.
+    const { data: customSkillsFlag } = useServerFeatureFlag(
+        FeatureFlags.AiAgentCustomSkills,
+    );
+    const skillsEnabled = customSkillsFlag?.enabled === true;
+    const skillsEnabledRef = useRef(skillsEnabled);
+    skillsEnabledRef.current = skillsEnabled;
+    const uiStrings = useUiStrings();
+    const uiStringsRef = useRef(uiStrings);
+    uiStringsRef.current = uiStrings;
+    const agentSkillsQuery = useAgentSkills(
+        projectUuid,
+        agentUuid,
+        skillsEnabled,
+    );
     const skillMentionItems = useMemo(
         () => toSkillMentionItems(agentSkillsQuery.data),
         [agentSkillsQuery.data],
@@ -574,6 +589,8 @@ export const AgentChatInput = ({
             }),
             createSkillMentionExtension({
                 getItems: () => skillMentionItemsRef.current,
+                getEnabled: () => skillsEnabledRef.current,
+                strings: (key) => uiStringsRef.current(key),
                 onMenuStateChange: (state) => {
                     skillMentionMenuRef.current = state;
                 },

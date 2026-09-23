@@ -1,13 +1,16 @@
 import {
+    interpolateUiString,
     type AgentSkillsListing,
     type AiPromptContextInput,
     type AiPromptContextItem,
+    type UiStringResolver,
 } from '@lightdash/common';
 import { Badge, Group, Stack, Text } from '@mantine/core';
 import { IconBolt } from '@tabler/icons-react';
 import { type Editor } from '@tiptap/core';
 import Mention, { type MentionOptions } from '@tiptap/extension-mention';
-import { PluginKey } from '@tiptap/pm/state';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { ReactNodeViewRenderer, ReactRenderer } from '@tiptap/react';
 import tippy, { type Instance as TippyInstance } from 'tippy.js';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -22,10 +25,12 @@ import {
     CLOSED_CONTENT_MENTION_MENU,
     type ContentMentionMenuState,
 } from './contentMentions';
+import { deleteMentionBeforeCaret } from './mentionBackspace';
 import { SkillMentionNodeView } from './SkillMentionNodeView';
 
 export const SKILL_MENTION_NAME = 'skillMention';
 const skillMentionPluginKey = new PluginKey('skillMention');
+const skillHintPluginKey = new PluginKey('skillMentionHint');
 
 const DOM_RECT_FALLBACK = new DOMRect(0, 0, 0, 0);
 
@@ -36,20 +41,23 @@ export type SkillMentionItem = {
     description: string;
     builtIn: boolean;
     argumentHint: string | null;
-    group: 'custom' | 'builtIn';
 };
 
-const groupLabels: Record<string, string> = {
-    custom: 'Skills',
-    builtIn: 'Built-in',
-};
+type SkillMentionGroup = 'custom' | 'builtIn';
 
+const groupOf = (item: SkillMentionItem): SkillMentionGroup =>
+    item.builtIn ? 'builtIn' : 'custom';
+
+/** Custom skills a user may invoke from the composer, then the built-ins. */
 export const toSkillMentionItems = (
     listing: AgentSkillsListing | undefined,
 ): SkillMentionItem[] => {
     if (!listing) return [];
     const custom = listing.skills
-        .filter((skill) => skill.userInvocable)
+        .filter(
+            (skill) =>
+                skill.userInvocable && skill.availability.includes('agent'),
+        )
         .map<SkillMentionItem>((skill) => ({
             id: skill.uuid,
             label: `/${skill.name}`,
@@ -57,7 +65,6 @@ export const toSkillMentionItems = (
             description: skill.description,
             builtIn: false,
             argumentHint: skill.argumentHint,
-            group: 'custom',
         }));
     const builtIn = listing.builtInSkills.map<SkillMentionItem>((skill) => ({
         id: `builtin:${skill.name}`,
@@ -66,7 +73,6 @@ export const toSkillMentionItems = (
         description: skill.description,
         builtIn: true,
         argumentHint: null,
-        group: 'builtIn',
     }));
     return [...custom, ...builtIn];
 };
@@ -80,11 +86,19 @@ const matchesQuery = (item: SkillMentionItem, query: string) => {
     );
 };
 
-const hasSkillMention = (editor: Editor): boolean => {
-    let found = false;
+const findSkillMention = (
+    editor: Editor,
+): { name: string; builtIn: boolean } | null => {
+    let found: { name: string; builtIn: boolean } | null = null;
     editor.state.doc.descendants((node) => {
-        if (node.type.name === SKILL_MENTION_NAME) found = true;
-        return !found;
+        if (node.type.name === SKILL_MENTION_NAME && found === null) {
+            found = {
+                name:
+                    typeof node.attrs.name === 'string' ? node.attrs.name : '',
+                builtIn: node.attrs.builtIn === true,
+            };
+        }
+        return found === null;
     });
     return found;
 };
@@ -97,57 +111,63 @@ export const isSkillMentionSuggestionActive = (editor: Editor | null) => {
     return state?.active === true;
 };
 
-const renderSkillMentionItem = (
-    item: SkillMentionItem,
-    isSelected: boolean,
-    onClick: () => void,
-) => (
-    <PolymorphicGroupButton
-        onClick={onClick}
-        className={suggestionStyles.suggestionItem}
-        data-selected={isSelected}
-    >
-        <Stack gap={2} miw={0}>
-            <Group gap={6} wrap="nowrap">
-                <MantineIcon icon={IconBolt} size={12} color="indigo.6" />
-                <Text size="sm" fw={500} ff="monospace" truncate>
-                    {item.label}
-                </Text>
-                {item.argumentHint ? (
-                    <Text size="xs" c="dimmed" ff="monospace" truncate>
-                        {item.argumentHint}
+const renderSkillMentionItem =
+    (strings: UiStringResolver) =>
+    (item: SkillMentionItem, isSelected: boolean, onClick: () => void) => (
+        <PolymorphicGroupButton
+            onClick={onClick}
+            className={suggestionStyles.suggestionItem}
+            data-selected={isSelected}
+        >
+            <Stack gap={2} miw={0}>
+                <Group gap={6} wrap="nowrap">
+                    <MantineIcon icon={IconBolt} size={12} color="indigo.6" />
+                    <Text size="sm" fw={500} ff="monospace" truncate>
+                        {item.label}
                     </Text>
-                ) : null}
-                {item.builtIn ? (
-                    <Badge size="xs" variant="light" color="yellow">
-                        built-in
-                    </Badge>
-                ) : null}
-            </Group>
-            <Text size="xs" c="dimmed" lineClamp={2}>
-                {item.description}
-            </Text>
-        </Stack>
-    </PolymorphicGroupButton>
-);
+                    {item.argumentHint ? (
+                        <Text size="xs" c="dimmed" ff="monospace" truncate>
+                            {item.argumentHint}
+                        </Text>
+                    ) : null}
+                    {item.builtIn ? (
+                        <Badge size="xs" color="yellow">
+                            {strings('skillMenu.builtIn')}
+                        </Badge>
+                    ) : null}
+                </Group>
+                <Text size="xs" c="dimmed" lineClamp={2}>
+                    {item.description}
+                </Text>
+            </Stack>
+        </PolymorphicGroupButton>
+    );
+
+type SkillMentionExtensionOptions = {
+    getItems: () => SkillMentionItem[];
+    /** Off means `/` stays plain text: no menu, no chip, not even for built-ins. */
+    getEnabled: () => boolean;
+    strings: UiStringResolver;
+    onMenuStateChange?: (state: ContentMentionMenuState) => void;
+};
 
 const generateSkillMentionSuggestion = ({
     getItems,
+    getEnabled,
+    strings,
     onMenuStateChange,
-}: {
-    getItems: () => SkillMentionItem[];
-    onMenuStateChange?: (state: ContentMentionMenuState) => void;
-}): MentionOptions['suggestion'] => ({
+}: SkillMentionExtensionOptions): MentionOptions['suggestion'] => ({
     char: '/',
     allowSpaces: false,
     // Only at the start of the input or after whitespace, so a URL or a
     // fraction in a sentence never opens the menu.
-    allowedPrefixes: [' ', '\n'],
+    allowedPrefixes: [' '],
     startOfLine: false,
     pluginKey: skillMentionPluginKey,
+    allow: () => getEnabled(),
     items: ({ query, editor }) => {
         // One skill per message in the first cut.
-        if (hasSkillMention(editor)) return [];
+        if (findSkillMention(editor)) return [];
         return getItems().filter((item) => matchesQuery(item, query));
     },
     command: ({ editor, range, props }) => {
@@ -172,13 +192,23 @@ const generateSkillMentionSuggestion = ({
         let component: ReactRenderer<SuggestionListRef> | undefined;
         let popup: TippyInstance | undefined;
         let dismissed = false;
-        const listProps = (query: string) => ({
-            renderItem: renderSkillMentionItem,
-            getGroupKey: (item: SkillMentionItem) => item.group,
+        const groupLabels: Record<SkillMentionGroup, string> = {
+            custom: strings('skillMenu.groupCustom'),
+            builtIn: strings('skillMenu.groupBuiltIn'),
+        };
+        const emptyMessage = (query: string, editor: Editor) => {
+            if (findSkillMention(editor)) {
+                return strings('skillMenu.onePerMessage');
+            }
+            return query
+                ? interpolateUiString(strings('skillMenu.noMatch'), { query })
+                : strings('skillMenu.noneAvailable');
+        };
+        const listProps = (query: string, editor: Editor) => ({
+            renderItem: renderSkillMentionItem(strings),
+            getGroupKey: groupOf,
             groupLabels,
-            emptyMessage: query
-                ? `No skill matches "${query}". Keep typing to send as text.`
-                : 'No skills available for this agent',
+            emptyMessage: emptyMessage(query, editor),
         });
 
         return {
@@ -189,7 +219,10 @@ const generateSkillMentionSuggestion = ({
                     itemCount: props.items.length,
                 });
                 component = new ReactRenderer(SuggestionList, {
-                    props: { ...props, ...listProps(props.query) },
+                    props: {
+                        ...props,
+                        ...listProps(props.query, props.editor),
+                    },
                     editor: props.editor,
                 });
                 popup = tippy('body', {
@@ -210,7 +243,10 @@ const generateSkillMentionSuggestion = ({
                     status: 'open',
                     itemCount: props.items.length,
                 });
-                component?.updateProps({ ...props, ...listProps(props.query) });
+                component?.updateProps({
+                    ...props,
+                    ...listProps(props.query, props.editor),
+                });
                 popup?.setProps({
                     getReferenceClientRect: () =>
                         props.clientRect?.() ?? DOM_RECT_FALLBACK,
@@ -225,7 +261,12 @@ const generateSkillMentionSuggestion = ({
                     return true;
                 }
                 if (dismissed) return false;
-                return component?.ref?.onKeyDown(props) ?? false;
+                // Tab picks the highlighted skill like Enter does.
+                const event =
+                    props.event.key === 'Tab'
+                        ? new KeyboardEvent('keydown', { key: 'Enter' })
+                        : props.event;
+                return component?.ref?.onKeyDown({ event }) ?? false;
             },
             onExit: () => {
                 dismissed = false;
@@ -239,13 +280,51 @@ const generateSkillMentionSuggestion = ({
     },
 });
 
-export const createSkillMentionExtension = ({
-    getItems,
-    onMenuStateChange,
-}: {
-    getItems: () => SkillMentionItem[];
-    onMenuStateChange?: (state: ContentMentionMenuState) => void;
-}) =>
+/** Ghosts the argument hint after a chip until the user types after it. */
+const argumentHintPlugin = () =>
+    new Plugin({
+        key: skillHintPluginKey,
+        props: {
+            decorations(state) {
+                const decorations: Decoration[] = [];
+                state.doc.descendants((node, pos) => {
+                    if (node.type.name !== SKILL_MENTION_NAME) return true;
+                    const hint = node.attrs.argumentHint;
+                    if (typeof hint !== 'string' || hint.length === 0) {
+                        return false;
+                    }
+                    const after = pos + node.nodeSize;
+                    const rest = state.doc.textBetween(
+                        after,
+                        state.doc.resolve(after).end(),
+                        ' ',
+                    );
+                    if (rest.trim().length === 0) {
+                        decorations.push(
+                            Decoration.widget(
+                                after,
+                                () => {
+                                    const ghost =
+                                        document.createElement('span');
+                                    ghost.className =
+                                        styles.contentMentionGhost;
+                                    ghost.textContent = ` ${hint}`;
+                                    return ghost;
+                                },
+                                { side: 1 },
+                            ),
+                        );
+                    }
+                    return false;
+                });
+                return DecorationSet.create(state.doc, decorations);
+            },
+        },
+    });
+
+export const createSkillMentionExtension = (
+    options: SkillMentionExtensionOptions,
+) =>
     Mention.extend({
         name: SKILL_MENTION_NAME,
         atom: true,
@@ -259,34 +338,19 @@ export const createSkillMentionExtension = ({
         addKeyboardShortcuts() {
             return {
                 Backspace: () =>
-                    this.editor.commands.command(({ tr, state }) => {
-                        const { selection } = state;
-                        const { empty, anchor } = selection;
-                        if (!empty || anchor <= 0) return false;
-                        let deleted = false;
-                        state.doc.nodesBetween(
-                            Math.max(0, anchor - 1),
-                            anchor,
-                            (node, pos) => {
-                                if (node.type.name === this.name) {
-                                    tr.delete(pos, pos + node.nodeSize);
-                                    deleted = true;
-                                    return false;
-                                }
-                            },
-                        );
-                        return deleted;
-                    }),
+                    this.editor.commands.command(
+                        deleteMentionBeforeCaret(this.name),
+                    ),
             };
+        },
+        addProseMirrorPlugins() {
+            return [...(this.parent?.() ?? []), argumentHintPlugin()];
         },
         addNodeView() {
             return ReactNodeViewRenderer(SkillMentionNodeView);
         },
     }).configure({
-        suggestion: generateSkillMentionSuggestion({
-            getItems,
-            onMenuStateChange,
-        }),
+        suggestion: generateSkillMentionSuggestion(options),
         // The prompt text keeps the literal `/name` so the stored message reads
         // as typed; the server never parses it, the context item carries it.
         renderText: ({ node }) =>
@@ -315,30 +379,22 @@ export const extractSkillMentionContext = (
     context: AiPromptContextInput | undefined;
     optimisticContext: AiPromptContextItem[] | undefined;
 } => {
-    if (!editor) return { context: undefined, optimisticContext: undefined };
-    let name: string | null = null;
-    editor.state.doc.descendants((node) => {
-        if (node.type.name === SKILL_MENTION_NAME && name === null) {
-            name = typeof node.attrs.name === 'string' ? node.attrs.name : null;
-        }
-        return name === null;
-    });
-    if (name === null) {
+    const mention = editor ? findSkillMention(editor) : null;
+    if (mention === null) {
         return { context: undefined, optimisticContext: undefined };
     }
-    const skillName: string = name;
-    const args = messageText.replace(`/${skillName}`, '').trim();
+    const args = messageText.replace(`/${mention.name}`, '').trim();
     return {
-        context: [{ type: 'skill', name: skillName, arguments: args }],
+        context: [{ type: 'skill', name: mention.name, arguments: args }],
         optimisticContext: [
             {
                 type: 'skill',
-                name: skillName,
+                name: mention.name,
                 arguments: args,
                 skillUuid: null,
                 pinnedVersionUuid: null,
                 versionNumber: null,
-                builtIn: false,
+                builtIn: mention.builtIn,
                 displayName: null,
             },
         ],

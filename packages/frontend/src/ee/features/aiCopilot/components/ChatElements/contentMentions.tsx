@@ -50,6 +50,7 @@ import {
     getDataAppContextItemName,
     getPromptContextItemKey,
 } from './contentReferenceUtils';
+import { deleteMentionBeforeCaret } from './mentionBackspace';
 
 const CONTENT_MENTION_NAME = 'contentMention';
 const MIN_CONTENT_SEARCH_QUERY_LENGTH = 2;
@@ -888,24 +889,9 @@ export const createContentMentionExtension = ({
         addKeyboardShortcuts() {
             return {
                 Backspace: () =>
-                    this.editor.commands.command(({ tr, state }) => {
-                        const { selection } = state;
-                        const { empty, anchor } = selection;
-                        if (!empty || anchor <= 0) return false;
-                        let deleted = false;
-                        state.doc.nodesBetween(
-                            Math.max(0, anchor - 1),
-                            anchor,
-                            (node, pos) => {
-                                if (node.type.name === this.name) {
-                                    tr.delete(pos, pos + node.nodeSize);
-                                    deleted = true;
-                                    return false;
-                                }
-                            },
-                        );
-                        return deleted;
-                    }),
+                    this.editor.commands.command(
+                        deleteMentionBeforeCaret(this.name),
+                    ),
             };
         },
         addNodeView() {

@@ -335,3 +335,9 @@
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
 }
+
+.contentMentionGhost {
+    color: var(--mantine-color-placeholder);
+    pointer-events: none;
+    user-select: none;
+}

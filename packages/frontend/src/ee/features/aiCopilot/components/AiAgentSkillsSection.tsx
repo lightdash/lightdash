@@ -13,7 +13,8 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconBolt, IconPencil, IconPlus, IconX } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import InlineErrorState from '../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useApp from '../../../../providers/App/useApp';
 import {
@@ -29,6 +30,42 @@ type Props = {
     organizationUuid: string;
 };
 
+const SkillRow = ({
+    name,
+    description,
+    iconColor,
+    tag,
+    actions,
+}: {
+    name: string;
+    description: string;
+    iconColor: string;
+    tag: ReactNode;
+    actions: ReactNode;
+}) => (
+    <Table.Tr>
+        <Table.Td>
+            <Group gap="xs" wrap="nowrap">
+                <MantineIcon icon={IconBolt} color={iconColor} />
+                <Stack gap={0} miw={0}>
+                    <Group gap={6}>
+                        <Text size="sm" fw={500} ff="monospace">
+                            /{name}
+                        </Text>
+                        {tag}
+                    </Group>
+                    <Text size="xs" c="dimmed" lineClamp={1}>
+                        {description}
+                    </Text>
+                </Stack>
+            </Group>
+        </Table.Td>
+        <Table.Td w={80} ta="right">
+            {actions}
+        </Table.Td>
+    </Table.Tr>
+);
+
 /**
  * The skills this agent serves. Bound custom skills can be removed and edited,
  * built-ins are always on, and a new skill created here is bound on save.
@@ -39,18 +76,19 @@ export const AiAgentSkillsSection = ({
     organizationUuid,
 }: Props) => {
     const { user } = useApp();
-    const canManage =
-        user.data?.ability.can(
-            'manage',
-            subject('AiAgentSkill', { organizationUuid, projectUuid }),
-        ) ?? false;
-    const canView =
-        user.data?.ability.can(
-            'view',
-            subject('AiAgentSkill', { organizationUuid, projectUuid }),
-        ) ?? false;
+    const ability = user.data?.ability;
+    const projectSkillSubject = subject('AiAgentSkill', {
+        organizationUuid,
+        projectUuid,
+    });
+    const canManage = ability?.can('manage', projectSkillSubject) ?? false;
+    const canView = ability?.can('view', projectSkillSubject) ?? false;
+    // A skill created here has no project, so it needs the organization-level grant.
+    const canCreate =
+        ability?.can('manage', subject('AiAgentSkill', { organizationUuid })) ??
+        false;
 
-    const listing = useAgentSkills(projectUuid, agentUuid);
+    const listing = useAgentSkills(projectUuid, agentUuid, true);
     const catalogue = useAiAgentSkills(projectUuid, canView);
     const setSkills = useSetAgentSkills(projectUuid, agentUuid);
     const [modal, setModal] = useState<
@@ -69,170 +107,146 @@ export const AiAgentSkillsSection = ({
     const unbind = (skillUuid: string) =>
         setSkills.mutate(boundUuids.filter((uuid) => uuid !== skillUuid));
 
+    const body = (() => {
+        if (listing.isError) {
+            return (
+                <InlineErrorState
+                    message={
+                        listing.error.error.message ??
+                        'Could not load this agent’s skills'
+                    }
+                />
+            );
+        }
+        if (listing.isLoading) {
+            return (
+                <Text size="xs" c="dimmed" ta="center" p="sm">
+                    Loading skills…
+                </Text>
+            );
+        }
+        return (
+            <Table highlightOnHover>
+                <Table.Tbody>
+                    {bound.map((skill) => (
+                        <SkillRow
+                            key={skill.uuid}
+                            name={skill.name}
+                            description={skill.description}
+                            iconColor="indigo.6"
+                            tag={
+                                <Text size="xs" c="dimmed">
+                                    v{skill.currentVersion.versionNumber}
+                                </Text>
+                            }
+                            actions={
+                                canManage ? (
+                                    <Group
+                                        gap={4}
+                                        wrap="nowrap"
+                                        justify="flex-end"
+                                    >
+                                        <Tooltip label="Edit skill">
+                                            <ActionIcon
+                                                aria-label={`Edit /${skill.name}`}
+                                                onClick={() =>
+                                                    setModal({
+                                                        mode: 'edit',
+                                                        skill,
+                                                    })
+                                                }
+                                            >
+                                                <MantineIcon
+                                                    icon={IconPencil}
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                        <Tooltip label="Remove from this agent">
+                                            <ActionIcon
+                                                aria-label={`Remove /${skill.name} from this agent`}
+                                                loading={setSkills.isLoading}
+                                                onClick={() =>
+                                                    unbind(skill.uuid)
+                                                }
+                                            >
+                                                <MantineIcon icon={IconX} />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    </Group>
+                                ) : null
+                            }
+                        />
+                    ))}
+                    {bound.length === 0 ? (
+                        <Table.Tr>
+                            <Table.Td colSpan={2}>
+                                <Text size="xs" c="dimmed">
+                                    No custom skills bound yet.
+                                </Text>
+                            </Table.Td>
+                        </Table.Tr>
+                    ) : null}
+                    {builtIns.map((skill) => (
+                        <SkillRow
+                            key={skill.name}
+                            name={skill.name}
+                            description={skill.description}
+                            iconColor="yellow.7"
+                            tag={
+                                <Badge size="xs" color="yellow">
+                                    built-in
+                                </Badge>
+                            }
+                            actions={
+                                <Text size="xs" c="dimmed">
+                                    Always on
+                                </Text>
+                            }
+                        />
+                    ))}
+                </Table.Tbody>
+            </Table>
+        );
+    })();
+
     return (
         <Stack gap="sm">
-            <Paper p={0}>
-                {bound.length === 0 && builtIns.length === 0 ? (
-                    <Text size="xs" c="dimmed" ta="center" p="sm">
-                        {listing.isLoading
-                            ? 'Loading skills…'
-                            : 'No skills yet. Users type / in the chat to run one.'}
-                    </Text>
-                ) : (
-                    <Table highlightOnHover>
-                        <Table.Tbody>
-                            {bound.map((skill) => (
-                                <Table.Tr key={skill.uuid}>
-                                    <Table.Td>
-                                        <Group gap="xs" wrap="nowrap">
-                                            <MantineIcon
-                                                icon={IconBolt}
-                                                color="indigo.6"
-                                            />
-                                            <Stack gap={0} miw={0}>
-                                                <Group gap={6}>
-                                                    <Text
-                                                        size="sm"
-                                                        fw={500}
-                                                        ff="monospace"
-                                                    >
-                                                        /{skill.name}
-                                                    </Text>
-                                                    <Text size="xs" c="dimmed">
-                                                        v
-                                                        {
-                                                            skill.currentVersion
-                                                                .versionNumber
-                                                        }
-                                                    </Text>
-                                                </Group>
-                                                <Text
-                                                    size="xs"
-                                                    c="dimmed"
-                                                    lineClamp={1}
-                                                >
-                                                    {skill.description}
-                                                </Text>
-                                            </Stack>
-                                        </Group>
-                                    </Table.Td>
-                                    <Table.Td w={80} ta="right">
-                                        {canManage ? (
-                                            <Group
-                                                gap={4}
-                                                wrap="nowrap"
-                                                justify="flex-end"
-                                            >
-                                                <Tooltip label="Edit skill">
-                                                    <ActionIcon
-                                                        color="gray"
-                                                        onClick={() =>
-                                                            setModal({
-                                                                mode: 'edit',
-                                                                skill,
-                                                            })
-                                                        }
-                                                    >
-                                                        <MantineIcon
-                                                            icon={IconPencil}
-                                                        />
-                                                    </ActionIcon>
-                                                </Tooltip>
-                                                <Tooltip label="Remove from this agent">
-                                                    <ActionIcon
-                                                        color="gray"
-                                                        loading={
-                                                            setSkills.isLoading
-                                                        }
-                                                        onClick={() =>
-                                                            unbind(skill.uuid)
-                                                        }
-                                                    >
-                                                        <MantineIcon
-                                                            icon={IconX}
-                                                        />
-                                                    </ActionIcon>
-                                                </Tooltip>
-                                            </Group>
-                                        ) : null}
-                                    </Table.Td>
-                                </Table.Tr>
-                            ))}
-                            {builtIns.map((skill) => (
-                                <Table.Tr key={skill.name}>
-                                    <Table.Td>
-                                        <Group gap="xs" wrap="nowrap">
-                                            <MantineIcon
-                                                icon={IconBolt}
-                                                color="yellow.7"
-                                            />
-                                            <Stack gap={0} miw={0}>
-                                                <Group gap={6}>
-                                                    <Text
-                                                        size="sm"
-                                                        fw={500}
-                                                        ff="monospace"
-                                                    >
-                                                        /{skill.name}
-                                                    </Text>
-                                                    <Badge
-                                                        size="xs"
-                                                        color="yellow"
-                                                    >
-                                                        built-in
-                                                    </Badge>
-                                                </Group>
-                                                <Text
-                                                    size="xs"
-                                                    c="dimmed"
-                                                    lineClamp={1}
-                                                >
-                                                    {skill.description}
-                                                </Text>
-                                            </Stack>
-                                        </Group>
-                                    </Table.Td>
-                                    <Table.Td w={80} ta="right">
-                                        <Text size="xs" c="dimmed">
-                                            Always on
-                                        </Text>
-                                    </Table.Td>
-                                </Table.Tr>
-                            ))}
-                        </Table.Tbody>
-                    </Table>
-                )}
-            </Paper>
-            {canManage ? (
+            <Paper p={0}>{body}</Paper>
+            {canManage || canCreate ? (
                 <Group gap="xs">
-                    <Select
-                        size="xs"
-                        flex={1}
-                        maw={360}
-                        placeholder={
-                            bindable.length
-                                ? 'Add an existing skill'
-                                : 'No other skills in the library'
-                        }
-                        data={bindable.map((skill) => ({
-                            value: skill.uuid,
-                            label: `/${skill.name}${
-                                skill.title ? ` — ${skill.title}` : ''
-                            }`,
-                        }))}
-                        searchable
-                        value={null}
-                        disabled={bindable.length === 0}
-                        onChange={(value) => value && bind(value)}
-                    />
-                    <Button
-                        size="xs"
-                        variant="default"
-                        leftSection={<MantineIcon icon={IconPlus} />}
-                        onClick={() => setModal({ mode: 'create' })}
-                    >
-                        New skill
-                    </Button>
+                    {canManage ? (
+                        <Select
+                            size="xs"
+                            flex={1}
+                            maw={360}
+                            aria-label="Add an existing skill"
+                            placeholder={
+                                bindable.length
+                                    ? 'Add an existing skill'
+                                    : 'No other skills in the library'
+                            }
+                            data={bindable.map((skill) => ({
+                                value: skill.uuid,
+                                label: `/${skill.name}${
+                                    skill.title ? ` — ${skill.title}` : ''
+                                }`,
+                            }))}
+                            searchable
+                            value={null}
+                            disabled={bindable.length === 0}
+                            onChange={(value) => value && bind(value)}
+                        />
+                    ) : null}
+                    {canCreate ? (
+                        <Button
+                            size="xs"
+                            variant="default"
+                            leftSection={<MantineIcon icon={IconPlus} />}
+                            onClick={() => setModal({ mode: 'create' })}
+                        >
+                            New skill
+                        </Button>
+                    ) : null}
                 </Group>
             ) : null}
             {modal ? (

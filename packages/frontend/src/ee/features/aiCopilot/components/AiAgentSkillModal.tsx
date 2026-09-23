@@ -1,22 +1,19 @@
 import {
     AI_AGENT_SKILL_FILE_NAME,
+    isReservedAiAgentSkillName,
+    isValidAiAgentSkillName,
     suggestAiAgentSkillName,
     type AiAgentSkillFiles,
     type AiAgentSkillIssue,
     type AiAgentSkillSummary,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Loader,
-    Stack,
-    Text,
-    Textarea,
-    TextInput,
-} from '@mantine/core';
+import { Button, Group, Stack, Text, Textarea, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { IconBolt } from '@tabler/icons-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import Callout from '../../../../components/common/Callout';
+import EmptyStateLoader from '../../../../components/common/EmptyStateLoader';
+import InlineErrorState from '../../../../components/common/InlineErrorState';
 import MantineModal from '../../../../components/common/MantineModal';
 import {
     useAiAgentSkill,
@@ -35,6 +32,17 @@ argument-hint: "[what to pass after /${name}]"
 Write the instructions the agent should follow here. Use $ARGUMENTS where the
 text typed after /${name} should go.
 `;
+
+const nameError = (name: string): string | null => {
+    if (name.length === 0) return 'A name is required';
+    if (!isValidAiAgentSkillName(name)) {
+        return 'Lowercase letters, digits and single hyphens only';
+    }
+    if (isReservedAiAgentSkillName(name, [])) {
+        return 'Names starting with lightdash- are reserved';
+    }
+    return null;
+};
 
 const IssueList = ({
     issues,
@@ -71,7 +79,6 @@ type FormProps = {
     existingFiles: AiAgentSkillFiles;
     bindToAgentUuid: string | null;
     onClose: () => void;
-    onSaved?: (skillUuid: string) => void;
 };
 
 const SkillForm = ({
@@ -79,61 +86,88 @@ const SkillForm = ({
     existingFiles,
     bindToAgentUuid,
     onClose,
-    onSaved,
 }: FormProps) => {
     const isEditing = skill !== null;
     const createSkill = useCreateAiAgentSkill();
     const updateSkill = useUpdateAiAgentSkill();
     const validate = useValidateAiAgentSkill();
 
-    const [title, setTitle] = useState(skill?.title ?? '');
-    const [typedName, setTypedName] = useState<string | null>(
-        skill?.name ?? null,
-    );
+    const form = useForm({
+        initialValues: {
+            title: skill?.title ?? '',
+            name: skill?.name ?? '',
+            markdown: existingFiles[AI_AGENT_SKILL_FILE_NAME] ?? '',
+        },
+        validate: {
+            name: (value) => (isEditing ? null : nameError(value)),
+        },
+        validateInputOnChange: ['name'],
+    });
     // The name follows the title until typed by hand; once saved it is the
     // slug, the folder and the /command, so it cannot change afterwards.
-    const name = typedName ?? suggestAiAgentSkillName(title);
-    const [markdown, setMarkdown] = useState(
-        existingFiles[AI_AGENT_SKILL_FILE_NAME] ??
-            templateFor(name || 'my-skill', title || 'My skill'),
+    const [nameTouched, setNameTouched] = useState(isEditing);
+    const [markdownTouched, setMarkdownTouched] = useState(isEditing);
+    const [validatedMarkdown, setValidatedMarkdown] = useState<string | null>(
+        null,
     );
-    const [templateApplied, setTemplateApplied] = useState(isEditing);
 
     // Resources beyond SKILL.md stay as they are; this editor only touches the
     // main file in the first cut.
-    const filesToSave = useMemo(
-        () => ({ ...existingFiles, [AI_AGENT_SKILL_FILE_NAME]: markdown }),
-        [existingFiles, markdown],
-    );
+    const filesFor = (markdown: string): AiAgentSkillFiles => ({
+        ...existingFiles,
+        [AI_AGENT_SKILL_FILE_NAME]: markdown,
+    });
 
     const applyTemplate = () => {
-        if (!templateApplied) {
-            setMarkdown(templateFor(name || 'my-skill', title || 'My skill'));
-        }
+        if (markdownTouched) return;
+        form.setFieldValue(
+            'markdown',
+            templateFor(
+                form.values.name || 'my-skill',
+                form.values.title || 'My skill',
+            ),
+        );
     };
 
+    const runValidation = (markdown: string) => {
+        setValidatedMarkdown(markdown);
+        validate.mutate(filesFor(markdown));
+    };
+
+    const validation =
+        validatedMarkdown === form.values.markdown ? validate.data : undefined;
+    const hasBlockingErrors = validation !== undefined && !validation.valid;
+
     const handleSave = async () => {
-        const result = await validate.mutateAsync(filesToSave);
+        const { markdown } = form.values;
+        const result = await validate.mutateAsync(filesFor(markdown));
+        setValidatedMarkdown(markdown);
         if (!result.valid) return;
-        if (isEditing && skill) {
-            const saved = await updateSkill.mutateAsync({
-                skillUuid: skill.uuid,
-                files: filesToSave,
-            });
-            onSaved?.(saved.uuid);
-        } else {
-            const created = await createSkill.mutateAsync({
-                files: filesToSave,
-                projectUuid: null,
-                agentUuids: bindToAgentUuid ? [bindToAgentUuid] : [],
-            });
-            onSaved?.(created.uuid);
+        try {
+            if (isEditing) {
+                await updateSkill.mutateAsync({
+                    skillUuid: skill.uuid,
+                    files: filesFor(markdown),
+                });
+            } else {
+                await createSkill.mutateAsync({
+                    files: filesFor(markdown),
+                    projectUuid: null,
+                    agentUuids: bindToAgentUuid ? [bindToAgentUuid] : [],
+                });
+            }
+        } catch {
+            // The mutation hooks already show the error toast.
+            return;
         }
         onClose();
     };
 
     const saving = createSkill.isLoading || updateSkill.isLoading;
-    const validation = validate.data;
+    const saveLabel = (() => {
+        if (isEditing) return 'Save new version';
+        return bindToAgentUuid ? 'Create and bind' : 'Create skill';
+    })();
 
     return (
         <MantineModal
@@ -150,33 +184,55 @@ const SkillForm = ({
                     <Button
                         onClick={() => void handleSave()}
                         loading={saving || validate.isLoading}
-                        disabled={markdown.trim().length === 0}
+                        disabled={
+                            form.values.markdown.trim().length === 0 ||
+                            hasBlockingErrors ||
+                            (!isEditing && nameError(form.values.name) !== null)
+                        }
                     >
-                        {isEditing ? 'Save new version' : 'Create skill'}
+                        {saveLabel}
                     </Button>
                 </Group>
             }
         >
             <Stack gap="md">
+                {!isEditing && bindToAgentUuid ? (
+                    <Callout variant="info">
+                        Saving publishes version 1 and binds the skill to this
+                        agent. It also joins the organization library, where any
+                        agent can use it.
+                    </Callout>
+                ) : null}
                 {!isEditing ? (
                     <Group grow align="flex-start">
                         <TextInput
                             label="Title"
                             placeholder="Weekly review"
-                            value={title}
-                            onChange={(event) =>
-                                setTitle(event.currentTarget.value)
-                            }
+                            value={form.values.title}
+                            onChange={(event) => {
+                                const title = event.currentTarget.value;
+                                form.setFieldValue('title', title);
+                                if (!nameTouched) {
+                                    form.setFieldValue(
+                                        'name',
+                                        suggestAiAgentSkillName(title),
+                                    );
+                                }
+                            }}
                             onBlur={applyTemplate}
                         />
                         <TextInput
                             label="Name"
                             description="The /command and the folder name. Cannot change later."
                             placeholder="weekly-review"
-                            value={name}
-                            onChange={(event) =>
-                                setTypedName(event.currentTarget.value)
-                            }
+                            {...form.getInputProps('name')}
+                            onChange={(event) => {
+                                setNameTouched(true);
+                                form.setFieldValue(
+                                    'name',
+                                    event.currentTarget.value,
+                                );
+                            }}
                             onBlur={applyTemplate}
                         />
                     </Group>
@@ -187,12 +243,15 @@ const SkillForm = ({
                     autosize
                     minRows={14}
                     maxRows={30}
-                    value={markdown}
+                    value={form.values.markdown}
                     onChange={(event) => {
-                        setTemplateApplied(true);
-                        setMarkdown(event.currentTarget.value);
+                        setMarkdownTouched(true);
+                        form.setFieldValue(
+                            'markdown',
+                            event.currentTarget.value,
+                        );
                     }}
-                    onBlur={() => validate.mutate(filesToSave)}
+                    onBlur={() => runValidation(form.values.markdown)}
                 />
                 {validation ? (
                     <>
@@ -217,10 +276,9 @@ type Props = {
     /** Agent to bind a new skill to on creation. */
     bindToAgentUuid: string | null;
     onClose: () => void;
-    onSaved?: (skillUuid: string) => void;
 };
 
-/** Loads the current files when editing, then mounts the form once. */
+/** Loads the current files when editing, then mounts the form once per skill. */
 export const AiAgentSkillModal = ({ skill, ...props }: Props) => {
     const detail = useAiAgentSkill(skill?.uuid ?? null);
     if (skill && !detail.data) {
@@ -231,15 +289,22 @@ export const AiAgentSkillModal = ({ skill, ...props }: Props) => {
                 icon={IconBolt}
                 title={`Edit /${skill.name}`}
             >
-                <Group justify="center" py="xl">
-                    <Loader size="sm" />
-                </Group>
+                {detail.isError ? (
+                    <InlineErrorState
+                        message={
+                            detail.error.error.message ??
+                            'Could not load this skill'
+                        }
+                    />
+                ) : (
+                    <EmptyStateLoader title="Loading skill" />
+                )}
             </MantineModal>
         );
     }
     return (
         <SkillForm
-            key={detail.data?.currentVersion.uuid ?? 'new'}
+            key={skill?.uuid ?? 'new'}
             skill={skill}
             existingFiles={detail.data?.content.files ?? {}}
             {...props}
