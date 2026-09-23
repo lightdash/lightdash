@@ -120,13 +120,10 @@ describe('ProjectModel', () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
             .response([projectMock]);
-        tracker.on
-            .select(queryMatcher(ProjectTableName, [projectUuid, 1]))
-            .response([{ connection_mode: 'single' }]);
 
         const project = await model.get(projectUuid);
         expect(project).toEqual(expectedProject);
-        expect(tracker.history.select).toHaveLength(2);
+        expect(tracker.history.select).toHaveLength(1);
     });
     test('should get the primary dbt source identity', async () => {
         tracker.on
@@ -2875,9 +2872,6 @@ describe('ProjectModel', () => {
             tracker.on
                 .select(queryMatcher(ProjectTableName, [projectUuid]))
                 .response([projectMock]);
-            tracker.on
-                .select(queryMatcher(ProjectTableName, [projectUuid, 1]))
-                .response([{ connection_mode: 'single' }]);
 
             const project = await model.get(projectUuid);
 

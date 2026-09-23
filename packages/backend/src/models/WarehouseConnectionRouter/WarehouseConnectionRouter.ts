@@ -20,36 +20,53 @@ const isMissingConnectionModeColumn = (error: unknown): boolean =>
 export class WarehouseConnectionRouter {
     private readonly database: Knex;
 
-    private hasWarnedMissingColumn = false;
+    private connectionModeColumnMissing = false;
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
     }
 
-    async getRoute(projectUuid: string): Promise<ConnectionRoute> {
-        let project: { connection_mode: string } | undefined;
+    async withConnectionModeColumn<T>(
+        run: (includeConnectionMode: boolean) => PromiseLike<T>,
+    ): Promise<T> {
+        if (this.connectionModeColumnMissing) return run(false);
         try {
-            project = await this.database('projects')
-                .select<{ connection_mode: string }[]>('connection_mode')
-                .where('project_uuid', projectUuid)
-                .first();
+            return await run(true);
         } catch (error) {
             if (!isMissingConnectionModeColumn(error)) throw error;
-            if (!this.hasWarnedMissingColumn) {
-                this.hasWarnedMissingColumn = true;
-                Logger.warn(
-                    'projects.connection_mode is missing; every project routes single until the connection modes migration runs',
-                );
-            }
-            return 'single';
+            this.connectionModeColumnMissing = true;
+            Logger.warn(
+                'projects.connection_mode is missing; every project routes single until the connection modes migration runs',
+            );
+            return run(false);
         }
-        if (project?.connection_mode !== 'multi') return 'single';
+    }
+
+    async routeFor(
+        projectUuid: string,
+        connectionMode: string | undefined,
+    ): Promise<ConnectionRoute> {
+        if (connectionMode !== 'multi') return 'single';
         const extraConnection = await this.database('warehouse_connections')
             .select('warehouse_connection_uuid')
             .where('project_uuid', projectUuid)
             .where('is_original', false)
             .first();
         return extraConnection ? 'multi' : 'single';
+    }
+
+    async getRoute(projectUuid: string): Promise<ConnectionRoute> {
+        const connectionMode = await this.withConnectionModeColumn(
+            async (includeConnectionMode) => {
+                if (!includeConnectionMode) return undefined;
+                const project = await this.database('projects')
+                    .select<{ connection_mode: string }[]>('connection_mode')
+                    .where('project_uuid', projectUuid)
+                    .first();
+                return project?.connection_mode;
+            },
+        );
+        return this.routeFor(projectUuid, connectionMode);
     }
 
     async requireSingleRoute(

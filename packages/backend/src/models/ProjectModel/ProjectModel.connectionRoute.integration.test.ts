@@ -117,6 +117,57 @@ describe('ProjectModel connection routing on the real schema', () => {
             });
         });
 
+        test('reads a single project with exactly the one select main issues', async () => {
+            await inRolledBackTransaction(database, async (transaction) => {
+                await createStandInConnectionModeSchema(transaction);
+                const { projectUuid } = await insertRoutingTestProject(
+                    transaction,
+                    encryptionUtil,
+                );
+                const projectModel = projectModelFor(transaction);
+                const statements: string[] = [];
+                const recordStatement = (query: { sql: string }) => {
+                    statements.push(query.sql);
+                };
+                database.on('query', recordStatement);
+                try {
+                    const project = await projectModel.get(projectUuid);
+                    expect(project.connectionRoute).toBe('single');
+                } finally {
+                    database.removeListener('query', recordStatement);
+                }
+                expect(statements).toHaveLength(1);
+                expect(statements[0]).toContain('"connection_mode"');
+            });
+        });
+
+        test('reads a multi project with one more query for its extra connections', async () => {
+            await inRolledBackTransaction(database, async (transaction) => {
+                await createStandInConnectionModeSchema(transaction);
+                const { projectUuid } = await insertRoutingTestProject(
+                    transaction,
+                    encryptionUtil,
+                );
+                await setProjectRoutesMulti(transaction, projectUuid, [
+                    { name: 'Finance', isOriginal: false },
+                ]);
+                const projectModel = projectModelFor(transaction);
+                const statements: string[] = [];
+                const recordStatement = (query: { sql: string }) => {
+                    statements.push(query.sql);
+                };
+                database.on('query', recordStatement);
+                try {
+                    const project = await projectModel.get(projectUuid);
+                    expect(project.connectionRoute).toBe('multi');
+                } finally {
+                    database.removeListener('query', recordStatement);
+                }
+                expect(statements).toHaveLength(2);
+                expect(statements[1]).toContain('"warehouse_connections"');
+            });
+        });
+
         test('reports connectionRoute multi on a project with an extra connection', async () => {
             await inRolledBackTransaction(database, async (transaction) => {
                 await createStandInConnectionModeSchema(transaction);

@@ -1353,7 +1353,7 @@ export type Project = {
     expiresAt: Date | null;
     provisioningSource?: string | null;
     agentSqlScope: AgentSqlScope | null;
-    connectionRoute: ConnectionRoute;
+    connectionRoute?: ConnectionRoute;
 };
 
 export type ProjectSummary = Pick<

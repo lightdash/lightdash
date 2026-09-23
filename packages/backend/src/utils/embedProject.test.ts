@@ -78,8 +78,14 @@ describe('pickEmbedProject', () => {
             expiresAt: null,
             provisioningSource: null,
             agentSqlScope: null,
-            connectionRoute: 'single',
         });
+    });
+
+    test('does not expose the connection route', () => {
+        expect(pickEmbedProject(project)).not.toHaveProperty('connectionRoute');
+        expect(JSON.stringify(pickEmbedProject(project))).not.toContain(
+            'connectionRoute',
+        );
     });
 
     test('drops warehouse identifiers, the dbt source and people', () => {
