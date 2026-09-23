@@ -178,14 +178,14 @@ const ChartInputsList: FC<Props> = ({
                     </Text>
                 )}
             </Stack>
-            <Stack gap={6}>
+            <Stack gap="sm">
                 {fields.map((field) => {
                     const isUnbound =
                         binding !== null &&
                         getDataAppVizFieldIds(binding.fieldMapping[field.name])
                             .length === 0;
                     return (
-                        <Box key={field.name} className={classes.field}>
+                        <Box key={field.name}>
                             <Group
                                 justify="space-between"
                                 gap="xs"
