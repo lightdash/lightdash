@@ -22,7 +22,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { FloatingActionsPill } from '../../../components/common/FloatingActionsPill';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
@@ -53,6 +53,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
     onPreview,
     onDelete,
 }) => {
+    const navigate = useNavigate();
     const canEdit = useCanEditDataApp(dataAppViz.projectUuid, dataAppViz);
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
@@ -182,7 +183,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
                                             onDelete();
                                         }}
                                     >
-                                        Delete
+                                        {isOfficial ? 'Uninstall' : 'Delete'}
                                     </Menu.Item>
                                 </>
                             )}
@@ -197,6 +198,14 @@ const ChartTypeGalleryCard: FC<Props> = ({
                     projectUuid={dataAppViz.projectUuid}
                     appUuid={dataAppViz.dataAppVizUuid}
                     defaultName={`${dataAppViz.name} (custom)`}
+                    onForked={(result) =>
+                        void navigate(
+                            chartTypeBuilderPath(
+                                projectUrlIdentifier,
+                                result.slug,
+                            ),
+                        )
+                    }
                 />
             )}
         </>

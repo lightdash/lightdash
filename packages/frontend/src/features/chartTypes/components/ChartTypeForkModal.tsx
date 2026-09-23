@@ -1,15 +1,13 @@
+import { type ApiDuplicateAppResponse } from '@lightdash/common';
 import { Button, Stack, TextInput, type ModalProps } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconGitFork } from '@tabler/icons-react';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
-import { useNavigate } from 'react-router';
 import { z } from 'zod';
 import MantineModal from '../../../components/common/MantineModal';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useDuplicateApp } from '../../apps/hooks/useDuplicateApp';
-import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 
 type Props = {
     opened: ModalProps['opened'];
@@ -17,6 +15,7 @@ type Props = {
     projectUuid: string;
     appUuid: string;
     defaultName: string;
+    onForked: (result: ApiDuplicateAppResponse['results']) => void;
 };
 
 const forkSchema = z.object({
@@ -32,11 +31,8 @@ const ChartTypeForkModal: FC<Props> = ({
     projectUuid,
     appUuid,
     defaultName,
+    onForked,
 }) => {
-    const navigate = useNavigate();
-    const projectRoute = useOptionalProjectRoute();
-    const projectUrlIdentifier =
-        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const { showToastSuccess } = useToaster();
     const { mutate: duplicate, isLoading: isForking } = useDuplicateApp();
 
@@ -52,9 +48,7 @@ const ChartTypeForkModal: FC<Props> = ({
             {
                 onSuccess: (result) => {
                     showToastSuccess({ title: 'Chart type forked' });
-                    void navigate(
-                        chartTypeBuilderPath(projectUrlIdentifier, result.slug),
-                    );
+                    onForked(result);
                 },
             },
         );

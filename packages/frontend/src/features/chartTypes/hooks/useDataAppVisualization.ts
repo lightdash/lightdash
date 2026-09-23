@@ -2,7 +2,7 @@ import { type ApiError, type DataAppViz } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
-const getDataAppVisualization = async (
+export const getDataAppVisualization = async (
     projectUuid: string,
     dataAppVizUuid: string,
     version: number | null,
