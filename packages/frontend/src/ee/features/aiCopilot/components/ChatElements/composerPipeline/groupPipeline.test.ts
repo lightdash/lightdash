@@ -63,6 +63,7 @@ describe('groupPipeline', () => {
             'amounts',
             'query-uuid-1',
         ]);
+        expect(joined.readNodeIds).toEqual(['orders', 'amounts']);
         expect(layers[0].nodes.map((node) => node.title)).toEqual([
             'Orders by status',
             'amounts',
@@ -77,6 +78,7 @@ describe('groupPipeline', () => {
             nodeId: 'a',
             isTerminal: true,
             reads: [],
+            readNodeIds: [],
             description: null,
         });
     });

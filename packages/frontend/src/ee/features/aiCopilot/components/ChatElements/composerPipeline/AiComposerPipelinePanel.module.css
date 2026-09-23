@@ -114,7 +114,8 @@
     border-radius: var(--mantine-radius-sm);
 }
 
-.node:hover {
+.node:hover,
+.node.selected {
     background-color: var(--mantine-color-default-hover);
 }
 
@@ -200,6 +201,62 @@
     overflow: auto;
     font-size: var(--mantine-font-size-xs);
     line-height: 1.5;
+}
+
+.graphScroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+}
+
+.graph {
+    display: block;
+    font-family: var(--mantine-font-family);
+}
+
+.graphEdge {
+    fill: none;
+    stroke: var(--mantine-color-ldGray-3);
+    stroke-width: 1.25;
+}
+
+.graphNode {
+    cursor: pointer;
+    outline: none;
+}
+
+.graphNodeBox {
+    fill: var(--mantine-color-body);
+    stroke: var(--mantine-color-default-border);
+    stroke-width: 1;
+}
+
+.graphNode:hover .graphNodeBox,
+.graphNode:focus-visible .graphNodeBox {
+    stroke: var(--mantine-color-ldGray-4);
+    fill: var(--mantine-color-default-hover);
+}
+
+.graphNode[data-terminal='true'] .graphNodeBox {
+    stroke: var(--mantine-color-ldGray-7);
+    stroke-width: 1.5;
+}
+
+.graphNodeDot {
+    fill: var(--mantine-color-green-6);
+}
+
+.graphNodeTitle {
+    font-size: 12px;
+    fill: var(--mantine-color-text);
+}
+
+.graphNodeType {
+    font-size: 8px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    fill: var(--mantine-color-dimmed);
 }
 
 .splitHandle {

@@ -11,6 +11,7 @@ import {
     ActionIcon,
     Box,
     Group,
+    SegmentedControl,
     Text,
     Tooltip,
     UnstyledButton,
@@ -23,7 +24,15 @@ import {
     IconSitemap,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { useMemo, useState, type FC, type ReactNode } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+    type KeyboardEvent,
+    type ReactNode,
+} from 'react';
 import CodeBlock from '../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
@@ -40,6 +49,16 @@ const TRANSFORMATIONS_HELP =
 
 const pipelineNodeRowId = (nodeId: string) =>
     `composer-pipeline-node-${nodeId}`;
+
+export type PipelineMode = 'list' | 'graph';
+
+const NODE_W = 160;
+const NODE_H = 40;
+const COL_GAP = 56;
+const ROW_GAP = 12;
+const GRAPH_PAD = 8;
+const TEXT_X = 22;
+const TEXT_W = NODE_W - TEXT_X - 8;
 
 const layerLabel = (layer: PipelineLayer) => {
     const single = layer.nodes.length === 1;
@@ -118,14 +137,18 @@ const SemanticFields: FC<{ query: SemanticLayerSourceQuery }> = ({ query }) => {
     );
 };
 
-const PipelineNodeRow: FC<{ node: PipelineNode }> = ({ node }) => {
+const PipelineNodeRow: FC<{ node: PipelineNode; selected: boolean }> = ({
+    node,
+    selected,
+}) => {
     const source = sourceLabel(node.query);
     const sql = useMemo(() => formattedSqlOf(node.query), [node.query]);
     return (
         <Box
-            className={styles.node}
+            className={clsx(styles.node, selected && styles.selected)}
             id={pipelineNodeRowId(node.nodeId)}
             data-node-id={node.nodeId}
+            data-selected={selected}
         >
             <Box className={styles.nodeHead}>
                 <Box className={styles.dot} />
@@ -162,45 +185,201 @@ const PipelineNodeRow: FC<{ node: PipelineNode }> = ({ node }) => {
     );
 };
 
-const PipelineList: FC<{ layers: PipelineLayer[] }> = ({ layers }) => (
-    <Box className={styles.body}>
-        {layers.map((layer) => (
-            <Box key={layer.depth} className={styles.layer}>
-                <Group gap={4} className={styles.layerHeading}>
-                    <Text component="span" inherit>
-                        {layerLabel(layer)}
-                    </Text>
-                    {layer.kind === 'transformations' && (
-                        <Tooltip
-                            label={TRANSFORMATIONS_HELP}
-                            multiline
-                            w={260}
-                            position="top-start"
-                        >
-                            <ActionIcon
-                                variant="subtle"
-                                size="xs"
-                                className={styles.helpIcon}
-                                aria-label="About transformations"
+const PipelineList: FC<{
+    layers: PipelineLayer[];
+    selectedNodeId: string | null;
+}> = ({ layers, selectedNodeId }) => {
+    const bodyRef = useRef<HTMLDivElement>(null);
+    // Centre the row chosen in the graph once the list has mounted.
+    useEffect(() => {
+        if (!selectedNodeId) return;
+        const row = bodyRef.current?.querySelector<HTMLElement>(
+            `#${pipelineNodeRowId(selectedNodeId)}`,
+        );
+        row?.scrollIntoView?.({ block: 'center' });
+    }, [selectedNodeId]);
+    return (
+        <Box className={styles.body} ref={bodyRef}>
+            {layers.map((layer) => (
+                <Box key={layer.depth} className={styles.layer}>
+                    <Group gap={4} className={styles.layerHeading}>
+                        <Text component="span" inherit>
+                            {layerLabel(layer)}
+                        </Text>
+                        {layer.kind === 'transformations' && (
+                            <Tooltip
+                                label={TRANSFORMATIONS_HELP}
+                                multiline
+                                w={260}
+                                position="top-start"
                             >
-                                <MantineIcon icon={IconHelpCircle} size={12} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </Group>
-                {layer.nodes.map((node) => (
-                    <PipelineNodeRow key={node.nodeId} node={node} />
-                ))}
-            </Box>
-        ))}
-    </Box>
-);
+                                <ActionIcon
+                                    variant="subtle"
+                                    size="xs"
+                                    className={styles.helpIcon}
+                                    aria-label="About transformations"
+                                >
+                                    <MantineIcon
+                                        icon={IconHelpCircle}
+                                        size={12}
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                    </Group>
+                    {layer.nodes.map((node) => (
+                        <PipelineNodeRow
+                            key={node.nodeId}
+                            node={node}
+                            selected={node.nodeId === selectedNodeId}
+                        />
+                    ))}
+                </Box>
+            ))}
+        </Box>
+    );
+};
+
+const layoutGraph = (layers: PipelineLayer[]) => {
+    const tallest = Math.max(...layers.map((layer) => layer.nodes.length));
+    const height = tallest * NODE_H + (tallest - 1) * ROW_GAP + GRAPH_PAD * 2;
+    const width =
+        layers.length * NODE_W + (layers.length - 1) * COL_GAP + GRAPH_PAD * 2;
+    const positions = new Map<string, { x: number; y: number }>();
+    layers.forEach((layer, column) => {
+        const layerHeight =
+            layer.nodes.length * NODE_H + (layer.nodes.length - 1) * ROW_GAP;
+        const offset = (height - GRAPH_PAD * 2 - layerHeight) / 2;
+        layer.nodes.forEach((node, row) => {
+            positions.set(node.nodeId, {
+                x: GRAPH_PAD + column * (NODE_W + COL_GAP),
+                y: GRAPH_PAD + offset + row * (NODE_H + ROW_GAP),
+            });
+        });
+    });
+    return { width, height, positions };
+};
+
+const GraphNode: FC<{
+    node: PipelineNode;
+    x: number;
+    y: number;
+    onSelect: (nodeId: string) => void;
+}> = ({ node, x, y, onSelect }) => {
+    const source = sourceLabel(node.query);
+    const clipId = `composer-pipeline-clip-${node.nodeId}`;
+    const onKeyDown = (event: KeyboardEvent<SVGGElement>) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        onSelect(node.nodeId);
+    };
+    return (
+        <g
+            className={styles.graphNode}
+            data-terminal={node.isTerminal}
+            transform={`translate(${x} ${y})`}
+            onClick={() => onSelect(node.nodeId)}
+            onKeyDown={onKeyDown}
+            role="button"
+            tabIndex={0}
+            aria-label={`Go to ${node.title}`}
+        >
+            <title>{node.title}</title>
+            <clipPath id={clipId}>
+                <rect x={TEXT_X} y={0} width={TEXT_W} height={NODE_H} />
+            </clipPath>
+            <rect
+                className={styles.graphNodeBox}
+                width={NODE_W}
+                height={NODE_H}
+                rx={6}
+            />
+            <circle
+                className={styles.graphNodeDot}
+                cx={12}
+                cy={NODE_H / 2}
+                r={3}
+            />
+            <g clipPath={`url(#${clipId})`}>
+                <text
+                    className={styles.graphNodeTitle}
+                    x={TEXT_X}
+                    y={source ? 17 : NODE_H / 2 + 4}
+                >
+                    {node.title}
+                </text>
+                {source && (
+                    <text className={styles.graphNodeType} x={TEXT_X} y={31}>
+                        {source.label.toUpperCase()}
+                    </text>
+                )}
+            </g>
+        </g>
+    );
+};
+
+/** Layers as columns, nodes as boxes, reads as curved edges. */
+const PipelineGraph: FC<{
+    layers: PipelineLayer[];
+    onSelect: (nodeId: string) => void;
+}> = ({ layers, onSelect }) => {
+    const { width, height, positions } = useMemo(
+        () => layoutGraph(layers),
+        [layers],
+    );
+    const nodes = layers.flatMap((layer) => layer.nodes);
+    return (
+        <Box className={styles.graphScroll}>
+            <svg
+                className={styles.graph}
+                width={width}
+                height={height}
+                viewBox={`0 0 ${width} ${height}`}
+                aria-label="Pipeline graph"
+            >
+                {nodes.flatMap((node) =>
+                    node.readNodeIds.map((readId) => {
+                        const from = positions.get(readId)!;
+                        const to = positions.get(node.nodeId)!;
+                        const x1 = from.x + NODE_W;
+                        const y1 = from.y + NODE_H / 2;
+                        const x2 = to.x;
+                        const y2 = to.y + NODE_H / 2;
+                        const mid = (x1 + x2) / 2;
+                        return (
+                            <path
+                                key={`${readId}->${node.nodeId}`}
+                                className={styles.graphEdge}
+                                data-testid="composer-pipeline-edge"
+                                d={`M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`}
+                            />
+                        );
+                    }),
+                )}
+                {nodes.map((node) => {
+                    const { x, y } = positions.get(node.nodeId)!;
+                    return (
+                        <GraphNode
+                            key={node.nodeId}
+                            node={node}
+                            x={x}
+                            y={y}
+                            onSelect={onSelect}
+                        />
+                    );
+                })}
+            </svg>
+        </Box>
+    );
+};
 
 const PipelineBar: FC<{
     nodeCount: number;
     expanded: boolean;
     onToggle: () => void;
-}> = ({ nodeCount, expanded, onToggle }) => (
+    mode: PipelineMode;
+    onModeChange: (mode: PipelineMode) => void;
+}> = ({ nodeCount, expanded, onToggle, mode, onModeChange }) => (
     <Box className={styles.bar}>
         <UnstyledButton
             className={styles.barToggle}
@@ -217,6 +396,19 @@ const PipelineBar: FC<{
                 Queries
             </Text>
         </UnstyledButton>
+        {expanded && (
+            <SegmentedControl
+                size="xs"
+                value={mode}
+                onChange={(value) =>
+                    onModeChange(value === 'graph' ? 'graph' : 'list')
+                }
+                data={[
+                    { label: 'List', value: 'list' },
+                    { label: 'Graph', value: 'graph' },
+                ]}
+            />
+        )}
         <Text component="span" className={styles.meta}>
             {nodeCount} step{nodeCount === 1 ? '' : 's'}
         </Text>
@@ -229,6 +421,7 @@ type Props = {
     /** The results shown above the panel. */
     children: ReactNode;
     defaultExpanded?: boolean;
+    defaultMode?: PipelineMode;
 };
 
 /**
@@ -240,8 +433,11 @@ export const AiComposerPipelinePanel: FC<Props> = ({
     terminalNodeId,
     children,
     defaultExpanded = false,
+    defaultMode = 'list',
 }) => {
     const [expanded, setExpanded] = useState(defaultExpanded);
+    const [mode, setMode] = useState<PipelineMode>(defaultMode);
+    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const layers = useMemo(
         () => groupPipeline(queries, terminalNodeId),
         [queries, terminalNodeId],
@@ -251,8 +447,14 @@ export const AiComposerPipelinePanel: FC<Props> = ({
             nodeCount={queries.length}
             expanded={expanded}
             onToggle={() => setExpanded((value) => !value)}
+            mode={mode}
+            onModeChange={setMode}
         />
     );
+    const selectNode = (nodeId: string) => {
+        setSelectedNodeId(nodeId);
+        setMode('list');
+    };
 
     if (!expanded) {
         return (
@@ -275,7 +477,14 @@ export const AiComposerPipelinePanel: FC<Props> = ({
             <ResizableSplitter.Pane id="pipeline" defaultSize={45} min={10}>
                 <Box className={styles.root}>
                     {bar}
-                    <PipelineList layers={layers} />
+                    {mode === 'graph' ? (
+                        <PipelineGraph layers={layers} onSelect={selectNode} />
+                    ) : (
+                        <PipelineList
+                            layers={layers}
+                            selectedNodeId={selectedNodeId}
+                        />
+                    )}
                 </Box>
             </ResizableSplitter.Pane>
         </ResizableSplitter>

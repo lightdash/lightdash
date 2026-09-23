@@ -9,6 +9,8 @@ export type PipelineNode = {
     depth: number;
     /** Titles of the nodes this one reads; references outside the pipeline stay as-is. */
     reads: string[];
+    /** Node ids this one reads that resolve to nodes in the pipeline. */
+    readNodeIds: string[];
     query: SourceQuery;
 };
 
@@ -79,6 +81,7 @@ export const groupPipeline = (
         isTerminal: nodeId === terminalNodeId,
         depth: depths.get(nodeId)!,
         reads: referencesOf(query).map(titleOf),
+        readNodeIds: readsOf(nodeId),
         query,
     }));
 
