@@ -77,7 +77,7 @@ describe('daily job generation metrics', () => {
         ).mockImplementation(() => {
             throw error;
         });
-        const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+        const warn = vi.spyOn(Logger, 'warn').mockReturnValue(Logger);
 
         expect(() =>
             metrics.recordSchedulerDailyJobGenerationCompleted(),
@@ -103,7 +103,7 @@ describe('daily job generation metrics', () => {
             ).mockImplementation(() => {
                 throw error;
             });
-            const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => {});
+            const warn = vi.spyOn(Logger, 'warn').mockReturnValue(Logger);
 
             expect(() =>
                 metrics.recordSchedulerDailyJobGenerationError(phase),
