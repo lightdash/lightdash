@@ -8,7 +8,10 @@
  * focused on orchestration: spawn the sandbox command, forward stdout chunks,
  * react to events.
  */
-import { parseCodingAgentSessionInit } from './codingAgentSession';
+import {
+    parseCodingAgentCliVersion,
+    parseCodingAgentSessionInit,
+} from './codingAgentSession';
 
 /**
  * Usage summary for a single `claude` run, extracted from the stream-json
@@ -165,7 +168,7 @@ export function addClaudeGenerationAttempt(
 }
 
 export type ClaudeStreamEvent =
-    | { kind: 'session_started'; sessionId: string }
+    | { kind: 'session_started'; sessionId: string; cliVersion: string | null }
     | { kind: 'thinking_started'; turn: number }
     | { kind: 'thinking_snippet'; snippet: string }
     | { kind: 'tool_use'; index: number; description: string }
@@ -490,7 +493,11 @@ export class ClaudeStreamProcessor {
     private consumeLine(line: string, events: ClaudeStreamEvent[]): void {
         const sessionId = parseCodingAgentSessionInit(line);
         if (sessionId !== null) {
-            events.push({ kind: 'session_started', sessionId });
+            events.push({
+                kind: 'session_started',
+                sessionId,
+                cliVersion: parseCodingAgentCliVersion(line),
+            });
             return;
         }
 

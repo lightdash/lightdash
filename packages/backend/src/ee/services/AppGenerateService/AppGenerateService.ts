@@ -4069,6 +4069,9 @@ export class AppGenerateService extends BaseService {
                                 sessionEstablished = true;
                                 switch (event.kind) {
                                     case 'session_started':
+                                        this.logger.info(
+                                            `App ${appUuid}: claude session started (sessionId=${event.sessionId}, cli=${event.cliVersion ?? 'unknown'})`,
+                                        );
                                         // Only turns without a stored id learn one.
                                         if (
                                             session.kind !== 'resume' &&
@@ -6408,7 +6411,7 @@ export class AppGenerateService extends BaseService {
                 .map(([k, v]) => `${k}=${v}ms`)
                 .join(
                     ', ',
-                )}, generationAttempts=${generationAttemptCount}, numTurns=${generationUsage.numTurns}, inputTokens=${generationUsage.inputTokens}, outputTokens=${generationUsage.outputTokens}, cacheReadTokens=${generationUsage.cacheReadInputTokens}, cacheCreationTokens=${generationUsage.cacheCreationInputTokens}, costUsd=${generationUsage.costUsd})`,
+                )}, generationAttempts=${generationAttemptCount}, numTurns=${generationUsage.numTurns}, inputTokens=${generationUsage.inputTokens}, outputTokens=${generationUsage.outputTokens}, cacheReadTokens=${generationUsage.cacheReadInputTokens}, cacheCreationTokens=${generationUsage.cacheCreationInputTokens}, cacheCreation1hTokens=${generationUsage.cacheCreation1hInputTokens}, cacheCreation5mTokens=${generationUsage.cacheCreation5mInputTokens}, costUsd=${generationUsage.costUsd})`,
         );
 
         // Aggregated across every `claude` CLI invocation in the pipeline. The

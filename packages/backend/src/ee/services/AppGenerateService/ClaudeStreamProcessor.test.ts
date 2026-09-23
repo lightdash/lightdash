@@ -380,6 +380,7 @@ describe('ClaudeStreamProcessor session start', () => {
                     subtype: 'init',
                     cwd: '/app',
                     session_id: 'f228a01a-fef5-4872-a344-1d875e934fcf',
+                    claude_code_version: '2.1.272',
                     tools: ['Read', 'Write'],
                 }) +
                 resultLine({
@@ -394,6 +395,7 @@ describe('ClaudeStreamProcessor session start', () => {
         expect(events[0]).toEqual({
             kind: 'session_started',
             sessionId: 'f228a01a-fef5-4872-a344-1d875e934fcf',
+            cliVersion: '2.1.272',
         });
     });
 });

@@ -133,6 +133,11 @@ export const buildClaudeCodeEnv = (
             ...(copilot.promptCacheTtl
                 ? { CLAUDE_CODE_PROMPT_CACHE_TTL: copilot.promptCacheTtl }
                 : {}),
+            // CLIs before 2.1.272 ignore CLAUDE_CODE_PROMPT_CACHE_TTL and only
+            // honour this switch; resumed sandboxes keep the CLI they were born with.
+            ...(copilot.promptCacheTtl === '1h'
+                ? { ENABLE_PROMPT_CACHING_1H: '1' }
+                : {}),
         };
     }
     if (bedrock.claudeCodeSkipAuth && !bedrock.baseUrl) {

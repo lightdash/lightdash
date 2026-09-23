@@ -87,6 +87,20 @@ export const parseCodingAgentSessionInit = (line: string): string | null => {
         : null;
 };
 
+// CLI version from the `system`/`init` line; null when absent (older CLIs).
+export const parseCodingAgentCliVersion = (line: string): string | null => {
+    let event: Record<string, unknown>;
+    try {
+        event = JSON.parse(line);
+    } catch {
+        return null;
+    }
+    if (event === null || typeof event !== 'object') return null;
+    if (event.type !== 'system' || event.subtype !== 'init') return null;
+    const version = event.claude_code_version;
+    return typeof version === 'string' && version.length > 0 ? version : null;
+};
+
 // First session id in a stream-json stdout; null when no init line was seen.
 export const findCodingAgentSessionId = (stdout: string): string | null => {
     for (const line of stdout.split('\n')) {
