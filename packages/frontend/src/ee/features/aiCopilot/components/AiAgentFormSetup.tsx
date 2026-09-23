@@ -74,6 +74,7 @@ import AiAgentAsCodeModal from './AiAgentAsCodeModal';
 import classes from './AiAgentFormSetup.module.css';
 import { AiAgentKnowledgeFilesSection } from './AiAgentKnowledgeFilesSection';
 import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
+import { AiAgentSkillsSection } from './AiAgentSkillsSection';
 import { InstructionsGuidelines } from './InstructionsSupport';
 import { SpaceAccessSelect } from './SpaceAccessSelect';
 import { ThreadRetentionSelect } from './ThreadRetentionSelect';
@@ -266,6 +267,9 @@ export const AiAgentFormSetup = ({
         FeatureFlags.UserGroupsEnabled,
     );
 
+    const customSkillsFlagQuery = useServerFeatureFlag(
+        FeatureFlags.AiAgentCustomSkills,
+    );
     const threadRetentionFlagQuery = useServerFeatureFlag(
         FeatureFlags.AiThreadRetention,
     );
@@ -666,6 +670,38 @@ export const AiAgentFormSetup = ({
                                 </Paper>
                             )}
                         </AgentSettingsSubsection>
+
+                        {customSkillsFlagQuery.data?.enabled ? (
+                            <>
+                                <Divider />
+                                <AgentSettingsSubsection
+                                    title="Skills"
+                                    description="Reusable workflows the agent loads when a request matches, or that users run by typing / in the chat."
+                                >
+                                    {agentUuid &&
+                                    user.data?.organizationUuid ? (
+                                        <AiAgentSkillsSection
+                                            agentUuid={agentUuid}
+                                            projectUuid={projectUuid}
+                                            organizationUuid={
+                                                user.data.organizationUuid
+                                            }
+                                        />
+                                    ) : (
+                                        <Paper variant="dotted" p="sm">
+                                            <Text
+                                                size="xs"
+                                                c="dimmed"
+                                                ta="center"
+                                            >
+                                                You can add skills once this
+                                                agent is created.
+                                            </Text>
+                                        </Paper>
+                                    )}
+                                </AgentSettingsSubsection>
+                            </>
+                        ) : null}
 
                         <Divider />
 

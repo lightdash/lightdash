@@ -64,6 +64,7 @@ import {
 import { type StartDeepResearchArgs } from '../../deepResearch/types';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
+import { useAgentSkills } from '../../hooks/useAiAgentSkills';
 import { useCsvSourceAttachment } from '../../hooks/useCsvSourceAttachment';
 import { useHasActiveDeepResearchRun } from '../../hooks/useDeepResearch';
 import { useDeepResearchComposer } from '../../hooks/useDeepResearchComposer';
@@ -107,6 +108,12 @@ import {
     PromptAttachments,
     type ExternalSourceAttachment,
 } from './PromptAttachments';
+import {
+    createSkillMentionExtension,
+    extractSkillMentionContext,
+    isSkillMentionSuggestionActive,
+    toSkillMentionItems,
+} from './skillMentions';
 import { getAgentSuggestionModes } from './suggestionModes';
 
 const SUGGESTION_CHIP_MENTION_NAME = 'suggestionChip';
@@ -115,6 +122,11 @@ type SubmitContext = {
     context?: AiPromptContextInput;
     optimisticContext?: AiPromptContextItem[];
 };
+
+const mergeSubmitContexts = (...contexts: SubmitContext[]): SubmitContext => ({
+    context: contexts.flatMap((item) => item.context ?? []),
+    optimisticContext: contexts.flatMap((item) => item.optimisticContext ?? []),
+});
 
 /** Context the composer submits with a prompt; keys are omitted when empty. */
 const buildSubmitContext = ({
@@ -406,6 +418,17 @@ export const AgentChatInput = ({
     clearOnSubmitRef.current = clearOnSubmit;
     const projectUuidRef = useRef(projectUuid);
     projectUuidRef.current = projectUuid;
+    // Skills come with the agent, so the / menu needs no skill scope.
+    const agentSkillsQuery = useAgentSkills(projectUuid, agentUuid);
+    const skillMentionItems = useMemo(
+        () => toSkillMentionItems(agentSkillsQuery.data),
+        [agentSkillsQuery.data],
+    );
+    const skillMentionItemsRef = useRef(skillMentionItems);
+    skillMentionItemsRef.current = skillMentionItems;
+    const skillMentionMenuRef = useRef<ContentMentionMenuState>(
+        CLOSED_CONTENT_MENTION_MENU,
+    );
     const contentMentionPriorityItemsRef = useRef(contentMentionPriorityItems);
     contentMentionPriorityItemsRef.current = contentMentionPriorityItems;
     // A space-restricted agent cannot read personal data apps, so @ hides them.
@@ -549,6 +572,12 @@ export const AgentChatInput = ({
                     contentMentionMenuRef.current = state;
                 },
             }),
+            createSkillMentionExtension({
+                getItems: () => skillMentionItemsRef.current,
+                onMenuStateChange: (state) => {
+                    skillMentionMenuRef.current = state;
+                },
+            }),
         ],
         [],
     );
@@ -560,6 +589,10 @@ export const AgentChatInput = ({
             contentMentionMenuOwnsEnter(
                 contentMentionMenuRef.current,
                 isContentMentionSuggestionActive(ed),
+            ) ||
+            contentMentionMenuOwnsEnter(
+                skillMentionMenuRef.current,
+                isSkillMentionSuggestionActive(ed),
             ),
         [],
     );
@@ -811,7 +844,10 @@ export const AgentChatInput = ({
             message: text,
             toolHints: extractToolHints(ed),
             ...buildSubmitContext({
-                mentionContext: extractContentMentionContext(ed),
+                mentionContext: mergeSubmitContexts(
+                    extractContentMentionContext(ed),
+                    extractSkillMentionContext(ed, text),
+                ),
                 externalSources: externalSourceAttachments,
                 elementReferences,
                 theme: selectedTheme,
