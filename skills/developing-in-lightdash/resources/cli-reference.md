@@ -187,7 +187,7 @@ lightdash upload --chart-types radial-gauge --path ../..
 lightdash upload --include-chart-types
 ```
 
-Every created or downloaded chart type folder includes `AGENTS.md` and its own skills in `.claude/skills/` (`reusable-visualization` and `developing-chart-types-locally`). Read them before editing chart type source.
+Every created or downloaded chart type folder includes `AGENTS.md` and its own skills in `.claude/skills/` and `.agents/skills/` (`reusable-visualization` and `developing-chart-types-locally`). Read them before editing chart type source.
 
 ## SQL Runner
 

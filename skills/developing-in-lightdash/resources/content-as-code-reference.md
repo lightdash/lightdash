@@ -95,7 +95,7 @@ lightdash upload --chart-types radial-gauge --path ./lightdash
 
 Charts that render with a custom chart type are saved as `chartConfig.type: data_app_viz`, bound to the chart type by `config.dataAppVizSlug`. Downloading such a chart also downloads its chart type. On upload, the chart type must already exist in the target project or be selected in the same run; chart types upload before charts. Otherwise the chart fails with a "not found in this project" error.
 
-New chart types are scaffolded with `lightdash apps create "<name>" --chart-type`, which writes `<path>/chart-types/<slug>/`. Every created or downloaded chart type folder carries an `AGENTS.md` and two skills in `.claude/skills/`: `reusable-visualization` (the `useVizContext()` component contract) and `developing-chart-types-locally` (the `vizSchema` lockstep rule, `lightdash apps validate --build`, the fixture preview, and the upload-and-verify loop). Read them before editing chart type source.
+New chart types are scaffolded with `lightdash apps create "<name>" --chart-type`, which writes `<path>/chart-types/<slug>/`. Every created or downloaded chart type folder carries an `AGENTS.md` and two skills in `.claude/skills/` (mirrored in `.agents/skills/` for Codex): `reusable-visualization` (the `useVizContext()` component contract) and `developing-chart-types-locally` (the `vizSchema` lockstep rule, `lightdash apps validate --build`, the fixture preview, and the upload-and-verify loop). Read them before editing chart type source.
 
 ## External Connections (Enterprise)
 

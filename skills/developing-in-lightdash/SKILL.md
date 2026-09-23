@@ -283,7 +283,7 @@ lightdash upload --include-chart-types        # every chart type folder on disk
 
 A chart YAML that binds to a chart type by `dataAppVizSlug` fails to upload unless that chart type exists in the target project. Upload the chart type first, or pass `--chart-types <ref>` in the same run (chart types upload before charts).
 
-**Edit inside the folder.** Change into `chart-types/<slug>/` and **read its `AGENTS.md` and both bundled skills before touching `src/`**:
+**Edit inside the folder.** Change into `chart-types/<slug>/` and **read its `AGENTS.md` and both bundled skills before touching `src/`**. They ship in `.claude/skills/` and, for Codex, `.agents/skills/`:
 
 - `.claude/skills/reusable-visualization/SKILL.md` — the component contract: `useVizContext()` is the only channel to the host, and the component never queries or fetches anything itself
 - `.claude/skills/developing-chart-types-locally/SKILL.md` — keeping `vizSchema` in lockstep with the component, `lightdash apps validate --build`, the fixture preview, and the upload-and-verify loop
