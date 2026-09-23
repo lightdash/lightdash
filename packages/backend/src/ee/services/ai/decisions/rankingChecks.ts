@@ -12,6 +12,29 @@ import {
 } from './AiDecisionClient';
 import type { ReviewableMetricQuery } from './queryChecks';
 
+const COUNT_WORDS: Record<string, number> = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+    eleven: 11,
+    twelve: 12,
+    thirteen: 13,
+    fourteen: 14,
+    fifteen: 15,
+    sixteen: 16,
+    seventeen: 17,
+    eighteen: 18,
+    nineteen: 19,
+    twenty: 20,
+};
+
 export const prepareRankingCheck = ({
     question,
     conversation,
@@ -24,15 +47,22 @@ export const prepareRankingCheck = ({
     query: ReviewableMetricQuery;
 }) => {
     if (question.length > 8_000 || conversation?.incomplete) return null;
+    // Extract literal counts, leaving their meaning and ranking direction to
+    // JEV. The earlier "top/bottom + digits" gate hid valid phrasings from it.
     const requests = [
-        ...question.matchAll(
-            /\b(top|bottom)\s+([1-9]\d{0,5})(?!\d|[.,]\d|\s*%)\b/gi,
-        ),
-    ].map((match) => ({
-        text: match[0],
-        limit: Number(match[2]),
-        descending: match[1].toLowerCase() === 'top',
-    }));
+        ...[
+            ...question.matchAll(
+                /(?<![\d.,])([1-9]\d{0,5})(?!\d|[.,]\d|\s*%)/g,
+            ),
+        ].map((match) => ({ text: match[0], limit: Number(match[1]) })),
+        ...[...question.matchAll(/\b[a-z]+\b/gi)].flatMap((match) => {
+            const word = match[0].toLowerCase();
+            const limit = Object.hasOwn(COUNT_WORDS, word)
+                ? COUNT_WORDS[word]
+                : null;
+            return limit ? [{ text: match[0], limit }] : [];
+        }),
+    ];
     const fields = getFields(explore)
         .filter(isMetric)
         .filter((field) => query.metrics.includes(getItemId(field)));
@@ -47,7 +77,7 @@ export const prepareRankingCheck = ({
         rankingRequest: {
             type: 'choice',
             instructions:
-                'Which quoted phrase explicitly requests a single global top or bottom N result in the latest user question? Read the question and conversation, ignoring the actual sort and limit. Choose none for negated requests, examples, percentages, multiple rankings, per-group rankings, ties, rank ranges or a meaning not exactly represented by the phrase. Top means highest measure values; bottom means lowest. Do not compute anything.',
+                'Which quoted literal count is the row limit explicitly requested for one global highest or lowest ranking in the latest user question? Read the question and conversation, ignoring the actual sort and limit. Choose none for negated requests, examples, percentages, multiple rankings, per-group rankings, ties, rank ranges or a count with another meaning. Do not compute or infer an unstated count.',
             criteria: {
                 none: 'No single supported global ranking request.',
                 ...Object.fromEntries(
@@ -56,6 +86,16 @@ export const prepareRankingCheck = ({
                         JSON.stringify(request.text),
                     ]),
                 ),
+            },
+        },
+        rankingDirection: {
+            type: 'choice',
+            instructions:
+                'Does the latest user question request a single global ranking by highest or lowest measure values? Choose descending for highest, most, top or equivalent wording; ascending for lowest, least, bottom or equivalent wording. Choose none for negated requests, examples, per-group rankings, multiple rankings, rank ranges or ambiguous direction. Do not use the query sort to decide.',
+            criteria: {
+                descending: 'Highest measure values first.',
+                ascending: 'Lowest measure values first.',
+                none: 'No single supported global ranking direction.',
             },
         },
         rankingMeasure: {
@@ -77,15 +117,18 @@ export const prepareRankingCheck = ({
         questions,
         advice: (answers: DecisionAnswers): string[] => {
             const requestKey = confidentChoice(answers.rankingRequest, 0.95);
+            const direction = confidentChoice(answers.rankingDirection, 0.95);
             const measureId = confidentChoice(answers.rankingMeasure, 0.95);
             const request = requests.find(
                 (_, index) => String(index) === requestKey,
             );
             if (
                 !request ||
+                (direction !== 'descending' && direction !== 'ascending') ||
                 !fields.some((field) => getItemId(field) === measureId)
             )
                 return [];
+            const descending = direction === 'descending';
             const sort = query.sorts[0];
             // Pivoted ranks need the requested pivot cell, not only a field ID.
             if (sort?.pivotValues?.length) return [];
@@ -93,11 +136,9 @@ export const prepareRankingCheck = ({
             if (
                 !sort ||
                 sort.fieldId !== measureId ||
-                sort.descending !== request.descending
+                sort.descending !== descending
             ) {
-                issues.push(
-                    `sort first by ${measureId} ${request.descending ? 'descending' : 'ascending'}`,
-                );
+                issues.push(`sort first by ${measureId} ${direction}`);
             }
             if (query.limit !== request.limit)
                 issues.push(
