@@ -29,7 +29,10 @@ import {
     SettingsCard,
     SettingsGridCard,
 } from '../../../../components/common/Settings/SettingsCard';
-import { SettingsPage } from '../../../../components/common/Settings/SettingsPage';
+import {
+    SettingsPage,
+    SettingsPageDocumentationLink,
+} from '../../../../components/common/Settings/SettingsPage';
 import {
     useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
@@ -220,6 +223,9 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
         <SettingsPage
             title="AI analysis"
             description="Let viewers analyse what a data app shows and investigate notable data points."
+            actions={
+                <SettingsPageDocumentationLink href="https://docs.lightdash.com/data-apps/ai-analysis" />
+            }
         >
             {isInitialLoading || !settings ? (
                 <Group justify="center" mt="xl">
