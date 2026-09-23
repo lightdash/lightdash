@@ -62,6 +62,7 @@ import {
 } from '../features/chartTypes/utils/autoMapDataAppVizFields';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { buildExplorerVizContext } from '../features/chartTypes/utils/explorerVizContext';
+import { pivotPreviewResults } from '../features/chartTypes/utils/pivotPreviewResults';
 import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
 import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
@@ -349,11 +350,24 @@ const ChartTypeBuilder: FC = () => {
         exploreFieldMapping,
         fieldMappingOverrides,
     ]);
+    const previewResults = useMemo(
+        () =>
+            schema && liveRun
+                ? pivotPreviewResults({
+                      schema,
+                      fieldMapping: previewFieldMapping,
+                      itemsMap: liveRun.itemsMap,
+                      rows: liveRun.rows,
+                      pivotDetails: liveRun.pivotDetails,
+                  })
+                : null,
+        [schema, liveRun, previewFieldMapping],
+    );
     const resolvedColors = useDataAppVizResolvedColors({
         itemsMap: liveRun?.itemsMap ?? NO_ITEMS,
-        rows: liveRun?.rows ?? NO_ROWS,
+        rows: previewResults?.rows ?? NO_ROWS,
         fieldMapping: previewFieldMapping,
-        pivotDetails: liveRun?.pivotDetails ?? null,
+        pivotDetails: previewResults?.pivotDetails ?? null,
         colorPalette,
     });
     const vizPreviewData =
@@ -365,7 +379,7 @@ const ChartTypeBuilder: FC = () => {
     // Rebuilt on any option or palette edit.
     const previewContext = useMemo(() => {
         if (!schema) return null;
-        if (!liveRun) {
+        if (!liveRun || !previewResults) {
             return buildSampleVizContext(
                 schema,
                 colorPalette,
@@ -377,8 +391,8 @@ const ChartTypeBuilder: FC = () => {
             schema,
             itemsMap: liveRun.itemsMap,
             persistedFieldMapping: previewFieldMapping,
-            rows: liveRun.rows,
-            pivotDetails: liveRun.pivotDetails,
+            rows: previewResults.rows,
+            pivotDetails: previewResults.pivotDetails,
             colorPalette,
             optionValues: panel.optionValues,
             resolvedColors,
@@ -391,6 +405,7 @@ const ChartTypeBuilder: FC = () => {
         resolvedColors,
         previewFieldMapping,
         vizPreviewData,
+        previewResults,
     ]);
 
     // What the next build is told it is changing: the schema on screen, bound

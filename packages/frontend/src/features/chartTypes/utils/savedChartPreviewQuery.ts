@@ -25,7 +25,7 @@ export type SavedChartPreviewQueryResult = {
  * Run a saved chart's own query once and hand back its rows.
  *
  * Unpivoted on purpose: the chart type binds the result columns itself, so a
- * preview wants the flat shape rather than the chart's own pivot.
+ * preview pivots these rows using its current bindings, not the source chart's.
  */
 export const executeSavedChartPreviewQuery = async ({
     projectUuid,
