@@ -1,5 +1,7 @@
 # Custom Visualizations Reference
 
+> **Legacy.** This covers the Vega-Lite `custom` chart config (`chartConfig.type: custom`). Use it for charts already saved with that type, or when custom chart types (enterprise) aren't available. For a new reusable visualization, prefer a custom chart type: see [Custom Chart Types](../SKILL.md#working-with-custom-chart-types-enterprise).
+
 Custom visualizations in Lightdash allow you to create advanced, bespoke charts using Vega-Lite specifications. This is an advanced feature for users who need visualization types not covered by Lightdash's built-in chart types.
 
 For full schema details, see [chart-as-code-1.0.json](schemas/chart-as-code-1.0.json) under `$defs/customVis`.

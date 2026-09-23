@@ -119,6 +119,16 @@ describe('buildStaticAuthoringFiles', () => {
         }
     });
 
+    it('points AGENTS.md at the shipped app skill files by full path', () => {
+        for (const skillPath of [
+            '.claude/skills/lightdash-data-app/SKILL.md',
+            '.claude/skills/developing-data-apps-locally/SKILL.md',
+        ]) {
+            expect(text('AGENTS.md')).toContain(`\`${skillPath}\``);
+            expect(byPath(skillPath)).toBeDefined();
+        }
+    });
+
     it('never writes app source (no src/ files)', () => {
         expect(files.every((f) => !f.path.startsWith('src/'))).toBe(true);
     });
@@ -152,6 +162,16 @@ describe('buildStaticAuthoringFiles — chart-type flavor', () => {
 
     it('documents the fixture preview flow in AGENTS.md', () => {
         expect(text('AGENTS.md')).toContain('vizFixture');
+    });
+
+    it('points AGENTS.md at the shipped chart-type skill files by full path', () => {
+        for (const skillPath of [
+            '.claude/skills/reusable-visualization/SKILL.md',
+            '.claude/skills/developing-chart-types-locally/SKILL.md',
+        ]) {
+            expect(text('AGENTS.md')).toContain(`\`${skillPath}\``);
+            expect(byPath(skillPath)).toBeDefined();
+        }
     });
 });
 

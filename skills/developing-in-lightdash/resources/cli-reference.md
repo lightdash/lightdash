@@ -164,6 +164,31 @@ lightdash apps validate --live    # validate against fresh project explores inst
 
 Every created or downloaded app bundle includes its own skills in `.claude/skills/` (`developing-data-apps-locally` and `lightdash-data-app`) — read them before editing app source.
 
+## Custom Chart Types (Enterprise)
+
+Custom chart types are reusable visualizations built in Chart Studio, stored as bundles under `chart-types/<slug>/`. See [Content as Code](./content-as-code-reference.md#custom-chart-types-enterprise) for how the selection flags combine.
+
+```bash
+# Scaffold a new chart type under ./lightdash/chart-types/
+lightdash apps create "Radial Gauge" --chart-type
+
+# Download ONE chart type (ref = slug, URL, or UUID) — complete command, do NOT add --include-chart-types
+lightdash download --chart-types radial-gauge
+
+# Download all chart types in the project (capped at 50; raise the cap with --chart-types-limit)
+lightdash download --include-chart-types
+lightdash download --chart-types-only   # chart types only, skipping charts, dashboards, and spaces
+
+# From inside chart-types/<slug>/: validate, then upload (../.. is the content root)
+lightdash apps validate --build
+lightdash upload --chart-types radial-gauge --path ../..
+
+# Upload every chart type folder on disk
+lightdash upload --include-chart-types
+```
+
+Every created or downloaded chart type folder includes `AGENTS.md` and its own skills in `.claude/skills/` (`reusable-visualization` and `developing-chart-types-locally`). Read them before editing chart type source.
+
 ## SQL Runner
 
 ### Warehouse catalog
