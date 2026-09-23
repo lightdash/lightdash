@@ -1341,6 +1341,92 @@ describe('Extra connection credentials on the real schema', () => {
         });
     });
 
+    describe('an organisation credential used by an extra connection keeps its warehouse type', () => {
+        const organizationModel = () =>
+            (
+                service as unknown as {
+                    organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
+                }
+            ).organizationWarehouseCredentialsModel;
+
+        const storedType = async (organizationCredential: string) =>
+            (
+                await database('organization_warehouse_credentials')
+                    .where(
+                        'organization_warehouse_credentials_uuid',
+                        organizationCredential,
+                    )
+                    .first<{ warehouse_type: string }>('warehouse_type')
+            ).warehouse_type;
+
+        test('refuses a type change and names the projects and connections that use it', async () => {
+            const organization = await createOrganization();
+            const organizationCredential = await createOrganizationCredential(
+                organization,
+                postgres,
+            );
+            const project = await createProject(organization, {
+                mode: 'multi',
+                credentials: postgres,
+            });
+            await createExtra(project, {
+                credentials: postgres,
+                organizationWarehouseCredentialsUuid: organizationCredential,
+                name: 'Finance',
+            });
+
+            await expect(
+                organizationModel().update(organizationCredential, {
+                    credentials: snowflake,
+                }),
+            ).rejects.toEqual(
+                new ConflictError(
+                    'The warehouse type of these credentials cannot change while extra connections use them: Credentials project / Finance.',
+                ),
+            );
+            expect(await storedType(organizationCredential)).toBe(
+                WarehouseTypes.POSTGRES,
+            );
+        });
+
+        test('keeps main behaviour: same-type updates with extras, and type changes that only originals use', async () => {
+            const organization = await createOrganization();
+            const usedByExtra = await createOrganizationCredential(
+                organization,
+                postgres,
+            );
+            const withExtra = await createProject(organization, {
+                mode: 'multi',
+                credentials: postgres,
+            });
+            await createExtra(withExtra, {
+                credentials: postgres,
+                organizationWarehouseCredentialsUuid: usedByExtra,
+            });
+            const usedByOriginal = await createOrganizationCredential(
+                organization,
+                postgres,
+            );
+            await createProject(organization, {
+                mode: 'multi',
+                credentials: postgres,
+                organizationWarehouseCredentialsUuid: usedByOriginal,
+            });
+
+            await organizationModel().update(usedByExtra, {
+                credentials: { ...postgres, host: 'new-host' },
+            });
+            await organizationModel().update(usedByOriginal, {
+                credentials: snowflake,
+            });
+
+            expect(await storedType(usedByExtra)).toBe(WarehouseTypes.POSTGRES);
+            expect(await storedType(usedByOriginal)).toBe(
+                WarehouseTypes.SNOWFLAKE,
+            );
+        });
+    });
+
     describe('callers that cannot use personal credentials', () => {
         test('a service account is refused when the original requires personal credentials', async () => {
             const organization = await createOrganization();
