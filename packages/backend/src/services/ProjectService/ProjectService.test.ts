@@ -1,11 +1,14 @@
 import { Ability, subject } from '@casl/ability';
 import {
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
     ConflictError,
     convertExplores,
     CustomDimensionType,
     CustomSqlQueryForbiddenError,
+    DatabricksAuthenticationType,
+    DatabricksTokenError,
     DbtExposureType,
     DbtProjectType,
     DbtVersionOptionLatest,
@@ -48,9 +51,16 @@ import {
     WeekDay,
     type ChartSummary,
     type CopyPreviewContentPayload,
+    type CreateAthenaCredentials,
     type CreateBigqueryCredentials,
+    type CreateClickhouseCredentials,
+    type CreateDatabricksCredentials,
+    type CreateDuckdbMotherduckCredentials,
+    type CreatePostgresCredentials,
     type CreateProject,
+    type CreateRedshiftCredentials,
     type CreateSnowflakeCredentials,
+    type CreateTrinoCredentials,
     type CreateWarehouseCredentials,
     type DbtManifest,
     type DownloadFile,
@@ -10420,6 +10430,556 @@ describe('Snowflake credential pins (SPK-2336)', () => {
             );
 
             generateSpy.mockRestore();
+        });
+    });
+});
+
+describe('Personal-credential merge pins across warehouse types (SPK-2338)', () => {
+    const pinsService = getMockedProjectService(lightdashConfigMock);
+    const { projectUuid: pinsProjectUuid } = defaultProject;
+
+    const setupProjectCredentials = (
+        credentials: CreateWarehouseCredentials,
+    ) => {
+        (
+            projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
+        ).mockResolvedValueOnce(credentials);
+        (
+            projectModel.getProjectWarehouseConfig as import('vitest').Mock
+        ).mockResolvedValueOnce({
+            organizationWarehouseCredentialsUuid: null,
+            queryTimezone: null,
+        });
+    };
+
+    const setupPersonalCredentials = (personalCredentials: unknown) => {
+        (
+            pinsService as unknown as {
+                userWarehouseCredentialsModel: {
+                    findForProjectWithSecrets: import('vitest').Mock;
+                };
+            }
+        ).userWarehouseCredentialsModel.findForProjectWithSecrets = vi.fn(
+            async () => ({
+                uuid: 'personal-creds-uuid',
+                credentials: personalCredentials,
+            }),
+        );
+    };
+
+    const callGetWarehouseCredentials =
+        (): Promise<CreateWarehouseCredentials> =>
+            (
+                pinsService as unknown as {
+                    getWarehouseCredentials: (args: {
+                        projectUuid: string;
+                        userId: string;
+                        isRegisteredUser: boolean;
+                        binding: { kind: 'original' };
+                    }) => Promise<CreateWarehouseCredentials>;
+                }
+            ).getWarehouseCredentials({
+                projectUuid: pinsProjectUuid,
+                userId: 'pin-user-uuid',
+                isRegisteredUser: true,
+                binding: { kind: 'original' },
+            });
+
+    describe('Postgres', () => {
+        test('a personal credential overrides the project user and password; non-secret project fields survive; no project secret leaks', async () => {
+            const projectCredentials: CreatePostgresCredentials = {
+                type: WarehouseTypes.POSTGRES,
+                host: 'project-host',
+                user: 'project-user',
+                password: 'project-secret-password',
+                port: 5432,
+                dbname: 'project-db',
+                schema: 'public',
+                requireUserCredentials: true,
+            };
+            setupProjectCredentials(projectCredentials);
+            setupPersonalCredentials({
+                type: WarehouseTypes.POSTGRES,
+                user: 'personal-user',
+                password: 'personal-secret-password',
+            });
+
+            const result = await callGetWarehouseCredentials();
+
+            expect(result).toMatchObject({
+                user: 'personal-user',
+                password: 'personal-secret-password',
+                host: 'project-host',
+                dbname: 'project-db',
+            });
+            expect(JSON.stringify(result)).not.toContain(
+                'project-secret-password',
+            );
+        });
+    });
+
+    describe('Trino', () => {
+        test('a personal credential overrides the project user and password; non-secret project fields survive; no project secret leaks', async () => {
+            const projectCredentials: CreateTrinoCredentials = {
+                type: WarehouseTypes.TRINO,
+                host: 'project-host',
+                user: 'project-user',
+                password: 'project-secret-password',
+                port: 8080,
+                dbname: 'project-db',
+                schema: 'public',
+                http_scheme: 'https',
+                requireUserCredentials: true,
+            };
+            setupProjectCredentials(projectCredentials);
+            setupPersonalCredentials({
+                type: WarehouseTypes.TRINO,
+                user: 'personal-user',
+                password: 'personal-secret-password',
+            });
+
+            const result = await callGetWarehouseCredentials();
+
+            expect(result).toMatchObject({
+                user: 'personal-user',
+                password: 'personal-secret-password',
+                host: 'project-host',
+                dbname: 'project-db',
+            });
+            expect(JSON.stringify(result)).not.toContain(
+                'project-secret-password',
+            );
+        });
+    });
+
+    describe('ClickHouse', () => {
+        test('a personal credential overrides the project user and password; non-secret project fields survive; no project secret leaks', async () => {
+            const projectCredentials: CreateClickhouseCredentials = {
+                type: WarehouseTypes.CLICKHOUSE,
+                host: 'project-host',
+                user: 'project-user',
+                password: 'project-secret-password',
+                port: 8123,
+                schema: 'default',
+                requireUserCredentials: true,
+            };
+            setupProjectCredentials(projectCredentials);
+            setupPersonalCredentials({
+                type: WarehouseTypes.CLICKHOUSE,
+                user: 'personal-user',
+                password: 'personal-secret-password',
+            });
+
+            const result = await callGetWarehouseCredentials();
+
+            expect(result).toMatchObject({
+                user: 'personal-user',
+                password: 'personal-secret-password',
+                host: 'project-host',
+            });
+            expect(JSON.stringify(result)).not.toContain(
+                'project-secret-password',
+            );
+        });
+    });
+
+    describe('Snowflake', () => {
+        test.each([
+            SnowflakeAuthenticationType.PASSWORD,
+            SnowflakeAuthenticationType.PRIVATE_KEY,
+        ])(
+            'a personal %s credential overrides the project credential; no project secret leaks',
+            async (personalAuthType) => {
+                const projectCredentials: CreateSnowflakeCredentials = {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    account: 'acct',
+                    user: 'project-user',
+                    database: 'db',
+                    warehouse: 'wh',
+                    schema: 'schema',
+                    authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                    password: 'project-secret-password',
+                    privateKey: 'project-secret-private-key',
+                    privateKeyPass: 'project-secret-private-key-pass',
+                    token: 'project-secret-token',
+                    refreshToken: 'project-secret-refresh-token',
+                    requireUserCredentials: true,
+                };
+                setupProjectCredentials(projectCredentials);
+                setupPersonalCredentials({
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'personal-user',
+                    authenticationType: personalAuthType,
+                    ...(personalAuthType ===
+                    SnowflakeAuthenticationType.PASSWORD
+                        ? { password: 'personal-secret-password' }
+                        : { privateKey: 'personal-secret-key' }),
+                });
+
+                const result = await callGetWarehouseCredentials();
+
+                expect(result).toMatchObject({
+                    user: 'personal-user',
+                    authenticationType: personalAuthType,
+                });
+                const serialized = JSON.stringify(result);
+                expect(serialized).not.toContain('project-secret-password');
+                expect(serialized).not.toContain('project-secret-private-key');
+                expect(serialized).not.toContain('project-secret-token');
+                expect(serialized).not.toContain(
+                    'project-secret-refresh-token',
+                );
+            },
+        );
+    });
+
+    describe('BigQuery', () => {
+        test.each([
+            BigqueryAuthenticationType.PRIVATE_KEY,
+            BigqueryAuthenticationType.SSO,
+        ])(
+            'a personal %s keyfile overrides the project keyfile; the project keyfile never leaks',
+            async (personalAuthType) => {
+                const projectCredentials: CreateBigqueryCredentials = {
+                    type: WarehouseTypes.BIGQUERY,
+                    project: 'project-gcp-project',
+                    dataset: 'project-dataset',
+                    timeoutSeconds: undefined,
+                    priority: undefined,
+                    keyfileContents: {
+                        private_key: 'project-secret-key',
+                    },
+                    authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+                    requireUserCredentials: true,
+                    retries: undefined,
+                    location: undefined,
+                    maximumBytesBilled: undefined,
+                };
+                setupProjectCredentials(projectCredentials);
+                setupPersonalCredentials({
+                    type: WarehouseTypes.BIGQUERY,
+                    authenticationType: personalAuthType,
+                    keyfileContents: {
+                        client_email: 'personal-secret-email',
+                    },
+                });
+
+                const result = await callGetWarehouseCredentials();
+
+                expect(result).toMatchObject({
+                    authenticationType: personalAuthType,
+                    keyfileContents: {
+                        client_email: 'personal-secret-email',
+                    },
+                });
+                expect(JSON.stringify(result)).not.toContain(
+                    'project-secret-key',
+                );
+            },
+        );
+    });
+
+    describe('Databricks', () => {
+        test('a personal access token overrides project OAuth credentials; project connection details survive', async () => {
+            const projectCredentials: CreateDatabricksCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                database: 'project-schema',
+                serverHostName: 'project-host.cloud.databricks.com',
+                httpPath: '/sql/1.0/warehouses/project',
+                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                oauthClientId: 'project-oauth-client',
+                oauthClientSecret: 'project-oauth-secret',
+                requireUserCredentials: true,
+            };
+            setupProjectCredentials(projectCredentials);
+            setupPersonalCredentials({
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType:
+                    DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+                personalAccessToken: 'personal-secret-token',
+            });
+
+            const result = await callGetWarehouseCredentials();
+
+            expect(result).toMatchObject({
+                authenticationType:
+                    DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+                personalAccessToken: 'personal-secret-token',
+                serverHostName: 'project-host.cloud.databricks.com',
+                httpPath: '/sql/1.0/warehouses/project',
+                database: 'project-schema',
+            });
+        });
+
+        test('clearSecretsFromCredentials never strips oauthClientId/oauthClientSecret, so a project OAuth secret survives untouched when a personal access-token credential does not set those fields', async () => {
+            const projectCredentials: CreateDatabricksCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                database: 'project-schema',
+                serverHostName: 'project-host.cloud.databricks.com',
+                httpPath: '/sql/1.0/warehouses/project',
+                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                oauthClientId: 'project-oauth-client',
+                oauthClientSecret: 'project-oauth-secret',
+                requireUserCredentials: true,
+            };
+            setupProjectCredentials(projectCredentials);
+            setupPersonalCredentials({
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType:
+                    DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+                personalAccessToken: 'personal-secret-token',
+            });
+
+            const result = await callGetWarehouseCredentials();
+
+            expect(result).toMatchObject({
+                oauthClientId: 'project-oauth-client',
+                oauthClientSecret: 'project-oauth-secret',
+            });
+        });
+    });
+
+    describe('Redshift (F4 shape: assumeRoleArn)', () => {
+        test('clears the project assumeRoleArn, and a password-only personal credential does not restore it', async () => {
+            const projectCredentials: CreateRedshiftCredentials = {
+                type: WarehouseTypes.REDSHIFT,
+                host: 'project-host',
+                user: 'project-user',
+                password: 'project-secret-password',
+                port: 5439,
+                dbname: 'project-db',
+                schema: 'public',
+                authenticationType: RedshiftAuthenticationType.PASSWORD,
+                assumeRoleArn: 'arn:aws:iam::111111111111:role/project-role',
+                requireUserCredentials: true,
+            };
+            setupProjectCredentials(projectCredentials);
+            setupPersonalCredentials({
+                type: WarehouseTypes.REDSHIFT,
+                user: 'personal-user',
+                password: 'personal-secret-password',
+            });
+
+            const result = await callGetWarehouseCredentials();
+
+            expect(result).toMatchObject({
+                user: 'personal-user',
+                password: 'personal-secret-password',
+                assumeRoleArn: '',
+            });
+            expect(JSON.stringify(result)).not.toContain(
+                'project-secret-password',
+            );
+        });
+
+        test('an IAM-role personal credential supplies its own assumeRoleArn', async () => {
+            const projectCredentials: CreateRedshiftCredentials = {
+                type: WarehouseTypes.REDSHIFT,
+                host: 'project-host',
+                user: 'project-user',
+                password: 'project-secret-password',
+                port: 5439,
+                dbname: 'project-db',
+                schema: 'public',
+                authenticationType: RedshiftAuthenticationType.PASSWORD,
+                assumeRoleArn: 'arn:aws:iam::111111111111:role/project-role',
+                requireUserCredentials: true,
+            };
+            setupProjectCredentials(projectCredentials);
+            setupPersonalCredentials({
+                type: WarehouseTypes.REDSHIFT,
+                user: 'personal-user',
+                authenticationType: RedshiftAuthenticationType.IAM,
+                accessKeyId: 'personal-access-key-id',
+                secretAccessKey: 'personal-secret-access-key',
+                sessionToken: 'personal-session-token',
+                assumeRoleArn: 'arn:aws:iam::222222222222:role/personal-role',
+            });
+
+            const result = await callGetWarehouseCredentials();
+
+            expect(result).toMatchObject({
+                user: 'personal-user',
+                authenticationType: RedshiftAuthenticationType.IAM,
+                assumeRoleArn: 'arn:aws:iam::222222222222:role/personal-role',
+            });
+            expect(JSON.stringify(result)).not.toContain(
+                'project-secret-password',
+            );
+        });
+    });
+
+    describe('Athena (F4 shape: assumeRoleArn)', () => {
+        test("keeps the project's assumeRoleArn when the personal credential only supplies access keys", async () => {
+            const projectCredentials: CreateAthenaCredentials = {
+                type: WarehouseTypes.ATHENA,
+                region: 'us-east-1',
+                database: 'AwsDataCatalog',
+                schema: 'project-schema',
+                s3StagingDir: 's3://bucket/staging/',
+                authenticationType: AthenaAuthenticationType.ACCESS_KEY,
+                accessKeyId: 'project-access-key-id',
+                secretAccessKey: 'project-secret-access-key',
+                assumeRoleArn: 'arn:aws:iam::111111111111:role/project-role',
+                requireUserCredentials: true,
+            };
+            setupProjectCredentials(projectCredentials);
+            setupPersonalCredentials({
+                type: WarehouseTypes.ATHENA,
+                accessKeyId: 'personal-access-key-id',
+                secretAccessKey: 'personal-secret-access-key',
+            });
+
+            const result = await callGetWarehouseCredentials();
+
+            expect(result).toMatchObject({
+                accessKeyId: 'personal-access-key-id',
+                secretAccessKey: 'personal-secret-access-key',
+                assumeRoleArn: 'arn:aws:iam::111111111111:role/project-role',
+            });
+            expect(JSON.stringify(result)).not.toContain(
+                'project-secret-access-key',
+            );
+        });
+    });
+
+    describe('MotherDuck', () => {
+        test('a personal token overrides the project token; non-secret project fields survive; no project secret leaks', async () => {
+            const projectCredentials: CreateDuckdbMotherduckCredentials = {
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.MOTHERDUCK,
+                database: 'project-database',
+                schema: 'project-schema',
+                token: 'project-secret-token',
+                requireUserCredentials: true,
+            };
+            setupProjectCredentials(projectCredentials);
+            setupPersonalCredentials({
+                type: WarehouseTypes.DUCKDB,
+                token: 'personal-secret-token',
+            });
+
+            const result = await callGetWarehouseCredentials();
+
+            expect(result).toMatchObject({
+                token: 'personal-secret-token',
+                database: 'project-database',
+                schema: 'project-schema',
+            });
+            expect(JSON.stringify(result)).not.toContain(
+                'project-secret-token',
+            );
+        });
+    });
+
+    describe('requireUserCredentials and optional personal credentials', () => {
+        test('requireUserCredentials false, and the warehouse does not support optional credentials: the personal credential model is never queried', async () => {
+            const projectCredentials: CreatePostgresCredentials = {
+                type: WarehouseTypes.POSTGRES,
+                host: 'project-host',
+                user: 'project-user',
+                password: 'project-secret-password',
+                port: 5432,
+                dbname: 'project-db',
+                schema: 'public',
+                requireUserCredentials: false,
+            };
+            setupProjectCredentials(projectCredentials);
+            const findForProjectWithSecretsMock = vi.fn(async () => undefined);
+            (
+                pinsService as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecretsMock;
+
+            const result = await callGetWarehouseCredentials();
+
+            expect(findForProjectWithSecretsMock).not.toHaveBeenCalled();
+            expect(result).toMatchObject({ user: 'project-user' });
+        });
+
+        test('requireUserCredentials false, but the warehouse supports optional credentials: a personal credential is still merged in', async () => {
+            const projectCredentials: CreateDatabricksCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                database: 'project-schema',
+                serverHostName: 'project-host.cloud.databricks.com',
+                httpPath: '/sql/1.0/warehouses/project',
+                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                oauthClientId: 'project-oauth-client',
+                oauthClientSecret: 'project-oauth-secret',
+                requireUserCredentials: false,
+            };
+            setupProjectCredentials(projectCredentials);
+            setupPersonalCredentials({
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType:
+                    DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+                personalAccessToken: 'personal-secret-token',
+            });
+
+            const result = await callGetWarehouseCredentials();
+
+            expect(result).toMatchObject({
+                authenticationType:
+                    DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+                personalAccessToken: 'personal-secret-token',
+            });
+        });
+
+        test('requireUserCredentials true with no personal credential found throws for a non-Databricks type', async () => {
+            const projectCredentials: CreatePostgresCredentials = {
+                type: WarehouseTypes.POSTGRES,
+                host: 'project-host',
+                user: 'project-user',
+                password: 'project-secret-password',
+                port: 5432,
+                dbname: 'project-db',
+                schema: 'public',
+                requireUserCredentials: true,
+            };
+            setupProjectCredentials(projectCredentials);
+            setupPersonalCredentials(undefined);
+            (
+                pinsService as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets = vi.fn(
+                async () => undefined,
+            );
+
+            await expect(callGetWarehouseCredentials()).rejects.toBeInstanceOf(
+                MissingWarehouseCredentialsError,
+            );
+        });
+
+        test('requireUserCredentials true with no personal credential found throws DatabricksTokenError for Databricks', async () => {
+            const projectCredentials: CreateDatabricksCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                database: 'project-schema',
+                serverHostName: 'project-host.cloud.databricks.com',
+                httpPath: '/sql/1.0/warehouses/project',
+                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                requireUserCredentials: true,
+            };
+            setupProjectCredentials(projectCredentials);
+            (
+                pinsService as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets = vi.fn(
+                async () => undefined,
+            );
+
+            await expect(callGetWarehouseCredentials()).rejects.toBeInstanceOf(
+                DatabricksTokenError,
+            );
         });
     });
 });
