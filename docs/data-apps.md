@@ -203,6 +203,37 @@ server-side and audits byte counts, never bodies. Admins can test a connection t
 sanitised samples that are handed to the coding agent so generated code matches the API's real shape. Connections
 are also a content-as-code resource; secrets never travel in files.
 
+### Forwarding viewer identity
+
+Connection managers can enable **Forward viewer identity** for an individual connection. The API and
+content-as-code field is `forwardUserIdentity`; it defaults to `false` for new and existing connections.
+Omitting it from a PATCH preserves the current value. Enabling it shares the available request identity
+with that connection's destination using backend-set headers:
+
+| Header                        | Value                                                          |
+| ----------------------------- | -------------------------------------------------------------- |
+| `X-Lightdash-User-Email`      | The requesting principal's email, when available               |
+| `X-Lightdash-User-Id`         | The requesting principal's Lightdash user UUID, when available |
+| `X-Lightdash-App-Id`          | The app UUID authorized for the request                        |
+| `X-Lightdash-Organization-Id` | The connection's organization UUID                             |
+| `X-Lightdash-Project-Id`      | The connection's project UUID                                  |
+
+Lightdash forwards known attributes without requiring email verification or a human viewer. Missing
+attributes are omitted. JWT embeds can forward their token's email claim, but have no Lightdash user UUID;
+service accounts use their own principal's user UUID. The app creator and connection owner are never used
+as substitutes for the requester.
+
+App code cannot supply or override these headers. Their names are reserved case-insensitively and cannot
+be configured as custom headers or API-key headers, even when forwarding is disabled. Existing configurations
+using reserved names must remove those collisions. Connection credentials are still sent as usual.
+These identity headers are unsigned: the external service must authenticate Lightdash through its trusted
+connection credential or network boundary before using them for authorization. It decides how to handle
+missing attributes and whether the supplied email is sufficient for its policy.
+
+Connection tests respect unsaved settings and send the testing administrator's available identity,
+organization, and project, without an app ID. Identity is attached only to proxied resource requests,
+including OAuth retries; it is not sent to OAuth token endpoints or on direct browser image requests.
+
 ### Trusted private destinations on self-hosted instances
 
 Operators can set `APP_RUNTIME_EXTERNAL_CONNECTION_ALLOWED_PRIVATE_HOST_CIDRS` to comma-separated

@@ -6,7 +6,10 @@ import {
     type ExternalConnectionAuthType,
     type OAuthClientAuthMethod,
 } from '@lightdash/common';
-import { validateCustomHeaders } from './proxyValidation';
+import {
+    assertSafeApiKeyHeaderName,
+    validateCustomHeaders,
+} from './proxyValidation';
 
 // Defense-in-depth caps for the numeric limits. The runtime proxy enforces
 // these too, but bad config should never be persisted in the first place.
@@ -287,6 +290,9 @@ export function validateExternalConnectionConfig(
                 throw new ParameterError(
                     'type "api_key" requires apiKeyLocation of "header" or "query"',
                 );
+            }
+            if (config.apiKeyLocation === 'header') {
+                assertSafeApiKeyHeaderName(config.apiKeyName);
             }
             break;
         case 'google_service_account':

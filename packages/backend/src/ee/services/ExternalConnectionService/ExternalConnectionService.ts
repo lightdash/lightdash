@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     assertRegisteredAccount,
     EXTERNAL_CONNECTION_DEFAULTS,
+    EXTERNAL_CONNECTION_IDENTITY_HEADERS,
     ForbiddenError,
     getErrorMessage,
     isJwtUser,
@@ -459,6 +460,10 @@ export class ExternalConnectionService extends BaseService {
             allowDataAppBuilderLinking:
                 data.allowDataAppBuilderLinking ??
                 existing.allowDataAppBuilderLinking,
+            forwardUserIdentity:
+                data.forwardUserIdentity ??
+                existing.forwardUserIdentity ??
+                false,
             instructions:
                 data.instructions !== undefined
                     ? data.instructions
@@ -783,12 +788,17 @@ export class ExternalConnectionService extends BaseService {
             responseBytes: number;
         };
         try {
-            result = await this.executeExternalFetch(connection, secret, {
-                method,
-                path: req.path,
-                query: req.query,
-                body: req.body,
-            });
+            result = await this.executeExternalFetch(
+                connection,
+                secret,
+                {
+                    method,
+                    path: req.path,
+                    query: req.query,
+                    body: req.body,
+                },
+                { account, appUuid },
+            );
         } catch (error) {
             const isKnown =
                 error instanceof ParameterError ||
@@ -856,6 +866,7 @@ export class ExternalConnectionService extends BaseService {
             query?: Record<string, string>;
             body?: unknown;
         },
+        context: { account: Account; appUuid: string | null },
     ): Promise<{
         response: ExternalFetchResponse;
         requestBytes: number;
@@ -968,6 +979,29 @@ export class ExternalConnectionService extends BaseService {
             }
         }
         // type === 'none' → no auth injected.
+
+        // Identity comes only from the authenticated principal and the resolved
+        // connection/app context. Missing attributes are omitted, not invented.
+        // In particular, embed user IDs are not Lightdash user UUIDs.
+        if (connection.forwardUserIdentity === true) {
+            const { user } = context.account;
+            headers[EXTERNAL_CONNECTION_IDENTITY_HEADERS.organizationId] =
+                connection.organizationUuid;
+            headers[EXTERNAL_CONNECTION_IDENTITY_HEADERS.projectId] =
+                connection.projectUuid;
+            if (context.appUuid) {
+                headers[EXTERNAL_CONNECTION_IDENTITY_HEADERS.appId] =
+                    context.appUuid;
+            }
+            if (user.type === 'registered') {
+                headers[EXTERNAL_CONNECTION_IDENTITY_HEADERS.userId] =
+                    user.userUuid;
+            }
+            if (user.email) {
+                headers[EXTERNAL_CONNECTION_IDENTITY_HEADERS.userEmail] =
+                    user.email;
+            }
+        }
 
         // Build the outbound URL server-side (host pinned to origin).
         let url: string;
@@ -1121,12 +1155,14 @@ export class ExternalConnectionService extends BaseService {
             query?: Record<string, string>;
             body?: unknown;
         },
+        account: RegisteredAccount,
     ): Promise<ExternalFetchResponse> {
         try {
             const result = await this.executeExternalFetch(
                 connection,
                 secret,
                 req,
+                { account, appUuid: null },
             );
             return result.response;
         } catch (error) {
@@ -1395,12 +1431,17 @@ export class ExternalConnectionService extends BaseService {
                       connectionUuid,
                   ));
 
-        return this.executeTestFetch(connection, secret, {
-            method,
-            path: req.path,
-            query: req.query,
-            body: req.body,
-        });
+        return this.executeTestFetch(
+            connection,
+            secret,
+            {
+                method,
+                path: req.path,
+                query: req.query,
+                body: req.body,
+            },
+            account,
+        );
     }
 
     /**
@@ -1459,6 +1500,7 @@ export class ExternalConnectionService extends BaseService {
             allowBrowserImages: data.allowBrowserImages ?? false,
             allowDataAppBuilderLinking:
                 data.allowDataAppBuilderLinking ?? false,
+            forwardUserIdentity: data.forwardUserIdentity ?? false,
             instructions: data.instructions ?? null,
             allowedPathPrefixes: data.allowedPathPrefixes,
             allowedMethods: data.allowedMethods,
@@ -1487,12 +1529,17 @@ export class ExternalConnectionService extends BaseService {
 
         const secret = data.type === 'none' ? null : (data.secret ?? null);
 
-        return this.executeTestFetch(connection, secret, {
-            method,
-            path: req.path,
-            query: req.query,
-            body: req.body,
-        });
+        return this.executeTestFetch(
+            connection,
+            secret,
+            {
+                method,
+                path: req.path,
+                query: req.query,
+                body: req.body,
+            },
+            account,
+        );
     }
 
     /**

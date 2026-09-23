@@ -43,6 +43,7 @@ const toUpdateExternalConnection = (
     type: values.type,
     allowBrowserImages: values.allowBrowserImages,
     allowDataAppBuilderLinking: values.allowDataAppBuilderLinking,
+    forwardUserIdentity: values.forwardUserIdentity,
     allowedMethods: values.allowedMethods,
     allowedPathPrefixes: resolvePathPrefixes(
         values.pathMode,
@@ -112,6 +113,7 @@ const EditConnectionModalContent: FC<Props> = ({
             allowBrowserImages: connection.allowBrowserImages ?? false,
             allowDataAppBuilderLinking:
                 connection.allowDataAppBuilderLinking ?? false,
+            forwardUserIdentity: connection.forwardUserIdentity ?? false,
             secret: '',
             apiKeyName: connection.apiKeyName ?? '',
             apiKeyLocation: connection.apiKeyLocation ?? 'header',

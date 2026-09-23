@@ -53,6 +53,7 @@ const connection: ExternalConnection = {
     origin: 'https://api.stripe.com',
     allowBrowserImages: false,
     allowDataAppBuilderLinking: true,
+    forwardUserIdentity: true,
     instructions: null,
     allowedPathPrefixes: ['/v2/', '/v1/'],
     allowedMethods: ['POST', 'GET'],
@@ -81,6 +82,7 @@ const connectionAsCode: ExternalConnectionAsCode = {
     origin: 'https://api.stripe.com',
     allowBrowserImages: false,
     allowDataAppBuilderLinking: true,
+    forwardUserIdentity: true,
     instructions: null,
     allowedPathPrefixes: ['/v1/', '/v2/'],
     allowedMethods: ['GET', 'POST'],
@@ -310,6 +312,7 @@ describe('ExternalConnectionCoderService upserts', () => {
                 name: 'Stripe API',
                 type: 'api_key',
                 allowDataAppBuilderLinking: true,
+                forwardUserIdentity: true,
                 secret: 'sk-secret',
             }),
             { slug: 'stripe-api' },
@@ -418,7 +421,7 @@ describe('ExternalConnectionCoderService upserts', () => {
         );
     });
 
-    it('updates through the domain service when the document changed', async () => {
+    it('updates through the domain service when identity forwarding is disabled in the document', async () => {
         const { service, externalConnectionService } = buildService();
         mockAbility(service, fullAbility);
 
@@ -426,7 +429,7 @@ describe('ExternalConnectionCoderService upserts', () => {
             account,
             projectUuid,
             'stripe-api',
-            { ...connectionAsCode, instructions: 'Use the v2 endpoints only.' },
+            { ...connectionAsCode, forwardUserIdentity: false },
         );
 
         expect(result.action).toBe(PromotionAction.UPDATE);
@@ -435,7 +438,7 @@ describe('ExternalConnectionCoderService upserts', () => {
             projectUuid,
             'conn-uuid-1',
             expect.objectContaining({
-                instructions: 'Use the v2 endpoints only.',
+                forwardUserIdentity: false,
                 name: 'Stripe API',
             }),
         );

@@ -80,6 +80,7 @@ export class ExternalConnectionModel {
             origin: row.origin,
             allowBrowserImages: row.allow_browser_images,
             allowDataAppBuilderLinking: row.allow_data_app_builder_linking,
+            forwardUserIdentity: row.forward_user_identity,
             instructions: row.instructions,
             allowedPathPrefixes: row.allowed_path_prefixes,
             allowedMethods: row.allowed_methods,
@@ -177,6 +178,8 @@ export class ExternalConnectionModel {
                         allow_browser_images: data.allowBrowserImages ?? false,
                         allow_data_app_builder_linking:
                             data.allowDataAppBuilderLinking ?? false,
+                        forward_user_identity:
+                            data.forwardUserIdentity ?? false,
                         instructions: data.instructions ?? null,
                         allowed_path_prefixes: JSON.stringify(
                             data.allowedPathPrefixes,
@@ -283,6 +286,7 @@ export class ExternalConnectionModel {
                         allow_browser_images: src.allow_browser_images,
                         allow_data_app_builder_linking:
                             src.allow_data_app_builder_linking,
+                        forward_user_identity: src.forward_user_identity,
                         instructions: src.instructions,
                         allowed_path_prefixes: JSON.stringify(
                             src.allowed_path_prefixes,
@@ -702,6 +706,8 @@ export class ExternalConnectionModel {
             if (data.allowDataAppBuilderLinking !== undefined)
                 updatePayload.allow_data_app_builder_linking =
                     data.allowDataAppBuilderLinking;
+            if (data.forwardUserIdentity !== undefined)
+                updatePayload.forward_user_identity = data.forwardUserIdentity;
             if (data.instructions !== undefined)
                 updatePayload.instructions = data.instructions;
             if (data.allowedPathPrefixes !== undefined)

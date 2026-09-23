@@ -4,8 +4,15 @@ import {
     ProjectType,
     type ExternalConnection,
 } from '@lightdash/common';
-import { fromJwt } from '../../../auth/account';
-import { buildAccount } from '../../../auth/account/account.mock';
+import {
+    fromJwt,
+    fromServiceAccount,
+    fromSession,
+} from '../../../auth/account';
+import {
+    buildAccount,
+    defaultSessionUser,
+} from '../../../auth/account/account.mock';
 import {
     SecureFetchError,
     type AllowedPrivateHostCidrs,
@@ -89,11 +96,11 @@ const buildEmbeddedDashboardUser = (allowAllDashboards = false) => {
     });
 };
 
-const buildEmbeddedDataAppUser = (appUuid = 'app-1') => {
+const buildEmbeddedDataAppUser = (appUuid = 'app-1', email?: string) => {
     const base = buildAccount({ accountType: 'jwt' });
     return fromJwt({
         decodedToken: {
-            user: { externalId: 'data-app-viewer' },
+            user: { externalId: 'data-app-viewer', email },
             content: { type: 'dataApp', appUuid },
         },
         embed: { ...base.embed, allowAllApps: true, appUuids: [appUuid] },
@@ -122,6 +129,8 @@ function buildService(opts: {
     appExists?: boolean;
 }) {
     const externalConnectionModel = {
+        findByUuid: vi.fn().mockResolvedValue(opts.connection),
+        getProjectOrganizationUuid: vi.fn().mockResolvedValue('org-1'),
         resolveAppAlias: vi.fn().mockResolvedValue(opts.connection),
         getDecryptedSecret: vi.fn().mockResolvedValue(opts.secret ?? null),
         incrementRateCounter: vi.fn().mockResolvedValue(opts.rateCount ?? 1),
@@ -202,6 +211,199 @@ beforeEach(() => {
 });
 
 describe('ExternalConnectionService.proxyFetch', () => {
+    it.each([undefined, false])(
+        'does not forward identity when the setting is %s',
+        async (forwardUserIdentity) => {
+            const { service } = buildService({
+                connection: baseConnection({ forwardUserIdentity }),
+            });
+
+            await service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/today',
+            });
+
+            expect(mockSecureFetch.mock.calls[0][1].headers).toEqual({});
+        },
+    );
+
+    it('forwards each requesting viewer alongside connection auth, ignoring app-supplied identity', async () => {
+        const { service } = buildService({
+            connection: baseConnection({
+                forwardUserIdentity: true,
+                type: 'bearer_token',
+            }),
+            secret: 'connection-token',
+        });
+        const request = {
+            connectionAlias: 'weather',
+            path: '/v1/today',
+            headers: { 'X-Lightdash-User-Email': 'spoofed@example.com' },
+            userUuid: 'spoofed-user',
+        };
+        const secondViewer = fromSession(
+            {
+                ...defaultSessionUser,
+                userUuid: 'viewer-2',
+                email: 'viewer-2@example.com',
+            },
+            'session',
+        );
+
+        await service.proxyFetch(user, 'proj-1', 'app-1', request);
+        await service.proxyFetch(secondViewer, 'proj-1', 'app-1', request);
+
+        expect(
+            mockSecureFetch.mock.calls.map(([, options]) => options.headers),
+        ).toEqual([
+            {
+                Authorization: 'Bearer connection-token',
+                'X-Lightdash-User-Id': user.user.userUuid,
+                'X-Lightdash-User-Email': user.user.email,
+                'X-Lightdash-App-Id': 'app-1',
+                'X-Lightdash-Organization-Id': 'org-1',
+                'X-Lightdash-Project-Id': 'proj-1',
+            },
+            {
+                Authorization: 'Bearer connection-token',
+                'X-Lightdash-User-Id': 'viewer-2',
+                'X-Lightdash-User-Email': 'viewer-2@example.com',
+                'X-Lightdash-App-Id': 'app-1',
+                'X-Lightdash-Organization-Id': 'org-1',
+                'X-Lightdash-Project-Id': 'proj-1',
+            },
+        ]);
+    });
+
+    it.each([undefined, 'embed-viewer@example.com'])(
+        'forwards available embed claims without inventing a Lightdash user UUID (email: %s)',
+        async (email) => {
+            const { service } = buildService({
+                connection: baseConnection({ forwardUserIdentity: true }),
+            });
+
+            await service.proxyFetch(
+                buildEmbeddedDataAppUser('app-1', email),
+                'proj-1',
+                'app-1',
+                {
+                    connectionAlias: 'weather',
+                    path: '/v1/today',
+                },
+            );
+
+            expect(mockSecureFetch.mock.calls[0][1].headers).toEqual({
+                'X-Lightdash-App-Id': 'app-1',
+                'X-Lightdash-Organization-Id': 'org-1',
+                'X-Lightdash-Project-Id': 'proj-1',
+                ...(email ? { 'X-Lightdash-User-Email': email } : {}),
+            });
+        },
+    );
+
+    it('forwards a service account principal without requiring an email or substituting its owner', async () => {
+        const { service } = buildService({
+            connection: baseConnection({ forwardUserIdentity: true }),
+        });
+        const serviceAccount = fromServiceAccount(
+            {
+                ...defaultSessionUser,
+                userUuid: 'service-principal',
+                email: undefined,
+                serviceAccount: {
+                    uuid: 'service-account',
+                    description: 'Test',
+                },
+            },
+            'service-token',
+        );
+
+        await service.proxyFetch(serviceAccount, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/today',
+        });
+
+        expect(mockSecureFetch.mock.calls[0][1].headers).toEqual({
+            'X-Lightdash-User-Id': 'service-principal',
+            'X-Lightdash-App-Id': 'app-1',
+            'X-Lightdash-Organization-Id': 'org-1',
+            'X-Lightdash-Project-Id': 'proj-1',
+        });
+    });
+
+    it.each([
+        {
+            forwardUserIdentity: false,
+            customHeaders: { 'x-LIGHTDASH-user-email': 'spoofed@example.com' },
+        },
+        {
+            forwardUserIdentity: true,
+            type: 'api_key' as const,
+            apiKeyLocation: 'header' as const,
+            apiKeyName: 'x-lightdash-USER-id',
+        },
+    ])('blocks stored identity-header collisions: %j', async (config) => {
+        const { service } = buildService({
+            connection: baseConnection(config),
+            secret: 'spoofed-identity',
+        });
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/today',
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it.each([undefined, false])(
+        'respects an omitted or disabled draft forwarding setting (%s)',
+        async (forwardUserIdentity) => {
+            const { service } = buildService({
+                connection: baseConnection({ forwardUserIdentity: true }),
+            });
+            await service.testConnection(user, 'proj-1', 'conn-1', {
+                path: '/v1/today',
+                config: { forwardUserIdentity },
+            });
+
+            const { headers } = mockSecureFetch.mock.calls[0][1];
+            if (forwardUserIdentity === false) {
+                expect(headers).toEqual({});
+            } else {
+                expect(headers).toHaveProperty(
+                    'X-Lightdash-User-Id',
+                    user.user.userUuid,
+                );
+            }
+        },
+    );
+
+    it('uses the testing admin and unsaved toggle for both test endpoints, without an app ID', async () => {
+        const { service } = buildService({ connection: baseConnection() });
+        await service.testConnection(user, 'proj-1', 'conn-1', {
+            path: '/v1/today',
+            config: { forwardUserIdentity: true },
+        });
+        await service.testConfig(
+            user,
+            'proj-1',
+            baseConnection({ forwardUserIdentity: true }),
+            {
+                path: '/v1/today',
+            },
+        );
+        for (const [, options] of mockSecureFetch.mock.calls) {
+            expect(options.headers).toEqual({
+                'X-Lightdash-User-Id': user.user.userUuid,
+                'X-Lightdash-User-Email': user.user.email,
+                'X-Lightdash-Organization-Id': 'org-1',
+                'X-Lightdash-Project-Id': 'proj-1',
+            });
+        }
+        expect(mockSecureFetch).toHaveBeenCalledTimes(2);
+    });
+
     it('allows a standalone embed JWT to use a connection linked to its app', async () => {
         const { service, appModel, analytics } = buildService({
             connection: baseConnection(),
@@ -726,6 +928,12 @@ describe('ExternalConnectionService.proxyFetch', () => {
         const authorizations: Array<string | undefined> = [];
         mockSecureFetch.mockImplementation(async (_url, options) => {
             authorizations.push(options.headers?.Authorization);
+            expect(options.headers?.['X-Lightdash-User-Id']).toBe(
+                user.user.userUuid,
+            );
+            expect(options.headers?.['X-Lightdash-User-Email']).toBe(
+                user.user.email,
+            );
             return {
                 status: authorizations.length === 1 ? 401 : 200,
                 contentType: 'application/json',
@@ -735,7 +943,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
             };
         });
         const { service, oauthClientCredentialsTokenProvider } = buildService({
-            connection: OAUTH_CONNECTION,
+            connection: { ...OAUTH_CONNECTION, forwardUserIdentity: true },
             secret: 'client-secret',
         });
         oauthClientCredentialsTokenProvider.getAccessToken

@@ -1,4 +1,7 @@
-import { ParameterError } from '@lightdash/common';
+import {
+    EXTERNAL_CONNECTION_IDENTITY_HEADERS,
+    ParameterError,
+} from '@lightdash/common';
 import {
     validateExternalConnectionConfig,
     validateServiceAccountKeyfile,
@@ -14,6 +17,32 @@ const base: ValidatableExternalConnectionConfig = {
 };
 
 describe('validateExternalConnectionConfig', () => {
+    it.each(Object.values(EXTERNAL_CONNECTION_IDENTITY_HEADERS))(
+        'reserves %s for backend identity assertions',
+        (header) => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        customHeaders: { [header.toUpperCase()]: 'spoofed' },
+                    },
+                    false,
+                ),
+            ).toThrow(ParameterError);
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'api_key',
+                        apiKeyName: header.toLowerCase(),
+                        apiKeyLocation: 'header',
+                    },
+                    true,
+                ),
+            ).toThrow(ParameterError);
+        },
+    );
+
     it('accepts a valid no-auth config', () => {
         expect(() =>
             validateExternalConnectionConfig(base, false),

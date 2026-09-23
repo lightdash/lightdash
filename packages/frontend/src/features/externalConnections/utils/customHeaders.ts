@@ -46,7 +46,7 @@ export const validateCustomHeaderRows = (
             return `"${row.name}" is not a valid header name`;
         }
         if (FORBIDDEN_NAMES.has(name.toLowerCase())) {
-            return `Header "${name}" is not allowed — use the connection's authentication for credentials`;
+            return `Header "${name}" is reserved by the proxy or used for credentials`;
         }
         if (!value) {
             return `Header "${name}" needs a value`;
