@@ -12337,7 +12337,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             intent = chart.filter;
         } else if (chart?.type === 'compound') {
             outcome = 'compound';
-            intent = chart.steps;
+            // pg writes a bare JS array as a Postgres array, which jsonb rejects.
+            intent = { steps: chart.steps };
         } else if (chart) outcome = chart.type;
         try {
             await this.aiAgentModel.createPromptDecision({
@@ -12355,7 +12356,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 jev_model: decisions.modelName,
             });
         } catch (error) {
-            Logger.debug(`Unable to record AI turn decision: ${String(error)}`);
+            Logger.warn(`Unable to record AI turn decision: ${String(error)}`);
         }
     }
 
