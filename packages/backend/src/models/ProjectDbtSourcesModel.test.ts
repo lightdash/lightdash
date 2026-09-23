@@ -72,13 +72,26 @@ describe('ProjectDbtSourcesModel', () => {
         tracker.on.select(ProjectDbtSourcesTableName).responseOnce(sources);
         tracker.on.insert(ProjectDbtSourcesTableName).responseOnce([]);
 
-        await model.copySources(upstreamProjectUuid, previewProjectUuid);
+        await model.copySources(
+            upstreamProjectUuid,
+            previewProjectUuid,
+            new Map([
+                [
+                    '55555555-5555-4555-8555-555555555555',
+                    '99999999-9999-4999-8999-999999999991',
+                ],
+                [
+                    '66666666-6666-4666-8666-666666666666',
+                    '99999999-9999-4999-8999-999999999992',
+                ],
+            ]),
+        );
 
         expect(tracker.history.select[0].bindings).toEqual([
             upstreamProjectUuid,
         ]);
         expect(tracker.history.insert[0].bindings).toEqual([
-            '55555555-5555-4555-8555-555555555555',
+            '99999999-9999-4999-8999-999999999991',
             githubCiphertext,
             DbtProjectType.GITHUB,
             false,
@@ -88,7 +101,7 @@ describe('ProjectDbtSourcesModel', () => {
             previewProjectUuid,
             'finance_database',
             null,
-            '66666666-6666-4666-8666-666666666666',
+            '99999999-9999-4999-8999-999999999992',
             gitlabCiphertext,
             DbtProjectType.GITLAB,
             false,
@@ -104,6 +117,27 @@ describe('ProjectDbtSourcesModel', () => {
         );
         expect(encryptionUtil.decrypt).not.toHaveBeenCalled();
         expect(encryptionUtil.encrypt).not.toHaveBeenCalled();
+    });
+
+    it('refuses to bind a copied source to a connection outside the preview', async () => {
+        tracker.on.select(ProjectDbtSourcesTableName).responseOnce(sources);
+        tracker.on.insert(ProjectDbtSourcesTableName).responseOnce([]);
+
+        await expect(
+            model.copySources(
+                upstreamProjectUuid,
+                previewProjectUuid,
+                new Map([
+                    [
+                        '55555555-5555-4555-8555-555555555555',
+                        '99999999-9999-4999-8999-999999999991',
+                    ],
+                ]),
+            ),
+        ).rejects.toThrow(
+            'The preview has no connection for dbt source "marketing_models"',
+        );
+        expect(tracker.history.insert).toHaveLength(0);
     });
 
     it('creates the primary source on the project dbt source identity', async () => {

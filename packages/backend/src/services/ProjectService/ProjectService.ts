@@ -3168,6 +3168,24 @@ export class ProjectService extends BaseService {
         });
     }
 
+    private async getPreviewConnectionUuidMap(
+        upstreamProjectUuid: string,
+        previewProjectUuid: string,
+    ): Promise<Map<string, string>> {
+        const [upstreamConnectionUuid, previewConnectionUuid] =
+            await Promise.all([
+                this.projectDbtSourcesModel.findSoleConnectionUuid(
+                    upstreamProjectUuid,
+                ),
+                this.projectDbtSourcesModel.findSoleConnectionUuid(
+                    previewProjectUuid,
+                ),
+            ]);
+        return upstreamConnectionUuid !== null && previewConnectionUuid !== null
+            ? new Map([[upstreamConnectionUuid, previewConnectionUuid]])
+            : new Map();
+    }
+
     async createWithoutCompile(
         user: SessionUser,
         data: CreateProjectOptionalCredentials,
@@ -3294,6 +3312,10 @@ export class ProjectService extends BaseService {
             await this.projectDbtSourcesModel.copySources(
                 createProject.upstreamProjectUuid,
                 projectUuid,
+                await this.getPreviewConnectionUuidMap(
+                    createProject.upstreamProjectUuid,
+                    projectUuid,
+                ),
             );
         } else {
             await this.materialisePrimaryDbtSource(projectUuid, createProject);
@@ -3840,6 +3862,10 @@ export class ProjectService extends BaseService {
                         await this.projectDbtSourcesModel.copySources(
                             createProject.upstreamProjectUuid,
                             newProjectUuid,
+                            await this.getPreviewConnectionUuidMap(
+                                createProject.upstreamProjectUuid,
+                                newProjectUuid,
+                            ),
                         );
                     } else {
                         await this.materialisePrimaryDbtSource(

@@ -2478,6 +2478,108 @@ describe('ProjectService', () => {
         }
     });
 
+    test('binds copied dbt sources to the preview connection on the wizard create path', async () => {
+        const wizardProjectUuid = 'wizard-preview-uuid';
+        const upstreamProjectUuid = 'wizard-upstream-uuid';
+        const createPrimarySource = vi.fn(async () => undefined);
+        const copySources = vi.fn(async () => undefined);
+        const wizardService = getMockedProjectService(lightdashConfigMock, {
+            projectDbtSourcesModel: {
+                createPrimarySource,
+                copySources,
+                findSoleConnectionUuid: vi.fn(async (uuid: string) =>
+                    uuid === upstreamProjectUuid
+                        ? 'upstream-connection-uuid'
+                        : 'preview-connection-uuid',
+                ),
+            } as unknown as ProjectDbtSourcesModel,
+        });
+        const wizardUser: SessionUser = {
+            ...user,
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Test organization',
+            organizationCreatedAt: new Date(),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'create' },
+            ]),
+        };
+        const adapter = {
+            getLightdashProjectConfig: vi.fn(async () => ({})),
+            destroy: vi.fn(async () => undefined),
+        };
+        const tagsSpy = vi
+            .spyOn(
+                wizardService as unknown as {
+                    replaceYamlTagsWithoutPermissionCheck: () => Promise<void>;
+                },
+                'replaceYamlTagsWithoutPermissionCheck',
+            )
+            .mockResolvedValue(undefined);
+        const parametersSpy = vi
+            .spyOn(
+                wizardService as unknown as {
+                    replaceProjectParameters: () => Promise<void>;
+                },
+                'replaceProjectParameters',
+            )
+            .mockResolvedValue(undefined);
+        const resolveSpy = vi
+            .spyOn(
+                wizardService as unknown as {
+                    _resolveWarehouseClientCredentials: (
+                        data: unknown,
+                    ) => Promise<unknown>;
+                },
+                '_resolveWarehouseClientCredentials',
+            )
+            .mockImplementation(async (data: unknown) => data);
+        const testAdapterSpy = vi
+            .spyOn(
+                wizardService as unknown as {
+                    testProjectAdapter: () => Promise<unknown>;
+                },
+                'testProjectAdapter',
+            )
+            .mockResolvedValue({
+                adapter,
+                sshTunnel: { disconnect: vi.fn(async () => undefined) },
+            });
+        const expirationSpy = vi
+            .spyOn(wizardService, 'getPreviewExpiresAt')
+            .mockResolvedValue(null);
+        projectModel.create.mockResolvedValueOnce(wizardProjectUuid);
+
+        try {
+            await wizardService._create(
+                wizardUser,
+                {
+                    name: 'Wizard preview',
+                    type: ProjectType.PREVIEW,
+                    upstreamProjectUuid,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                } as never,
+                'wizard-job-uuid',
+                RequestMethod.WEB_APP,
+            );
+
+            expect(copySources).toHaveBeenCalledWith(
+                upstreamProjectUuid,
+                wizardProjectUuid,
+                new Map([
+                    ['upstream-connection-uuid', 'preview-connection-uuid'],
+                ]),
+            );
+            expect(createPrimarySource).not.toHaveBeenCalled();
+        } finally {
+            tagsSpy.mockRestore();
+            parametersSpy.mockRestore();
+            resolveSpy.mockRestore();
+            testAdapterSpy.mockRestore();
+            expirationSpy.mockRestore();
+        }
+    });
+
     test.each([RequestMethod.WEB_APP, RequestMethod.CLI])(
         'materialises a primary dbt source when creating a project through %s',
         async (requestMethod) => {
@@ -2638,6 +2740,11 @@ describe('ProjectService', () => {
                 {
                     projectDbtSourcesModel: {
                         copySources,
+                        findSoleConnectionUuid: vi.fn(async (uuid: string) =>
+                            uuid === upstreamProjectUuid
+                                ? 'upstream-connection-uuid'
+                                : 'preview-connection-uuid',
+                        ),
                     } as unknown as ProjectDbtSourcesModel,
                 },
             );
@@ -2700,6 +2807,9 @@ describe('ProjectService', () => {
                 expect(copySources).toHaveBeenCalledWith(
                     upstreamProjectUuid,
                     previewProjectUuid,
+                    new Map([
+                        ['upstream-connection-uuid', 'preview-connection-uuid'],
+                    ]),
                 );
                 expect(
                     projectModel.createWithOptionalCredentials,

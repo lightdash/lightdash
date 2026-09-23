@@ -125,6 +125,7 @@ export class ProjectDbtSourcesModel {
     async copySources(
         sourceProjectUuid: string,
         targetProjectUuid: string,
+        connectionUuidMap: Map<string, string>,
     ): Promise<void> {
         const sources = await this.database(ProjectDbtSourcesTableName)
             .select(
@@ -144,10 +145,18 @@ export class ProjectDbtSourcesModel {
             return;
         }
 
-        await this.database(ProjectDbtSourcesTableName).insert(
-            sources.map((source) => ({
+        const rows = sources.map((source) => {
+            const connectionUuid = connectionUuidMap.get(
+                source.connection_uuid,
+            );
+            if (connectionUuid === undefined) {
+                throw new ParameterError(
+                    `The preview has no connection for dbt source "${source.name}"`,
+                );
+            }
+            return {
                 project_uuid: targetProjectUuid,
-                connection_uuid: source.connection_uuid,
+                connection_uuid: connectionUuid,
                 namespace_prefix: source.namespace_prefix,
                 name: source.name,
                 is_primary: source.is_primary,
@@ -156,8 +165,9 @@ export class ProjectDbtSourcesModel {
                 dbt_connection: source.dbt_connection,
                 warehouse_database: source.warehouse_database,
                 warehouse_schema: source.warehouse_schema,
-            })),
-        );
+            };
+        });
+        await this.database(ProjectDbtSourcesTableName).insert(rows);
     }
 
     async getSource(projectDbtSourceUuid: string): Promise<ProjectDbtSource> {
