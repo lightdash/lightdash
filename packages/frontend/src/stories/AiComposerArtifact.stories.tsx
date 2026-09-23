@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { type Meta, type StoryObj } from '@storybook/react-vite';
 import { IconX } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import MantineIcon from '../components/common/MantineIcon';
 import panelStyles from '../ee/features/aiCopilot/components/ChatElements/AiArtifactPanel.module.css';
 import { AiComposerPipelinePanel } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerPipelinePanel';
@@ -108,7 +109,10 @@ const ComposerArtifact = ({
     <Box w={760} h={900}>
         <Box className={panelStyles.floatingPanel}>
             <Box
-                className={`${panelStyles.floatingContent} ${panelStyles.composerContent}`}
+                className={clsx(
+                    panelStyles.floatingContent,
+                    panelStyles.composerContent,
+                )}
             >
                 <AiComposerPipelinePanel
                     queries={queries}
@@ -117,7 +121,10 @@ const ComposerArtifact = ({
                 >
                     <Stack gap="md" h="100%" mih={0}>
                         <Box
-                            className={`${panelStyles.head} ${panelStyles.composerHead}`}
+                            className={clsx(
+                                panelStyles.head,
+                                panelStyles.composerHead,
+                            )}
                         >
                             <Stack gap={0} flex={1} miw={0}>
                                 <Text fz="sm" fw={600}>

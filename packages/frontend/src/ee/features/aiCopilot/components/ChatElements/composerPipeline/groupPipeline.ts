@@ -5,6 +5,8 @@ export type PipelineNode = {
     title: string;
     description: string | null;
     isTerminal: boolean;
+    /** Longest path from a source; 0 for nodes that read nothing. */
+    depth: number;
     /** Titles of the nodes this one reads; references outside the pipeline stay as-is. */
     reads: string[];
     query: SourceQuery;
@@ -31,7 +33,8 @@ const referencesOf = (query: SourceQuery): string[] => {
 
 /**
  * Layers a pipeline by longest path from a source, so a fan-in join lands
- * after everything it reads. Cycles and unknown references count as depth 0.
+ * after everything it reads. The terminal node alone forms the last (result)
+ * layer wherever it sits. Cycles and unknown references count as depth 0.
  */
 export const groupPipeline = (
     queries: SourceQuery[],
@@ -74,22 +77,27 @@ export const groupPipeline = (
         title: query.title ?? nodeId,
         description: query.description ?? null,
         isTerminal: nodeId === terminalNodeId,
+        depth: depths.get(nodeId)!,
         reads: referencesOf(query).map(titleOf),
         query,
     }));
 
-    const layerDepths = [
-        ...new Set(nodes.map((node) => depths.get(node.nodeId)!)),
-    ].sort((a, b) => a - b);
-    const lastDepth = layerDepths[layerDepths.length - 1];
-    return layerDepths.map((depth) => ({
+    const terminal = nodes.filter((node) => node.isTerminal);
+    const others = nodes.filter((node) => !node.isTerminal);
+    const layerDepths = [...new Set(others.map((node) => node.depth))].sort(
+        (a, b) => a - b,
+    );
+    const layers: PipelineLayer[] = layerDepths.map((depth) => ({
         depth,
-        kind:
-            depth === lastDepth
-                ? 'result'
-                : depth === 0
-                  ? 'sources'
-                  : 'transformations',
-        nodes: nodes.filter((node) => depths.get(node.nodeId) === depth),
+        kind: depth === 0 ? 'sources' : 'transformations',
+        nodes: others.filter((node) => node.depth === depth),
     }));
+    if (terminal.length > 0) {
+        layers.push({
+            depth: (layerDepths[layerDepths.length - 1] ?? -1) + 1,
+            kind: 'result',
+            nodes: terminal,
+        });
+    }
+    return layers;
 };

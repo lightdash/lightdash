@@ -81,20 +81,37 @@ describe('groupPipeline', () => {
         });
     });
 
-    it('marks an explicit terminal wherever it sits in a multi-sink pipeline', () => {
+    it('puts only the terminal in the result layer of a multi-sink pipeline', () => {
         const layers = groupPipeline(
             [sql('a'), duckdb('x', ['a']), duckdb('y', ['a'])],
             'x',
         );
-        expect(layers.map((layer) => layer.kind)).toEqual([
-            'sources',
-            'result',
+        expect(layers.map((layer) => [layer.kind, ids(layer.nodes)])).toEqual([
+            ['sources', ['a']],
+            ['transformations', ['y']],
+            ['result', ['x']],
+        ]);
+        expect(layers[2].nodes[0].isTerminal).toBe(true);
+    });
+
+    it('keeps the terminal last even when a deeper node reads it', () => {
+        const layers = groupPipeline(
+            [sql('a'), duckdb('x', ['a']), duckdb('y', ['x'])],
+            'x',
+        );
+        expect(layers.map((layer) => [layer.kind, ids(layer.nodes)])).toEqual([
+            ['sources', ['a']],
+            ['transformations', ['y']],
+            ['result', ['x']],
         ]);
         expect(
-            layers[1].nodes.map((node) => [node.nodeId, node.isTerminal]),
+            layers.flatMap((layer) =>
+                layer.nodes.map((node) => [node.nodeId, node.depth]),
+            ),
         ).toEqual([
-            ['x', true],
-            ['y', false],
+            ['a', 0],
+            ['y', 2],
+            ['x', 1],
         ]);
     });
 

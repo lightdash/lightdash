@@ -7,7 +7,14 @@ import {
     type SemanticLayerSourceQuery,
     type SourceQuery,
 } from '@lightdash/common';
-import { Box, Group, Text, Tooltip, UnstyledButton } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Group,
+    Text,
+    Tooltip,
+    UnstyledButton,
+} from '@mantine/core';
 import {
     IconChevronRight,
     IconDatabase,
@@ -121,7 +128,7 @@ const PipelineNodeRow: FC<{ node: PipelineNode }> = ({ node }) => {
             data-node-id={node.nodeId}
         >
             <Box className={styles.nodeHead}>
-                <Box className={styles.dot} data-status="success" />
+                <Box className={styles.dot} />
                 <Text component="span" className={styles.nodeTitle}>
                     {node.title}
                     {node.isTerminal ? ' · result' : ''}
@@ -170,12 +177,14 @@ const PipelineList: FC<{ layers: PipelineLayer[] }> = ({ layers }) => (
                             w={260}
                             position="top-start"
                         >
-                            <Box
+                            <ActionIcon
+                                variant="subtle"
+                                size="xs"
                                 className={styles.helpIcon}
                                 aria-label="About transformations"
                             >
                                 <MantineIcon icon={IconHelpCircle} size={12} />
-                            </Box>
+                            </ActionIcon>
                         </Tooltip>
                     )}
                 </Group>
@@ -188,10 +197,10 @@ const PipelineList: FC<{ layers: PipelineLayer[] }> = ({ layers }) => (
 );
 
 const PipelineBar: FC<{
-    stepCount: number;
+    nodeCount: number;
     expanded: boolean;
     onToggle: () => void;
-}> = ({ stepCount, expanded, onToggle }) => (
+}> = ({ nodeCount, expanded, onToggle }) => (
     <Box className={styles.bar}>
         <UnstyledButton
             className={styles.barToggle}
@@ -209,7 +218,7 @@ const PipelineBar: FC<{
             </Text>
         </UnstyledButton>
         <Text component="span" className={styles.meta}>
-            {stepCount} step{stepCount === 1 ? '' : 's'}
+            {nodeCount} step{nodeCount === 1 ? '' : 's'}
         </Text>
     </Box>
 );
@@ -239,7 +248,7 @@ export const AiComposerPipelinePanel: FC<Props> = ({
     );
     const bar = (
         <PipelineBar
-            stepCount={queries.length}
+            nodeCount={queries.length}
             expanded={expanded}
             onToggle={() => setExpanded((value) => !value)}
         />

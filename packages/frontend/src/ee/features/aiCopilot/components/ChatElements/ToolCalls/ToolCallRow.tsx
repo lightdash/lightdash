@@ -3,6 +3,7 @@ import {
     type AiAgentToolName,
     type AiMcpServer,
     isToolName,
+    toolComposerQueriesOutputSchema,
     type ToolName,
 } from '@lightdash/common';
 import {
@@ -51,17 +52,14 @@ const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
 // be sensibly clipped to a single-line preview — collapse to verb + chevron.
 const HIDE_INLINE_PREVIEW = new Set<ToolName>(['runComposerQueries', 'runSql']);
 
-const isSuccessOutput = (output: unknown) =>
-    typeof output === 'object' &&
-    output !== null &&
-    'metadata' in output &&
-    typeof output.metadata === 'object' &&
-    output.metadata !== null &&
-    'status' in output.metadata &&
-    output.metadata.status === 'success';
+const isSuccessOutput = (output: unknown) => {
+    const parsed = toolComposerQueriesOutputSchema.safeParse(output);
+    return parsed.success && parsed.data.metadata.status === 'success';
+};
 
-// A composer run reports success only after its artifact exists, so the
-// pipeline card yields to the artifact's pipeline panel from then on.
+// Composer runs are web-chat only and the tool reports success only after its
+// artifact exists, so a success status means the artifact version exists and
+// the pipeline card yields to the artifact's pipeline panel.
 const hasComposerArtifact = (
     toolCall: ToolCallSummary,
     toolResults: AiAgentToolResult[] | undefined,
