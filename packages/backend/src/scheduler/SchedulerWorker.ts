@@ -719,13 +719,8 @@ export class SchedulerWorker extends SchedulerTask {
                     await this.schedulerService.getAllSchedulers();
 
                 const limit = pLimit(
-                    Math.max(
-                        1,
-                        Math.floor(
-                            this.lightdashConfig.scheduler
-                                .dailyJobGenerationConcurrency,
-                        ),
-                    ),
+                    this.lightdashConfig.scheduler
+                        .dailyJobGenerationConcurrency,
                 );
                 const promises = schedulers.map((scheduler) =>
                     limit(() =>
