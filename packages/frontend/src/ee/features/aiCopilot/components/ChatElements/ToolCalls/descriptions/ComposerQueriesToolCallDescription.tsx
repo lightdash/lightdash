@@ -77,7 +77,14 @@ const NodeStatusIndicator: FC<{ nodeStatus: ComposerQueryNodeStatus }> = ({
 const referenceAliases = (items: string[] | Record<string, string>) =>
     Array.isArray(items) ? items : Object.keys(items);
 
-const getNodePresentation = (node: ToolComposerQueryNode) => {
+// Map-form values are node ids or stored queryUuids; only node ids get titles
+const referenceTargets = (items: string[] | Record<string, string>) =>
+    Array.isArray(items) ? items : Object.values(items);
+
+const getNodePresentation = (
+    node: ToolComposerQueryNode,
+    titlesByNodeId: Record<string, string>,
+) => {
     switch (node.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER:
             return {
@@ -100,11 +107,13 @@ const getNodePresentation = (node: ToolComposerQueryNode) => {
             } as const;
         }
         case QuerySourceType.DUCKDB: {
-            const references = referenceAliases(node.references);
+            const references = referenceTargets(node.references).map(
+                (reference) => titlesByNodeId[reference] ?? reference,
+            );
             return {
                 badge: 'DuckDB compose',
                 color: 'violet',
-                detail: `Combines ${references.join(', ')}`,
+                detail: `Reads ${references.join(', ')}`,
             } as const;
         }
     }
@@ -112,9 +121,10 @@ const getNodePresentation = (node: ToolComposerQueryNode) => {
 
 const ComposerQueryNode: FC<{
     node: ToolComposerQueryNode;
+    titlesByNodeId: Record<string, string>;
     nodeStatus?: ComposerQueryNodeStatus;
-}> = ({ node, nodeStatus }) => {
-    const presentation = getNodePresentation(node);
+}> = ({ node, titlesByNodeId, nodeStatus }) => {
+    const presentation = getNodePresentation(node, titlesByNodeId);
     const formattedSql = useMemo(() => {
         if (!('sql' in node) || !node.sql) return null;
 
@@ -133,8 +143,8 @@ const ComposerQueryNode: FC<{
                 {nodeStatus ? (
                     <NodeStatusIndicator nodeStatus={nodeStatus} />
                 ) : null}
-                <Text component="span" className={styles.nodeId}>
-                    {node.nodeId}
+                <Text component="span" className={styles.title} truncate>
+                    {node.title ?? node.nodeId}
                 </Text>
                 <Badge
                     color={presentation.color}
@@ -158,14 +168,24 @@ const ComposerQueryNode: FC<{
 
 export const ComposerQueriesToolCallDescription: FC<
     ComposerQueriesToolCallDescriptionProps
-> = ({ queries, nodeStatuses }) => (
-    <Stack gap={10} align="stretch" w="100%" className={styles.pipeline}>
-        {queries.map((node) => (
-            <ComposerQueryNode
-                key={node.nodeId}
-                node={node}
-                nodeStatus={nodeStatuses?.[node.nodeId]}
-            />
-        ))}
-    </Stack>
-);
+> = ({ queries, nodeStatuses }) => {
+    const titlesByNodeId = useMemo(
+        () =>
+            Object.fromEntries(
+                queries.map((node) => [node.nodeId, node.title ?? node.nodeId]),
+            ),
+        [queries],
+    );
+    return (
+        <Stack gap={10} align="stretch" w="100%" className={styles.pipeline}>
+            {queries.map((node) => (
+                <ComposerQueryNode
+                    key={node.nodeId}
+                    node={node}
+                    titlesByNodeId={titlesByNodeId}
+                    nodeStatus={nodeStatuses?.[node.nodeId]}
+                />
+            ))}
+        </Stack>
+    );
+};

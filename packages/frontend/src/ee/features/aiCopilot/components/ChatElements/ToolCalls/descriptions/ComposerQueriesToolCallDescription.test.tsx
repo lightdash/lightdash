@@ -5,13 +5,15 @@ import { renderWithProviders } from '../../../../../../../testing/testUtils';
 import { ComposerQueriesToolCallDescription } from './ComposerQueriesToolCallDescription';
 
 describe('ComposerQueriesToolCallDescription', () => {
-    it('renders source context and formatted SQL for a composed pipeline', () => {
+    it('renders node titles, source context and formatted SQL for a composed pipeline', () => {
         const { container } = renderWithProviders(
             <ComposerQueriesToolCallDescription
                 queries={[
                     {
                         sourceType: QuerySourceType.EXTERNAL,
                         nodeId: 'targets',
+                        title: 'Revenue targets',
+                        description: null,
                         sql: 'select payment_method,target_revenue from targets_csv',
                         tables: { targets_csv: 'table-uuid' },
                         limit: 500,
@@ -19,19 +21,25 @@ describe('ComposerQueriesToolCallDescription', () => {
                     {
                         sourceType: QuerySourceType.DUCKDB,
                         nodeId: 'comparison',
+                        title: 'Actual vs target',
+                        description: null,
                         sql: 'select * from actual join targets using (payment_method)',
-                        references: ['actual', 'targets'],
+                        references: { a: 'actual', t: 'targets' },
                         limit: 500,
                     },
                 ]}
             />,
         );
 
+        expect(screen.getByText('Revenue targets')).toBeInTheDocument();
+        expect(screen.getByText('Actual vs target')).toBeInTheDocument();
+        expect(screen.queryByText('comparison')).not.toBeInTheDocument();
         expect(screen.getByText('External data')).toBeInTheDocument();
         expect(screen.getByText('Reads targets_csv')).toBeInTheDocument();
         expect(screen.getByText('DuckDB compose')).toBeInTheDocument();
+        // Node references read by title; a queryUuid or unknown id stays as-is
         expect(
-            screen.getByText('Combines actual, targets'),
+            screen.getByText('Reads actual, Revenue targets'),
         ).toBeInTheDocument();
         expect(screen.getAllByRole('button', { name: 'Copy' })).toHaveLength(2);
         expect(container.querySelector('code')).toHaveTextContent(
@@ -46,18 +54,24 @@ describe('ComposerQueriesToolCallDescription', () => {
                     {
                         sourceType: QuerySourceType.SQL,
                         nodeId: 'orders',
+                        title: 'Orders',
+                        description: null,
                         sql: 'select 1',
                         limit: 500,
                     },
                     {
                         sourceType: QuerySourceType.SQL,
                         nodeId: 'revenue',
+                        title: 'Revenue',
+                        description: null,
                         sql: 'select 2',
                         limit: 500,
                     },
                     {
                         sourceType: QuerySourceType.DUCKDB,
                         nodeId: 'combined',
+                        title: 'Orders and revenue',
+                        description: null,
                         sql: 'select * from orders join revenue on true',
                         references: ['orders', 'revenue'],
                         limit: 500,
@@ -65,6 +79,8 @@ describe('ComposerQueriesToolCallDescription', () => {
                     {
                         sourceType: QuerySourceType.DUCKDB,
                         nodeId: 'failed',
+                        title: 'Broken step',
+                        description: null,
                         sql: 'select broken',
                         references: ['combined'],
                         limit: 500,
@@ -97,6 +113,8 @@ describe('ComposerQueriesToolCallDescription', () => {
                     {
                         sourceType: QuerySourceType.SQL,
                         nodeId: 'orders',
+                        title: 'Orders',
+                        description: null,
                         sql: 'select 1',
                         limit: 500,
                     },
