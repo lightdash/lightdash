@@ -1,5 +1,14 @@
+import knex from 'knex';
+import { randomUUID } from 'node:crypto';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import {
     createMigratedDatabase,
+    getMigrationFingerprint,
+    getPostgresServer,
+    runAllMigrations,
+    toConnectionUri,
     type MigratedDatabase,
 } from '../../../testing/migratedDatabase';
 import { listMigrationFiles } from '../../migrationFiles';
@@ -49,5 +58,77 @@ describe('real-schema test database', () => {
                 .first(),
         ).resolves.toBeUndefined();
         expect(first.databaseName).not.toBe(second.databaseName);
+    });
+
+    test('an edited migration gets a new template', async () => {
+        const files = await listMigrationFiles();
+        const edited = files[files.length - 1];
+        const directory = await mkdtemp(
+            path.join(tmpdir(), 'edited-migration-'),
+        );
+        const editedCopy = path.join(directory, edited.name);
+        await writeFile(
+            editedCopy,
+            `${await readFile(edited.filePath, 'utf8')}\nexport const probe = 'edited';\n`,
+        );
+
+        const original = await getMigrationFingerprint(files);
+        const changed = await getMigrationFingerprint(
+            files.map((file) =>
+                file === edited ? { ...file, filePath: editedCopy } : file,
+            ),
+        );
+
+        expect(changed).not.toBe(original);
+        expect(await getMigrationFingerprint(files)).toBe(original);
+    });
+
+    test('stops the migrate process and frees its database when a build gives up', async () => {
+        const server = getPostgresServer();
+        const databaseName = `lightdash_abandoned_${randomUUID().replaceAll('-', '')}`;
+        const admin = knex({
+            client: 'pg',
+            connection: toConnectionUri(server, server.adminDatabase),
+            pool: { min: 0, max: 1 },
+        });
+        const connectionCount = async () =>
+            Number(
+                (
+                    await admin.raw<{ rows: { count: string }[] }>(
+                        'SELECT count(*) AS count FROM pg_stat_activity WHERE datname = ?',
+                        [databaseName],
+                    )
+                ).rows[0].count,
+            );
+        try {
+            await admin.raw('CREATE DATABASE ??', [databaseName]);
+            let connectedWhileRunning = 0;
+            const sampler = setInterval(() => {
+                void connectionCount().then((count) => {
+                    connectedWhileRunning = Math.max(
+                        connectedWhileRunning,
+                        count,
+                    );
+                });
+            }, 250);
+
+            await expect(
+                runAllMigrations(toConnectionUri(server, databaseName), {
+                    timeoutMs: 8000,
+                }),
+            ).rejects.toThrow('did not finish within 8000 ms');
+            clearInterval(sampler);
+
+            expect(connectedWhileRunning).toBeGreaterThan(0);
+            await expect
+                .poll(connectionCount, { timeout: 10000, interval: 250 })
+                .toBe(0);
+            await admin.raw('DROP DATABASE ??', [databaseName]);
+        } finally {
+            await admin.raw('DROP DATABASE IF EXISTS ?? WITH (FORCE)', [
+                databaseName,
+            ]);
+            await admin.destroy();
+        }
     });
 });

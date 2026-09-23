@@ -6,7 +6,10 @@ import {
     BACKEND_ROOT,
     listMigrationFiles,
     MIGRATION_RUN_ENVIRONMENT,
+    type MigrationFile,
 } from '../database/migrationFiles';
+
+const TEMPLATE_BUILD_TIMEOUT_MS = 9 * 60 * 1000;
 
 export type PostgresServer = {
     host: string;
@@ -65,9 +68,10 @@ const connect = (
         pool,
     });
 
-const getMigrationFingerprint = async (): Promise<string> => {
+export const getMigrationFingerprint = async (
+    files: MigrationFile[],
+): Promise<string> => {
     const hash = createHash('sha256');
-    const files = await listMigrationFiles();
     const contents = await Promise.all(
         files.map(({ filePath }) => readFile(filePath)),
     );
@@ -78,21 +82,50 @@ const getMigrationFingerprint = async (): Promise<string> => {
     return hash.digest('hex').slice(0, 16);
 };
 
-const runAllMigrations = async (connectionUri: string) =>
+export const runAllMigrations = async (
+    connectionUri: string,
+    { timeoutMs = TEMPLATE_BUILD_TIMEOUT_MS }: { timeoutMs?: number } = {},
+) =>
     new Promise<void>((resolve, reject) => {
         const output: string[] = [];
         const child = spawn('pnpm', ['run', 'migrate'], {
             cwd: BACKEND_ROOT,
+            detached: true,
             env: {
                 ...MIGRATION_RUN_ENVIRONMENT,
                 ...process.env,
                 PGCONNECTIONURI: connectionUri,
             },
         });
+        const killGroup = () => {
+            if (child.pid === undefined || child.exitCode !== null) return;
+            try {
+                process.kill(-child.pid, 'SIGKILL');
+            } catch {
+                child.kill('SIGKILL');
+            }
+        };
+        process.once('exit', killGroup);
+        const timer = setTimeout(() => {
+            killGroup();
+            reject(
+                new Error(
+                    `Migrations did not finish within ${timeoutMs} ms and were stopped:\n${output
+                        .join('')
+                        .slice(-4000)}`,
+                ),
+            );
+        }, timeoutMs);
         child.stdout.on('data', (chunk) => output.push(String(chunk)));
         child.stderr.on('data', (chunk) => output.push(String(chunk)));
-        child.on('error', reject);
+        child.on('error', (error) => {
+            clearTimeout(timer);
+            process.removeListener('exit', killGroup);
+            reject(error);
+        });
         child.on('close', (code) => {
+            clearTimeout(timer);
+            process.removeListener('exit', killGroup);
             if (code === 0) {
                 resolve();
                 return;
@@ -143,7 +176,9 @@ const ensureTemplate = async (
 export const createMigratedDatabase = async (
     server: PostgresServer = getPostgresServer(),
 ): Promise<MigratedDatabase> => {
-    const templateName = `lightdash_schema_${await getMigrationFingerprint()}`;
+    const templateName = `lightdash_schema_${await getMigrationFingerprint(
+        await listMigrationFiles(),
+    )}`;
     await ensureTemplate(server, templateName);
 
     const databaseName = `lightdash_test_${randomUUID().replaceAll('-', '')}`;
