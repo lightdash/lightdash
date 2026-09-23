@@ -127,6 +127,7 @@ const savedChartModel = {
 
 const dashboardModel = {
     getByIdOrSlug: vi.fn(async () => dashboardSummary),
+    getSummaryByUuid: vi.fn(async () => dashboardSummary),
 };
 
 const savedSqlModel = {
@@ -195,6 +196,19 @@ describe('SchedulerService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('getSchedulerProjectContext', () => {
+        test('uses the dashboard summary lookup', async () => {
+            await expect(
+                service.getSchedulerProjectContext(dashboardScheduler),
+            ).resolves.toEqual(dashboardSummary);
+
+            expect(dashboardModel.getSummaryByUuid).toHaveBeenCalledWith(
+                dashboardScheduler.dashboardUuid,
+            );
+            expect(dashboardModel.getByIdOrSlug).not.toHaveBeenCalled();
+        });
     });
 
     describe('sendSchedulerByUuid', () => {

@@ -203,7 +203,7 @@ export class SchedulerService extends BaseService {
         }
         if (isDashboardScheduler(scheduler)) {
             const { projectUuid, organizationUuid, spaceUuid } =
-                await this.dashboardModel.getByIdOrSlug(
+                await this.dashboardModel.getSummaryByUuid(
                     scheduler.dashboardUuid,
                 );
             return { projectUuid, organizationUuid, spaceUuid };

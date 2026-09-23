@@ -768,6 +768,43 @@ export class DashboardModel {
         );
     }
 
+    async getSummaryByUuid(dashboardUuid: string): Promise<{
+        projectUuid: string;
+        organizationUuid: string;
+        spaceUuid: string;
+    }> {
+        const dashboard = await this.database(DashboardsTableName)
+            .innerJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${SpaceTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${ProjectTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .select({
+                projectUuid: `${ProjectTableName}.project_uuid`,
+                organizationUuid: `${OrganizationTableName}.organization_uuid`,
+                spaceUuid: `${SpaceTableName}.space_uuid`,
+            })
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .first();
+
+        if (!dashboard) {
+            throw new NotFoundError('Dashboard not found');
+        }
+
+        return dashboard;
+    }
+
     async find({
         slug,
         slugs,
