@@ -120,6 +120,28 @@ describe('real-schema test database', () => {
             clearInterval(sampler);
 
             expect(connectedWhileRunning).toBeGreaterThan(0);
+            const abandoned = knex({
+                client: 'pg',
+                connection: toConnectionUri(server, databaseName),
+                pool: { min: 0, max: 1 },
+            });
+            const appliedMigrations = async () =>
+                Number(
+                    (
+                        await abandoned.raw<{ rows: { count: string }[] }>(
+                            'SELECT count(*) AS count FROM knex_migrations',
+                        )
+                    ).rows[0].count,
+                );
+            try {
+                const appliedAtTimeout = await appliedMigrations();
+                await new Promise((resolve) => {
+                    setTimeout(resolve, 6000);
+                });
+                expect(await appliedMigrations()).toBe(appliedAtTimeout);
+            } finally {
+                await abandoned.destroy();
+            }
             await expect
                 .poll(connectionCount, { timeout: 10000, interval: 250 })
                 .toBe(0);
