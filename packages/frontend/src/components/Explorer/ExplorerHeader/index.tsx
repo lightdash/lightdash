@@ -18,7 +18,6 @@ import {
 import { useMergeChangeSinceRun } from '../../../features/mergeQuery/hooks/useMergeChangeSinceRun';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useExplore } from '../../../hooks/useExplore';
-import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
