@@ -14769,6 +14769,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 await flushTaskUpdates();
                 if (streamTs) {
                     finalizeToolTasksForSuccess();
+                    queueReasoningTaskUpdate({ status: 'complete' });
                     await flushTaskUpdates();
                     // Finalize the task card without extra copy — its header
                     // plus the approval card below already say we're waiting.
