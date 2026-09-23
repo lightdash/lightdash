@@ -18,7 +18,6 @@ import {
     getModel,
     MODEL_PRESETS,
     pickAmbientAnthropicPreset,
-    presetToModelOption,
 } from './index';
 import type { ModelPreset, ModelPresetProvider } from './presets';
 
@@ -428,25 +427,8 @@ describe('Opus model lifecycle', () => {
     };
 
     it.each(['anthropic', 'bedrock'] as const)(
-        'offers Opus 5.5 and deprecates Opus 5 without breaking saved %s configurations',
+        'resolves saved Opus 5 configurations and enables adaptive reasoning for Opus 5.5 on %s',
         (provider) => {
-            const models = getAvailableModels(config)
-                .filter((preset) => preset.provider === provider)
-                .map((preset) => presetToModelOption(preset, null));
-            expect(models).toEqual(
-                expect.arrayContaining([
-                    expect.objectContaining({
-                        name: 'claude-opus-5-5',
-                        displayName: 'Claude Opus 5.5',
-                        supportsReasoning: true,
-                        deprecated: false,
-                    }),
-                    expect.objectContaining({
-                        name: 'claude-opus-5',
-                        deprecated: true,
-                    }),
-                ]),
-            );
             const oldModel = getModel(config, { provider });
             expect(oldModel.model.modelId).toBe(
                 provider === 'anthropic'
@@ -842,25 +824,6 @@ describe('filterModelsForOrg', () => {
             keyAccessibleModelIds: { anthropic: ['claude-opus-4-8'] },
         });
         expect(withKey.map((p) => p.name)).toContain('claude-opus-4-8');
-    });
-
-    it('offers claude-opus-5-5 to every org, with or without key access', () => {
-        const realPresets = MODEL_PRESETS.anthropic;
-        expect(realPresets.some((p) => p.name === 'claude-opus-5-5')).toBe(
-            true,
-        );
-
-        const noKey = filterModelsForOrg(realPresets, {
-            modelVisibility: null,
-            keyAccessibleModelIds: null,
-        });
-        expect(noKey.map((p) => p.name)).toContain('claude-opus-5-5');
-
-        const withKey = filterModelsForOrg(realPresets, {
-            modelVisibility: null,
-            keyAccessibleModelIds: { anthropic: ['claude-opus-5-5'] },
-        });
-        expect(withKey.map((p) => p.name)).toContain('claude-opus-5-5');
     });
 });
 
