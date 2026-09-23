@@ -100,6 +100,7 @@ const noBoundContent: ConnectionBoundContent = {
 
 const connectionModel = {
     transaction: vi.fn(),
+    stampUnboundContent: vi.fn(),
     lockProject: vi.fn(),
     listByProject: vi.fn(),
     contractApplied: vi.fn(),
@@ -221,6 +222,80 @@ describe('ConnectionService', () => {
             projectUuid,
             createInput,
         );
+    });
+
+    it('binds unbound content to the existing connection before it adds a second one', async () => {
+        await getService().create(adminAccount, projectUuid, createInput);
+
+        expect(connectionModel.stampUnboundContent).toHaveBeenCalledWith(
+            projectUuid,
+            connectionUuid,
+        );
+        expect(
+            connectionModel.stampUnboundContent.mock.invocationCallOrder[0],
+        ).toBeGreaterThan(
+            connectionModel.lockProject.mock.invocationCallOrder[0],
+        );
+        expect(
+            connectionModel.stampUnboundContent.mock.invocationCallOrder[0],
+        ).toBeLessThan(connectionModel.create.mock.invocationCallOrder[0]);
+    });
+
+    it('binds content inside the transaction that adds the connection', async () => {
+        const transactionModel = {
+            ...connectionModel,
+            stampUnboundContent: vi.fn(),
+            create: vi.fn().mockRejectedValue(duplicateNameError()),
+        };
+        connectionModel.transaction.mockImplementation(
+            async (
+                callback: (
+                    transactionModel: ConnectionModel,
+                ) => Promise<unknown>,
+            ) => callback(transactionModel as unknown as ConnectionModel),
+        );
+
+        await expect(
+            getService().create(adminAccount, projectUuid, createInput),
+        ).rejects.toThrow(ConflictError);
+
+        expect(transactionModel.stampUnboundContent).toHaveBeenCalledWith(
+            projectUuid,
+            connectionUuid,
+        );
+        expect(connectionModel.stampUnboundContent).not.toHaveBeenCalled();
+    });
+
+    it('leaves content alone when it adds the first connection', async () => {
+        connectionModel.listByProject.mockResolvedValue([]);
+
+        await getService().create(adminAccount, projectUuid, createInput);
+
+        expect(connectionModel.stampUnboundContent).not.toHaveBeenCalled();
+    });
+
+    it('leaves content alone when it adds a third connection', async () => {
+        connectionModel.listByProject.mockResolvedValue([
+            firstConnection,
+            secondConnection,
+        ]);
+
+        await getService().create(adminAccount, projectUuid, {
+            ...createInput,
+            name: 'Finance',
+        });
+
+        expect(connectionModel.stampUnboundContent).not.toHaveBeenCalled();
+    });
+
+    it('leaves content alone when a second connection is refused', async () => {
+        licenseService.canHoldMultipleConnections.mockReturnValue(false);
+
+        await expect(
+            getService().create(adminAccount, projectUuid, createInput),
+        ).rejects.toThrow(ForbiddenError);
+
+        expect(connectionModel.stampUnboundContent).not.toHaveBeenCalled();
     });
 
     it('refuses a second connection without the entitlement', async () => {

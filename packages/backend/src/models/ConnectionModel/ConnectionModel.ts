@@ -9,6 +9,11 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { CachedExploreTableName } from '../../database/entities/projects';
+import {
+    SavedSqlTableName,
+    SavedSqlVersionsTableName,
+} from '../../database/entities/savedSql';
 import {
     WarehouseCredentialTableName,
     warehouseTypeDisplayNames,
@@ -422,6 +427,25 @@ export class ConnectionModel {
             project_dbt_sources: projectDbtSources,
             query_history: queryHistory,
         };
+    }
+
+    async stampUnboundContent(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<void> {
+        await this.database(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereNull('connection_uuid')
+            .update({ connection_uuid: connectionUuid });
+        await this.database(SavedSqlVersionsTableName)
+            .whereNull('connection_uuid')
+            .whereIn(
+                'saved_sql_uuid',
+                this.database(SavedSqlTableName)
+                    .select('saved_sql_uuid')
+                    .where('project_uuid', projectUuid),
+            )
+            .update({ connection_uuid: connectionUuid });
     }
 
     async delete(projectUuid: string, connectionUuid: string): Promise<void> {

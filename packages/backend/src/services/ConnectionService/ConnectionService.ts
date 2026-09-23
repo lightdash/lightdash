@@ -459,6 +459,12 @@ export class ConnectionService extends BaseService {
                             throw new ForbiddenError(reason);
                         }
                     }
+                    if (connections.length === 1) {
+                        await transactionModel.stampUnboundContent(
+                            projectUuid,
+                            connections[0].connectionUuid,
+                        );
+                    }
                     const created = await transactionModel.create(
                         projectUuid,
                         input,

@@ -210,6 +210,23 @@ describe('ConnectionModel', () => {
         await expect(model.contractApplied()).resolves.toBe(true);
     });
 
+    test('binds only the unbound content of the project to a connection', async () => {
+        tracker.on.update('cached_explore').response(2);
+        tracker.on.update('saved_sql_versions').response(1);
+
+        await model.stampUnboundContent(projectUuid, connectionUuid);
+
+        const [explores, sqlVersions] = tracker.history.update;
+        expect(explores.sql).toBe(
+            'update "cached_explore" set "connection_uuid" = $1 where "project_uuid" = $2 and "connection_uuid" is null',
+        );
+        expect(explores.bindings).toEqual([connectionUuid, projectUuid]);
+        expect(sqlVersions.sql).toBe(
+            'update "saved_sql_versions" set "connection_uuid" = $1 where "connection_uuid" is null and "saved_sql_uuid" in (select "saved_sql_uuid" from "saved_sql" where "project_uuid" = $2)',
+        );
+        expect(sqlVersions.bindings).toEqual([connectionUuid, projectUuid]);
+    });
+
     test('counts bound content and only includes in-flight queries', async () => {
         tracker.on.any(/information_schema/).response(undefined);
         tracker.on.select('cached_explore').response([{ count: '2' }]);
