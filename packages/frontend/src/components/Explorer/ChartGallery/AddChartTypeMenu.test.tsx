@@ -11,7 +11,6 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
 import { AbilityContext } from '../../../providers/Ability/context';
 import { renderWithProviders } from '../../../testing/testUtils';
 import AddChartTypeMenu from './AddChartTypeMenu';
@@ -23,6 +22,7 @@ const { mocks } = vi.hoisted(() => ({
         dispatch: vi.fn(),
         canCreateDataApp: vi.fn(() => true),
         installChartType: vi.fn(),
+        getDataAppVisualization: vi.fn(),
     },
 }));
 
@@ -61,7 +61,10 @@ const registryChart = {
 
 const itemsMap = { orders_status: { name: 'status' } } as unknown as ItemsMap;
 
-vi.mock('../../../features/chartTypes/hooks/useDataAppVisualizations');
+vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
+    getDataAppVisualization: (...args: unknown[]) =>
+        mocks.getDataAppVisualization(...args),
+}));
 const { featureFlags } = vi.hoisted(() => ({
     featureFlags: { current: {} as Record<string, boolean> },
 }));
@@ -125,27 +128,6 @@ vi.mock('react-router', async (importOriginal) => ({
     useNavigate: () => mocks.navigate,
 }));
 
-const mockedUseDataAppVisualizations = vi.mocked(useDataAppVisualizations);
-
-const setProjectItems = (items: DataAppViz[]) => {
-    mockedUseDataAppVisualizations.mockReturnValue({
-        data: {
-            pages: [
-                {
-                    data: items,
-                    pagination: {
-                        page: 1,
-                        pageSize: 25,
-                        totalPageCount: 1,
-                        totalResults: items.length,
-                    },
-                },
-            ],
-            pageParams: [1],
-        },
-    } as unknown as ReturnType<typeof useDataAppVisualizations>);
-};
-
 // The library modal renders router Links. Can-gated actions (the library's
 // Install) see an empty ability unless a test passes one.
 const renderMenu = (
@@ -178,7 +160,6 @@ describe('AddChartTypeMenu', () => {
         };
         mocks.canCreateDataApp.mockReturnValue(true);
         registryState.current = { registryEnabled: true, charts: [] };
-        setProjectItems([]);
     });
 
     it('offers both destinations from one "Add" menu', async () => {
@@ -280,7 +261,7 @@ describe('AddChartTypeMenu', () => {
             registryEnabled: true,
             charts: [registryChart],
         };
-        setProjectItems([installedChartType]);
+        mocks.getDataAppVisualization.mockResolvedValue(installedChartType);
         mocks.installChartType.mockImplementation(
             (
                 _variables: unknown,

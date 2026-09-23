@@ -1,10 +1,11 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Button, Menu, Stack, Text } from '@mantine/core';
 import { IconChevronDown, IconPlus } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useState, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import ChartTypeLibraryModal from '../../../features/chartTypes/components/ChartTypeLibraryModal';
-import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
+import { getDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import {
     explorerActions,
     useExplorerDispatch,
@@ -19,10 +20,8 @@ import { ProvenanceGlyph } from './ChartTypeGallery';
 const AddChartTypeMenu: FC = () => {
     const projectUuid = useProjectUuid();
     const dispatch = useExplorerDispatch();
+    const queryClient = useQueryClient();
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-    const [pendingInstalledUuid, setPendingInstalledUuid] = useState<
-        string | null
-    >(null);
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
         true;
@@ -32,28 +31,6 @@ const AddChartTypeMenu: FC = () => {
     const canCreateChartType = useCanCreateDataApp(projectUuid);
     const { itemsMap } = useVisualizationContext();
     const selectProjectChartType = useSelectProjectChartType();
-    // Shares the gallery's unsearched list, which an install invalidates.
-    const { data } = useDataAppVisualizations(
-        libraryEnabled ? projectUuid : undefined,
-        '',
-    );
-    const projectTypes = useMemo(
-        () => data?.pages.flatMap((page) => page.data) ?? [],
-        [data?.pages],
-    );
-
-    // A library install should land selected: the install invalidates the
-    // list, and this picks the new type up from the refetch exactly once.
-    useEffect(() => {
-        if (pendingInstalledUuid === null) return;
-        const installed = projectTypes.find(
-            (viz) => viz.dataAppVizUuid === pendingInstalledUuid,
-        );
-        if (installed === undefined) return;
-        setPendingInstalledUuid(null);
-        selectProjectChartType(installed, itemsMap ?? {});
-    }, [pendingInstalledUuid, projectTypes, selectProjectChartType, itemsMap]);
-
     const onCreateNew =
         dataAppsEnabled && canCreateChartType
             ? () =>
@@ -167,8 +144,31 @@ const AddChartTypeMenu: FC = () => {
                     onClose={() => setIsLibraryOpen(false)}
                     // Close on install so the selection is visible at once.
                     onInstalled={(appUuid) => {
-                        setPendingInstalledUuid(appUuid);
                         setIsLibraryOpen(false);
+                        // The install only returns the uuid; the selection
+                        // needs the schema, so fetch the type once.
+                        void queryClient
+                            .fetchQuery({
+                                queryKey: [
+                                    'data-app-viz',
+                                    projectUuid,
+                                    appUuid,
+                                    null,
+                                ],
+                                queryFn: () =>
+                                    getDataAppVisualization(
+                                        projectUuid,
+                                        appUuid,
+                                        null,
+                                    ),
+                            })
+                            .then((installed) =>
+                                selectProjectChartType(
+                                    installed,
+                                    itemsMap ?? {},
+                                ),
+                            )
+                            .catch(() => undefined);
                     }}
                 />
             ) : null}
