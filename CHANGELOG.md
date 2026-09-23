@@ -1,3 +1,11 @@
+# [2.306.0](https://github.com/lightdash/lightdash/compare/2.305.6...2.306.0) (2026-09-23)
+
+
+### Features
+
+* **chart-types:** order the chart type list by name on request ([#29780](https://github.com/lightdash/lightdash/issues/29780)) ([b9b3fc9](https://github.com/lightdash/lightdash/commit/b9b3fc99e49584edd40dcb823b66ea3d3d827074))
+* **explorer:** one chart type grid with provenance marks ([#29747](https://github.com/lightdash/lightdash/issues/29747)) ([bbbcc8c](https://github.com/lightdash/lightdash/commit/bbbcc8c5fba183957971750dba99adb3ba98b677))
+
 ## [2.305.6](https://github.com/lightdash/lightdash/compare/2.305.5...2.305.6) (2026-09-23)
 
 

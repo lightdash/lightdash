@@ -19840,6 +19840,30 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizListSortBy: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['createdAt'] },
+                { dataType: 'enum', enums: ['name'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizListSortDirection: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['asc'] },
+                { dataType: 'enum', enums: ['desc'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiSuccess_DataAppViz_: {
         dataType: 'refAlias',
         type: {
@@ -76473,6 +76497,12 @@ export function RegisterRoutes(app: Router) {
         page: { in: 'query', name: 'page', dataType: 'double' },
         pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
         search: { in: 'query', name: 'search', dataType: 'string' },
+        sortBy: { in: 'query', name: 'sortBy', ref: 'DataAppVizListSortBy' },
+        sortDirection: {
+            in: 'query',
+            name: 'sortDirection',
+            ref: 'DataAppVizListSortDirection',
+        },
     };
     app.get(
         '/api/v1/ee/projects/:projectUuid/apps/visualizations',

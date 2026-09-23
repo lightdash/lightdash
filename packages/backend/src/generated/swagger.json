@@ -21153,6 +21153,15 @@
             "ApiListDataAppVizsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_DataAppViz-Array__"
             },
+            "DataAppVizListSortBy": {
+                "type": "string",
+                "enum": ["createdAt", "name"],
+                "description": "Order of a data app viz list; the default is newest first."
+            },
+            "DataAppVizListSortDirection": {
+                "type": "string",
+                "enum": ["asc", "desc"]
+            },
             "ApiSuccess_DataAppViz_": {
                 "properties": {
                     "results": {
@@ -64433,7 +64442,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.305.6",
+        "version": "2.306.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
