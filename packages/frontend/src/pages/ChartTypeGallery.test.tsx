@@ -1,8 +1,14 @@
 import { FeatureFlags, type DataAppViz } from '@lightdash/common';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import {
+    act,
+    fireEvent,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAppVersionHistory } from '../features/apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
@@ -286,6 +292,120 @@ describe('ChartTypeGallery', () => {
             isError: false,
             isFetchingEarlier: false,
             fetchEarlier: vi.fn(),
+        });
+    });
+
+    describe('scroll pagination', () => {
+        const observers = new Map<Element, IntersectionObserverCallback>();
+        const fetchNextPage = vi.fn();
+
+        beforeEach(() => {
+            observers.clear();
+            vi.stubGlobal(
+                'IntersectionObserver',
+                vi.fn(function (callback: IntersectionObserverCallback) {
+                    return {
+                        observe: (element: Element) =>
+                            observers.set(element, callback),
+                        disconnect: () => observers.clear(),
+                    };
+                }),
+            );
+            setData([makeDataAppViz({})]);
+            mockedUseDataAppVisualizations.mockReturnValue({
+                ...mockedUseDataAppVisualizations('project-1'),
+                hasNextPage: true,
+                fetchNextPage,
+            });
+        });
+
+        afterEach(() => vi.unstubAllGlobals());
+
+        const intersect = (isIntersecting: boolean) => {
+            const target = screen.getByTestId('chart-types-pagination');
+            const callback = observers.get(target);
+            expect(callback).toBeDefined();
+            act(() => {
+                callback!(
+                    [
+                        {
+                            target,
+                            isIntersecting,
+                            boundingClientRect: target.getBoundingClientRect(),
+                            intersectionRatio: isIntersecting ? 1 : 0,
+                            intersectionRect: target.getBoundingClientRect(),
+                            rootBounds: null,
+                            time: 0,
+                        },
+                    ],
+                    {} as IntersectionObserver,
+                );
+            });
+        };
+
+        it('loads another page only when the bottom approaches the viewport', () => {
+            renderPage();
+
+            expect(
+                screen.queryByRole('button', { name: 'Load more' }),
+            ).not.toBeInTheDocument();
+            expect(fetchNextPage).not.toHaveBeenCalled();
+            intersect(false);
+            expect(fetchNextPage).not.toHaveBeenCalled();
+            intersect(true);
+            expect(fetchNextPage).toHaveBeenCalledOnce();
+        });
+
+        it.each([false, true])(
+            'waits for an active request (next page: %s)',
+            (isFetchingNextPage) => {
+                mockedUseDataAppVisualizations.mockReturnValue({
+                    ...mockedUseDataAppVisualizations('project-1'),
+                    isFetching: true,
+                    isFetchingNextPage,
+                });
+                renderPage();
+                intersect(true);
+
+                expect(fetchNextPage).not.toHaveBeenCalled();
+                if (isFetchingNextPage) {
+                    expect(screen.getByRole('status')).toHaveTextContent(
+                        'Loading more chart types…',
+                    );
+                }
+            },
+        );
+
+        it('stops observing after the last page', () => {
+            mockedUseDataAppVisualizations.mockReturnValue({
+                ...mockedUseDataAppVisualizations('project-1'),
+                hasNextPage: false,
+            });
+            renderPage();
+
+            expect(
+                screen.queryByTestId('chart-types-pagination'),
+            ).not.toBeInTheDocument();
+            expect(observers.size).toBe(0);
+            expect(fetchNextPage).not.toHaveBeenCalled();
+        });
+
+        it('does not paginate installed charts while browsing the library', () => {
+            renderPage('/projects/project-1/chart-types?tab=chart-library');
+
+            expect(
+                screen.queryByTestId('chart-types-pagination'),
+            ).not.toBeInTheDocument();
+            expect(fetchNextPage).not.toHaveBeenCalled();
+        });
+
+        it('disconnects the observer when the gallery unmounts', () => {
+            const view = renderPage();
+            expect(observers.size).toBe(1);
+
+            view.unmount();
+
+            expect(observers.size).toBe(0);
         });
     });
 
