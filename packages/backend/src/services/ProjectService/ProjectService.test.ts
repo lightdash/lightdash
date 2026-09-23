@@ -260,10 +260,11 @@ const projectModel = {
     getExploreConnectionUuid: vi.fn<ProjectModel['getExploreConnectionUuid']>(
         async () => runtimeConnection.connectionUuid,
     ),
-    getCompileConnections: vi.fn(async () => [
+    getCompileConnections: vi.fn(async (_projectUuid: string) => [
         { connectionUuid: 'dbt_project-connection-uuid', name: 'Warehouse' },
     ]),
     copyConnectionsForPreview: vi.fn(async () => new Map<string, string>()),
+    duplicateContent: vi.fn(async () => ({ spaceMapping: [] })),
     getCompileProject: vi.fn(async () => projectWithSensitiveFields),
     runInAnalyticsProvisioningLock: vi.fn(
         async (_org: string, callback: () => Promise<unknown>) => callback(),
@@ -2706,11 +2707,6 @@ describe('ProjectService', () => {
             projectDbtSourcesModel: {
                 createPrimarySource,
                 copySources,
-                findSoleConnectionUuid: vi.fn(async (uuid: string) =>
-                    uuid === upstreamProjectUuid
-                        ? 'upstream-connection-uuid'
-                        : 'preview-connection-uuid',
-                ),
             } as unknown as ProjectDbtSourcesModel,
         });
         const wizardUser: SessionUser = {
@@ -2768,6 +2764,19 @@ describe('ProjectService', () => {
             .mockResolvedValue(null);
         projectModel.create.mockResolvedValueOnce(wizardProjectUuid);
 
+        projectModel.getCompileConnections.mockImplementation(
+            async (uuid: string) => [
+                uuid === upstreamProjectUuid
+                    ? {
+                          connectionUuid: 'upstream-connection-uuid',
+                          name: 'Warehouse',
+                      }
+                    : {
+                          connectionUuid: 'preview-connection-uuid',
+                          name: 'Default',
+                      },
+            ],
+        );
         try {
             await wizardService._create(
                 wizardUser,
@@ -2791,6 +2800,13 @@ describe('ProjectService', () => {
             );
             expect(createPrimarySource).not.toHaveBeenCalled();
         } finally {
+            projectModel.getCompileConnections.mockReset();
+            projectModel.getCompileConnections.mockResolvedValue([
+                {
+                    connectionUuid: 'dbt_project-connection-uuid',
+                    name: 'Warehouse',
+                },
+            ]);
             tagsSpy.mockRestore();
             parametersSpy.mockRestore();
             resolveSpy.mockRestore();
@@ -2959,11 +2975,6 @@ describe('ProjectService', () => {
                 {
                     projectDbtSourcesModel: {
                         copySources,
-                        findSoleConnectionUuid: vi.fn(async (uuid: string) =>
-                            uuid === upstreamProjectUuid
-                                ? 'upstream-connection-uuid'
-                                : 'preview-connection-uuid',
-                        ),
                     } as unknown as ProjectDbtSourcesModel,
                 },
             );
@@ -3009,6 +3020,19 @@ describe('ProjectService', () => {
                     dbtConnection: primaryDbtConnection,
                 });
 
+            projectModel.getCompileConnections.mockImplementation(
+                async (uuid: string) => [
+                    uuid === upstreamProjectUuid
+                        ? {
+                              connectionUuid: 'upstream-connection-uuid',
+                              name: 'Warehouse',
+                          }
+                        : {
+                              connectionUuid: 'preview-connection-uuid',
+                              name: 'Default',
+                          },
+                ],
+            );
             try {
                 await previewService.createWithoutCompile(
                     previewUser,
@@ -3042,6 +3066,13 @@ describe('ProjectService', () => {
                     undefined,
                 );
             } finally {
+                projectModel.getCompileConnections.mockReset();
+                projectModel.getCompileConnections.mockResolvedValue([
+                    {
+                        connectionUuid: 'dbt_project-connection-uuid',
+                        name: 'Warehouse',
+                    },
+                ]);
                 validateSpy.mockRestore();
                 expirationSpy.mockRestore();
                 copyAccessSpy.mockRestore();
@@ -4141,6 +4172,146 @@ describe('ProjectService', () => {
             );
 
             buildAdapterSpy.mockRestore();
+        });
+
+        const mockConnections = (
+            connections: Record<
+                string,
+                { connectionUuid: string; name: string }[]
+            >,
+        ) =>
+            projectModel.getCompileConnections.mockImplementation(
+                async (uuid: string) => connections[uuid] ?? [],
+            );
+
+        const upstreamBoundExplore = (connectionUuid: string) => ({
+            ...validExplore,
+            tables: {
+                ...validExplore.tables,
+                a: { ...validExplore.tables.a, connectionUuid },
+            },
+        });
+
+        const mockUpstreamExplores = (explore: Explore) => {
+            projectModel.getCompileProject.mockResolvedValueOnce(
+                nonePreviewProject,
+            );
+            projectModel.get.mockResolvedValueOnce(upstreamProject);
+            (
+                projectModel.getAllExploresFromCache as import('vitest').Mock
+            ).mockResolvedValueOnce({ 'explore-uuid': explore });
+        };
+
+        afterEach(() => {
+            projectModel.getCompileConnections.mockReset();
+            projectModel.getCompileConnections.mockResolvedValue([
+                {
+                    connectionUuid: 'dbt_project-connection-uuid',
+                    name: 'Warehouse',
+                },
+            ]);
+        });
+
+        test('moves reused upstream explores onto the preview connection', async () => {
+            mockConnections({
+                [upstreamProjectUuid]: [
+                    {
+                        connectionUuid: 'upstream-connection',
+                        name: 'Warehouse',
+                    },
+                ],
+                [previewProjectUuid]: [
+                    { connectionUuid: 'preview-connection', name: 'Default' },
+                ],
+            });
+            mockUpstreamExplores(upstreamBoundExplore('upstream-connection'));
+
+            const result = await callRefresh();
+
+            expect(result.explores).toEqual([
+                upstreamBoundExplore('preview-connection'),
+            ]);
+        });
+
+        test('matches reused explores to preview connections by name', async () => {
+            mockConnections({
+                [upstreamProjectUuid]: [
+                    { connectionUuid: 'upstream-primary', name: 'Primary' },
+                    { connectionUuid: 'upstream-finance', name: 'Finance' },
+                ],
+                [previewProjectUuid]: [
+                    { connectionUuid: 'preview-primary', name: 'Primary' },
+                    { connectionUuid: 'preview-finance', name: 'Finance' },
+                ],
+            });
+            mockUpstreamExplores(upstreamBoundExplore('upstream-finance'));
+
+            const result = await callRefresh();
+
+            expect(result.explores).toEqual([
+                upstreamBoundExplore('preview-finance'),
+            ]);
+        });
+
+        test('refuses a reused explore whose connection has no preview copy', async () => {
+            mockConnections({
+                [upstreamProjectUuid]: [
+                    { connectionUuid: 'upstream-primary', name: 'Primary' },
+                    { connectionUuid: 'upstream-finance', name: 'Finance' },
+                ],
+                [previewProjectUuid]: [
+                    { connectionUuid: 'preview-primary', name: 'Primary' },
+                ],
+            });
+            mockUpstreamExplores(upstreamBoundExplore('upstream-finance'));
+
+            await expect(callRefresh()).rejects.toThrow(
+                'The preview has no connection for explore "valid_explore"',
+            );
+        });
+    });
+
+    describe('copyContentOnPreview', () => {
+        afterEach(() => {
+            projectModel.getCompileConnections.mockReset();
+            projectModel.getCompileConnections.mockResolvedValue([
+                {
+                    connectionUuid: 'dbt_project-connection-uuid',
+                    name: 'Warehouse',
+                },
+            ]);
+        });
+
+        test('copies SQL charts onto the connection of a single-connection preview', async () => {
+            projectModel.getCompileConnections.mockImplementation(
+                async (uuid: string) =>
+                    uuid === 'upstream-project-uuid'
+                        ? [
+                              {
+                                  connectionUuid: 'upstream-connection',
+                                  name: 'Warehouse',
+                              },
+                          ]
+                        : [
+                              {
+                                  connectionUuid: 'preview-connection',
+                                  name: 'Default',
+                              },
+                          ],
+            );
+
+            await service.copyContentOnPreview(
+                'upstream-project-uuid',
+                'preview-project-uuid',
+                user,
+            );
+
+            expect(projectModel.duplicateContent).toHaveBeenCalledWith(
+                'upstream-project-uuid',
+                'preview-project-uuid',
+                spacesWithSavedCharts,
+                new Map([['upstream-connection', 'preview-connection']]),
+            );
         });
     });
 

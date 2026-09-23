@@ -69,6 +69,7 @@ import {
     ProjectModel,
     reduceExploreTableSummaryRows,
     toExploreTableSummaryRecord,
+    toPreviewConnectionUuid,
     type ExploreTableSummaryRecord,
 } from './ProjectModel';
 import {
@@ -4905,5 +4906,27 @@ describe('ProjectModel', () => {
                 model.resolveConnectionByName(projectUuid, 'finance'),
             ).rejects.toThrow(NotFoundError);
         });
+    });
+});
+
+describe('toPreviewConnectionUuid', () => {
+    const connectionUuidMap = new Map([
+        ['upstream-connection', 'preview-connection'],
+    ]);
+
+    test('moves a bound SQL chart version onto the preview connection', () => {
+        expect(
+            toPreviewConnectionUuid('upstream-connection', connectionUuidMap),
+        ).toBe('preview-connection');
+    });
+
+    test('keeps an unbound SQL chart version unbound', () => {
+        expect(toPreviewConnectionUuid(null, connectionUuidMap)).toBeNull();
+    });
+
+    test('refuses a connection that has no preview copy', () => {
+        expect(() =>
+            toPreviewConnectionUuid('other-connection', connectionUuidMap),
+        ).toThrow('The preview has no copy of connection other-connection');
     });
 });

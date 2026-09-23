@@ -360,6 +360,20 @@ const isJsonObject = (value: unknown): value is Record<string, unknown> =>
 const toOptionalJsonScalarText = (value: unknown): string | undefined =>
     value == null ? undefined : String(value);
 
+export const toPreviewConnectionUuid = (
+    connectionUuid: string | null,
+    connectionUuidMap: Map<string, string>,
+): string | null => {
+    if (connectionUuid === null) return null;
+    const previewConnectionUuid = connectionUuidMap.get(connectionUuid);
+    if (previewConnectionUuid === undefined) {
+        throw new ParameterError(
+            `The preview has no copy of connection ${connectionUuid}`,
+        );
+    }
+    return previewConnectionUuid;
+};
+
 export const toExploreTableSummaryRecord = (
     explore: unknown,
 ): ExploreTableSummaryRecord | undefined => {
@@ -4996,6 +5010,7 @@ export class ProjectModel {
         projectUuid: string,
         previewProjectUuid: string,
         spaces: Pick<SpaceSummary, 'uuid'>[],
+        connectionUuidMap: Map<string, string>,
     ): Promise<{
         spaceMapping: { sourceSpaceUuid: string; previewSpaceUuid: string }[];
     }> {
@@ -5533,6 +5548,10 @@ export class ProjectModel {
                                   ...d,
                                   saved_sql_version_uuid: undefined,
                                   saved_sql_uuid: newSavedSQLUuid,
+                                  connection_uuid: toPreviewConnectionUuid(
+                                      d.connection_uuid,
+                                      connectionUuidMap,
+                                  ),
                               };
                               delete createSavedSQLVersion.saved_sql_version_uuid;
                               return createSavedSQLVersion;

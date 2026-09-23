@@ -3097,18 +3097,61 @@ export class ProjectService extends BaseService {
         upstreamProjectUuid: string,
         previewProjectUuid: string,
     ): Promise<Map<string, string>> {
-        const [upstreamConnectionUuid, previewConnectionUuid] =
-            await Promise.all([
-                this.projectDbtSourcesModel.findSoleConnectionUuid(
-                    upstreamProjectUuid,
-                ),
-                this.projectDbtSourcesModel.findSoleConnectionUuid(
-                    previewProjectUuid,
-                ),
+        const [upstreamConnections, previewConnections] = await Promise.all([
+            this.projectModel.getCompileConnections(upstreamProjectUuid),
+            this.projectModel.getCompileConnections(previewProjectUuid),
+        ]);
+        if (
+            upstreamConnections.length === 1 &&
+            previewConnections.length === 1
+        ) {
+            return new Map([
+                [
+                    upstreamConnections[0].connectionUuid,
+                    previewConnections[0].connectionUuid,
+                ],
             ]);
-        return upstreamConnectionUuid !== null && previewConnectionUuid !== null
-            ? new Map([[upstreamConnectionUuid, previewConnectionUuid]])
-            : new Map();
+        }
+        const previewConnectionUuidByName = new Map(
+            previewConnections.map((connection) => [
+                connection.name,
+                connection.connectionUuid,
+            ]),
+        );
+        return new Map(
+            upstreamConnections.flatMap((connection) => {
+                const previewConnectionUuid = previewConnectionUuidByName.get(
+                    connection.name,
+                );
+                return previewConnectionUuid === undefined
+                    ? []
+                    : [[connection.connectionUuid, previewConnectionUuid]];
+            }),
+        );
+    }
+
+    private static toPreviewExplore(
+        explore: Explore | ExploreError,
+        connectionUuidMap: Map<string, string>,
+    ): Explore | ExploreError {
+        if (!explore.tables) return explore;
+        return {
+            ...explore,
+            tables: Object.fromEntries(
+                Object.entries(explore.tables).map(([tableName, table]) => {
+                    if (!table.connectionUuid) return [tableName, table];
+                    const connectionUuid = connectionUuidMap.get(
+                        table.connectionUuid,
+                    );
+                    if (connectionUuid === undefined) {
+                        throw new ParameterError(
+                            `The preview has no connection for explore "${explore.name}"`,
+                        );
+                    }
+                    return [tableName, { ...table, connectionUuid }];
+                }),
+            ),
+        };
     }
 
     async createWithoutCompile(
@@ -9627,15 +9670,24 @@ export class ProjectService extends BaseService {
                 upstreamProject,
                 upstreamParameters,
                 upstreamTableGroups,
+                connectionUuidMap,
             ] = await Promise.all([
                 this.projectModel.getAllExploresFromCache(upstreamProjectUuid),
                 this.projectModel.get(upstreamProjectUuid),
                 this.projectParametersModel.find(upstreamProjectUuid),
                 this.projectModel.getTableGroups(upstreamProjectUuid),
+                this.getPreviewConnectionUuidMap(
+                    upstreamProjectUuid,
+                    projectUuid,
+                ),
             ]);
+            const previewExplores = Object.values(upstreamExplores).map(
+                (explore) =>
+                    ProjectService.toPreviewExplore(explore, connectionUuidMap),
+            );
             return consume({
                 exploreStream: (async function* upstreamStream() {
-                    yield* Object.values(upstreamExplores);
+                    yield* previewExplores;
                 })(),
                 lightdashProjectConfig: {
                     spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -12721,6 +12773,10 @@ export class ProjectService extends BaseService {
                         projectUuid,
                         previewProjectUuid,
                         spaces,
+                        await this.getPreviewConnectionUuidMap(
+                            projectUuid,
+                            previewProjectUuid,
+                        ),
                     );
 
                 // Duplicate the upstream project's data apps into the preview
