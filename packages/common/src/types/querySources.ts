@@ -68,17 +68,6 @@ export type QuerySourceTableName = string;
 export type QueryResultReference = string;
 
 /**
- * Display metadata for a pipeline node. Optional because the public
- * query-sources API accepts and ignores it; the composer tool always sets it.
- */
-export type SourceQueryNodeMeta = {
-    /** Plain-language label shown to users instead of the node id. */
-    title?: string;
-    /** One-line note on what this query does, shown under the title. */
-    description?: string;
-};
-
-/**
  * A semantic layer (metric) query as a source query. Only exploreName,
  * dimensions and metrics are required; everything else defaults to empty
  * (no filters, no sorts, no table calculations) and a default row limit.
@@ -87,10 +76,14 @@ export type SourceQueryNodeMeta = {
  * requested (e.g. requesting metric "payments_total_revenue" yields a column
  * "payments_total_revenue"), so referencing DuckDB SQL selects those names.
  */
-export type SemanticLayerSourceQuery = SourceQueryNodeMeta & {
+export type SemanticLayerSourceQuery = {
     sourceType: QuerySourceType.SEMANTIC_LAYER;
     /** Names this query so other queries in the same submission can reference its results. */
     nodeId?: QueryNodeId;
+    /** Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it. */
+    title?: string;
+    /** One-line note on what this query does, shown under the title. */
+    description?: string;
     exploreName: string;
     /** Dimension field ids to group by, from the explore's schema. */
     dimensions: FieldId[];
@@ -128,10 +121,14 @@ export type SemanticLayerSourceQuery = SourceQueryNodeMeta & {
 };
 
 /** A raw warehouse SQL query as a source query. */
-export type SqlSourceQuery = SourceQueryNodeMeta & {
+export type SqlSourceQuery = {
     sourceType: QuerySourceType.SQL;
     /** Names this query so other queries in the same submission can reference its results. */
     nodeId?: QueryNodeId;
+    /** Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it. */
+    title?: string;
+    /** One-line note on what this query does, shown under the title. */
+    description?: string;
     sql: string;
     limit?: number;
     /**
@@ -152,10 +149,14 @@ export type SqlSourceQuery = SourceQueryNodeMeta & {
  * executes once every referenced result is ready, and fails if any
  * referenced query fails.
  */
-export type DuckdbSourceQuery = SourceQueryNodeMeta & {
+export type DuckdbSourceQuery = {
     sourceType: QuerySourceType.DUCKDB;
     /** Names this query so other queries in the same submission can reference its results. */
     nodeId?: QueryNodeId;
+    /** Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it. */
+    title?: string;
+    /** One-line note on what this query does, shown under the title. */
+    description?: string;
     sql: string;
     limit?: number;
     /**
@@ -187,10 +188,14 @@ export type DuckdbSourceQuery = SourceQueryNodeMeta & {
 export type ExternalSourceTableReference = string;
 
 /** DuckDB SQL over named durable external tables. */
-export type ExternalSourceQuery = SourceQueryNodeMeta & {
+export type ExternalSourceQuery = {
     sourceType: QuerySourceType.EXTERNAL;
     /** Names this query so other queries in the same submission can reference its results. */
     nodeId?: QueryNodeId;
+    /** Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it. */
+    title?: string;
+    /** One-line note on what this query does, shown under the title. */
+    description?: string;
     sql: string;
     limit?: number;
     tables:
