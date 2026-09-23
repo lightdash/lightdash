@@ -1,7 +1,10 @@
 import {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
+    ConflictError,
     DatabricksAuthenticationType,
+    DbtProjectType,
+    DefaultSupportedDbtVersion,
     DuckdbConnectionType,
     ForbiddenError,
     MissingWarehouseCredentialsError,
@@ -14,7 +17,10 @@ import {
 import { type Knex } from 'knex';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
-import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import {
+    ORIGINAL_TYPE_LOCKED_MESSAGE,
+    ProjectModel,
+} from '../../../models/ProjectModel/ProjectModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
@@ -1254,6 +1260,84 @@ describe('Extra connection credentials on the real schema', () => {
             expect(await decryptConnection(extra)).toMatchObject({
                 refreshToken: 'stored-refresh-token',
             });
+        });
+    });
+
+    describe('A-5: the original warehouse type while extra connections exist', () => {
+        const projectModel = () =>
+            (service as unknown as { projectModel: ProjectModel }).projectModel;
+
+        const saveOriginal = (
+            projectUuid: string,
+            warehouseConnection: CreateWarehouseCredentials,
+        ) =>
+            projectModel().update(projectUuid, {
+                name: 'Credentials project',
+                dbtConnection: { type: DbtProjectType.NONE },
+                dbtVersion: DefaultSupportedDbtVersion,
+                warehouseConnection,
+                organizationWarehouseCredentialsUuid: null,
+            } as never);
+
+        const storedOriginalType = async (projectUuid: string) =>
+            (
+                await database('warehouse_credentials')
+                    .innerJoin(
+                        'projects',
+                        'projects.project_id',
+                        'warehouse_credentials.project_id',
+                    )
+                    .where('projects.project_uuid', projectUuid)
+                    .first<{ warehouse_type: string }>(
+                        'warehouse_credentials.warehouse_type',
+                    )
+            ).warehouse_type;
+
+        test('refuses a settings save that changes the original to another type while a Postgres extra exists', async () => {
+            const organization = await createOrganization();
+            const project = await createProject(organization, {
+                mode: 'multi',
+                credentials: postgres,
+            });
+            await createExtra(project, { credentials: postgres });
+
+            await expect(saveOriginal(project, snowflake)).rejects.toEqual(
+                new ConflictError(ORIGINAL_TYPE_LOCKED_MESSAGE),
+            );
+            expect(await storedOriginalType(project)).toBe(
+                WarehouseTypes.POSTGRES,
+            );
+        });
+
+        test('keeps main behaviour: same-type saves with extras, and type changes without extras', async () => {
+            const organization = await createOrganization();
+            const withExtra = await createProject(organization, {
+                mode: 'multi',
+                credentials: postgres,
+            });
+            await createExtra(withExtra, { credentials: postgres });
+            const multiWithoutExtra = await createProject(organization, {
+                mode: 'multi',
+                credentials: postgres,
+            });
+            const single = await createProject(organization, {
+                mode: 'single',
+                credentials: postgres,
+            });
+
+            await saveOriginal(withExtra, { ...postgres, host: 'new-host' });
+            await saveOriginal(multiWithoutExtra, snowflake);
+            await saveOriginal(single, snowflake);
+
+            expect(await storedOriginalType(withExtra)).toBe(
+                WarehouseTypes.POSTGRES,
+            );
+            expect(await storedOriginalType(multiWithoutExtra)).toBe(
+                WarehouseTypes.SNOWFLAKE,
+            );
+            expect(await storedOriginalType(single)).toBe(
+                WarehouseTypes.SNOWFLAKE,
+            );
         });
     });
 

@@ -5,6 +5,7 @@ import {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     CompiledTable,
+    ConflictError,
     CreateProject,
     CreateProjectOptionalCredentials,
     CreateSnowflakeCredentials,
@@ -224,6 +225,9 @@ const warehouseCredentialsCache =
         : undefined;
 
 const INSERT_BATCH_SIZE = 1000;
+
+export const ORIGINAL_TYPE_LOCKED_MESSAGE =
+    'The warehouse type cannot change while this project has extra connections. Remove the extra connections first.';
 
 const getMotherduckConnectionString = (
     credentials: CreateWarehouseCredentials,
@@ -1187,6 +1191,15 @@ export class ProjectModel {
                 throw new UnexpectedServerError('Could not update project.');
             }
             const [project] = projects;
+
+            const extraOfAnotherType = await trx('warehouse_connections')
+                .where('project_uuid', projectUuid)
+                .where('is_original', false)
+                .whereNot('warehouse_type', data.warehouseConnection.type)
+                .first('warehouse_connection_uuid');
+            if (extraOfAnotherType) {
+                throw new ConflictError(ORIGINAL_TYPE_LOCKED_MESSAGE);
+            }
 
             await this.upsertWarehouseConnection(
                 trx,

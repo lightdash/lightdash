@@ -1235,6 +1235,9 @@ describe('ProjectModel', () => {
             .update(({ sql }) => sql.includes('projects'))
             .response([{ project_id: 1 }]);
         tracker.on
+            .select(({ sql }) => sql.includes('warehouse_connections'))
+            .response(undefined);
+        tracker.on
             .insert(({ sql }) => sql.includes('warehouse_credentials'))
             .response([]);
 
@@ -1261,6 +1264,9 @@ describe('ProjectModel', () => {
         tracker.on
             .update(({ sql }) => sql.includes('projects'))
             .response([{ project_id: 1 }]);
+        tracker.on
+            .select(({ sql }) => sql.includes('warehouse_connections'))
+            .response(undefined);
         tracker.on
             .insert(({ sql }) => sql.includes('warehouse_credentials'))
             .response([]);
