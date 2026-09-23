@@ -182,7 +182,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
                                             onDelete();
                                         }}
                                     >
-                                        Delete
+                                        {isOfficial ? 'Uninstall' : 'Delete'}
                                     </Menu.Item>
                                 </>
                             )}
