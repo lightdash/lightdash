@@ -18,6 +18,7 @@ import {
     getModel,
     MODEL_PRESETS,
     pickAmbientAnthropicPreset,
+    presetToModelOption,
 } from './index';
 import type { ModelPreset, ModelPresetProvider } from './presets';
 
@@ -335,31 +336,34 @@ describe('getModel', () => {
         expect(openrouter.model.modelId).toBe('configured/model');
     });
 
-    it('resolves a pinned Bedrock inference-profile model id', () => {
-        const { model } = getModel(
-            {
-                ...baseCopilotConfig,
-                defaultProvider: 'bedrock',
-                providers: {
-                    bedrock: {
-                        apiKey: 'test',
-                        region: 'eu-west-1',
-                        inferenceProfilePrefix: 'jp',
-                        modelName: 'claude-sonnet-5',
-                        embeddingModelName: 'amazon.titan-embed-text-v2:0',
-                        customHeaders: {},
-                        supportsStreaming: true,
+    it.each(['claude-opus-5', 'claude-opus-5-5'])(
+        'resolves a pinned Bedrock inference-profile model id for %s',
+        (modelName) => {
+            const { model } = getModel(
+                {
+                    ...baseCopilotConfig,
+                    defaultProvider: 'bedrock',
+                    providers: {
+                        bedrock: {
+                            apiKey: 'test',
+                            region: 'eu-west-1',
+                            inferenceProfilePrefix: 'jp',
+                            modelName: 'claude-sonnet-5',
+                            embeddingModelName: 'amazon.titan-embed-text-v2:0',
+                            customHeaders: {},
+                            supportsStreaming: true,
+                        },
                     },
                 },
-            },
-            {
-                provider: 'bedrock',
-                modelName: 'jp.anthropic.claude-opus-5',
-            },
-        );
+                {
+                    provider: 'bedrock',
+                    modelName: `jp.anthropic.${modelName}`,
+                },
+            );
 
-        expect(model.modelId).toBe('jp.anthropic.claude-opus-5');
-    });
+            expect(model.modelId).toBe(`jp.anthropic.${modelName}`);
+        },
+    );
 
     it('stamps lightdash-managed only when Lightdash infrastructure declared the provider', () => {
         const { keyManagement } = getModel({
@@ -400,6 +404,85 @@ describe('getModel', () => {
         expect(wrapLanguageModel).toHaveBeenCalledTimes(1);
         expect(model).toBe(vi.mocked(wrapLanguageModel).mock.results[0].value);
     });
+});
+
+describe('Opus model lifecycle', () => {
+    const config = {
+        ...baseCopilotConfig,
+        providers: {
+            anthropic: {
+                apiKey: 'test',
+                modelName: 'claude-opus-5',
+                customHeaders: {},
+                supportsStreaming: true,
+            },
+            bedrock: {
+                apiKey: 'test',
+                region: 'us-east-1',
+                modelName: 'claude-opus-5',
+                embeddingModelName: 'amazon.titan-embed-text-v2:0',
+                customHeaders: {},
+                supportsStreaming: true,
+            },
+        },
+    };
+
+    it.each(['anthropic', 'bedrock'] as const)(
+        'offers Opus 5.5 and deprecates Opus 5 without breaking saved %s configurations',
+        (provider) => {
+            const models = getAvailableModels(config)
+                .filter((preset) => preset.provider === provider)
+                .map((preset) => presetToModelOption(preset, null));
+            expect(models).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        name: 'claude-opus-5-5',
+                        displayName: 'Claude Opus 5.5',
+                        supportsReasoning: true,
+                        deprecated: false,
+                    }),
+                    expect.objectContaining({
+                        name: 'claude-opus-5',
+                        deprecated: true,
+                    }),
+                ]),
+            );
+            const oldModel = getModel(config, { provider });
+            expect(oldModel.model.modelId).toBe(
+                provider === 'anthropic'
+                    ? 'claude-opus-5'
+                    : 'us.anthropic.claude-opus-5',
+            );
+            const newModel = getModel(config, {
+                provider,
+                modelName: 'claude-opus-5-5',
+                enableReasoning: true,
+            });
+            expect(newModel.model.modelId).toBe(
+                provider === 'anthropic'
+                    ? 'claude-opus-5-5'
+                    : 'us.anthropic.claude-opus-5-5',
+            );
+            expect(newModel.callOptions.temperature).toBeUndefined();
+            expect(newModel.providerOptions).toMatchObject(
+                provider === 'anthropic'
+                    ? {
+                          anthropic: {
+                              thinking: { type: 'adaptive' },
+                              effort: 'medium',
+                          },
+                      }
+                    : {
+                          bedrock: {
+                              reasoningConfig: {
+                                  type: 'adaptive',
+                                  maxReasoningEffort: 'medium',
+                              },
+                          },
+                      },
+            );
+        },
+    );
 });
 
 describe('OpenRouter model options', () => {
@@ -761,21 +844,23 @@ describe('filterModelsForOrg', () => {
         expect(withKey.map((p) => p.name)).toContain('claude-opus-4-8');
     });
 
-    it('offers claude-opus-5 to every org, with or without key access', () => {
+    it('offers claude-opus-5-5 to every org, with or without key access', () => {
         const realPresets = MODEL_PRESETS.anthropic;
-        expect(realPresets.some((p) => p.name === 'claude-opus-5')).toBe(true);
+        expect(realPresets.some((p) => p.name === 'claude-opus-5-5')).toBe(
+            true,
+        );
 
         const noKey = filterModelsForOrg(realPresets, {
             modelVisibility: null,
             keyAccessibleModelIds: null,
         });
-        expect(noKey.map((p) => p.name)).toContain('claude-opus-5');
+        expect(noKey.map((p) => p.name)).toContain('claude-opus-5-5');
 
         const withKey = filterModelsForOrg(realPresets, {
             modelVisibility: null,
-            keyAccessibleModelIds: { anthropic: ['claude-opus-5'] },
+            keyAccessibleModelIds: { anthropic: ['claude-opus-5-5'] },
         });
-        expect(withKey.map((p) => p.name)).toContain('claude-opus-5');
+        expect(withKey.map((p) => p.name)).toContain('claude-opus-5-5');
     });
 });
 

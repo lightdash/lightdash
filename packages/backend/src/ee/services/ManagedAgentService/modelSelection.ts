@@ -9,11 +9,11 @@ import { isModelConfigAvailable } from '../AiOrganizationSettingsService';
 
 export type AutopilotModelChoice = { provider: AiProvider; modelName: string };
 
-// Autopilot runs unattended, so on these providers it prefers a cleanup-qualified
-// Opus, newest first, over the chat default when the organisation may use it.
+// Prefer the newest Opus the organisation may use over its chat default.
+// Cleanup qualification is checked separately against the resolved model.
 const AUTOPILOT_PREFERRED_MODELS: Partial<Record<AiProvider, string[]>> = {
-    anthropic: ['claude-opus-5', 'claude-opus-4-8', 'claude-opus-4-7'],
-    bedrock: ['claude-opus-5', 'claude-opus-4-7'],
+    anthropic: ['claude-opus-5-5', 'claude-opus-4-8', 'claude-opus-4-7'],
+    bedrock: ['claude-opus-5-5', 'claude-opus-4-7'],
 };
 
 const preferQualifiedModel = (
