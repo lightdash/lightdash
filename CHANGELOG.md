@@ -1,3 +1,11 @@
+# [2.310.0](https://github.com/lightdash/lightdash/compare/2.309.1...2.310.0) (2026-09-23)
+
+
+### Features
+
+* **data-apps:** recover from expired sources and pin the analysis race claims ([#29789](https://github.com/lightdash/lightdash/issues/29789)) ([5e399f8](https://github.com/lightdash/lightdash/commit/5e399f83018ad8c8f7ee5d39529eb5a51277e3a4))
+* load more chart types on scroll ([#29798](https://github.com/lightdash/lightdash/issues/29798)) ([5282f8c](https://github.com/lightdash/lightdash/commit/5282f8c2beaf39b36aa6270aa21b436ca1d5b4e2))
+
 ## [2.309.1](https://github.com/lightdash/lightdash/compare/2.309.0...2.309.1) (2026-09-23)
 
 
