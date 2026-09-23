@@ -44,6 +44,7 @@ describe('Autopilot model qualification', () => {
     });
 
     it.each([
+        ['anthropic', 'claude-opus-5-5'],
         ['anthropic', 'claude-opus-5'],
         ['anthropic', 'claude-opus-4-8'],
         ['bedrock', 'us.anthropic.claude-opus-5'],
