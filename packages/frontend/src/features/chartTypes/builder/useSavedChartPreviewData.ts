@@ -3,6 +3,8 @@ import {
     isApiError,
     type Item,
     type ItemsMap,
+    type MetricQuery,
+    type SavedChart,
     type ReadyQueryResultsPage,
     type ResultRow,
 } from '@lightdash/common';
@@ -28,7 +30,12 @@ export type SavedChartPreviewData =
       }
     | {
           status: 'ready';
-          sourceChart: SavedChartBindingSource | null;
+          sourceChart:
+              | (SavedChartBindingSource &
+                    Pick<SavedChart, 'parameters' | 'merge'> & {
+                        originalMetricQuery: MetricQuery;
+                    })
+              | null;
           chartName: string | null;
           spaceName: string | null;
           rows: ResultRow[];
@@ -130,6 +137,7 @@ export const useSavedChartPreviewData = ({
                 spaceName,
                 sourceChart: {
                     ...savedChart.data,
+                    originalMetricQuery: savedChart.data.metricQuery,
                     metricQuery:
                         data.metricQuery ?? savedChart.data.metricQuery,
                 },

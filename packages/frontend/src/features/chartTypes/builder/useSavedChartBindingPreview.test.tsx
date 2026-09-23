@@ -69,6 +69,15 @@ const source: SavedChartPreviewRun = {
         rowCount: 0,
         ranAt: new Date(),
         sourceChart: {
+            originalMetricQuery: {
+                exploreName: 'orders',
+                dimensions: ['orders_date', 'orders_status'],
+                metrics: ['orders_count'],
+                tableCalculations: [],
+                sorts: [],
+                filters: {},
+                limit: 500,
+            },
             metricQuery: {
                 exploreName: 'orders',
                 dimensions: ['orders_date', 'orders_status'],

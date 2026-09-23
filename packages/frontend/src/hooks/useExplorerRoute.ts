@@ -27,6 +27,7 @@ import {
     selectMetricQuery,
     selectTableName,
     selectUnsavedChartVersion,
+    selectUnsavedColorPaletteUuid,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
@@ -42,6 +43,7 @@ import {
 import useToaster from './toaster/useToaster';
 
 const CHART_SIDEBAR_PARAM = 'chartSidebar';
+const COLOR_PALETTE_PARAM = 'colorPaletteUuid';
 
 export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
     tableName: '',
@@ -344,6 +346,7 @@ export const useExplorerRoute = () => {
     const dispatch = useExplorerDispatch();
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const colorPaletteUuid = useExplorerSelector(selectUnsavedColorPaletteUuid);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const tableName = useExplorerSelector(selectTableName);
     const isVisualizationConfigOpen = useExplorerSelector(
@@ -361,6 +364,9 @@ export const useExplorerRoute = () => {
             );
             const searchParams = new URLSearchParams(explorerUrl.search);
             searchParams.delete('dataAppVizUuid');
+            if (colorPaletteUuid)
+                searchParams.set(COLOR_PALETTE_PARAM, colorPaletteUuid);
+            else searchParams.delete(COLOR_PALETTE_PARAM);
             if (isVisualizationConfigOpen) {
                 searchParams.set(CHART_SIDEBAR_PARAM, chartSidebarStep);
             } else {
@@ -383,6 +389,7 @@ export const useExplorerRoute = () => {
         tableName,
         isVisualizationConfigOpen,
         chartSidebarStep,
+        colorPaletteUuid,
     ]);
 
     useEffect(() => {
@@ -406,6 +413,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
 
     const [searchParams] = useSearchParams();
     const fromDashboard = searchParams.get('fromDashboard');
+    const colorPaletteUuid = searchParams.get(COLOR_PALETTE_PARAM);
     const isExploreFromHere = useMemo(() => {
         return searchParams.get('isExploreFromHere') === 'true';
     }, [searchParams]);
@@ -462,7 +470,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                               ]
                             : [ExplorerSection.RESULTS],
                     unsavedChartVersion,
-                    unsavedColorPaletteUuid: null,
+                    unsavedColorPaletteUuid: colorPaletteUuid,
                     modals: {
                         format: {
                             isOpen: false,
@@ -504,6 +512,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
         search,
         showToastError,
         fromDashboard,
+        colorPaletteUuid,
         isExploreFromHere,
         health.data?.query.defaultLimit,
     ]);

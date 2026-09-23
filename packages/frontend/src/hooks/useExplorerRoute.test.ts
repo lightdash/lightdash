@@ -3,12 +3,16 @@ import {
     ChartType,
     type CreateSavedChartVersion,
 } from '@lightdash/common';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { createElement, useState, type ComponentProps } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import {
+    explorerActions,
+    selectUnsavedColorPaletteUuid,
+    useExplorerDispatch,
+    useExplorerSelector,
     buildInitialExplorerState,
     createExplorerStore,
 } from '../features/explorer/store';
@@ -30,11 +34,30 @@ const searchFromPayload = (payload: unknown) =>
 const ExplorerRouteLocation = () => {
     useExplorerRoute();
     const location = useLocation();
+    const palette = useExplorerSelector(selectUnsavedColorPaletteUuid);
+    const dispatch = useExplorerDispatch();
 
     return createElement(
         'div',
-        { 'data-testid': 'location' },
-        `${location.pathname}${location.search}`,
+        null,
+        createElement(
+            'span',
+            { 'data-testid': 'location' },
+            `${location.pathname}${location.search}`,
+        ),
+        createElement(
+            'output',
+            { 'data-testid': 'palette' },
+            palette ?? 'default',
+        ),
+        createElement(
+            'button',
+            {
+                onClick: () =>
+                    dispatch(explorerActions.setColorPaletteUuid(null)),
+            },
+            'Reset palette',
+        ),
     );
 };
 
@@ -81,6 +104,20 @@ const currentDestination = () =>
     );
 
 describe('useExplorerRoute', () => {
+    it('restores the preview palette and serializes later palette changes', async () => {
+        const paletteUuid = '1e9a3b2c-0000-4000-8000-000000000099';
+        renderExplorerRouteAt(
+            `/projects/project-1/tables/orders?colorPaletteUuid=${paletteUuid}`,
+        );
+        expect(screen.getByTestId('palette')).toHaveTextContent(paletteUuid);
+        fireEvent.click(screen.getByRole('button', { name: 'Reset palette' }));
+        await waitFor(() =>
+            expect(
+                currentDestination().searchParams.has('colorPaletteUuid'),
+            ).toBe(false),
+        );
+    });
+
     it('applies and consumes a chart type preview hint when it serializes chart state', async () => {
         const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
         const initialPath = `/projects/project-1/tables/orders?dataAppVizUuid=${dataAppVizUuid}&fromSpace=space-1`;

@@ -45,6 +45,7 @@ type Props = {
     onUpgradeStarted: () => void;
     onToggleHistory: () => void;
     previewInExplorerLink: To | null;
+    previewInExplorerDisabled: boolean;
     onPreviewInExplorer: (() => void) | null;
 };
 
@@ -61,6 +62,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
     onUpgradeStarted,
     onToggleHistory,
     previewInExplorerLink,
+    previewInExplorerDisabled,
     onPreviewInExplorer,
 }) => {
     const [isEditingDetails, setIsEditingDetails] = useState(false);
@@ -177,11 +179,16 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                             size="xs"
                             component={Link}
                             to={previewInExplorerLink}
+                            disabled={previewInExplorerDisabled}
                         >
                             Preview in explorer
                         </Button>
                     ) : onPreviewInExplorer ? (
-                        <Button size="xs" onClick={onPreviewInExplorer}>
+                        <Button
+                            size="xs"
+                            onClick={onPreviewInExplorer}
+                            disabled={previewInExplorerDisabled}
+                        >
                             Preview in explorer
                         </Button>
                     ) : null)}
