@@ -1,7 +1,7 @@
 import { DbtProjectType } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
-import { down, up } from '../20260918110000_bind_dbt_sources_to_connections';
+import { down, up } from '../20260923100400_bind_dbt_sources_to_connections';
 
 describe('dbt source connection binding migration', () => {
     let admin: Knex;
