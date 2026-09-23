@@ -1,13 +1,3 @@
-.field {
-    padding-bottom: var(--mantine-spacing-xs);
-    border-bottom: 1px solid var(--mantine-color-default-border);
-}
-
-.field:last-child {
-    padding-bottom: 0;
-    border-bottom: 0;
-}
-
 .fieldLabel {
     min-width: 0;
 }
