@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-export const DEFAULT_OPENAI_MODEL_NAME = 'gpt-5.4';
+export const DEFAULT_OPENAI_MODEL_NAME = 'gpt-6-sol';
 export const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
-export const DEFAULT_OPENAI_FAST_MODEL_NAME = 'gpt-5.6-luna';
+export const DEFAULT_OPENAI_FAST_MODEL_NAME = 'gpt-6-luna';
 export const DEFAULT_ANTHROPIC_MODEL_NAME = 'claude-sonnet-5';
 export const DEFAULT_GOOGLE_MODEL_NAME = 'gemini-3.8-flash';
 export const DEFAULT_GOOGLE_FAST_MODEL_NAME = 'gemini-3.5-flash-lite';

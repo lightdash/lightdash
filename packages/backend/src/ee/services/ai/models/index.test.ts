@@ -18,6 +18,7 @@ import {
     getModel,
     MODEL_PRESETS,
     pickAmbientAnthropicPreset,
+    presetToModelOption,
 } from './index';
 import type { ModelPreset, ModelPresetProvider } from './presets';
 
@@ -402,6 +403,68 @@ describe('getModel', () => {
 
         expect(wrapLanguageModel).toHaveBeenCalledTimes(1);
         expect(model).toBe(vi.mocked(wrapLanguageModel).mock.results[0].value);
+    });
+});
+
+describe('GPT Sol and Luna model lifecycle', () => {
+    it.each(['gpt-5.6-sol', 'gpt-5.6-luna'])(
+        'deprecates %s without changing saved model resolution',
+        (modelName) => {
+            const config = {
+                ...baseCopilotConfig,
+                providers: {
+                    openai: {
+                        ...baseCopilotConfig.providers.openai!,
+                        modelName,
+                    },
+                },
+            };
+            const options = getAvailableModels(config).map((preset) =>
+                presetToModelOption(preset, getDefaultModel(config)),
+            );
+            expect(options).toContainEqual(
+                expect.objectContaining({
+                    name: modelName,
+                    deprecated: true,
+                    default: true,
+                }),
+            );
+            expect(getModel(config).model.modelId).toBe(modelName);
+            expect(
+                getModel(baseCopilotConfig, {
+                    provider: 'openai',
+                    modelName,
+                }).model.modelId,
+            ).toBe(modelName);
+        },
+    );
+
+    it.each([
+        ['gpt-6-sol', 'GPT-6 Sol'],
+        ['gpt-6-luna', 'GPT-6 Luna'],
+    ])('offers %s for agent selection', (modelName, displayName) => {
+        const options = getAvailableModels(baseCopilotConfig).map((preset) =>
+            presetToModelOption(preset, getDefaultModel(baseCopilotConfig)),
+        );
+        expect(options).toContainEqual(
+            expect.objectContaining({
+                name: modelName,
+                modelId: modelName,
+                displayName,
+                provider: 'openai',
+                supportsReasoning: true,
+                deprecated: false,
+            }),
+        );
+        const { model, providerOptions } = getModel(baseCopilotConfig, {
+            provider: 'openai',
+            modelName,
+            enableReasoning: true,
+        });
+        expect(model.modelId).toBe(modelName);
+        expect(providerOptions).toMatchObject({
+            openai: { reasoningEffort: 'medium', parallelToolCalls: false },
+        });
     });
 });
 
