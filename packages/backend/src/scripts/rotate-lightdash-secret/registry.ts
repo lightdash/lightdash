@@ -22,6 +22,11 @@ export const CIPHERTEXT_REGISTRY: CiphertextRegistryEntry[] = [
         column: 'encrypted_credentials',
     },
     {
+        table: 'warehouse_connections',
+        primaryKeyColumn: 'warehouse_connection_uuid',
+        column: 'encrypted_credentials',
+    },
+    {
         table: 'organization_warehouse_credentials',
         primaryKeyColumn: 'organization_warehouse_credentials_uuid',
         column: 'warehouse_connection',
