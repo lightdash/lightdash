@@ -954,6 +954,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             externalConnectionService: ({ models, context, repository }) =>
                 new ExternalConnectionService({
+                    allowedPrivateHostCidrs:
+                        context.lightdashConfig.appRuntime
+                            .externalConnectionAllowedPrivateHostCidrs,
                     analytics: context.lightdashAnalytics,
                     externalConnectionModel:
                         models.getExternalConnectionModel(),
@@ -963,7 +966,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     googleTokenProvider:
                         new GoogleServiceAccountTokenProvider(),
                     oauthClientCredentialsTokenProvider:
-                        new OAuthClientCredentialsTokenProvider(),
+                        new OAuthClientCredentialsTokenProvider({
+                            allowedPrivateHostCidrs:
+                                context.lightdashConfig.appRuntime
+                                    .externalConnectionAllowedPrivateHostCidrs,
+                        }),
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,
                         aiOrganizationSettingsModel:

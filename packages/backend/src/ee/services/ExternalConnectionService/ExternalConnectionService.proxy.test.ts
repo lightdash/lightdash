@@ -6,7 +6,10 @@ import {
 } from '@lightdash/common';
 import { fromJwt } from '../../../auth/account';
 import { buildAccount } from '../../../auth/account/account.mock';
-import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
+import {
+    SecureFetchError,
+    type AllowedPrivateHostCidrs,
+} from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import { ExternalConnectionService } from './ExternalConnectionService';
 
@@ -109,6 +112,7 @@ const embeddedDashboardUser = buildEmbeddedDashboardUser();
 const embeddedDataAppUser = buildEmbeddedDataAppUser();
 
 function buildService(opts: {
+    allowedPrivateHostCidrs?: AllowedPrivateHostCidrs;
     connection?: ExternalConnection | undefined;
     secret?: string | null;
     canView?: boolean;
@@ -157,6 +161,7 @@ function buildService(opts: {
     const analytics = { track: vi.fn(), trackAccount: vi.fn() };
 
     const service = new ExternalConnectionService({
+        allowedPrivateHostCidrs: opts.allowedPrivateHostCidrs ?? {},
         externalConnectionModel,
         appModel,
         projectModel,
@@ -413,6 +418,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
         expect(opts.timeoutMs).toBe(5_000);
         expect(opts.maxResponseBytes).toBe(1_000_000);
         expect(opts.allowedContentTypes).toEqual(['application/json']);
+        expect(opts.allowedPrivateHostCidrs).toEqual({});
         expect(res).toEqual({
             status: 200,
             contentType: 'application/json',
@@ -420,6 +426,22 @@ describe('ExternalConnectionService.proxyFetch', () => {
             body: { ok: true },
             truncated: false,
         });
+    });
+
+    it('applies the instance private host policy to the resource request', async () => {
+        const allowedPrivateHostCidrs = { 'api.internal': ['10.20.0.0/16'] };
+        const { service } = buildService({
+            allowedPrivateHostCidrs,
+            connection: baseConnection({ origin: 'https://api.internal' }),
+        });
+        await service.proxyFetch(user, 'proj-1', 'app-1', {
+            connectionAlias: 'internal',
+            path: '/v1/status',
+        });
+        expect(mockSecureFetch).toHaveBeenCalledWith(
+            'https://api.internal/v1/status',
+            expect.objectContaining({ allowedPrivateHostCidrs }),
+        );
     });
 
     it('GET is rate-limited like every other method', async () => {

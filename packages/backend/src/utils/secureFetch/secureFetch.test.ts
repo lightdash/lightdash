@@ -187,6 +187,70 @@ const jsonResponse = (
         },
     });
 
+describe('secureFetch private host exceptions', () => {
+    it.each<[string, number, string]>([
+        ['10.20.1.2', 4, '10.20.0.0/16'],
+        ['fd12:3456::1', 6, 'fd12:3456::/48'],
+        ['127.0.0.1', 4, '127.0.0.1/32'],
+        ['93.184.216.34', 4, '10.20.0.0/16'],
+    ])(
+        'permits public or explicitly approved addresses: %s',
+        async (address, family, cidr) => {
+            mockedLookup.mockResolvedValue([{ address, family }]);
+            mockedFetch.mockResolvedValue(jsonResponse('{}'));
+            await expect(
+                secureFetch('https://API.Internal./data', {
+                    ...BASE_OPTIONS,
+                    allowedPrivateHostCidrs: { 'api.internal': [cidr] },
+                }),
+            ).resolves.toMatchObject({ status: 200 });
+        },
+    );
+
+    it.each([
+        ['other.internal', '10.20.1.2'],
+        ['api.internal', '10.30.1.2'],
+    ])(
+        'requires both hostname and CIDR to match: %s -> %s',
+        async (host, address) => {
+            mockedLookup.mockResolvedValue([{ address, family: 4 }]);
+            await expectReason(
+                secureFetch(`https://${host}/data`, {
+                    ...BASE_OPTIONS,
+                    allowedPrivateHostCidrs: {
+                        'api.internal': ['10.20.0.0/16'],
+                    },
+                }),
+                'blocked_ip',
+            );
+            expect(mockedFetch).not.toHaveBeenCalled();
+        },
+    );
+
+    it('rejects mixed DNS answers when one private address is outside the approved CIDRs', async () => {
+        mockedLookup.mockResolvedValue([
+            { address: '10.20.1.2', family: 4 },
+            { address: '10.30.1.2', family: 4 },
+        ]);
+        await expectReason(
+            secureFetch('https://api.internal/data', {
+                ...BASE_OPTIONS,
+                allowedPrivateHostCidrs: { 'api.internal': ['10.20.0.0/16'] },
+            }),
+            'blocked_ip',
+        );
+        expect(mockedFetch).not.toHaveBeenCalled();
+    });
+
+    it('does not treat inherited object properties as host exceptions', async () => {
+        mockedLookup.mockResolvedValue([{ address: '10.20.1.2', family: 4 }]);
+        await expectReason(
+            secureFetch('https://constructor/data', BASE_OPTIONS),
+            'blocked_ip',
+        );
+    });
+});
+
 describe('secureFetch GET behavior', () => {
     it('rejects a 3xx redirect with reason redirect', async () => {
         mockedFetch.mockResolvedValue(

@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import {
     secureFetch,
+    type AllowedPrivateHostCidrs,
     type SecureFetchResult,
 } from '../../../utils/secureFetch/secureFetch';
 
@@ -37,7 +38,17 @@ export class OAuthClientCredentialsTokenProvider {
 
     private readonly inFlight = new Map<string, Promise<string>>();
 
-    constructor(private readonly fetchToken: FetchToken = secureFetch) {}
+    private readonly allowedPrivateHostCidrs: AllowedPrivateHostCidrs;
+
+    private readonly fetchToken: FetchToken;
+
+    constructor(args: {
+        allowedPrivateHostCidrs: AllowedPrivateHostCidrs;
+        fetchToken?: FetchToken;
+    }) {
+        this.allowedPrivateHostCidrs = args.allowedPrivateHostCidrs;
+        this.fetchToken = args.fetchToken ?? secureFetch;
+    }
 
     private static getCacheKey(
         config: OAuthClientCredentialsConfig,
@@ -124,6 +135,7 @@ export class OAuthClientCredentialsTokenProvider {
             timeoutMs: TOKEN_TIMEOUT_MS,
             maxResponseBytes: TOKEN_RESPONSE_MAX_BYTES,
             allowedContentTypes: ['application/json'],
+            allowedPrivateHostCidrs: this.allowedPrivateHostCidrs,
         });
         if (response.status < 200 || response.status >= 300) {
             throw new Error('OAuth token endpoint rejected the request');

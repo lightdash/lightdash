@@ -35,9 +35,11 @@ import {
     type UserAttributeSetupEntry,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/core';
+import * as ipaddr from 'ipaddr.js';
 import { type ClientAuthMethod } from 'openid-client';
 import { z } from 'zod';
 import { type S3AuthMode } from '../clients/Aws/S3BaseClient';
+import { type AllowedPrivateHostCidrs } from '../utils/secureFetch/secureFetch';
 import { VERSION } from '../version';
 import {
     AI_PROVIDER_KEYS,
@@ -2275,6 +2277,8 @@ export type AppRuntimeConfig = {
      * the UI. Env var `LIGHTDASH_APP_SAMPLE_DATA_ENABLED`; defaults to `true`.
      */
     sampleDataEnabled: boolean;
+    /** Instance-wide hostname@CIDR exceptions for external connections only. */
+    externalConnectionAllowedPrivateHostCidrs: AllowedPrivateHostCidrs;
     chartRegistry: {
         /** null disables the chart type library entirely */
         url: string | null;
@@ -2745,6 +2749,37 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'false',
         sampleDataEnabled:
             process.env.LIGHTDASH_APP_SAMPLE_DATA_ENABLED !== 'false',
+        externalConnectionAllowedPrivateHostCidrs: (() => {
+            const name =
+                'APP_RUNTIME_EXTERNAL_CONNECTION_ALLOWED_PRIVATE_HOST_CIDRS';
+            const allowlist: Record<string, string[]> = Object.create(null);
+            try {
+                for (const entry of (process.env[name] ?? '')
+                    .split(',')
+                    .filter((part) => part.trim())) {
+                    const parts = entry.split('@').map((part) => part.trim());
+                    const [rawHost, cidr] = parts;
+                    if (
+                        parts.length !== 2 ||
+                        !/^[a-z\d][a-z\d.-]*$/i.test(rawHost)
+                    ) {
+                        throw new Error(
+                            'Expected comma-separated hostname@CIDR entries',
+                        );
+                    }
+                    ipaddr.parseCIDR(cidr);
+                    const host = rawHost.toLowerCase().replace(/\.$/, '');
+                    const cidrs = allowlist[host] ?? [];
+                    if (!cidrs.includes(cidr)) cidrs.push(cidr);
+                    allowlist[host] = cidrs;
+                }
+                return allowlist;
+            } catch (error) {
+                throw new ParseError(
+                    `Cannot parse environment variable "${name}": ${getErrorMessage(error)}`,
+                );
+            }
+        })(),
         chartRegistry: {
             // Unset → official registry once the repo exists; explicit '' → disabled.
             url: ((raw) => {

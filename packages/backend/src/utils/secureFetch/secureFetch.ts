@@ -5,6 +5,10 @@ import { LookupFunction } from 'net';
 import fetch, { FetchError } from 'node-fetch';
 import { isPrivateAddress } from '../ssrfProtection';
 
+export type AllowedPrivateHostCidrs = Readonly<
+    Record<string, readonly string[]>
+>;
+
 export type SecureFetchReason =
     | 'non_https'
     | 'blocked_ip'
@@ -33,6 +37,8 @@ export type SecureFetchOptions = {
     timeoutMs: number;
     maxResponseBytes: number;
     allowedContentTypes: string[];
+    // Operator-approved exceptions to private/internal address blocking.
+    allowedPrivateHostCidrs?: AllowedPrivateHostCidrs;
 };
 
 // Non-2xx responses are returned, not thrown, so callers can forward upstream
@@ -66,21 +72,48 @@ const parseHttpsUrl = (rawUrl: string): URL => {
     return parsedUrl;
 };
 
-// Returns true when the address must be blocked (non-routable, private,
-// loopback, link-local, multicast, reserved, or unparseable). Uses ipaddr.js
-// so that tunnelled ranges like 6to4 (2002:7f00::/16) and NAT64
-// (64:ff9b::/96) collapse to their IPv4 range via ipaddr.process(). Fail-closed:
-// if the address cannot be parsed it is treated as blocked.
+// Unparseable addresses and all private/special-use ranges fail closed.
 const isNonPublicAddress = (address: string): boolean => {
     if (!ipaddr.isValid(address)) return true;
     return isPrivateAddress(address);
 };
 
+const isAllowedPrivateAddress = (
+    address: string,
+    cidrs: readonly string[],
+): boolean =>
+    cidrs.some((cidr) => {
+        try {
+            const parsed = ipaddr.process(address);
+            const [network, prefix] = ipaddr.parseCIDR(cidr);
+            if (
+                parsed instanceof ipaddr.IPv4 &&
+                network instanceof ipaddr.IPv4
+            ) {
+                return parsed.match(network, prefix);
+            }
+            if (
+                parsed instanceof ipaddr.IPv6 &&
+                network instanceof ipaddr.IPv6
+            ) {
+                return parsed.match(network, prefix);
+            }
+            return false;
+        } catch {
+            return false;
+        }
+    });
+
 const resolveAndValidateHost = async (
     hostname: string,
+    allowedPrivateHostCidrs: AllowedPrivateHostCidrs = {},
 ): Promise<{ address: string; family: 4 | 6 }> => {
     // URL.hostname wraps IPv6 literals in brackets ("[::1]") — strip them.
     const cleanHost = hostname.replace(/^\[/, '').replace(/\]$/, '');
+    const policyHost = cleanHost.toLowerCase().replace(/\.$/, '');
+    const allowedCidrs = Object.hasOwn(allowedPrivateHostCidrs, policyHost)
+        ? allowedPrivateHostCidrs[policyHost]
+        : [];
 
     let addresses: Array<{ address: string; family: number }>;
     try {
@@ -92,7 +125,10 @@ const resolveAndValidateHost = async (
         throw new SecureFetchError('blocked_ip', 'Unable to resolve hostname');
     }
     for (const { address } of addresses) {
-        if (isNonPublicAddress(address)) {
+        if (
+            isNonPublicAddress(address) &&
+            !isAllowedPrivateAddress(address, allowedCidrs)
+        ) {
             throw new SecureFetchError(
                 'blocked_ip',
                 'Access to private/internal addresses is not allowed',
@@ -161,6 +197,7 @@ export async function secureFetch(
     const parsedUrl = parseHttpsUrl(rawUrl);
     const { address, family } = await resolveAndValidateHost(
         parsedUrl.hostname,
+        options.allowedPrivateHostCidrs,
     );
     const agent = createPinnedHttpsAgent(address, family);
 

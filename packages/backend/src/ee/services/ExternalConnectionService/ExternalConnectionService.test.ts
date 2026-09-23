@@ -177,6 +177,7 @@ function buildService(opts: {
             }),
     };
     const service = new ExternalConnectionService({
+        allowedPrivateHostCidrs: {},
         externalConnectionModel: model as never,
         appModel: {} as never,
         spacePermissionService: {
