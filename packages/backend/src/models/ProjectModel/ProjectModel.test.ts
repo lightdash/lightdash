@@ -464,10 +464,13 @@ describe('ProjectModel', () => {
                 name: 'Second',
             },
         ]);
-        vi.spyOn(connectionModel, 'getCredentials').mockResolvedValue({
-            ...CompletePostgresCredentials,
-            requireUserCredentials: true,
-        });
+        vi.spyOn(connectionModel, 'getCredentials').mockImplementation(
+            async (_projectUuid, connectionUuid) => ({
+                ...CompletePostgresCredentials,
+                requireUserCredentials:
+                    connectionUuid === secondCompileConnectionUuid,
+            }),
+        );
         tracker.on
             .select(({ sql }) => sql.includes(`from "${ProjectTableName}"`))
             .response([{ ...projectMock, require_user_credentials: null }]);
@@ -478,7 +481,7 @@ describe('ProjectModel', () => {
         );
 
         expect(project.warehouseConnection).toBeDefined();
-        expect(project.requireUserCredentials).toBe(false);
+        expect(project.requireUserCredentials).toBe(true);
         expect(connectionModel.getCredentials).toHaveBeenCalledWith(
             projectUuid,
             compileConnectionUuid,
