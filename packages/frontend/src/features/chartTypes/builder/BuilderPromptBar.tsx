@@ -68,8 +68,9 @@ import ChartTypeComposerActions, {
     type ComposerPanel,
 } from './ChartTypeComposerActions';
 import ClarifyingQuestions from './ClarifyingQuestions';
+import DataSourceChip from './DataSourceChip';
+import { type ExploreSourceControls } from './exploreSource';
 import { type SavedChartSourceControls } from './savedChartSource';
-import SavedChartSourceChip from './SavedChartSourceChip';
 
 type Props = {
     projectUuid: string;
@@ -93,6 +94,9 @@ type Props = {
     /** The saved chart backing the session; null on hosts that offer none.
      *  Its chip replaces the round sample-data button. */
     savedChartSource?: SavedChartSourceControls | null;
+    /** The explore backing the session; null on hosts that offer none. Its
+     *  chip replaces the saved chart's while one is attached. */
+    exploreSource?: ExploreSourceControls | null;
     /** The sample-data button's state; the host owns it so other surfaces
      *  can describe what the next prompt carries. */
     includeSampleData: boolean;
@@ -195,6 +199,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
             clarification,
             buildContext,
             savedChartSource = null,
+            exploreSource = null,
             includeSampleData,
             onIncludeSampleDataChange,
             elementPicker,
@@ -232,7 +237,10 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
         const canIncludeSampleData =
             health.data?.dataApps.sampleDataEnabled !== false &&
             Boolean(buildContext?.sampleRows?.length);
-        const sourceIdentity = savedChartSource?.sourceIdentity ?? null;
+        const sourceIdentity =
+            savedChartSource?.sourceIdentity ??
+            exploreSource?.sourceIdentity ??
+            null;
         const { showToastError } = useToaster();
         const [composerPanel, setComposerPanel] = useState<ComposerPanel>(null);
         const { data: linkedConnections = [] } = useAppExternalConnections(
@@ -872,12 +880,11 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                                         Retry themes
                                     </Button>
                                 )}
-                                {savedChartSource && (
-                                    <SavedChartSourceChip
-                                        source={savedChartSource}
-                                        disabled={isComposerLocked}
-                                    />
-                                )}
+                                <DataSourceChip
+                                    savedChartSource={savedChartSource}
+                                    exploreSource={exploreSource}
+                                    disabled={isComposerLocked}
+                                />
                                 {linkedConnections.map(({ connection }) => (
                                     <Tooltip
                                         key={connection.externalConnectionUuid}

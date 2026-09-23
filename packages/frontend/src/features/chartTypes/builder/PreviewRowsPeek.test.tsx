@@ -32,7 +32,6 @@ const source = (
     sourceIdentity: null,
     attached: null,
     previewSource: 'sample',
-    setPreviewSource: vi.fn(),
     includeRows: false,
     setIncludeRows: vi.fn(),
     attach: vi.fn(),
@@ -84,6 +83,7 @@ describe('PreviewRowsPeek', () => {
                 source={source({
                     previewSource: 'chart',
                     attached: {
+                        uuid: 'chart-orders',
                         status: 'ready',
                         chartName: 'Orders',
                         spaceName: 'Sales',

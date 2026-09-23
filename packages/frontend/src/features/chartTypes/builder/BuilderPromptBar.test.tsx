@@ -231,6 +231,7 @@ const savedChartSource = (
         sourceIdentity === null
             ? null
             : {
+                  uuid: sourceIdentity,
                   status: 'ready',
                   chartName: sourceIdentity,
                   spaceName: 'Test space',
@@ -240,7 +241,6 @@ const savedChartSource = (
                   message: null,
               },
     previewSource: sourceIdentity === null ? 'sample' : 'chart',
-    setPreviewSource: vi.fn(),
     includeRows: false,
     setIncludeRows: vi.fn(),
     attach: vi.fn(),

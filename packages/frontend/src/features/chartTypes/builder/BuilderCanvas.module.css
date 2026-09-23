@@ -108,8 +108,22 @@
     }
 }
 
+/* The second way in. The divider and the offers sit closer to each other
+   than to the examples above, so they read as one alternative rather than
+   two more rows of the same weight. */
+.sourceGroup {
+    width: 100%;
+    margin-top: var(--mantine-spacing-xs);
+}
+
 /* Spans the source card below it, so the label sits over its own row. */
 .sourceDivider {
+    width: 836px;
+    max-width: 100%;
+}
+
+/* The two data offers share the example cards' row width. */
+.sourceOffers {
     width: 836px;
     max-width: 100%;
 }

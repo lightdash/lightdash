@@ -6,7 +6,7 @@ import {
     type DataAppVizSchema,
     type DataAppVizContext,
 } from '@lightdash/common';
-import { Box, Stack, Tabs, Text } from '@mantine/core';
+import { Box, Divider, Stack, Tabs, Text } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
 import OverflowTabsList from '../../../components/common/OverflowTabsList/OverflowTabsList';
 import { PalettePicker } from '../../../components/common/PalettePicker/PalettePicker';
@@ -20,8 +20,9 @@ import ChartInputsList, {
 } from './ChartInputsList';
 import { ChartTypeSampleData } from './ChartTypeSampleData';
 import classes from './ConfigurePanel.module.css';
+import DataSourceSection from './DataSourceSection';
+import { type ExploreSourceControls } from './exploreSource';
 import PreviewRowsPeek from './PreviewRowsPeek';
-import SavedChartDataSourceSection from './SavedChartDataSourceSection';
 import { type SavedChartSourceControls } from './savedChartSource';
 
 const SAMPLE_SOURCE: ChartTypePreviewDataSource = { kind: 'sample' };
@@ -45,6 +46,9 @@ type Props = {
     previewDataSource?: ChartTypePreviewDataSource;
     /** The attached saved chart, when the host offers one. */
     savedChartSource?: SavedChartSourceControls | null;
+    /** The explore source, when the host offers one; it takes over the data
+     *  source tile while an explore is attached. */
+    exploreSource?: ExploreSourceControls | null;
     /** Binds the declared slots to that chart's result columns. */
     inputsBinding?: ChartInputsBinding | null;
 };
@@ -66,8 +70,26 @@ const ConfigurePanel: FC<Props> = ({
     isStale,
     previewDataSource = SAMPLE_SOURCE,
     savedChartSource = null,
+    exploreSource = null,
     inputsBinding = null,
 }) => {
+    const attachedExploreSource = exploreSource?.attached
+        ? exploreSource
+        : null;
+    // With nothing bound the preview renders the sample, and so does the peek.
+    const rowsSource =
+        attachedExploreSource?.attached?.status === 'idle'
+            ? savedChartSource
+            : (attachedExploreSource ?? savedChartSource);
+    // A table's query follows the inputs; a saved chart's query is fixed.
+    const sourceHint =
+        previewDataSource.kind === 'sample'
+            ? null
+            : exploreSource?.attached
+              ? `Fields from ${exploreSource.attached.label}. Changing one re-runs the query.`
+              : savedChartSource?.attached
+                ? `Fields from ${savedChartSource.attached.chartName}.`
+                : null;
     const { data: palettes = [] } = useColorPalettes();
 
     const effectiveValues = useMemo(
@@ -105,7 +127,27 @@ const ConfigurePanel: FC<Props> = ({
 
     return (
         <Box className={classes.panel} data-stale={isStale} inert={isStale}>
-            <Text className={classes.generatedChip}>Generated options</Text>
+            {savedChartSource || exploreSource ? (
+                <>
+                    <Box p="sm" pb={0}>
+                        <DataSourceSection
+                            savedChartSource={savedChartSource}
+                            exploreSource={exploreSource}
+                        />
+                    </Box>
+                    <Divider
+                        className={classes.generatedDivider}
+                        labelPosition="center"
+                        label={
+                            <Text className={classes.generatedChip}>
+                                Generated options
+                            </Text>
+                        }
+                    />
+                </>
+            ) : (
+                <Text className={classes.generatedChip}>Generated options</Text>
+            )}
             <Tabs
                 value={activeTab}
                 onChange={setSelectedTab}
@@ -125,22 +167,18 @@ const ConfigurePanel: FC<Props> = ({
 
                 <Tabs.Panel value="general" className={classes.tabPanel}>
                     <Stack gap="sm" p="sm">
-                        {savedChartSource && (
-                            <SavedChartDataSourceSection
-                                source={savedChartSource}
-                            />
-                        )}
                         <ChartInputsList
                             fields={schema.fields}
                             boundLabels={inputsBinding ? null : boundLabels}
                             binding={inputsBinding}
+                            sourceHint={sourceHint}
                         />
                         <DataAppVizInputGuidance
                             guidance={schema.inputGuidance}
                         />
-                        {savedChartSource ? (
+                        {rowsSource ? (
                             <PreviewRowsPeek
-                                source={savedChartSource}
+                                source={rowsSource}
                                 fields={schema.fields}
                                 context={previewContext}
                             />
@@ -164,7 +202,7 @@ const ConfigurePanel: FC<Props> = ({
                         value={group.id}
                         className={classes.tabPanel}
                     >
-                        <Stack gap="sm" px="sm" pt="sm" pb="sm">
+                        <Stack gap="sm" p="sm">
                             {group.options.map((option) => (
                                 <DataAppVizOptionControl
                                     key={option.name}

@@ -720,10 +720,8 @@ describe('ChartTypeBuilder', () => {
             `/projects/p1/chart-types/new?savedChartUuid=${savedChartUuid}`,
         );
 
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Include sample data' }),
-        );
-        expect(screen.getByText(/Sample data included/)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Include rows' }));
+        expect(screen.getByText(/Rows included/)).toBeInTheDocument();
 
         fireEvent.click(
             screen.getByRole('button', { name: 'Use sample data instead' }),
@@ -732,50 +730,8 @@ describe('ChartTypeBuilder', () => {
         expect(screen.getByTestId('location')).not.toHaveTextContent(
             'savedChartUuid',
         );
-        expect(screen.getByText(/Rows aren’t sent/)).toBeInTheDocument();
-    });
-
-    it('keeps an attached saved chart when the author switches the preview to sample data', () => {
-        const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
-        const savedChartUuid = '1e9a3b2c-0000-4000-8000-000000000010';
-        setApp(appMeta({ appUuid: dataAppVizUuid }));
-        vi.mocked(useAppVersionHistory).mockReturnValue(
-            historyStub([appVersion({ version: 1 })], 1),
-        );
-        vi.mocked(useDataAppVisualization).mockReturnValue({
-            data: {
-                schema: { fields: [], configOptions: [], colorPalette: null },
-            },
-        } as unknown as ReturnType<typeof useDataAppVisualization>);
-        vi.mocked(useSavedChartPreviewData).mockReturnValue({
-            data: {
-                status: 'ready',
-                chartName: 'Orders by status',
-                spaceName: 'Sales',
-                rows: [],
-                itemsMap: {},
-                columns: [],
-                pivotDetails: null,
-                rowCount: 0,
-                ranAt: new Date('2026-09-22T00:00:00.000Z'),
-            },
-            retry: vi.fn(),
-        });
-
-        renderBuilder(
-            `/projects/p1/chart-types/${dataAppVizUuid}?savedChartUuid=${savedChartUuid}`,
-        );
-
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Use sample data' }),
-        );
-
-        expect(
-            screen.getByRole('button', { name: 'Use saved chart' }),
-        ).toBeInTheDocument();
-        expect(screen.getByTestId('location')).toHaveTextContent(
-            `?savedChartUuid=${savedChartUuid}`,
-        );
+        expect(screen.queryByText(/Rows included/)).not.toBeInTheDocument();
+        expect(screen.getByText('Use a saved chart')).toBeInTheDocument();
     });
 
     it('returns to the Explorer query with the freshly built chart type', () => {

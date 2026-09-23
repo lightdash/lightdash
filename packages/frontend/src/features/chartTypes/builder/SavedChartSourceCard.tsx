@@ -25,7 +25,7 @@ import {
 import { useState, type FC } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
-import SavedChartPickerPopover from './SavedChartPickerPopover';
+import DataSourcePicker from './DataSourcePicker';
 import {
     type AttachedSavedChart,
     type SavedChartSourceControls,
@@ -47,7 +47,7 @@ const MetaLine: FC<{ attached: AttachedSavedChart }> = ({ attached }) => {
                 <Group gap={6} wrap="nowrap" flex="0 0 auto">
                     <Loader size={12} />
                     <Text fz="xs" c="dimmed" truncate>
-                        Saved chart · {space} · running query…
+                        Saved chart · {space} · running query
                     </Text>
                 </Group>
             );
@@ -91,15 +91,16 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                             Use a saved chart
                         </Text>
                         <Text fz="xs" c="dimmed" lh={1.5}>
-                            Preview and build against real fields instead of
-                            sample data. You can switch back any time.
+                            Preview with its real data.
                         </Text>
                     </Stack>
-                    <SavedChartPickerPopover
+                    <DataSourcePicker
                         opened={pickerOpened}
                         onOpenedChange={setPickerOpened}
-                        attached={null}
-                        onPick={source.attach}
+                        savedChartSource={source}
+                        exploreSource={null}
+                        position="bottom-end"
+                        width={340}
                     >
                         <Button
                             variant="default"
@@ -111,7 +112,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                         >
                             Choose saved chart
                         </Button>
-                    </SavedChartPickerPopover>
+                    </DataSourcePicker>
                 </Group>
             </Paper>
         );
@@ -179,11 +180,13 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                             View query results
                         </Button>
                     )}
-                    <SavedChartPickerPopover
+                    <DataSourcePicker
                         opened={pickerOpened}
                         onOpenedChange={setPickerOpened}
-                        attached={null}
-                        onPick={source.attach}
+                        savedChartSource={source}
+                        exploreSource={null}
+                        position="bottom-end"
+                        width={340}
                     >
                         <Button
                             variant="default"
@@ -198,7 +201,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                         >
                             Change
                         </Button>
-                    </SavedChartPickerPopover>
+                    </DataSourcePicker>
                     <Tooltip label="Use sample data instead">
                         <CloseButton
                             aria-label="Use sample data instead"
@@ -209,7 +212,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
             </Group>
             <Text fz="xs" c="dimmed" ta="center">
                 {source.includeRows ? (
-                    `Sample data included · sends up to ${MAX_APP_VIZ_BUILD_SAMPLE_ROWS} rows with your prompt.`
+                    `Rows included · sends up to ${MAX_APP_VIZ_BUILD_SAMPLE_ROWS} rows with your prompt.`
                 ) : (
                     <>
                         Rows aren’t sent with your prompt.{' '}
@@ -219,7 +222,7 @@ const SavedChartSourceCard: FC<Props> = ({ source }) => {
                             fz="xs"
                             onClick={() => source.setIncludeRows(true)}
                         >
-                            Include sample data
+                            Include rows
                         </Anchor>{' '}
                         to send up to {MAX_APP_VIZ_BUILD_SAMPLE_ROWS}.
                     </>
