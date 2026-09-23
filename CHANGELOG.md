@@ -1,3 +1,10 @@
+## [2.312.1](https://github.com/lightdash/lightdash/compare/2.312.0...2.312.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **data-apps:** make no analysis request while the feature is off ([#29814](https://github.com/lightdash/lightdash/issues/29814)) ([4d822df](https://github.com/lightdash/lightdash/commit/4d822dfd4ebaa0a682e1166b287743ec2fbd863c))
+
 # [2.312.0](https://github.com/lightdash/lightdash/compare/2.311.0...2.312.0) (2026-09-23)
 
 
