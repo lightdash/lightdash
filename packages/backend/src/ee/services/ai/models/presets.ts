@@ -235,6 +235,7 @@ export const MODEL_PRESETS: {
             description: 'Balanced model for daily tasks',
             contextWindowTokens: 200000,
             supportsReasoning: true,
+            deprecated: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
