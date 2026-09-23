@@ -705,6 +705,7 @@ describe('getRunQuery', () => {
         const queryTool = getRunQuery({
             purpose: 'answer',
             enableFastResponse: true,
+            agentContext: new AgentContext([validExplore]),
             updateProgress: vi.fn().mockResolvedValue(undefined),
             runAsyncQuery,
             runAsyncMergeQuery: vi.fn() as RunAsyncMergeQueryFn,
@@ -726,7 +727,7 @@ describe('getRunQuery', () => {
         await queryTool.execute!(toolInput, {
             messages: [],
             toolCallId: 'tool-call-1',
-            experimental_context: new AgentContext([validExplore]),
+            context: {},
         });
 
         expect(createOrUpdateArtifact).toHaveBeenCalledExactlyOnceWith(
