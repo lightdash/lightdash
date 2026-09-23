@@ -25,11 +25,12 @@ export const routingTestCredentials: CreatePostgresCredentials = {
     requireUserCredentials: false,
 };
 
-export const withProjectsWithoutConnectionMode = async (
+export const withProjectsCopy = async (
     projectUuid: string,
+    alterStatements: string[],
     run: (database: Knex) => Promise<void>,
 ) => {
-    const schema = `connection_mode_absent_${process.pid}_${Date.now()}`;
+    const schema = `routing_projects_copy_${process.pid}_${Date.now()}`;
     const database = knex({
         client: 'pg',
         connection: { connectionString: connectionModeTestDatabaseUri() },
@@ -46,9 +47,14 @@ export const withProjectsWithoutConnectionMode = async (
             'INSERT INTO ??.projects OVERRIDING SYSTEM VALUE SELECT * FROM public.projects WHERE project_uuid = ?',
             [schema, projectUuid],
         );
-        await database.raw(
-            'ALTER TABLE ??.projects DROP COLUMN connection_mode',
-            [schema],
+        await alterStatements.reduce<Promise<unknown>>(
+            (previous, statement) =>
+                previous.then(() =>
+                    database.raw(
+                        statement.replaceAll(':schema', `"${schema}"`),
+                    ),
+                ),
+            Promise.resolve(),
         );
         await run(database);
     } finally {
@@ -56,6 +62,16 @@ export const withProjectsWithoutConnectionMode = async (
         await database.destroy();
     }
 };
+
+export const withProjectsWithoutConnectionMode = (
+    projectUuid: string,
+    run: (database: Knex) => Promise<void>,
+) =>
+    withProjectsCopy(
+        projectUuid,
+        ['ALTER TABLE :schema.projects DROP COLUMN connection_mode'],
+        run,
+    );
 
 export const insertRoutingTestProject = async (
     database: Knex,

@@ -7,6 +7,7 @@ import {
     inRolledBackTransaction,
     insertRoutingTestProject,
     setProjectRoutesMulti,
+    withProjectsCopy,
     withProjectsWithoutConnectionMode,
 } from '../WarehouseConnectionRouter/connectionModeSchema.testUtils';
 import { ProjectModel } from './ProjectModel';
@@ -86,6 +87,52 @@ describe('ProjectModel connection routing on the real schema', () => {
         });
     });
 
+    describe('when the route query fails', () => {
+        let fixture: { organizationId: number; projectUuid: string };
+
+        beforeAll(async () => {
+            fixture = await insertRoutingTestProject(database, encryptionUtil);
+        });
+
+        afterAll(async () => {
+            await database('organizations')
+                .where('organization_id', fixture.organizationId)
+                .delete();
+        });
+
+        const withBrokenExtraConnections = (
+            run: (brokenDatabase: Knex) => Promise<void>,
+        ) =>
+            withProjectsCopy(
+                fixture.projectUuid,
+                [
+                    `UPDATE :schema.projects SET connection_mode = 'multi'`,
+                    'CREATE TABLE :schema.warehouse_connections (warehouse_connection_uuid uuid, project_uuid uuid)',
+                ],
+                run,
+            );
+
+        test('get rejects instead of routing single', async () => {
+            await withBrokenExtraConnections(async (brokenDatabase) => {
+                await expect(
+                    projectModelFor(brokenDatabase).get(fixture.projectUuid),
+                ).rejects.toThrow('is_original');
+            });
+        });
+
+        test('credential resolution rejects instead of routing single', async () => {
+            await withBrokenExtraConnections(async (brokenDatabase) => {
+                await expect(
+                    projectModelFor(
+                        brokenDatabase,
+                    ).getWarehouseCredentialsForBinding(fixture.projectUuid, {
+                        kind: 'original',
+                    }),
+                ).rejects.toThrow('is_original');
+            });
+        });
+    });
+
     describe('with the connection modes schema', () => {
         test('resolves a single-mode project to the same credentials as main', async () => {
             await inRolledBackTransaction(database, async (transaction) => {
@@ -107,23 +154,81 @@ describe('ProjectModel connection routing on the real schema', () => {
             });
         });
 
-        test('refuses credentials for a project that routes multi', async () => {
+        test.each([
+            { kind: 'explore' as const, exploreName: 'orders' },
+            {
+                kind: 'sqlChart' as const,
+                savedSqlUuid: 'b1c2d3e4-0000-4000-8000-000000000001',
+            },
+            { kind: 'connection' as const, warehouseConnectionUuid: null },
+            { kind: 'original' as const },
+        ])(
+            'refuses credentials for a project that routes multi with a $kind binding',
+            async (binding) => {
+                await inRolledBackTransaction(database, async (transaction) => {
+                    const { projectUuid } = await insertRoutingTestProject(
+                        transaction,
+                        encryptionUtil,
+                    );
+                    await setProjectRoutesMulti(transaction, projectUuid, [
+                        { name: 'Finance', isOriginal: false },
+                    ]);
+                    await expect(
+                        projectModelFor(
+                            transaction,
+                        ).getWarehouseCredentialsForBinding(
+                            projectUuid,
+                            binding,
+                        ),
+                    ).rejects.toThrow('Multiple connections are not available');
+                });
+            },
+        );
+
+        test('reports each project route from its own mode and extra connections', async () => {
             await inRolledBackTransaction(database, async (transaction) => {
-                const { projectUuid } = await insertRoutingTestProject(
+                const multiWithExtra = await insertRoutingTestProject(
                     transaction,
                     encryptionUtil,
                 );
-                await setProjectRoutesMulti(transaction, projectUuid, [
-                    { name: 'Finance', isOriginal: false },
-                ]);
-                await expect(
-                    projectModelFor(
-                        transaction,
-                    ).getWarehouseCredentialsForBinding(projectUuid, {
-                        kind: 'explore',
-                        exploreName: 'orders',
-                    }),
-                ).rejects.toThrow('Multiple connections are not available');
+                const singleWithStrayExtra = await insertRoutingTestProject(
+                    transaction,
+                    encryptionUtil,
+                );
+                const multiWithoutExtra = await insertRoutingTestProject(
+                    transaction,
+                    encryptionUtil,
+                );
+                await setProjectRoutesMulti(
+                    transaction,
+                    multiWithExtra.projectUuid,
+                    [{ name: 'Finance', isOriginal: false }],
+                );
+                await transaction('warehouse_connections').insert({
+                    project_uuid: singleWithStrayExtra.projectUuid,
+                    is_original: false,
+                    name: 'Stray',
+                    warehouse_type: 'postgres',
+                    encrypted_credentials: Buffer.from('extra-ciphertext'),
+                });
+                await setProjectRoutesMulti(
+                    transaction,
+                    multiWithoutExtra.projectUuid,
+                    [{ name: 'Original', isOriginal: true }],
+                );
+                const projectModel = projectModelFor(transaction);
+                expect(
+                    (await projectModel.get(multiWithExtra.projectUuid))
+                        .connectionRoute,
+                ).toBe('multi');
+                expect(
+                    (await projectModel.get(singleWithStrayExtra.projectUuid))
+                        .connectionRoute,
+                ).toBe('single');
+                expect(
+                    (await projectModel.get(multiWithoutExtra.projectUuid))
+                        .connectionRoute,
+                ).toBe('single');
             });
         });
 

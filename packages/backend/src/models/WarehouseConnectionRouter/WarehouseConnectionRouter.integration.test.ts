@@ -7,6 +7,7 @@ import {
     inRolledBackTransaction,
     insertRoutingTestProject,
     setProjectRoutesMulti,
+    withProjectsCopy,
     withProjectsWithoutConnectionMode,
 } from './connectionModeSchema.testUtils';
 import { WarehouseConnectionRouter } from './WarehouseConnectionRouter';
@@ -119,6 +120,118 @@ describe('WarehouseConnectionRouter on the real schema', () => {
                 .where('organization_id', fixture.organizationId)
                 .delete();
         }
+    });
+
+    test('rejects when the mode query fails on another column', async () => {
+        const fixture = await insertRoutingTestProject(
+            database,
+            encryptionUtil,
+        );
+        try {
+            await withProjectsCopy(
+                fixture.projectUuid,
+                ['ALTER TABLE :schema.projects DROP COLUMN project_uuid'],
+                async (brokenDatabase) => {
+                    await expect(
+                        new WarehouseConnectionRouter({
+                            database: brokenDatabase,
+                        }).getRoute(fixture.projectUuid),
+                    ).rejects.toThrow('project_uuid');
+                },
+            );
+        } finally {
+            await database('organizations')
+                .where('organization_id', fixture.organizationId)
+                .delete();
+        }
+    });
+
+    test('rejects when the extra-connection query fails', async () => {
+        const fixture = await insertRoutingTestProject(
+            database,
+            encryptionUtil,
+        );
+        try {
+            await withProjectsCopy(
+                fixture.projectUuid,
+                [
+                    `UPDATE :schema.projects SET connection_mode = 'multi'`,
+                    'CREATE TABLE :schema.warehouse_connections (warehouse_connection_uuid uuid, project_uuid uuid)',
+                ],
+                async (brokenDatabase) => {
+                    await expect(
+                        new WarehouseConnectionRouter({
+                            database: brokenDatabase,
+                        }).getRoute(fixture.projectUuid),
+                    ).rejects.toThrow('is_original');
+                },
+            );
+        } finally {
+            await database('organizations')
+                .where('organization_id', fixture.organizationId)
+                .delete();
+        }
+    });
+
+    test('rejects inside a failed transaction', async () => {
+        await inRolledBackTransaction(database, async (transaction) => {
+            const { projectUuid } = await insertRoutingTestProject(
+                transaction,
+                encryptionUtil,
+            );
+            await transaction.raw('SELECT 1 / 0').catch(() => undefined);
+            await expect(
+                new WarehouseConnectionRouter({
+                    database: transaction,
+                }).getRoute(projectUuid),
+            ).rejects.toThrow('current transaction is aborted');
+        });
+    });
+
+    test('routes each project by its own mode and its own extra connections', async () => {
+        await inRolledBackTransaction(database, async (transaction) => {
+            const multiWithExtra = await insertRoutingTestProject(
+                transaction,
+                encryptionUtil,
+            );
+            const singleWithStrayExtra = await insertRoutingTestProject(
+                transaction,
+                encryptionUtil,
+            );
+            const multiWithoutExtra = await insertRoutingTestProject(
+                transaction,
+                encryptionUtil,
+            );
+            await setProjectRoutesMulti(
+                transaction,
+                multiWithExtra.projectUuid,
+                [{ name: 'Finance', isOriginal: false }],
+            );
+            await transaction('warehouse_connections').insert({
+                project_uuid: singleWithStrayExtra.projectUuid,
+                is_original: false,
+                name: 'Stray',
+                warehouse_type: 'postgres',
+                encrypted_credentials: Buffer.from('extra-ciphertext'),
+            });
+            await setProjectRoutesMulti(
+                transaction,
+                multiWithoutExtra.projectUuid,
+                [{ name: 'Original', isOriginal: true }],
+            );
+            const router = new WarehouseConnectionRouter({
+                database: transaction,
+            });
+            await expect(
+                router.getRoute(multiWithExtra.projectUuid),
+            ).resolves.toBe('multi');
+            await expect(
+                router.getRoute(singleWithStrayExtra.projectUuid),
+            ).resolves.toBe('single');
+            await expect(
+                router.getRoute(multiWithoutExtra.projectUuid),
+            ).resolves.toBe('single');
+        });
     });
 
     test('routes single for an unknown project so the caller reports its own error', async () => {

@@ -12,10 +12,13 @@ export type ConnectionBinding =
 
 const UNDEFINED_COLUMN = '42703';
 
+const MISSING_CONNECTION_MODE_COLUMN =
+    /column (?:"?\w+"?\.)?"?connection_mode"? does not exist/;
+
 const isMissingConnectionModeColumn = (error: unknown): boolean =>
     error instanceof DatabaseError &&
     error.code === UNDEFINED_COLUMN &&
-    error.message.includes('connection_mode');
+    MISSING_CONNECTION_MODE_COLUMN.test(error.message);
 
 export class WarehouseConnectionRouter {
     private readonly database: Knex;
