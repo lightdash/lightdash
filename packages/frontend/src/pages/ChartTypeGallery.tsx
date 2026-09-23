@@ -5,6 +5,7 @@ import {
     type RegistryChartTypeListItem,
 } from '@lightdash/common';
 import {
+    Box,
     Button,
     Group,
     Paper,
@@ -14,9 +15,9 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue, useIntersection } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import { BetaBadge } from '../components/common/BetaBadge';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
@@ -70,12 +71,16 @@ const ChartTypeGallery = () => {
     const {
         data,
         isInitialLoading,
+        isFetching,
         error,
         refetch,
         hasNextPage,
         fetchNextPage,
         isFetchingNextPage,
     } = useDataAppVisualizations(projectUuid, debouncedSearch);
+    const { ref: paginationRef, entry: paginationEntry } = useIntersection({
+        rootMargin: '200px',
+    });
 
     const dataAppVizs: DataAppViz[] = useMemo(
         () => data?.pages.flatMap((page) => page.data) ?? [],
@@ -122,6 +127,25 @@ const ChartTypeGallery = () => {
         isLibraryEnabled && searchParams.get('tab') === GalleryTab.CHART_LIBRARY
             ? GalleryTab.CHART_LIBRARY
             : GalleryTab.INSTALLED_CHARTS;
+
+    useEffect(() => {
+        if (
+            activeTab === GalleryTab.INSTALLED_CHARTS &&
+            paginationEntry?.isIntersecting &&
+            hasNextPage &&
+            !isFetching &&
+            !error
+        ) {
+            void fetchNextPage();
+        }
+    }, [
+        activeTab,
+        paginationEntry,
+        hasNextPage,
+        isFetching,
+        error,
+        fetchNextPage,
+    ]);
 
     const handleTabChange = (value: string | null) => {
         const newParams = new URLSearchParams(searchParams);
@@ -228,14 +252,16 @@ const ChartTypeGallery = () => {
                         ))}
                     </SimpleGrid>
                     {hasNextPage && (
-                        <Button
-                            variant="default"
-                            loading={isFetchingNextPage}
-                            onClick={() => fetchNextPage()}
-                            mx="auto"
+                        <Box
+                            ref={paginationRef}
+                            data-testid="chart-types-pagination"
+                            mih="xl"
+                            role="status"
                         >
-                            Load more
-                        </Button>
+                            {isFetchingNextPage && (
+                                <EmptyStateLoader description="Loading more chart types…" />
+                            )}
+                        </Box>
                     )}
                 </>
             )}
