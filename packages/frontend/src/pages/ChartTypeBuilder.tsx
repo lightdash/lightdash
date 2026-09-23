@@ -255,7 +255,7 @@ const ChartTypeBuilder: FC = () => {
         pivotDetails: liveRun?.pivotDetails ?? null,
         colorPalette,
     });
-    const previewData =
+    const vizPreviewData =
         workspace.history.versions.find(
             (version) => version.version === workspace.previewVersion,
         )?.resources?.vizPreview ?? null;
@@ -269,7 +269,7 @@ const ChartTypeBuilder: FC = () => {
                 schema,
                 colorPalette,
                 panel.optionValues,
-                previewData,
+                vizPreviewData,
             );
         }
         return buildExplorerVizContext({
@@ -289,7 +289,7 @@ const ChartTypeBuilder: FC = () => {
         panel.optionValues,
         resolvedColors,
         previewFieldMapping,
-        previewData,
+        vizPreviewData,
     ]);
 
     // What the next build is told it is changing: the schema on screen, bound
