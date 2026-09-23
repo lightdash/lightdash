@@ -31,6 +31,7 @@ import ChartTypeGalleryEmptyState from '../features/chartTypes/components/ChartT
 import ChartTypeLibrarySection from '../features/chartTypes/components/ChartTypeLibrarySection';
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
 import { useChartTypesEnabled } from '../features/chartTypes/hooks/useChartTypesEnabled';
+import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
@@ -100,14 +101,24 @@ const ChartTypeGallery = () => {
         viz.registrySlug
             ? (registryEntriesBySlug.get(viz.registrySlug) ?? null)
             : null;
-    const selected = dataAppVizs.find(
+    const selectedFromGallery = dataAppVizs.find(
         (viz) => viz.dataAppVizUuid === selectedUuid,
     );
-    const toDelete = dataAppVizs.find(
-        (viz) => viz.dataAppVizUuid === deleteUuid,
+    const selectedQuery = useDataAppVisualization(
+        projectUuid,
+        selectedFromGallery ? null : selectedUuid,
+        null,
     );
-    const toPreview = dataAppVizs.find(
-        (viz) => viz.dataAppVizUuid === previewUuid,
+    const selected =
+        selectedFromGallery ??
+        (selectedQuery.data?.dataAppVizUuid === selectedUuid
+            ? selectedQuery.data
+            : undefined);
+    const toDelete = [selected, ...dataAppVizs].find(
+        (viz) => viz?.dataAppVizUuid === deleteUuid,
+    );
+    const toPreview = [selected, ...dataAppVizs].find(
+        (viz) => viz?.dataAppVizUuid === previewUuid,
     );
     // Unfiltered total, so the count holds steady while a search narrows the grid.
     const totalCount =
@@ -291,6 +302,7 @@ const ChartTypeGallery = () => {
                             <ChartTypeLibrarySection
                                 projectUuid={projectUuid}
                                 withHeader={false}
+                                onShowInstalled={setSelectedUuid}
                             />
                         </Tabs.Panel>
                     </Tabs>
@@ -299,6 +311,16 @@ const ChartTypeGallery = () => {
                 )}
             </Stack>
 
+            {selectedUuid &&
+                !selected &&
+                (selectedQuery.error ? (
+                    <InlineErrorState
+                        message="Failed to load chart type details"
+                        onRetry={() => void selectedQuery.refetch()}
+                    />
+                ) : (
+                    <EmptyStateLoader title="Loading chart type details…" />
+                ))}
             {selected && (
                 <ChartTypeDetailModal
                     opened={previewUuid === null}

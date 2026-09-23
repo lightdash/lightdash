@@ -98,6 +98,53 @@ const renderSection = () =>
     renderWithProviders(<ChartTypeLibrarySection projectUuid={PROJECT_UUID} />);
 
 describe('ChartTypeLibrarySection', () => {
+    it('shows compact upgrade rows and removes them once installed', () => {
+        setFlag(true);
+        const onShowInstalled = vi.fn();
+        setRegistryData([
+            makeItem({
+                state: 'update_available',
+                installedAppUuid: 'viz-1',
+                installedRegistryVersion: '1.0.0',
+                version: '1.2.0',
+            }),
+            makeItem({
+                slug: 'current',
+                name: 'Current chart',
+                state: 'installed',
+                installedAppUuid: 'viz-2',
+            }),
+        ]);
+        const { rerender } = renderWithProviders(
+            <ChartTypeLibrarySection
+                projectUuid={PROJECT_UUID}
+                onShowInstalled={onShowInstalled}
+            />,
+        );
+        expect(
+            screen.getByText('Updates available for installed charts'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Current chart')).not.toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: /Radial gauge.*v1.0.0 → v1.2.0/,
+            }),
+        );
+        expect(onShowInstalled).toHaveBeenCalledWith('viz-1');
+        setRegistryData([
+            makeItem({ state: 'installed', installedAppUuid: 'viz-1' }),
+        ]);
+        rerender(
+            <ChartTypeLibrarySection
+                projectUuid={PROJECT_UUID}
+                onShowInstalled={onShowInstalled}
+            />,
+        );
+        expect(
+            screen.queryByText('Updates available for installed charts'),
+        ).not.toBeInTheDocument();
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
         defaultAbility.update([]);
