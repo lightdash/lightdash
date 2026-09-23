@@ -1,3 +1,10 @@
+## [2.305.4](https://github.com/lightdash/lightdash/compare/2.305.3...2.305.4) (2026-09-23)
+
+
+### Bug Fixes
+
+* **autopilot:** qualify Anthropic Opus 5.5 for cleanup ([#29783](https://github.com/lightdash/lightdash/issues/29783)) ([1ddd8ce](https://github.com/lightdash/lightdash/commit/1ddd8ce61912032a98753c413f6ccc930e9d21dc))
+
 ## [2.305.3](https://github.com/lightdash/lightdash/compare/2.305.2...2.305.3) (2026-09-23)
 
 
