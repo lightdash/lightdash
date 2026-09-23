@@ -13,6 +13,8 @@ export const AI_AGENT_SKILL_MAX_TOTAL_BYTES = 512 * 1024;
 export const AI_AGENT_SKILL_BODY_WARN_LINES = 500;
 export const AI_AGENT_SKILL_MAX_PER_AGENT = 50;
 export const AI_AGENT_SKILL_LISTING_MAX_CHARS = 1536;
+export const AI_AGENT_SKILLS_DISABLED_MESSAGE =
+    'Custom agent skills are not enabled';
 
 export type AiAgentSkillAvailability = 'agent' | 'mcp';
 

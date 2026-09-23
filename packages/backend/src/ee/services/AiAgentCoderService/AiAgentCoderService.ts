@@ -4,6 +4,7 @@ import {
     ContentAsCodeType,
     exceedsRetentionCeiling,
     ForbiddenError,
+    getErrorMessage,
     isValidRetentionWindowHours,
     ParameterError,
     RETENTION_WINDOW_HOURS_ERROR,
@@ -14,6 +15,7 @@ import {
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
 import { validate as isValidUuid } from 'uuid';
+import { fromSession } from '../../../auth/account';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
@@ -21,6 +23,7 @@ import { paginateAsCode } from '../../../services/CoderService/pagination';
 import { type AiAgentModel } from '../../models/AiAgentModel';
 import { type AiAgentSkillModel } from '../../models/AiAgentSkillModel';
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
+import { type AiAgentSkillService } from '../AiAgentSkillService';
 import { type AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 
 const AGENT_AS_CODE_VERSION = CONTENT_AS_CODE_VERSIONS.ai_agent;
@@ -61,7 +64,7 @@ const groupEvaluationsByAgentUuid = (
 const toAgentAsCode = (
     agent: AgentForCode,
     evaluations: EvaluationForCode[],
-    skills?: string[],
+    skills: string[] | null,
 ): AgentAsCode => ({
     contentType: ContentAsCodeType.AI_AGENT,
     version: AGENT_AS_CODE_VERSION,
@@ -81,7 +84,7 @@ const toAgentAsCode = (
     // every YAML would trip the flag-off warning on each re-upload.
     threadRetentionHours: agent.threadRetentionHours ?? undefined,
     modelConfig: agent.modelConfig,
-    ...(skills !== undefined ? { skills: [...skills].sort() } : {}),
+    ...(skills !== null ? { skills: [...skills].sort() } : {}),
     evaluations: [...evaluations]
         .sort((left, right) => left.title.localeCompare(right.title))
         .map(normalizeEvaluation),
@@ -116,6 +119,7 @@ const getComparableAgent = (
 type Dependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentSkillModel: AiAgentSkillModel;
+    aiAgentSkillService: AiAgentSkillService;
     projectModel: ProjectModel;
     lightdashConfig: LightdashConfig;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
@@ -126,6 +130,8 @@ export class AiAgentCoderService extends BaseService {
 
     private readonly aiAgentSkillModel: AiAgentSkillModel;
 
+    private readonly aiAgentSkillService: AiAgentSkillService;
+
     private readonly projectModel: ProjectModel;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -135,6 +141,7 @@ export class AiAgentCoderService extends BaseService {
     constructor({
         aiAgentModel,
         aiAgentSkillModel,
+        aiAgentSkillService,
         projectModel,
         lightdashConfig,
         aiOrganizationSettingsService,
@@ -142,6 +149,7 @@ export class AiAgentCoderService extends BaseService {
         super({ serviceName: 'AiAgentCoderService' });
         this.aiAgentModel = aiAgentModel;
         this.aiAgentSkillModel = aiAgentSkillModel;
+        this.aiAgentSkillService = aiAgentSkillService;
         this.projectModel = projectModel;
         this.lightdashConfig = lightdashConfig;
         this.aiOrganizationSettingsService = aiOrganizationSettingsService;
@@ -245,6 +253,9 @@ export class AiAgentCoderService extends BaseService {
             page.page.map(({ uuid }) => uuid),
         );
         const evaluationsByAgentUuid = groupEvaluationsByAgentUuid(evaluations);
+        const skillsEnabled = await this.aiAgentSkillService.isEnabled(
+            fromSession(user),
+        );
         const skillNamesByAgentUuid = new Map(
             await Promise.all(
                 page.page.map(
@@ -266,7 +277,9 @@ export class AiAgentCoderService extends BaseService {
                 toAgentAsCode(
                     agent,
                     evaluationsByAgentUuid.get(agent.uuid) ?? [],
-                    skillNamesByAgentUuid.get(agent.uuid) ?? [],
+                    skillsEnabled
+                        ? (skillNamesByAgentUuid.get(agent.uuid) ?? [])
+                        : null,
                 ),
             ),
             missingIds,
@@ -275,28 +288,29 @@ export class AiAgentCoderService extends BaseService {
         };
     }
 
-    /**
-     * Resolves a declared `skills:` list to bindable rows. Built-in names are
-     * always on and are ignored with a warning; a missing or deleted name
-     * fails the agent so the rest of the upload proceeds.
-     */
+    /** Built-in names are always on and ignored with a warning; a missing or deleted name fails only this agent. */
     private async resolveDeclaredSkills(
         organizationUuid: string,
         agent: AgentAsCode,
-        warnings: string[],
+        declared: string[],
+        builtInNames: Set<string>,
     ): Promise<
-        | { ok: true; skillUuids: string[]; names: string[] }
+        | {
+              ok: true;
+              skillUuids: string[];
+              names: string[];
+              warnings: string[];
+          }
         | { ok: false; message: string }
     > {
-        const builtInNames = new Set(await BuiltInSkills.getAllNames());
-        const declared = [...new Set(agent.skills ?? [])];
-        const custom = declared.filter((name) => {
-            if (!builtInNames.has(name)) return true;
-            warnings.push(
-                `AI agent '${agent.slug}': skill '${name}' is built in and always on, so it was ignored`,
+        const unique = [...new Set(declared)];
+        const custom = unique.filter((name) => !builtInNames.has(name));
+        const warnings = unique
+            .filter((name) => builtInNames.has(name))
+            .map(
+                (name) =>
+                    `AI agent '${agent.slug}': skill '${name}' is built in and always on, so it was ignored`,
             );
-            return false;
-        });
         const rows = await Promise.all(
             custom.map(async (name) => ({
                 name,
@@ -323,8 +337,11 @@ export class AiAgentCoderService extends BaseService {
         }
         return {
             ok: true,
-            skillUuids: rows.map(({ skill }) => skill!.uuid),
+            skillUuids: rows.flatMap(({ skill }) =>
+                skill ? [skill.uuid] : [],
+            ),
             names: rows.map(({ name }) => name),
+            warnings,
         };
     }
 
@@ -409,7 +426,15 @@ export class AiAgentCoderService extends BaseService {
               )
             : null;
         const warnings: string[] = [];
+        const account = fromSession(user);
+        const skillsEnabled = await this.aiAgentSkillService.isEnabled(account);
+        const builtInSkillNames = new Set(await BuiltInSkills.getAllNames());
         agents.forEach((agent) => {
+            if (agent.skills !== undefined && !skillsEnabled) {
+                warnings.push(
+                    `AI agent '${agent.slug}': skills were ignored — custom agent skills are not enabled for this organization`,
+                );
+            }
             if (agent.threadRetentionHours === undefined) return;
             if (!retentionEnabled) {
                 // A declared null is a no-op either way — only warn when a
@@ -494,23 +519,27 @@ export class AiAgentCoderService extends BaseService {
             deleted: [],
         };
 
-        for (const agent of agents) {
+        const upsertOne = async (agent: AgentAsCode): Promise<void> => {
             const existing = existingBySlug.get(agent.slug);
             let agentUuid: string;
             let agentChanged = false;
-            // eslint-disable-next-line no-await-in-loop
-            const declaredSkills = await this.resolveDeclaredSkills(
-                organizationUuid,
-                agent,
-                warnings,
-            );
-            if (!declaredSkills.ok) {
+            const declaredSkills =
+                agent.skills !== undefined && skillsEnabled
+                    ? await this.resolveDeclaredSkills(
+                          organizationUuid,
+                          agent,
+                          agent.skills,
+                          builtInSkillNames,
+                      )
+                    : null;
+            if (declaredSkills && !declaredSkills.ok) {
                 changes.failed = [
                     ...(changes.failed ?? []),
                     { slug: agent.slug, message: declaredSkills.message },
                 ];
-                continue;
+                return;
             }
+            if (declaredSkills) warnings.push(...declaredSkills.warnings);
             if (existing) {
                 agentUuid = existing.uuid;
                 const imageUrlChanged = existing.imageUrl !== agent.imageUrl;
@@ -521,14 +550,13 @@ export class AiAgentCoderService extends BaseService {
                     !force &&
                     isEqual(
                         getComparableAgent(
-                            toAgentAsCode(existing, []),
+                            toAgentAsCode(existing, [], null),
                             retentionDeclared,
                         ),
                         getComparableAgent(agent, retentionDeclared),
                     );
 
                 if (!isUnchanged) {
-                    // eslint-disable-next-line no-await-in-loop
                     await this.aiAgentModel.updateAgent({
                         agentUuid: existing.uuid,
                         organizationUuid,
@@ -561,7 +589,6 @@ export class AiAgentCoderService extends BaseService {
                     agentChanged = true;
                 }
             } else {
-                // eslint-disable-next-line no-await-in-loop
                 const createdAgent = await this.aiAgentModel.createAgent({
                     slug: agent.slug,
                     organizationUuid,
@@ -594,17 +621,27 @@ export class AiAgentCoderService extends BaseService {
                 agentChanged = true;
             }
 
-            if (agent.skills !== undefined) {
-                // eslint-disable-next-line no-await-in-loop
+            if (declaredSkills) {
                 const bound =
                     await this.aiAgentSkillModel.findBoundToAgent(agentUuid);
                 const currentNames = bound.map(({ name }) => name).sort();
                 if (!isEqual(currentNames, [...declaredSkills.names].sort())) {
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.aiAgentSkillModel.setAgentSkills({
-                        agentUuid,
-                        skillUuids: declaredSkills.skillUuids,
-                    });
+                    try {
+                        await this.aiAgentSkillService.setAgentSkills(account, {
+                            projectUuid,
+                            agentUuid,
+                            skillUuids: declaredSkills.skillUuids,
+                        });
+                    } catch (error) {
+                        changes.failed = [
+                            ...(changes.failed ?? []),
+                            {
+                                slug: agent.slug,
+                                message: `AI agent '${agent.slug}': skills could not be bound — ${getErrorMessage(error)}`,
+                            },
+                        ];
+                        return;
+                    }
                     agentChanged = true;
                 }
             }
@@ -653,6 +690,11 @@ export class AiAgentCoderService extends BaseService {
             } else {
                 changes.unchanged.push(agent.slug);
             }
+        };
+
+        for (const agent of agents) {
+            // eslint-disable-next-line no-await-in-loop
+            await upsertOne(agent);
         }
 
         return {

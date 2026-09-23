@@ -189,7 +189,6 @@ export type DownloadHandlerOptions = {
     skills?: string[];
     includeSkills?: boolean;
     deleteSkills?: string[]; // upload only: unbind everywhere and soft-delete
-    skipSkills?: boolean; // upload only
     includeApps?: boolean; // download: all of the project's apps, capped at --apps-limit; upload: all app folders on disk
     includeChartTypes?: boolean; // download: all custom chart types, capped at --chart-types-limit; upload: all chart-type folders on disk
     appsLimit?: string; // download only: cap for the --include-apps listing (default 50); raw string from commander
@@ -1528,7 +1527,7 @@ const downloadAiAgents = async (
     ids: string[],
     implicit: boolean,
     customPath?: string,
-): Promise<number> => {
+): Promise<{ downloaded: number; agents: AgentAsCode[] }> => {
     const idQuery = ids.map((id) => ['ids', id] as [string, string]);
     let offset = 0;
     let total = 0;
@@ -1575,12 +1574,12 @@ const downloadAiAgents = async (
             GlobalState.debug(
                 `Could not download AI agents: ${getErrorMessage(error)}`,
             );
-            return 0;
+            return { downloaded: 0, agents: [] };
         }
         throw error;
     }
 
-    return downloaded;
+    return { downloaded, agents };
 };
 
 const readAiAgentFiles = async (
@@ -2353,6 +2352,7 @@ export const downloadHandler = async (
             }
         }
 
+        const downloadedAgents: AgentAsCode[] = [];
         if (!options.spacesOnly && shouldDownloadAiAgents(options)) {
             const implicit =
                 includeAllOptionalContent &&
@@ -2361,14 +2361,15 @@ export const downloadHandler = async (
             await output.runItem({
                 label: 'AI agents',
                 action: async () => {
-                    const total = await downloadAiAgents(
+                    const result = await downloadAiAgents(
                         projectId,
                         options.agents,
                         implicit,
                         options.path,
                     );
-                    counts.agentsNum = total;
-                    return total;
+                    downloadedAgents.push(...result.agents);
+                    counts.agentsNum = result.downloaded;
+                    return result.downloaded;
                 },
                 detail: (total) => `${total} downloaded`,
             });
@@ -2384,14 +2385,14 @@ export const downloadHandler = async (
                 label: 'Skills',
                 action: async () => {
                     // A project checkout stays minimal: without explicit
-                    // names, only the skills bound to the downloaded agents.
+                    // names, only the skills bound to the agents just downloaded.
                     const boundNames = skillNames.length
                         ? skillNames
                         : [
                               ...new Set(
-                                  (
-                                      await readAiAgentFiles(options.path)
-                                  ).flatMap((agent) => agent.skills ?? []),
+                                  downloadedAgents.flatMap(
+                                      (agent) => agent.skills ?? [],
+                                  ),
                               ),
                           ];
                     if (boundNames.length === 0) {
@@ -4712,7 +4713,7 @@ export const uploadHandler = async (
 
         // Skills go before agents: an agent's `skills:` list must resolve
         // against skills that already exist on the server.
-        if (!options.skipSkills) {
+        {
             const skillFilters = options.skills ?? [];
             const deleteSkills = options.deleteSkills ?? [];
             if (

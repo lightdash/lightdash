@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AgentSkillsListing,
     AI_AGENT_SKILL_MAX_PER_AGENT,
+    AI_AGENT_SKILLS_DISABLED_MESSAGE,
     AiAgentSkill,
     AiAgentSkillContent,
     AiAgentSkillFiles,
@@ -48,6 +49,12 @@ type AuthoringSource = Extract<AiAgentSkillVersionSource, 'ui' | 'as_code'>;
 
 type SkillScope = { organizationUuid: string; projectUuid: string | null };
 
+type SkillUpload = {
+    account: RegisteredAccount;
+    organizationUuid: string;
+    reservedNames: string[];
+};
+
 const emptyChanges = (): SkillAsCodeUpsertChanges => ({
     created: [],
     updated: [],
@@ -69,7 +76,6 @@ const mergeChanges = (
     warnings: [...a.warnings, ...b.warnings],
 });
 
-// Uploads write in order so a later folder can depend on an earlier one's outcome.
 const sequentially = <T, R>(
     items: T[],
     fn: (item: T, index: number) => Promise<R>,
@@ -136,7 +142,7 @@ export class AiAgentSkillService extends BaseService {
 
     private async assertEnabled(account: RegisteredAccount): Promise<void> {
         if (!(await this.isEnabled(account))) {
-            throw new ForbiddenError('Custom agent skills are not enabled');
+            throw new ForbiddenError(AI_AGENT_SKILLS_DISABLED_MESSAGE);
         }
     }
 
@@ -601,12 +607,12 @@ export class AiAgentSkillService extends BaseService {
         );
         const skills = await Promise.all(
             selected.map(async (summary) => {
-                const skill = await this.aiAgentSkillModel.getIncludingDeleted(
-                    summary.uuid,
-                );
-                return { name: skill.name, files: skill.content.files };
+                const skill = await this.aiAgentSkillModel.find(summary.uuid);
+                return skill
+                    ? [{ name: skill.name, files: skill.content.files }]
+                    : [];
             }),
-        );
+        ).then((folders) => folders.flat());
         const found = new Set(skills.map((skill) => skill.name));
         return {
             skills,
@@ -615,14 +621,13 @@ export class AiAgentSkillService extends BaseService {
     }
 
     private async upsertSkillFolder(
-        account: RegisteredAccount,
-        organizationUuid: string,
-        reservedNames: string[],
+        upload: SkillUpload,
         skill: SkillAsCode,
     ): Promise<SkillAsCodeUpsertChanges> {
+        const { account, organizationUuid } = upload;
         const validation = validateAiAgentSkill({
             files: skill.files,
-            reservedNames,
+            reservedNames: upload.reservedNames,
             folderName: skill.name,
         });
         const warnings = validation.warnings.map(
@@ -647,15 +652,24 @@ export class AiAgentSkillService extends BaseService {
             name: skill.name,
         });
         if (existing?.deletedAt) {
+            // Like charts as code, an upload revives a deleted name in place.
+            this.assertCanManage(account, existing);
+            await this.aiAgentSkillModel.publishVersion({
+                skillUuid: existing.uuid,
+                content: { schemaVersion: 1, files: skill.files },
+                parsed: validation.parsed,
+                source: 'as_code',
+                restoredFromVersion: null,
+                revive: true,
+                userUuid: account.user.userUuid,
+            });
             return {
                 ...emptyChanges(),
-                warnings,
-                failed: [
-                    {
-                        name: skill.name,
-                        message: `A deleted skill still reserves the name "${skill.name}". Restore one of its versions or rename the folder.`,
-                    },
+                warnings: [
+                    ...warnings,
+                    `Skill "${skill.name}" had been deleted and was restored by this upload.`,
                 ],
+                updated: [skill.name],
             };
         }
         if (existing) {
@@ -663,11 +677,9 @@ export class AiAgentSkillService extends BaseService {
                 files: skill.files,
                 source: 'as_code',
             });
-            return {
-                ...emptyChanges(),
-                warnings,
-                [result.created ? 'updated' : 'unchanged']: [skill.name],
-            };
+            return result.created
+                ? { ...emptyChanges(), warnings, updated: [skill.name] }
+                : { ...emptyChanges(), warnings, unchanged: [skill.name] };
         }
         await this.createSkill(account, {
             files: skill.files,
@@ -707,18 +719,17 @@ export class AiAgentSkillService extends BaseService {
         const organizationUuid = organizationUuidOf(account);
         await this.assertEnabled(account);
         this.assertCanManage(account, { organizationUuid, projectUuid: null });
-        const reservedNames = await this.builtInSkills.getAllNames();
+        const upload: SkillUpload = {
+            account,
+            organizationUuid,
+            reservedNames: await this.builtInSkills.getAllNames(),
+        };
         const firstIndexByName = new Map(
             args.skills.map((skill, index) => [skill.name, index] as const),
         );
         const upserts = await sequentially(args.skills, (skill, index) =>
             firstIndexByName.get(skill.name) === index
-                ? this.upsertSkillFolder(
-                      account,
-                      organizationUuid,
-                      reservedNames,
-                      skill,
-                  )
+                ? this.upsertSkillFolder(upload, skill)
                 : Promise.resolve({
                       ...emptyChanges(),
                       failed: [

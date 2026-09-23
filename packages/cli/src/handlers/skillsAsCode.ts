@@ -1,6 +1,8 @@
 import {
     AI_AGENT_SKILL_FILE_NAME,
+    AI_AGENT_SKILL_NAME_PATTERN,
     AI_AGENT_SKILL_RESOURCES_DIR,
+    AI_AGENT_SKILLS_DISABLED_MESSAGE,
     getErrorMessage,
     validateAiAgentSkill,
     type AiAgentSkillFiles,
@@ -9,7 +11,7 @@ import {
     type ApiSkillsAsCodeUpsertResponse,
     type SkillAsCode,
 } from '@lightdash/common';
-import { promises as fs } from 'fs';
+import { promises as fs, type Dirent } from 'fs';
 import * as path from 'path';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
@@ -20,13 +22,19 @@ export const SKILLS_FOLDER_NAME = 'skills';
 const isEnoent = (error: unknown): boolean =>
     (error as NodeJS.ErrnoException).code === 'ENOENT';
 
+const isSkillsDisabledError = (error: unknown): boolean =>
+    getErrorMessage(error).includes(AI_AGENT_SKILLS_DISABLED_MESSAGE);
+
 export const getSkillsFolder = (basePath: string): string =>
     path.join(basePath, SKILLS_FOLDER_NAME);
 
-const listDirectories = async (folder: string): Promise<string[]> => {
+const listEntries = async (
+    folder: string,
+    keep: (entry: Dirent) => boolean,
+): Promise<string[]> => {
     try {
         return (await fs.readdir(folder, { withFileTypes: true }))
-            .filter((entry) => entry.isDirectory())
+            .filter(keep)
             .map((entry) => entry.name)
             .sort();
     } catch (error) {
@@ -35,17 +43,14 @@ const listDirectories = async (folder: string): Promise<string[]> => {
     }
 };
 
-const listMarkdownFiles = async (folder: string): Promise<string[]> => {
-    try {
-        return (await fs.readdir(folder, { withFileTypes: true }))
-            .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
-            .map((entry) => entry.name)
-            .sort();
-    } catch (error) {
-        if (isEnoent(error)) return [];
-        throw error;
-    }
-};
+const listDirectories = (folder: string) =>
+    listEntries(folder, (entry) => entry.isDirectory());
+
+const listMarkdownFiles = (folder: string) =>
+    listEntries(
+        folder,
+        (entry) => entry.isFile() && entry.name.endsWith('.md'),
+    );
 
 const readSkillFolder = async (
     folder: string,
@@ -86,11 +91,7 @@ const readSkillFolder = async (
     return { skill: { name, files } };
 };
 
-/**
- * Reads every `skills/<name>/` folder: its SKILL.md plus flat markdown files
- * under resources/. Anything else in the folder is ignored so authors can keep
- * notes beside a skill without them being uploaded.
- */
+/** Reads every `skills/<name>/` folder: SKILL.md plus flat markdown under resources/. Other files are left alone. */
 export const readSkillFolders = async (
     basePath: string,
 ): Promise<{ skills: SkillAsCode[]; failures: string[] }> => {
@@ -110,47 +111,52 @@ export const readSkillFolders = async (
     };
 };
 
+/** Writes the skill's files and removes resources it no longer has; anything else in the folder survives. */
 const writeSkillFolder = async (
     folder: string,
     skill: SkillAsCode,
 ): Promise<void> => {
     const skillPath = path.join(folder, skill.name);
-    await fs.rm(skillPath, { recursive: true, force: true });
-    await fs.mkdir(path.join(skillPath, AI_AGENT_SKILL_RESOURCES_DIR), {
+    const resourcesPath = path.join(skillPath, AI_AGENT_SKILL_RESOURCES_DIR);
+    const resourceFiles = Object.keys(skill.files).filter((filePath) =>
+        filePath.startsWith(`${AI_AGENT_SKILL_RESOURCES_DIR}/`),
+    );
+    await fs.mkdir(resourceFiles.length > 0 ? resourcesPath : skillPath, {
         recursive: true,
     });
-    await Promise.all(
-        Object.entries(skill.files).map(([filePath, content]) =>
+    const stale = (await listMarkdownFiles(resourcesPath)).filter(
+        (fileName) =>
+            !resourceFiles.includes(
+                `${AI_AGENT_SKILL_RESOURCES_DIR}/${fileName}`,
+            ),
+    );
+    await Promise.all([
+        ...stale.map((fileName) => fs.rm(path.join(resourcesPath, fileName))),
+        ...Object.entries(skill.files).map(([filePath, content]) =>
             fs.writeFile(path.join(skillPath, filePath), content),
         ),
-    );
+    ]);
 };
 
-/**
- * Writes skill folders. With prune, folders on disk that are not in the set
- * are removed, so a full download mirrors the server.
- */
 export const writeSkillFolders = async (
     basePath: string,
     skills: SkillAsCode[],
-    prune: boolean,
-): Promise<void> => {
+): Promise<number> => {
+    // Names come from the server; only a valid skill name may become a path.
+    const safe = skills.filter((skill) => {
+        if (AI_AGENT_SKILL_NAME_PATTERN.test(skill.name)) return true;
+        GlobalState.log(
+            styles.warning(
+                `  ⚠ Skipped skill "${skill.name}": its name is not a valid folder name`,
+            ),
+        );
+        return false;
+    });
+    if (safe.length === 0) return 0;
     const folder = getSkillsFolder(basePath);
     await fs.mkdir(folder, { recursive: true });
-    if (prune) {
-        const wanted = new Set(skills.map((skill) => skill.name));
-        await Promise.all(
-            (await listDirectories(folder))
-                .filter((name) => !wanted.has(name))
-                .map((name) =>
-                    fs.rm(path.join(folder, name), {
-                        recursive: true,
-                        force: true,
-                    }),
-                ),
-        );
-    }
-    await Promise.all(skills.map((skill) => writeSkillFolder(folder, skill)));
+    await Promise.all(safe.map((skill) => writeSkillFolder(folder, skill)));
+    return safe.length;
 };
 
 export const downloadSkills = async ({
@@ -165,21 +171,32 @@ export const downloadSkills = async ({
     const query = new URLSearchParams(
         names.map((name) => ['names', name] as [string, string]),
     ).toString();
-    const results = await lightdashApi<ApiSkillsAsCodeListResponse['results']>({
-        method: 'GET',
-        url: `/api/v1/aiAgents/skills/code${query ? `?${query}` : ''}`,
-        body: undefined,
-    });
+    let results: ApiSkillsAsCodeListResponse['results'];
+    try {
+        results = await lightdashApi<ApiSkillsAsCodeListResponse['results']>({
+            method: 'GET',
+            url: `/api/v1/aiAgents/skills/code${query ? `?${query}` : ''}`,
+            body: undefined,
+        });
+    } catch (error) {
+        if (!isSkillsDisabledError(error)) throw error;
+        GlobalState.log(
+            styles.warning(
+                '  ⚠ Skipping skills: custom agent skills are not enabled for this organization.',
+            ),
+        );
+        return 0;
+    }
     results.missingNames.forEach((name) =>
         GlobalState.log(styles.warning(`  ⚠ No skill named "${name}"`)),
     );
-    await writeSkillFolders(basePath, results.skills, names.length === 0);
+    const written = await writeSkillFolders(basePath, results.skills);
     GlobalState.debug(
-        `Wrote ${results.skills.length} skills to ${getSkillsFolder(basePath)}${
+        `Wrote ${written} skills to ${getSkillsFolder(basePath)}${
             customPath ? ` (${customPath})` : ''
         }`,
     );
-    return results.skills.length;
+    return written;
 };
 
 const addCounts = (
@@ -217,8 +234,7 @@ export const upsertSkills = async ({
                 styles.warning(`  ⚠ No skill folder named "${name}"`),
             ),
         );
-    // Same validator the editor and the API run, so a broken folder is
-    // reported before the upload rather than by the server.
+    // The same validator the editor and the API run, so a broken folder is reported before the upload.
     const valid = selected.filter((skill) => {
         const result = validateAiAgentSkill({
             files: skill.files,
@@ -249,6 +265,14 @@ export const upsertSkills = async ({
             } satisfies ApiSkillsAsCodeUpsertRequest),
         });
     } catch (error) {
+        if (isSkillsDisabledError(error)) {
+            GlobalState.log(
+                styles.warning(
+                    `  ⚠ Skipped ${valid.length} skill folders: custom agent skills are not enabled for this organization.`,
+                ),
+            );
+            return addCounts(changes, { 'Skills failed': skippedInvalid });
+        }
         throw new Error(`Could not upload skills: ${getErrorMessage(error)}`);
     }
     results.warnings.forEach((warning) =>

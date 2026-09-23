@@ -1163,7 +1163,6 @@ const uploadCommand = program
     .option('--spaces-only', 'upload only space definitions and access', false)
     .option('--public', 'Create new spaces as public instead of private', false)
     .option('--skip-agents', 'skip uploading AI agents', false)
-    .option('--skip-skills', 'skip uploading custom agent skills', false)
     .option('--skip-alerts', 'skip uploading alerts', false)
     .option('--skip-virtual-views', 'skip uploading virtual views', false)
     .option('--skip-google-sheets', 'skip uploading Google Sheets syncs', false)
