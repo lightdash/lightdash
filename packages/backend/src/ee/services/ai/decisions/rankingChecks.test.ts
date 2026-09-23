@@ -23,6 +23,7 @@ const choice = (
 });
 const answers: DecisionAnswers = {
     rankingRequest: choice('0'),
+    rankingDirection: choice('descending'),
     rankingMeasure: choice('a_met1'),
 };
 const prepare = (question = 'Top 3 customers by revenue', executed = query) =>
@@ -63,12 +64,16 @@ describe('deterministic query ranking review', () => {
     );
 
     it('handles bottom rankings and reports both missing sort and wrong limit', () => {
+        const bottomAnswers = {
+            ...answers,
+            rankingDirection: choice('ascending'),
+        };
         expect(
             prepare('Bottom 3 customers by revenue', {
                 ...query,
                 sorts: [],
                 limit: 100,
-            })?.advice(answers),
+            })?.advice(bottomAnswers),
         ).toEqual([
             expect.stringContaining(
                 'sort first by a_met1 ascending and return 3 rows',
@@ -78,8 +83,60 @@ describe('deterministic query ranking review', () => {
             prepare('Bottom 3 customers by revenue', {
                 ...query,
                 sorts: [{ fieldId: 'a_met1', descending: false }],
-            })?.advice(answers),
+            })?.advice(bottomAnswers),
         ).toEqual([]);
+    });
+
+    it.each([
+        ['Five highest customers by revenue', 5, 'descending'],
+        ['Top ten customers by revenue', 10, 'descending'],
+        ['Show the 5 lowest customers by revenue', 5, 'ascending'],
+    ] as const)(
+        'lets JEV resolve a ranking phrased as %s',
+        (question, limit, direction) => {
+            const prepared = prepare(question, { ...query, limit: 100 });
+            expect(prepared?.questions.rankingRequest).toMatchObject({
+                criteria: { 0: expect.any(String) },
+            });
+            expect(
+                prepared?.advice({
+                    ...answers,
+                    rankingDirection: choice(direction),
+                }),
+            ).toEqual([expect.stringContaining(`return ${limit} rows`)]);
+        },
+    );
+
+    it('requires JEV to resolve both the count and direction before advising', () => {
+        const prepared = prepare('Five highest customers by revenue', {
+            ...query,
+            limit: 100,
+        });
+        expect(
+            prepared?.advice({
+                ...answers,
+                rankingDirection: choice('none'),
+            }),
+        ).toEqual([]);
+        expect(
+            prepared?.advice({
+                ...answers,
+                rankingRequest: choice('none'),
+            }),
+        ).toEqual([]);
+    });
+
+    it('selects the ranking count without confusing it with a year', () => {
+        const prepared = prepare('Five highest customers in 2024 by revenue', {
+            ...query,
+            limit: 100,
+        });
+        expect(
+            prepared?.advice({
+                ...answers,
+                rankingRequest: choice('1'),
+            }),
+        ).toEqual([expect.stringContaining('return 5 rows')]);
     });
 
     it.each([null, 2, 5])(
@@ -99,6 +156,7 @@ describe('deterministic query ranking review', () => {
         'top 3,000 customers',
         'top 0 customers',
         'top 1000000 customers',
+        'constructor',
     ])(
         'does not interpret unsupported text as a complete count: %s',
         (question) => {
@@ -111,6 +169,8 @@ describe('deterministic query ranking review', () => {
         { ...answers, rankingRequest: choice('none') },
         { ...answers, rankingRequest: choice('8') },
         { ...answers, rankingRequest: choice('0', 0.94) },
+        { ...answers, rankingDirection: choice('none') },
+        { ...answers, rankingDirection: choice('descending', 0.94) },
         { ...answers, rankingMeasure: choice('none') },
         { ...answers, rankingMeasure: choice('private_revenue') },
         { ...answers, rankingMeasure: choice('a_met1', 0.94) },
@@ -186,7 +246,7 @@ describe('deterministic query ranking review', () => {
             expect(evaluate).toHaveBeenCalledOnce();
             expect(
                 Object.keys(evaluate.mock.calls[0][0].questions),
-            ).toHaveLength(7);
+            ).toHaveLength(8);
         },
     );
 });
