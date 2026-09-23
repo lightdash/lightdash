@@ -10068,12 +10068,14 @@ describe('Snowflake credential pins (SPK-2336)', () => {
                         projectUuid: string;
                         userId: string;
                         isRegisteredUser: boolean;
+                        binding: { kind: 'original' };
                     }) => Promise<CreateWarehouseCredentials>;
                 }
             ).getWarehouseCredentials({
                 projectUuid: pinsProjectUuid,
                 userId: 'pin-user-uuid',
                 isRegisteredUser: true,
+                binding: { kind: 'original' },
             });
 
         test.each([

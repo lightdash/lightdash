@@ -79,6 +79,51 @@ describe('WarehouseConnectionRouter on the real schema', () => {
         }
     });
 
+    test('reads connection_mode on the next call once the column appears', async () => {
+        const probeSchema = `routing_probe_${process.pid}`;
+        const probeDatabase = knex({
+            client: 'pg',
+            connection: { connectionString: connectionModeTestDatabaseUri() },
+            searchPath: [probeSchema, 'public'],
+            pool: { min: 0, max: 1 },
+        });
+        try {
+            await probeDatabase.raw('CREATE SCHEMA ??', [probeSchema]);
+            await probeDatabase.raw(
+                'CREATE TABLE ??.projects (LIKE public.projects INCLUDING ALL)',
+                [probeSchema],
+            );
+            const inserted = await probeDatabase.raw<{
+                rows: { project_uuid: string }[];
+            }>(
+                'INSERT INTO projects (name, organization_id) VALUES (?, ?) RETURNING project_uuid',
+                ['Routing probe project', 1],
+            );
+            const [project] = inserted.rows;
+            const router = new WarehouseConnectionRouter({
+                database: probeDatabase,
+            });
+
+            await expect(router.getRoute(project.project_uuid)).resolves.toBe(
+                'single',
+            );
+
+            await createStandInConnectionModeSchema(probeDatabase);
+            await setProjectRoutesMulti(probeDatabase, project.project_uuid, [
+                { name: 'Finance', isOriginal: false },
+            ]);
+
+            await expect(router.getRoute(project.project_uuid)).resolves.toBe(
+                'multi',
+            );
+        } finally {
+            await probeDatabase.raw('DROP SCHEMA IF EXISTS ?? CASCADE', [
+                probeSchema,
+            ]);
+            await probeDatabase.destroy();
+        }
+    });
+
     test('routes single for an unknown project so the caller reports its own error', async () => {
         await inRolledBackTransaction(database, async (transaction) => {
             await createStandInConnectionModeSchema(transaction);

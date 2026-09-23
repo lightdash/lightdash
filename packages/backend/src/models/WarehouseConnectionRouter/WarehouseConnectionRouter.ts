@@ -20,7 +20,7 @@ const isMissingConnectionModeColumn = (error: unknown): boolean =>
 export class WarehouseConnectionRouter {
     private readonly database: Knex;
 
-    private connectionModeColumnMissing = false;
+    private hasWarnedMissingColumn = false;
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
@@ -29,15 +29,16 @@ export class WarehouseConnectionRouter {
     async withConnectionModeColumn<T>(
         run: (includeConnectionMode: boolean) => PromiseLike<T>,
     ): Promise<T> {
-        if (this.connectionModeColumnMissing) return run(false);
         try {
             return await run(true);
         } catch (error) {
             if (!isMissingConnectionModeColumn(error)) throw error;
-            this.connectionModeColumnMissing = true;
-            Logger.warn(
-                'projects.connection_mode is missing; every project routes single until the connection modes migration runs',
-            );
+            if (!this.hasWarnedMissingColumn) {
+                this.hasWarnedMissingColumn = true;
+                Logger.warn(
+                    'projects.connection_mode is missing; projects route single until the connection modes migration runs',
+                );
+            }
             return run(false);
         }
     }
