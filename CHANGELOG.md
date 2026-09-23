@@ -1,3 +1,10 @@
+## [2.309.1](https://github.com/lightdash/lightdash/compare/2.309.0...2.309.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **explorer:** preserve off-page selections in the chart grid ([#29791](https://github.com/lightdash/lightdash/issues/29791)) ([90f9d33](https://github.com/lightdash/lightdash/commit/90f9d3395d423e850b79ab45fda92a2ba0537edd))
+
 # [2.309.0](https://github.com/lightdash/lightdash/compare/2.308.1...2.309.0) (2026-09-23)
 
 

@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.309.0",
-  "previousVersion": "2.308.1",
-  "releaseDate": "2026-09-23T13:30:00.302Z",
+  "version": "2.309.1",
+  "previousVersion": "2.309.0",
+  "releaseDate": "2026-09-23T13:59:05.475Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260917160000_add_app_version_viz_preview.ts",
-        "edition": "core",
-        "tables": [
-          "app_versions"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
