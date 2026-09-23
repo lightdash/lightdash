@@ -364,7 +364,7 @@ describe('ExplorerChartSidebar', () => {
         ).toBeInTheDocument();
     });
 
-    it('offers adding a chart type next to the close control in Choose', async () => {
+    it('offers adding a chart type only while choosing a type', async () => {
         renderSidebar(
             <ExplorerChartSidebar
                 chartType={ChartType.TABLE}
@@ -379,15 +379,15 @@ describe('ExplorerChartSidebar', () => {
             screen.getByRole('button', { name: 'Change chart type' }),
         );
 
-        const add = screen.getByRole('button', { name: 'Add chart type' });
-        const close = screen.getByRole('button', {
-            name: 'Close visualization config',
-        });
-        expect(add.parentElement).toBe(close.parentElement);
         expect(
-            add.compareDocumentPosition(close) &
-                Node.DOCUMENT_POSITION_FOLLOWING,
-        ).toBeTruthy();
+            screen.getByRole('button', { name: 'Add chart type' }),
+        ).toBeVisible();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Configure Table' }),
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Add chart type' }),
+        ).not.toBeInTheDocument();
     });
 
     it('outlines the close control so it reads as a button', () => {

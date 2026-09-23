@@ -8,9 +8,12 @@ import {
 } from '@lightdash/common';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createExplorerStore } from '../../../features/explorer/store';
+import type * as ExplorerStore from '../../../features/explorer/store';
 import { AbilityContext } from '../../../providers/Ability/context';
 import { renderWithProviders } from '../../../testing/testUtils';
 import AddChartTypeMenu from './AddChartTypeMenu';
@@ -112,7 +115,8 @@ vi.mock(
         }),
     }),
 );
-vi.mock('../../../features/explorer/store', () => ({
+vi.mock('../../../features/explorer/store', async (importOriginal) => ({
+    ...(await importOriginal<typeof ExplorerStore>()),
     useExplorerDispatch: () => mocks.dispatch,
     explorerActions: {
         startChartTypeAuthoring: (payload: unknown) => ({
@@ -134,11 +138,13 @@ const renderMenu = (
     ability: Ability<PossibleAbilities> = new Ability<PossibleAbilities>(),
 ) =>
     renderWithProviders(
-        <AbilityContext.Provider value={ability}>
-            <MemoryRouter>
-                <AddChartTypeMenu />
-            </MemoryRouter>
-        </AbilityContext.Provider>,
+        <Provider store={createExplorerStore()}>
+            <AbilityContext.Provider value={ability}>
+                <MemoryRouter>
+                    <AddChartTypeMenu />
+                </MemoryRouter>
+            </AbilityContext.Provider>
+        </Provider>,
     );
 
 const expectLibraryDialog = async () => {

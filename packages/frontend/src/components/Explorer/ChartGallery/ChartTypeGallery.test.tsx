@@ -1210,6 +1210,180 @@ describe('ExplorerChartTypeGallery', () => {
         ).toBeInTheDocument();
     });
 
+    it('loads and reveals a selected chart type from a later page', async () => {
+        const selectedChartType = {
+            ...projectChartType,
+            dataAppVizUuid: 'later-chart-type',
+            name: 'Zebra pulse',
+        };
+        const scrollIntoView = vi.fn();
+        const originalScrollIntoView = Element.prototype.scrollIntoView;
+        (
+            Element.prototype as unknown as { scrollIntoView: unknown }
+        ).scrollIntoView = scrollIntoView;
+        try {
+            visualizationConfig.current = {
+                chartType: ChartType.DATA_APP_VIZ,
+                chartConfig: {
+                    dataAppVizUuid: selectedChartType.dataAppVizUuid,
+                },
+            };
+            const firstPage = Array.from({ length: 25 }, (_, index) => ({
+                ...projectChartType,
+                dataAppVizUuid: `project-chart-type-${index}`,
+                name: `Chart type ${index}`,
+            }));
+            const PaginatedGallery = () => {
+                const [loadedPageCount, setLoadedPageCount] = useState(1);
+                const pages = [
+                    {
+                        data: firstPage,
+                        pagination: {
+                            page: 1,
+                            pageSize: 25,
+                            totalPageCount: 2,
+                            totalResults: 26,
+                        },
+                    },
+                    {
+                        data: [selectedChartType],
+                        pagination: {
+                            page: 2,
+                            pageSize: 25,
+                            totalPageCount: 2,
+                            totalResults: 26,
+                        },
+                    },
+                ];
+
+                mockedUseDataAppVisualizations.mockReturnValue({
+                    data: {
+                        pages: pages.slice(0, loadedPageCount),
+                        pageParams: [],
+                    },
+                    isInitialLoading: false,
+                    error: null,
+                    refetch: mocks.refetch,
+                    hasNextPage: loadedPageCount < pages.length,
+                    fetchNextPage: () =>
+                        setLoadedPageCount((count) => count + 1),
+                    isFetching: false,
+                    isFetchingNextPage: false,
+                } as unknown as ReturnType<typeof useDataAppVisualizations>);
+
+                return <ExplorerChartTypeGallery onConfigure={vi.fn()} />;
+            };
+
+            renderWithProviders(<PaginatedGallery />);
+
+            const selectedCard = await screen.findByRole('button', {
+                name: 'Zebra pulse',
+                pressed: true,
+            });
+            expect(selectedCard).toBeVisible();
+            expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+            expect(scrollIntoView.mock.instances.at(-1)).toBe(selectedCard);
+        } finally {
+            if (originalScrollIntoView === undefined) {
+                delete (
+                    Element.prototype as unknown as {
+                        scrollIntoView?: unknown;
+                    }
+                ).scrollIntoView;
+            } else {
+                Element.prototype.scrollIntoView = originalScrollIntoView;
+            }
+        }
+    });
+
+    it.each([
+        ['the list has reached its final page', null, false],
+        ['the chart-type query has failed', new Error('unavailable'), true],
+    ])('does not load again when %s', (_reason, error, hasNextPage) => {
+        visualizationConfig.current = {
+            chartType: ChartType.DATA_APP_VIZ,
+            chartConfig: { dataAppVizUuid: 'missing-chart-type' },
+        };
+        mockedUseDataAppVisualizations.mockReturnValue({
+            data: {
+                pages: [
+                    {
+                        data: [projectChartType],
+                        pagination: {
+                            page: 1,
+                            pageSize: 25,
+                            totalPageCount: hasNextPage ? 2 : 1,
+                            totalResults: hasNextPage ? 26 : 1,
+                        },
+                    },
+                ],
+                pageParams: [1],
+            },
+            isInitialLoading: false,
+            isFetching: false,
+            error,
+            refetch: mocks.refetch,
+            hasNextPage,
+            fetchNextPage: mocks.fetchNextPage,
+            isFetchingNextPage: false,
+        } as unknown as ReturnType<typeof useDataAppVisualizations>);
+
+        renderGallery();
+
+        expect(mocks.fetchNextPage).not.toHaveBeenCalled();
+    });
+
+    it('does not load a selected chart type while the user is searching', async () => {
+        let finishRefetch: () => void = () => undefined;
+        const SearchGallery = () => {
+            const [isFetching, setIsFetching] = useState(true);
+            finishRefetch = () => setIsFetching(false);
+            mockedUseDataAppVisualizations.mockReturnValue({
+                data: {
+                    pages: [
+                        {
+                            data: [projectChartType],
+                            pagination: {
+                                page: 1,
+                                pageSize: 25,
+                                totalPageCount: 2,
+                                totalResults: 26,
+                            },
+                        },
+                    ],
+                    pageParams: [1],
+                },
+                isInitialLoading: false,
+                isFetching,
+                error: null,
+                refetch: mocks.refetch,
+                hasNextPage: true,
+                fetchNextPage: mocks.fetchNextPage,
+                isFetchingNextPage: false,
+            } as unknown as ReturnType<typeof useDataAppVisualizations>);
+
+            return <ExplorerChartTypeGallery onConfigure={vi.fn()} />;
+        };
+        visualizationConfig.current = {
+            chartType: ChartType.DATA_APP_VIZ,
+            chartConfig: { dataAppVizUuid: 'missing-chart-type' },
+        };
+        renderWithProviders(<SearchGallery />);
+
+        await userEvent.type(
+            screen.getByRole('textbox', { name: 'Search chart types' }),
+            'zebra',
+        );
+        finishRefetch();
+
+        await waitFor(() =>
+            expect(
+                screen.queryByRole('button', { name: 'Bar chart' }),
+            ).not.toBeInTheDocument(),
+        );
+        expect(mocks.fetchNextPage).not.toHaveBeenCalled();
+    });
+
     it('fetches the next page from the "+N more" tile', async () => {
         const loaded = Array.from({ length: 6 }, (_, i) => ({
             ...projectChartType,
