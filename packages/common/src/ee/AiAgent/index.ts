@@ -295,6 +295,12 @@ export type AiAgentMessageAssistantArtifact = Pick<
     | 'artifactType'
 >;
 
+/** A one-click follow-up the assistant offers, sent as the user's next prompt. */
+export type AiQuickReply = {
+    label: string;
+    prompt: string;
+};
+
 export type AiAgentMessageAssistant = {
     role: 'assistant';
     status: 'idle' | 'pending' | 'error';
@@ -323,6 +329,7 @@ export type AiAgentMessageAssistant = {
     modelConfig: AiAgentModelConfig | null;
     tokenUsage: AiPromptTokenUsage | null;
     responseTiming: AiPromptResponseTiming | null;
+    quickReplies: AiQuickReply[];
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =

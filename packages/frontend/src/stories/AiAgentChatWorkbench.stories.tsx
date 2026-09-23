@@ -936,6 +936,7 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
             },
             tokenUsage: null,
             responseTiming: null,
+            quickReplies: [],
         };
     });
 

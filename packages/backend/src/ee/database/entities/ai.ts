@@ -9,6 +9,7 @@ import {
     type AiPromptResponseTiming,
     type AiPromptTokenUsage,
     type AiProviderApiKeyHints,
+    type AiQuickReply,
     type AiThreadCreatedFrom,
     type AiWritebackRunStatus,
     type AiWritebackSource,
@@ -281,6 +282,7 @@ export type DbAiPrompt = {
     execution_mode: 'standard' | 'deep_research' | null;
     needs_user_input: boolean | null;
     needs_user_input_metadata: AiPromptNeedsUserInputMetadata | null;
+    quick_replies: AiQuickReply[] | null;
     // Hidden turn: the agent receives and responds to the prompt, but the UI
     // doesn't render the user bubble (e.g. the post-merge migration prompt).
     hidden: boolean;
@@ -314,7 +316,9 @@ export type AiPromptTable = Knex.CompositeTableType<
             responded_at: Knex.Raw;
             retried_at?: Date | Knex.Raw;
         }
-    >
+    > &
+        // Serialized JSON: pg would otherwise send arrays as Postgres array literals.
+        Partial<{ quick_replies: string }>
 >;
 
 export const AiPromptInterruptTableName = 'ai_prompt_interrupt';

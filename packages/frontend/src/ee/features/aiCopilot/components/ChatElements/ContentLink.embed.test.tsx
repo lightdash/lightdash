@@ -31,6 +31,7 @@ const message: AiAgentMessageAssistant = {
     toolCalls: [],
     toolResults: [],
     reasoning: [],
+    quickReplies: [],
     savedQueryUuid: null,
     artifacts: null,
     referencedArtifacts: null,

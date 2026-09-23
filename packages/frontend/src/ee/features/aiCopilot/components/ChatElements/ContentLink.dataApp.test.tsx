@@ -31,6 +31,7 @@ const message: AiAgentMessageAssistant = {
     modelConfig: null,
     tokenUsage: null,
     responseTiming: null,
+    quickReplies: [],
 };
 
 const renderDataAppChip = () =>

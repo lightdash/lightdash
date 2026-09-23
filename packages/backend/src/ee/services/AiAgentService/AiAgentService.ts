@@ -157,6 +157,7 @@ import {
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchPhase,
     type AiPromptContextInput,
+    type AiQuickReply,
     type AiSemanticChartArtifactConfig,
     type AiThreadCreatedFrom,
     type AiWebAppThreadCreatedFrom,
@@ -353,6 +354,7 @@ import {
     type CompoundStep,
     type FieldCandidate,
 } from '../ai/decisions/chartIntent';
+import { selectQuickReplies } from '../ai/decisions/quickReplies';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
@@ -12234,6 +12236,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 prompt,
                 agent,
                 text: edit.response,
+                quickReplies: [],
                 responseStartedAt,
                 decisionUsage,
             }),
@@ -12245,6 +12248,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         prompt,
         agent,
         text,
+        quickReplies,
         responseStartedAt,
         decisionUsage,
     }: {
@@ -12252,9 +12256,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
         prompt: AiWebAppPrompt;
         agent: AiAgent;
         text: string;
+        quickReplies: AiQuickReply[];
         responseStartedAt: number;
         decisionUsage: () => { inputTokens: number; outputTokens: number };
     }): Promise<AgentResponseStream> {
+        if (quickReplies.length > 0)
+            await this.aiAgentModel.setPromptQuickReplies(
+                prompt.promptUuid,
+                quickReplies,
+            );
         await this.persistTrackedPromptUpdate(
             {
                 promptUuid: prompt.promptUuid,
@@ -12306,6 +12316,33 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
     }
 
+    private async offerQuickReplies({
+        decisions,
+        promptUuid,
+        question,
+        response,
+    }: {
+        decisions: AiDecisionClient;
+        promptUuid: string;
+        question: string;
+        response: string;
+    }): Promise<void> {
+        try {
+            const quickReplies = await selectQuickReplies({
+                decisions,
+                question,
+                response,
+            });
+            if (quickReplies.length > 0)
+                await this.aiAgentModel.setPromptQuickReplies(
+                    promptUuid,
+                    quickReplies,
+                );
+        } catch (error) {
+            Logger.debug(`Unable to offer quick replies: ${String(error)}`);
+        }
+    }
+
     private async recordTurnDecision({
         promptUuid,
         decisions,
@@ -12338,6 +12375,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
         } else if (chart?.type === 'compound') {
             outcome = 'compound';
             intent = chart.steps;
+        } else if (chart?.type === 'clarify') {
+            outcome = 'clarify';
+            intent = chart.options;
         } else if (chart) outcome = chart.type;
         try {
             await this.aiAgentModel.createPromptDecision({
@@ -12561,9 +12601,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     user,
                     prompt,
                     agent: agentSettings,
-                    text: `${chartResolution.question}\n\n${chartResolution.options
-                        .map(({ prompt: option }) => `- ${option}`)
-                        .join('\n')}`,
+                    text: chartResolution.question,
+                    quickReplies: chartResolution.options,
                     responseStartedAt,
                     decisionUsage: () => ({
                         inputTokens: decisionUsage?.inputTokens ?? 0,
@@ -12576,7 +12615,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         decisions,
                         turn,
                         latencyMs: decisionLatencyMs,
-                        applied: false,
+                        applied: true,
                         fallbackReason: null,
                     });
                 return clarification;
@@ -13582,7 +13621,24 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         });
                 }
 
-                return updateWithCitationTelemetryPromise.then(() => undefined);
+                const quickRepliesPromise =
+                    decisions &&
+                    !isSlackPrompt(prompt) &&
+                    update.response !== undefined &&
+                    update.tokenUsage !== undefined
+                        ? updatePromise.then(() =>
+                              this.offerQuickReplies({
+                                  decisions,
+                                  promptUuid: update.promptUuid,
+                                  question: prompt.prompt,
+                                  response: update.response ?? '',
+                              }),
+                          )
+                        : Promise.resolve();
+                return Promise.all([
+                    updateWithCitationTelemetryPromise,
+                    quickRepliesPromise,
+                ]).then(() => undefined);
             },
             trackEvent: (event) => this.analytics.track(event),
 

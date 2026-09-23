@@ -7,6 +7,7 @@ import {
     getItemLabelWithoutTableName,
     isCustomChartTypeSlugChartConfig,
     isDimension,
+    type AiQuickReply,
     type AiSemanticChartArtifactConfig,
     type Explore,
 } from '@lightdash/common';
@@ -89,11 +90,7 @@ export type ChartIntentResolution =
     | { type: 'intent'; intent: ChartIntent }
     | { type: 'needs_values'; filter: PendingValueFilter }
     | { type: 'compound'; steps: CompoundStep[] }
-    | {
-          type: 'clarify';
-          question: string;
-          options: { label: string; prompt: string }[];
-      }
+    | { type: 'clarify'; question: string; options: AiQuickReply[] }
     | { type: 'not_an_edit' }
     | { type: 'unresolved'; reason: string };
 

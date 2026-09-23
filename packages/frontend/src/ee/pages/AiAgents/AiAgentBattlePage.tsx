@@ -116,6 +116,12 @@ const AiAgentBattlePage: FC = () => {
         [enqueueA, enqueueB, threadA, threadB],
     );
 
+    // A chip answers both sides so the battle stays paired turn by turn.
+    const handleQuickReply = useCallback(
+        (prompt: string) => handleSubmit({ message: prompt, toolHints: [] }),
+        [handleSubmit],
+    );
+
     const queuedCount = Math.max(queueA.queuedCount, queueB.queuedCount);
 
     if (!projectUuid || !agentUuid || !threadA || !threadB) {
@@ -150,6 +156,7 @@ const AiAgentBattlePage: FC = () => {
                         thread={threadA}
                         queuedCount={queueA.queuedCount}
                         showTokens={showTokens}
+                        onQuickReply={handleQuickReply}
                     />
                 </Box>
                 <Divider orientation="vertical" />
@@ -166,6 +173,7 @@ const AiAgentBattlePage: FC = () => {
                         thread={threadB}
                         queuedCount={queueB.queuedCount}
                         showTokens={showTokens}
+                        onQuickReply={handleQuickReply}
                     />
                 </Box>
             </Flex>
