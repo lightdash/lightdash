@@ -626,6 +626,120 @@ describe('warehouse connection mode schema on every migration', () => {
                 ),
             ).toEqual({ count: 1 });
         });
+
+        test('deleting a personal credential, then the user, keeps the connection and event with NULL user columns (F2)', async () => {
+            const organization = await createOrganization();
+            const userUuid = await createUser();
+            const project = await createProject(organization.organization_id);
+            const { warehouse_connection_uuid: warehouseConnectionUuid } =
+                await one<{ warehouse_connection_uuid: string }>(
+                    `INSERT INTO warehouse_connections (project_uuid, is_original, name, created_by_user_uuid)
+                     VALUES (?, true, ?, ?)
+                     RETURNING warehouse_connection_uuid`,
+                    [
+                        project.project_uuid,
+                        `Connection ${randomUUID()}`.slice(0, 40),
+                        userUuid,
+                    ],
+                );
+            const { user_warehouse_credentials_uuid: userCredentialsUuid } =
+                await one<{ user_warehouse_credentials_uuid: string }>(
+                    `INSERT INTO user_warehouse_credentials (user_uuid, name, warehouse_type, encrypted_credentials)
+                 VALUES (?, 'Personal', 'postgres', ?)
+                 RETURNING user_warehouse_credentials_uuid`,
+                    [userUuid, Buffer.from('ciphertext')],
+                );
+            await database.raw(
+                `INSERT INTO warehouse_connection_user_credentials_preference
+                    (user_uuid, warehouse_connection_uuid, user_warehouse_credentials_uuid)
+                 VALUES (?, ?, ?)`,
+                [userUuid, warehouseConnectionUuid, userCredentialsUuid],
+            );
+            await database.raw(
+                `INSERT INTO warehouse_connection_tables
+                    (warehouse_connection_uuid, user_warehouse_credentials_uuid, listed_database, database, schema, "table")
+                 VALUES (?, ?, 'analytics', 'analytics', 'public', 'orders')`,
+                [warehouseConnectionUuid, userCredentialsUuid],
+            );
+            const { project_connection_mode_event_uuid: eventUuid } =
+                await one<{ project_connection_mode_event_uuid: string }>(
+                    `INSERT INTO project_connection_mode_events
+                    (project_uuid, actor_user_uuid, event, idempotency_key)
+                 VALUES (?, ?, 'connection_added', ?)
+                 RETURNING project_connection_mode_event_uuid`,
+                    [project.project_uuid, userUuid, randomUUID()],
+                );
+            const survivingWarehouseConnectionUuid =
+                await insertExtraConnection(project.project_uuid);
+            const otherUserUuid = await createUser();
+            const {
+                user_warehouse_credentials_uuid: otherUsersCredentialsUuid,
+            } = await one<{ user_warehouse_credentials_uuid: string }>(
+                `INSERT INTO user_warehouse_credentials (user_uuid, name, warehouse_type, encrypted_credentials)
+                 VALUES (?, 'Other user personal', 'postgres', ?)
+                 RETURNING user_warehouse_credentials_uuid`,
+                [otherUserUuid, Buffer.from('other-ciphertext')],
+            );
+            await database.raw(
+                `INSERT INTO warehouse_connection_user_credentials_preference
+                    (user_uuid, warehouse_connection_uuid, user_warehouse_credentials_uuid)
+                 VALUES (?, ?, ?)`,
+                [
+                    userUuid,
+                    survivingWarehouseConnectionUuid,
+                    otherUsersCredentialsUuid,
+                ],
+            );
+
+            await database.raw(
+                `DELETE FROM user_warehouse_credentials WHERE user_warehouse_credentials_uuid = ?`,
+                [userCredentialsUuid],
+            );
+            await database.raw(`DELETE FROM users WHERE user_uuid = ?`, [
+                userUuid,
+            ]);
+
+            expect(
+                await one<{ count: number }>(
+                    `SELECT count(*)::int AS count FROM warehouse_connection_user_credentials_preference
+                     WHERE user_warehouse_credentials_uuid = ?`,
+                    [userCredentialsUuid],
+                ),
+            ).toEqual({ count: 0 });
+            expect(
+                await one<{ count: number }>(
+                    `SELECT count(*)::int AS count FROM warehouse_connection_user_credentials_preference
+                     WHERE user_warehouse_credentials_uuid = ?`,
+                    [otherUsersCredentialsUuid],
+                ),
+            ).toEqual({ count: 0 });
+            expect(
+                await one<{ count: number }>(
+                    `SELECT count(*)::int AS count FROM user_warehouse_credentials
+                     WHERE user_warehouse_credentials_uuid = ?`,
+                    [otherUsersCredentialsUuid],
+                ),
+            ).toEqual({ count: 1 });
+            expect(
+                await one<{ count: number }>(
+                    `SELECT count(*)::int AS count FROM warehouse_connection_tables
+                     WHERE user_warehouse_credentials_uuid = ?`,
+                    [userCredentialsUuid],
+                ),
+            ).toEqual({ count: 0 });
+            expect(
+                await one<{ created_by_user_uuid: string | null }>(
+                    `SELECT created_by_user_uuid FROM warehouse_connections WHERE warehouse_connection_uuid = ?`,
+                    [warehouseConnectionUuid],
+                ),
+            ).toEqual({ created_by_user_uuid: null });
+            expect(
+                await one<{ actor_user_uuid: string | null }>(
+                    `SELECT actor_user_uuid FROM project_connection_mode_events WHERE project_connection_mode_event_uuid = ?`,
+                    [eventUuid],
+                ),
+            ).toEqual({ actor_user_uuid: null });
+        });
     });
 
     describe('tenancy', () => {
@@ -848,6 +962,111 @@ describe('warehouse connection mode schema on every migration', () => {
         });
     });
 
+    describe('catalog shape (F3)', () => {
+        test('every new index is valid with the exact definition, and every new FK and the M1 check are validated', async () => {
+            const indexNames = [
+                'warehouse_connections_one_original_per_project',
+                'warehouse_connections_organization_credentials_idx',
+                'warehouse_connections_created_by_user_uuid_idx',
+                'warehouse_connections_warehouse_type_idx',
+                'warehouse_connection_preference_connection_idx',
+                'warehouse_connection_preference_user_credentials_idx',
+                'warehouse_connection_tables_scope_idx',
+                'warehouse_connection_tables_user_credentials_idx',
+                'project_connection_mode_events_idempotency_key_unique',
+                'project_connection_mode_events_project_uuid_idx',
+                'project_connection_mode_events_actor_user_uuid_idx',
+                'cached_explore_warehouse_connection_uuid_idx',
+                'project_dbt_sources_warehouse_connection_uuid_idx',
+                'saved_sql_versions_warehouse_connection_uuid_idx',
+                'query_history_active_warehouse_connection_uuid_idx',
+            ];
+            const expectedIndexDefs: Record<string, string> = {
+                warehouse_connections_one_original_per_project:
+                    'CREATE UNIQUE INDEX warehouse_connections_one_original_per_project ON public.warehouse_connections USING btree (project_uuid) WHERE is_original',
+                warehouse_connections_organization_credentials_idx:
+                    'CREATE INDEX warehouse_connections_organization_credentials_idx ON public.warehouse_connections USING btree (organization_warehouse_credentials_uuid)',
+                warehouse_connections_created_by_user_uuid_idx:
+                    'CREATE INDEX warehouse_connections_created_by_user_uuid_idx ON public.warehouse_connections USING btree (created_by_user_uuid)',
+                warehouse_connections_warehouse_type_idx:
+                    'CREATE INDEX warehouse_connections_warehouse_type_idx ON public.warehouse_connections USING btree (warehouse_type)',
+                warehouse_connection_preference_connection_idx:
+                    'CREATE INDEX warehouse_connection_preference_connection_idx ON public.warehouse_connection_user_credentials_preference USING btree (warehouse_connection_uuid)',
+                warehouse_connection_preference_user_credentials_idx:
+                    'CREATE INDEX warehouse_connection_preference_user_credentials_idx ON public.warehouse_connection_user_credentials_preference USING btree (user_warehouse_credentials_uuid)',
+                warehouse_connection_tables_scope_idx:
+                    'CREATE INDEX warehouse_connection_tables_scope_idx ON public.warehouse_connection_tables USING btree (warehouse_connection_uuid, user_warehouse_credentials_uuid, listed_database)',
+                warehouse_connection_tables_user_credentials_idx:
+                    'CREATE INDEX warehouse_connection_tables_user_credentials_idx ON public.warehouse_connection_tables USING btree (user_warehouse_credentials_uuid)',
+                project_connection_mode_events_idempotency_key_unique:
+                    'CREATE UNIQUE INDEX project_connection_mode_events_idempotency_key_unique ON public.project_connection_mode_events USING btree (idempotency_key)',
+                project_connection_mode_events_project_uuid_idx:
+                    'CREATE INDEX project_connection_mode_events_project_uuid_idx ON public.project_connection_mode_events USING btree (project_uuid)',
+                project_connection_mode_events_actor_user_uuid_idx:
+                    'CREATE INDEX project_connection_mode_events_actor_user_uuid_idx ON public.project_connection_mode_events USING btree (actor_user_uuid)',
+                cached_explore_warehouse_connection_uuid_idx:
+                    'CREATE INDEX cached_explore_warehouse_connection_uuid_idx ON public.cached_explore USING btree (warehouse_connection_uuid) WHERE (warehouse_connection_uuid IS NOT NULL)',
+                project_dbt_sources_warehouse_connection_uuid_idx:
+                    'CREATE INDEX project_dbt_sources_warehouse_connection_uuid_idx ON public.project_dbt_sources USING btree (warehouse_connection_uuid) WHERE (warehouse_connection_uuid IS NOT NULL)',
+                saved_sql_versions_warehouse_connection_uuid_idx:
+                    'CREATE INDEX saved_sql_versions_warehouse_connection_uuid_idx ON public.saved_sql_versions USING btree (warehouse_connection_uuid) WHERE (warehouse_connection_uuid IS NOT NULL)',
+                query_history_active_warehouse_connection_uuid_idx:
+                    "CREATE INDEX query_history_active_warehouse_connection_uuid_idx ON public.query_history USING btree (warehouse_connection_uuid) WHERE ((status)::text = ANY ((ARRAY['pending'::character varying, 'queued'::character varying, 'executing'::character varying])::text[]))",
+            };
+
+            const indexRows = await rows<{
+                relname: string;
+                indexdef: string;
+                indisvalid: boolean;
+            }>(
+                `SELECT c.relname, pg_get_indexdef(i.indexrelid) AS indexdef, i.indisvalid
+                 FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+                 WHERE c.relname = ANY(?)`,
+                [indexNames],
+            );
+            expect(indexRows.map(({ relname }) => relname).sort()).toEqual(
+                [...indexNames].sort(),
+            );
+            expect(indexRows.every(({ indisvalid }) => indisvalid)).toBe(true);
+            indexRows.forEach(({ relname, indexdef }) => {
+                expect(indexdef).toEqual(expectedIndexDefs[relname]);
+            });
+
+            const constraintNames = [
+                'warehouse_connections_project_uuid_fkey',
+                'warehouse_connections_warehouse_type_fkey',
+                'warehouse_connections_organization_credentials_fkey',
+                'warehouse_connections_created_by_user_uuid_fkey',
+                'warehouse_connection_preference_user_uuid_fkey',
+                'warehouse_connection_preference_connection_fkey',
+                'warehouse_connection_preference_user_credentials_fkey',
+                'warehouse_connection_tables_connection_fkey',
+                'warehouse_connection_tables_user_credentials_fkey',
+                'warehouse_connection_manifests_connection_fkey',
+                'warehouse_connection_catalog_cache_connection_fkey',
+                'project_connection_mode_events_project_uuid_fkey',
+                'project_connection_mode_events_actor_user_uuid_fkey',
+                'cached_explore_warehouse_connection_fkey',
+                'project_dbt_sources_warehouse_connection_fkey',
+                'saved_sql_versions_warehouse_connection_fkey',
+                'projects_connection_mode_check',
+            ];
+            const constraintRows = await rows<{
+                conname: string;
+                convalidated: boolean;
+            }>(
+                `SELECT conname, convalidated FROM pg_constraint WHERE conname = ANY(?)`,
+                [constraintNames],
+            );
+            expect(constraintRows.map(({ conname }) => conname).sort()).toEqual(
+                [...constraintNames].sort(),
+            );
+            expect(
+                constraintRows.every(({ convalidated }) => convalidated),
+            ).toBe(true);
+        });
+    });
+
     describe('reversal', () => {
         const runInOrder = (
             migrations: Migration[],
@@ -938,4 +1157,112 @@ describe('warehouse connection mode schema on every migration', () => {
             ).toEqual([]);
         });
     });
+});
+
+describe('M3 concurrent index builds under contention and crash recovery (SPK-2335)', () => {
+    let admin: Knex;
+    let database: Knex;
+    let blocker: Knex;
+    let databaseName: string;
+
+    beforeAll(async () => {
+        const adminDatabase = process.env.PGDATABASE ?? 'postgres';
+        databaseName = `connection_modes_contention_${randomUUID().replaceAll(
+            '-',
+            '',
+        )}`;
+        admin = knex({
+            client: 'pg',
+            connection: { ...connectionSettings(), database: adminDatabase },
+        });
+        await admin.raw('CREATE DATABASE ??', [databaseName]);
+        const settings = connectionSettings();
+        execFileSync('pnpm', ['migrate'], {
+            cwd: process.cwd(),
+            env: {
+                ...process.env,
+                PGCONNECTIONURI: `postgres://${encodeURIComponent(
+                    settings.user ?? '',
+                )}:${encodeURIComponent(settings.password ?? '')}@${
+                    settings.host
+                }:${settings.port}/${databaseName}`,
+            },
+            stdio: 'pipe',
+        });
+        database = knex({
+            client: 'pg',
+            connection: { ...connectionSettings(), database: databaseName },
+            pool: { min: 0, max: 4 },
+        });
+        blocker = knex({
+            client: 'pg',
+            connection: { ...connectionSettings(), database: databaseName },
+            pool: { min: 1, max: 1 },
+        });
+    }, 600000);
+
+    afterAll(async () => {
+        await database?.destroy();
+        await blocker?.destroy();
+        await admin?.raw('DROP DATABASE IF EXISTS ?? WITH (FORCE)', [
+            databaseName,
+        ]);
+        await admin?.destroy();
+    });
+
+    test('a long, unrelated active transaction does not park the concurrent index build (F1)', async () => {
+        const m3 = await loadMigration(
+            '20260923200200_add_warehouse_connection_bindings',
+        );
+        await m3.down(database);
+
+        const blockerConnection = await blocker.client.acquireConnection();
+        await blocker.raw('BEGIN').connection(blockerConnection);
+        const blockerSleep = blocker
+            .raw('SELECT pg_sleep(8)')
+            .connection(blockerConnection);
+
+        const upPromise = m3.up(database);
+
+        await blockerSleep;
+        await blocker.raw('COMMIT').connection(blockerConnection);
+        await blocker.client.releaseConnection(blockerConnection);
+
+        await expect(upPromise).resolves.toBeUndefined();
+
+        const invalidIndexes = await database.raw<{
+            rows: { relname: string }[];
+        }>(
+            `SELECT c.relname FROM pg_class c
+             JOIN pg_index i ON i.indexrelid = c.oid
+             WHERE NOT i.indisvalid AND c.relname LIKE '%warehouse_connection_uuid_idx'`,
+        );
+        expect(invalidIndexes.rows).toEqual([]);
+    }, 60000);
+
+    test('recovers an index left invalid by an interrupted build (F3)', async () => {
+        const m3 = await loadMigration(
+            '20260923200200_add_warehouse_connection_bindings',
+        );
+
+        await database.raw(
+            `UPDATE pg_index SET indisvalid = false
+             WHERE indexrelid = 'cached_explore_warehouse_connection_uuid_idx'::regclass`,
+        );
+        const before = await database.raw<{
+            rows: { indisvalid: boolean }[];
+        }>(
+            `SELECT indisvalid FROM pg_index
+             WHERE indexrelid = 'cached_explore_warehouse_connection_uuid_idx'::regclass`,
+        );
+        expect(before.rows).toEqual([{ indisvalid: false }]);
+
+        await m3.up(database);
+
+        const after = await database.raw<{ rows: { indisvalid: boolean }[] }>(
+            `SELECT indisvalid FROM pg_index
+             WHERE indexrelid = 'cached_explore_warehouse_connection_uuid_idx'::regclass`,
+        );
+        expect(after.rows).toEqual([{ indisvalid: true }]);
+    }, 60000);
 });

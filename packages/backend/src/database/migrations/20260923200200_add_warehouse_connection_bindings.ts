@@ -74,9 +74,13 @@ const runDdl = async (
     sql: string,
 ): Promise<void> => {
     console.log(message);
-    await knex
-        .raw(`SET lock_timeout = '${LOCK_TIMEOUT}'`)
-        .connection(connection);
+    if (sql.includes('CONCURRENTLY')) {
+        await knex.raw('RESET lock_timeout').connection(connection);
+    } else {
+        await knex
+            .raw(`SET lock_timeout = '${LOCK_TIMEOUT}'`)
+            .connection(connection);
+    }
     try {
         await knex.raw(sql).connection(connection);
     } finally {
