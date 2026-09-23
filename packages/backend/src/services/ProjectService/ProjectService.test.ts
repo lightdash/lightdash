@@ -264,7 +264,6 @@ const projectModel = {
         { connectionUuid: 'dbt_project-connection-uuid', name: 'Warehouse' },
     ]),
     copyConnectionsForPreview: vi.fn(async () => new Map<string, string>()),
-    duplicateContent: vi.fn(async () => ({ spaceMapping: [] })),
     getCompileProject: vi.fn(async () => projectWithSensitiveFields),
     runInAnalyticsProvisioningLock: vi.fn(
         async (_org: string, callback: () => Promise<unknown>) => callback(),
@@ -273,17 +272,6 @@ const projectModel = {
     get: vi.fn(async () => projectWithSensitiveFields),
     getAllByOrganizationUuid: vi.fn<ProjectModel['getAllByOrganizationUuid']>(),
     getSummary: vi.fn(async () => projectSummary),
-    getConnectionForProject: vi.fn<ProjectModel['getConnectionForProject']>(
-        async () => ({
-            connectionUuid: 'connection-uuid',
-            name: 'BigQuery',
-            warehouseType: WarehouseTypes.BIGQUERY,
-            organizationWarehouseCredentialsUuid: null,
-            listAllDatabases: false,
-            additionalDatabases: [],
-            createdAt: new Date('2026-09-17T12:00:00Z'),
-        }),
-    ),
     getDbtSourceIdentity: vi.fn(async () => ({
         dbtSourceUuid: 'primary-source-uuid',
         dbtSourceName: 'dbt_project',
@@ -4937,9 +4925,7 @@ describe('ProjectService', () => {
                 queryTimezone: null,
                 requireUserCredentials: false,
             });
-            vi.mocked(
-                projectModel.getConnectionForProject,
-            ).mockResolvedValueOnce({
+            projectModel.resolveConnection.mockResolvedValueOnce({
                 connectionUuid: 'organization-connection',
                 name: 'Organization',
                 warehouseType: WarehouseTypes.POSTGRES,
