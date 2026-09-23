@@ -1,3 +1,4 @@
+import { LegacyOpenTelemetry } from '@ai-sdk/otel';
 /**
  * Tracing runs in one of two exclusive modes, selected by
  * LIGHTDASH_OTEL_TRACES_ENABLED:
@@ -57,6 +58,7 @@ import {
     type SamplingResult,
 } from '@opentelemetry/sdk-trace-base';
 import * as Sentry from '@sentry/node';
+import { registerTelemetry } from 'ai';
 import Logger from '../logging/logger';
 import { VERSION } from '../version';
 
@@ -723,6 +725,8 @@ class TracingService {
         private readonly otel: OtelTracingStrategy,
     ) {}
 
+    private telemetryRegistered = false;
+
     // Exclusive: OTel mode owns spans + propagation entirely, otherwise
     // Sentry does. Running both duplicated every span.
     private get strategy(): TracingStrategy {
@@ -732,6 +736,26 @@ class TracingService {
     initialize() {
         this.sentry.initialize();
         this.otel.initialize();
+        // AI SDK 7 only emits spans through a registered integration. Legacy
+        // integration on purpose: it keeps the v6 `ai.*` span names, so
+        // dashboards and alerts keyed on those keep working. Moving to the
+        // GenAI semantic conventions (`invoke_agent`, `gen_ai.*`) is a
+        // deliberate, separately reviewable change.
+        //
+        // Span names carry over; attribution keys do not. v7 dropped
+        // `telemetry.metadata`, so those dimensions now land under
+        // `ai.settings.context.*` rather than `ai.telemetry.metadata.*`.
+        //
+        // The tracer is read from the @opentelemetry/api singleton in the
+        // constructor, so this must run after the providers are initialised.
+        //
+        // registerTelemetry appends to a global list and never de-duplicates,
+        // so a second call emits every AI span twice. initialize() runs more
+        // than once per process: the bootstrap import and App's module body
+        // both call it, as does SchedulerApp when it shares the process.
+        if (this.telemetryRegistered) return;
+        this.telemetryRegistered = true;
+        registerTelemetry(new LegacyOpenTelemetry());
     }
 
     async shutdown() {

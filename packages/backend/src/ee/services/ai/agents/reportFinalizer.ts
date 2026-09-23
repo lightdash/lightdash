@@ -5,7 +5,12 @@ import {
     type AiDeepResearchEvidencePack,
     type AiDeepResearchSubmittedReport,
 } from '@lightdash/common';
-import { generateObject, NoObjectGeneratedError, type ModelMessage } from 'ai';
+import {
+    generateText,
+    NoObjectGeneratedError,
+    Output,
+    type ModelMessage,
+} from 'ai';
 import Logger from '../../../../logging/logger';
 import { AI_DEEP_RESEARCH_FINALIZE_DEADLINE_MS } from '../../AiDeepResearchService/AiDeepResearchAgent';
 import { GeneratorModelOptions } from '../models/types';
@@ -100,24 +105,32 @@ export const generateDeepResearchReport = async (
         ];
 
         const result = await withDeadline(
-            generateObject({
+            generateText({
                 model: modelOptions.model,
                 ...modelOptions.callOptions,
                 providerOptions: modelOptions.providerOptions,
-                experimental_telemetry: telemetry,
-                schema: aiDeepResearchReportInputSchema,
+                ...telemetry,
+                output: Output.object({
+                    schema: aiDeepResearchReportInputSchema,
+                }),
+                allowSystemInMessages: true,
                 messages,
             }),
         );
-        return result.object;
+        return result.output;
     };
 
+    // This string is fed back to the model as the retry correction, so it has
+    // to carry what actually failed to parse. Output.object still throws
+    // NoObjectGeneratedError for schema and parse failures, with `text` intact;
+    // NoOutputGeneratedError is a different, narrower class that only fires on
+    // empty output, and catching it here would lose every recoverable case.
     const describe = (error: unknown): string =>
-        error instanceof NoObjectGeneratedError
+        NoObjectGeneratedError.isInstance(error)
             ? `${getErrorMessage(error.cause)} | text: ${(error.text ?? '').slice(0, 2_000)}`
             : getErrorMessage(error);
 
-    // generateObject enforces the shape; the full schema additionally lints the
+    // Output.object enforces the shape; the full schema additionally lints the
     // markdown against the charts it declares, which the model cannot see.
     type FinalizeAttempt =
         | { report: AiDeepResearchSubmittedReport; raw: null; issues: null }

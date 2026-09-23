@@ -3,7 +3,7 @@ import {
     UnexpectedServerError,
     type ExternalConnectionAuthType,
 } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import {
     buildProposalSystemPrompt,
     generateExternalConnectionConfigProposal,
@@ -12,7 +12,7 @@ import {
 
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
-    generateObject: vi.fn(),
+    generateText: vi.fn(),
 }));
 
 const modelOptions = {
@@ -63,11 +63,11 @@ const rawProposal = (
     }) as RawProposalInput;
 
 const mockGenerateObject = (objects: unknown[]) => {
-    const mock = vi.mocked(generateObject);
+    const mock = vi.mocked(generateText);
     mock.mockReset();
     objects.forEach((object) => {
         mock.mockResolvedValueOnce({
-            object,
+            output: object,
             usage: { inputTokens: 1, outputTokens: 1 },
         } as never);
     });

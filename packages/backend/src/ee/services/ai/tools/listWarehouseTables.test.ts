@@ -58,7 +58,7 @@ const run = async (
             search: options?.search,
             limit: options?.limit ?? 1,
         },
-        { toolCallId: 'test', messages: [] },
+        { toolCallId: 'test', messages: [], context: {} },
     )) as ToolListWarehouseTablesOutput;
     return { result, evaluate };
 };

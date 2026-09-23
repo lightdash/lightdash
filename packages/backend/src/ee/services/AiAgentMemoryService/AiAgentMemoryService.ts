@@ -30,7 +30,13 @@ import {
     type SessionUser,
     type UUID,
 } from '@lightdash/common';
-import { APICallError, generateObject, NoObjectGeneratedError } from 'ai';
+import {
+    APICallError,
+    generateText,
+    NoObjectGeneratedError,
+    NoOutputGeneratedError,
+    Output,
+} from 'ai';
 import { createHash, randomBytes } from 'crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -1706,16 +1712,16 @@ export class AiAgentMemoryService extends BaseService {
         const model = getModel(copilotConfig, { enableReasoning: true });
         const system = await consolidatePromptPromise;
         const attempt = async () => {
-            const result = await generateObject({
+            const result = await generateText({
                 model: model.model,
                 ...defaultAgentOptions,
                 ...model.callOptions,
                 providerOptions: model.providerOptions,
                 maxRetries: 0,
-                schema: consolidationOutputSchema,
+                output: Output.object({ schema: consolidationOutputSchema }),
                 system,
                 abortSignal: args.abortSignal,
-                experimental_telemetry: getAiCallTelemetry({
+                ...getAiCallTelemetry({
                     functionId: 'aiAgentMemoryConsolidate',
                     feature: 'ai-agent-memory',
                     organizationUuid: args.partition.organizationUuid,
@@ -1732,17 +1738,22 @@ export class AiAgentMemoryService extends BaseService {
                     },
                 ],
             });
-            return result.object;
+            return result.output;
         };
         try {
             return await attempt();
         } catch (error) {
             const retryableApiError =
                 APICallError.isInstance(error) && error.isRetryable;
-            if (
-                !retryableApiError &&
-                !NoObjectGeneratedError.isInstance(error)
-            ) {
+            // v6 raised NoObjectGeneratedError for both a schema failure and an
+            // empty response. v7 splits them: Output.object still throws that
+            // for parse failures, but an empty response throws
+            // NoOutputGeneratedError from the output getter. Both were retried
+            // before, so both have to be caught here.
+            const structuredOutputFailure =
+                NoObjectGeneratedError.isInstance(error) ||
+                NoOutputGeneratedError.isInstance(error);
+            if (!retryableApiError && !structuredOutputFailure) {
                 throw error;
             }
             args.abortSignal?.throwIfAborted();
@@ -2016,16 +2027,16 @@ export class AiAgentMemoryService extends BaseService {
             );
         const model = getModel(copilotConfig, { useFastModel: true });
         const system = await distillPromptPromise;
-        const result = await generateObject({
+        const result = await generateText({
             model: model.model,
             ...defaultAgentOptions,
             ...model.callOptions,
             providerOptions: model.providerOptions,
             maxRetries: 0,
-            schema: distillOutputSchema,
+            output: Output.object({ schema: distillOutputSchema }),
             system,
             abortSignal: args.abortSignal,
-            experimental_telemetry: getAiCallTelemetry({
+            ...getAiCallTelemetry({
                 functionId: 'aiAgentMemoryDistill',
                 feature: 'ai-agent-memory',
                 organizationUuid: args.thread.organizationUuid,
@@ -2043,6 +2054,6 @@ export class AiAgentMemoryService extends BaseService {
                 },
             ],
         });
-        return result.object;
+        return result.output;
     }
 }

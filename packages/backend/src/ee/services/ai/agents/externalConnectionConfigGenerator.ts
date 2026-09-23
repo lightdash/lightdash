@@ -5,7 +5,7 @@ import {
     type ExternalConnectionConfigProposal,
     type ExternalConnectionMethod,
 } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -305,12 +305,12 @@ export async function generateExternalConnectionConfigProposal(
             'generateExternalConnectionConfig',
             'external-connection-config',
         );
-        const result = await generateObject({
+        const result = await generateText({
             model: modelOptions.model,
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
-            experimental_telemetry: telemetry,
-            schema: ProposalSchema,
+            ...telemetry,
+            output: Output.object({ schema: ProposalSchema }),
             abortSignal: AbortSignal.timeout(PROPOSAL_TIMEOUT_MS),
             system: systemPrompt,
             messages: [
@@ -319,7 +319,7 @@ export async function generateExternalConnectionConfigProposal(
             ],
         });
         emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
-        return result.object;
+        return result.output;
     };
 
     const assertConfident = (

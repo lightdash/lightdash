@@ -2,7 +2,7 @@ import {
     Explore,
     type AiAgentDocumentStructuredSummary,
 } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -90,12 +90,13 @@ export async function generateDocumentSummary(
         'generateDocumentSummary',
         'document-summary',
     );
-    const result = await generateObject({
+    const result = await generateText({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        experimental_telemetry: telemetry,
-        schema: DocumentSummarySchema,
+        ...telemetry,
+        output: Output.object({ schema: DocumentSummarySchema }),
+        allowSystemInMessages: true,
         messages: [
             {
                 role: 'system',
@@ -121,5 +122,5 @@ Output the structured fields per the schema. Pay attention to the \`relevance\` 
 
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
-    return result.object;
+    return result.output;
 }

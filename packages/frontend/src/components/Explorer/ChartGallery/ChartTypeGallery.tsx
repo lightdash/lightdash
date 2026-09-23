@@ -1,6 +1,7 @@
 import {
     FeatureFlags,
     isOfficialChartType,
+    type ApiError,
     type DataAppViz,
 } from '@lightdash/common';
 import {
@@ -44,6 +45,7 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { CHART_GALLERY_SEARCH_ID } from '../../common/ChartGallery/ChartGalleryContext';
+import InlineErrorState from '../../common/InlineErrorState';
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -314,8 +316,8 @@ type GalleryProps = {
     onRetry: (() => void) | null;
     /** Fetches the next server page; null when every page is loaded. */
     onLoadMore: (() => void) | null;
-    /** Chart types waiting behind the "+N more" tile. */
-    moreCount: number;
+    /** Null when remaining results may include the appended selection. */
+    moreCount: number | null;
     loadingMore: boolean;
     /** Why nothing here can be picked; null while the gallery is usable. */
     disabledReason: string | null;
@@ -335,24 +337,29 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
     disabledReason,
 }) => {
     const gridRef = useRef<HTMLDivElement | null>(null);
-    const pendingFocusIndex = useRef<number | null>(null);
+    const pendingFocusKeys = useRef<Set<string> | null>(null);
     const hasScrolledToSelection = useRef(false);
     const itemCount = items.length;
+    const hasMore = onLoadMore !== null;
 
-    // The "+N more" tile can unmount on reveal; move focus to the first new
-    // card so keyboard users are not dropped back to the body. The pending
-    // index is consumed by whatever count change answers the click, so a
-    // failed or shorter load cannot leave it armed for a later, unrelated
-    // change.
+    // Follow new cards by key: an appended selection can move into a loaded page.
+    // If no new card appears, keep focus in the gallery when Load more disappears.
     useEffect(() => {
-        const index = pendingFocusIndex.current;
-        if (index === null) return;
-        pendingFocusIndex.current = null;
-        if (itemCount === 0) return;
+        const previousKeys = pendingFocusKeys.current;
+        if (previousKeys === null || loadingMore) return;
+        pendingFocusKeys.current = null;
+        const firstNewIndex = items.findIndex(
+            ({ key }) => !previousKeys.has(key),
+        );
+        const index = firstNewIndex === -1 ? itemCount - 1 : firstNewIndex;
+        if (itemCount === 0) {
+            document.getElementById(CHART_GALLERY_SEARCH_ID)?.focus();
+            return;
+        }
         gridRef.current
             ?.querySelectorAll<HTMLButtonElement>(`.${classes.card}`)
             [Math.min(index, itemCount - 1)]?.focus();
-    }, [itemCount]);
+    }, [items, itemCount, loadingMore, hasMore, errorMessage]);
 
     // The picker opens on whatever is already selected, which can sit below
     // the fold once project types arrive.
@@ -416,10 +423,16 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
                         {onLoadMore !== null ? (
                             <UnstyledButton
                                 className={clsx(classes.card, classes.moreCard)}
-                                aria-label={`Show ${moreCount} more chart types`}
+                                aria-label={
+                                    moreCount === null
+                                        ? 'Load more chart types'
+                                        : `Show ${moreCount} more chart types`
+                                }
                                 disabled={loadingMore}
                                 onClick={() => {
-                                    pendingFocusIndex.current = items.length;
+                                    pendingFocusKeys.current = new Set(
+                                        items.map(({ key }) => key),
+                                    );
                                     onLoadMore();
                                 }}
                             >
@@ -442,7 +455,9 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
                                     fw={500}
                                     lh={1.2}
                                 >
-                                    +{moreCount} more
+                                    {moreCount === null
+                                        ? 'Load more'
+                                        : `+${moreCount} more`}
                                 </Text>
                             </UnstyledButton>
                         ) : null}
@@ -483,10 +498,16 @@ export const ChartTypeGallery: FC<GalleryProps> = ({
 };
 
 type ExplorerChartTypeGalleryProps = {
+    selectedProjectType: DataAppViz | null;
+    selectedProjectTypeError: ApiError | null;
+    onRetrySelectedProjectType: () => void;
     onConfigure: () => void;
 };
 
 const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
+    selectedProjectType,
+    selectedProjectTypeError,
+    onRetrySelectedProjectType,
     onConfigure,
 }) => {
     const projectUuid = useProjectUuid();
@@ -500,8 +521,6 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const {
         data,
         isInitialLoading,
-        isFetching,
-        isPreviousData,
         error,
         refetch,
         hasNextPage,
@@ -511,6 +530,7 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
         chartTypesEnabled ? projectUuid : undefined,
         debouncedSearch,
         PICKER_SORT,
+        6,
     );
     const canEditChartType = useCanEditDataAppChecker(projectUuid);
     const canFork = useCanCreateDataApp(projectUuid);
@@ -530,36 +550,11 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
         ? visualizationConfig.chartConfig.dataAppVizUuid
         : null;
 
-    useEffect(() => {
-        const selectedTypeIsLoaded = projectTypes.some(
-            ({ dataAppVizUuid }) => dataAppVizUuid === selectedProjectUuid,
-        );
-        const shouldLoadSelectedType =
-            chartTypesEnabled &&
-            selectedProjectUuid !== null &&
-            search === '' &&
-            debouncedSearch === '' &&
-            !isPreviousData &&
-            !error &&
-            hasNextPage === true &&
-            !isFetching &&
-            !selectedTypeIsLoaded;
-
-        if (!shouldLoadSelectedType) return;
-
-        void fetchNextPage({ cancelRefetch: false });
-    }, [
-        chartTypesEnabled,
-        debouncedSearch,
-        error,
-        fetchNextPage,
-        hasNextPage,
-        isFetching,
-        isPreviousData,
-        projectTypes,
-        search,
-        selectedProjectUuid,
-    ]);
+    const selectedType =
+        selectedProjectType?.dataAppVizUuid === selectedProjectUuid &&
+        selectedProjectType?.projectUuid === projectUuid
+            ? selectedProjectType
+            : null;
 
     const matchesBuiltInSearch = (option: ChartTypeOption) =>
         option.label.toLowerCase().includes(debouncedSearch.toLowerCase());
@@ -633,8 +628,17 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     };
     // One grid: the built-ins in their familiar order, then everything the
     // project has in the server's name order, wherever it came from.
+    const selectedTypeIsLoaded = projectTypes.some(
+        ({ dataAppVizUuid }) => dataAppVizUuid === selectedProjectUuid,
+    );
+    const appendSelectedType =
+        selectedType !== null &&
+        selectedProjectTypeError === null &&
+        !selectedTypeIsLoaded;
     const projectItems = chartTypesEnabled
-        ? projectTypes.map(toProjectItem)
+        ? [...projectTypes, ...(appendSelectedType ? [selectedType] : [])].map(
+              toProjectItem,
+          )
         : [];
     const items = [...builtInItems, ...projectItems];
 
@@ -648,27 +652,51 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
 
     return (
         <>
-            <ChartTypeGallery
-                search={search}
-                onSearchChange={setSearch}
-                items={items}
-                emptyMessage={
-                    items.length === 0 && debouncedSearch !== ''
-                        ? 'No chart types match your search'
-                        : null
-                }
-                loading={isInitialLoading}
-                errorMessage={error ? 'Failed to load chart types' : null}
-                onRetry={error ? () => void refetch() : null}
-                onLoadMore={
-                    hasNextPage === true ? () => void fetchNextPage() : null
-                }
-                moreCount={unfetchedCount}
-                loadingMore={isFetchingNextPage}
-                disabledReason={
-                    disabled ? 'Run your query to pick a chart type.' : null
-                }
-            />
+            <Stack className={classes.root} gap="md">
+                <ChartTypeGallery
+                    search={search}
+                    onSearchChange={setSearch}
+                    items={items}
+                    emptyMessage={
+                        items.length === 0 && debouncedSearch !== ''
+                            ? 'No chart types match your search'
+                            : null
+                    }
+                    loading={isInitialLoading}
+                    errorMessage={error ? 'Failed to load chart types' : null}
+                    onRetry={error ? () => void refetch() : null}
+                    onLoadMore={
+                        hasNextPage === true ? () => void fetchNextPage() : null
+                    }
+                    moreCount={appendSelectedType ? null : unfetchedCount}
+                    loadingMore={isFetchingNextPage}
+                    disabledReason={
+                        disabled ? 'Run your query to pick a chart type.' : null
+                    }
+                />
+                {chartTypesEnabled &&
+                selectedProjectUuid !== null &&
+                !selectedTypeIsLoaded &&
+                !appendSelectedType ? (
+                    <Box>
+                        {selectedProjectTypeError !== null ? (
+                            <Box role="alert">
+                                <InlineErrorState
+                                    message="Selected chart type is unavailable"
+                                    onRetry={onRetrySelectedProjectType}
+                                />
+                            </Box>
+                        ) : (
+                            <Group gap="xs" role="status">
+                                <Loader size="xs" />
+                                <Text fz="xs" c="dimmed">
+                                    Loading selected chart type…
+                                </Text>
+                            </Group>
+                        )}
+                    </Box>
+                ) : null}
+            </Stack>
             {forkTarget !== null && projectUuid !== undefined ? (
                 <ChartTypeForkModal
                     opened

@@ -2,9 +2,11 @@ import {
     agentToolDefinitions,
     agentToolDefinitionsByName,
 } from '@lightdash/common';
-import { asSchema, type FlexibleSchema } from 'ai';
+import { asSchema, type FlexibleSchema, type ToolSet } from 'ai';
 import { DISTILL_TOOL_POLICIES } from '../../AiAgentMemoryService/transcriptToolPolicy';
 import { getSystemPromptV2 } from '../prompts/systemV2';
+import { AgentContext } from '../utils/AgentContext';
+import { getStaticToolDescription } from '../utils/toolDescription';
 import { getClosePullRequest } from './closePullRequest';
 import { getCreateContent } from './createContent';
 import { getCreateScheduledDelivery } from './createScheduledDelivery';
@@ -57,14 +59,14 @@ const schemaToJson = (schema: FlexibleSchema | undefined): unknown => {
 };
 
 type SnapshotTool = {
-    description?: string;
+    description?: ToolSet[string]['description'];
     inputSchema?: FlexibleSchema;
     outputSchema?: FlexibleSchema;
 };
 
 const agentToolSnapshot = (name: string, toolDefinition: SnapshotTool) => ({
     name,
-    description: toolDefinition.description,
+    description: getStaticToolDescription(toolDefinition),
     inputSchema: schemaToJson(toolDefinition.inputSchema),
     ...(toolDefinition.outputSchema
         ? { outputSchema: schemaToJson(toolDefinition.outputSchema) }
@@ -120,6 +122,7 @@ const makeAgentTools = (
             toolDescriptionMaxChars: 600,
         }),
         generateDashboard: getGenerateDashboardV2({
+            agentContext: new AgentContext([]),
             createOrUpdateArtifact: noop,
             getPrompt: noop,
         }),
@@ -178,6 +181,7 @@ const makeAgentTools = (
             validateContent: noop,
         }),
         generateVisualization: getRunQuery({
+            agentContext: new AgentContext([]),
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
             slackLinksOnly: false,
@@ -249,7 +253,10 @@ describe('AI agent tool contracts', () => {
     });
     it('matches the opt-in chart-as-code export contract', () => {
         expect(
-            agentToolSnapshot('exportChartAsCode', getExportChartAsCode()),
+            agentToolSnapshot(
+                'exportChartAsCode',
+                getExportChartAsCode(new AgentContext([])),
+            ),
         ).toMatchSnapshot();
     });
     it.each(

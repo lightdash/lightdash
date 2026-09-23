@@ -13,6 +13,7 @@ const executeSyncDbtProject = (tool: SyncDbtProjectTool) =>
         {
             messages: [],
             toolCallId: 'tool-call-1',
+            context: {},
         },
     ) as Promise<SyncDbtProjectOutput>;
 

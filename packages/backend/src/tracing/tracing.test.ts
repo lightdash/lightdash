@@ -360,6 +360,24 @@ describe('initOtelTracing', () => {
             ),
         );
     });
+
+    it('registers the AI telemetry integration once however often it runs', async () => {
+        const registered = () =>
+            (
+                globalThis as {
+                    AI_SDK_TELEMETRY_INTEGRATIONS?: readonly unknown[];
+                }
+            ).AI_SDK_TELEMETRY_INTEGRATIONS?.length ?? 0;
+
+        initOtelTracing();
+        initOtelTracing();
+        initOtelTracing();
+        await shutdownOtelTracing();
+
+        // registerTelemetry appends without de-duplicating, so a second
+        // registration makes the SDK emit every AI span twice.
+        expect(registered()).toBe(1);
+    });
 });
 
 const makeDelegate = (decision: SamplingDecision): Sampler => ({

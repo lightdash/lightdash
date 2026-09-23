@@ -765,11 +765,12 @@ export class AiService extends BaseService {
             model: modelOptions.model,
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
-            experimental_telemetry: getGeneratorTelemetry(
+            ...getGeneratorTelemetry(
                 modelOptions,
                 'generateDeliverySummary',
                 'delivery-summary',
             ),
+            allowSystemInMessages: true,
             messages: [
                 {
                     role: 'system',

@@ -19,8 +19,9 @@ vi.mock('e2b', () => ({
     CommandExitError: class extends Error {},
     ALL_TRAFFIC: '*',
 }));
-vi.mock('ai', () => ({
-    generateObject: vi.fn(),
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: vi.fn(),
 }));
 
 const USER = { userUuid: 'user-1' } as never;
@@ -50,6 +51,7 @@ const makeDataAppVizRow = (overrides: Record<string, unknown> = {}) => ({
     template: DATA_APP_VIZ_TEMPLATE,
     icon: null,
     viz_schema: vizSchema,
+    viz_preview: null,
     design_uuid: null,
     upstream_app_uuid: null,
     created_at: new Date('2026-06-30'),
@@ -573,6 +575,7 @@ describe('AppGenerateService data app vizs', () => {
             resources: null,
             dependencies: null,
             viz_schema: olderSchema,
+            viz_preview: null,
             generation_usage: null,
             created_at: new Date('2026-06-30'),
             created_by_user_uuid: 'user-1',
@@ -659,6 +662,7 @@ describe('AppGenerateService data app vizs', () => {
             resources: null,
             dependencies: null,
             viz_schema: vizSchema,
+            viz_preview: null,
             generation_usage: null,
             created_at: new Date('2026-06-30'),
             created_by_user_uuid: 'user-1',
@@ -748,6 +752,7 @@ describe('AppGenerateService data app vizs', () => {
             ).resolves.toEqual({
                 state: 'ready',
                 version: 2,
+                preview: null,
                 schema: versionTwoSchema,
                 latestBuildInProgress: false,
             });
@@ -1131,6 +1136,7 @@ describe('AppGenerateService data app vizs', () => {
                 state: 'ready',
                 version: 2,
                 schema: vizSchema,
+                preview: null,
                 latestBuildInProgress: true,
             });
         });

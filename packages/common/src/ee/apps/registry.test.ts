@@ -119,3 +119,42 @@ describe('isSemverVersion', () => {
         expect(isSemverVersion('1.2.3-beta')).toBe(false);
     });
 });
+
+describe('registry preview compatibility', () => {
+    const index = { schemaVersion: 1, generatedAt: '2026-09-17T00:00:00Z' };
+    it('defaults missing previews to null for existing registries', () => {
+        expect(
+            chartRegistryIndexSchema.parse({ ...index, charts: [validEntry] })
+                .charts[0].preview,
+        ).toBeNull();
+    });
+    it('preserves authored preview data', () => {
+        const entry = {
+            ...validEntry,
+            vizSchema: {
+                ...validEntry.vizSchema,
+                fields: [
+                    {
+                        name: 'value',
+                        label: 'Value',
+                        type: 'column',
+                        required: true,
+                    },
+                ],
+            },
+            preview: { rows: [{ value: 42 }] },
+        };
+        expect(
+            chartRegistryIndexSchema.parse({ ...index, charts: [entry] })
+                .charts[0].preview,
+        ).toEqual(entry.preview);
+    });
+    it('rejects preview rows referring to undeclared fields', () => {
+        expect(
+            chartRegistryIndexSchema.safeParse({
+                ...index,
+                charts: [{ ...validEntry, preview: { rows: [{ typo: 42 }] } }],
+            }).success,
+        ).toBe(false);
+    });
+});

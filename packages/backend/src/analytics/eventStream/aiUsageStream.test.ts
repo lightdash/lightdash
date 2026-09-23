@@ -63,8 +63,8 @@ describe('ai_usage stream projection', () => {
         registerAiUsageTracker((event) => sink.handle(event));
         emitAiUsage(
             {
-                functionId: 'autopilotHeartbeat',
-                metadata: {
+                telemetry: { functionId: 'autopilotHeartbeat' },
+                runtimeContext: {
                     feature: 'managed-agent',
                     runUuid: 'autopilot-run-1',
                     organizationUuid: 'org-1',

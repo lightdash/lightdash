@@ -144,8 +144,8 @@ describe('emitAiUsage', () => {
 
         emitAiUsage(
             {
-                functionId: 'generateAgentResponse',
-                metadata: {
+                telemetry: { functionId: 'generateAgentResponse' },
+                runtimeContext: {
                     feature: 'agent',
                     organizationUuid: 'org-1',
                     projectUuid: 'project-1',
@@ -205,8 +205,8 @@ describe('emitAiUsage', () => {
 
         emitAiUsage(
             {
-                functionId: 'generateAgentResponse',
-                metadata: {
+                telemetry: { functionId: 'generateAgentResponse' },
+                runtimeContext: {
                     feature: 'agent',
                     organizationUuid: 'org-1',
                     keyManagement: 'self-managed',
@@ -221,8 +221,8 @@ describe('emitAiUsage', () => {
         track.mockClear();
         emitAiUsage(
             {
-                functionId: 'generateAgentResponse',
-                metadata: {
+                telemetry: { functionId: 'generateAgentResponse' },
+                runtimeContext: {
                     feature: 'agent',
                     organizationUuid: 'org-1',
                     keyManagement: 'bogus',
@@ -238,8 +238,8 @@ describe('emitAiUsage', () => {
         registerAiUsageTracker(track);
         emitAiUsage(
             {
-                functionId: 'otherFeature',
-                metadata: { feature: 'data-app', runUuid: 'other-run' },
+                telemetry: { functionId: 'otherFeature' },
+                runtimeContext: { feature: 'data-app', runUuid: 'other-run' },
             },
             tokens,
         );
@@ -252,8 +252,8 @@ describe('emitAiUsage', () => {
 
         emitAiUsage(
             {
-                functionId: 'generateAgentResponse',
-                metadata: {
+                telemetry: { functionId: 'generateAgentResponse' },
+                runtimeContext: {
                     feature: 'agent',
                     deepResearchRunUuid: 'run-1',
                     deepResearchPhase: 'investigating',
@@ -275,8 +275,8 @@ describe('emitAiUsage', () => {
 
         emitAiUsage(
             {
-                functionId: 'routeProject',
-                metadata: {
+                telemetry: { functionId: 'routeProject' },
+                runtimeContext: {
                     feature: 'project-router',
                     organizationUuid: 'org-1',
                 },
@@ -292,7 +292,10 @@ describe('emitAiUsage', () => {
 
     it('still logs when no tracker is registered', () => {
         emitAiUsage(
-            { functionId: 'fn', metadata: { feature: 'llm-judge' } },
+            {
+                telemetry: { functionId: 'fn' },
+                runtimeContext: { feature: 'llm-judge' },
+            },
             tokens,
         );
         expect(Logger.info).toHaveBeenCalledTimes(1);

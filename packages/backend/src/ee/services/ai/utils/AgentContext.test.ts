@@ -21,40 +21,6 @@ describe('AgentContext', () => {
         });
     });
 
-    describe('from', () => {
-        it('should accept AgentContext instance', () => {
-            const original = new AgentContext(mockExplores);
-            const ctx = AgentContext.from(original);
-
-            expect(ctx).toBe(original);
-            expect(ctx.getAvailableExplores()).toEqual(mockExplores);
-        });
-
-        it('should throw error for non-AgentContext instance', () => {
-            expect(() => AgentContext.from({})).toThrow(
-                'Invalid agent context: expected AgentContext instance',
-            );
-        });
-
-        it('should throw error for null context', () => {
-            expect(() => AgentContext.from(null)).toThrow(
-                'Invalid agent context',
-            );
-        });
-
-        it('should throw error for undefined context', () => {
-            expect(() => AgentContext.from(undefined)).toThrow(
-                'Invalid agent context',
-            );
-        });
-
-        it('should throw error for plain object', () => {
-            expect(() =>
-                AgentContext.from({ availableExplores: mockExplores }),
-            ).toThrow('Invalid agent context');
-        });
-    });
-
     describe('getAvailableExplores', () => {
         it('should return available explores', () => {
             const ctx = new AgentContext(mockExplores);

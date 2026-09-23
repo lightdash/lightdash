@@ -26,6 +26,7 @@ describe('metric query intent review', () => {
                 cacheMetadata: { cacheHit: false },
             });
             const tool = getRunMetricQuery({
+                agentContext: new AgentContext([validExplore]),
                 decisions,
                 runAsyncQuery,
                 maxLimit: 50,
@@ -51,7 +52,7 @@ describe('metric query intent review', () => {
                             content: 'Count active orders by customer',
                         },
                     ],
-                    experimental_context: new AgentContext([validExplore]),
+                    context: {},
                 },
             );
             expect(output).toMatchObject({
@@ -81,7 +82,11 @@ describe('metric query intent review', () => {
             fields: {},
             cacheMetadata: { cacheHit: false },
         });
-        const tool = getRunMetricQuery({ runAsyncQuery, maxLimit: 50 });
+        const tool = getRunMetricQuery({
+            agentContext: new AgentContext([validExplore]),
+            runAsyncQuery,
+            maxLimit: 50,
+        });
         const output = await tool.execute!(
             {
                 vizConfig: {
@@ -98,7 +103,7 @@ describe('metric query intent review', () => {
             {
                 toolCallId: 'call',
                 messages: [],
-                experimental_context: new AgentContext([validExplore]),
+                context: {},
             },
         );
         expect(output).toMatchObject({

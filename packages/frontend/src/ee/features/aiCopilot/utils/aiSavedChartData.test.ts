@@ -52,6 +52,7 @@ const readyMetadata: DataAppVizRenderMetadata = {
         configOptions: [],
         colorPalette: null,
     },
+    preview: null,
     latestBuildInProgress: false,
 };
 

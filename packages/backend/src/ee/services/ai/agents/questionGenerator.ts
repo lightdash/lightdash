@@ -1,4 +1,4 @@
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -38,11 +38,12 @@ export async function generateArtifactQuestion(
         ...(modelOptions.telemetry ?? {}),
         extra: metadata,
     });
-    const result = await generateObject({
+    const result = await generateText({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        schema: QuestionSchema,
+        output: Output.object({ schema: QuestionSchema }),
+        allowSystemInMessages: true,
         messages: [
             {
                 role: 'system',
@@ -65,10 +66,10 @@ Title: ${title || 'N/A'}
 Description: ${description || 'N/A'}`,
             },
         ],
-        experimental_telemetry: telemetry,
+        ...telemetry,
     });
 
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
-    return result.object.question;
+    return result.output.question;
 }

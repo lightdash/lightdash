@@ -96,7 +96,7 @@ export async function generateEmbedding(
     const result = await embed({
         model,
         value: trimmedText,
-        experimental_telemetry: telemetryConfig,
+        ...telemetryConfig,
         // TODO :: provider options to set dimensions
     });
 

@@ -67,7 +67,7 @@ const makeDependencies = (rows = [{ a_dim1: 'EMEA', a_met1: 42 }]) => ({
     maxContextRows: 50,
     enableDataAccess: true,
 });
-const options = { messages: [], toolCallId: 'call' };
+const options = { messages: [], toolCallId: 'call', context: {} };
 
 describe('content and saved query review', () => {
     it('keeps the original saved-chart query and call signature without decisions', async () => {

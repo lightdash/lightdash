@@ -24,7 +24,10 @@ vi.mock('e2b', () => ({
     CommandExitError: class extends Error {},
     ALL_TRAFFIC: '*',
 }));
-vi.mock('ai', () => ({ generateObject: vi.fn() }));
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: vi.fn(),
+}));
 
 const PREVIEW_PROJECT_UUID = 'preview-project';
 const PRODUCTION_PROJECT_UUID = 'production-project';

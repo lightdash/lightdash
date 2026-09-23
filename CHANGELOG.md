@@ -1,3 +1,17 @@
+# [2.309.0](https://github.com/lightdash/lightdash/compare/2.308.1...2.309.0) (2026-09-23)
+
+
+### Features
+
+* **chart-types:** support versioned preview data and options ([#29452](https://github.com/lightdash/lightdash/issues/29452)) ([473dd55](https://github.com/lightdash/lightdash/commit/473dd55c998fd23cef16730d1d7448572b12f967)), closes [#29481](https://github.com/lightdash/lightdash/issues/29481)
+
+## [2.308.1](https://github.com/lightdash/lightdash/compare/2.308.0...2.308.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **slack:** complete reasoning task before pausing for SQL approval ([#29788](https://github.com/lightdash/lightdash/issues/29788)) ([917dda4](https://github.com/lightdash/lightdash/commit/917dda4ed7a255aa9147e95748c8daf125088263))
+
 # [2.308.0](https://github.com/lightdash/lightdash/compare/2.307.0...2.308.0) (2026-09-23)
 
 

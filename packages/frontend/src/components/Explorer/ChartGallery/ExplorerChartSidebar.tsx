@@ -96,11 +96,11 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
     const dataAppVizUuid = isDataAppVizVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.dataAppVizUuid
         : null;
-    const { data: selectedProjectType } = useDataAppVisualization(
-        projectUuid,
-        dataAppVizUuid,
-        null,
-    );
+    const {
+        data: selectedProjectType,
+        error: selectedProjectTypeError,
+        refetch: refetchSelectedProjectType,
+    } = useDataAppVisualization(projectUuid, dataAppVizUuid, null);
     const canEditChartType = useCanEditDataAppChecker(projectUuid);
     const dataAppsEnabled =
         useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
@@ -195,6 +195,15 @@ const ExplorerChartSidebar: FC<Props> = ({ chartType, onClose }) => {
                                 </Group>
                             </Group>
                             <ExplorerChartTypeGallery
+                                selectedProjectType={
+                                    selectedProjectType ?? null
+                                }
+                                selectedProjectTypeError={
+                                    selectedProjectTypeError ?? null
+                                }
+                                onRetrySelectedProjectType={() =>
+                                    void refetchSelectedProjectType()
+                                }
                                 onConfigure={showConfigure}
                             />
                         </>

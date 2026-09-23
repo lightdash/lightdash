@@ -2,6 +2,7 @@ import { parse as parseYaml } from 'yaml';
 import { type ApiSuccess } from '../../types/api/success';
 import { type ContentAsCodeDirectAccess } from '../../types/contentAsCode/directAccess';
 import { type ChartTypeIcon } from './chartTypeIcons';
+import { type DataAppVizPreview } from './preview';
 import { type DataAppTemplate, type DataAppVizSchema } from './types';
 
 export const currentDataAppCodeVersion = 1 as const;
@@ -45,6 +46,7 @@ export type DataAppManifest = {
     // re-emit it — without it the uploaded viz never appears in the viz picker.
     // Omitted for non-viz apps and bundles downloaded before this field.
     vizSchema?: DataAppVizSchema;
+    preview?: DataAppVizPreview | null;
     // External connection links, resolved by connectionSlug in the target
     // project on upload. Present (including []) → the app's links are
     // reconciled to match exactly; absent → existing links are left untouched
