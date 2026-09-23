@@ -1,3 +1,12 @@
+# [2.312.0](https://github.com/lightdash/lightdash/compare/2.311.0...2.312.0) (2026-09-23)
+
+
+### Features
+
+* show available chart upgrades in the library tab ([#29799](https://github.com/lightdash/lightdash/issues/29799)) ([ed3c6a0](https://github.com/lightdash/lightdash/commit/ed3c6a0ec199d4bdea228110a02a2e124bb076e8))
+* **timezone:** add Johannesburg and Vilnius options ([#29797](https://github.com/lightdash/lightdash/issues/29797)) ([7854b29](https://github.com/lightdash/lightdash/commit/7854b299c0454e2e57b4b24e357b99dc1b9a4a78))
+* **timezone:** expand static choices and update timezone data ([#29800](https://github.com/lightdash/lightdash/issues/29800)) ([8b05786](https://github.com/lightdash/lightdash/commit/8b05786a969764ea820ac7ae767089c69b5b307a))
+
 # [2.311.0](https://github.com/lightdash/lightdash/compare/2.310.0...2.311.0) (2026-09-23)
 
 
