@@ -263,7 +263,7 @@ export const CLAUDE_SETTINGS = JSON.stringify({
     },
 });
 
-export const CLAUDE_MODEL = 'claude-sonnet-4-6';
+export const CLAUDE_MODEL = 'claude-sonnet-5';
 export const RUN_TIMEOUT_MS = 45 * 60 * 1000;
 export const SANDBOX_TIMEOUT_MS = 60 * 60 * 1000;
 export const PAT_EXPIRY_GRACE_MS = 15 * 60 * 1000;

@@ -165,7 +165,7 @@ export const NATIVE_ALLOWED_TOOLS = ALLOWED_TOOLS.split(',')
 // Anthropic model used for the writeback agent. Pinned to a specific Sonnet
 // snapshot rather than the CLI default so runs stay deterministic across
 // Claude Code releases.
-export const CLAUDE_MODEL = 'claude-sonnet-4-6';
+export const CLAUDE_MODEL = 'claude-sonnet-5';
 
 // Host-curated Agent Skills directory for the GENERAL coding agent, distinct
 // from the dbt warehouse skills (SKILLS_DIR) and the baked-in Claude skills
