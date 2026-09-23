@@ -102,7 +102,9 @@ to main deploys policies to production and staging. The deploy script removes
 notification channels in staging but does not rewrite project/cluster filters,
 so ensure each policy's scope is appropriate for its target project.
 
-This POC adds no policy files and creates no GCP resources.
+The application change does not provision policies. Policies created separately
+for validation should stay scoped to synthetic test metrics, with notifications
+off, and be disabled after testing.
 
 ## Validation and limits
 
@@ -125,7 +127,15 @@ instance, a partial generation failure, and a worker restart after a completion
 has been scraped. Confirm that the timestamp stays unchanged while idle, the
 error counter increases, and the historical query retains the previous pod's
 completion. Check the heartbeat expression with a deliberately nonexistent test
-namespace to verify missing-series behavior. Live GCP validation is still needed.
+namespace to verify missing-series behavior.
+
+The exact queries and incident open/close cycle were verified in GCP staging on
+2026-09-23 using controlled Prometheus samples and no notification channels.
+Both incidents opened and closed automatically; the test policies were then
+disabled. Healthy-instance isolation and the missing-instance fallback were also
+verified. Ingestion from deployed Lightdash workers and notification delivery
+still need validation. Allow several minutes for GCP incident evaluation and
+recovery, even with a 60-second evaluation interval.
 
 These are in-memory metrics: if a process exits before the next scrape, its last
 update can be lost. A counter increment before the first baseline scrape may
