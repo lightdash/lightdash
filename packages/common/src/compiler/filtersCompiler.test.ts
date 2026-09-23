@@ -122,6 +122,33 @@ const formatTimestamp = (date: Date): string =>
     moment(date).format('YYYY-MM-DD HH:mm:ssZ');
 
 describe('Filter SQL', () => {
+    test('uses the previous local day in Coyhaique before UTC-3 midnight', () => {
+        const previousTime = Date.now();
+        vi.setSystemTime(new Date('2026-07-15T01:00:00Z'));
+        try {
+            expect(
+                renderDateFilterSql({
+                    dimensionSql: 'event_date',
+                    filter: {
+                        id: 'today',
+                        target: {},
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        values: [1],
+                        settings: { unitOfTime: UnitOfTime.days },
+                    },
+                    adapterType: SupportedDbtAdapter.POSTGRES,
+                    timezone: 'America/Coyhaique',
+                    boundaryDateFormatter:
+                        createBoundaryDateFormatter('America/Coyhaique'),
+                }),
+            ).toBe(
+                "((event_date) >= ('2026-07-14') AND (event_date) <= ('2026-07-14'))",
+            );
+        } finally {
+            vi.setSystemTime(previousTime);
+        }
+    });
+
     test('selected periods do not depend on the server timezone', () => {
         vi.stubEnv('TZ', 'America/Los_Angeles');
         try {
