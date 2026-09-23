@@ -1,10 +1,12 @@
 import {
     assertUnreachable,
     ChartType,
+    deriveDataAppVizPivotConfig,
     DATA_APP_VIZ_TEMPLATE,
     FeatureFlags,
     getDataAppVizFieldIds,
     getItemLabelWithoutTableName,
+    type CreateSavedChartVersion,
     type AppChartReference,
     type DataAppVizFieldMapping,
     type ItemsMap,
@@ -62,13 +64,20 @@ import {
     reconcileDataAppVizFieldMapping,
 } from '../features/chartTypes/utils/autoMapDataAppVizFields';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
+import { buildExplorePreviewMetricQuery } from '../features/chartTypes/utils/explorePreviewQuery';
 import { buildExplorerVizContext } from '../features/chartTypes/utils/explorerVizContext';
 import { buildSampleVizContext } from '../features/chartTypes/utils/sampleVizContext';
 import { mapSavedChartPreviewFields } from '../features/chartTypes/utils/savedChartPreviewFieldMapping';
 import { vizBuildSampleRows } from '../features/chartTypes/utils/vizBuildSampleRows';
+import {
+    MERGE_URL_PARAM,
+    serializeMergeState,
+} from '../features/mergeQuery/context/mergeUrlState';
+import { restoreSavedMerge } from '../features/mergeQuery/context/restoreSavedMerge';
 import { useResolvedColorPalette } from '../hooks/appearance/useResolvedColorPalette';
 import useToaster from '../hooks/toaster/useToaster';
 import {
+    DEFAULT_EMPTY_EXPLORE_CONFIG,
     getExplorerUrlFromCreateSavedChartVersion,
     parseChartFromExplorerSearchParams,
 } from '../hooks/useExplorerRoute';
@@ -737,25 +746,114 @@ const ChartTypeBuilder: FC = () => {
         schema,
     ]);
 
-    const explorerDestination = useMemo(() => {
-        if (!explorerChart || !activeVizUuid) return null;
-
-        return getExplorerUrlFromCreateSavedChartVersion(
-            projectUuid,
-            {
-                ...explorerChart,
-                chartConfig: {
-                    type: ChartType.DATA_APP_VIZ,
-                    config: {
-                        dataAppVizUuid: activeVizUuid,
-                        fieldMapping: {},
-                        optionValues: {},
+    const getExplorerDestination = useCallback(
+        (pickedTable: string | null) => {
+            if (!activeVizUuid) return null;
+            let chart: CreateSavedChartVersion | null = null;
+            let fieldMapping = NO_MAPPING;
+            if (exploreName !== null && loadedExplore) {
+                chart = {
+                    ...DEFAULT_EMPTY_EXPLORE_CONFIG,
+                    tableName: loadedExplore.name,
+                    metricQuery: buildExplorePreviewMetricQuery(
+                        loadedExplore.name,
+                        loadedExplore.itemsMap,
+                        exploreFieldIds,
+                    ),
+                    tableConfig: { columnOrder: exploreFieldIds },
+                };
+                fieldMapping = exploreFieldMapping;
+            } else if (savedChartUuid !== null && sourceChart) {
+                chart = {
+                    tableName: sourceChart.originalMetricQuery.exploreName,
+                    metricQuery: sourceChart.originalMetricQuery,
+                    chartConfig: sourceChart.chartConfig,
+                    tableConfig: {
+                        columnOrder: Object.keys(
+                            sourceRun?.itemsMap ?? NO_ITEMS,
+                        ),
+                    },
+                    parameters: sourceChart.parameters,
+                    merge: sourceChart.merge,
+                };
+                fieldMapping = previewFieldMapping;
+            } else if (exploreName === null && savedChartUuid === null) {
+                chart =
+                    explorerChart ??
+                    (pickedTable
+                        ? {
+                              ...DEFAULT_EMPTY_EXPLORE_CONFIG,
+                              tableName: pickedTable,
+                              metricQuery: {
+                                  ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
+                                  exploreName: pickedTable,
+                              },
+                          }
+                        : null);
+            }
+            if (!chart) return null;
+            const destination = getExplorerUrlFromCreateSavedChartVersion(
+                projectUuid,
+                {
+                    ...chart,
+                    pivotConfig: schema
+                        ? deriveDataAppVizPivotConfig(
+                              schema.fields,
+                              fieldMapping,
+                          )
+                        : undefined,
+                    chartConfig: {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: {
+                            dataAppVizUuid: activeVizUuid,
+                            ...(workspace.previewVersion !== null
+                                ? {
+                                      dataAppVizVersion:
+                                          workspace.previewVersion,
+                                  }
+                                : {}),
+                            fieldMapping,
+                            optionValues: panel.optionValues,
+                        },
                     },
                 },
-            },
-            false,
-        );
-    }, [activeVizUuid, explorerChart, projectUuid]);
+                false,
+            );
+            const params = new URLSearchParams(destination.search);
+            params.delete(SAVED_CHART_PARAM);
+            params.delete(EXPLORE_PARAM);
+            params.delete('dataAppVizUuid');
+            params.set('chartSidebar', 'configure');
+            const merge = chart.merge ? restoreSavedMerge(chart.merge) : null;
+            if (merge) params.set(MERGE_URL_PARAM, serializeMergeState(merge));
+            else params.delete(MERGE_URL_PARAM);
+            if (panel.colorPaletteUuid)
+                params.set('colorPaletteUuid', panel.colorPaletteUuid);
+            else params.delete('colorPaletteUuid');
+            return { ...destination, search: params.toString() };
+        },
+        [
+            activeVizUuid,
+            exploreName,
+            loadedExplore,
+            exploreFieldIds,
+            exploreFieldMapping,
+            savedChartUuid,
+            sourceChart,
+            sourceRun,
+            previewFieldMapping,
+            explorerChart,
+            projectUuid,
+            schema,
+            workspace.previewVersion,
+            panel.optionValues,
+            panel.colorPaletteUuid,
+        ],
+    );
+    const explorerDestination = useMemo(
+        () => getExplorerDestination(null),
+        [getExplorerDestination],
+    );
 
     if (!projectUuid) return null;
     if (dataAppsFlag.isLoading) return null;
@@ -879,6 +977,10 @@ const ChartTypeBuilder: FC = () => {
                 onUpgradeStarted={workspace.openHistory}
                 onToggleHistory={workspace.toggleHistory}
                 previewInExplorerLink={explorerDestination}
+                previewInExplorerDisabled={
+                    explorerDestination === null &&
+                    (savedChartUuid !== null || exploreName !== null)
+                }
                 onPreviewInExplorer={
                     activeVizUuid ? () => setIsPreviewTableOpen(true) : null
                 }
@@ -911,6 +1013,10 @@ const ChartTypeBuilder: FC = () => {
                     dataAppVizUuid={activeVizUuid}
                     registrySlug={appMeta?.registrySlug ?? null}
                     onClose={() => setIsPreviewTableOpen(false)}
+                    onSelectTable={(tableName) => {
+                        const destination = getExplorerDestination(tableName);
+                        if (destination) void navigate(destination);
+                    }}
                 />
             )}
         </Box>

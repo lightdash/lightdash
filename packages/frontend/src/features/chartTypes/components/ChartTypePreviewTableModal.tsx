@@ -12,6 +12,7 @@ type Props = {
     /** The chart type's registry slug, when it is a registry install */
     registrySlug: string | null;
     onClose: () => void;
+    onSelectTable?: (tableName: string) => void;
 };
 
 /**
@@ -25,6 +26,7 @@ const ChartTypePreviewTableModal: FC<Props> = ({
     dataAppVizUuid,
     registrySlug,
     onClose,
+    onSelectTable,
 }) => {
     const navigate = useNavigate();
     const { track } = useTracking();
@@ -47,6 +49,10 @@ const ChartTypePreviewTableModal: FC<Props> = ({
                     name: EventName.CHART_TYPE_PREVIEW_IN_EXPLORER,
                     properties: { projectUuid, registrySlug, tableName },
                 });
+                if (onSelectTable) {
+                    onSelectTable(tableName);
+                    return;
+                }
                 void navigate(
                     `/projects/${projectUuid}/tables/${tableName}?dataAppVizUuid=${dataAppVizUuid}&chartSidebar=configure`,
                 );

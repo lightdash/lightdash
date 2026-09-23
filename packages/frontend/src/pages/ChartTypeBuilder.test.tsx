@@ -3,6 +3,7 @@ import {
     DimensionType,
     FieldType,
     MetricType,
+    MergeJoinType,
     VizAggregationOptions,
     VizIndexType,
     type ReadyQueryResultsPage,
@@ -705,7 +706,7 @@ describe('ChartTypeBuilder', () => {
         );
     });
 
-    it.each(['chart', 'explore'] as const)(
+    it.each(['chart', 'explore', 'merge'] as const)(
         'pivots %s preview rows for the bound series',
         async (source) => {
             const dimension = (name: string, type = DimensionType.STRING) => ({
@@ -800,7 +801,7 @@ describe('ChartTypeBuilder', () => {
                     },
                 },
             } as unknown as ReturnType<typeof useDataAppVisualization>);
-            if (source === 'chart') {
+            if (source !== 'explore') {
                 vi.mocked(useSavedChartPreviewData).mockReturnValue({
                     data: {
                         ...run,
@@ -812,6 +813,34 @@ describe('ChartTypeBuilder', () => {
                             orders_count: itemsMap.orders_count,
                         },
                         sourceChart: {
+                            originalMetricQuery: {
+                                ...explorerChart.metricQuery,
+                                dimensions:
+                                    source === 'merge'
+                                        ? ['orders_date']
+                                        : ['orders_status', 'orders_date'],
+                                metrics: ['orders_count'],
+                            },
+                            parameters: { region: 'west' },
+                            merge:
+                                source === 'merge'
+                                    ? {
+                                          queries: {
+                                              payments: {
+                                                  explore: 'payments',
+                                                  dimensions: ['payments_date'],
+                                                  metrics: ['payments_total'],
+                                              },
+                                          },
+                                          keys: {
+                                              orders_date: [
+                                                  'payments.payments_date',
+                                              ],
+                                          },
+                                          join: MergeJoinType.LEFT,
+                                          limit: 100,
+                                      }
+                                    : null,
                             metricQuery: {
                                 ...explorerChart.metricQuery,
                                 dimensions: ['orders_status', 'orders_date'],
@@ -855,8 +884,47 @@ describe('ChartTypeBuilder', () => {
                 });
             }
             renderBuilder(
-                `/projects/p1/chart-types/viz-1?${source === 'chart' ? 'savedChartUuid=chart-1' : 'exploreName=orders'}`,
+                `/projects/p1/chart-types/viz-1?${source !== 'explore' ? 'savedChartUuid=chart-1' : 'exploreName=orders'}`,
             );
+            const destination = new URL(
+                screen
+                    .getByRole('link', { name: 'Preview in explorer' })
+                    .getAttribute('href')!,
+                'http://lightdash.local',
+            );
+            const handoff = JSON.parse(
+                destination.searchParams.get('create_saved_chart_version')!,
+            );
+            expect(destination.pathname).toBe('/projects/p1/tables/orders');
+            expect(handoff.metricQuery).toMatchObject({
+                dimensions:
+                    source === 'merge'
+                        ? ['orders_date']
+                        : source === 'chart'
+                          ? ['orders_status', 'orders_date']
+                          : ['orders_date', 'orders_status'],
+                metrics: ['orders_count'],
+            });
+            if (source !== 'explore')
+                expect(handoff.parameters).toEqual({ region: 'west' });
+            if (source === 'merge')
+                expect(destination.searchParams.get('merge')).toContain(
+                    'payments',
+                );
+            expect(handoff.pivotConfig).toEqual({ columns: ['orders_status'] });
+            expect(handoff.chartConfig).toEqual({
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: 'viz-1',
+                    dataAppVizVersion: 1,
+                    fieldMapping: {
+                        date: 'orders_date',
+                        status: 'orders_status',
+                        count: 'orders_count',
+                    },
+                    optionValues: {},
+                },
+            });
             const context: DataAppVizContext = JSON.parse(
                 screen.getByTestId('viz-context').textContent!,
             );
@@ -893,7 +961,7 @@ describe('ChartTypeBuilder', () => {
             expect(
                 within(dialog).getByRole('cell', { name: '11' }),
             ).toBeVisible();
-            if (source === 'chart') {
+            if (source !== 'explore') {
                 fireEvent.click(
                     within(dialog).getByRole('button', { name: 'Close' }),
                 );
@@ -905,6 +973,19 @@ describe('ChartTypeBuilder', () => {
                     screen.getByTestId('viz-context').textContent!,
                 );
                 expect(rebound.fieldMapping.status).toBe('orders_date');
+                const reboundDestination = new URL(
+                    screen
+                        .getByRole('link', { name: 'Preview in explorer' })
+                        .getAttribute('href')!,
+                    'http://lightdash.local',
+                );
+                expect(
+                    JSON.parse(
+                        reboundDestination.searchParams.get(
+                            'create_saved_chart_version',
+                        )!,
+                    ).pivotConfig,
+                ).toEqual({ columns: ['orders_date'] });
                 expect(useSavedChartBindingPreview).toHaveBeenLastCalledWith(
                     expect.objectContaining({
                         fieldMapping: expect.objectContaining({
@@ -1052,11 +1133,27 @@ describe('ChartTypeBuilder', () => {
                 type: ChartType.DATA_APP_VIZ,
                 config: {
                     dataAppVizUuid,
+                    dataAppVizVersion: 1,
                     fieldMapping: {},
                     optionValues: {},
                 },
             },
         });
+    });
+
+    it('waits for an attached saved chart instead of offering an unrelated table', () => {
+        setApp(appMeta());
+        vi.mocked(useAppVersionHistory).mockReturnValue(
+            historyStub([appVersion({ version: 1 })], 1),
+        );
+        vi.mocked(useSavedChartPreviewData).mockReturnValue({
+            data: { status: 'running', chartName: 'Orders', spaceName: null },
+            retry: vi.fn(),
+        });
+        renderBuilder('/projects/p1/chart-types/viz-1?savedChartUuid=chart-1');
+        expect(
+            screen.getByRole('button', { name: 'Preview in explorer' }),
+        ).toBeDisabled();
     });
 
     it('previews a standalone chart type through the table picker', () => {
@@ -1065,7 +1162,25 @@ describe('ChartTypeBuilder', () => {
         vi.mocked(useAppVersionHistory).mockReturnValue(
             historyStub([appVersion({ version: 1 })], 1),
         );
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: {
+                schema: {
+                    fields: [],
+                    configOptions: [
+                        {
+                            name: 'grid',
+                            label: 'Show grid',
+                            type: 'boolean',
+                            default: true,
+                        },
+                    ],
+                    colorPalette: null,
+                },
+            },
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
         renderBuilder(`/projects/p1/chart-types/${dataAppVizUuid}`);
+        fireEvent.click(screen.getByRole('tab', { name: 'Display' }));
+        fireEvent.click(screen.getByLabelText('Show grid'));
 
         expect(
             screen.getByRole('link', { name: 'Chart types' }),
@@ -1087,9 +1202,22 @@ describe('ChartTypeBuilder', () => {
         fireEvent.click(
             screen.getByRole('button', { name: 'Open in explorer' }),
         );
-        expect(screen.getByTestId('location')).toHaveTextContent(
-            `/projects/p1/tables/orders?dataAppVizUuid=${dataAppVizUuid}&chartSidebar=configure`,
+        const destination = new URL(
+            screen.getByTestId('location').textContent!,
+            'http://lightdash.local',
         );
+        expect(destination.pathname).toBe('/projects/p1/tables/orders');
+        expect(destination.searchParams.get('chartSidebar')).toBe('configure');
+        expect(
+            JSON.parse(
+                destination.searchParams.get('create_saved_chart_version')!,
+            ).chartConfig.config,
+        ).toEqual({
+            dataAppVizUuid,
+            dataAppVizVersion: 1,
+            fieldMapping: {},
+            optionValues: { grid: false },
+        });
     });
 
     it('treats malformed Explorer state as a standalone builder session', () => {

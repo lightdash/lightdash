@@ -214,7 +214,14 @@ describe('useSavedChartPreviewData', () => {
         await waitFor(() =>
             expect(result.current.data).toMatchObject({
                 status: 'ready',
-                sourceChart: { metricQuery },
+                sourceChart: {
+                    metricQuery,
+                    originalMetricQuery: {
+                        ...metricQuery,
+                        dimensions: ['orders_date'],
+                        metrics: ['orders_count'],
+                    },
+                },
             }),
         );
     });
