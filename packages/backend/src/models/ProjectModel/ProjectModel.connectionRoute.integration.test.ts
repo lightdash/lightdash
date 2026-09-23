@@ -4,10 +4,10 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     connectionModeTestDatabaseUri,
-    createStandInConnectionModeSchema,
     inRolledBackTransaction,
     insertRoutingTestProject,
     setProjectRoutesMulti,
+    withProjectsWithoutConnectionMode,
 } from '../WarehouseConnectionRouter/connectionModeSchema.testUtils';
 import { ProjectModel } from './ProjectModel';
 
@@ -50,34 +50,45 @@ describe('ProjectModel connection routing on the real schema', () => {
         });
 
         test('resolves a binding to the same credentials as main', async () => {
-            const projectModel = projectModelFor(database);
-            const direct = await projectModel.getWarehouseCredentialsForProject(
+            await withProjectsWithoutConnectionMode(
                 fixture.projectUuid,
+                async (databaseWithoutColumn) => {
+                    const projectModel = projectModelFor(databaseWithoutColumn);
+                    const direct =
+                        await projectModel.getWarehouseCredentialsForProject(
+                            fixture.projectUuid,
+                        );
+                    const routed =
+                        await projectModel.getWarehouseCredentialsForBinding(
+                            fixture.projectUuid,
+                            { kind: 'original' },
+                        );
+                    expect(routed).toEqual(direct);
+                    expect(routed).toMatchObject({
+                        type: WarehouseTypes.POSTGRES,
+                        host: 'warehouse.internal',
+                        password: 'analyst-password',
+                    });
+                },
             );
-            const routed = await projectModel.getWarehouseCredentialsForBinding(
-                fixture.projectUuid,
-                { kind: 'original' },
-            );
-            expect(routed).toEqual(direct);
-            expect(routed).toMatchObject({
-                type: WarehouseTypes.POSTGRES,
-                host: 'warehouse.internal',
-                password: 'analyst-password',
-            });
         });
 
         test('reports connectionRoute single on the project', async () => {
-            const project = await projectModelFor(database).get(
+            await withProjectsWithoutConnectionMode(
                 fixture.projectUuid,
+                async (databaseWithoutColumn) => {
+                    const project = await projectModelFor(
+                        databaseWithoutColumn,
+                    ).get(fixture.projectUuid);
+                    expect(project.connectionRoute).toBe('single');
+                },
             );
-            expect(project.connectionRoute).toBe('single');
         });
     });
 
     describe('with the connection modes schema', () => {
         test('resolves a single-mode project to the same credentials as main', async () => {
             await inRolledBackTransaction(database, async (transaction) => {
-                await createStandInConnectionModeSchema(transaction);
                 const { projectUuid } = await insertRoutingTestProject(
                     transaction,
                     encryptionUtil,
@@ -98,7 +109,6 @@ describe('ProjectModel connection routing on the real schema', () => {
 
         test('refuses credentials for a project that routes multi', async () => {
             await inRolledBackTransaction(database, async (transaction) => {
-                await createStandInConnectionModeSchema(transaction);
                 const { projectUuid } = await insertRoutingTestProject(
                     transaction,
                     encryptionUtil,
@@ -119,7 +129,6 @@ describe('ProjectModel connection routing on the real schema', () => {
 
         test('reads a single project with exactly the one select main issues', async () => {
             await inRolledBackTransaction(database, async (transaction) => {
-                await createStandInConnectionModeSchema(transaction);
                 const { projectUuid } = await insertRoutingTestProject(
                     transaction,
                     encryptionUtil,
@@ -143,7 +152,6 @@ describe('ProjectModel connection routing on the real schema', () => {
 
         test('reads a multi project with one more query for its extra connections', async () => {
             await inRolledBackTransaction(database, async (transaction) => {
-                await createStandInConnectionModeSchema(transaction);
                 const { projectUuid } = await insertRoutingTestProject(
                     transaction,
                     encryptionUtil,
@@ -170,7 +178,6 @@ describe('ProjectModel connection routing on the real schema', () => {
 
         test('reports connectionRoute multi on a project with an extra connection', async () => {
             await inRolledBackTransaction(database, async (transaction) => {
-                await createStandInConnectionModeSchema(transaction);
                 const { projectUuid } = await insertRoutingTestProject(
                     transaction,
                     encryptionUtil,
@@ -186,7 +193,6 @@ describe('ProjectModel connection routing on the real schema', () => {
 
         test('reports connectionRoute single on a multi-mode project with no extra connection', async () => {
             await inRolledBackTransaction(database, async (transaction) => {
-                await createStandInConnectionModeSchema(transaction);
                 const { projectUuid } = await insertRoutingTestProject(
                     transaction,
                     encryptionUtil,

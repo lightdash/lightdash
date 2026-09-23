@@ -5,7 +5,7 @@ import {
     WarehouseTypes,
     type CreatePostgresCredentials,
 } from '@lightdash/common';
-import { type Knex } from 'knex';
+import knex, { type Knex } from 'knex';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
 export const connectionModeTestDatabaseUri = () => {
@@ -25,18 +25,36 @@ export const routingTestCredentials: CreatePostgresCredentials = {
     requireUserCredentials: false,
 };
 
-export const createStandInConnectionModeSchema = async (database: Knex) => {
-    await database.raw(
-        `ALTER TABLE projects ADD COLUMN connection_mode text NOT NULL DEFAULT 'single' CHECK (connection_mode IN ('single', 'multi'))`,
-    );
-    await database.raw(
-        `CREATE TABLE warehouse_connections (
-            warehouse_connection_uuid uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-            project_uuid uuid NOT NULL REFERENCES projects (project_uuid) ON DELETE CASCADE,
-            is_original boolean NOT NULL,
-            name text NOT NULL
-        )`,
-    );
+export const withProjectsWithoutConnectionMode = async (
+    projectUuid: string,
+    run: (database: Knex) => Promise<void>,
+) => {
+    const schema = `connection_mode_absent_${process.pid}_${Date.now()}`;
+    const database = knex({
+        client: 'pg',
+        connection: { connectionString: connectionModeTestDatabaseUri() },
+        searchPath: [schema, 'public'],
+        pool: { min: 0, max: 1 },
+    });
+    try {
+        await database.raw('CREATE SCHEMA ??', [schema]);
+        await database.raw(
+            'CREATE TABLE ??.projects (LIKE public.projects INCLUDING ALL)',
+            [schema],
+        );
+        await database.raw(
+            'INSERT INTO ??.projects OVERRIDING SYSTEM VALUE SELECT * FROM public.projects WHERE project_uuid = ?',
+            [schema, projectUuid],
+        );
+        await database.raw(
+            'ALTER TABLE ??.projects DROP COLUMN connection_mode',
+            [schema],
+        );
+        await run(database);
+    } finally {
+        await database.raw('DROP SCHEMA IF EXISTS ?? CASCADE', [schema]);
+        await database.destroy();
+    }
 };
 
 export const insertRoutingTestProject = async (
@@ -85,11 +103,17 @@ export const setProjectRoutesMulti = async (
     );
     if (connections.length === 0) return;
     await database('warehouse_connections').insert(
-        connections.map(({ name, isOriginal }) => ({
-            project_uuid: projectUuid,
-            is_original: isOriginal,
-            name,
-        })),
+        connections.map(({ name, isOriginal }) =>
+            isOriginal
+                ? { project_uuid: projectUuid, is_original: true, name }
+                : {
+                      project_uuid: projectUuid,
+                      is_original: false,
+                      name,
+                      warehouse_type: WarehouseTypes.POSTGRES,
+                      encrypted_credentials: Buffer.from('extra-ciphertext'),
+                  },
+        ),
     );
 };
 

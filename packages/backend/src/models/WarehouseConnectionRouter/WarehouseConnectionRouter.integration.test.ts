@@ -4,10 +4,10 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     connectionModeTestDatabaseUri,
-    createStandInConnectionModeSchema,
     inRolledBackTransaction,
     insertRoutingTestProject,
     setProjectRoutesMulti,
+    withProjectsWithoutConnectionMode,
 } from './connectionModeSchema.testUtils';
 import { WarehouseConnectionRouter } from './WarehouseConnectionRouter';
 
@@ -67,11 +67,16 @@ describe('WarehouseConnectionRouter on the real schema', () => {
             encryptionUtil,
         );
         try {
-            await expect(
-                new WarehouseConnectionRouter({ database }).getRoute(
-                    fixture.projectUuid,
-                ),
-            ).resolves.toBe('single');
+            await withProjectsWithoutConnectionMode(
+                fixture.projectUuid,
+                async (databaseWithoutColumn) => {
+                    await expect(
+                        new WarehouseConnectionRouter({
+                            database: databaseWithoutColumn,
+                        }).getRoute(fixture.projectUuid),
+                    ).resolves.toBe('single');
+                },
+            );
         } finally {
             await database('organizations')
                 .where('organization_id', fixture.organizationId)
@@ -80,53 +85,44 @@ describe('WarehouseConnectionRouter on the real schema', () => {
     });
 
     test('reads connection_mode on the next call once the column appears', async () => {
-        const probeSchema = `routing_probe_${process.pid}`;
-        const probeDatabase = knex({
-            client: 'pg',
-            connection: { connectionString: connectionModeTestDatabaseUri() },
-            searchPath: [probeSchema, 'public'],
-            pool: { min: 0, max: 1 },
-        });
+        const fixture = await insertRoutingTestProject(
+            database,
+            encryptionUtil,
+        );
         try {
-            await probeDatabase.raw('CREATE SCHEMA ??', [probeSchema]);
-            await probeDatabase.raw(
-                'CREATE TABLE ??.projects (LIKE public.projects INCLUDING ALL)',
-                [probeSchema],
-            );
-            const inserted = await probeDatabase.raw<{
-                rows: { project_uuid: string }[];
-            }>(
-                'INSERT INTO projects (name, organization_id) VALUES (?, ?) RETURNING project_uuid',
-                ['Routing probe project', 1],
-            );
-            const [project] = inserted.rows;
-            const router = new WarehouseConnectionRouter({
-                database: probeDatabase,
-            });
+            await withProjectsWithoutConnectionMode(
+                fixture.projectUuid,
+                async (databaseWithoutColumn) => {
+                    const router = new WarehouseConnectionRouter({
+                        database: databaseWithoutColumn,
+                    });
+                    await expect(
+                        router.getRoute(fixture.projectUuid),
+                    ).resolves.toBe('single');
 
-            await expect(router.getRoute(project.project_uuid)).resolves.toBe(
-                'single',
-            );
+                    await databaseWithoutColumn.raw(
+                        `ALTER TABLE projects ADD COLUMN connection_mode text NOT NULL DEFAULT 'single'`,
+                    );
+                    await setProjectRoutesMulti(
+                        databaseWithoutColumn,
+                        fixture.projectUuid,
+                        [{ name: 'Finance', isOriginal: false }],
+                    );
 
-            await createStandInConnectionModeSchema(probeDatabase);
-            await setProjectRoutesMulti(probeDatabase, project.project_uuid, [
-                { name: 'Finance', isOriginal: false },
-            ]);
-
-            await expect(router.getRoute(project.project_uuid)).resolves.toBe(
-                'multi',
+                    await expect(
+                        router.getRoute(fixture.projectUuid),
+                    ).resolves.toBe('multi');
+                },
             );
         } finally {
-            await probeDatabase.raw('DROP SCHEMA IF EXISTS ?? CASCADE', [
-                probeSchema,
-            ]);
-            await probeDatabase.destroy();
+            await database('organizations')
+                .where('organization_id', fixture.organizationId)
+                .delete();
         }
     });
 
     test('routes single for an unknown project so the caller reports its own error', async () => {
         await inRolledBackTransaction(database, async (transaction) => {
-            await createStandInConnectionModeSchema(transaction);
             await expect(
                 new WarehouseConnectionRouter({
                     database: transaction,
@@ -137,7 +133,6 @@ describe('WarehouseConnectionRouter on the real schema', () => {
 
     test('routes single for a single-mode project without reading warehouse_connections', async () => {
         await inRolledBackTransaction(database, async (transaction) => {
-            await createStandInConnectionModeSchema(transaction);
             const { projectUuid } = await insertRoutingTestProject(
                 transaction,
                 encryptionUtil,
@@ -167,7 +162,6 @@ describe('WarehouseConnectionRouter on the real schema', () => {
 
     test('routes multi for a multi-mode project with an extra connection', async () => {
         await inRolledBackTransaction(database, async (transaction) => {
-            await createStandInConnectionModeSchema(transaction);
             const { projectUuid } = await insertRoutingTestProject(
                 transaction,
                 encryptionUtil,
@@ -186,7 +180,6 @@ describe('WarehouseConnectionRouter on the real schema', () => {
 
     test('routes single for a multi-mode project with no extra connection', async () => {
         await inRolledBackTransaction(database, async (transaction) => {
-            await createStandInConnectionModeSchema(transaction);
             const { projectUuid } = await insertRoutingTestProject(
                 transaction,
                 encryptionUtil,
@@ -204,7 +197,6 @@ describe('WarehouseConnectionRouter on the real schema', () => {
 
     test('refuses a multi route and tags the route and binding kind', async () => {
         await inRolledBackTransaction(database, async (transaction) => {
-            await createStandInConnectionModeSchema(transaction);
             const { projectUuid } = await insertRoutingTestProject(
                 transaction,
                 encryptionUtil,
