@@ -323,6 +323,7 @@ import {
     decideCodingAgentSessionStart,
     findCodingAgentCompactionOutcome,
     findCodingAgentSessionId,
+    findCodingAgentSessionInit,
     isCodingAgentSessionLostFailure,
     shouldCompactCodingAgentSession,
     versionCompactedCodingAgentSession,
@@ -5272,9 +5273,10 @@ export class AppGenerateService extends BaseService {
             result: CodingAgentCompactionRun['result'],
             detail: string,
             usage: ClaudeGenerationUsage | null = null,
+            cliVersion: string | null = null,
         ): CodingAgentCompactionRun => {
             const durationMs = AppGenerateService.elapsed(start);
-            const line = `App ${appUuid}: session compaction ${result} after ${durationMs}ms`;
+            const line = `App ${appUuid}: session compaction ${result} after ${durationMs}ms (cli=${cliVersion ?? 'unknown'})`;
             if (result === 'success') this.logger.info(line);
             else this.logger.warn(`${line}: ${detail}`);
             return { result, durationMs, usage };
@@ -5308,14 +5310,17 @@ export class AppGenerateService extends BaseService {
             );
             const outcome = findCodingAgentCompactionOutcome(result.stdout);
             const usage = findClaudeResultUsage(result.stdout);
+            const cliVersion =
+                findCodingAgentSessionInit(result.stdout)?.cliVersion ?? null;
             if (outcome?.result === 'success') {
-                return done('success', '', usage);
+                return done('success', '', usage, cliVersion);
             }
             if (outcome?.result === 'failed') {
                 return done(
                     'failed',
                     outcome.error ?? 'no reason reported',
                     usage,
+                    cliVersion,
                 );
             }
             return done(

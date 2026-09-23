@@ -114,9 +114,32 @@ describe('parseCodingAgentSessionInit', () => {
         '{"type":"system","subtype":"init","cwd":"/app","session_id":"f228a01a-fef5-4872-a344-1d875e934fcf","tools":["Read","Write"],"model":"claude-sonnet-4-5"}';
 
     it('returns the session id of the init event', () => {
-        expect(parseCodingAgentSessionInit(initLine)).toBe(
-            'f228a01a-fef5-4872-a344-1d875e934fcf',
-        );
+        expect(parseCodingAgentSessionInit(initLine)).toEqual({
+            sessionId: 'f228a01a-fef5-4872-a344-1d875e934fcf',
+            cliVersion: null,
+        });
+    });
+
+    it('returns the CLI version when the init event carries one', () => {
+        expect(
+            parseCodingAgentSessionInit(
+                '{"type":"system","subtype":"init","session_id":"f228a01a-fef5-4872-a344-1d875e934fcf","claude_code_version":"2.1.272"}',
+            ),
+        ).toEqual({
+            sessionId: 'f228a01a-fef5-4872-a344-1d875e934fcf',
+            cliVersion: '2.1.272',
+        });
+    });
+
+    it('treats an empty CLI version as absent', () => {
+        expect(
+            parseCodingAgentSessionInit(
+                '{"type":"system","subtype":"init","session_id":"f228a01a-fef5-4872-a344-1d875e934fcf","claude_code_version":""}',
+            ),
+        ).toEqual({
+            sessionId: 'f228a01a-fef5-4872-a344-1d875e934fcf',
+            cliVersion: null,
+        });
     });
 
     it.each<[string, string]>([

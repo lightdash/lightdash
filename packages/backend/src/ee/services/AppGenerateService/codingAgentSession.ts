@@ -71,44 +71,61 @@ export const codingAgentSessionFlags = (
 // uuid-like shape.
 const SESSION_ID_PATTERN = /^[A-Za-z0-9._-]{1,128}$/;
 
-// Session id from the CLI's `system`/`init` stream-json line; null otherwise.
-export const parseCodingAgentSessionInit = (line: string): string | null => {
-    let event: Record<string, unknown>;
+export type CodingAgentSessionInit = {
+    sessionId: string;
+    // Null on CLIs that predate `claude_code_version` in the init event.
+    cliVersion: string | null;
+};
+
+// The `system` stream-json event with the given subtype; null otherwise.
+const parseCodingAgentSystemEvent = (
+    line: string,
+    subtype: string,
+): Record<string, unknown> | null => {
+    let event: unknown;
     try {
         event = JSON.parse(line);
     } catch {
         return null;
     }
     if (event === null || typeof event !== 'object') return null;
-    if (event.type !== 'system' || event.subtype !== 'init') return null;
-    const sessionId = event.session_id;
-    return typeof sessionId === 'string' && SESSION_ID_PATTERN.test(sessionId)
-        ? sessionId
+    const record = event as Record<string, unknown>;
+    return record.type === 'system' && record.subtype === subtype
+        ? record
         : null;
 };
 
-// CLI version from the `system`/`init` line; null when absent (older CLIs).
-export const parseCodingAgentCliVersion = (line: string): string | null => {
-    let event: Record<string, unknown>;
-    try {
-        event = JSON.parse(line);
-    } catch {
+// Session id + CLI version from the `system`/`init` line; null otherwise.
+export const parseCodingAgentSessionInit = (
+    line: string,
+): CodingAgentSessionInit | null => {
+    const event = parseCodingAgentSystemEvent(line, 'init');
+    if (event === null) return null;
+    const sessionId = event.session_id;
+    if (typeof sessionId !== 'string' || !SESSION_ID_PATTERN.test(sessionId)) {
         return null;
     }
-    if (event === null || typeof event !== 'object') return null;
-    if (event.type !== 'system' || event.subtype !== 'init') return null;
     const version = event.claude_code_version;
-    return typeof version === 'string' && version.length > 0 ? version : null;
+    return {
+        sessionId,
+        cliVersion:
+            typeof version === 'string' && version.length > 0 ? version : null,
+    };
 };
 
-// First session id in a stream-json stdout; null when no init line was seen.
-export const findCodingAgentSessionId = (stdout: string): string | null => {
+// First init event in a stream-json stdout; null when none was seen.
+export const findCodingAgentSessionInit = (
+    stdout: string,
+): CodingAgentSessionInit | null => {
     for (const line of stdout.split('\n')) {
-        const sessionId = parseCodingAgentSessionInit(line);
-        if (sessionId !== null) return sessionId;
+        const init = parseCodingAgentSessionInit(line);
+        if (init !== null) return init;
     }
     return null;
 };
+
+export const findCodingAgentSessionId = (stdout: string): string | null =>
+    findCodingAgentSessionInit(stdout)?.sessionId ?? null;
 
 // The CLI's message when `--resume <id>` names a session it cannot find. It
 // appears on stderr and in the final result event's `errors` list.
@@ -201,14 +218,8 @@ export type CodingAgentCompactionOutcome =
 const parseCodingAgentCompactionStatus = (
     line: string,
 ): CodingAgentCompactionOutcome | null => {
-    let event: Record<string, unknown>;
-    try {
-        event = JSON.parse(line);
-    } catch {
-        return null;
-    }
-    if (event === null || typeof event !== 'object') return null;
-    if (event.type !== 'system' || event.subtype !== 'status') return null;
+    const event = parseCodingAgentSystemEvent(line, 'status');
+    if (event === null) return null;
     if (event.compact_result === 'success') return { result: 'success' };
     if (event.compact_result === 'failed') {
         return {
