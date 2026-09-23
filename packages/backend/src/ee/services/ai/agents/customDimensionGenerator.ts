@@ -3,7 +3,7 @@ import {
     type CustomDimensionFieldContext,
     type GenerateCustomDimensionRequest,
 } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -126,16 +126,17 @@ export async function generateCustomDimension(
         'generateCustomDimension',
         'custom-dimension',
     );
-    const result = await generateObject({
+    const result = await generateText({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        experimental_telemetry: telemetry,
-        schema: CustomDimensionSchema,
+        ...telemetry,
+        output: Output.object({ schema: CustomDimensionSchema }),
+        allowSystemInMessages: true,
         messages: buildCustomDimensionMessages(context),
     });
 
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
-    return result.object;
+    return result.output;
 }

@@ -37,7 +37,7 @@ const executeGenerateDataApp = (tool: GenerateDataAppTool) =>
             chartSlugs: ['revenue-by-month'],
             themeSlug: null,
         },
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     ) as Promise<GenerateDataAppOutput>;
 
 describe('getGenerateDataApp', () => {

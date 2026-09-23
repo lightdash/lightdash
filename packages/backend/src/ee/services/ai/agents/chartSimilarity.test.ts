@@ -1,4 +1,4 @@
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import {
     chartSimilaritySchema,
     compareChartQueries,
@@ -6,7 +6,10 @@ import {
     type ChartSimilarityInput,
 } from './chartSimilarity';
 
-vi.mock('ai', () => ({ generateObject: vi.fn() }));
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: vi.fn(),
+}));
 vi.mock('../../../../analytics/aiUsage', () => ({
     emitAiUsage: vi.fn(),
     languageModelUsageToTokens: vi.fn(),
@@ -104,7 +107,7 @@ it.each([
 });
 
 it('does not silently truncate a query or send an oversized prompt', async () => {
-    vi.mocked(generateObject).mockClear();
+    vi.mocked(generateText).mockClear();
     await expect(
         compareChartQueries(
             { model: 'test', keyManagement: null },
@@ -114,12 +117,12 @@ it('does not silently truncate a query or send an oversized prompt', async () =>
             },
         ),
     ).rejects.toThrow('budget');
-    expect(generateObject).not.toHaveBeenCalled();
+    expect(generateText).not.toHaveBeenCalled();
 });
 
 it('bounds the model call, preserves query details, and sanitizes its result', async () => {
-    vi.mocked(generateObject).mockResolvedValue({
-        object: {
+    vi.mocked(generateText).mockResolvedValue({
+        output: {
             matches: [
                 {
                     uuid: 'unknown',
@@ -135,7 +138,7 @@ it('bounds the model call, preserves query details, and sanitizes its result', a
         input,
     );
     expect(result).toEqual([]);
-    expect(generateObject).toHaveBeenCalledWith(
+    expect(generateText).toHaveBeenCalledWith(
         expect.objectContaining({
             maxRetries: 0,
             maxOutputTokens: 1500,

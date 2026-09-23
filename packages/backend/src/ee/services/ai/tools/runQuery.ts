@@ -142,6 +142,7 @@ type Dependencies = {
     searchFieldValues?: SearchFieldValuesFn;
     updateProgress: UpdateProgressFn;
     runAsyncQuery: RunAsyncQueryFn;
+    agentContext: AgentContext;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
     deferSlackVisualization?: DeferSlackVisualizationFn;
@@ -548,6 +549,7 @@ export const getRunQuery = ({
     enableFastResponse = false,
     updateProgress,
     runAsyncQuery,
+    agentContext: ctx,
     getPrompt,
     sendFile,
     deferSlackVisualization,
@@ -601,11 +603,10 @@ export const getRunQuery = ({
         ...toolView,
         description,
         inputSchema,
-        execute: async (toolArgs, { experimental_context: context }) => {
+        execute: async (toolArgs) => {
             try {
                 await updateProgress('Running your query...');
 
-                const ctx = AgentContext.from(context);
                 let queryTool: ToolRunQueryArgsTransformed;
                 let persistedExpressionArgs: ToolRunQueryExpressionResolvedArgs | null =
                     null;

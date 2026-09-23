@@ -20,19 +20,26 @@ import ExplorerChartSidebar from './ExplorerChartSidebar';
 vi.mock('../VisualizationCard/VisualizationConfig', () => ({
     default: () => <div>Configure controls</div>,
 }));
+const { captureGalleryProps, refetchSelectedType } = vi.hoisted(() => ({
+    captureGalleryProps: vi.fn(),
+    refetchSelectedType: vi.fn(),
+}));
 vi.mock('./ChartTypeGallery', () => ({
-    default: ({ onConfigure }: { onConfigure: () => void }) => (
-        <>
-            {/* The real gallery's search carries this id; the sidebar sends
+    default: (props: { onConfigure: () => void }) => {
+        captureGalleryProps(props);
+        return (
+            <>
+                {/* The real gallery's search carries this id; the sidebar sends
                 focus to it by id when the step opens. */}
-            <input
-                id={CHART_GALLERY_SEARCH_ID}
-                aria-label="Search chart types"
-            />
-            <button>Select chart</button>
-            <button onClick={onConfigure}>Configure Table</button>
-        </>
-    ),
+                <input
+                    id={CHART_GALLERY_SEARCH_ID}
+                    aria-label="Search chart types"
+                />
+                <button>Select chart</button>
+                <button onClick={props.onConfigure}>Configure Table</button>
+            </>
+        );
+    },
     ChartTypeThumbnail: () => <span>Table thumbnail</span>,
 }));
 vi.mock('./AddChartTypeMenu', () => ({
@@ -47,17 +54,24 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
         isLoading: false,
     }),
 }));
-const { selectedProjectType, vizConfig } = vi.hoisted(() => ({
-    selectedProjectType: { current: undefined as unknown },
-    vizConfig: {
-        current: {
-            chartType: 'table',
-            chartConfig: {},
-        } as unknown,
-    },
-}));
+const { selectedProjectType, selectedTypeError, vizConfig } = vi.hoisted(
+    () => ({
+        selectedProjectType: { current: undefined as unknown },
+        selectedTypeError: { current: null as unknown },
+        vizConfig: {
+            current: {
+                chartType: 'table',
+                chartConfig: {},
+            } as unknown,
+        },
+    }),
+);
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
-    useDataAppVisualization: () => ({ data: selectedProjectType.current }),
+    useDataAppVisualization: () => ({
+        data: selectedProjectType.current,
+        error: selectedTypeError.current,
+        refetch: refetchSelectedType,
+    }),
 }));
 vi.mock('../../../features/apps/hooks/useCanEditDataApp', () => ({
     useCanEditDataAppChecker: () => () => true,
@@ -109,8 +123,33 @@ const ReopenHarness = () => {
 describe('ExplorerChartSidebar', () => {
     beforeEach(() => {
         selectedProjectType.current = undefined;
+        selectedTypeError.current = null;
+        captureGalleryProps.mockClear();
+        refetchSelectedType.mockClear();
         vizConfig.current = { chartType: ChartType.TABLE, chartConfig: {} };
         dataAppsFlagEnabled.current = true;
+    });
+
+    it('passes its existing selected type lookup and retry to the gallery', async () => {
+        selectedProjectType.current = {
+            dataAppVizUuid: 'selected-type',
+            name: 'Selected type',
+        };
+        selectedTypeError.current = { error: { statusCode: 503 } };
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.DATA_APP_VIZ}
+                onClose={vi.fn()}
+            />,
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Change chart type' }),
+        );
+        const props = captureGalleryProps.mock.lastCall![0];
+        expect(props.selectedProjectType).toBe(selectedProjectType.current);
+        expect(props.selectedProjectTypeError).toBe(selectedTypeError.current);
+        props.onRetrySelectedProjectType();
+        expect(refetchSelectedType).toHaveBeenCalledOnce();
     });
 
     it('offers one labeled configuration action for the current selection', async () => {

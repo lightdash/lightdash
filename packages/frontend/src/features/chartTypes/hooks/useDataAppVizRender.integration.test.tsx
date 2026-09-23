@@ -15,6 +15,7 @@ const metadata = (version: number): DataAppVizRenderMetadata => ({
     state: 'ready',
     version,
     latestBuildInProgress: false,
+    preview: null,
     schema: { fields: [], configOptions: [], colorPalette: null },
 });
 

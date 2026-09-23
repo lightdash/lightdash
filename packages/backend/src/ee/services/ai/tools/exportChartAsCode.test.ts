@@ -15,7 +15,10 @@ describe('exportChartAsCode', () => {
             ]),
             prepare: vi.fn(),
         };
-        const exportTool = getExportChartAsCode(artifacts);
+        const exportTool = getExportChartAsCode(
+            new AgentContext([validExplore]),
+            artifacts,
+        );
 
         const output = await exportTool.execute!(
             {
@@ -28,7 +31,7 @@ describe('exportChartAsCode', () => {
             {
                 messages: [],
                 toolCallId: 'export',
-                experimental_context: new AgentContext([validExplore]),
+                context: {},
             },
         );
         if (Symbol.asyncIterator in output) {

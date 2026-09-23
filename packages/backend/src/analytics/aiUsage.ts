@@ -39,6 +39,43 @@ export type AiCallFeature =
     | 'data-app-analysis';
 
 /**
+ * Runtime membership for `AiCallFeature`. `satisfies` makes this exhaustive, so
+ * adding a feature to the union without registering it here fails to compile
+ * rather than silently failing to parse back off the runtime context.
+ */
+const AI_CALL_FEATURES = {
+    agent: true,
+    'deep-research': true,
+    'agent-subtask': true,
+    'chart-metadata': true,
+    'chart-similarity': true,
+    'document-summary': true,
+    'thread-title': true,
+    tooltip: true,
+    'artifact-question': true,
+    'agent-suggestions': true,
+    'table-calc': true,
+    'custom-dimension': true,
+    'formula-table-calc': true,
+    compaction: true,
+    embedding: true,
+    'project-router': true,
+    'agent-selector': true,
+    'review-classifier': true,
+    'prompt-input-classifier': true,
+    'ai-agent-memory': true,
+    'llm-judge': true,
+    'data-app': true,
+    'managed-agent': true,
+    'external-connection-config': true,
+    'delivery-summary': true,
+    'data-app-analysis': true,
+} satisfies Record<AiCallFeature, true>;
+
+const isAiCallFeature = (value: unknown): value is AiCallFeature =>
+    typeof value === 'string' && Object.hasOwn(AI_CALL_FEATURES, value);
+
+/**
  * Whether the AI call ran on Lightdash's own (instance) provider key or the
  * customer's self-managed (bring-your-own) key. Lets analytics/CS tell who is
  * on a Lightdash-managed key — e.g. to follow up on upgrades, or spot orgs
@@ -152,18 +189,40 @@ export const registerAiUsageTracker = (fn: AiUsageTrackFn): void => {
 };
 
 /**
- * Structural subset of the `experimental_telemetry` config built by
- * `getAiCallTelemetry`, which every AI call site already holds — its metadata
- * carries the feature + attribution dimensions.
+ * Structural subset of the telemetry options built by `getAiCallTelemetry`,
+ * which every AI call site already holds. AI SDK 7 removed `telemetry.metadata`,
+ * so the attribution dimensions now travel as the call-level `runtimeContext`.
  */
 type AiCallTelemetryConfig = {
-    functionId: string;
-    metadata: Record<string, string | number | boolean>;
+    telemetry: { functionId: string };
+    runtimeContext: Record<string, string | number | boolean>;
 };
 
+/**
+ * Dimensions this event is built from. The runtime context is a flat bag
+ * because callers may add their own keys, so naming the readable ones here is
+ * what stops a typo silently resolving to `null`. `getAiCallTelemetry` imports
+ * this to decide which dimensions may reach telemetry providers.
+ */
+export type AiCallRuntimeContextKey =
+    | 'feature'
+    | 'organizationUuid'
+    | 'projectUuid'
+    | 'agentUuid'
+    | 'threadUuid'
+    | 'promptUuid'
+    | 'userUuid'
+    | 'model'
+    | 'provider'
+    | 'keyManagement'
+    | 'appUuid'
+    | 'runUuid'
+    | 'deepResearchRunUuid'
+    | 'deepResearchPhase';
+
 const getMetadataString = (
-    metadata: AiCallTelemetryConfig['metadata'],
-    key: string,
+    metadata: AiCallTelemetryConfig['runtimeContext'],
+    key: AiCallRuntimeContextKey,
 ): string | null => {
     const value = metadata[key];
     return typeof value === 'string' ? value : null;
@@ -182,11 +241,19 @@ export const emitAiUsage = (
     tokens: AiUsageTokens,
 ): void => {
     try {
-        const { metadata } = telemetry;
+        const metadata = telemetry.runtimeContext;
         const userUuid = getMetadataString(metadata, 'userUuid');
+        // getAiCallTelemetry only ever writes a typed feature, so this is a
+        // programming error; the surrounding catch logs it rather than letting
+        // an unusable event reach the analytics contract.
+        if (!isAiCallFeature(metadata.feature)) {
+            throw new Error(
+                `Unknown AI call feature: ${String(metadata.feature)}`,
+            );
+        }
         const properties: AiUsageEvent['properties'] = {
-            feature: metadata.feature as AiCallFeature,
-            functionId: telemetry.functionId,
+            feature: metadata.feature,
+            functionId: telemetry.telemetry.functionId,
             organizationId: getMetadataString(metadata, 'organizationUuid'),
             projectId: getMetadataString(metadata, 'projectUuid'),
             aiAgentId: getMetadataString(metadata, 'agentUuid'),

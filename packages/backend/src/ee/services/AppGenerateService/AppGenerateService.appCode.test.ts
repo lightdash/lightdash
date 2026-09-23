@@ -27,8 +27,9 @@ vi.mock('e2b', () => ({
     CommandExitError: class extends Error {},
     ALL_TRAFFIC: '*',
 }));
-vi.mock('ai', () => ({
-    generateObject: vi.fn(),
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: vi.fn(),
 }));
 
 const PROJECT_UUID = 'proj-uuid-1';
@@ -318,7 +319,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             undefined, // no viz schema
-            { forceSlug: true, thread: IMPORT_THREAD },
+            { forceSlug: true, thread: IMPORT_THREAD, vizPreview: null },
         );
 
         // S3 PutObjectCommand sent for source.tar
@@ -433,6 +434,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             undefined, // no viz schema
+            { vizPreview: null },
         );
 
         // scheduler enqueued with version 5 and project org, not user's org
@@ -472,7 +474,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined,
             undefined,
-            { forceSlug: true, thread: IMPORT_THREAD },
+            { forceSlug: true, thread: IMPORT_THREAD, vizPreview: null },
         );
     });
 
@@ -493,7 +495,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined,
             undefined,
-            { forceSlug: true, thread: IMPORT_THREAD },
+            { forceSlug: true, thread: IMPORT_THREAD, vizPreview: null },
         );
     });
 
@@ -592,7 +594,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined,
             expect.anything(),
-            { forceSlug: true, thread: IMPORT_THREAD },
+            { forceSlug: true, thread: IMPORT_THREAD, vizPreview: null },
         );
         expect(result.warnings).toEqual(
             expect.arrayContaining([
@@ -794,6 +796,7 @@ describe('AppGenerateService.importAppCode', () => {
         const code = makeCode();
         code.manifest.template = 'data_app_viz';
         code.manifest.vizSchema = VIZ_SCHEMA;
+        code.manifest.preview = { rows: [{ category: 'North', value: 42 }] };
 
         await service.importAppCode(makeUser(), PROJECT_UUID, {
             code,
@@ -806,7 +809,11 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
-            { forceSlug: true, thread: IMPORT_THREAD },
+            {
+                forceSlug: true,
+                thread: IMPORT_THREAD,
+                vizPreview: code.manifest.preview,
+            },
         );
     });
 
@@ -830,6 +837,7 @@ describe('AppGenerateService.importAppCode', () => {
         const code = makeCode();
         code.manifest.template = 'data_app_viz';
         code.manifest.vizSchema = VIZ_SCHEMA;
+        code.manifest.preview = { rows: [{ category: 'North', value: 42 }] };
 
         await service.importAppCode(makeUser(), PROJECT_UUID, {
             code,
@@ -844,7 +852,22 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
+            { vizPreview: code.manifest.preview },
         );
+    });
+
+    it('rejects preview data that does not match the declared schema before creating a version', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        const code = makeCode(undefined, {
+            template: 'data_app_viz',
+            vizSchema: VIZ_SCHEMA,
+            preview: { rows: [{ typo: 42 }] },
+        });
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, { code }),
+        ).rejects.toThrow('Invalid preview');
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
     });
 
     it('throws ParameterError when the manifest vizSchema is invalid', async () => {
@@ -898,7 +921,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             undefined, // vizSchema not persisted for non-viz apps
-            { forceSlug: true, thread: IMPORT_THREAD },
+            { forceSlug: true, thread: IMPORT_THREAD, vizPreview: null },
         );
     });
 
@@ -922,7 +945,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             undefined, // no vizSchema in the manifest
-            { forceSlug: true, thread: IMPORT_THREAD },
+            { forceSlug: true, thread: IMPORT_THREAD, vizPreview: null },
         );
     });
 
@@ -1835,6 +1858,33 @@ describe('AppGenerateService.importAppCode unchanged skip', () => {
         );
     });
 
+    it('creates a new version when only preview data changes', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue({
+            ...existingApp,
+            template: 'data_app_viz',
+        });
+        appModel.getLatestVersion.mockResolvedValue({
+            ...readyVersion,
+            viz_schema: VIZ_SCHEMA,
+            viz_preview: { rows: [{ category: 'North', value: 10 }] },
+        });
+        mockStoredSourceTar(await makeMatchingSourceTar());
+        const preview = { rows: [{ category: 'North', value: 42 }] };
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, {
+                template: 'data_app_viz',
+                vizSchema: VIZ_SCHEMA,
+                preview,
+            }),
+            targetAppUuid: EXISTING_APP_UUID,
+        });
+        expect(result.action).toBe('append');
+        expect(appModel.createVersion.mock.calls[0][7]).toEqual({
+            vizPreview: preview,
+        });
+    });
+
     it('skips when an identical build is already in flight', async () => {
         const { service, appModel, schedulerClient } = buildService();
         appModel.findApp.mockResolvedValue(existingApp);
@@ -2212,7 +2262,7 @@ describe('importAppCode slug identity', () => {
             undefined,
             // Exact round-trip: the manifest slug must be forced, never
             // silently dedupe-suffixed.
-            { forceSlug: true, thread: IMPORT_THREAD },
+            { forceSlug: true, thread: IMPORT_THREAD, vizPreview: null },
         );
     });
 
@@ -2340,7 +2390,7 @@ describe('importAppCode slug validation', () => {
             expect.any(Object),
             undefined,
             undefined,
-            { forceSlug: true, thread: IMPORT_THREAD },
+            { forceSlug: true, thread: IMPORT_THREAD, vizPreview: null },
         );
     });
 });

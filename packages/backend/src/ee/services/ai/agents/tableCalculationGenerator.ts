@@ -10,7 +10,7 @@ import {
     NumberSeparator,
     TableCalculationFieldContext,
 } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -270,12 +270,13 @@ export async function generateTableCalculation(
         'generateTableCalculation',
         'table-calc',
     );
-    const result = await generateObject({
+    const result = await generateText({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        experimental_telemetry: telemetry,
-        schema: TableCalculationSchema,
+        ...telemetry,
+        output: Output.object({ schema: TableCalculationSchema }),
+        allowSystemInMessages: true,
         messages: [
             {
                 role: 'system',
@@ -419,5 +420,5 @@ export async function generateTableCalculation(
 
     emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
-    return result.object;
+    return result.output;
 }

@@ -303,7 +303,7 @@ describe.skipIf(process.env.AUTOPILOT_CONTENT_EVAL !== 'true')(
                         return response;
                     }),
                 );
-                const { tools: dataTools, availableExplores } = await service[
+                const { tools: dataTools } = await service[
                     'buildAutopilotDataTools'
                 ](actor, projectUuid, SEED_ORG_1.organization_uuid);
                 const agent = renderAutopilotAgent({
@@ -329,7 +329,6 @@ describe.skipIf(process.env.AUTOPILOT_CONTENT_EVAL !== 'true')(
 For this focused chart-workflow evaluation, replace the general maintenance checklist with these tasks: repair the broken chart named "${broken.name}" (UUID ${broken.uuid}), preserving its label, description and unrelated configuration. Discover the replacement for its retired amount metric from the semantic model. Then create one TABLE chart named "Revenue by status ${suffix}" showing total revenue grouped by order status, sorted by status ascending. These are two distinct requested outputs. Load the chart skill and relevant resources, and execute each proposed query before saving. Respect all protections and scope restrictions. Finish with write_slack_summary, after loading the Slack skill. Do not flag or delete content. Do not perform other maintenance tasks.`,
                     },
                     dataTools,
-                    availableExplores,
                     executeTool,
                     projectName: 'Isolated real chart evaluation',
                     maxSteps: 32,

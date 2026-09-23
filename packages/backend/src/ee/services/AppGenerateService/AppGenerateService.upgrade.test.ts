@@ -6,8 +6,9 @@ vi.mock('e2b', () => ({
     CommandExitError: class extends Error {},
     ALL_TRAFFIC: '*',
 }));
-vi.mock('ai', () => ({
-    generateObject: vi.fn(),
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: vi.fn(),
 }));
 
 const PROJECT_UUID = 'proj-uuid-1';
@@ -197,6 +198,7 @@ describe('upgradeApp', () => {
             undefined,
             undefined,
             undefined,
+            { vizPreview: undefined },
         );
 
         const payload = schedulerClient.appGeneratePipeline.mock.calls[0][0];
@@ -311,6 +313,7 @@ describe('upgradeApp', () => {
             undefined,
             undefined,
             VIZ_SCHEMA,
+            { vizPreview: undefined },
         );
         const payload = schedulerClient.appGeneratePipeline.mock.calls[0][0];
         // Query and Sheets features never apply to a chart type: neither the

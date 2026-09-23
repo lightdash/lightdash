@@ -18601,6 +18601,42 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.string-or-number-or-boolean-or-null_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'double' },
+                    { dataType: 'boolean' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizPreview: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                optionValues: { ref: 'DataAppVizOptionValues' },
+                rows: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'Record_string.string-or-number-or-boolean-or-null_',
+                    },
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppVizRenderMetadata: {
         dataType: 'refAlias',
         type: {
@@ -18611,6 +18647,14 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         latestBuildInProgress: {
                             dataType: 'boolean',
+                            required: true,
+                        },
+                        preview: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'DataAppVizPreview' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
                             required: true,
                         },
                         schema: { ref: 'DataAppVizSchema', required: true },
@@ -19546,6 +19590,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                preview: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DataAppVizPreview' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 vizSchema: { ref: 'DataAppVizSchema', required: true },
                 channel: {
                     dataType: 'union',
@@ -20244,6 +20296,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                vizPreview: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DataAppVizPreview' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 vizSchema: {
                     dataType: 'union',
                     subSchemas: [
@@ -20896,6 +20955,13 @@ const models: TsoaRoute.Models = {
                         dataType: 'refAlias',
                         ref: 'DataAppManifestExternalConnection',
                     },
+                },
+                preview: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DataAppVizPreview' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                 },
                 vizSchema: { ref: 'DataAppVizSchema' },
                 template: {
@@ -55502,24 +55568,6 @@ const models: TsoaRoute.Models = {
                 type: { ref: 'GsheetColumnType' },
                 label: { dataType: 'string' },
                 key: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string-or-number-or-boolean-or-null_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'string' },
-                    { dataType: 'double' },
-                    { dataType: 'boolean' },
-                    { dataType: 'enum', enums: [null] },
-                ],
             },
             validators: {},
         },

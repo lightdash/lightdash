@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "2.308.0",
+  "version": "2.309.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -74,7 +74,7 @@
     "@mastra/schema-compat": "0.11.2",
     "@sidvind/better-ajv-errors": "7.0.0",
     "@types/lodash": "4.14.202",
-    "ai": "6.0.205",
+    "ai": "7.0.106",
     "ajv": "8.18.0",
     "ajv-errors": "3.0.0",
     "ajv-formats": "2.1.1",

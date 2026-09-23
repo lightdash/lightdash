@@ -2,6 +2,7 @@ import {
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
     getEffectiveOptionValues,
+    getDataAppVizPreviewSchema,
     getPivotValueColumnName,
     VizAggregationOptions,
     VizIndexType,
@@ -9,6 +10,7 @@ import {
     type DataAppVizField,
     type DataAppVizOptionValues,
     type DataAppVizSchema,
+    type DataAppVizPreview,
     type PivotValuesColumn,
     type ResultColumn,
     type ResultColumns,
@@ -23,6 +25,12 @@ const SAMPLE_CATEGORIES = [
     { raw: '2026-04-01', formatted: 'Apr 2026' },
     { raw: '2026-05-01', formatted: 'May 2026' },
     { raw: '2026-06-01', formatted: 'Jun 2026' },
+    { raw: '2026-07-01', formatted: 'Jul 2026' },
+    { raw: '2026-08-01', formatted: 'Aug 2026' },
+    { raw: '2026-09-01', formatted: 'Sep 2026' },
+    { raw: '2026-10-01', formatted: 'Oct 2026' },
+    { raw: '2026-11-01', formatted: 'Nov 2026' },
+    { raw: '2026-12-01', formatted: 'Dec 2026' },
 ];
 const SAMPLE_SERIES = ['Series A', 'Series B', 'Series C'];
 
@@ -32,12 +40,14 @@ const sampleColumnId = (field: DataAppVizField): string =>
 /** Deterministic pseudo-random metric value. */
 const sampleMetricValue = (rowIndex: number, metricIndex: number): number =>
     Math.round(
-        20 + 80 * Math.abs(Math.sin((rowIndex + 1) * 3.7 * (metricIndex + 1))),
+        30 * (metricIndex + 1) +
+            5 * rowIndex +
+            8 * Math.sin((rowIndex + 1) * (metricIndex + 1)),
     );
 
 const cell = (
-    raw: string | number,
-    formatted: string = String(raw),
+    raw: string | number | boolean | null,
+    formatted: string = raw === null ? '' : String(raw),
 ): { value: { raw: unknown; formatted: string } } => ({
     value: { raw, formatted },
 });
@@ -192,6 +202,108 @@ const buildPivotedSample = ({
     };
 };
 
+const buildDemoSample = (
+    schema: DataAppVizSchema,
+    fields: SampleFields,
+    demoRows: NonNullable<DataAppVizPreview['rows']>,
+    shouldPivot: boolean,
+): Pick<DataAppVizContext, 'rows' | 'pivotDetails'> => {
+    const rows = demoRows.map((row) =>
+        Object.fromEntries(
+            schema.fields.map((field) => [
+                sampleColumnId(field),
+                cell(row[field.name] ?? null),
+            ]),
+        ),
+    );
+    if (!shouldPivot) return { rows, pivotDetails: null };
+
+    const { dimensions, series, metrics } = fields;
+    const originalColumns = Object.fromEntries(
+        schema.fields.map((field) => {
+            const raw = demoRows.find((row) => row[field.name] != null)?.[
+                field.name
+            ];
+            const type =
+                typeof raw === 'number'
+                    ? DimensionType.NUMBER
+                    : typeof raw === 'boolean'
+                      ? DimensionType.BOOLEAN
+                      : typeof raw === 'string' &&
+                          /^\d{4}-\d{2}-\d{2}(T.*)?$/.test(raw)
+                        ? DimensionType.DATE
+                        : DimensionType.STRING;
+            return [sampleColumnId(field), sampleResultColumn(field, type)];
+        }),
+    );
+    const valuesColumns = new Map<string, PivotValuesColumn>();
+    const groupedRows = new Map<string, ResultRow>();
+    const groups = new Map<string, number>();
+    for (const source of demoRows) {
+        const indexKey = JSON.stringify(
+            dimensions.map((field) => source[field.name] ?? null),
+        );
+        const seriesValues = series.map((field) => source[field.name] ?? null);
+        const groupKey = JSON.stringify(seriesValues);
+        if (!groups.has(groupKey)) groups.set(groupKey, groups.size + 1);
+        let row = groupedRows.get(indexKey);
+        if (!row) {
+            row = Object.fromEntries(
+                dimensions.map((field) => [
+                    sampleColumnId(field),
+                    cell(source[field.name] ?? null),
+                ]),
+            );
+            groupedRows.set(indexKey, row);
+        }
+        for (const metric of metrics) {
+            const columnName = getPivotValueColumnName(
+                sampleColumnId(metric),
+                VizAggregationOptions.ANY,
+                seriesValues,
+            );
+            valuesColumns.set(columnName, {
+                referenceField: sampleColumnId(metric),
+                pivotColumnName: columnName,
+                aggregation: VizAggregationOptions.ANY,
+                pivotValues: series.map((field, i) => ({
+                    referenceField: sampleColumnId(field),
+                    value: seriesValues[i],
+                    formatted:
+                        seriesValues[i] === null ? '' : String(seriesValues[i]),
+                })),
+                columnIndex: groups.get(groupKey)!,
+            });
+            // ANY keeps the first value when multiple demo rows share a group.
+            row[columnName] ??= cell(source[metric.name] ?? null);
+        }
+    }
+    const pivotedRows = [...groupedRows.values()];
+    for (const row of pivotedRows) {
+        for (const column of valuesColumns.keys()) row[column] ??= cell(null);
+    }
+    return {
+        rows: pivotedRows,
+        pivotDetails: {
+            totalColumnCount: valuesColumns.size,
+            indexColumn: dimensions.map((field) => ({
+                reference: sampleColumnId(field),
+                type:
+                    originalColumns[sampleColumnId(field)].type ===
+                    DimensionType.DATE
+                        ? VizIndexType.TIME
+                        : VizIndexType.CATEGORY,
+            })),
+            valuesColumns: [...valuesColumns.values()],
+            groupByColumns: series.map((field) => ({
+                reference: sampleColumnId(field),
+            })),
+            sortBy: undefined,
+            originalColumns,
+        },
+    };
+};
+
 /**
  * Deterministic `DataAppVizContext` fabricated from a declared schema alone,
  * so previews can render without real data.
@@ -200,7 +312,10 @@ export const buildSampleVizContext = (
     schema: DataAppVizSchema,
     colorPalette: string[] = ECHARTS_DEFAULT_COLORS,
     optionValues: DataAppVizOptionValues = {},
+    preview: DataAppVizPreview | null = null,
 ): DataAppVizContext => {
+    const parsedPreview = getDataAppVizPreviewSchema(schema).safeParse(preview);
+    const demo = parsedPreview.success ? parsedPreview.data : null;
     const fields: SampleFields = {
         dimensions: schema.fields.filter((f) => f.type === 'dimension'),
         series: schema.fields.filter((f) => f.type === 'series'),
@@ -235,7 +350,10 @@ export const buildSampleVizContext = (
                 { label: field.label },
             ]),
         ),
-        options: getEffectiveOptionValues(schema.configOptions, optionValues),
+        options: getEffectiveOptionValues(schema.configOptions, {
+            ...demo?.optionValues,
+            ...optionValues,
+        }),
         colorPalette,
         seriesColors: {},
         valueColors: {},
@@ -243,6 +361,10 @@ export const buildSampleVizContext = (
         underlyingData: { enabled: false },
         drillDown: { enabled: false },
         pointMenu: { enabled: false },
-        ...(shouldPivot ? buildPivotedSample(fields) : buildFlatSample(fields)),
+        ...(demo?.rows
+            ? buildDemoSample(schema, fields, demo.rows, shouldPivot)
+            : shouldPivot
+              ? buildPivotedSample(fields)
+              : buildFlatSample(fields)),
     };
 };

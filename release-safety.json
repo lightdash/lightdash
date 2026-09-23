@@ -1,19 +1,19 @@
 {
   "schemaVersion": "2",
-  "version": "2.308.0",
-  "previousVersion": "2.307.0",
-  "releaseDate": "2026-09-23T12:59:59.009Z",
+  "version": "2.309.0",
+  "previousVersion": "2.308.1",
+  "releaseDate": "2026-09-23T13:30:00.302Z",
   "migrations": {
     "present": true,
     "count": 1,
-    "coreCount": 0,
-    "eeCount": 1,
+    "coreCount": 1,
+    "eeCount": 0,
     "files": [
       {
-        "name": "20260923120000_add_external_connection_user_identity.ts",
-        "edition": "ee",
+        "name": "20260917160000_add_app_version_viz_preview.ts",
+        "edition": "core",
         "tables": [
-          "external_connections"
+          "app_versions"
         ],
         "heaviness": {
           "locksTable": true,

@@ -15,8 +15,9 @@ vi.mock('e2b', () => ({
     CommandExitError: class extends Error {},
     ALL_TRAFFIC: '*',
 }));
-vi.mock('ai', () => ({
-    generateObject: vi.fn(),
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: vi.fn(),
 }));
 
 // Mock appAuthz so permission checks are controllable in tests
@@ -433,6 +434,7 @@ describe('AppGenerateService.getAppCode', () => {
             getLatestReadyVersion: vi.fn().mockResolvedValue({
                 ...fakeAppVersion,
                 viz_schema: vizSchema,
+                viz_preview: { rows: [{ category: 'North', value: 42 }] },
             }),
         };
 
@@ -441,6 +443,9 @@ describe('AppGenerateService.getAppCode', () => {
 
         expect(result.manifest.template).toBe('data_app_viz');
         expect(result.manifest.vizSchema).toEqual(vizSchema);
+        expect(result.manifest.preview).toEqual({
+            rows: [{ category: 'North', value: 42 }],
+        });
     });
 
     it('omits vizSchema from the manifest when the version has no schema', async () => {

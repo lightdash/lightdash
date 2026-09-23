@@ -44,6 +44,7 @@ const makeVersion = (overrides: Record<string, unknown> = {}) => ({
     resources: null,
     dependencies: null,
     viz_schema: vizSchema,
+    viz_preview: null,
     generation_usage: null,
     created_at: new Date('2026-06-30'),
     created_by_user_uuid: 'author-1',
@@ -190,6 +191,7 @@ describe('EmbedService data app viz rendering', () => {
             state: 'ready',
             version: 1,
             schema: vizSchema,
+            preview: null,
             latestBuildInProgress: true,
         });
         expect(savedChartModel.get).toHaveBeenCalledWith(SAVED_CHART_UUID);

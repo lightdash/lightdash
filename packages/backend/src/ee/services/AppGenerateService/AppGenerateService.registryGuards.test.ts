@@ -17,8 +17,9 @@ vi.mock('e2b', () => ({
     CommandExitError: class extends Error {},
     ALL_TRAFFIC: '*',
 }));
-vi.mock('ai', () => ({
-    generateObject: vi.fn(),
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: vi.fn(),
 }));
 
 const PROJECT_UUID = 'project-uuid-1';
@@ -531,6 +532,7 @@ describe('duplicateApp fork lineage', () => {
             version: 4,
             resources: null,
             viz_schema: null,
+            viz_preview: null,
             data_references: null,
         });
 
@@ -560,6 +562,7 @@ describe('duplicateApp fork lineage', () => {
             expect.any(Object),
             undefined,
             undefined,
+            { vizPreview: null },
         );
 
         const [appArg] = appModel.createWithVersion.mock.calls[0] as [

@@ -32,9 +32,9 @@ const args = {
 const options = {
     toolCallId: 'dashboard-call',
     messages: [],
-    experimental_context: new AgentContext([validExplore]),
+    context: {},
 };
-const setup = (fast = true) => {
+const setup = (fast = true, availableExplores = [validExplore]) => {
     const request = vi
         .fn<typeof fetch>()
         .mockImplementation(async (_url, init) => {
@@ -65,6 +65,7 @@ const setup = (fast = true) => {
         .fn()
         .mockResolvedValue({ threadUuid: 'thread-1', promptUuid: 'prompt-1' });
     const tool = getGenerateDashboardV2({
+        agentContext: new AgentContext(availableExplores),
         getPrompt,
         createOrUpdateArtifact,
         decisions: fast
@@ -129,11 +130,8 @@ describe('dashboard artifact layout', () => {
     });
 
     it('does not classify or publish when all source validation fails', async () => {
-        const { tool, request, createOrUpdateArtifact } = setup();
-        await tool.execute!(args, {
-            ...options,
-            experimental_context: new AgentContext([]),
-        });
+        const { tool, request, createOrUpdateArtifact } = setup(true, []);
+        await tool.execute!(args, options);
         expect(request).not.toHaveBeenCalled();
         expect(createOrUpdateArtifact).not.toHaveBeenCalled();
     });

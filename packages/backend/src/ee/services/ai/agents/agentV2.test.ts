@@ -28,6 +28,7 @@ import {
     PROVIDER_BILLING_MESSAGE,
     STEP_CAP_REACHED_MESSAGE,
 } from '../utils/errorMessages';
+import { getStaticToolDescription } from '../utils/toolDescription';
 import {
     buildAgentMessages,
     buildDeepResearchExecutionContextSnapshot,
@@ -652,7 +653,7 @@ describe('empty finishes and interrupts', () => {
             usage: { totalTokens: 10 },
             totalUsage: { totalTokens: 100 },
             steps: [{ text: '' }],
-            reasoning: [],
+            finalStep: { reasoning: [] },
             finishReason: 'tool-calls',
         });
         expect(updatePrompt).toHaveBeenCalledWith(
@@ -883,8 +884,8 @@ describe('recordAgentStepUsage', () => {
         const events: AiUsageEvent[] = [];
         registerAiUsageTracker((event) => events.push(event));
         const telemetry = {
-            functionId: 'generateAgentResponse',
-            metadata: {
+            telemetry: { functionId: 'generateAgentResponse' },
+            runtimeContext: {
                 feature: 'agent',
                 organizationUuid: 'organization-1',
                 projectUuid: 'project-1',
@@ -928,8 +929,8 @@ describe('recordAgentStepUsage', () => {
         await recordAgentStepUsage({
             usage,
             telemetry: {
-                functionId: 'generateAgentResponse',
-                metadata: {
+                telemetry: { functionId: 'generateAgentResponse' },
+                runtimeContext: {
                     feature: 'deep-research',
                     deepResearchRunUuid: 'run-1',
                     deepResearchPhase: 'investigating',
@@ -1847,6 +1848,7 @@ describe('getAgentTools workstream tool gate', () => {
                 types: [],
                 totalCount: 0,
             },
+            new AgentContext([]),
         );
 
     const buildTools = (flags: ToolFlags) =>
@@ -1876,6 +1878,7 @@ describe('getAgentTools workstream tool gate', () => {
                 new Map(),
                 {},
                 { types: [], totalCount: 0 },
+                new AgentContext([validExplore]),
             );
             const result = await tools.getMetadata.execute!(
                 {
@@ -1883,7 +1886,7 @@ describe('getAgentTools workstream tool gate', () => {
                         { type: 'explore', exploreIds: [validExplore.name] },
                     ],
                 },
-                { toolCallId: 'metadata', messages: [] },
+                { toolCallId: 'metadata', messages: [], context: {} },
             );
             expect(JSON.stringify(result).includes('sqlOn')).toBe(enabled);
         },
@@ -1997,11 +2000,12 @@ describe('getAgentTools workstream tool gate', () => {
                     '## Filter expressions',
                 ),
                 visualizationUsesExpressions:
-                    tools.generateVisualization.description?.includes(
-                        'follow the Lightdash Agent system prompt',
-                    ) ?? false,
+                    getStaticToolDescription(
+                        tools.generateVisualization,
+                    )?.includes('follow the Lightdash Agent system prompt') ??
+                    false,
                 fieldValueSearchUsesExpressions:
-                    tools.searchFieldValues.description?.includes(
+                    getStaticToolDescription(tools.searchFieldValues)?.includes(
                         'follow the Lightdash Agent system prompt',
                     ) ?? false,
             }).toEqual({
@@ -2143,6 +2147,7 @@ describe('getAgentTools workstream tool gate', () => {
             new Map(),
             {},
             { types: [], totalCount: 0 },
+            new AgentContext([]),
         );
 
         expect(Object.keys(tools)).toEqual(
@@ -2302,6 +2307,7 @@ describe('getAgentTools workstream tool gate', () => {
                 new Map(),
                 {},
                 { types: [], totalCount: 0 },
+                new AgentContext([]),
             ),
         );
     };
@@ -2938,9 +2944,11 @@ describe('external MCP tool call activity', () => {
                     toolName: 'mcp_issues_search',
                     input: { query: 'bug' },
                 },
-                success: true,
-                output: { content: [] },
-                durationMs: 42,
+                toolOutput: {
+                    type: 'tool-result' as const,
+                    output: { content: [] },
+                },
+                toolExecutionMs: 42,
             });
             await finish({
                 toolCall: {
@@ -2948,9 +2956,11 @@ describe('external MCP tool call activity', () => {
                     toolName: 'mcp_issues_search',
                     input: { query: 'boom' },
                 },
-                success: false,
-                error: new Error('upstream exploded'),
-                durationMs: 7,
+                toolOutput: {
+                    type: 'tool-error' as const,
+                    error: new Error('upstream exploded'),
+                },
+                toolExecutionMs: 7,
             });
             // A tool-level MCP error comes back as a successful execute with
             // isError set, behind the untrusted-output notice
@@ -2960,15 +2970,17 @@ describe('external MCP tool call activity', () => {
                     toolName: 'mcp_issues_search',
                     input: { query: 'rate limited' },
                 },
-                success: true,
-                output: {
-                    isError: true,
-                    content: [
-                        { type: 'text', text: MCP_UNTRUSTED_OUTPUT_NOTICE },
-                        { type: 'text', text: 'Rate limit exceeded' },
-                    ],
+                toolOutput: {
+                    type: 'tool-result' as const,
+                    output: {
+                        isError: true,
+                        content: [
+                            { type: 'text', text: MCP_UNTRUSTED_OUTPUT_NOTICE },
+                            { type: 'text', text: 'Rate limit exceeded' },
+                        ],
+                    },
                 },
-                durationMs: 1.6,
+                toolExecutionMs: 1.6,
             });
             // Built-in tools are not MCP activity
             await finish({
@@ -2977,9 +2989,8 @@ describe('external MCP tool call activity', () => {
                     toolName: 'findContent',
                     input: {},
                 },
-                success: true,
-                output: {},
-                durationMs: 1,
+                toolOutput: { type: 'tool-result' as const, output: {} },
+                toolExecutionMs: 1,
             });
 
             expect(recordMcpToolCall).toHaveBeenCalledTimes(3);

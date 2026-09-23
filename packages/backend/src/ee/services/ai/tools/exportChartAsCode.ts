@@ -8,7 +8,10 @@ import { yamlCodeBlock } from '../utils/GeneratedResponseBlocks';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
-export const getExportChartAsCode = (artifacts?: ArtifactChartExportAccess) =>
+export const getExportChartAsCode = (
+    agentContext: AgentContext,
+    artifacts?: ArtifactChartExportAccess,
+) =>
     tool({
         description:
             'Export a chart as schema-validated chart-as-code YAML without running queries, saving or publishing content. Always call this tool for chart YAML; never reconstruct YAML yourself. For charts generated in this turn pass queryUuid from generateVisualization and null artifact identifiers. For an existing chart in this conversation, use its exact artifactUuid and versionUuid with null queryUuid. If these identifiers are unknown, pass null for all three source identifiers to list available artifacts first; never regenerate the chart just to export it. Never invent or use placeholder UUIDs. Supports built-in semantic, merged and pinned custom charts; use content tools for other sources. Pass null for an unspecified destination slug or spaceSlug: the tool will report exactly what is missing so you can ask the user. Never search content to infer a destination.',
@@ -19,12 +22,14 @@ export const getExportChartAsCode = (artifacts?: ArtifactChartExportAccess) =>
             slug: z.string().min(1).max(255).nullable().optional(),
             spaceSlug: z.string().min(1).max(1024).nullable().optional(),
         }),
-        execute: async (
-            { queryUuid, artifactUuid, versionUuid, slug, spaceSlug },
-            { experimental_context },
-        ) => {
+        execute: async ({
+            queryUuid,
+            artifactUuid,
+            versionUuid,
+            slug,
+            spaceSlug,
+        }) => {
             try {
-                const ctx = AgentContext.from(experimental_context);
                 if (
                     (queryUuid && (artifactUuid || versionUuid)) ||
                     !!artifactUuid !== !!versionUuid
@@ -66,7 +71,7 @@ export const getExportChartAsCode = (artifacts?: ArtifactChartExportAccess) =>
                 let prepared;
                 if (queryUuid) {
                     prepared = prepareChartAsCode(
-                        ctx.getChartExport(queryUuid),
+                        agentContext.getChartExport(queryUuid),
                     );
                 } else {
                     if (!artifacts || !artifactUuid || !versionUuid)
@@ -83,7 +88,8 @@ export const getExportChartAsCode = (artifacts?: ArtifactChartExportAccess) =>
                     spaceSlug,
                 });
                 const result = yamlCodeBlock(yaml);
-                const deliveryToken = ctx.responseBlocks.register(result);
+                const deliveryToken =
+                    agentContext.responseBlocks.register(result);
                 return {
                     result,
                     metadata: { status: 'success' as const, deliveryToken },

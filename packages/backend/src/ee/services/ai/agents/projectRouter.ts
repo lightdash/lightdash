@@ -1,4 +1,4 @@
-import { generateObject, LanguageModel } from 'ai';
+import { generateText, LanguageModel, Output } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -85,10 +85,11 @@ export async function routeProjectForSlack(
         ...telemetry,
         keyManagement: telemetry?.keyManagement ?? null,
     });
-    const result = await generateObject({
+    const result = await generateText({
         model,
-        experimental_telemetry: telemetryConfig,
-        schema: ProjectRoutingSchema,
+        ...telemetryConfig,
+        output: Output.object({ schema: ProjectRoutingSchema }),
+        allowSystemInMessages: true,
         messages: [
             {
                 role: 'system',
@@ -112,7 +113,7 @@ Rules:
     });
     emitAiUsage(telemetryConfig, languageModelUsageToTokens(result.usage));
 
-    const { projectUuid } = result.object;
+    const { projectUuid } = result.output;
     if (
         projectUuid &&
         projects.some((project) => project.projectUuid === projectUuid)

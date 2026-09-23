@@ -13,7 +13,10 @@ vi.mock('e2b', () => ({
     CommandExitError: class extends Error {},
     ALL_TRAFFIC: '*',
 }));
-vi.mock('ai', () => ({ generateObject: vi.fn() }));
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: vi.fn(),
+}));
 
 const USER_UUID = 'user-uuid';
 const APP_UUID = '11111111-1111-4111-8111-111111111111';

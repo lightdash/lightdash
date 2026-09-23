@@ -67,7 +67,12 @@ const ChartTypeSamplePreview: FC<Props> = ({
     const sampleContext = useMemo(
         () =>
             readyMetadata
-                ? buildSampleVizContext(readyMetadata.schema, colorPalette)
+                ? buildSampleVizContext(
+                      readyMetadata.schema,
+                      colorPalette,
+                      {},
+                      readyMetadata.preview ?? null,
+                  )
                 : undefined,
         [readyMetadata, colorPalette],
     );

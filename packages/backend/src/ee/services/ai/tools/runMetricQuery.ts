@@ -39,12 +39,14 @@ const toolDefinition = runMetricQueryToolDefinition.for('agent');
 type Dependencies = {
     decisions?: AiDecisionClient;
     runAsyncQuery: RunAsyncQueryFn;
+    agentContext: AgentContext;
     maxLimit: number;
 };
 
 export const getRunMetricQuery = ({
     decisions,
     runAsyncQuery,
+    agentContext: ctx,
     maxLimit,
 }: Dependencies) => {
     const validateVizTool = (
@@ -96,13 +98,9 @@ export const getRunMetricQuery = ({
 
     return tool({
         ...toolDefinition,
-        execute: async (
-            toolArgs,
-            { experimental_context: context, abortSignal, messages },
-        ) => {
+        execute: async (toolArgs, { abortSignal, messages }) => {
             try {
                 abortSignal?.throwIfAborted();
-                const ctx = AgentContext.from(context);
                 const vizTool =
                     toolRunMetricQueryArgsSchemaTransformed.parse(toolArgs);
 

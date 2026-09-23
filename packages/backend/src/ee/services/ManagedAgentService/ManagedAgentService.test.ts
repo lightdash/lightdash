@@ -20,7 +20,6 @@ import {
 } from '../../../services/ProjectService/ProjectService.mock';
 import { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { getAvailableModels, getModel } from '../ai/models';
-import { AgentContext } from '../ai/utils/AgentContext';
 import { ManagedAgentService } from './ManagedAgentService';
 
 const captureAutopilotFailure = vi.fn();
@@ -577,7 +576,6 @@ describe('ManagedAgentService discovery scope', () => {
                         messages: [
                             { role: 'user', content: 'Count completed orders' },
                         ],
-                        experimental_context: new AgentContext([validExplore]),
                     },
                 );
                 expect(output.metadata.status).toBe('success');

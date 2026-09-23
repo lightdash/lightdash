@@ -1,22 +1,28 @@
 // Stub the e2b/ai SDKs before importing AppGenerateService so the tests never
 // reach the real sandbox or model client.
-import { generateObject } from 'ai';
-import { type z } from 'zod';
-import { AppGenerateService } from './AppGenerateService';
+import { generateText } from 'ai';
+import {
+    AppGenerateService,
+    buildAppMetadataSchema,
+} from './AppGenerateService';
 
 vi.mock('e2b', () => ({
     Sandbox: class {},
     CommandExitError: class extends Error {},
     ALL_TRAFFIC: '*',
 }));
-vi.mock('ai', () => ({
-    generateObject: vi.fn(),
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: vi.fn(),
 }));
 vi.mock('../ai/models', () => ({
     resolveKeyManagement: vi.fn(() => 'lightdash'),
 }));
 vi.mock('../ai/utils/aiCallTelemetry', () => ({
-    getAiCallTelemetry: vi.fn(() => ({ isEnabled: false })),
+    getAiCallTelemetry: vi.fn(() => ({
+        runtimeContext: { feature: 'data-app' },
+        telemetry: { functionId: 'test' },
+    })),
     getLanguageModelAttribution: vi.fn(() => ({})),
 }));
 
@@ -27,7 +33,7 @@ const FAST_MODEL_OPTIONS = {
     keyManagement: 'lightdash-managed',
 };
 
-const generateObjectMock = vi.mocked(generateObject);
+const generateTextMock = vi.mocked(generateText);
 
 type MetadataResult = {
     name: string | null;
@@ -100,22 +106,20 @@ function buildService() {
 
 /** What the metadata call actually handed to the model. */
 function sentCall() {
-    const call = generateObjectMock.mock.calls[0][0] as unknown as {
-        schema: z.ZodObject<z.ZodRawShape>;
+    const call = generateTextMock.mock.calls[0][0] as unknown as {
         messages: { role: string; content: string }[];
     };
     return {
-        schemaKeys: Object.keys(call.schema.shape),
         system: call.messages.find((m) => m.role === 'system')!.content,
     };
 }
 
 function mockObject(object: Record<string, unknown>) {
-    generateObjectMock.mockResolvedValue({ object, usage: {} } as never);
+    generateTextMock.mockResolvedValue({ output: object, usage: {} } as never);
 }
 
 beforeEach(() => {
-    generateObjectMock.mockReset();
+    generateTextMock.mockReset();
 });
 
 describe('AppGenerateService app metadata generation', () => {
@@ -129,9 +133,11 @@ describe('AppGenerateService app metadata generation', () => {
 
         const result = await generateMetadata(true);
 
-        expect(generateObjectMock).toHaveBeenCalledOnce();
-        const { schemaKeys, system } = sentCall();
-        expect(schemaKeys).toContain('icon');
+        expect(generateTextMock).toHaveBeenCalledOnce();
+        const { system } = sentCall();
+        expect(Object.keys(buildAppMetadataSchema(true).shape)).toContain(
+            'icon',
+        );
         expect(system).toContain('reusable chart type');
         expect(result).toEqual({
             name: 'Radial Gauge',
@@ -146,8 +152,10 @@ describe('AppGenerateService app metadata generation', () => {
 
         const result = await generateMetadata(false);
 
-        const { schemaKeys, system } = sentCall();
-        expect(schemaKeys).not.toContain('icon');
+        const { system } = sentCall();
+        expect(Object.keys(buildAppMetadataSchema(false).shape)).not.toContain(
+            'icon',
+        );
         expect(system).not.toContain('reusable chart type');
         expect(result.icon).toBeNull();
     });
@@ -172,6 +180,6 @@ describe('AppGenerateService app metadata generation', () => {
             description: '',
             icon: null,
         });
-        expect(generateObjectMock).not.toHaveBeenCalled();
+        expect(generateTextMock).not.toHaveBeenCalled();
     });
 });

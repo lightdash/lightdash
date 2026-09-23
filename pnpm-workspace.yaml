@@ -28,7 +28,7 @@ overrides:
   nan: 2.27.0
   express-rate-limit: 8.3.0
   '@hapi/content': 6.0.2
-  undici: 6.28.0
+  undici: 6.28.1
   handlebars: 4.7.9
   basic-ftp: 5.3.1
   'vite@>=7.0.0 <7.3.2': 7.3.5

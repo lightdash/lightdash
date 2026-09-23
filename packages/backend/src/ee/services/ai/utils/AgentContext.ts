@@ -6,25 +6,9 @@ import { GeneratedResponseBlocks } from './GeneratedResponseBlocks';
 type AgentStage = 'query' | 'api' | 'render';
 
 /**
- * Type-safe wrapper for experimental_context from AI SDK
- *
- * Provides validated access to context data passed to tool execution functions,
- * avoiding unsafe type casts.
- *
- * @example
- * ```typescript
- * // Create context instance
- * const context = new AgentContext({ availableExplores });
- *
- * // Pass it in experimental_context
- * experimental_context: context
- *
- * // Use in tool
- * execute: async (args, { experimental_context: context }) => {
- *   const ctx = AgentContext.from(context);
- *   const explore = ctx.getExplore('users');
- * }
- * ```
+ * State shared by the tools of one agent turn: the explore lookup, the
+ * chart-export handoff between runQuery and exportChartAsCode, and the
+ * generated response blocks. Tools receive it as their AI SDK tool context.
  */
 export class AgentContext {
     previousQueryUuid: string | undefined;
@@ -77,23 +61,6 @@ export class AgentContext {
             );
         }
         return structuredClone(chart);
-    }
-
-    /**
-     * Creates a validated AgentContext from unknown context
-     *
-     * @param context - Raw context from experimental_context
-     * @returns AgentContext instance with type-safe access methods
-     * @throws {Error} If context validation fails
-     */
-    static from(context: unknown): AgentContext {
-        if (!(context instanceof AgentContext)) {
-            throw new Error(
-                'Invalid agent context: expected AgentContext instance',
-            );
-        }
-
-        return context;
     }
 
     /**

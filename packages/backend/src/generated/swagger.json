@@ -19888,12 +19888,54 @@
                 "type": "object",
                 "description": "The full declaration a data app viz emits: data-binding fields + config form."
             },
+            "Record_string.string-or-number-or-boolean-or-null_": {
+                "properties": {},
+                "additionalProperties": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "number",
+                            "format": "double"
+                        },
+                        {
+                            "type": "boolean"
+                        }
+                    ],
+                    "nullable": true
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DataAppVizPreview": {
+                "properties": {
+                    "optionValues": {
+                        "$ref": "#/components/schemas/DataAppVizOptionValues"
+                    },
+                    "rows": {
+                        "items": {
+                            "$ref": "#/components/schemas/Record_string.string-or-number-or-boolean-or-null_"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
             "DataAppVizRenderMetadata": {
                 "anyOf": [
                     {
                         "properties": {
                             "latestBuildInProgress": {
                                 "type": "boolean"
+                            },
+                            "preview": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/DataAppVizPreview"
+                                    }
+                                ],
+                                "nullable": true
                             },
                             "schema": {
                                 "$ref": "#/components/schemas/DataAppVizSchema"
@@ -19910,6 +19952,7 @@
                         },
                         "required": [
                             "latestBuildInProgress",
+                            "preview",
                             "schema",
                             "version",
                             "state"
@@ -20866,6 +20909,14 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "preview": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppVizPreview"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "vizSchema": {
                         "$ref": "#/components/schemas/DataAppVizSchema"
                     },
@@ -20909,6 +20960,7 @@
                     "screenshots",
                     "thumbnailDark",
                     "thumbnail",
+                    "preview",
                     "vizSchema",
                     "minLightdashVersion",
                     "changelog",
@@ -21570,6 +21622,14 @@
             },
             "AppVersionResources": {
                 "properties": {
+                    "vizPreview": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppVizPreview"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "vizSchema": {
                         "allOf": [
                             {
@@ -22236,6 +22296,14 @@
                             "$ref": "#/components/schemas/DataAppManifestExternalConnection"
                         },
                         "type": "array"
+                    },
+                    "preview": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppVizPreview"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "vizSchema": {
                         "$ref": "#/components/schemas/DataAppVizSchema"
@@ -55620,26 +55688,6 @@
                 "required": ["key"],
                 "type": "object"
             },
-            "Record_string.string-or-number-or-boolean-or-null_": {
-                "properties": {},
-                "additionalProperties": {
-                    "anyOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "type": "number",
-                            "format": "double"
-                        },
-                        {
-                            "type": "boolean"
-                        }
-                    ],
-                    "nullable": true
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "GsheetRow": {
                 "$ref": "#/components/schemas/Record_string.string-or-number-or-boolean-or-null_"
             },
@@ -64458,7 +64506,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.308.0",
+        "version": "2.309.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

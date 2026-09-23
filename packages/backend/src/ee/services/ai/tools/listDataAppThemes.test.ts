@@ -16,7 +16,7 @@ type Output = { result: string; metadata: { status: string } };
 const execute = (tool: ReturnType<typeof getListDataAppThemes>) =>
     tool.execute!(
         {},
-        { messages: [], toolCallId: 'tool-call-1' },
+        { messages: [], toolCallId: 'tool-call-1', context: {} },
     ) as Promise<Output>;
 
 describe('getListDataAppThemes', () => {

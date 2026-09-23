@@ -164,7 +164,7 @@ export const composeHeartbeatNarrative = async ({
                 },
             ],
             abortSignal: AbortSignal.timeout(COMPOSE_TIMEOUT_MS),
-            experimental_telemetry: telemetry,
+            ...telemetry,
         });
         emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
         const text = tidyNarrative(result.text);
