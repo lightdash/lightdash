@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import {
     down,
     up,
-} from '../20260918120000_scope_project_artifacts_to_connections';
+} from '../20260923100700_scope_project_artifacts_to_connections';
 
 type ProjectRow = { project_id: number; project_uuid: string };
 type ProjectsTable = Knex.CompositeTableType<
