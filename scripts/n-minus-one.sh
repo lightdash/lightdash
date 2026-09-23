@@ -8,13 +8,16 @@ Run the previous release against a database migrated to this checkout.
 Usage: scripts/n-minus-one.sh --previous-ref <tag> [--previous-dir <dir>] [--database <name>]
        scripts/n-minus-one.sh --prepare-only [--database <name>]
 
+--prepare-only migrates and seeds a fresh database with this checkout and stops.
+
 Needs a Postgres server (PGHOST, PGPORT, PGUSER, PGPASSWORD) and an
 S3-compatible store (S3_ENDPOINT, S3_BUCKET, S3_REGION, S3_ACCESS_KEY,
 S3_SECRET_KEY), dbt1.12 on PATH, and LIGHTDASH_LICENSE_KEY for the model tests.
 
-Steps (--prepare-only stops after step 1):
-  1. Migrate and seed a fresh database with this checkout.
-  2. Check out and build the previous release.
+Steps:
+  1. Check out and build the previous release.
+  2. Migrate and seed a fresh database with the previous release, then migrate
+     it with this checkout, as an upgrade does.
   3. Run the previous release's model integration tests that use the shared
      integration setup (a migrated, seeded database) on that database, except
      N1_SKIPPED_MODEL_TESTS, which fail on their own release schema too.
@@ -59,7 +62,6 @@ export PGPORT="${PGPORT:-5432}"
 export LIGHTDASH_SECRET="${LIGHTDASH_SECRET:-n-minus-one-secret}"
 export LIGHTDASH_LICENSE_KEY="${LIGHTDASH_LICENSE_KEY:-}"
 export SITE_URL="http://localhost:${BACKEND_PORT}"
-export DBT_DEMO_DIR="$HEAD_DIR/examples/full-jaffle-shop-demo"
 
 CONNECTION_BASE="postgres://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}"
 export PGCONNECTIONURI="${CONNECTION_BASE}/${DATABASE}"
@@ -86,22 +88,43 @@ admin_sql() {
     PGDATABASE=postgres psql -v ON_ERROR_STOP=1 -qc "$1"
 }
 
+run_dbt() {
+    local project_root="$1"
+    shift
+    (cd "$project_root" && PGDATABASE="$DATABASE" dbt1.12 "$@" \
+        --project-dir examples/full-jaffle-shop-demo/dbt \
+        --profiles-dir examples/full-jaffle-shop-demo/profiles)
+}
+
+seed_with() {
+    local project_root="$1"
+    run_dbt "$project_root" deps &&
+        run_dbt "$project_root" seed --full-refresh &&
+        run_dbt "$project_root" run --full-refresh --exclude fanouts_sales_targets &&
+        (cd "$project_root" &&
+            DBT_DEMO_DIR="$project_root/examples/full-jaffle-shop-demo" \
+            PGDATABASE="$DATABASE" pnpm -F backend seed)
+}
+
+create_database() {
+    admin_sql "DROP DATABASE IF EXISTS $DATABASE WITH (FORCE)" &&
+        admin_sql "CREATE DATABASE $DATABASE"
+}
+
 prepare_head_database() {
     step "Migrate and seed $DATABASE with $(git -C "$HEAD_DIR" rev-parse --short HEAD)"
-    admin_sql "DROP DATABASE IF EXISTS $DATABASE WITH (FORCE)" &&
-        admin_sql "CREATE DATABASE $DATABASE" &&
+    create_database &&
         (cd "$HEAD_DIR" && pnpm -F backend migrate) &&
-        (cd "$HEAD_DIR" && PGDATABASE="$DATABASE" dbt1.12 deps \
-            --project-dir examples/full-jaffle-shop-demo/dbt \
-            --profiles-dir examples/full-jaffle-shop-demo/profiles) &&
-        (cd "$HEAD_DIR" && PGDATABASE="$DATABASE" dbt1.12 seed --full-refresh \
-            --project-dir examples/full-jaffle-shop-demo/dbt \
-            --profiles-dir examples/full-jaffle-shop-demo/profiles) &&
-        (cd "$HEAD_DIR" && PGDATABASE="$DATABASE" dbt1.12 run --full-refresh \
-            --exclude fanouts_sales_targets \
-            --project-dir examples/full-jaffle-shop-demo/dbt \
-            --profiles-dir examples/full-jaffle-shop-demo/profiles) &&
-        (cd "$HEAD_DIR" && PGDATABASE="$DATABASE" pnpm -F backend seed)
+        seed_with "$HEAD_DIR"
+}
+
+prepare_upgraded_database() {
+    step "Migrate and seed $DATABASE with $PREVIOUS_REF"
+    create_database &&
+        (cd "$PREVIOUS_DIR" && pnpm -F backend migrate) &&
+        seed_with "$PREVIOUS_DIR" || return 1
+    step "Upgrade $DATABASE to $(git -C "$HEAD_DIR" rev-parse --short HEAD)"
+    (cd "$HEAD_DIR" && pnpm -F backend migrate)
 }
 
 prepare_previous_release() {
@@ -181,16 +204,19 @@ run_previous_smoke_tests() {
         return 1
     fi
     (cd "$PREVIOUS_DIR/packages/api-tests" &&
-        PGDATABASE="$DATABASE" DBT_PROJECT_DIR="$DBT_DEMO_DIR/dbt" \
+        PGDATABASE="$DATABASE" \
+        DBT_PROJECT_DIR="$PREVIOUS_DIR/examples/full-jaffle-shop-demo/dbt" \
         pnpm exec vitest run --config vitest.config.ts "${tests[@]}")
 }
 
-prepare_head_database || { echo "Could not migrate and seed the database with this checkout." >&2; exit 1; }
 if [ "$PREPARE_ONLY" = true ]; then
+    prepare_head_database || { echo "Could not migrate and seed the database with this checkout." >&2; exit 1; }
     printf '\n%s is migrated and seeded.\n' "$DATABASE"
     exit 0
 fi
+
 prepare_previous_release || { echo "Could not build the previous release $PREVIOUS_REF." >&2; exit 1; }
+prepare_upgraded_database || { echo "Could not upgrade a $PREVIOUS_REF database to this checkout." >&2; exit 1; }
 
 run_previous_model_tests || FAILURES+=("previous release model integration tests")
 if start_previous_backend; then
