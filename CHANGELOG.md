@@ -1,3 +1,15 @@
+# [2.307.0](https://github.com/lightdash/lightdash/compare/2.306.0...2.307.0) (2026-09-23)
+
+
+### Bug Fixes
+
+* **explorer:** preserve chart picker selections ([#29790](https://github.com/lightdash/lightdash/issues/29790)) ([e80060a](https://github.com/lightdash/lightdash/commit/e80060a87892a25615630e521067478b0aaadf96))
+
+
+### Features
+
+* **ai:** add GPT-6 Sol and Luna and deprecate GPT-5.6 presets ([#29785](https://github.com/lightdash/lightdash/issues/29785)) ([6609c26](https://github.com/lightdash/lightdash/commit/6609c266f65dec43fbd2ec22cb6f696c0bb3bfc0))
+
 # [2.306.0](https://github.com/lightdash/lightdash/compare/2.305.6...2.306.0) (2026-09-23)
 
 
