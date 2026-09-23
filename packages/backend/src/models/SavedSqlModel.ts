@@ -5,6 +5,7 @@ import {
     CreateSqlChart,
     generateSlug,
     NotFoundError,
+    ParameterError,
     ResolvedProjectColorPalette,
     SpaceSummary,
     SqlChart,
@@ -33,6 +34,10 @@ import {
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
 import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
+
+export type SqlChartVersionBinding = {
+    warehouseConnectionUuid: string | null;
+};
 
 const isProjectSlugUniqueViolation = (error: unknown): boolean =>
     error instanceof DatabaseError &&
@@ -315,8 +320,29 @@ export class SavedSqlModel {
             config: AllVizChartConfig;
             sql: string;
             limit: number;
+            binding?: SqlChartVersionBinding;
         },
     ): Promise<string> {
+        const warehouseConnectionUuid = data.binding?.warehouseConnectionUuid;
+        if (warehouseConnectionUuid) {
+            const connection = await trx('warehouse_connections')
+                .innerJoin(
+                    SavedSqlTableName,
+                    `${SavedSqlTableName}.project_uuid`,
+                    'warehouse_connections.project_uuid',
+                )
+                .where(`${SavedSqlTableName}.saved_sql_uuid`, data.savedSqlUuid)
+                .where(
+                    'warehouse_connections.warehouse_connection_uuid',
+                    warehouseConnectionUuid,
+                )
+                .first('warehouse_connections.warehouse_connection_uuid');
+            if (!connection) {
+                throw new ParameterError(
+                    `Connection not found in this project: ${warehouseConnectionUuid}`,
+                );
+            }
+        }
         const [{ saved_sql_version_uuid: savedSqlVersionUuid }] = await trx(
             SavedSqlVersionsTableName,
         ).insert(
@@ -327,6 +353,12 @@ export class SavedSqlModel {
                 config: data.config,
                 chart_kind: data.config.type,
                 created_by_user_uuid: data.userUuid,
+                ...(data.binding
+                    ? {
+                          warehouse_connection_uuid:
+                              data.binding.warehouseConnectionUuid,
+                      }
+                    : {}),
             },
             ['saved_sql_version_uuid'],
         );
@@ -344,6 +376,7 @@ export class SavedSqlModel {
         userUuid: string,
         projectUuid: string,
         data: CreateSqlChart,
+        binding?: SqlChartVersionBinding,
     ): Promise<{
         savedSqlUuid: string;
         slug: string;
@@ -389,6 +422,7 @@ export class SavedSqlModel {
                         config: data.config,
                         sql: data.sql,
                         limit: data.limit,
+                        binding,
                     },
                 );
                 return { savedSqlUuid, slug, savedSqlVersionUuid };
@@ -401,11 +435,14 @@ export class SavedSqlModel {
             });
     }
 
-    async update(data: {
-        userUuid: string;
-        savedSqlUuid: string;
-        sqlChart: UpdateSqlChart;
-    }): Promise<{ savedSqlUuid: string; savedSqlVersionUuid: string | null }> {
+    async update(
+        data: {
+            userUuid: string;
+            savedSqlUuid: string;
+            sqlChart: UpdateSqlChart;
+        },
+        binding?: SqlChartVersionBinding,
+    ): Promise<{ savedSqlUuid: string; savedSqlVersionUuid: string | null }> {
         return this.database.transaction(async (trx) => {
             if (data.sqlChart.unversionedData) {
                 await trx(SavedSqlTableName)
@@ -425,6 +462,7 @@ export class SavedSqlModel {
                     config: data.sqlChart.versionedData.config,
                     sql: data.sqlChart.versionedData.sql,
                     limit: data.sqlChart.versionedData.limit,
+                    binding,
                 });
             }
 

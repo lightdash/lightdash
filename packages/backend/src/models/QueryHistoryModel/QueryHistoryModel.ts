@@ -123,6 +123,7 @@ export class QueryHistoryModel {
              * SQL text changing, so a refresh must produce a new key.
              */
             externalSourceSalt?: string;
+            warehouseConnectionUuid?: string;
         },
     ) {
         const CACHE_VERSION = 'v3'; // change when we want to force invalidation
@@ -149,6 +150,10 @@ export class QueryHistoryModel {
 
         if (resultsIdentifiers.externalSourceSalt) {
             queryHashKey += `.${resultsIdentifiers.externalSourceSalt}`;
+        }
+
+        if (resultsIdentifiers.warehouseConnectionUuid) {
+            queryHashKey += `.connection:${resultsIdentifiers.warehouseConnectionUuid}`;
         }
 
         return crypto.createHash('sha256').update(queryHashKey).digest('hex');
@@ -188,6 +193,7 @@ export class QueryHistoryModel {
             | 'createdByActorType'
             | 'createdBy'
         >,
+        binding?: { warehouseConnectionUuid: string | null },
     ) {
         const [result] = await this.database(QueryHistoryTableName)
             .insert({
@@ -233,6 +239,12 @@ export class QueryHistoryModel {
                 pre_aggregate_fallback_reason: null,
                 processing_started_at: null,
                 duckdb_execution: null,
+                ...(binding
+                    ? {
+                          warehouse_connection_uuid:
+                              binding.warehouseConnectionUuid,
+                      }
+                    : {}),
             })
             .returning('query_uuid');
 

@@ -1,5 +1,6 @@
 import { QueryHistoryStatus, type QueryHistory } from '@lightdash/common';
 import type { Knex } from 'knex';
+import { createHash } from 'node:crypto';
 import { QueryHistoryModel } from './QueryHistoryModel';
 
 describe('QueryHistoryModel', () => {
@@ -182,6 +183,59 @@ describe('QueryHistoryModel', () => {
                 userUuid,
             });
             expect(hash1).not.toBe(hash2);
+        });
+    });
+
+    describe('getCacheKey for extra connections', () => {
+        const identifiers = {
+            sql: 'SELECT * FROM orders',
+            timezone: 'UTC',
+            userUuid: null,
+        };
+
+        test('extra-connection cache keys differ per connection', () => {
+            const warehouseB = QueryHistoryModel.getCacheKey('project', {
+                ...identifiers,
+                warehouseConnectionUuid: 'connection-b',
+            });
+            const warehouseC = QueryHistoryModel.getCacheKey('project', {
+                ...identifiers,
+                warehouseConnectionUuid: 'connection-c',
+            });
+
+            expect(warehouseB).not.toBe(warehouseC);
+        });
+
+        test('an extra-connection key differs from the original key for the same query', () => {
+            const original = QueryHistoryModel.getCacheKey(
+                'project',
+                identifiers,
+            );
+            const extra = QueryHistoryModel.getCacheKey('project', {
+                ...identifiers,
+                warehouseConnectionUuid: 'connection-b',
+            });
+
+            expect(extra).not.toBe(original);
+        });
+
+        test('the extra-connection suffix is appended after every other identifier', () => {
+            expect(
+                QueryHistoryModel.getCacheKey('pins-project-uuid', {
+                    sql: 'SELECT 1',
+                    timezone: 'Europe/London',
+                    userUuid: 'pins-user-uuid',
+                    dataTimezone: 'America/New_York',
+                    externalSourceSalt: 'source-v7',
+                    warehouseConnectionUuid: 'connection-b',
+                }),
+            ).toBe(
+                createHash('sha256')
+                    .update(
+                        'v3.pins-project-uuid.pins-user-uuid.SELECT 1.Europe/London.dtz:America/New_York.source-v7.connection:connection-b',
+                    )
+                    .digest('hex'),
+            );
         });
     });
 

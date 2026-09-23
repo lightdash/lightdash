@@ -86,7 +86,9 @@ export type InsertSavedSqlVersion = Pick<
     | 'config'
     | 'chart_kind'
     | 'created_by_user_uuid'
->;
+> & {
+    warehouse_connection_uuid?: string | null;
+};
 
 export type SavedSqlVersionsTable = Knex.CompositeTableType<
     DbSavedSqlVersion,

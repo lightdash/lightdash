@@ -93,6 +93,7 @@ import { ValidationModel } from './ValidationModel/ValidationModel';
 import { WarehouseAvailableTablesModel } from './WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { WarehouseConnectCodeModel } from './WarehouseConnectCodeModel';
 import { WarehouseConnectionCompileModel } from './WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
+import { WarehouseConnectionIdentityModel } from './WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 import { WarehouseConnectionModel } from './WarehouseConnectionModel/WarehouseConnectionModel';
 import { WarehouseConnectionTablesModel } from './WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 /**
@@ -177,6 +178,7 @@ export type ModelManifest = {
     warehouseConnectionModel: WarehouseConnectionModel;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
     warehouseConnectionTablesModel: WarehouseConnectionTablesModel;
+    warehouseConnectionIdentityModel: WarehouseConnectionIdentityModel;
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
@@ -716,6 +718,16 @@ export class ModelRepository
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     organizationWarehouseCredentialsModel:
                         this.getOrganizationWarehouseCredentialsModel(),
+                }),
+        );
+    }
+
+    public getWarehouseConnectionIdentityModel(): WarehouseConnectionIdentityModel {
+        return this.getModel(
+            'warehouseConnectionIdentityModel',
+            () =>
+                new WarehouseConnectionIdentityModel({
+                    database: this.database,
                 }),
         );
     }

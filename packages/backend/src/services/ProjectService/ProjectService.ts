@@ -12878,6 +12878,7 @@ export class ProjectService extends BaseService {
                         projectUuid,
                         previewProjectUuid,
                         spaces,
+                        null,
                     );
 
                 // Duplicate the upstream project's data apps into the preview

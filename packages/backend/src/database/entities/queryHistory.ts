@@ -60,6 +60,7 @@ export type DbQueryHistoryIn = Omit<
     'query_uuid' | 'created_at' | 'created_by_actor_type'
 > & {
     created_by_actor_type: AuthType;
+    warehouse_connection_uuid?: string | null;
 };
 
 export type DbQueryHistoryUpdate = Partial<

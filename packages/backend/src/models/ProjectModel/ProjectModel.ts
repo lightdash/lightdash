@@ -205,6 +205,10 @@ import {
 } from '../../utils/SlugUtils';
 import { clearProjectExtraRoles } from '../roleSetUtils';
 import {
+    remapRowBinding,
+    type WarehouseConnectionMap,
+} from '../WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
+import {
     WarehouseConnectionRouter,
     type ConnectionBinding,
     type CredentialReadTarget,
@@ -4804,6 +4808,7 @@ export class ProjectModel {
         projectUuid: string,
         previewProjectUuid: string,
         spaces: Pick<SpaceSummary, 'uuid'>[],
+        warehouseConnectionMap: WarehouseConnectionMap | null,
     ): Promise<{
         spaceMapping: { sourceSpaceUuid: string; previewSpaceUuid: string }[];
     }> {
@@ -4958,11 +4963,16 @@ export class ProjectModel {
                 await chunkedInsertReturning<(typeof virtualViews)[number]>(
                     trx,
                     CachedExploreTableName,
-                    virtualViews.map((v) => ({
-                        ...v,
-                        project_uuid: previewProjectUuid,
-                        cached_explore_uuid: undefined,
-                    })),
+                    virtualViews.map((v) =>
+                        remapRowBinding(
+                            {
+                                ...v,
+                                project_uuid: previewProjectUuid,
+                                cached_explore_uuid: undefined,
+                            },
+                            warehouseConnectionMap,
+                        ),
+                    ),
                 );
             }
 
@@ -5041,7 +5051,7 @@ export class ProjectModel {
                     trx,
                     CachedExploreTableName,
                     externalSourceExplores.map((v) => ({
-                        ...v,
+                        ...remapRowBinding(v, warehouseConnectionMap),
                         project_uuid: previewProjectUuid,
                         cached_explore_uuid: undefined,
                         explore: {
@@ -5338,7 +5348,7 @@ export class ProjectModel {
                                   );
                               }
                               const createSavedSQLVersion = {
-                                  ...d,
+                                  ...remapRowBinding(d, warehouseConnectionMap),
                                   saved_sql_version_uuid: undefined,
                                   saved_sql_uuid: newSavedSQLUuid,
                               };
