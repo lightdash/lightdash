@@ -165,7 +165,7 @@ export function addClaudeGenerationAttempt(
 }
 
 export type ClaudeStreamEvent =
-    | { kind: 'session_started'; sessionId: string }
+    | { kind: 'session_started'; sessionId: string; cliVersion: string | null }
     | { kind: 'thinking_started'; turn: number }
     | { kind: 'thinking_snippet'; snippet: string }
     | { kind: 'tool_use'; index: number; description: string }
@@ -488,9 +488,9 @@ export class ClaudeStreamProcessor {
     }
 
     private consumeLine(line: string, events: ClaudeStreamEvent[]): void {
-        const sessionId = parseCodingAgentSessionInit(line);
-        if (sessionId !== null) {
-            events.push({ kind: 'session_started', sessionId });
+        const init = parseCodingAgentSessionInit(line);
+        if (init !== null) {
+            events.push({ kind: 'session_started', ...init });
             return;
         }
 

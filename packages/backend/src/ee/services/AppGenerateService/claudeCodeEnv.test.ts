@@ -193,6 +193,23 @@ describe('buildClaudeCodeEnv', () => {
         expect(env).toEqual({
             ANTHROPIC_API_KEY: 'anthropic-key',
             CLAUDE_CODE_PROMPT_CACHE_TTL: '1h',
+            ENABLE_PROMPT_CACHING_1H: '1',
+        });
+    });
+
+    test('emits a 5m prompt cache TTL without the legacy 1h switch', () => {
+        const env = buildClaudeCodeEnv(
+            {
+                promptCacheTtl: '5m',
+                defaultProvider: 'anthropic',
+                providers: {},
+            },
+            () => 'anthropic-key',
+        );
+
+        expect(env).toEqual({
+            ANTHROPIC_API_KEY: 'anthropic-key',
+            CLAUDE_CODE_PROMPT_CACHE_TTL: '5m',
         });
     });
 
@@ -215,6 +232,7 @@ describe('buildClaudeCodeEnv', () => {
             ANTHROPIC_BASE_URL: 'https://llm-gateway.example/anthropic',
             ANTHROPIC_AUTH_TOKEN: 'gateway-token',
             CLAUDE_CODE_PROMPT_CACHE_TTL: '1h',
+            ENABLE_PROMPT_CACHING_1H: '1',
         });
     });
 
@@ -229,6 +247,7 @@ describe('buildClaudeCodeEnv', () => {
         );
 
         expect(env).not.toHaveProperty('CLAUDE_CODE_PROMPT_CACHE_TTL');
+        expect(env).not.toHaveProperty('ENABLE_PROMPT_CACHING_1H');
         expect(env).toEqual({
             CLAUDE_CODE_USE_BEDROCK: '1',
             AWS_REGION: 'us-east-1',
