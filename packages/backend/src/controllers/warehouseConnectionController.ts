@@ -27,7 +27,11 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from './authentication';
 import { BaseController } from './baseController';
 
 @Route('/api/v1/projects/{projectUuid}/warehouse-connections')
@@ -72,7 +76,11 @@ export class WarehouseConnectionController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('201', 'Created')
     @Post('/')
     @OperationId('createWarehouseConnection')
@@ -91,7 +99,11 @@ export class WarehouseConnectionController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Patch('/{warehouseConnectionUuid}')
     @OperationId('updateWarehouseConnection')
@@ -116,7 +128,11 @@ export class WarehouseConnectionController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Patch('/{warehouseConnectionUuid}/name')
     @OperationId('renameWarehouseConnection')
@@ -141,7 +157,11 @@ export class WarehouseConnectionController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Delete('/{warehouseConnectionUuid}')
     @OperationId('deleteWarehouseConnection')

@@ -364,10 +364,19 @@ export class WarehouseConnectionModel {
             .update({ name, updated_at: this.database.fn.now() });
     }
 
-    private latestSqlChartVersions() {
+    private latestSqlChartVersions(warehouseConnectionUuid: string) {
         return this.database('saved_sql_versions')
             .distinctOn('saved_sql_uuid')
             .select('saved_sql_version_uuid')
+            .whereIn(
+                'saved_sql_uuid',
+                this.database('saved_sql_versions')
+                    .select('saved_sql_uuid')
+                    .where(
+                        'warehouse_connection_uuid',
+                        warehouseConnectionUuid,
+                    ),
+            )
             .orderBy([
                 { column: 'saved_sql_uuid' },
                 { column: 'created_at', order: 'desc' },
@@ -400,7 +409,7 @@ export class WarehouseConnectionModel {
                     )
                     .whereIn(
                         'saved_sql_versions.saved_sql_version_uuid',
-                        this.latestSqlChartVersions(),
+                        this.latestSqlChartVersions(warehouseConnectionUuid),
                     )
                     .orderBy('saved_sql.name')
                     .select<{ name: string; deleted_at: Date | null }[]>(
@@ -430,7 +439,10 @@ export class WarehouseConnectionModel {
             warehouse_connection_uuid: string | null;
         }>('saved_sql_versions')
             .where('warehouse_connection_uuid', warehouseConnectionUuid)
-            .whereNotIn('saved_sql_version_uuid', this.latestSqlChartVersions())
+            .whereNotIn(
+                'saved_sql_version_uuid',
+                this.latestSqlChartVersions(warehouseConnectionUuid),
+            )
             .update({ warehouse_connection_uuid: null });
     }
 
