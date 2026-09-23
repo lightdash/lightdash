@@ -14,7 +14,10 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { AskAiAgentMenuItem } from '../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import DataAppAnalysisPanel from '../features/apps/analysis/DataAppAnalysisPanel';
-import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
+import {
+    UNAVAILABLE_COPY,
+    useDataAppAnalysisAvailability,
+} from '../features/apps/analysis/useDataAppAnalysisAvailability';
 import { useDataAppAnalysisController } from '../features/apps/analysis/useDataAppAnalysisController';
 import AppIframePreview, {
     type AppIframePreviewHandle,
@@ -344,7 +347,15 @@ export default function AppPreviewTest() {
                             analysisToggle={
                                 showAnalysis ? (
                                     <Tooltip
-                                        label="Analyse this view"
+                                        label={
+                                            analysisAvailability.status ===
+                                            'unavailable'
+                                                ? UNAVAILABLE_COPY[
+                                                      analysisAvailability
+                                                          .reason
+                                                  ]
+                                                : 'Analyse this view'
+                                        }
                                         position="bottom"
                                         openDelay={200}
                                     >

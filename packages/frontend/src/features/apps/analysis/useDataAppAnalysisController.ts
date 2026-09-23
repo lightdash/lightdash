@@ -129,6 +129,14 @@ export const useDataAppAnalysisController = ({
         !!rememberedAgent &&
         !rememberedIsUsable &&
         !agentsQuery.isInitialLoading;
+    // No agent the viewer can use (none pinned, or no Ask AI access): detect
+    // still runs, investigations are hidden with an explanation.
+    const agentAccess: 'loading' | 'none' | 'available' =
+        agentsQuery.isInitialLoading
+            ? 'loading'
+            : agents.length === 0
+              ? 'none'
+              : 'available';
     const selectAgent = useCallback(
         (agentUuid: string) => {
             if (!appUuid) return;
@@ -263,6 +271,7 @@ export const useDataAppAnalysisController = ({
         ...analysis,
         agents,
         agentsLoading: agentsQuery.isInitialLoading,
+        agentAccess,
         selectedAgentUuid,
         rememberedAgentMissing,
         selectAgent,
