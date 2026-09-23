@@ -2057,6 +2057,7 @@ export class ProjectService extends BaseService {
         ProjectService.assertDatabaseListingSupported(data.warehouseConnection);
         ProjectService.assertPersistableSnowflakeAuthentication(
             data.warehouseConnection,
+            undefined,
         );
         this.assertCanUseOrganizationWarehouseCredentials(
             account,
