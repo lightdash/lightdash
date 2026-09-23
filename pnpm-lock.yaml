@@ -1024,8 +1024,8 @@ importers:
         specifier: 2.29.4
         version: 2.29.4
       moment-timezone:
-        specifier: 0.5.45
-        version: 0.5.45
+        specifier: 0.5.48
+        version: 0.5.48
       numfmt:
         specifier: 3.2.1
         version: 3.2.1
@@ -12424,8 +12424,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  moment-timezone@0.5.45:
-    resolution: {integrity: sha512-HIWmqA86KcmCAhnMAN0wuDOARV/525R2+lOLotuGFzn4HO+FH+/645z2wx0Dt3iDv6/p61SIvKnDstISainhLQ==}
+  moment-timezone@0.5.48:
+    resolution: {integrity: sha512-f22b8LV1gbTO2ms2j2z13MuPogNoh5UzxL3nzNAYKGraILnbGc9NEE6dyiiiLv46DGRb8A4kg8UKWLjPthxBHw==}
 
   moment@2.29.4:
     resolution: {integrity: sha512-5LC9SOxjSc2HF6vO2CyuTDNivEdoz2IvyJJGj6X8DJ0eFyfszE0QiEd+iXmBvUP3WHxSjFH/vIsA0EN00cgr8w==}
@@ -29742,7 +29742,7 @@ snapshots:
       requirejs: 2.3.8
       requirejs-config-file: 4.0.0
 
-  moment-timezone@0.5.45:
+  moment-timezone@0.5.48:
     dependencies:
       moment: 2.29.4
 
@@ -32572,7 +32572,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       mime-types: 2.1.35
       moment: 2.29.4
-      moment-timezone: 0.5.45
+      moment-timezone: 0.5.48
       oauth4webapi: 3.6.1
       open: 7.4.2
       simple-lru-cache: 0.0.2

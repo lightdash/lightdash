@@ -3049,6 +3049,20 @@ describe('Formatting', () => {
         });
 
         describe('formatTimestamp', () => {
+            test.each(['2026-01-15', '2026-07-15'])(
+                'formats Coyhaique at UTC-3 on %s',
+                (date) => {
+                    expect(
+                        formatTimestamp(
+                            `${date}T12:00:00.000Z`,
+                            TimeFrames.SECOND,
+                            false,
+                            'America/Coyhaique',
+                        ),
+                    ).toBe(`${date}, 09:00:00 (-03:00)`);
+                },
+            );
+
             test('formats timestamp in project timezone', () => {
                 const result = formatTimestamp(
                     utcTimestamp,

@@ -1,3 +1,4 @@
+import moment from 'moment-timezone';
 import { getTimezoneLabel, isValidTimezone } from '../utils/scheduler';
 import { isTimeZone, TimeZone, toTimezoneSetting } from './timezone';
 
@@ -31,6 +32,13 @@ describe('Timezone selections', () => {
             (timezone) => !isValidTimezone(timezone),
         );
         expect(invalidZones).toEqual([]);
+    });
+
+    test('only offers zones supported by date formatting and filters', () => {
+        const unsupportedZones = Object.values(TimeZone).filter(
+            (timezone) => moment.tz.zone(timezone) === null,
+        );
+        expect(unsupportedZones).toEqual([]);
     });
 
     test.each([

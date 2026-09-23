@@ -89,7 +89,7 @@
     "liquidjs": "10.27.2",
     "lodash": "4.18.1",
     "moment": "2.29.4",
-    "moment-timezone": "0.5.45",
+    "moment-timezone": "0.5.48",
     "numfmt": "3.2.1",
     "pegjs": "0.10.0",
     "sanitize-html": "2.17.7",
