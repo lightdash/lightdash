@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     ChartType,
     DashboardTileTypes,
+    NotImplementedError,
     OrganizationMemberRole,
     PossibleAbilities,
     PromotionAction,
@@ -49,6 +50,7 @@ const projectModel = {
     getUpstreamDashboardUuidFromPreview: vi.fn(
         async (): Promise<string | null> => null,
     ),
+    requireSingleConnectionRoute: vi.fn(async () => 'single'),
 };
 
 const chartTransaction = {} as Knex.Transaction;
@@ -1852,6 +1854,76 @@ describe('PromoteService promoting and mutating changes', () => {
         ).rejects.toThrow(
             /This dashboard's project does not have an upstream project/,
         );
+    });
+
+    describe('into an upstream that routes multi', () => {
+        const refuseMultiRoute = () =>
+            projectModel.requireSingleConnectionRoute.mockRejectedValueOnce(
+                new NotImplementedError(
+                    'Multiple connections are not available',
+                ),
+            );
+        const expectNoUpstreamWrites = () => {
+            expect(savedSqlModel.create).not.toHaveBeenCalled();
+            expect(savedSqlModel.update).not.toHaveBeenCalled();
+            expect(spaceModel.createSpace).not.toHaveBeenCalled();
+            expect(spaceModel.createSpaceWithAncestors).not.toHaveBeenCalled();
+            expect(dashboardModel.create).not.toHaveBeenCalled();
+            expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+            expect(savedChartModel.create).not.toHaveBeenCalled();
+        };
+
+        test('promoteSqlChart refuses before any write', async () => {
+            refuseMultiRoute();
+            (spaceModel.find as import('vitest').Mock).mockImplementation(
+                async () => [],
+            );
+
+            const error = await service
+                .promoteSqlChart(
+                    userWithPromotePermissions,
+                    promotedSqlChart.project.projectUuid,
+                    promotedSqlChart.savedSqlUuid,
+                )
+                .then(
+                    () => null,
+                    (e: unknown) => e,
+                );
+
+            expectNoUpstreamWrites();
+            expect(error).toBeInstanceOf(NotImplementedError);
+            expect(
+                projectModel.requireSingleConnectionRoute,
+            ).toHaveBeenCalledWith(existingUpstreamDashboard.projectUuid, {
+                kind: 'original',
+            });
+        });
+
+        test('promoteDashboard refuses before any write', async () => {
+            refuseMultiRoute();
+            (spaceModel.find as import('vitest').Mock).mockImplementation(
+                async () => [],
+            );
+
+            const error = await service
+                .promoteDashboard(
+                    userWithPromotePermissions,
+                    promotedDashboardWithSqlTile.dashboard.uuid,
+                    { projectUuid: promotedDashboardWithSqlTile.projectUuid },
+                )
+                .then(
+                    () => null,
+                    (e: unknown) => e,
+                );
+
+            expectNoUpstreamWrites();
+            expect(error).toBeInstanceOf(NotImplementedError);
+            expect(
+                projectModel.requireSingleConnectionRoute,
+            ).toHaveBeenCalledWith(existingUpstreamDashboard.projectUuid, {
+                kind: 'original',
+            });
+        });
     });
 });
 

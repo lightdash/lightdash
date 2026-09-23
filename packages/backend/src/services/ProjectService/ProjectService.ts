@@ -9173,6 +9173,10 @@ export class ProjectService extends BaseService {
             project.upstreamProjectUuid
         ) {
             const { upstreamProjectUuid } = project;
+            await this.projectModel.requireSingleConnectionRoute(
+                upstreamProjectUuid,
+                { kind: 'original' },
+            );
             const [
                 upstreamExplores,
                 upstreamProject,

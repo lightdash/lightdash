@@ -2,6 +2,7 @@ import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     AnyType,
     ForbiddenError,
+    NotImplementedError,
     OrganizationMemberRole,
     PossibleAbilities,
     SessionUser,
@@ -66,6 +67,8 @@ const accessContext = (projectUuid: string = PROJECT_UUID) => ({
     admins: [],
 });
 
+const requireSingleConnectionRoute = vi.fn(async () => 'single');
+
 const buildService = (
     savedSqlModel: AnyType,
     resolveAccessBatch: AnyType = vi.fn(
@@ -88,6 +91,7 @@ const buildService = (
                 projectUuid: PROJECT_UUID,
                 organizationUuid: ORG_UUID,
             })),
+            requireSingleConnectionRoute,
         } as unknown as ProjectModel,
         savedChartModel: {} as unknown as SavedChartModel,
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
@@ -353,5 +357,72 @@ describe('CoderService.upsertSqlChart - permissions', () => {
                 ]);
             },
         );
+    });
+});
+
+describe('CoderService.upsertSqlChart - connection route', () => {
+    afterEach(() => vi.clearAllMocks());
+
+    const user = makeUser([
+        { subject: 'ContentAsCode', action: 'create' },
+        { subject: 'CustomSql', action: 'manage' },
+        {
+            subject: 'SavedChart',
+            action: ['create', 'update'],
+            conditions: { projectUuid: PROJECT_UUID },
+        },
+    ]);
+
+    it.each([
+        { upload: 'create', rows: [] },
+        { upload: 'update', rows: [existingRow(SPACE_UUID)] },
+    ])(
+        'refuses to $upload a SQL chart on a project that routes multi',
+        async ({ rows }) => {
+            requireSingleConnectionRoute.mockRejectedValueOnce(
+                new NotImplementedError(
+                    'Multiple connections are not available',
+                ),
+            );
+            const savedSqlModel = {
+                find: vi.fn(async () => rows),
+                create: vi.fn(async () => ({ savedSqlUuid: 'new-uuid' })),
+                update: vi.fn(async () => ({ savedSqlUuid: 'existing-uuid' })),
+            };
+            const service = buildService(savedSqlModel);
+            stubSpace(service);
+
+            const error = await upsert(service, user).then(
+                () => null,
+                (e: unknown) => e,
+            );
+
+            expect(savedSqlModel.create).not.toHaveBeenCalled();
+            expect(savedSqlModel.update).not.toHaveBeenCalled();
+            expect(service.getOrCreateSpace).not.toHaveBeenCalled();
+            expect(error).toBeInstanceOf(NotImplementedError);
+            expect(requireSingleConnectionRoute).toHaveBeenCalledWith(
+                PROJECT_UUID,
+                { kind: 'original' },
+            );
+        },
+    );
+
+    it('checks permissions before the route', async () => {
+        const savedSqlModel = {
+            find: vi.fn(async () => []),
+            create: vi.fn(),
+            update: vi.fn(),
+        };
+        const service = buildService(savedSqlModel);
+        stubSpace(service);
+
+        await expect(
+            upsert(
+                service,
+                makeUser([{ subject: 'ContentAsCode', action: 'create' }]),
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(requireSingleConnectionRoute).not.toHaveBeenCalled();
     });
 });

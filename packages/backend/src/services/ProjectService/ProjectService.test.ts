@@ -3294,6 +3294,42 @@ describe('ProjectService', () => {
 
             buildAdapterSpy.mockRestore();
         });
+
+        test('refuses to copy explores from an upstream that routes multi', async () => {
+            const guard = vi
+                .spyOn(projectModel, 'requireSingleConnectionRoute')
+                .mockRejectedValueOnce(
+                    new NotImplementedError(
+                        'Multiple connections are not available',
+                    ),
+                );
+            (projectModel.get as import('vitest').Mock).mockResolvedValueOnce(
+                nonePreviewProject,
+            );
+            const consumed = vi.fn();
+
+            try {
+                await expect(
+                    (
+                        service as unknown as {
+                            refreshTablesAndProjectConfig: RefreshForTest;
+                        }
+                    ).refreshTablesAndProjectConfig(
+                        { userUuid: user.userUuid },
+                        previewProjectUuid,
+                        RequestMethod.WEB_APP,
+                        undefined,
+                        consumed,
+                    ),
+                ).rejects.toThrow('Multiple connections are not available');
+                expect(guard).toHaveBeenCalledWith(upstreamProjectUuid, {
+                    kind: 'original',
+                });
+                expect(consumed).not.toHaveBeenCalled();
+            } finally {
+                guard.mockRestore();
+            }
+        });
     });
 
     test('should run sql query', async () => {
