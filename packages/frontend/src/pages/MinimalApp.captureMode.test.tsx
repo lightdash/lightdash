@@ -19,6 +19,8 @@ type IframePreviewProps = {
     invalidateCache?: boolean;
     queryContextOverride?: string;
     captureRender?: boolean;
+    insights?: unknown;
+    onInsightAction?: unknown;
 };
 
 const mocks = vi.hoisted(() => ({
@@ -206,6 +208,21 @@ describe('MinimalApp capture modes', () => {
             }),
         );
     });
+
+    // v1 analysis is for authenticated in-product viewing only: a capture
+    // render (creator session) never wires the analysis controller, so the
+    // bridge tells the app AI is unavailable and no analysis request is made.
+    it.each(['delivery', 'preview'])(
+        'never wires AI analysis into a %s capture render',
+        (mode) => {
+            mocks.searchParams.set('captureMode', mode);
+            renderWithProviders(<MinimalApp />);
+
+            const props = latestIframeProps();
+            expect(props.insights).toBeUndefined();
+            expect(props.onInsightAction).toBeUndefined();
+        },
+    );
 
     it('passes the accumulator without stamps in preview mode, but still sets captureRender', () => {
         mocks.searchParams.set('captureMode', 'preview');

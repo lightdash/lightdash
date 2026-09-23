@@ -3,6 +3,7 @@ import {
     type DataAppAnomalySeverity,
 } from '@lightdash/common';
 import {
+    Anchor,
     Badge,
     Button,
     Drawer,
@@ -18,14 +19,21 @@ import {
 import { IconSparkles } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
 import { type FC } from 'react';
+import { Link } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../../components/common/InlineErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
+import useApp from '../../../providers/App/useApp';
 import { rehypeRemoveHeaderLinks } from '../../../utils/markdownUtils';
 import classes from './DataAppAnalysisPanel.module.css';
 import { type InvestigationState } from './useDataAppAnalysis';
-import { type DataAppAnalysisAvailability } from './useDataAppAnalysisAvailability';
+import {
+    UNAVAILABLE_COPY,
+    UNAVAILABLE_SETTINGS_PATH,
+    type DataAppAnalysisAvailability,
+    type DataAppAnalysisUnavailableReason,
+} from './useDataAppAnalysisAvailability';
 import { type DataAppAnalysisController } from './useDataAppAnalysisController';
 
 const PANEL_WIDTH = 440;
@@ -44,19 +52,41 @@ const SEVERITY_LABEL: Record<DataAppAnomalySeverity, string> = {
     info: 'Info',
 };
 
-const UNAVAILABLE_COPY: Record<
-    Extract<DataAppAnalysisAvailability, { status: 'unavailable' }>['reason'],
-    string
-> = {
-    not_rolled_out: 'AI analysis is not available for this organization yet.',
-    copilot_off: 'AI is not enabled for this organization.',
-    org_setting_off:
-        'AI analysis in data apps is turned off for this organization. An admin can turn it on under Settings → Data apps → AI analysis.',
+const NO_AGENT_COPY =
+    "You don't have access to an AI agent in this project, so notable data points are listed but can't be investigated.";
+
+const Unavailable: FC<{ reason: DataAppAnalysisUnavailableReason }> = ({
+    reason,
+}) => {
+    const { user } = useApp();
+    const settingsPath = UNAVAILABLE_SETTINGS_PATH[reason];
+    const canManage = user.data?.ability.can('manage', 'Organization') ?? false;
+    return (
+        <Paper variant="dotted" p="md">
+            <Stack gap="xs">
+                <Text fz="sm" c="dimmed">
+                    {UNAVAILABLE_COPY[reason]}
+                </Text>
+                {settingsPath &&
+                    (canManage ? (
+                        <Anchor component={Link} to={settingsPath} fz="sm">
+                            Turn it on in settings
+                        </Anchor>
+                    ) : (
+                        <Text fz="sm" c="dimmed">
+                            Ask an organization admin to turn it on.
+                        </Text>
+                    ))}
+            </Stack>
+        </Paper>
+    );
 };
 
 const AnomalyCard: FC<{
     anomaly: DataAppAnomaly;
     investigation: InvestigationState;
+    /** False when the viewer has no agent at all: the button is not offered. */
+    investigable: boolean;
     canInvestigate: boolean;
     canContinue: boolean;
     highlightable: boolean;
@@ -66,6 +96,7 @@ const AnomalyCard: FC<{
 }> = ({
     anomaly,
     investigation,
+    investigable,
     canInvestigate,
     canContinue,
     highlightable,
@@ -86,7 +117,7 @@ const AnomalyCard: FC<{
                 <Badge color={SEVERITY_COLOR[anomaly.severity]}>
                     {SEVERITY_LABEL[anomaly.severity]}
                 </Badge>
-                {investigation.status === 'idle' && (
+                {investigable && investigation.status === 'idle' && (
                     <Tooltip
                         label="Pick an agent to investigate"
                         disabled={canInvestigate}
@@ -168,6 +199,7 @@ const DataAppAnalysisPanel: FC<Props> = ({
         analyse,
         agents,
         agentsLoading,
+        agentAccess,
         selectedAgentUuid,
         rememberedAgentMissing,
         selectAgent,
@@ -209,11 +241,7 @@ const DataAppAnalysisPanel: FC<Props> = ({
                     <ScrollArea className={classes.scroll}>
                         <Stack gap="md" p="md">
                             {availability.status === 'unavailable' && (
-                                <Paper variant="dotted" p="md">
-                                    <Text fz="sm" c="dimmed">
-                                        {UNAVAILABLE_COPY[availability.reason]}
-                                    </Text>
-                                </Paper>
+                                <Unavailable reason={availability.reason} />
                             )}
                             {availability.status === 'available' && (
                                 <>
@@ -222,33 +250,32 @@ const DataAppAnalysisPanel: FC<Props> = ({
                                         align="flex-end"
                                         wrap="nowrap"
                                     >
-                                        <Select
-                                            size="xs"
-                                            flex={1}
-                                            label="Agent for investigations"
-                                            placeholder={
-                                                agents.length === 0
-                                                    ? 'No agents available'
-                                                    : 'Pick an agent'
-                                            }
-                                            data={agents.map((a) => ({
-                                                value: a.uuid,
-                                                label: a.name,
-                                            }))}
-                                            value={selectedAgentUuid}
-                                            onChange={(value) =>
-                                                value && selectAgent(value)
-                                            }
-                                            error={
-                                                rememberedAgentMissing
-                                                    ? 'The agent you picked is no longer available'
-                                                    : undefined
-                                            }
-                                            disabled={
-                                                agents.length === 0 ||
-                                                agentsLoading
-                                            }
-                                        />
+                                        {agentAccess === 'none' ? (
+                                            <Text flex={1} fz="xs" c="dimmed">
+                                                {NO_AGENT_COPY}
+                                            </Text>
+                                        ) : (
+                                            <Select
+                                                size="xs"
+                                                flex={1}
+                                                label="Agent for investigations"
+                                                placeholder="Pick an agent"
+                                                data={agents.map((a) => ({
+                                                    value: a.uuid,
+                                                    label: a.name,
+                                                }))}
+                                                value={selectedAgentUuid}
+                                                onChange={(value) =>
+                                                    value && selectAgent(value)
+                                                }
+                                                error={
+                                                    rememberedAgentMissing
+                                                        ? 'The agent you picked is no longer available'
+                                                        : undefined
+                                                }
+                                                disabled={agentsLoading}
+                                            />
+                                        )}
                                         <Button
                                             size="xs"
                                             variant={
@@ -333,6 +360,10 @@ const DataAppAnalysisPanel: FC<Props> = ({
                                                                     ] ?? {
                                                                         status: 'idle',
                                                                     }
+                                                                }
+                                                                investigable={
+                                                                    agentAccess !==
+                                                                    'none'
                                                                 }
                                                                 canInvestigate={
                                                                     selectedAgentUuid !==

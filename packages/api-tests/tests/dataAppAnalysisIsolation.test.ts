@@ -335,16 +335,32 @@ describe('Data app analysis isolation', () => {
         const [, token] = embedUrl.body.results.url.split('#');
         expect(token).toBeTruthy();
 
-        const resp = await new ApiClient().post<ErrorBody>(
-            `${analysisUrl()}/detect`,
-            { sources: [{ queryUuid: viewerAQueryUuid, label: null }] },
-            {
-                headers: { 'Lightdash-Embed-Token': token },
-                failOnStatusCode: false,
-            },
-        );
-        expect(resp.status).toBe(403);
-        expect(resp.body.error.data).toEqual({ code: 'unsupported_context' });
+        const sources = [{ queryUuid: viewerAQueryUuid, label: null }];
+        const embed = new ApiClient();
+        const options = {
+            headers: { 'Lightdash-Embed-Token': token },
+            failOnStatusCode: false,
+        };
+        // Every operation, including the model-free lookup and the
+        // app-callable prompt route, answers with the same stable code.
+        for (const [path, body] of [
+            ['lookup', { sources }],
+            ['detect', { sources }],
+            ['prompt', { prompt: 'why', sources }],
+        ] as const) {
+            const resp = await embed.post<ErrorBody>(
+                `${analysisUrl()}/${path}`,
+                body,
+                options,
+            );
+            expect({ path, status: resp.status }).toEqual({
+                path,
+                status: 403,
+            });
+            expect(resp.body.error.data).toEqual({
+                code: 'unsupported_context',
+            });
+        }
     });
 
     it('fails closed with org_setting_disabled once the org turns analysis off', async () => {

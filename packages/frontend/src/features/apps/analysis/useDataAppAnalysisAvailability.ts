@@ -2,6 +2,11 @@ import { FeatureFlags } from '@lightdash/common';
 import { useAiOrganizationSettings } from '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 
+export type DataAppAnalysisUnavailableReason =
+    | 'not_rolled_out'
+    | 'org_setting_off'
+    | 'copilot_off';
+
 export type DataAppAnalysisAvailability =
     | { status: 'loading' }
     | {
@@ -12,8 +17,28 @@ export type DataAppAnalysisAvailability =
       }
     | {
           status: 'unavailable';
-          reason: 'not_rolled_out' | 'org_setting_off' | 'copilot_off';
+          reason: DataAppAnalysisUnavailableReason;
       };
+
+export const UNAVAILABLE_COPY: Record<
+    DataAppAnalysisUnavailableReason,
+    string
+> = {
+    not_rolled_out: 'AI analysis is not available for this organization yet.',
+    copilot_off: 'AI is not enabled for this organization.',
+    org_setting_off:
+        'AI analysis in data apps is turned off for this organization.',
+};
+
+/** Settings page an org admin turns the blocker on at; null when nothing in-product does. */
+export const UNAVAILABLE_SETTINGS_PATH: Record<
+    DataAppAnalysisUnavailableReason,
+    string | null
+> = {
+    not_rolled_out: null,
+    copilot_off: '/generalSettings/ai/general',
+    org_setting_off: '/generalSettings/dataApps/aiAnalysis',
+};
 
 /**
  * Mirrors the backend gates so the entry point can explain a disabled state

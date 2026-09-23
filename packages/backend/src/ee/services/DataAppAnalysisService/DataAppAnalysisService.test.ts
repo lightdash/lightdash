@@ -416,6 +416,108 @@ describe('DataAppAnalysisService.detect', () => {
     });
 });
 
+// v1 serves authenticated in-product viewers only. Every other context gets
+// the same stable code from every operation, before any model or agent runs.
+describe('DataAppAnalysisService unsupported contexts', () => {
+    const jwt = () => buildAccount({ accountType: 'jwt' });
+    const modelCalls = (aiService: {
+        detectDataAppAnomalies: ReturnType<typeof vi.fn>;
+        answerDataAppPrompt: ReturnType<typeof vi.fn>;
+    }) =>
+        aiService.detectDataAppAnomalies.mock.calls.length +
+        aiService.answerDataAppPrompt.mock.calls.length;
+
+    it.each([
+        [
+            'lookup',
+            (service: DataAppAnalysisService) =>
+                service.lookup(jwt(), 'proj-1', 'app-1', request),
+        ],
+        [
+            'detect',
+            (service: DataAppAnalysisService) =>
+                service.detect(jwt(), 'proj-1', 'app-1', request),
+        ],
+        [
+            'prompt',
+            (service: DataAppAnalysisService) =>
+                service.prompt(jwt(), 'proj-1', 'app-1', {
+                    prompt: 'why',
+                    sources: request.sources,
+                }),
+        ],
+        [
+            'investigate',
+            (service: DataAppAnalysisService) =>
+                service.investigate(jwt(), 'proj-1', 'app-1', 'analysis-1', {
+                    anomalyId: 'anom-1',
+                    agentUuid: 'agent-1',
+                }),
+        ],
+        [
+            'getAnalysis',
+            (service: DataAppAnalysisService) =>
+                service.getAnalysis(jwt(), 'proj-1', 'app-1', 'analysis-1'),
+        ],
+    ])(
+        'refuses an embed JWT account on %s before touching anything',
+        async (_op, call) => {
+            const { service, aiService, asyncQueryService, appModel } =
+                buildService();
+            await expect(call(service)).rejects.toMatchObject({
+                statusCode: 403,
+                data: { code: 'unsupported_context' },
+            });
+            expect(modelCalls(aiService)).toBe(0);
+            expect(
+                asyncQueryService.getAsyncQueryHistory,
+            ).not.toHaveBeenCalled();
+            expect(appModel.getApp).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([
+        [
+            'lookup',
+            (service: DataAppAnalysisService) =>
+                service.lookup(buildAccount(), 'proj-1', 'app-1', request),
+        ],
+        [
+            'prompt',
+            (service: DataAppAnalysisService) =>
+                service.prompt(buildAccount(), 'proj-1', 'app-1', {
+                    prompt: 'why',
+                    sources: request.sources,
+                }),
+        ],
+    ])(
+        'refuses a scheduled-delivery source on %s without calling the model',
+        async (_op, call) => {
+            const { service, aiService } = buildService({
+                queryContext: QueryExecutionContext.SCHEDULED_DELIVERY,
+            });
+            await expect(call(service)).rejects.toMatchObject({
+                statusCode: 403,
+                data: { code: 'unsupported_context' },
+            });
+            expect(modelCalls(aiService)).toBe(0);
+        },
+    );
+
+    it('keeps serving detect when the viewer has no usable agent', async () => {
+        // Agent access gates investigate only; the summary still runs.
+        const { service, aiService } = buildService();
+        const result = await service.detect(
+            buildAccount(),
+            'proj-1',
+            'app-1',
+            request,
+        );
+        expect(result.anomalies).toHaveLength(1);
+        expect(aiService.detectDataAppAnomalies).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('DataAppAnalysisService reuse', () => {
     beforeEach(() => {
         vi.mocked(assertCanViewApp).mockResolvedValue({
