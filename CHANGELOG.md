@@ -1,3 +1,10 @@
+## [2.305.1](https://github.com/lightdash/lightdash/compare/2.305.0...2.305.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **data-apps:** focus build replies on UI and behavior ([#29777](https://github.com/lightdash/lightdash/issues/29777)) ([bd06e32](https://github.com/lightdash/lightdash/commit/bd06e32c8af374fe418fe8e15a66acb2f569c84b))
+
 # [2.305.0](https://github.com/lightdash/lightdash/compare/2.304.0...2.305.0) (2026-09-23)
 
 
