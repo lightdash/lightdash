@@ -1,3 +1,10 @@
+# [2.313.0](https://github.com/lightdash/lightdash/compare/2.312.1...2.313.0) (2026-09-23)
+
+
+### Features
+
+* **chart-studio:** preview data picker for tables and saved charts ([#29816](https://github.com/lightdash/lightdash/issues/29816)) ([9af1dd3](https://github.com/lightdash/lightdash/commit/9af1dd31c72c1277a4088417cef35a9ec656b31d))
+
 ## [2.312.1](https://github.com/lightdash/lightdash/compare/2.312.0...2.312.1) (2026-09-23)
 
 
